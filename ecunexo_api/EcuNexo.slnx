@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EcuNexo.Api/EcuNexo.Api.csproj" />
+    <Project Path="src/EcuNexo.Business/EcuNexo.Business.csproj" />
+    <Project Path="src/EcuNexo.Data/EcuNexo.Data.csproj" />
+  </Folder>
+  <Folder Name="/src/EcuNexo.Core/">
+    <Project Path="src/EcuNexo.Core/EcuNexo.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EcuNexo.Core.UnitTests/EcuNexo.Core.UnitTests.csproj" />
+    <Project Path="tests/EcuNexo.Business.UnitTests/EcuNexo.Business.UnitTests.csproj" />
+  </Folder>
+</Solution>

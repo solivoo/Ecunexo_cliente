@@ -1,0 +1,44 @@
+.welcome-onboarding__error {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  color: #fecaca;
+  font-size: 0.875rem;
+}
+
+.welcome-onboarding__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.welcome-onboarding__link--footer {
+  display: inline-flex;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--c-primary-container, #93c5fd);
+}
+
+.welcome-onboarding__footer-muted {
+  opacity: 0.85;
+}
+
+.welcome-onboarding__footer-action {
+  font-weight: 600;
+}
+
+.welcome-onboarding__file-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.welcome-onboarding__details--disclosure {
+  margin: 0;
+}
+
+.welcome-onboarding__details--disclosure + .welcome-onboarding__details--disclosure {
+  margin-top: 0.65rem;
+}

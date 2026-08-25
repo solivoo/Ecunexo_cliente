@@ -1,0 +1,453 @@
+/**
+ * Emitir factura — formulario unificado (emisión + cliente + detalle).
+ */
+.factura-emitir {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.factura-emitir__form {
+  min-width: 0;
+}
+
+.factura-emitir__card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.factura-emitir__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.factura-emitir__meta-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.factura-emitir__meta-block + .factura-emitir__meta-block {
+  padding-top: 1.15rem;
+  border-top: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+}
+
+.factura-emitir__meta-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.factura-emitir__meta-label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--shell-muted, var(--glb-muted, #667085));
+}
+
+/* Metadato de numeración: texto, no caja (no compite con inputs) */
+.factura-emitir__meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0;
+  margin: 0;
+}
+
+.factura-emitir__meta-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0 0.65rem;
+  border-left: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+  font-size: 0.8125rem;
+  line-height: 1.2;
+}
+
+.factura-emitir__meta-chip:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.factura-emitir__meta-chip dt {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--shell-muted, var(--glb-muted, #667085));
+}
+
+.factura-emitir__meta-chip dd {
+  margin: 0;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--shell-fg, inherit);
+}
+
+.factura-emitir__meta-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--shell-muted, var(--glb-muted, #667085));
+}
+
+.factura-emitir__meta-hint code {
+  font-size: 0.72rem;
+}
+
+/*
+ * Grilla uniforme de 4 columnas (desktop).
+ * Filas cliente quedan alineadas verticalmente:
+ *   [Tipo] [ID] [Razón] [Pago]
+ *   [Dirección ——] [Correo] [Tel]
+ */
+.factura-emitir__meta-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.factura-emitir__cell {
+  min-width: 0;
+}
+
+.factura-emitir__cell > * {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .factura-emitir__meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .factura-emitir__meta-grid--issuer .factura-emitir__cell--ruc {
+    grid-column: 1;
+  }
+
+  .factura-emitir__meta-grid--issuer .factura-emitir__cell--fecha {
+    grid-column: 2;
+  }
+
+  .factura-emitir__meta-grid--client .factura-emitir__cell--addr {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 960px) {
+  .factura-emitir__meta-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .factura-emitir__meta-grid--issuer .factura-emitir__cell--ruc {
+    grid-column: span 3;
+  }
+
+  .factura-emitir__meta-grid--issuer .factura-emitir__cell--fecha {
+    grid-column: span 1;
+  }
+
+  .factura-emitir__meta-grid--client .factura-emitir__cell--id-type,
+  .factura-emitir__meta-grid--client .factura-emitir__cell--id,
+  .factura-emitir__meta-grid--client .factura-emitir__cell--name,
+  .factura-emitir__meta-grid--client .factura-emitir__cell--payment,
+  .factura-emitir__meta-grid--client .factura-emitir__cell--email,
+  .factura-emitir__meta-grid--client .factura-emitir__cell--phone {
+    grid-column: span 1;
+  }
+
+  .factura-emitir__meta-grid--client .factura-emitir__cell--addr {
+    grid-column: span 2;
+  }
+}
+
+.factura-emitir__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+}
+
+.factura-emitir__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+
+.factura-emitir__section-head .app-shell__section-title {
+  margin: 0;
+}
+
+.factura-emitir__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+  border-radius: 10px;
+  background: var(--shell-surface, #fff);
+}
+
+.factura-emitir__table {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.factura-emitir__table thead th {
+  padding: 0.65rem 0.55rem;
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--shell-muted, var(--glb-muted, #667085));
+  background: color-mix(
+    in srgb,
+    var(--shell-primary, #2563eb) 10%,
+    var(--shell-surface, #fff)
+  );
+  border-bottom: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+  white-space: nowrap;
+}
+
+.factura-emitir__table tbody td {
+  padding: 0.45rem 0.4rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+  color: var(--shell-text, var(--glb-text, #101828));
+}
+
+.factura-emitir__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.factura-emitir__table tbody tr:hover td {
+  background: color-mix(in srgb, var(--shell-primary, #2563eb) 4%, transparent);
+}
+
+.factura-emitir__col-qty,
+.factura-emitir__col-price,
+.factura-emitir__col-disc {
+  width: 6.75rem;
+  min-width: 6rem;
+  vertical-align: middle;
+}
+
+.factura-emitir__col-iva {
+  width: 5rem;
+  min-width: 4.5rem;
+}
+
+.factura-emitir__col-net {
+  width: 5.5rem;
+  min-width: 5rem;
+  text-align: right;
+}
+
+.factura-emitir__cell-number {
+  width: 100%;
+}
+
+.factura-emitir__cell-number .glb-textbox__input {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.factura-emitir__cell-readonly {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.factura-emitir__col-sku {
+  width: 8rem;
+  min-width: 7rem;
+}
+
+.factura-emitir__col-actions {
+  width: 5.5rem;
+  text-align: center;
+}
+
+.factura-emitir__cell-control {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+  border-radius: 6px;
+  background: var(--shell-surface, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.factura-emitir__cell-control:focus {
+  outline: 2px solid color-mix(in srgb, var(--shell-primary, #2563eb) 45%, transparent);
+  outline-offset: 1px;
+  border-color: var(--shell-primary, #2563eb);
+}
+
+.factura-emitir__cell-control:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.factura-emitir__cell-control--num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.factura-emitir__row-quitar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.85rem;
+  min-width: 1.85rem;
+  padding: 0.2rem;
+  border: 1px solid color-mix(in srgb, #b42318 55%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: #b42318;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.factura-emitir__row-quitar:hover:not(:disabled) {
+  background: color-mix(in srgb, #b42318 8%, transparent);
+}
+
+.factura-emitir__row-quitar:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.factura-emitir__table-empty {
+  padding: 1.25rem 1rem !important;
+  text-align: center;
+  color: var(--shell-muted, var(--glb-muted, #667085));
+}
+
+.factura-emitir__detail-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.35rem;
+}
+
+.factura-emitir__summary-box {
+  min-width: min(100%, 16rem);
+  margin-left: auto;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+  background: color-mix(
+    in srgb,
+    var(--shell-primary, #2563eb) 8%,
+    var(--shell-surface, #fff)
+  );
+}
+
+.factura-emitir__summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.28rem 0;
+  font-size: 0.8125rem;
+  color: var(--shell-muted, var(--glb-muted, #667085));
+}
+
+.factura-emitir__summary-row strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  color: var(--shell-text, var(--glb-text, #101828));
+}
+
+.factura-emitir__summary-row--total {
+  margin-top: 0.35rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+  font-size: 0.95rem;
+  color: var(--shell-text, var(--glb-text, #101828));
+}
+
+.factura-emitir__summary-row--total strong {
+  font-weight: 750;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.factura-emitir__actions {
+  margin-top: 0;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-end;
+}
+
+.factura-emitir__mode-banner {
+  padding: 0.9rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid var(--shell-border, #d0d5dd);
+}
+
+.factura-emitir__mode-banner--dev {
+  background: color-mix(in srgb, #b54708 10%, var(--shell-surface, #fff));
+  border-color: color-mix(in srgb, #b54708 40%, transparent);
+}
+
+.factura-emitir__mode-banner--prod {
+  background: color-mix(in srgb, #b42318 8%, var(--shell-surface, #fff));
+  border-color: color-mix(in srgb, #b42318 35%, transparent);
+}
+
+.factura-emitir__mode-banner-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.factura-emitir__mode-banner-text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--shell-text, #101828);
+}
+
+.factura-emitir__mode-banner-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.75rem;
+  color: var(--shell-muted, #667085);
+}
+

@@ -1,0 +1,99 @@
+.tax-rules-catalog__kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.tax-rule-kind__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.tax-rule-kind__code {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  font-family: ui-monospace, monospace;
+  color: var(--shell-muted, #667085);
+}
+
+.tax-rule-kind__badge {
+  margin: 0;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--shell-primary, #2563eb) 12%, transparent);
+  color: var(--shell-text, #101828);
+}
+
+.tax-rule-kind__summary {
+  margin: 0.85rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--shell-text, #101828);
+}
+
+.tax-rule-kind__details {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--shell-border, #d0d5dd);
+}
+
+.tax-rule-kind__details summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--shell-primary, #2563eb);
+}
+
+.tax-rule-kind__timeline {
+  margin: 0.85rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tax-rule-kind__version {
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--shell-border, #d0d5dd);
+}
+
+.tax-rule-kind__version--current {
+  border-color: color-mix(in srgb, var(--shell-primary, #2563eb) 45%, transparent);
+  background: color-mix(in srgb, var(--shell-primary, #2563eb) 8%, transparent);
+}
+
+.tax-rule-kind__when {
+  margin: 0 0 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--shell-muted, #667085);
+}
+
+.tax-rule-kind__version-text,
+.tax-rule-kind__version-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.tax-rule-kind__version-desc {
+  margin-top: 0.25rem;
+  color: var(--shell-muted, #667085);
+}
+
+.tax-rule-kind__form {
+  margin-top: 0.85rem;
+}
+
+.tax-rules-catalog .sri-config-field--check-align {
+  min-height: 2.5rem;
+}

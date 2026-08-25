@@ -1,0 +1,32 @@
+.ecu-page-actions__desktop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.ecu-page-actions__desktop .ecu-page-actions__icon {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-end: 0.35rem;
+}
+
+.ecu-page-actions__desktop .ecu-page-actions__icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ecu-page-actions__mobile {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .ecu-page-actions__desktop {
+    display: none;
+  }
+
+  .ecu-page-actions__mobile {
+    display: block;
+  }
+}

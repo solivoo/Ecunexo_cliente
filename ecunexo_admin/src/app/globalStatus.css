@@ -1,0 +1,36 @@
+.global-status__loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 9999;
+  background: linear-gradient(90deg, #3525cd, #4f46e5, #3525cd);
+  background-size: 200% 100%;
+  animation: global-status-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes global-status-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.global-status__banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  max-width: min(90%, 480px);
+  padding: 0.65rem 1rem;
+  border-radius: 0.5rem;
+  background: #1b1b24;
+  color: #fff;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}

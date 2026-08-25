@@ -1,0 +1,228 @@
+[
+  {
+    "id": "home",
+    "label": "Inicio",
+    "route": "inicio",
+    "icon": "dashboard",
+    "requiredPermission": null,
+    "requiredModule": "identity",
+    "order": 10,
+    "placeholder": false,
+    "children": []
+  },
+  {
+    "id": "org",
+    "label": "Organización",
+    "route": null,
+    "icon": "domain",
+    "requiredPermission": null,
+    "requiredModule": "identity",
+    "order": 20,
+    "placeholder": false,
+    "children": [
+      {
+        "id": "org-profile",
+        "label": "Perfil y branding",
+        "route": "organizacion/perfil",
+        "icon": "domain",
+        "requiredPermission": "tenancy.tenant.read",
+        "requiredModule": "identity",
+        "order": 1,
+        "placeholder": false,
+        "children": []
+      },
+      {
+        "id": "org-plan",
+        "label": "Plan y uso",
+        "route": "organizacion/plan",
+        "icon": "analytics",
+        "requiredPermission": "tenancy.tenant.read",
+        "requiredModule": "identity",
+        "order": 2,
+        "placeholder": false,
+        "children": []
+      },
+      {
+        "id": "org-settings",
+        "label": "Configuración",
+        "route": "organizacion/configuracion",
+        "icon": "settings",
+        "requiredPermission": "tenancy.tenant.read",
+        "requiredModule": "identity",
+        "order": 3,
+        "placeholder": false,
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "team",
+    "label": "Equipo",
+    "route": null,
+    "icon": "group",
+    "requiredPermission": null,
+    "requiredModule": "identity",
+    "order": 30,
+    "placeholder": false,
+    "children": [
+      {
+        "id": "team-users",
+        "label": "Usuarios",
+        "route": "equipo/usuarios",
+        "icon": "group",
+        "requiredPermission": "identity.users.read",
+        "requiredModule": "identity",
+        "order": 1,
+        "placeholder": false,
+        "children": []
+      },
+      {
+        "id": "team-roles",
+        "label": "Roles",
+        "route": "equipo/roles",
+        "icon": "admin_panel_settings",
+        "requiredPermission": "identity.roles.read",
+        "requiredModule": "identity",
+        "order": 2,
+        "placeholder": false,
+        "children": []
+      },
+      {
+        "id": "team-departments",
+        "label": "Departamentos",
+        "route": "equipo/departamentos",
+        "icon": "domain",
+        "requiredPermission": "identity.departments.read",
+        "requiredModule": "identity",
+        "order": 3,
+        "placeholder": false,
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "security",
+    "label": "Seguridad",
+    "route": null,
+    "icon": "shield",
+    "requiredPermission": null,
+    "requiredModule": "identity",
+    "order": 40,
+    "placeholder": false,
+    "children": [
+      {
+        "id": "security-permissions",
+        "label": "Permisos globales",
+        "route": "seguridad/permisos",
+        "icon": "key",
+        "requiredPermission": "identity.permissions.read",
+        "requiredModule": "identity",
+        "order": 1,
+        "placeholder": false,
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "catalog",
+    "label": "Catálogo",
+    "route": null,
+    "icon": "inventory_2",
+    "requiredPermission": "catalog.item.read",
+    "requiredModule": "catalog",
+    "order": 50,
+    "placeholder": false,
+    "children": [
+      {
+        "id": "catalog-items",
+        "label": "Ítems",
+        "route": "catalogo/items",
+        "icon": "package",
+        "requiredPermission": "catalog.item.read",
+        "requiredModule": "catalog",
+        "order": 1,
+        "placeholder": false,
+        "children": []
+      },
+      {
+        "id": "catalog-categories",
+        "label": "Categorías",
+        "route": "catalogo/categorias",
+        "icon": "folder-tree",
+        "requiredPermission": "catalog.item.read",
+        "requiredModule": "catalog",
+        "order": 2,
+        "placeholder": false,
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "warehousing",
+    "label": "Bodegas",
+    "route": null,
+    "icon": "warehouse",
+    "requiredPermission": "warehousing.read",
+    "requiredModule": "warehousing",
+    "order": 52,
+    "placeholder": false,
+    "children": [
+      {
+        "id": "warehousing-list",
+        "label": "Ubicaciones",
+        "route": "bodegas",
+        "icon": "warehouse",
+        "requiredPermission": "warehousing.read",
+        "requiredModule": "warehousing",
+        "order": 1,
+        "placeholder": false,
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "inventory",
+    "label": "Inventario",
+    "route": null,
+    "icon": "package",
+    "requiredPermission": "inventory.stock.read",
+    "requiredModule": "inventory",
+    "order": 54,
+    "placeholder": false,
+    "children": [
+      {
+        "id": "inventory-stock",
+        "label": "Stock",
+        "route": "inventario/stock",
+        "icon": "package",
+        "requiredPermission": "inventory.stock.read",
+        "requiredModule": "inventory",
+        "order": 1,
+        "placeholder": false,
+        "children": []
+      },
+      {
+        "id": "inventory-documents",
+        "label": "Documentos",
+        "route": "inventario/documentos",
+        "icon": "file-text",
+        "requiredPermission": "inventory.documents.create",
+        "requiredModule": "inventory",
+        "order": 2,
+        "placeholder": false,
+        "children": []
+      },
+      {
+        "id": "inventory-kardex",
+        "label": "Kárdex",
+        "route": "inventario/kardex",
+        "icon": "list",
+        "requiredPermission": "inventory.movement.read",
+        "requiredModule": "inventory",
+        "order": 3,
+        "placeholder": false,
+        "children": []
+      }
+    ]
+  }
+]

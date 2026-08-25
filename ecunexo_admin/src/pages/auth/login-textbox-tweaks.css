@@ -1,0 +1,64 @@
+/* TextBox / grupos Syncfusion dentro de la tarjeta (alineado a login Stitch del template) */
+.login-page__card .login-page__form .e-float-input.e-input-group,
+.login-page__card .login-page__form .e-input-group {
+  width: 100%;
+}
+
+.login-page__card .login-page__form .e-float-text,
+.login-page__card .login-page__form .e-float-text.e-label-top {
+  color: var(--c-text-muted);
+}
+
+.login-page__card .login-page__form .e-input-group-icon {
+  cursor: pointer;
+}
+
+.login-page__card .login-page__form .e-input-group:not(.e-disabled):hover,
+.login-page__card .login-page__form .e-float-input.e-input-group:not(.e-disabled):hover {
+  border-color: var(--c-outline-variant);
+}
+
+.login-page__muted {
+  margin: 0;
+  color: var(--c-text-muted);
+  line-height: 1.4;
+}
+
+.login-page__muted--compact {
+  font-size: 0.8125rem;
+  margin: 0 0 0.75rem;
+}
+
+.login-page__muted code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.25rem;
+  background: var(--c-code-bg);
+  color: var(--c-code-text);
+}
+
+.login-page__cta-block .login-page__btn--secondary {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* TextArea Syncfusion: el wrapper trae sf-auto-width; forzar ancho completo en la tarjeta */
+.login-page__card .login-page__form .sf-multi-line-input.sf-control,
+.login-page__card .login-page__form .sf-input-group.sf-multi-line-input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.login-page__card .login-page__form textarea.sf-textarea {
+  width: 100% !important;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.login-page__card .login-page__token-block {
+  width: 100%;
+}

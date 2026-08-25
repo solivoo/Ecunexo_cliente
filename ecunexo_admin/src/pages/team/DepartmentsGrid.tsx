@@ -1,0 +1,109 @@
+import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { DataGrid, type ColumnDef } from 'glubox'
+import { Pencil } from 'lucide-react'
+import { GridIconButton } from '@/components/ui/GridIconButton'
+import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
+import { formatDateTime } from '@/lib/formatDate'
+import type { DepartmentListItemDto } from '@/types/identityApi'
+
+export type DepartmentGridRow = DepartmentListItemDto & Record<string, unknown>
+
+export type DepartmentsGridProps = {
+  readonly rows: DepartmentListItemDto[]
+  readonly loading?: boolean
+  readonly canManage?: boolean
+}
+
+const gridMessages = createSpanishDataGridMessages('departamento', 'departamentos')
+
+export function DepartmentsGrid({
+  rows,
+  loading = false,
+  canManage = false,
+}: DepartmentsGridProps) {
+  const navigate = useNavigate()
+  const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
+
+  const columns = useMemo((): ColumnDef<DepartmentGridRow>[] => {
+    return [
+      {
+        key: 'name',
+        header: 'Nombre',
+        width: 240,
+        sortable: true,
+        renderCell: (_value: DepartmentGridRow['name'], row: DepartmentGridRow) => (
+          <strong>{row.name}</strong>
+        ),
+      },
+      {
+        key: 'description',
+        header: 'Descripción',
+        width: 400,
+        sortable: true,
+        renderCell: (_value: DepartmentGridRow['description'], row: DepartmentGridRow) =>
+          row.description ?? '—',
+      },
+      {
+        key: 'createdAt',
+        header: 'Alta',
+        width: 170,
+        sortable: true,
+        renderCell: (_value: DepartmentGridRow['createdAt'], row: DepartmentGridRow) =>
+          formatDateTime(row.createdAt),
+      },
+      ...(canManage
+        ? [
+            {
+              key: 'id',
+              header: 'Acciones',
+              width: 88,
+              align: 'center' as const,
+              sortable: false,
+              renderCell: (_value: DepartmentGridRow['id'], row: DepartmentGridRow) => (
+                <div className="ecu-companies-grid__actions">
+                  <GridIconButton
+                    label="Editar"
+                    icon={Pencil}
+                    onClick={() => navigate(`/equipo/departamentos/${row.id}/editar`)}
+                  />
+                </div>
+              ),
+            } satisfies ColumnDef<DepartmentGridRow>,
+          ]
+        : []),
+    ]
+  }, [canManage, navigate])
+
+  const dataSource = useMemo(
+    () => (Array.isArray(rows) ? rows : []) as DepartmentGridRow[],
+    [rows]
+  )
+
+  return (
+    <DataGrid
+      className="ecu-companies-grid"
+      dataSource={dataSource}
+      keyExpr="id"
+      columns={columns}
+      selectionMode="none"
+      showSearch
+      searchPosition="left"
+      searchWidth={280}
+      paging={paging}
+      onPageChange={onPageChange}
+      onPageSizeChange={onPageSizeChange}
+      paginationMode="client"
+      pageSizeOptions={pageSizeOptions}
+      layout="auto"
+      cardBreakpoint={720}
+      virtualized
+      virtualThreshold={40}
+      showRowCount
+      loading={loading}
+      emptyState="Sin departamentos. Crea el primero para organizar a tu equipo."
+      messages={gridMessages}
+    />
+  )
+}

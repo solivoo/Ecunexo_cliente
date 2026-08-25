@@ -1,0 +1,6 @@
+allowBuilds:
+  '@parcel/watcher': true
+
+# gluBox es paquete propio: permitir instalación inmediata
+minimumReleaseAgeExclude:
+  - glubox

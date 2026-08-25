@@ -1,0 +1,119 @@
+.company-logo-studio {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.company-logo-studio__upload {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.company-logo-preview {
+  display: grid;
+  gap: 0.85rem;
+}
+
+@media (min-width: 720px) {
+  .company-logo-preview {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.company-logo-preview__card {
+  border-radius: 1rem;
+  padding: 0.85rem 1rem 1rem;
+  min-height: 8.5rem;
+}
+
+.company-logo-preview__card--light {
+  background: #f4f1ea;
+  color: #1c1917;
+  border: 1px solid color-mix(in srgb, #1c1917 10%, transparent);
+}
+
+.company-logo-preview__card--dark {
+  background: #14181f;
+  color: #f4f1ea;
+  border: 1px solid color-mix(in srgb, #f4f1ea 12%, transparent);
+}
+
+.company-logo-preview__label {
+  margin: 0 0 0.55rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.62;
+  font-weight: 700;
+}
+
+.company-logo-preview__stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 4.5rem;
+}
+
+.company-logo-preview__img {
+  max-height: 3.4rem;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.company-logo-preview__wordmark {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.company-logo-preview__meta {
+  margin: 0.7rem 0 0;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.company-logos-grid__file {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.company-logos-grid__thumb {
+  width: 2.4rem;
+  height: 2.4rem;
+  object-fit: contain;
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  flex: 0 0 auto;
+}
+
+.company-logos-grid__thumb--empty {
+  display: block;
+}
+
+.company-logos-grid__ext {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: var(--shell-muted);
+}
+
+.company-logos-grid__marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0;
+}
+
+.company-logos-grid__marks span {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--shell-primary) 16%, transparent);
+  color: var(--shell-primary);
+}

@@ -1,0 +1,69 @@
+/**
+ * EcuNexo Admin — gluBox + tokens de tema.
+ * Dark mode: clase sf-dark-mode + data-mode en <html>.
+ */
+@import "./styles/ecu-companies-form.css";
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--glb-font-family);
+}
+
+:root {
+  /* glubox Sidebar usa var(--glb-font-family); su default es Poppins.
+     Se redefine aquí (después de glubox/style.css) para alinear con Inter. */
+  --glb-font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --sf-color-primary: rgb(79, 70, 229);
+
+  --c-surface: #ffffff;
+  --c-surface-lowest: #ffffff;
+  --c-surface-subtle: #f8fafc;
+  --c-surface-container-high: #eae6f4;
+  --c-surface-container-highest: #f5f3ff;
+  --c-background: #fcf8ff;
+  --c-text-main: #1e293b;
+  --c-on-surface: #1b1b24;
+  --c-text-muted: #64748b;
+  --c-primary: #3525cd;
+  --c-on-primary: #ffffff;
+  --c-primary-container: #4f46e5;
+  --c-tertiary: #7c3aed;
+  --c-border: #e2e8f0;
+  --c-outline-variant: #c7c4d8;
+  --c-code-bg: #f1f5f9;
+  --c-code-text: #334155;
+}
+
+html.sf-dark-mode {
+  --c-surface: #1a1b24;
+  --c-surface-lowest: #1a1b24;
+  --c-surface-subtle: #1e1f2a;
+  --c-surface-container-high: #22232e;
+  --c-surface-container-highest: #262735;
+  --c-background: #12131a;
+  --c-text-main: #e8e8ef;
+  --c-on-surface: #e8e8ef;
+  --c-text-muted: #9898a8;
+  --c-primary: #a78bfa;
+  --c-on-primary: #1e1b4b;
+  --c-primary-container: #c4b5fd;
+  --c-tertiary: #c4b5fd;
+  --c-border: #2c2d3a;
+  --c-outline-variant: #3f4054;
+  --c-code-bg: #1e1f2a;
+  --c-code-text: #c4b5fd;
+}
+
+html[data-density='sm'] .app-shell {
+  font-size: 0.9375rem;
+}
+
+html[data-density='lg'] .app-shell {
+  font-size: 1.0625rem;
+}
+

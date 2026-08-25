@@ -1,0 +1,11 @@
+<Project>
+  <!-- Importa la raíz para heredar TFM / nullable / warnings. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CA1707: naming Method_Scenario_Expected es la convención del skill. -->
+    <NoWarn>$(NoWarn);CS1591;CA1707</NoWarn>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+</Project>

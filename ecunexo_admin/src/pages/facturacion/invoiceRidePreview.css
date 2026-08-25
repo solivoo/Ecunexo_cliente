@@ -1,0 +1,12 @@
+.invoice-ride-preview__hint {
+  margin: 0 0 0.75rem;
+}
+
+.invoice-ride-preview__frame {
+  display: block;
+  width: 100%;
+  height: min(72vh, 48rem);
+  border: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+  border-radius: 8px;
+  background: #fff;
+}
