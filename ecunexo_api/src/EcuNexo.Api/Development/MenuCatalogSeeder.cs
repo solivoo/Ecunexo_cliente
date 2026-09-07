@@ -1,5 +1,7 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Identity.Commands;
+using EcuNexo.Business.Tenancy.Authorization;
+using EcuNexo.Core.Identity;
 using EcuNexo.Core.Platform.Navigation;
 using EcuNexo.Core.Tenancy;
 using EcuNexo.Data;
@@ -11,7 +13,10 @@ internal static class MenuCatalogSeeder
 {
     public static async Task EnsureAsync(WebApplication app, CancellationToken cancellationToken)
     {
-        if (!app.Environment.IsDevelopment())
+        var seedCatalog = app.Configuration.GetValue(
+            "Database:SeedCatalogOnStartup",
+            defaultValue: app.Environment.IsDevelopment());
+        if (!seedCatalog)
         {
             return;
         }
@@ -25,11 +30,9 @@ internal static class MenuCatalogSeeder
         await EnsureProductModulesAsync(db, cancellationToken).ConfigureAwait(false);
         await EnsureMenuItemsAsync(db, cancellationToken).ConfigureAwait(false);
 
-        // Siempre: roles system reciben permisos nuevos del catálogo (tenants ya existentes).
-        await DevelopmentCatalogSeeder.EnsureSystemRolesHaveAllActivePermissionsAsync(
-            sender,
-            db,
-            cancellationToken).ConfigureAwait(false);
+        // Roles system de tenants (p. ej. creados vía licencia) reciben permisos nuevos del catálogo.
+        await EnsureSystemRolesHaveAllActivePermissionsAsync(sender, db, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private static async Task<bool> EnsurePermissionsAsync(
@@ -190,6 +193,80 @@ internal static class MenuCatalogSeeder
         if (changed)
         {
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task EnsureSystemRolesHaveAllActivePermissionsAsync(
+        ISender sender,
+        EcuNexoDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var tenantIds = await db.Tenants.AsNoTracking().Select(t => t.Id).ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        foreach (var tenantId in tenantIds)
+        {
+            var roleIds = await db.Roles
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(r => r.TenantId == tenantId && r.DeletedAt == null && r.IsSystem)
+                .Select(r => r.Id)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var roleId in roleIds)
+            {
+                await GrantAllActivePermissionsToRoleAsync(sender, db, tenantId, roleId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static async Task GrantAllActivePermissionsToRoleAsync(
+        ISender sender,
+        EcuNexoDbContext db,
+        Guid tenantId,
+        Guid roleId,
+        CancellationToken cancellationToken)
+    {
+        var tenant = await db.Tenants.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken)
+            .ConfigureAwait(false);
+        if (tenant is null)
+        {
+            return;
+        }
+
+        var permissions = await db.Permissions
+            .AsNoTracking()
+            .Where(p => p.DeletedAt == null && p.Status == PermissionStatus.Active)
+            .Select(p => new { p.Id, p.Code })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var permission in permissions)
+        {
+            if (!ModulePermissionFilter.IsPermittedForModules(
+                    permission.Code,
+                    tenant.EnabledModuleCodes,
+                    tenant.ModuleEntitlements))
+            {
+                continue;
+            }
+
+            var grant = await sender
+                .SendAsync<GrantRolePermissionCommand, GrantRolePermissionResponse>(
+                    new GrantRolePermissionCommand(tenantId, roleId, permission.Id),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (grant.IsSuccess
+                || string.Equals(grant.Error?.Code, "role_permission.grant.duplicate", StringComparison.Ordinal)
+                || string.Equals(grant.Error?.Code, "role_permission.module.not_entitled", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            throw new InvalidOperationException($"{grant.Error?.Code}: {grant.Error?.Message}");
         }
     }
 }

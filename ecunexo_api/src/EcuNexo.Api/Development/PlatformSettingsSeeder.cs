@@ -9,7 +9,10 @@ internal static class PlatformSettingsSeeder
 {
     public static async Task EnsureAsync(WebApplication app, CancellationToken cancellationToken)
     {
-        if (!app.Environment.IsDevelopment())
+        var seedCatalog = app.Configuration.GetValue(
+            "Database:SeedCatalogOnStartup",
+            defaultValue: app.Environment.IsDevelopment());
+        if (!seedCatalog)
         {
             return;
         }

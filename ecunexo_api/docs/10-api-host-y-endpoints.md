@@ -2,7 +2,8 @@
 
 Este documento describe la **infraestructura HTTP** del host **`EcuNexo.Api`** y el **catálogo completo de rutas** actuales: propósito, comportamiento esperado y **de qué depende** cada una (middleware, comandos, persistencia, autorización provisional).
 
-> **Versión de API en URL**: todas las rutas versionadas bajo ` /api/v1/...` (segmento `v1` vía `Asp.Versioning` + `UrlSegmentApiVersionReader`).
+> **Versión de API en URL**: todas las rutas versionadas bajo `/api/v1/...` (segmento `v1` vía `Asp.Versioning` + `UrlSegmentApiVersionReader`).  
+> Detalle de política, carpetas `Endpoints/V1`–`V2` y cómo introducir una versión nueva: **[`16-api-versionamiento.md`](16-api-versionamiento.md)**.
 
 ---
 
@@ -205,6 +206,6 @@ Authorization: Bearer <accessToken>
 - **Behaviors** sobre `ISender` (logging, métricas, transacción explícita) sin inflar cada handler.
 - **422** para validación si se prefiere sobre **400** (RFC 4918); hoy **Validation** → **400**.
 
-> 📚 Modelo Identity, RBAC, ABAC y cabeceras: **`11-identity-multitenant-rbac.md`**, **`12-policy-abac-fundamentos.md`**. Onboarding y licencias: **`14-onboarding-y-codigos-activacion.md`**.
+> 📚 Modelo Identity, RBAC, ABAC y cabeceras: **`11-identity-multitenant-rbac.md`**, **`12-policy-abac-fundamentos.md`**. Onboarding y licencias: **`14-onboarding-y-codigos-activacion.md`**. Versionamiento HTTP: **`16-api-versionamiento.md`**.
 
 > 📚 Skills: `ecunexo-architecture`, `ecunexo-coding-standards`.

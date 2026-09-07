@@ -1407,14 +1407,6 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_rimpe");
 
-                    b.Property<bool>("PreferElectronicInvoice")
-                        .HasColumnType("boolean")
-                        .HasColumnName("prefer_electronic_invoice");
-
-                    b.Property<int>("RimpeKind")
-                        .HasColumnType("integer")
-                        .HasColumnName("rimpe_kind");
-
                     b.Property<bool>("IsSpecialTaxpayer")
                         .HasColumnType("boolean")
                         .HasColumnName("is_special_taxpayer");
@@ -1456,6 +1448,10 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
+                    b.Property<bool>("PreferElectronicInvoice")
+                        .HasColumnType("boolean")
+                        .HasColumnName("prefer_electronic_invoice");
+
                     b.Property<bool>("PreferWordmark")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -1471,6 +1467,10 @@ namespace EcuNexo.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("ride_thank_you_text");
+
+                    b.Property<int>("RimpeKind")
+                        .HasColumnType("integer")
+                        .HasColumnName("rimpe_kind");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer")

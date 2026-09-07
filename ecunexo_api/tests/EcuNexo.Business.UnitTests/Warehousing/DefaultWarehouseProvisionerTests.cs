@@ -10,17 +10,16 @@ namespace EcuNexo.Business.UnitTests.Warehousing;
 
 public sealed class DefaultWarehouseProvisionerTests
 {
-    [Fact(DisplayName = "Con cupo de 1 bodega no crea Principal ni tránsito")]
-    public async Task EnsureAsync_SingleWarehousePlan_DoesNotCreate()
+    [Fact(DisplayName = "Con cupo de 1 bodega crea solo Principal")]
+    public async Task EnsureAsync_SingleWarehousePlan_CreatesMainOnly()
     {
         var tenantId = Guid.CreateVersion7();
         var (sut, warehouses, unitOfWork) = CreateSut(tenantId, maxWarehouses: 1);
 
         await sut.EnsureAsync(tenantId, CancellationToken.None);
 
-        await warehouses.DidNotReceive().HasMainAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-        await warehouses.DidNotReceive().AddAsync(Arg.Any<Warehouse>(), Arg.Any<CancellationToken>());
-        await unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        await warehouses.Received(1).AddAsync(Arg.Any<Warehouse>(), Arg.Any<CancellationToken>());
+        await unitOfWork.Received(1).TrySaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact(DisplayName = "Si ya hay principal y tránsito no inserta")]
@@ -35,7 +34,7 @@ public sealed class DefaultWarehouseProvisionerTests
         await sut.EnsureAsync(tenantId, CancellationToken.None);
 
         await warehouses.DidNotReceive().AddAsync(Arg.Any<Warehouse>(), Arg.Any<CancellationToken>());
-        await unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        await unitOfWork.DidNotReceive().TrySaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact(DisplayName = "Adopta Principal ya creada (mismo código) en vez de insertar otra")]
@@ -60,7 +59,7 @@ public sealed class DefaultWarehouseProvisionerTests
 
         existing.IsMain.Should().BeTrue();
         await warehouses.DidNotReceive().AddAsync(Arg.Any<Warehouse>(), Arg.Any<CancellationToken>());
-        await unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await unitOfWork.Received(1).TrySaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact(DisplayName = "Con cupo > 1 y sin bodegas crea Principal y En tránsito")]
@@ -75,7 +74,7 @@ public sealed class DefaultWarehouseProvisionerTests
         await sut.EnsureAsync(tenantId, CancellationToken.None);
 
         await warehouses.Received(2).AddAsync(Arg.Any<Warehouse>(), Arg.Any<CancellationToken>());
-        await unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await unitOfWork.Received(1).TrySaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     private static (DefaultWarehouseProvisioner Sut, IWarehouseRepository Warehouses, IUnitOfWork UnitOfWork)
@@ -93,6 +92,7 @@ public sealed class DefaultWarehouseProvisionerTests
         idGenerator.NewId().Returns(_ => Guid.CreateVersion7());
         var warehouses = Substitute.For<IWarehouseRepository>();
         var unitOfWork = Substitute.For<IUnitOfWork>();
+        unitOfWork.TrySaveChangesAsync(Arg.Any<CancellationToken>()).Returns(true);
         return (new DefaultWarehouseProvisioner(idGenerator, tenants, warehouses, unitOfWork), warehouses, unitOfWork);
     }
 }

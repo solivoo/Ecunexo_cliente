@@ -1,6 +1,7 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Identity;
 using EcuNexo.Business.Tenancy.Authorization;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Identity;
@@ -24,6 +25,7 @@ public sealed class ProvisionSubscriptionCompanyHandler
     private readonly IUserRoleRepository _userRoles;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly DefaultWarehouseProvisioner _warehouseProvisioner;
 
     public ProvisionSubscriptionCompanyHandler(
         IValidator<ProvisionSubscriptionCompanyCommand> validator,
@@ -37,7 +39,8 @@ public sealed class ProvisionSubscriptionCompanyHandler
         IRolePermissionRepository rolePermissions,
         IUserRoleRepository userRoles,
         IUnitOfWork unitOfWork,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        DefaultWarehouseProvisioner warehouseProvisioner)
     {
         _validator = validator;
         _idGenerator = idGenerator;
@@ -51,6 +54,7 @@ public sealed class ProvisionSubscriptionCompanyHandler
         _userRoles = userRoles;
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
+        _warehouseProvisioner = warehouseProvisioner;
     }
 
     public async Task<Result<ProvisionSubscriptionCompanyResponse>> Handle(
@@ -205,6 +209,7 @@ public sealed class ProvisionSubscriptionCompanyHandler
         await _departments.AddAsync(department, ct).ConfigureAwait(false);
         await _users.AddAsync(user, ct).ConfigureAwait(false);
         await _userRoles.AddAsync(assign.Value!, ct).ConfigureAwait(false);
+        await _warehouseProvisioner.StageDefaultsForTenantAsync(tenant, ct).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return Result.Success(new ProvisionSubscriptionCompanyResponse(tenantId, userId, roleId));

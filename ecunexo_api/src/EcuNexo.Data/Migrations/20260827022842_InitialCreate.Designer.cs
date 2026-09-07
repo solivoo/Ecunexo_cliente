@@ -14,8 +14,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EcuNexo.Data.Migrations
 {
     [DbContext(typeof(EcuNexoDbContext))]
-    [Migration("20260821140038_AddInventoryTransferFields")]
-    partial class AddInventoryTransferFields
+    [Migration("20260827022842_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -663,6 +663,10 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("notes");
 
+                    b.Property<int?>("ReceiptOrigin")
+                        .HasColumnType("integer")
+                        .HasColumnName("receipt_origin");
+
                     b.Property<DateTimeOffset?>("ShippedAt")
                         .HasColumnType("timestamptz")
                         .HasColumnName("shipped_at");
@@ -670,6 +674,11 @@ namespace EcuNexo.Data.Migrations
                     b.Property<Guid?>("ShippedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("shipped_by");
+
+                    b.Property<string>("SourceDocumentNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source_document_number");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer")
@@ -813,6 +822,38 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("movements", "inventory");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Inventory.InvoiceStockEgress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BillingInvoiceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("billing_invoice_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("InventoryDocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inventory_document_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_invoice_stock_egresses");
+
+                    b.HasIndex("TenantId", "BillingInvoiceId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_invoice_stock_egresses_tenant_id_billing_invoice_id");
+
+                    b.ToTable("invoice_stock_egresses", "inventory");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Inventory.Stock", b =>
                 {
                     b.Property<Guid>("Id")
@@ -830,6 +871,10 @@ namespace EcuNexo.Data.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
+
+                    b.Property<decimal?>("MinimumQuantity")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("minimum_quantity");
 
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric(18,4)")
@@ -1406,6 +1451,10 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
+                    b.Property<bool>("PreferElectronicInvoice")
+                        .HasColumnType("boolean")
+                        .HasColumnName("prefer_electronic_invoice");
+
                     b.Property<bool>("PreferWordmark")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -1421,6 +1470,10 @@ namespace EcuNexo.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("ride_thank_you_text");
+
+                    b.Property<int>("RimpeKind")
+                        .HasColumnType("integer")
+                        .HasColumnName("rimpe_kind");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer")
@@ -1874,6 +1927,18 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Tenant");
 
                     b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Inventory.InvoiceStockEgress", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_invoice_stock_egresses_tenants_tenant_id");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Inventory.Stock", b =>

@@ -1,0 +1,39 @@
+# Secretos y config local
+.env
+.env.*
+!.env*.example
+*.pem
+!ecunexo_api/src/EcuNexo.Api/dev-license-public.pem
+appsettings.*.local.json
+*.received.*
+
+# IDE / OS
+.idea/
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# .NET
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.log
+TestResult.xml
+[Tt]est[Rr]esult*/
+
+# Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.pnpm-store/
+coverage/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/ecunexo_admin/tests-ui/.auth/

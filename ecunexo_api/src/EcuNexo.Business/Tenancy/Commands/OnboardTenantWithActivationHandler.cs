@@ -1,5 +1,6 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Identity;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Identity;
@@ -24,6 +25,7 @@ public sealed class OnboardTenantWithActivationHandler
     private readonly IUserRoleRepository _userRoles;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly DefaultWarehouseProvisioner _warehouseProvisioner;
 
     public OnboardTenantWithActivationHandler(
         IValidator<OnboardTenantWithActivationCommand> validator,
@@ -38,7 +40,8 @@ public sealed class OnboardTenantWithActivationHandler
         IRolePermissionRepository rolePermissions,
         IUserRoleRepository userRoles,
         IUnitOfWork unitOfWork,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        DefaultWarehouseProvisioner warehouseProvisioner)
     {
         _validator = validator;
         _pepper = pepper;
@@ -53,6 +56,7 @@ public sealed class OnboardTenantWithActivationHandler
         _userRoles = userRoles;
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
+        _warehouseProvisioner = warehouseProvisioner;
     }
 
     public async Task<Result<OnboardTenantWithActivationResponse>> Handle(
@@ -231,6 +235,7 @@ public sealed class OnboardTenantWithActivationHandler
         await _users.AddAsync(user, ct).ConfigureAwait(false);
         await _userRoles.AddAsync(assign.Value!, ct).ConfigureAwait(false);
 
+        await _warehouseProvisioner.StageDefaultsForTenantAsync(tenant, ct).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return Result.Success(new OnboardTenantWithActivationResponse(tenantId, userId, roleId));

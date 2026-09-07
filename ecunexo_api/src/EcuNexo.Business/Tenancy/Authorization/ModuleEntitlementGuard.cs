@@ -32,29 +32,7 @@ public sealed class ModuleEntitlementGuard : IModuleEntitlementGuard
 
         var entitlements = tenant.ModuleEntitlements;
 
-        // Modelo de tiers activo
-        if (entitlements is not null && entitlements.Count > 0)
-        {
-            if (entitlements.Any(e => string.Equals(e.ModuleCode, productModule, StringComparison.OrdinalIgnoreCase)))
-            {
-                return Result.Success();
-            }
-
-            return Result.Failure(
-                new Error(
-                    "module.not_entitled",
-                    $"El módulo «{productModule}» no está contratado para esta organización.",
-                    ErrorType.Forbidden));
-        }
-
-        // Fallback legacy
-        var enabled = tenant.EnabledModuleCodes;
-        if (enabled is null || enabled.Count == 0)
-        {
-            return Result.Success();
-        }
-
-        if (enabled.Any(m => string.Equals(m, productModule, StringComparison.OrdinalIgnoreCase)))
+        if (ModulePermissionFilter.IsModuleEnabled(productModule, tenant.EnabledModuleCodes, entitlements))
         {
             return Result.Success();
         }
@@ -62,7 +40,7 @@ public sealed class ModuleEntitlementGuard : IModuleEntitlementGuard
         return Result.Failure(
             new Error(
                 "module.not_entitled",
-                $"El módulo «{productModule}» no está habilitado para esta organización.",
+                $"El módulo «{productModule}» no está contratado para esta organización.",
                 ErrorType.Forbidden));
     }
 
@@ -87,31 +65,7 @@ public sealed class ModuleEntitlementGuard : IModuleEntitlementGuard
 
         var entitlements = tenant.ModuleEntitlements;
 
-        // Sin entitlements → modo legacy, sin restricción de tier
-        if (entitlements is null || entitlements.Count == 0)
-        {
-            var enabled = tenant.EnabledModuleCodes;
-            if (enabled is null || enabled.Count == 0)
-            {
-                return Result.Success();
-            }
-
-            if (enabled.Any(m => string.Equals(m, productModule, StringComparison.OrdinalIgnoreCase)))
-            {
-                return Result.Success();
-            }
-
-            return Result.Failure(
-                new Error(
-                    "module.not_entitled",
-                    $"El módulo «{productModule}» no está habilitado para esta organización.",
-                    ErrorType.Forbidden));
-        }
-
-        var entitlement = entitlements
-            .FirstOrDefault(e => string.Equals(e.ModuleCode, productModule, StringComparison.OrdinalIgnoreCase));
-
-        if (entitlement is null)
+        if (!ModulePermissionFilter.IsModuleEnabled(productModule, tenant.EnabledModuleCodes, entitlements))
         {
             return Result.Failure(
                 new Error(
@@ -120,7 +74,20 @@ public sealed class ModuleEntitlementGuard : IModuleEntitlementGuard
                     ErrorType.Forbidden));
         }
 
-        if (requiredTier is not null && entitlement.Tier < requiredTier.Value)
+        if (entitlements is null or { Count: 0 } || requiredTier is null)
+        {
+            return Result.Success();
+        }
+
+        var entitlement = entitlements
+            .FirstOrDefault(e => string.Equals(e.ModuleCode, productModule, StringComparison.OrdinalIgnoreCase));
+
+        if (entitlement is null)
+        {
+            return Result.Success();
+        }
+
+        if (entitlement.Tier < requiredTier.Value)
         {
             return Result.Failure(
                 new Error(

@@ -20,6 +20,7 @@ using EcuNexo.Business.Tenancy.Licensing;
 using EcuNexo.Data;
 using EcuNexo.Api.Email;
 using EcuNexo.Api.Licensing;
+using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -65,11 +66,19 @@ builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
 builder.Services.AddBusiness();
 builder.Services.AddData(connectionString);
 
+var corsOrigins = ParseCorsOrigins(builder.Configuration);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
-        "EcuNexoDevSpa",
-        static policy =>
+        "EcuNexoSpa",
+        policy =>
+        {
+            if (corsOrigins.Length > 0)
+            {
+                policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod();
+                return;
+            }
+
             policy
                 .SetIsOriginAllowed(static origin =>
                 {
@@ -87,16 +96,13 @@ builder.Services.AddCors(options =>
                         || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
                 })
                 .AllowAnyHeader()
-                .AllowAnyMethod());
+                .AllowAnyMethod();
+        });
 });
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseCors("EcuNexoDevSpa");
-}
-
+app.UseCors("EcuNexoSpa");
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -126,9 +132,38 @@ app.MapCatalogEndpointsV1();
 app.MapWarehouseEndpointsV1();
 app.MapInventoryEndpointsV1();
 
+var migrateOnStartup = app.Configuration.GetValue(
+    "Database:MigrateOnStartup",
+    defaultValue: app.Environment.IsDevelopment());
+if (migrateOnStartup)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<EcuNexoDbContext>();
+    await db.Database.MigrateAsync(CancellationToken.None).ConfigureAwait(false);
+}
+
 await DevelopmentActivationCodeSeeder.EnsureAsync(app, CancellationToken.None).ConfigureAwait(false);
-await DevelopmentCatalogSeeder.EnsureSeedAsync(app, CancellationToken.None).ConfigureAwait(false);
 await MenuCatalogSeeder.EnsureAsync(app, CancellationToken.None).ConfigureAwait(false);
 await PlatformSettingsSeeder.EnsureAsync(app, CancellationToken.None).ConfigureAwait(false);
 
 await app.RunAsync().ConfigureAwait(false);
+
+static string[] ParseCorsOrigins(IConfiguration configuration)
+{
+    var fromArray = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+    if (fromArray is { Length: > 0 })
+    {
+        return fromArray
+            .Select(static o => o.Trim())
+            .Where(static o => o.Length > 0)
+            .ToArray();
+    }
+
+    var csv = configuration["Cors:AllowedOrigins"];
+    if (string.IsNullOrWhiteSpace(csv))
+    {
+        return [];
+    }
+
+    return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}

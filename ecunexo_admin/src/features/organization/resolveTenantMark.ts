@@ -2,8 +2,16 @@ export function resolveAssetUrl(path: string | null | undefined): string | null 
   const raw = path?.trim() ?? ''
   if (!raw) return null
   if (/^https?:\/\//i.test(raw) || raw.startsWith('data:')) return raw
-  const base = import.meta.env.VITE_API_BASE_URL?.trim() || 'http://localhost:5088'
-  return `${base}${raw.startsWith('/') ? raw : `/${raw}`}`
+  const relative = raw.startsWith('/') ? raw : `/${raw}`
+  // Vacío = mismo origen (Nginx proxy /api). Dev local sin .env → :5088.
+  const configured = import.meta.env.VITE_API_BASE_URL?.trim()
+  const base =
+    configured !== undefined && configured !== ''
+      ? configured
+      : import.meta.env.DEV
+        ? 'http://localhost:5088'
+        : ''
+  return base ? `${base}${relative}` : relative
 }
 
 export type TenantMark =

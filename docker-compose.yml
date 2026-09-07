@@ -1,0 +1,83 @@
+# Portainer: Compose path = docker-compose.yml (raíz del repo)
+# Build context = raíz de Ecunexo_cliente
+# Stack: postgres + API tenant + SPA admin
+
+name: ecunexo-cliente
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ecunexo}
+      POSTGRES_USER: ${POSTGRES_USER:-ecunexo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - cliente_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ecunexo} -d ${POSTGRES_DB:-ecunexo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cliente
+
+  api:
+    build:
+      context: .
+      dockerfile: ecunexo_api/Dockerfile
+    image: ${CLIENTE_API_IMAGE:-ecunexo-cliente-api:1.0.0}
+    pull_policy: build
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      Database__MigrateOnStartup: ${DATABASE_MIGRATE_ON_STARTUP:-true}
+      Database__SeedCatalogOnStartup: ${DATABASE_SEED_CATALOG_ON_STARTUP:-true}
+      ConnectionStrings__Default: >-
+        Host=postgres;Port=5432;Database=${POSTGRES_DB:-ecunexo};Username=${POSTGRES_USER:-ecunexo};Password=${POSTGRES_PASSWORD}
+      Jwt__Issuer: ${JWT_ISSUER:-EcuNexo}
+      Jwt__Audience: ${JWT_AUDIENCE:-EcuNexo.Api}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY min 32 chars}
+      ActivationCodes__Pepper: ${ACTIVATION_PEPPER:?set ACTIVATION_PEPPER min 16 chars}
+      LicenseValidation__ValidationPepper: ${VALIDATION_PEPPER:?set VALIDATION_PEPPER (mismo que Platform)}
+      LicenseValidation__SigningPublicKeyPath: ${LICENSE_PUBLIC_KEY_PATH:-/keys/license-public.pem}
+      LicenseValidation__PlatformApiBaseUrl: ${PLATFORM_API_BASE_URL:-}
+      InventoryEgress__ApiKey: ${INVENTORY_EGRESS_API_KEY:-}
+      Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-}
+    volumes:
+      - ${LICENSE_KEYS_HOST_PATH:?set LICENSE_KEYS_HOST_PATH}:/keys:ro
+    ports:
+      - "${CLIENTE_API_HOST_PORT:-5088}:8080"
+    networks:
+      - cliente
+
+  spa:
+    build:
+      context: .
+      dockerfile: ecunexo_admin/Dockerfile
+      args:
+        # Vacío = mismo origen (Nginx proxy /api → api). Obligatorio detrás de Cloudflare HTTPS.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_BILLING_API_BASE_URL: ${VITE_BILLING_API_BASE_URL:-}
+        VITE_LOGNERD_ENABLE_CONSOLE: ${VITE_LOGNERD_ENABLE_CONSOLE:-false}
+        VITE_LOGNERD_LEVEL: ${VITE_LOGNERD_LEVEL:-WARN}
+    image: ${CLIENTE_SPA_IMAGE:-ecunexo-cliente-spa:1.0.0}
+    pull_policy: build
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${CLIENTE_SPA_HOST_PORT:-5173}:80"
+    networks:
+      - cliente
+
+volumes:
+  cliente_pg_data:
+
+networks:
+  cliente:
+    driver: bridge

@@ -1,4 +1,5 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Tenancy;
@@ -11,17 +12,20 @@ public sealed class CreateTenantHandler : ICommandHandler<CreateTenantCommand, C
     private readonly IValidator<CreateTenantCommand> _validator;
     private readonly IIdGenerator _idGenerator;
     private readonly ITenantRepository _tenants;
+    private readonly DefaultWarehouseProvisioner _warehouseProvisioner;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateTenantHandler(
         IValidator<CreateTenantCommand> validator,
         IIdGenerator idGenerator,
         ITenantRepository tenants,
+        DefaultWarehouseProvisioner warehouseProvisioner,
         IUnitOfWork unitOfWork)
     {
         _validator = validator;
         _idGenerator = idGenerator;
         _tenants = tenants;
+        _warehouseProvisioner = warehouseProvisioner;
         _unitOfWork = unitOfWork;
     }
 
@@ -60,6 +64,7 @@ public sealed class CreateTenantHandler : ICommandHandler<CreateTenantCommand, C
 
         var tenant = created.Value!;
         await _tenants.AddAsync(tenant, ct).ConfigureAwait(false);
+        await _warehouseProvisioner.StageDefaultsForTenantAsync(tenant, ct).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return CreateTenantResponse.FromTenant(tenant);

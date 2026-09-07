@@ -24,6 +24,7 @@ Documentación paso a paso del armado de **EcuNexo**: para qué sirve cada archi
 | 13 | [`13-postgresql-esquemas-tenancy-identity.md`](13-postgresql-esquemas-tenancy-identity.md) | PostgreSQL: esquemas `tenancy` / `identity`, tablas, migrations history, columnas UI, vs multi-tenant | `ecunexo-data-model`, `ecunexo-architecture` |
 | 14 | [`14-onboarding-y-codigos-activacion.md`](14-onboarding-y-codigos-activacion.md) | **Canje de licencia** (`activate-license`), titular de suscripción, empresas (`/subscription/*`), legacy `tenant-with-activation` | `ecunexo-architecture`, `ecunexo-data-model`, `ecunexo-licensing-security` |
 | 15 | [`15-catalogo-vs-inventario-y-planes.md`](15-catalogo-vs-inventario-y-planes.md) | **Catálogo maestro vs Inventario transaccional**, plan `services-starter`, RBAC+ABAC por módulo | `ecunexo-architecture`, `ecunexo-data-model` |
+| 16 | [`16-api-versionamiento.md`](16-api-versionamiento.md) | **Versionado HTTP** (`/api/v1`), Asp.Versioning, carpetas `Endpoints/V1`–`V2`, OpenAPI/Scalar, cómo abrir v2 | `ecunexo-architecture`, `ecunexo-coding-standards` |
 
 ## Plataforma de licencias (Obsidian)
 
@@ -48,6 +49,7 @@ La **API v1** la consume el SPA **`ecunexo_admin/`** (React + Vite) en el monore
 | Tema | Dónde mirar |
 |---|---|
 | **Base URL local** | `http://localhost:5088` (perfil `http` en `src/EcuNexo.Api/Properties/launchSettings.json`). Prefijo API: **`/api/v1/...`**. |
+| **Versionamiento** | URL segment `v1` — reglas, carpetas y cómo abrir **v2**: doc **[`16`](16-api-versionamiento.md)**. |
 | **Contrato OpenAPI** | `GET /openapi/v1.json` — generar cliente TypeScript (`openapi-typescript`, Orval, NSwag, etc.) o proxy manual. |
 | **Explorador** | `GET /scalar/v1` con la Api en marcha. |
 | **Serialización JSON** | Propiedades en **camelCase** (ASP.NET Core por defecto). |

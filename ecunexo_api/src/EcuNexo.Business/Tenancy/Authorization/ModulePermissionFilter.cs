@@ -42,10 +42,38 @@ public static class ModulePermissionFilter
     {
         if (entitlements is not null && entitlements.Count > 0)
         {
-            return IsPermittedByEntitlements(permissionCode, entitlements);
+            return IsPermittedByEntitlements(permissionCode, entitlements, enabledModuleCodes);
         }
 
         return IsPermittedForModules(permissionCode, enabledModuleCodes);
+    }
+
+    /// <summary>
+    /// Un módulo está contratado si figura en <paramref name="entitlements"/> o en <paramref name="enabledModuleCodes"/>.
+    /// La licencia puede listar p. ej. <c>catalog</c> solo en <c>enabledModules</c> sin fila de tier.
+    /// </summary>
+    public static bool IsModuleEnabled(
+        string moduleCode,
+        IReadOnlyList<string>? enabledModuleCodes,
+        IReadOnlyList<ModuleEntitlement>? entitlements)
+    {
+        if (entitlements is { Count: > 0 }
+            && entitlements.Any(e => string.Equals(e.ModuleCode, moduleCode, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if (enabledModuleCodes is { Count: > 0 })
+        {
+            return enabledModuleCodes.Any(m => string.Equals(m, moduleCode, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (entitlements is null or { Count: 0 })
+        {
+            return TenantModuleCodes.IsKnown(moduleCode);
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -54,7 +82,8 @@ public static class ModulePermissionFilter
     /// </summary>
     private static bool IsPermittedByEntitlements(
         string permissionCode,
-        IReadOnlyList<ModuleEntitlement> entitlements)
+        IReadOnlyList<ModuleEntitlement> entitlements,
+        IReadOnlyList<string>? enabledModuleCodes)
     {
         var productModule = PermissionModuleMapper.ResolveProductModule(permissionCode);
         if (productModule is null)
@@ -62,10 +91,7 @@ public static class ModulePermissionFilter
             return true;
         }
 
-        var entitlement = entitlements
-            .FirstOrDefault(e => string.Equals(e.ModuleCode, productModule, StringComparison.OrdinalIgnoreCase));
-
-        return entitlement is not null;
+        return IsModuleEnabled(productModule, enabledModuleCodes, entitlements);
     }
 
     public static IReadOnlyList<string> FilterPermissionCodes(
