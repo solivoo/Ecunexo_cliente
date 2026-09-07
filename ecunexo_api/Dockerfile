@@ -7,6 +7,7 @@ WORKDIR /src
 COPY ecunexo_api/global.json ./ecunexo_api/
 COPY ecunexo_api/Directory.Build.props ./ecunexo_api/
 COPY ecunexo_api/Directory.Packages.props ./ecunexo_api/
+COPY ecunexo_api/.editorconfig ./ecunexo_api/
 COPY ecunexo_api/EcuNexo.slnx ./ecunexo_api/
 COPY ecunexo_api/src/ ./ecunexo_api/src/
 
