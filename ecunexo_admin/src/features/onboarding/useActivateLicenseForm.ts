@@ -26,12 +26,7 @@ export function useActivateLicenseForm() {
   const submit = useCallback(async () => {
     setError(null)
 
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? ''
-    if (!baseUrl) {
-      setError('Define VITE_API_BASE_URL en .env (p. ej. http://localhost:5088).')
-      return
-    }
-
+    // VITE_API_BASE_URL vacío = mismo origen (Nginx proxy /api → api).
     if (!activationCode.trim() || !licenseArtifact.trim()) {
       setError(
         'Ingresa el código de activación y adjunta el archivo .ecunexo-license que te envió Ecunexo.'

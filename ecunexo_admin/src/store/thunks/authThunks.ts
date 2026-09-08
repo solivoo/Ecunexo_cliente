@@ -29,11 +29,7 @@ export type LoginSuccess = {
 export const loginThunk = createAsyncThunk<LoginSuccess, LoginFormInput, { rejectValue: string }>(
   'auth/login',
   async (input, { rejectWithValue }) => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? ''
-    if (!baseUrl) {
-      return rejectWithValue('Define VITE_API_BASE_URL en .env (p. ej. http://localhost:5088).')
-    }
-
+    // VITE_API_BASE_URL vacío = mismo origen (Nginx proxy /api → api).
     if (!input.email.trim() || !input.password) {
       return rejectWithValue('Completa correo y contraseña.')
     }
