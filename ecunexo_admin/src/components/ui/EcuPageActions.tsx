@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import type { ReactElement, ReactNode } from 'react'
+import { isValidElement } from 'react'
 import { Button, PageActionsMenu, type PageActionItem } from 'glubox'
 import './ecuPageActions.css'
 
@@ -19,6 +20,13 @@ function activate(item: PageActionItem, props: EcuPageActionsProps): void {
 
 export function EcuPageActions(props: EcuPageActionsProps) {
   const { items, triggerLabel, variant = 'outline', renderIcon } = props
+
+  const menuRenderIcon = renderIcon
+    ? (name: string, className: string): ReactElement | null => {
+        const node = renderIcon(name, className)
+        return isValidElement(node) ? node : null
+      }
+    : undefined
 
   return (
     <div className="ecu-page-actions">
@@ -45,7 +53,7 @@ export function EcuPageActions(props: EcuPageActionsProps) {
           items={[...items]}
           variant={variant}
           triggerLabel={triggerLabel}
-          renderIcon={renderIcon}
+          renderIcon={menuRenderIcon}
           onNavigate={props.onNavigate}
           onActionSelect={props.onActionSelect}
         />

@@ -3,6 +3,7 @@
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
+ENV CI=true
 RUN corepack enable && corepack prepare pnpm@11.21.0 --activate
 
 COPY ecunexo_admin/package.json ecunexo_admin/pnpm-lock.yaml ecunexo_admin/pnpm-workspace.yaml ./

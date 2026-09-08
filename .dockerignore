@@ -1,0 +1,18 @@
+# Build context = raíz Ecunexo_cliente
+**/node_modules
+**/dist
+**/dist-ssr
+**/.pnpm-store
+**/coverage
+**/playwright-report
+**/test-results
+**/blob-report
+**/.git
+**/.env
+**/.env.*
+!**/.env*.example
+**/appsettings.*.local.json
+**/*.pem
+!**/dev-license-public.pem
+**/tests-ui/.auth
+**/.DS_Store

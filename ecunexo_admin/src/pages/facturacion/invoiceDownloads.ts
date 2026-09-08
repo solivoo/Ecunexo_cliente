@@ -1,6 +1,6 @@
 import { pdf } from '@react-pdf/renderer'
 import JsBarcode from 'jsbarcode'
-import { createElement, type ReactElement } from 'react'
+import { createElement } from 'react'
 import {
   RideFacturaDocument,
   type RideLegalExtras,
@@ -90,9 +90,9 @@ export async function buildRidePdfFromDetail(detail: InvoiceDetail): Promise<Rid
     legal,
     barcodeDataUrl,
     authorizationDateTime: detail.authorizationDate ?? null,
-  }) as unknown as ReactElement
+  })
 
-  const blob = await pdf(doc).toBlob()
+  const blob = await pdf(doc as Parameters<typeof pdf>[0]).toBlob()
   return { blob, filename: `${docFileBase(detail)}-ride.pdf` }
 }
 

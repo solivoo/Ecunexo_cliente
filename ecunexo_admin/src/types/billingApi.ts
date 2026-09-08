@@ -104,6 +104,16 @@ export type InvoiceActionResponse = {
   readonly messages?: readonly SriMessageDto[]
 }
 
+export type CreateInvoiceResponse = {
+  readonly invoiceId: string
+  readonly state: string
+  readonly sequential: string
+  readonly grandTotal: number
+  readonly accessKey: string | null
+  readonly sriTransmissionState: string | null
+  readonly message: string
+}
+
 export type InvoiceListItem = {
   readonly invoiceId: string
   readonly issueDate: string

@@ -98,7 +98,7 @@ const ensureEmitterInflight = new Map<string, Promise<string>>()
 
 export async function ensureBillingEmitter(args: {
   readonly emitterRuc: string
-  readonly company: CompanyDefaults | null
+  readonly company: Pick<CompanyDefaults, 'legalName' | 'tradeName' | 'address'> | null
   readonly companyLabel: string
   readonly tenantId?: string | null
 }): Promise<string> {

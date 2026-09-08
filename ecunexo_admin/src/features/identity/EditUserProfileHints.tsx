@@ -1,4 +1,4 @@
-import type { GetTenantUserDto, RoleListItemDto } from '@/types/identityApi'
+import type { GetTenantUserDto } from '@/types/identityApi'
 
 type EditUserProfileHintsProps = {
   readonly user: GetTenantUserDto
