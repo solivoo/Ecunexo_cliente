@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataGrid, type ColumnDef } from 'glubox'
-import { Pencil } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { formatDateTime } from '@/lib/formatDate'
@@ -14,11 +14,21 @@ export type CategoriesGridProps = {
   readonly rows: CategoryListItemDto[]
   readonly loading?: boolean
   readonly canEdit?: boolean
+  readonly canDelete?: boolean
+  readonly deletingId?: string | null
+  readonly onDelete?: (row: CategoryListItemDto) => void
 }
 
 const gridMessages = createSpanishDataGridMessages('categoría', 'categorías')
 
-export function CategoriesGrid({ rows, loading = false, canEdit = false }: CategoriesGridProps) {
+export function CategoriesGrid({
+  rows,
+  loading = false,
+  canEdit = false,
+  canDelete = false,
+  deletingId = null,
+  onDelete,
+}: CategoriesGridProps) {
   const navigate = useNavigate()
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
   const byId = useMemo(() => new Map(rows.map((r) => [r.id, r.name])), [rows])
@@ -60,27 +70,39 @@ export function CategoriesGrid({ rows, loading = false, canEdit = false }: Categ
       },
     ]
 
-    if (canEdit) {
+    if (canEdit || canDelete) {
       cols.push({
         key: 'id',
         header: 'Acciones',
-        width: 72,
+        width: canDelete ? 112 : 72,
         align: 'center',
         sortable: false,
         renderCell: (_value: CategoryGridRow['id'], row: CategoryGridRow) => (
           <div className="ecu-companies-grid__actions">
-            <GridIconButton
-              label="Editar"
-              icon={Pencil}
-              onClick={() => navigate(`/catalogo/categorias/${row.id}/editar`)}
-            />
+            {canEdit ? (
+              <GridIconButton
+                label="Editar"
+                icon={Pencil}
+                onClick={() => navigate(`/catalogo/categorias/${row.id}/editar`)}
+              />
+            ) : null}
+            {canDelete && onDelete ? (
+              <GridIconButton
+                label="Eliminar"
+                icon={Trash2}
+                danger
+                disabled={deletingId === row.id}
+                loading={deletingId === row.id}
+                onClick={() => onDelete(row)}
+              />
+            ) : null}
           </div>
         ),
       })
     }
 
     return cols
-  }, [byId, canEdit, navigate])
+  }, [byId, canDelete, canEdit, deletingId, navigate, onDelete])
 
   return (
     <DataGrid

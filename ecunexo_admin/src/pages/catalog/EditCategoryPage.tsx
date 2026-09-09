@@ -13,7 +13,7 @@ import {
   createEmptyAttributeDraft,
   type CategoryAttributeDraft,
 } from '@/pages/catalog/CategoryAttributeSchemaEditor'
-import { listCatalogCategories, updateCatalogCategory } from '@/services/catalogApi'
+import { listCatalogCategories, softDeleteCatalogCategory, updateCatalogCategory } from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 
@@ -25,6 +25,7 @@ export function EditCategoryPage() {
   const canManage = useHasPermission('catalog.category.manage')
 
   const [busy, setBusy] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -128,6 +129,35 @@ export function EditCategoryPage() {
     [attributeFields, categoryId, description, name, navigate, tenantId, toast]
   )
 
+  const onDelete = useCallback(async () => {
+    if (!tenantId || !categoryId || !canManage) return
+    const ok = window.confirm(
+      `¿Eliminar «${name.trim() || 'esta categoría'}»? Solo se permite si no tiene ítems ni subcategorías.`
+    )
+    if (!ok) return
+
+    setDeleting(true)
+    setError(null)
+    try {
+      await softDeleteCatalogCategory(tenantId, categoryId)
+      toast.show({
+        title: 'Categoría eliminada',
+        message: `«${name.trim()}» quedó dada de baja.`,
+        variant: 'success',
+      })
+      void navigate('/catalogo/categorias', { replace: true })
+    } catch (err: unknown) {
+      const message = readApiError(
+        err,
+        'La categoría tiene ítems o subcategorías. Reasigna o edítala.'
+      )
+      setError(message)
+      toast.show({ title: 'No se pudo eliminar', message, variant: 'error' })
+    } finally {
+      setDeleting(false)
+    }
+  }, [canManage, categoryId, name, navigate, tenantId, toast])
+
   if (!canManage) {
     return (
       <TenantSessionGate title="Editar categoría" lead="Modificar clasificación del catálogo.">
@@ -209,10 +239,19 @@ export function EditCategoryPage() {
             </section>
 
             <div className="ecu-companies-form__actions">
-              <Button type="submit" variant="primary" loading={busy} disabled={busy}>
+              <Button type="submit" variant="primary" loading={busy} disabled={busy || deleting}>
                 Guardar
               </Button>
-              <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
+              <Button
+                type="button"
+                variant="danger"
+                loading={deleting}
+                disabled={busy || deleting}
+                onClick={() => void onDelete()}
+              >
+                Eliminar
+              </Button>
+              <Button type="button" variant="outline" disabled={busy || deleting} onClick={goToList}>
                 Atrás
               </Button>
             </div>

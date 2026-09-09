@@ -15,4 +15,6 @@ public interface ICategoryRepository
     Task<bool> NameExistsIgnoreCaseAsync(Guid tenantId, string name, Guid? excludeId, CancellationToken ct);
 
     Task<bool> ExistsActiveByIdAsync(Guid tenantId, Guid categoryId, CancellationToken ct);
+
+    Task<bool> HasActiveChildrenAsync(Guid tenantId, Guid categoryId, CancellationToken ct);
 }

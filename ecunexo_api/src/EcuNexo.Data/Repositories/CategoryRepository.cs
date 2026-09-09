@@ -59,4 +59,9 @@ public sealed class CategoryRepository : ICategoryRepository
         _db.Categories.AsNoTracking().AnyAsync(
             c => c.TenantId == tenantId && c.Id == categoryId && c.DeletedAt == null,
             ct);
+
+    public Task<bool> HasActiveChildrenAsync(Guid tenantId, Guid categoryId, CancellationToken ct) =>
+        _db.Categories.AsNoTracking().AnyAsync(
+            c => c.TenantId == tenantId && c.ParentId == categoryId && c.DeletedAt == null,
+            ct);
 }

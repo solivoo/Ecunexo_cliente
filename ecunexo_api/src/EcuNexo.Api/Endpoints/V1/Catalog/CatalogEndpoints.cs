@@ -7,6 +7,7 @@ using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
 using EcuNexo.Business.Catalog.Commands.SoftDeleteCatalogItem;
+using EcuNexo.Business.Catalog.Commands.SoftDeleteCategory;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.UpdateCategory;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
@@ -34,6 +35,8 @@ public static class CatalogEndpoints
         categories.MapPost("/", CreateCategoryAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.category.manage"));
         categories.MapPut("/{categoryId:guid}", UpdateCategoryAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.category.manage"));
+        categories.MapDelete("/{categoryId:guid}", SoftDeleteCategoryAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.category.manage"));
         categories.MapGet("/", ListCategoriesAsync)
             .AddEndpointFilter(
@@ -104,6 +107,20 @@ public static class CatalogEndpoints
         var result = await sender
             .SendAsync<UpdateCategoryCommand, UpdateCategoryResponse>(
                 body.ToCommand(tenantId, categoryId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> SoftDeleteCategoryAsync(
+        Guid tenantId,
+        Guid categoryId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<SoftDeleteCategoryCommand, SoftDeleteCategoryResponse>(
+                new SoftDeleteCategoryCommand(tenantId, categoryId),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

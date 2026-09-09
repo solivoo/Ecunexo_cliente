@@ -144,6 +144,20 @@ public sealed class Category : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         return Result.Success();
     }
 
+    /// <summary>Baja lógica: deja de listarse. El caller valida ítems hijos / subcategorías.</summary>
+    public Result SoftDelete(DateTimeOffset utcNow, Guid? deletedBy = null)
+    {
+        if (DeletedAt is not null)
+        {
+            return Result.Success();
+        }
+
+        DeletedAt = utcNow;
+        DeletedBy = deletedBy;
+        Touch(deletedBy);
+        return Result.Success();
+    }
+
     private void Touch(Guid? updatedBy)
     {
         UpdatedAt = DateTimeOffset.UtcNow;

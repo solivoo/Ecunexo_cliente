@@ -8,7 +8,7 @@ import { useHasPermission } from '@/hooks/useHasPermission'
 import { parseAttributeSchema } from '@/lib/catalogAttributes'
 import { readApiError } from '@/lib/readApiError'
 import { CategoriesGrid } from '@/pages/catalog/CategoriesGrid'
-import { listCatalogCategories } from '@/services/catalogApi'
+import { listCatalogCategories, softDeleteCatalogCategory } from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { CategoryListItemDto } from '@/types/catalogApi'
@@ -24,6 +24,7 @@ export function CategoriesListPage() {
   const canManage = useHasPermission('catalog.category.manage')
   const [rows, setRows] = useState<CategoryListItemDto[]>([])
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(
@@ -92,6 +93,39 @@ export function CategoriesListPage() {
       if (item.id === 'refresh') void load()
     },
     [load]
+  )
+
+  const handleDelete = useCallback(
+    async (row: CategoryListItemDto) => {
+      if (!tenantId || !canManage) return
+      const ok = window.confirm(
+        `¿Eliminar «${row.name}»? Solo se permite si no tiene ítems ni subcategorías.`
+      )
+      if (!ok) return
+
+      setDeletingId(row.id)
+      try {
+        await softDeleteCatalogCategory(tenantId, row.id)
+        toast.show({
+          title: 'Categoría eliminada',
+          message: `«${row.name}» quedó dada de baja.`,
+          variant: 'success',
+        })
+        await load({ silent: true })
+      } catch (err: unknown) {
+        toast.show({
+          title: 'No se pudo eliminar',
+          message: readApiError(
+            err,
+            'La categoría tiene ítems o subcategorías. Reasigna o edítala.'
+          ),
+          variant: 'error',
+        })
+      } finally {
+        setDeletingId(null)
+      }
+    },
+    [canManage, load, tenantId, toast]
   )
 
   const isEmpty = !loading && rows.length === 0 && !error
@@ -169,7 +203,14 @@ export function CategoriesListPage() {
               )}
             </div>
           ) : (
-            <CategoriesGrid rows={rows} loading={loading} canEdit={canManage} />
+            <CategoriesGrid
+              rows={rows}
+              loading={loading}
+              canEdit={canManage}
+              canDelete={canManage}
+              deletingId={deletingId}
+              onDelete={(row) => void handleDelete(row)}
+            />
           )}
         </div>
       </div>

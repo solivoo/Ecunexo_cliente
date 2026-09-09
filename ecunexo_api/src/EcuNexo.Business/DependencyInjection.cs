@@ -2,6 +2,7 @@ using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
 using EcuNexo.Business.Catalog.Commands.SoftDeleteCatalogItem;
+using EcuNexo.Business.Catalog.Commands.SoftDeleteCategory;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.UpdateCategory;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
@@ -95,6 +96,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<UpdateDepartmentCommand, UpdateDepartmentResponse>, UpdateDepartmentHandler>();
         services.AddScoped<ICommandHandler<CreateCategoryCommand, CreateCategoryResponse>, CreateCategoryHandler>();
         services.AddScoped<ICommandHandler<UpdateCategoryCommand, UpdateCategoryResponse>, UpdateCategoryHandler>();
+        services.AddScoped<ICommandHandler<SoftDeleteCategoryCommand, SoftDeleteCategoryResponse>, SoftDeleteCategoryHandler>();
         services.AddScoped<ICommandHandler<CreateCatalogItemCommand, CreateCatalogItemResponse>, CreateCatalogItemHandler>();
         services.AddScoped<ICommandHandler<UpdateCatalogItemCommand, UpdateCatalogItemResponse>, UpdateCatalogItemHandler>();
         services.AddScoped<ICommandHandler<SoftDeleteCatalogItemCommand, SoftDeleteCatalogItemResponse>, SoftDeleteCatalogItemHandler>();

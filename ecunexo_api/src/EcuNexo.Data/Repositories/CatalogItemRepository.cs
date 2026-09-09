@@ -81,4 +81,9 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
         var skus = await query.Select(i => i.Sku).ToListAsync(ct).ConfigureAwait(false);
         return skus.Exists(s => string.Equals(s, trimmed, StringComparison.OrdinalIgnoreCase));
     }
+
+    public Task<bool> ExistsForCategoryAsync(Guid tenantId, Guid categoryId, CancellationToken ct) =>
+        _db.CatalogItems.AsNoTracking().AnyAsync(
+            i => i.TenantId == tenantId && i.CategoryId == categoryId && i.DeletedAt == null,
+            ct);
 }

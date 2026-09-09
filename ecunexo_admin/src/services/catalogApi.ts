@@ -38,6 +38,13 @@ export async function updateCatalogCategory(
   await api.put(`/api/v1/tenants/${tenantId}/catalog/categories/${categoryId}`, body)
 }
 
+export async function softDeleteCatalogCategory(
+  tenantId: string,
+  categoryId: string
+): Promise<void> {
+  await api.delete(`/api/v1/tenants/${tenantId}/catalog/categories/${categoryId}`)
+}
+
 export async function listCatalogItems(
   tenantId: string,
   kind?: CatalogItemKind
