@@ -100,4 +100,75 @@ public sealed class Role : AggregateRoot<Guid>, ITenantEntity, IAuditable, ISoft
 
         return role;
     }
+
+    public Result Update(string name, string? description)
+    {
+        if (DeletedAt is not null)
+        {
+            return Result.Failure(
+                new Error(
+                    "role.deleted",
+                    "No se puede editar un rol dado de baja.",
+                    ErrorType.Conflict));
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return Result.Failure(
+                new Error("role.name.required", "El nombre del rol es obligatorio.", ErrorType.Validation));
+        }
+
+        var trimmed = name.Trim();
+        if (trimmed.Length > NameMaxLength)
+        {
+            return Result.Failure(
+                new Error(
+                    "role.name.length",
+                    $"El nombre del rol no puede superar {NameMaxLength} caracteres.",
+                    ErrorType.Validation));
+        }
+
+        string? desc = null;
+        if (description is not null)
+        {
+            var d = description.Trim();
+            if (d.Length > DescriptionMaxLength)
+            {
+                return Result.Failure(
+                    new Error(
+                        "role.description.length",
+                        $"La descripción no puede superar {DescriptionMaxLength} caracteres.",
+                        ErrorType.Validation));
+            }
+
+            desc = d.Length == 0 ? null : d;
+        }
+
+        Name = trimmed;
+        Description = desc;
+        UpdatedAt = DateTimeOffset.UtcNow;
+        return Result.Success();
+    }
+
+    public Result SoftDelete(DateTimeOffset utcNow, Guid? deletedBy = null)
+    {
+        if (IsSystem)
+        {
+            return Result.Failure(
+                new Error(
+                    "role.system.immutable",
+                    "No se puede eliminar un rol del sistema.",
+                    ErrorType.Conflict));
+        }
+
+        if (DeletedAt is not null)
+        {
+            return Result.Success();
+        }
+
+        DeletedAt = utcNow;
+        DeletedBy = deletedBy;
+        UpdatedAt = utcNow;
+        return Result.Success();
+    }
 }

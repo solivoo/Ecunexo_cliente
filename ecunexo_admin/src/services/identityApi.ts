@@ -10,6 +10,10 @@ import type {
   CreatePolicyResponseDto,
   CreateRoleBody,
   CreateRoleResponseDto,
+  UpdateRoleBody,
+  UpdateRoleResponseDto,
+  DeleteRoleResponseDto,
+  DeleteDepartmentResponseDto,
   CreateUserBody,
   CreateUserResponseDto,
   DepartmentListItemDto,
@@ -141,6 +145,16 @@ export async function updateTenantDepartment(
   return data
 }
 
+export async function deleteTenantDepartment(
+  tenantId: string,
+  departmentId: string
+): Promise<DeleteDepartmentResponseDto> {
+  const { data } = await api.delete<DeleteDepartmentResponseDto>(
+    `/api/v1/tenants/${tenantId}/departments/${departmentId}`
+  )
+  return data
+}
+
 export async function getTenantRole(tenantId: string, roleId: string): Promise<GetTenantRoleDto> {
   const { data } = await api.get<GetTenantRoleDto>(`/api/v1/tenants/${tenantId}/roles/${roleId}`)
   return data
@@ -151,6 +165,28 @@ export async function createTenantRole(
   body: CreateRoleBody
 ): Promise<CreateRoleResponseDto> {
   const { data } = await api.post<CreateRoleResponseDto>(`/api/v1/tenants/${tenantId}/roles`, body)
+  return data
+}
+
+export async function updateTenantRole(
+  tenantId: string,
+  roleId: string,
+  body: UpdateRoleBody
+): Promise<UpdateRoleResponseDto> {
+  const { data } = await api.put<UpdateRoleResponseDto>(
+    `/api/v1/tenants/${tenantId}/roles/${roleId}`,
+    body
+  )
+  return data
+}
+
+export async function deleteTenantRole(
+  tenantId: string,
+  roleId: string
+): Promise<DeleteRoleResponseDto> {
+  const { data } = await api.delete<DeleteRoleResponseDto>(
+    `/api/v1/tenants/${tenantId}/roles/${roleId}`
+  )
   return data
 }
 

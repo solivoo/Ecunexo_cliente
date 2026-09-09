@@ -13,9 +13,9 @@ export function AppSettingsPage() {
   if (!canRead) {
     return (
       <div className="ecu-companies-page">
-        <h1 className="app-shell__page-title">Configuración</h1>
+        <h1 className="app-shell__page-title">Preferencias</h1>
         <p className="app-shell__page-lead">
-          No tienes permiso para ver la configuración de la aplicación.
+          No tienes permiso para ver las preferencias de la aplicación.
         </p>
       </div>
     )
@@ -23,9 +23,9 @@ export function AppSettingsPage() {
 
   return (
     <div className="ecu-companies-page">
-      <h1 className="app-shell__page-title">Configuración</h1>
+      <h1 className="app-shell__page-title">Preferencias</h1>
       <p className="app-shell__page-lead">
-        Preferencias de esta cuenta. Se guardan en el servidor y se aplican al instante.
+        Preferencias de tu usuario y apariencia. Se guardan y se aplican al instante.
       </p>
       {persistError ? <p className="ecu-companies-form__hint" role="alert">{persistError}</p> : null}
       {!canUpdate ? (

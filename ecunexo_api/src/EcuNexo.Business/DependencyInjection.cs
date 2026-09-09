@@ -92,8 +92,11 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<SendUserPasswordResetEmailCommand, SendUserPasswordResetEmailResponse>, SendUserPasswordResetEmailHandler>();
         services.AddScoped<ICommandHandler<SoftDeleteUserCommand, SoftDeleteUserResponse>, SoftDeleteUserHandler>();
         services.AddScoped<ICommandHandler<CreateRoleCommand, CreateRoleResponse>, CreateRoleHandler>();
+        services.AddScoped<ICommandHandler<UpdateRoleCommand, UpdateRoleResponse>, UpdateRoleHandler>();
+        services.AddScoped<ICommandHandler<DeleteRoleCommand, DeleteRoleResponse>, DeleteRoleHandler>();
         services.AddScoped<ICommandHandler<CreateDepartmentCommand, CreateDepartmentResponse>, CreateDepartmentHandler>();
         services.AddScoped<ICommandHandler<UpdateDepartmentCommand, UpdateDepartmentResponse>, UpdateDepartmentHandler>();
+        services.AddScoped<ICommandHandler<DeleteDepartmentCommand, DeleteDepartmentResponse>, DeleteDepartmentHandler>();
         services.AddScoped<ICommandHandler<CreateCategoryCommand, CreateCategoryResponse>, CreateCategoryHandler>();
         services.AddScoped<ICommandHandler<UpdateCategoryCommand, UpdateCategoryResponse>, UpdateCategoryHandler>();
         services.AddScoped<ICommandHandler<SoftDeleteCategoryCommand, SoftDeleteCategoryResponse>, SoftDeleteCategoryHandler>();

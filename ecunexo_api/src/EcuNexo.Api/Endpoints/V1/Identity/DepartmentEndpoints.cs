@@ -29,6 +29,8 @@ public static class DepartmentEndpoints
             .AddEndpointFilter(PermissionFilters.Require("identity.departments.manage"));
         group.MapPut("/{departmentId:guid}", UpdateDepartmentAsync)
             .AddEndpointFilter(PermissionFilters.Require("identity.departments.manage"));
+        group.MapDelete("/{departmentId:guid}", DeleteDepartmentAsync)
+            .AddEndpointFilter(PermissionFilters.Require("identity.departments.manage"));
         group.MapGet("/", ListDepartmentsAsync)
             .AddEndpointFilter(PermissionFilters.Require("identity.departments.read"));
         group.MapGet("/{departmentId:guid}", GetDepartmentAsync)
@@ -67,6 +69,20 @@ public static class DepartmentEndpoints
         var result = await sender
             .SendAsync<UpdateDepartmentCommand, UpdateDepartmentResponse>(
                 body.ToCommand(tenantId, departmentId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> DeleteDepartmentAsync(
+        Guid tenantId,
+        Guid departmentId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<DeleteDepartmentCommand, DeleteDepartmentResponse>(
+                new DeleteDepartmentCommand(tenantId, departmentId),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

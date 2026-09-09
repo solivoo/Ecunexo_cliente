@@ -10,7 +10,13 @@ public interface IRoleRepository
 
     Task<Role?> GetActiveByIdAsync(Guid tenantId, Guid roleId, CancellationToken ct);
 
-    Task<bool> NameExistsIgnoreCaseAsync(Guid tenantId, string name, CancellationToken ct);
+    Task<Role?> GetActiveByIdForUpdateAsync(Guid tenantId, Guid roleId, CancellationToken ct);
+
+    Task<bool> NameExistsIgnoreCaseAsync(
+        Guid tenantId,
+        string name,
+        CancellationToken ct,
+        Guid? excludeRoleId = null);
 
     Task<bool> ExistsActiveByIdAsync(Guid tenantId, Guid roleId, CancellationToken ct);
 }

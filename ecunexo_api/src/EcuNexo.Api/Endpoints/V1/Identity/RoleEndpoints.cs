@@ -31,6 +31,10 @@ public static class RoleEndpoints
             .AddEndpointFilter(PermissionFilters.Require("identity.roles.read"));
         roles.MapGet("/{roleId:guid}", GetRoleAsync)
             .AddEndpointFilter(PermissionFilters.Require("identity.roles.read"));
+        roles.MapPut("/{roleId:guid}", UpdateRoleAsync)
+            .AddEndpointFilter(PermissionFilters.Require("identity.roles.manage"));
+        roles.MapDelete("/{roleId:guid}", DeleteRoleAsync)
+            .AddEndpointFilter(PermissionFilters.Require("identity.roles.manage"));
 
         RouteGroupBuilder rolePerms = app
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/roles/{roleId:guid}/permissions")
@@ -92,6 +96,31 @@ public static class RoleEndpoints
         var result = await sender.AskAsync<GetTenantRoleQuery, GetTenantRoleResponse>(
                 new GetTenantRoleQuery(tenantId, roleId),
                 ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> UpdateRoleAsync(
+        Guid tenantId,
+        Guid roleId,
+        UpdateRoleRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<UpdateRoleCommand, UpdateRoleResponse>(body.ToCommand(tenantId, roleId), ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> DeleteRoleAsync(
+        Guid tenantId,
+        Guid roleId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<DeleteRoleCommand, DeleteRoleResponse>(new DeleteRoleCommand(tenantId, roleId), ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();
     }

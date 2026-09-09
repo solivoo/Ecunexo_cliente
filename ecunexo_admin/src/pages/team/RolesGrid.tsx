@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataGrid, type ColumnDef } from 'glubox'
-import { Eye, KeyRound } from 'lucide-react'
+import { Eye, KeyRound, Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -14,11 +14,18 @@ export type RoleGridRow = RoleListItemDto & Record<string, unknown>
 export type RolesGridProps = {
   readonly rows: RoleListItemDto[]
   readonly loading?: boolean
+  readonly actionBusyId?: string | null
+  readonly onDelete?: (row: RoleGridRow) => void
 }
 
 const gridMessages = createSpanishDataGridMessages('rol', 'roles')
 
-export function RolesGrid({ rows, loading = false }: RolesGridProps) {
+export function RolesGrid({
+  rows,
+  loading = false,
+  actionBusyId = null,
+  onDelete,
+}: RolesGridProps) {
   const navigate = useNavigate()
   const canManage = useHasPermission('identity.roles.manage')
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
@@ -61,28 +68,56 @@ export function RolesGrid({ rows, loading = false }: RolesGridProps) {
       {
         key: 'id',
         header: 'Acciones',
-        width: canManage ? 104 : 72,
+        width: canManage ? 168 : 72,
         align: 'center',
         sortable: false,
-        renderCell: (_value: RoleGridRow['id'], row: RoleGridRow) => (
-          <div className="ecu-companies-grid__actions">
-            <GridIconButton
-              label="Abrir"
-              icon={Eye}
-              onClick={() => navigate(`/equipo/roles/${row.id}`)}
-            />
-            {canManage ? (
+        renderCell: (_value: RoleGridRow['id'], row: RoleGridRow) => {
+          const busy = actionBusyId === row.id
+          return (
+            <div className="ecu-companies-grid__actions">
               <GridIconButton
-                label="Gestionar permisos"
-                icon={KeyRound}
-                onClick={() => navigate(`/equipo/roles/${row.id}/permisos`)}
+                label="Abrir"
+                icon={Eye}
+                disabled={busy}
+                onClick={() => navigate(`/equipo/roles/${row.id}`)}
               />
-            ) : null}
-          </div>
-        ),
+              {canManage ? (
+                <GridIconButton
+                  label="Editar"
+                  icon={Pencil}
+                  disabled={busy}
+                  onClick={() => navigate(`/equipo/roles/${row.id}/editar`)}
+                />
+              ) : null}
+              {canManage ? (
+                <GridIconButton
+                  label="Gestionar permisos"
+                  icon={KeyRound}
+                  disabled={busy}
+                  onClick={() => navigate(`/equipo/roles/${row.id}/permisos`)}
+                />
+              ) : null}
+              {canManage ? (
+                <GridIconButton
+                  label={row.isSystem ? 'Rol de sistema protegido' : 'Eliminar'}
+                  icon={Trash2}
+                  danger
+                  loading={busy}
+                  disabled={busy || row.isSystem}
+                  title={
+                    row.isSystem
+                      ? 'Los roles de sistema no se pueden eliminar'
+                      : 'Eliminar rol'
+                  }
+                  onClick={() => onDelete?.(row)}
+                />
+              ) : null}
+            </div>
+          )
+        },
       },
     ]
-  }, [canManage, navigate])
+  }, [actionBusyId, canManage, navigate, onDelete])
 
   const dataSource = useMemo(
     () => (Array.isArray(rows) ? rows : []) as RoleGridRow[],

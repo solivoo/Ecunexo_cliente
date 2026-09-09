@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataGrid, type ColumnDef } from 'glubox'
-import { Pencil } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
@@ -14,6 +14,8 @@ export type DepartmentsGridProps = {
   readonly rows: DepartmentListItemDto[]
   readonly loading?: boolean
   readonly canManage?: boolean
+  readonly actionBusyId?: string | null
+  readonly onDelete?: (row: DepartmentGridRow) => void
 }
 
 const gridMessages = createSpanishDataGridMessages('departamento', 'departamentos')
@@ -22,6 +24,8 @@ export function DepartmentsGrid({
   rows,
   loading = false,
   canManage = false,
+  actionBusyId = null,
+  onDelete,
 }: DepartmentsGridProps) {
   const navigate = useNavigate()
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
@@ -58,23 +62,43 @@ export function DepartmentsGrid({
             {
               key: 'id',
               header: 'Acciones',
-              width: 88,
+              width: 104,
               align: 'center' as const,
               sortable: false,
-              renderCell: (_value: DepartmentGridRow['id'], row: DepartmentGridRow) => (
-                <div className="ecu-companies-grid__actions">
-                  <GridIconButton
-                    label="Editar"
-                    icon={Pencil}
-                    onClick={() => navigate(`/equipo/departamentos/${row.id}/editar`)}
-                  />
-                </div>
-              ),
+              renderCell: (_value: DepartmentGridRow['id'], row: DepartmentGridRow) => {
+                const busy = actionBusyId === row.id
+                const isSystem =
+                  row.name.trim().toLowerCase() === 'administración' ||
+                  row.name.trim().toLowerCase() === 'administracion'
+                return (
+                  <div className="ecu-companies-grid__actions">
+                    <GridIconButton
+                      label="Editar"
+                      icon={Pencil}
+                      disabled={busy}
+                      onClick={() => navigate(`/equipo/departamentos/${row.id}/editar`)}
+                    />
+                    <GridIconButton
+                      label={isSystem ? 'Departamento protegido' : 'Eliminar'}
+                      icon={Trash2}
+                      danger
+                      loading={busy}
+                      disabled={busy || isSystem}
+                      title={
+                        isSystem
+                          ? 'El departamento de administración no se puede eliminar'
+                          : 'Eliminar departamento'
+                      }
+                      onClick={() => onDelete?.(row)}
+                    />
+                  </div>
+                )
+              },
             } satisfies ColumnDef<DepartmentGridRow>,
           ]
         : []),
     ]
-  }, [canManage, navigate])
+  }, [actionBusyId, canManage, navigate, onDelete])
 
   const dataSource = useMemo(
     () => (Array.isArray(rows) ? rows : []) as DepartmentGridRow[],

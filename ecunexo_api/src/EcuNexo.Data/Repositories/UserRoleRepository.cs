@@ -51,4 +51,9 @@ public sealed class UserRoleRepository : IUserRoleRepository
         _db.UserRoles.Remove(assignment);
         return true;
     }
+
+    public Task<bool> HasActiveUsersAssignedAsync(Guid tenantId, Guid roleId, CancellationToken ct) =>
+        _db.UserRoles.AsNoTracking().AnyAsync(
+            ur => ur.TenantId == tenantId && ur.RoleId == roleId && ur.User.DeletedAt == null,
+            ct);
 }

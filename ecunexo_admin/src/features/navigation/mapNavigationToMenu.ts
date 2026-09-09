@@ -1,10 +1,15 @@
 import type { MenuConfig, MenuItem, MenuSubItem } from 'glubox'
 import type { NavigationNode } from '@/types/navigation'
 
-/** Acciones de página: no van al sidebar (van a PageActionsMenu). */
+/** Acciones de página o redundancias: no van al sidebar */
 const SIDEBAR_EXCLUDED_IDS = new Set([
   'sub-companies-create',
   'org-companies-create',
+  // Evitar duplicar pantallas de Equipo y Seguridad bajo Configuración:
+  'configuracion-empleados',
+  'configuracion-roles',
+  'configuracion-permisos',
+  'configuracion-politicas',
 ])
 
 const SIDEBAR_EXCLUDED_ROUTES = new Set([
@@ -78,13 +83,18 @@ function toPath(route: string | null): string | undefined {
 }
 
 function formatNodeLabel(node: NavigationNode): string {
+  let label = node.label
+  // Diferenciar la sección operativa de empresa de las preferencias de usuario
+  if (node.id === 'configuracion' && label.toLowerCase() === 'configuración') {
+    label = 'Ajustes de Empresa'
+  }
   if (node.placeholder) {
-    return `${node.label} · Próximamente`
+    return `${label} · Próximamente`
   }
   if (node.disabled && node.disabledReason) {
-    return `${node.label} · ${node.disabledReason}`
+    return `${label} · ${node.disabledReason}`
   }
-  return node.label
+  return label
 }
 
 function resolveNodePath(node: NavigationNode): string | undefined {
@@ -134,7 +144,7 @@ export function navigationToMenuConfig(
   if (hasPermission(userPermissions, APP_SETTINGS_READ)) {
     items.push({
       id: 'app-settings',
-      label: 'Configuración',
+      label: 'Preferencias',
       icon: 'sliders-horizontal',
       path: '/app/configuracion',
       position: 'bottom',

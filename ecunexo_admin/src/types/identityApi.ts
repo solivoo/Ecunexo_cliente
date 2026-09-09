@@ -102,6 +102,17 @@ export type CreateRoleBody = {
 
 export type CreateRoleResponseDto = { roleId: string; tenantId: string }
 
+export type UpdateRoleBody = {
+  name: string
+  description?: string | null
+}
+
+export type UpdateRoleResponseDto = { roleId: string; tenantId: string }
+
+export type DeleteRoleResponseDto = { roleId: string; tenantId: string }
+
+export type DeleteDepartmentResponseDto = { departmentId: string; tenantId: string }
+
 export type PermissionListItemDto = {
   id: string
   code: string

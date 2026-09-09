@@ -82,6 +82,13 @@ export function RoleDetailPage() {
     ]
     if (canManage) {
       items.push({
+        id: 'edit',
+        label: 'Editar rol',
+        icon: 'pencil',
+        route: `/equipo/roles/${roleId}/editar`,
+        disabled: false,
+      })
+      items.push({
         id: 'manage-perms',
         label: 'Gestionar permisos',
         icon: 'key',
@@ -171,9 +178,21 @@ export function RoleDetailPage() {
               </div>
 
               <section className="app-shell__card ecu-companies-form__card">
-                <h2 className="app-shell__section-title">
-                  <Shield size={18} strokeWidth={1.75} aria-hidden /> Perfil del rol
-                </h2>
+                <div className="ecu-page-header">
+                  <h2 className="app-shell__section-title">
+                    <Shield size={18} strokeWidth={1.75} aria-hidden /> Perfil del rol
+                  </h2>
+                  {canManage ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/equipo/roles/${roleId}/editar`)}
+                    >
+                      Editar rol
+                    </Button>
+                  ) : null}
+                </div>
                 <p className="ecu-companies-form__hint">{role.description ?? 'Sin descripción.'}</p>
               </section>
 

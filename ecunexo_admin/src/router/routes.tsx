@@ -18,6 +18,7 @@ import { CreatePermissionPage } from '@/pages/security/CreatePermissionPage'
 import { AssignUserRolePage } from '@/pages/team/AssignUserRolePage'
 import { CreateDepartmentPage } from '@/pages/team/CreateDepartmentPage'
 import { CreateRolePage } from '@/pages/team/CreateRolePage'
+import { EditRolePage } from '@/pages/team/EditRolePage'
 import { CreateUserPage } from '@/pages/team/CreateUserPage'
 import { DepartmentsListPage } from '@/pages/team/DepartmentsListPage'
 import { EditDepartmentPage } from '@/pages/team/EditDepartmentPage'
@@ -90,6 +91,7 @@ export const routes: RouteObject[] = [
           { path: 'equipo/usuarios/:userId', element: <UserDetailPage /> },
           { path: 'equipo/roles', element: <RolesListPage /> },
           { path: 'equipo/roles/nuevo', element: <CreateRolePage /> },
+          { path: 'equipo/roles/:roleId/editar', element: <EditRolePage /> },
           { path: 'equipo/roles/:roleId/permisos', element: <RolePermissionsPage /> },
           { path: 'equipo/roles/:roleId/permisos/otorgar', element: <GrantRolePermissionPage /> },
           { path: 'equipo/roles/:roleId', element: <RoleDetailPage /> },

@@ -2,51 +2,44 @@ import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormE
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Popup, TextBox, useToast, type PageActionItem } from 'glubox'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
-import { Building2 } from 'lucide-react'
+import { Shield } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
-import {
-  deleteTenantDepartment,
-  getTenantDepartment,
-  updateTenantDepartment,
-} from '@/services/identityApi'
+import { deleteTenantRole, getTenantRole, updateTenantRole } from '@/services/identityApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
+import type { GetTenantRoleDto } from '@/types/identityApi'
 
-const LIST_PATH = '/equipo/departamentos'
+const LIST_PATH = '/equipo/roles'
 
-export function EditDepartmentPage() {
-  const { departmentId = '' } = useParams<{ departmentId: string }>()
+export function EditRolePage() {
+  const { roleId = '' } = useParams<{ roleId: string }>()
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
-  const canManage = useHasPermission('identity.departments.manage')
+  const canManage = useHasPermission('identity.roles.manage')
 
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [hydrated, setHydrated] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [role, setRole] = useState<GetTenantRoleDto | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteBusy, setDeleteBusy] = useState(false)
 
-  const isAdministration = useMemo(() => {
-    const trimmed = name.trim().toLowerCase()
-    return trimmed === 'administración' || trimmed === 'administracion'
-  }, [name])
-
   const handleDelete = useCallback(async () => {
-    if (!tenantId || !departmentId) return
+    if (!tenantId || !roleId) return
     setDeleteBusy(true)
     try {
-      await deleteTenantDepartment(tenantId, departmentId)
+      await deleteTenantRole(tenantId, roleId)
       toast.show({
-        title: 'Departamento eliminado',
-        message: `Se eliminó el departamento «${name.trim()}».`,
+        title: 'Rol eliminado',
+        message: `Se eliminó el rol «${name.trim()}».`,
         variant: 'success',
       })
       setConfirmDelete(false)
@@ -54,54 +47,66 @@ export function EditDepartmentPage() {
     } catch (err: unknown) {
       toast.show({
         title: 'Error al eliminar',
-        message: readApiError(err, 'No se pudo eliminar el departamento.'),
+        message: readApiError(err, 'No se pudo eliminar el rol.'),
         variant: 'error',
       })
     } finally {
       setDeleteBusy(false)
     }
-  }, [departmentId, name, navigate, tenantId, toast])
+  }, [name, navigate, roleId, tenantId, toast])
 
   const goToList = useCallback(() => {
     void navigate(LIST_PATH)
   }, [navigate])
 
-  const actionItems = useMemo<PageActionItem[]>(
-    () => [
+  const actionItems = useMemo<PageActionItem[]>(() => {
+    const items: PageActionItem[] = [
       {
         id: 'list',
-        label: 'Listado de departamentos',
-        icon: 'building-2',
+        label: 'Listado de roles',
+        icon: 'shield',
         route: LIST_PATH,
         disabled: false,
       },
-      {
-        id: 'users',
-        label: 'Usuarios',
-        icon: 'users',
-        route: '/equipo/usuarios',
-        disabled: false,
-      },
-    ],
-    []
-  )
+    ]
+    if (roleId) {
+      items.push(
+        {
+          id: 'detail',
+          label: 'Ver rol',
+          icon: 'eye',
+          route: `/equipo/roles/${roleId}`,
+          disabled: false,
+        },
+        {
+          id: 'perms',
+          label: 'Gestionar permisos',
+          icon: 'key',
+          route: `/equipo/roles/${roleId}/permisos`,
+          disabled: false,
+        }
+      )
+    }
+    return items
+  }, [roleId])
 
   const load = useCallback(async () => {
-    if (!tenantId || !departmentId) return
+    if (!tenantId || !roleId) return
     setLoading(true)
     try {
-      const row = await getTenantDepartment(tenantId, departmentId)
-      setName(row.name)
-      setDescription(row.description ?? '')
+      const data = await getTenantRole(tenantId, roleId)
+      setRole(data)
+      setName(data.name)
+      setDescription(data.description ?? '')
       setHydrated(true)
       setError(null)
     } catch (err: unknown) {
       setHydrated(false)
-      setError(readApiError(err, 'No se pudo cargar el departamento.'))
+      setError(readApiError(err, 'No se pudo cargar el rol.'))
     } finally {
       setLoading(false)
     }
-  }, [departmentId, tenantId])
+  }, [roleId, tenantId])
 
   useEffect(() => {
     void load()
@@ -110,45 +115,45 @@ export function EditDepartmentPage() {
   const onSubmit = useCallback(
     async (e?: FormEvent) => {
       e?.preventDefault()
-      if (!tenantId || !departmentId) return
+      if (!tenantId || !roleId) return
       if (!name.trim()) {
-        setError('El nombre del departamento es obligatorio.')
+        setError('El nombre del rol es obligatorio.')
         return
       }
 
       setError(null)
       setBusy(true)
       try {
-        await updateTenantDepartment(tenantId, departmentId, {
+        await updateTenantRole(tenantId, roleId, {
           name: name.trim(),
           description: description.trim() || null,
         })
         toast.show({
-          title: 'Departamento actualizado',
-          message: `Se guardó «${name.trim()}». Los usuarios asignados ya ven el nombre nuevo.`,
+          title: 'Rol actualizado',
+          message: `Se guardó «${name.trim()}».`,
           variant: 'success',
         })
-        void navigate(LIST_PATH, { replace: true })
+        void navigate(`/equipo/roles/${roleId}`, { replace: true })
       } catch (err: unknown) {
-        const message = readApiError(err, 'No se pudo guardar el departamento.')
+        const message = readApiError(err, 'No se pudo guardar el rol.')
         setError(message)
         toast.show({ title: 'No se pudo guardar', message, variant: 'error' })
       } finally {
         setBusy(false)
       }
     },
-    [departmentId, description, name, navigate, tenantId, toast]
+    [description, name, navigate, roleId, tenantId, toast]
   )
 
   if (!canManage) {
     return (
       <TenantSessionGate
-        title="Editar departamento"
-        lead="Corrige el nombre o la descripción de la unidad organizacional."
+        title="Editar rol"
+        lead="Corrige el nombre o la descripción del rol."
       >
         <div className="ecu-companies-page">
           <p className="app-shell__page-lead">
-            Requieres identity.departments.manage para editar departamentos.
+            Requieres identity.roles.manage para editar roles.
           </p>
           <Button type="button" variant="outline" onClick={goToList}>
             Volver al listado
@@ -160,18 +165,18 @@ export function EditDepartmentPage() {
 
   return (
     <TenantSessionGate
-      title="Editar departamento"
-      lead="Corrige el nombre o la descripción. El identificador no cambia."
+      title="Editar rol"
+      lead="Corrige el nombre o la descripción. El identificador y permisos vinculados no cambian."
     >
       <div className="ecu-companies-page">
         <div className="ecu-page-header">
           <p className="app-shell__page-lead">
-            Puedes poner la tilde que faltó. El nombre sigue siendo único en la empresa.
+            Modifica los detalles del rol en la empresa.
           </p>
           <EcuPageActions
             items={actionItems}
             variant="outline"
-            triggerLabel="Acciones de editar departamento"
+            triggerLabel="Acciones de editar rol"
             renderIcon={renderSidebarIcon}
             onNavigate={(route: string) => navigate(route)}
           />
@@ -190,12 +195,17 @@ export function EditDepartmentPage() {
           <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
             <section className="app-shell__card ecu-companies-form__card">
               <h2 className="app-shell__section-title">
-                <Building2 size={18} strokeWidth={1.75} aria-hidden /> Departamento
+                <Shield size={18} strokeWidth={1.75} aria-hidden /> Rol
               </h2>
+              {role?.isSystem ? (
+                <p className="ecu-companies-form__hint">
+                  Este es un rol de sistema. Puedes actualizar su descripción para tu organización.
+                </p>
+              ) : null}
               <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                   <TextBox
-                    id="ed-name"
+                    id="er-name"
                     label="Nombre"
                     labelPosition="outlined"
                     variant="outline"
@@ -208,7 +218,7 @@ export function EditDepartmentPage() {
                 </div>
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                   <TextBox
-                    id="ed-desc"
+                    id="er-desc"
                     label="Descripción"
                     labelPosition="outlined"
                     variant="outline"
@@ -238,14 +248,14 @@ export function EditDepartmentPage() {
               >
                 Atrás
               </Button>
-              {!isAdministration ? (
+              {!role?.isSystem ? (
                 <Button
                   type="button"
                   variant="danger"
                   disabled={busy || loading || deleteBusy}
                   onClick={() => setConfirmDelete(true)}
                 >
-                  Eliminar departamento
+                  Eliminar rol
                 </Button>
               ) : null}
             </div>
@@ -255,7 +265,7 @@ export function EditDepartmentPage() {
 
       <Popup
         open={confirmDelete}
-        title="Eliminar departamento"
+        title="Eliminar rol"
         onClose={() => setConfirmDelete(false)}
         width="min(92vw, 28rem)"
         actions={[
@@ -278,8 +288,8 @@ export function EditDepartmentPage() {
         ]}
       >
         <p className="app-shell__muted">
-          ¿Dar de baja el departamento <strong>{name}</strong>? Los usuarios que lo tuvieran
-          asignado deben ser reasignados previamente.
+          ¿Dar de baja el rol <strong>{name}</strong>? Los usuarios que lo tuvieran asignado deben
+          ser reasignados previamente.
         </p>
       </Popup>
     </TenantSessionGate>
