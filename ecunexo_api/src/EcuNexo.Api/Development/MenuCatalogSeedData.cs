@@ -7,6 +7,32 @@ internal static class MenuCatalogSeedData
 {
     public static IReadOnlyList<(string Code, string DisplayName, string Description, string Module, int Sort)> Permissions =>
     [
+        // Identidad / RBAC (obligatorios para Administrador al provisionar empresa)
+        ("identity.users.read", "Usuarios — consultar", "Listar usuarios del tenant", "identity", 10),
+        ("identity.users.create", "Usuarios — crear", "Crear usuarios", "identity", 11),
+        ("identity.users.update", "Usuarios — editar", "Editar y deshabilitar usuarios", "identity", 12),
+        ("identity.users.delete", "Usuarios — eliminar", "Eliminar usuarios", "identity", 13),
+        ("identity.roles.read", "Roles — consultar", "Listar roles", "identity", 14),
+        ("identity.roles.manage", "Roles — administrar", "Crear roles y asignar permisos/usuarios", "identity", 15),
+        ("identity.permissions.read", "Permisos — consultar", "Ver catálogo de permisos", "identity", 16),
+        ("identity.permissions.manage", "Permisos — administrar", "Crear permisos globales", "identity", 17),
+        ("identity.policies.manage", "Políticas ABAC — administrar", "Crear y gestionar políticas", "identity", 18),
+        ("identity.departments.read", "Departamentos — consultar", "Listar departamentos", "identity", 19),
+        ("identity.departments.manage", "Departamentos — administrar", "Crear y editar departamentos", "identity", 20),
+
+        // Organización (prefijo tenancy; no filtra por módulo de licencia)
+        ("tenancy.tenant.read", "Empresa — consultar", "Ver perfil y plan de la empresa", "tenancy", 30),
+        ("tenancy.tenant.update", "Empresa — editar", "Editar perfil y branding", "tenancy", 31),
+        ("tenancy.license.apply", "Licencia — aplicar", "Aplicar upgrade de licencia", "tenancy", 32),
+        ("tenancy.tenants.read", "Empresas — listar", "Listar empresas de la suscripción", "tenancy", 33),
+        ("tenancy.tenants.create", "Empresas — crear", "Crear empresa bajo la licencia", "tenancy", 34),
+        ("tenancy.tenants.update", "Empresas — editar", "Editar empresas de la suscripción", "tenancy", 35),
+        ("tenancy.tenants.delete", "Empresas — eliminar", "Eliminar empresas de la suscripción", "tenancy", 36),
+
+        ("platform.settings.read", "Ajustes — consultar", "Ver ajustes de plataforma", "platform", 40),
+        ("platform.settings.update", "Ajustes — editar", "Editar ajustes de plataforma", "platform", 41),
+        ("platform.menu.manage", "Menú — administrar", "Administrar ítems de menú", "platform", 42),
+
         ("facturacion.read", "Facturación — acceso", "Ver módulo facturación", "facturacion", 70),
         ("facturacion.comprobantes.read", "Comprobantes", "Ver comprobantes electrónicos", "facturacion", 71),
         ("facturacion.facturas.read", "Facturas — consultar propias", "Listar las facturas que emitió el usuario", "facturacion", 72),
