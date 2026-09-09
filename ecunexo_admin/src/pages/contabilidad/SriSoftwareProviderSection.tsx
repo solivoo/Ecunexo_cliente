@@ -147,7 +147,7 @@ export function SriSoftwareProviderSection({
           loading={busy}
           onClick={() => void onSave()}
         >
-          {busy ? 'Guardando…' : 'Guardar proveedor del sistema'}
+          {busy ? 'Guardando…' : 'Guardar proveedor'}
         </Button>
       </footer>
     </section>
