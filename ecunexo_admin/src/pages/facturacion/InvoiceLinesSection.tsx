@@ -9,7 +9,6 @@ import {
   type InvoiceLineDraft,
   type InvoiceLineItemKind,
 } from '@/pages/facturacion/invoiceFormTypes'
-import { MOCK_PRODUCTS } from '@/pages/facturacion/mockProducts'
 import { listCatalogItems } from '@/services/catalogApi'
 import { selectEnabledModules } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
@@ -47,10 +46,12 @@ export function InvoiceLinesSection({
     enabledModules.some((m) => m.toLowerCase() === 'catalog')
 
   const [catalogItems, setCatalogItems] = useState<CatalogItemListItemDto[]>([])
+  const [catalogError, setCatalogError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!tenantId || !hasCatalog) {
       setCatalogItems([])
+      setCatalogError(null)
       return
     }
 
@@ -58,9 +59,15 @@ export function InvoiceLinesSection({
     void (async () => {
       try {
         const items = await listCatalogItems(tenantId)
-        if (!cancelled) setCatalogItems(items)
+        if (!cancelled) {
+          setCatalogItems(items)
+          setCatalogError(null)
+        }
       } catch {
-        if (!cancelled) setCatalogItems([])
+        if (!cancelled) {
+          setCatalogItems([])
+          setCatalogError('No se pudo cargar el catálogo. Revisa permisos catalog.item.read.')
+        }
       }
     })()
 
@@ -69,20 +76,14 @@ export function InvoiceLinesSection({
     }
   }, [tenantId, hasCatalog])
 
-  const productOptions = useMemo(() => {
-    if (catalogItems.length > 0) {
-      return catalogItems.map((item) => ({
+  const productOptions = useMemo(
+    () =>
+      catalogItems.map((item) => ({
         value: item.id,
-        label: item.sku?.trim()
-          ? `${item.sku} — ${item.name}`
-          : item.name,
-      }))
-    }
-    return MOCK_PRODUCTS.map((p) => ({
-      value: p.id,
-      label: `${p.sku} — ${p.name}`,
-    }))
-  }, [catalogItems])
+        label: item.sku?.trim() ? `${item.sku} — ${item.name}` : item.name,
+      })),
+    [catalogItems]
+  )
 
   const applyProduct = (lineId: string, productId: string) => {
     if (!productId) {
@@ -96,21 +97,7 @@ export function InvoiceLinesSection({
     }
 
     const catalog = catalogItems.find((p) => p.id === productId)
-    if (catalog) {
-      onChange(lineId, {
-        productId,
-        catalogItemId: catalog.id,
-        itemKind: kindToSnapshot(catalog.kind),
-        sku: (catalog.sku ?? '').trim().slice(0, 25),
-        description: catalog.name,
-        unitPrice: catalog.basePrice ?? 0,
-        ivaRate: normalizeLineIvaRate(15),
-      })
-      return
-    }
-
-    const mock = MOCK_PRODUCTS.find((p) => p.id === productId)
-    if (!mock) {
+    if (!catalog) {
       onChange(lineId, {
         productId,
         sku: '',
@@ -119,14 +106,15 @@ export function InvoiceLinesSection({
       })
       return
     }
+
     onChange(lineId, {
       productId,
-      catalogItemId: null,
-      itemKind: null,
-      sku: mock.sku,
-      description: mock.name,
-      unitPrice: mock.unitPrice,
-      ivaRate: normalizeLineIvaRate(mock.ivaRate),
+      catalogItemId: catalog.id,
+      itemKind: kindToSnapshot(catalog.kind),
+      sku: (catalog.sku ?? '').trim().slice(0, 25),
+      description: catalog.name,
+      unitPrice: catalog.basePrice ?? 0,
+      ivaRate: normalizeLineIvaRate(15),
     })
   }
 
@@ -141,6 +129,18 @@ export function InvoiceLinesSection({
       ) : (
         <p className="factura-emitir__meta-label">Detalle</p>
       )}
+
+      {catalogError ? (
+        <p className="welcome-onboarding__error" role="alert">
+          {catalogError}
+        </p>
+      ) : null}
+      {!catalogError && hasCatalog && catalogItems.length === 0 ? (
+        <p className="app-shell__muted">
+          No hay ítems en Catálogo. Crea productos/servicios en Catálogo → Ítems para seleccionarlos
+          aquí.
+        </p>
+      ) : null}
 
       <div className="factura-emitir__table-wrap">
         <table className="factura-emitir__table">
@@ -197,13 +197,7 @@ export function InvoiceLinesSection({
       </div>
 
       <div className="factura-emitir__detail-foot">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={disabled}
-          onClick={onAdd}
-        >
+        <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onAdd}>
           <Plus size={15} strokeWidth={2} aria-hidden />
           Agregar línea
         </Button>
