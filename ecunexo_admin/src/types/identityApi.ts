@@ -46,6 +46,7 @@ export type SetUserPasswordBody = {
 
 export type UpdateUserBody = {
   name: string
+  email?: string | null
   departmentId?: string | null
   department?: string | null
   phone?: string | null

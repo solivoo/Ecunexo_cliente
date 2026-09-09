@@ -10,6 +10,10 @@ public sealed class UpdateUserValidator : AbstractValidator<UpdateUserCommand>
         RuleFor(x => x.TenantId).NotEmpty();
         RuleFor(x => x.UserId).NotEmpty();
         RuleFor(x => x.Name).NotEmpty().MaximumLength(User.NameMaxLength);
+        RuleFor(x => x.Email!)
+            .NotEmpty()
+            .MaximumLength(Email.MaxLength)
+            .When(x => x.Email is not null);
         RuleFor(x => x.Department)
             .MaximumLength(User.DepartmentMaxLength)
             .When(x => x.Department is not null);

@@ -294,6 +294,27 @@ public sealed class User : AggregateRoot<Guid>, ITenantEntity, IAuditable, ISoft
         return Result.Success();
     }
 
+    /// <summary>Cambia el correo de acceso. El caller valida unicidad en el tenant.</summary>
+    public Result ChangeEmail(Email email)
+    {
+        ArgumentNullException.ThrowIfNull(email);
+
+        if (DeletedAt is not null)
+        {
+            return Result.Failure(
+                new Error("user.deleted", "El usuario está eliminado.", ErrorType.Conflict));
+        }
+
+        if (Email.Equals(email))
+        {
+            return Result.Success();
+        }
+
+        Email = email;
+        UpdatedAt = DateTimeOffset.UtcNow;
+        return Result.Success();
+    }
+
     /// <summary>Copia el nombre del catálogo cuando se corrige un departamento.</summary>
     public Result SyncOrgDepartmentLabel(string name)
     {

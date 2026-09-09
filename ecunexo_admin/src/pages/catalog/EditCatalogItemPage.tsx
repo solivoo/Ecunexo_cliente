@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Button, Popup, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { Package } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -35,6 +35,7 @@ export function EditCatalogItemPage() {
 
   const [busy, setBusy] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [item, setItem] = useState<CatalogItemDetailDto | null>(null)
@@ -184,10 +185,6 @@ export function EditCatalogItemPage() {
 
   const onDelete = useCallback(async () => {
     if (!tenantId || !itemId || !item || !canDelete) return
-    const ok = window.confirm(
-      `¿Eliminar «${item.name}»? Solo se permite si no tiene stock, movimientos ni documentos.`
-    )
-    if (!ok) return
 
     setDeleting(true)
     setError(null)
@@ -198,6 +195,7 @@ export function EditCatalogItemPage() {
         message: `«${item.name}» quedó dado de baja.`,
         variant: 'success',
       })
+      setConfirmDelete(false)
       void navigate('/catalogo/items', { replace: true })
     } catch (err: unknown) {
       const message = readApiError(
@@ -376,7 +374,7 @@ export function EditCatalogItemPage() {
                   variant="danger"
                   loading={deleting}
                   disabled={busy || deleting}
-                  onClick={() => void onDelete()}
+                  onClick={() => setConfirmDelete(true)}
                 >
                   Eliminar
                 </Button>
@@ -388,6 +386,39 @@ export function EditCatalogItemPage() {
           </form>
         )}
       </div>
+
+      <Popup
+        open={confirmDelete}
+        title="Eliminar ítem"
+        onClose={() => setConfirmDelete(false)}
+        width="min(92vw, 28rem)"
+        actions={[
+          {
+            id: 'cancel',
+            label: 'Cancelar',
+            variant: 'ghost',
+            onClick: () => setConfirmDelete(false),
+            disabled: deleting,
+          },
+          {
+            id: 'confirm',
+            label: 'Sí, eliminar',
+            variant: 'primary',
+            onClick: () => {
+              void onDelete()
+            },
+            disabled: deleting,
+          },
+        ]}
+      >
+        {item ? (
+          <p className="app-shell__muted">
+            ¿Dar de baja <strong>{item.name}</strong>
+            {item.sku ? ` (${item.sku})` : ''}? Solo se permite si no tiene stock, movimientos ni
+            documentos. Es una baja lógica.
+          </p>
+        ) : null}
+      </Popup>
     </TenantSessionGate>
   )
 }

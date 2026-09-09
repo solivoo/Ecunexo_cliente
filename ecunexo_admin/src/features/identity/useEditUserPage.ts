@@ -31,6 +31,7 @@ export function useEditUserPage() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [roleId, setRoleId] = useState('')
@@ -55,6 +56,7 @@ export function useEditUserPage() {
       setUser(u)
       setDepartments(depts)
       setRoles(roleList)
+      setEmail(u.email)
       setName(u.name)
       setDepartmentId(u.departmentId ?? '')
       setRoleId(u.roleIds[0] ?? '')
@@ -101,8 +103,12 @@ export function useEditUserPage() {
       setError(null)
       try {
         if (!name.trim()) throw new Error('El nombre es obligatorio.')
+        const nextEmail = email.trim()
+        if (!nextEmail) throw new Error('El correo es obligatorio.')
+        if (!nextEmail.includes('@')) throw new Error('El correo no tiene un formato válido.')
         await updateTenantUser(tenantId, userId, {
           name: name.trim(),
+          email: user.isCompanyOwner ? undefined : nextEmail,
           departmentId: departmentId || null,
           phone: phone.trim() || null,
           jobTitle: jobTitle.trim() || null,
@@ -138,6 +144,7 @@ export function useEditUserPage() {
       canManageRoles,
       departmentId,
       detailPath,
+      email,
       jobTitle,
       name,
       navigate,
@@ -160,6 +167,7 @@ export function useEditUserPage() {
     departmentOptions,
     departments,
     detailPath,
+    email,
     error,
     formLocked,
     jobTitle,
@@ -172,6 +180,7 @@ export function useEditUserPage() {
     roleOptions,
     roles,
     setDepartmentId,
+    setEmail,
     setJobTitle,
     setName,
     setPhone,

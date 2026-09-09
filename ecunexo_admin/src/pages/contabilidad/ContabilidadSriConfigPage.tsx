@@ -167,11 +167,10 @@ function pageTitle(pathname: string): string {
 export function ContabilidadSriConfigPage() {
   const toast = useToast()
   const location = useLocation()
-  const isCompanyPage = location.pathname.includes('/organizacion/facturacion-electronica')
   const canReadContabilidad = useHasPermission('contabilidad.configuracion.read')
   const canReadEmisor = useHasPermission('facturacion.emisor.read')
   const canReadTenant = useHasPermission('tenancy.tenant.read')
-  const canRead = canReadContabilidad || canReadEmisor || canReadTenant || isCompanyPage
+  const canRead = canReadContabilidad || canReadEmisor || canReadTenant
   const canUpdateTenant = useHasPermission('tenancy.tenant.update')
   const canUpdateCompanies = useHasPermission('tenancy.tenants.update')
   const isHolder = useAppSelector(selectIsSubscriptionHolder)
@@ -390,7 +389,11 @@ export function ContabilidadSriConfigPage() {
     return (
       <div className="sri-config-page">
         <h1 className="app-shell__page-title">{title}</h1>
-        <p className="app-shell__page-lead">No tienes permiso para ver esta configuración.</p>
+        <p className="app-shell__page-lead">
+          No tienes permiso para ver la configuración SRI. Pide a un administrador uno de estos
+          permisos: <code>facturacion.emisor.read</code>, <code>tenancy.tenant.read</code> o{' '}
+          <code>contabilidad.configuracion.read</code> (Equipo → Roles).
+        </p>
       </div>
     )
   }

@@ -75,13 +75,11 @@ test.describe('Independiente — catálogo de servicios', () => {
 
     const deleteBtn = row.getByRole('button', { name: 'Eliminar' })
     await expect(deleteBtn).toBeVisible({ timeout: 10_000 })
-
-    page.once('dialog', (dialog) => {
-      expect(dialog.type()).toBe('confirm')
-      expect(dialog.message()).toMatch(/Eliminar/i)
-      void dialog.accept()
-    })
     await deleteBtn.click()
+    await expect(page.getByRole('button', { name: 'Sí, eliminar' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.getByRole('button', { name: 'Sí, eliminar' }).click()
 
     await expect(page.getByText(/Ítem eliminado|quedó dado de baja/i).first()).toBeVisible({
       timeout: 20_000,
@@ -109,12 +107,11 @@ test.describe('Independiente — catálogo de servicios', () => {
     await expect(page.locator('#ei-name')).toBeVisible({ timeout: 20_000 })
     const deleteOnEdit = page.getByRole('button', { name: 'Eliminar', exact: true })
     await expect(deleteOnEdit).toBeVisible({ timeout: 10_000 })
-
-    page.once('dialog', (dialog) => {
-      expect(dialog.type()).toBe('confirm')
-      void dialog.accept()
-    })
     await deleteOnEdit.click()
+    await expect(page.getByRole('button', { name: 'Sí, eliminar' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.getByRole('button', { name: 'Sí, eliminar' }).click()
 
     await expect(page).toHaveURL(/\/catalogo\/items$/, { timeout: 20_000 })
     await expect(page.getByRole('row', { name: new RegExp(name) })).toHaveCount(0, {
@@ -138,11 +135,11 @@ test.describe('Independiente — catálogo de servicios', () => {
 
     const deleteBtn = row.getByRole('button', { name: 'Eliminar' })
     await expect(deleteBtn).toBeVisible({ timeout: 10_000 })
-    page.once('dialog', (dialog) => {
-      expect(dialog.type()).toBe('confirm')
-      void dialog.accept()
-    })
     await deleteBtn.click()
+    await expect(page.getByRole('button', { name: 'Sí, eliminar' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.getByRole('button', { name: 'Sí, eliminar' }).click()
 
     await expect(page.getByText(/Categoría eliminada|dada de baja/i).first()).toBeVisible({
       timeout: 20_000,

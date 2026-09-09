@@ -8,6 +8,8 @@ type SelectOption = { value: string; label: string }
 
 type EditUserProfileSectionProps = {
   readonly user: GetTenantUserDto
+  readonly email: string
+  readonly onEmailChange: (value: string) => void
   readonly name: string
   readonly onNameChange: (value: string) => void
   readonly departmentId: string
@@ -40,6 +42,8 @@ function roleReadout(user: GetTenantUserDto, roles: RoleListItemDto[]): string {
 
 export function EditUserProfileSection({
   user,
+  email,
+  onEmailChange,
   name,
   onNameChange,
   departmentId,
@@ -63,6 +67,7 @@ export function EditUserProfileSection({
 }: EditUserProfileSectionProps) {
   const canPickDepartment = canReadDepartments && departmentsCount > 0
   const canPickRole = canManageRoles && roles.length > 0 && !user.isCompanyOwner
+  const emailLocked = user.isCompanyOwner
 
   return (
     <form className="ecu-companies-form" onSubmit={onSubmit} noValidate>
@@ -71,7 +76,9 @@ export function EditUserProfileSection({
           <UserRound size={18} strokeWidth={1.75} aria-hidden /> Perfil
         </h2>
         <p className="ecu-companies-form__hint">
-          El correo no se modifica aquí. Nombre es obligatorio.
+          {emailLocked
+            ? 'El correo del administrador raíz coincide con el titular de la suscripción y no se cambia aquí. Nombre es obligatorio.'
+            : 'Puedes corregir el correo si te equivocaste al crear el usuario. Nombre es obligatorio.'}
         </p>
         <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
           <div className="ecu-companies-form__field">
@@ -80,8 +87,11 @@ export function EditUserProfileSection({
               label="Correo"
               labelPosition="outlined"
               variant="outline"
-              value={user.email}
-              disabled
+              type="email"
+              value={email}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => onEmailChange(e.target.value)}
+              required
+              disabled={formLocked || emailLocked}
               fullWidth
             />
           </div>

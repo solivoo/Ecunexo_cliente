@@ -58,6 +58,8 @@ export function EditUserPage() {
 
               <EditUserProfileSection
                 user={page.user}
+                email={page.email}
+                onEmailChange={page.setEmail}
                 name={page.name}
                 onNameChange={page.setName}
                 departmentId={page.departmentId}

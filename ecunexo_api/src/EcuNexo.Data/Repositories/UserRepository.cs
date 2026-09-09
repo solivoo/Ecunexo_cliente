@@ -26,12 +26,22 @@ public sealed class UserRepository : IUserRepository
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-    public Task<bool> EmailExistsAsync(Guid tenantId, Email email, CancellationToken ct) =>
-        _db.Users.AsNoTracking()
+    public Task<bool> EmailExistsAsync(
+        Guid tenantId,
+        Email email,
+        CancellationToken ct,
+        Guid? excludeUserId = null)
+    {
+        var query = _db.Users.AsNoTracking()
             .IgnoreQueryFilters()
-            .AnyAsync(
-                u => u.TenantId == tenantId && u.DeletedAt == null && u.Email == email,
-                ct);
+            .Where(u => u.TenantId == tenantId && u.DeletedAt == null && u.Email == email);
+        if (excludeUserId is Guid id)
+        {
+            query = query.Where(u => u.Id != id);
+        }
+
+        return query.AnyAsync(ct);
+    }
 
     public Task<User?> GetActiveByIdAsync(Guid tenantId, Guid userId, CancellationToken ct) =>
         _db.Users.AsNoTracking()

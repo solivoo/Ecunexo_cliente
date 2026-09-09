@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, useToast, type PageActionItem } from 'glubox'
+import { Button, Popup, useToast, type PageActionItem } from 'glubox'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -23,6 +23,7 @@ export function CatalogItemsListPage() {
   const canDelete = useHasPermission('catalog.item.delete')
   const [rows, setRows] = useState<CatalogItemListItemDto[]>([])
   const [loading, setLoading] = useState(true)
+  const [confirmDelete, setConfirmDelete] = useState<CatalogItemListItemDto | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -96,38 +97,32 @@ export function CatalogItemsListPage() {
     [load]
   )
 
-  const handleDelete = useCallback(
-    async (row: CatalogItemListItemDto) => {
-      if (!tenantId || !canDelete) return
-      const ok = window.confirm(
-        `¿Eliminar «${row.name}»? Solo se permite si no tiene stock, movimientos ni documentos.`
-      )
-      if (!ok) return
+  const handleDelete = useCallback(async () => {
+    if (!tenantId || !canDelete || !confirmDelete) return
 
-      setDeletingId(row.id)
-      try {
-        await softDeleteCatalogItem(tenantId, row.id)
-        toast.show({
-          title: 'Ítem eliminado',
-          message: `«${row.name}» quedó dado de baja.`,
-          variant: 'success',
-        })
-        await load({ silent: true })
-      } catch (err: unknown) {
-        toast.show({
-          title: 'No se pudo eliminar',
-          message: readApiError(
-            err,
-            'El ítem tiene registros asociados. Desactívalo o modifícalo.'
-          ),
-          variant: 'error',
-        })
-      } finally {
-        setDeletingId(null)
-      }
-    },
-    [canDelete, load, tenantId, toast]
-  )
+    setDeletingId(confirmDelete.id)
+    try {
+      await softDeleteCatalogItem(tenantId, confirmDelete.id)
+      toast.show({
+        title: 'Ítem eliminado',
+        message: `«${confirmDelete.name}» quedó dado de baja.`,
+        variant: 'success',
+      })
+      setConfirmDelete(null)
+      await load({ silent: true })
+    } catch (err: unknown) {
+      toast.show({
+        title: 'No se pudo eliminar',
+        message: readApiError(
+          err,
+          'El ítem tiene registros asociados. Desactívalo o modifícalo.'
+        ),
+        variant: 'error',
+      })
+    } finally {
+      setDeletingId(null)
+    }
+  }, [canDelete, confirmDelete, load, tenantId, toast])
 
   const isEmpty = !loading && rows.length === 0 && !error
 
@@ -203,11 +198,44 @@ export function CatalogItemsListPage() {
               canEdit={canEdit}
               canDelete={canDelete}
               deletingId={deletingId}
-              onDelete={(row) => void handleDelete(row)}
+              onDelete={setConfirmDelete}
             />
           )}
         </div>
       </div>
+
+      <Popup
+        open={confirmDelete !== null}
+        title="Eliminar ítem"
+        onClose={() => setConfirmDelete(null)}
+        width="min(92vw, 28rem)"
+        actions={[
+          {
+            id: 'cancel',
+            label: 'Cancelar',
+            variant: 'ghost',
+            onClick: () => setConfirmDelete(null),
+            disabled: deletingId !== null,
+          },
+          {
+            id: 'confirm',
+            label: 'Sí, eliminar',
+            variant: 'primary',
+            onClick: () => {
+              void handleDelete()
+            },
+            disabled: deletingId !== null,
+          },
+        ]}
+      >
+        {confirmDelete ? (
+          <p className="app-shell__muted">
+            ¿Dar de baja <strong>{confirmDelete.name}</strong>
+            {confirmDelete.sku ? ` (${confirmDelete.sku})` : ''}? Solo se permite si no tiene stock,
+            movimientos ni documentos. Es una baja lógica.
+          </p>
+        ) : null}
+      </Popup>
     </TenantSessionGate>
   )
 }

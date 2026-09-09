@@ -115,6 +115,7 @@ internal static class MenuCatalogSeedData
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Comprobantes", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
+        Item("facturacion-emisor-config", "facturacion", "Emisor y SRI", "settings", "organizacion/facturacion-electronica", 2, MenuContextKind.Operational, "facturacion", ["facturacion.emisor.read", "tenancy.tenant.read", "contabilidad.configuracion.read"]),
         Item("facturacion-sri", "facturacion", "Monitoreo SRI", "shield-check", "facturacion/sri", 3, MenuContextKind.Operational, "facturacion", ["facturacion.sri.read"]),
         Item("facturacion-catalogos", "facturacion", "Catálogos", "library", null, 4, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
         Item("facturacion-catalogos-reglas", "facturacion-catalogos", "Reglas SRI", null, "facturacion/catalogos/reglas", 1, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
@@ -137,14 +138,14 @@ internal static class MenuCatalogSeedData
         Item("contabilidad-configuracion", "contabilidad", "Configuración", null, null, 8, MenuContextKind.Operational, "contabilidad", ["contabilidad.configuracion.read"]),
         Item("contabilidad-configuracion-impuestos", "contabilidad-configuracion", "Impuestos", null, "contabilidad/configuracion/impuestos", 2, MenuContextKind.Operational, "contabilidad", ["contabilidad.configuracion.read"]),
 
-        // —— Configuración (contexto alternativo SPA) ——
-        Item("configuracion", null, "Configuración", "settings", null, 10, MenuContextKind.Configuration, "identity", ["tenancy.tenant.read"]),
-        Item("configuracion-empresa", "configuracion", "Empresa", "domain", "organizacion/perfil", 1, MenuContextKind.Configuration, "identity", ["tenancy.tenant.read"]),
-        Item("configuracion-facturacion-electronica", "configuracion", "Facturación electrónica", "receipt", "organizacion/facturacion-electronica", 2, MenuContextKind.Configuration, "facturacion", ["facturacion.emisor.read", "tenancy.tenant.read", "contabilidad.configuracion.read"]),
-        Item("configuracion-empleados", "configuracion", "Empleados", "group", "equipo/usuarios", 3, MenuContextKind.Configuration, "identity", ["identity.users.read"]),
-        Item("configuracion-roles", "configuracion", "Roles", "admin_panel_settings", "equipo/roles", 4, MenuContextKind.Configuration, "identity", ["identity.roles.read"]),
-        Item("configuracion-permisos", "configuracion", "Permisos", "key", "seguridad/permisos", 5, MenuContextKind.Configuration, "identity", ["identity.permissions.read"]),
-        Item("configuracion-politicas", "configuracion", "Políticas ABAC", "file-text", null, 6, MenuContextKind.Configuration, "identity", ["identity.policies.manage"], isPlaceholder: true),
+        // —— Configuración (sidebar operativo; GetSession solo carga Operational) ——
+        Item("configuracion", null, "Configuración", "settings", null, 90, MenuContextKind.Operational, "identity", ["tenancy.tenant.read", "facturacion.emisor.read", "contabilidad.configuracion.read"]),
+        Item("configuracion-empresa", "configuracion", "Empresa", "domain", "organizacion/perfil", 1, MenuContextKind.Operational, "identity", ["tenancy.tenant.read"]),
+        Item("configuracion-facturacion-electronica", "configuracion", "Facturación electrónica", "receipt", "organizacion/facturacion-electronica", 2, MenuContextKind.Operational, "facturacion", ["facturacion.emisor.read", "tenancy.tenant.read", "contabilidad.configuracion.read"]),
+        Item("configuracion-empleados", "configuracion", "Empleados", "group", "equipo/usuarios", 3, MenuContextKind.Operational, "identity", ["identity.users.read"]),
+        Item("configuracion-roles", "configuracion", "Roles", "admin_panel_settings", "equipo/roles", 4, MenuContextKind.Operational, "identity", ["identity.roles.read"]),
+        Item("configuracion-permisos", "configuracion", "Permisos", "key", "seguridad/permisos", 5, MenuContextKind.Operational, "identity", ["identity.permissions.read"]),
+        Item("configuracion-politicas", "configuracion", "Políticas ABAC", "file-text", null, 6, MenuContextKind.Operational, "identity", ["identity.policies.manage"], isPlaceholder: true),
 
         // —— Suscripción (titular de licencia, sin tenant operativo) ——
         Item("sub-home", null, "Inicio", "dashboard", "inicio", 10, MenuContextKind.Subscription, "identity", []),

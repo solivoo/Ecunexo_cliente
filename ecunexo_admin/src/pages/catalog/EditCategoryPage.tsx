@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Button, Popup, TextBox, useToast, type PageActionItem } from 'glubox'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { FolderTree } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -26,6 +26,7 @@ export function EditCategoryPage() {
 
   const [busy, setBusy] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -131,10 +132,6 @@ export function EditCategoryPage() {
 
   const onDelete = useCallback(async () => {
     if (!tenantId || !categoryId || !canManage) return
-    const ok = window.confirm(
-      `¿Eliminar «${name.trim() || 'esta categoría'}»? Solo se permite si no tiene ítems ni subcategorías.`
-    )
-    if (!ok) return
 
     setDeleting(true)
     setError(null)
@@ -145,6 +142,7 @@ export function EditCategoryPage() {
         message: `«${name.trim()}» quedó dada de baja.`,
         variant: 'success',
       })
+      setConfirmDelete(false)
       void navigate('/catalogo/categorias', { replace: true })
     } catch (err: unknown) {
       const message = readApiError(
@@ -247,7 +245,7 @@ export function EditCategoryPage() {
                 variant="danger"
                 loading={deleting}
                 disabled={busy || deleting}
-                onClick={() => void onDelete()}
+                onClick={() => setConfirmDelete(true)}
               >
                 Eliminar
               </Button>
@@ -258,6 +256,36 @@ export function EditCategoryPage() {
           </form>
         )}
       </div>
+
+      <Popup
+        open={confirmDelete}
+        title="Eliminar categoría"
+        onClose={() => setConfirmDelete(false)}
+        width="min(92vw, 28rem)"
+        actions={[
+          {
+            id: 'cancel',
+            label: 'Cancelar',
+            variant: 'ghost',
+            onClick: () => setConfirmDelete(false),
+            disabled: deleting,
+          },
+          {
+            id: 'confirm',
+            label: 'Sí, eliminar',
+            variant: 'primary',
+            onClick: () => {
+              void onDelete()
+            },
+            disabled: deleting,
+          },
+        ]}
+      >
+        <p className="app-shell__muted">
+          ¿Dar de baja <strong>{name.trim() || 'esta categoría'}</strong>? Solo se permite si no
+          tiene ítems ni subcategorías. Es una baja lógica.
+        </p>
+      </Popup>
     </TenantSessionGate>
   )
 }

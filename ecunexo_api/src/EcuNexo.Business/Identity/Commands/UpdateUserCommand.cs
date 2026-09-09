@@ -6,6 +6,7 @@ public sealed record UpdateUserCommand(
     Guid TenantId,
     Guid UserId,
     string Name,
+    string? Email = null,
     Guid? DepartmentId = null,
     string? Department = null,
     string? Phone = null,

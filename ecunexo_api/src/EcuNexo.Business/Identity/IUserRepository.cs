@@ -28,7 +28,15 @@ public interface IUserRepository
     /// <summary>
     /// Indica si ya existe un usuario activo (no eliminado) con el mismo correo (normalizado) en el tenant.
     /// </summary>
-    Task<bool> EmailExistsAsync(Guid tenantId, Email email, CancellationToken ct);
+    /// <param name="tenantId">Tenant donde buscar.</param>
+    /// <param name="email">Correo normalizado.</param>
+    /// <param name="ct">Cancelación.</param>
+    /// <param name="excludeUserId">Usuario a ignorar (p. ej. al corregir el propio correo).</param>
+    Task<bool> EmailExistsAsync(
+        Guid tenantId,
+        Email email,
+        CancellationToken ct,
+        Guid? excludeUserId = null);
 
     Task<IReadOnlyList<User>> ListActiveByDepartmentIdForUpdateAsync(
         Guid tenantId,

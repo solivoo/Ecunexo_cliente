@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, useToast, type PageActionItem } from 'glubox'
+import { Button, Popup, useToast, type PageActionItem } from 'glubox'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -24,6 +24,7 @@ export function CategoriesListPage() {
   const canManage = useHasPermission('catalog.category.manage')
   const [rows, setRows] = useState<CategoryListItemDto[]>([])
   const [loading, setLoading] = useState(true)
+  const [confirmDelete, setConfirmDelete] = useState<CategoryListItemDto | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -95,38 +96,32 @@ export function CategoriesListPage() {
     [load]
   )
 
-  const handleDelete = useCallback(
-    async (row: CategoryListItemDto) => {
-      if (!tenantId || !canManage) return
-      const ok = window.confirm(
-        `¿Eliminar «${row.name}»? Solo se permite si no tiene ítems ni subcategorías.`
-      )
-      if (!ok) return
+  const handleDelete = useCallback(async () => {
+    if (!tenantId || !canManage || !confirmDelete) return
 
-      setDeletingId(row.id)
-      try {
-        await softDeleteCatalogCategory(tenantId, row.id)
-        toast.show({
-          title: 'Categoría eliminada',
-          message: `«${row.name}» quedó dada de baja.`,
-          variant: 'success',
-        })
-        await load({ silent: true })
-      } catch (err: unknown) {
-        toast.show({
-          title: 'No se pudo eliminar',
-          message: readApiError(
-            err,
-            'La categoría tiene ítems o subcategorías. Reasigna o edítala.'
-          ),
-          variant: 'error',
-        })
-      } finally {
-        setDeletingId(null)
-      }
-    },
-    [canManage, load, tenantId, toast]
-  )
+    setDeletingId(confirmDelete.id)
+    try {
+      await softDeleteCatalogCategory(tenantId, confirmDelete.id)
+      toast.show({
+        title: 'Categoría eliminada',
+        message: `«${confirmDelete.name}» quedó dada de baja.`,
+        variant: 'success',
+      })
+      setConfirmDelete(null)
+      await load({ silent: true })
+    } catch (err: unknown) {
+      toast.show({
+        title: 'No se pudo eliminar',
+        message: readApiError(
+          err,
+          'La categoría tiene ítems o subcategorías. Reasigna o edítala.'
+        ),
+        variant: 'error',
+      })
+    } finally {
+      setDeletingId(null)
+    }
+  }, [canManage, confirmDelete, load, tenantId, toast])
 
   const isEmpty = !loading && rows.length === 0 && !error
   const withSchema = rows.filter((r) => parseAttributeSchema(r.attributeSchemaJson).length > 0).length
@@ -209,11 +204,43 @@ export function CategoriesListPage() {
               canEdit={canManage}
               canDelete={canManage}
               deletingId={deletingId}
-              onDelete={(row) => void handleDelete(row)}
+              onDelete={setConfirmDelete}
             />
           )}
         </div>
       </div>
+
+      <Popup
+        open={confirmDelete !== null}
+        title="Eliminar categoría"
+        onClose={() => setConfirmDelete(null)}
+        width="min(92vw, 28rem)"
+        actions={[
+          {
+            id: 'cancel',
+            label: 'Cancelar',
+            variant: 'ghost',
+            onClick: () => setConfirmDelete(null),
+            disabled: deletingId !== null,
+          },
+          {
+            id: 'confirm',
+            label: 'Sí, eliminar',
+            variant: 'primary',
+            onClick: () => {
+              void handleDelete()
+            },
+            disabled: deletingId !== null,
+          },
+        ]}
+      >
+        {confirmDelete ? (
+          <p className="app-shell__muted">
+            ¿Dar de baja <strong>{confirmDelete.name}</strong>? Solo se permite si no tiene ítems ni
+            subcategorías. Es una baja lógica.
+          </p>
+        ) : null}
+      </Popup>
     </TenantSessionGate>
   )
 }

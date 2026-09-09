@@ -46,10 +46,11 @@ test.describe('Local — catálogo físico y recepción', () => {
 
     const deleteBtn = row.getByRole('button', { name: 'Eliminar' })
     await expect(deleteBtn).toBeVisible({ timeout: 10_000 })
-    page.once('dialog', (dialog) => {
-      void dialog.accept()
-    })
     await deleteBtn.click()
+    await expect(page.getByRole('button', { name: 'Sí, eliminar' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.getByRole('button', { name: 'Sí, eliminar' }).click()
 
     await expect(page.getByText(/No se pudo eliminar|registros asociados|stock|documentos/i).first()).toBeVisible({
       timeout: 20_000,
@@ -68,10 +69,11 @@ test.describe('Local — catálogo físico y recepción', () => {
 
     const deleteBtn = row.getByRole('button', { name: 'Eliminar' })
     await expect(deleteBtn).toBeVisible({ timeout: 10_000 })
-    page.once('dialog', (dialog) => {
-      void dialog.accept()
-    })
     await deleteBtn.click()
+    await expect(page.getByRole('button', { name: 'Sí, eliminar' })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.getByRole('button', { name: 'Sí, eliminar' }).click()
 
     await expect(
       page.getByText(/No se pudo eliminar|ítems asociados|subcategorías/i).first()
