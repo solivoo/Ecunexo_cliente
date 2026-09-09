@@ -36,4 +36,11 @@ public sealed class InventoryDocumentRepository : IInventoryDocumentRepository
         _db.InventoryDocuments
             .Include(d => d.Lines)
             .FirstOrDefaultAsync(d => d.TenantId == tenantId && d.Id == documentId, ct);
+
+    public Task<bool> ExistsForItemAsync(Guid tenantId, Guid catalogItemId, CancellationToken ct) =>
+        _db.InventoryDocumentLines.AsNoTracking()
+            .AnyAsync(
+                l => l.CatalogItemId == catalogItemId
+                    && _db.InventoryDocuments.Any(d => d.Id == l.DocumentId && d.TenantId == tenantId),
+                ct);
 }

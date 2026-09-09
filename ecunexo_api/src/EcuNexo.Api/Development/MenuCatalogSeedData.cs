@@ -54,7 +54,8 @@ internal static class MenuCatalogSeedData
         ("catalog.item.read", "Ítems — consultar", "Listar ítems del catálogo", "catalog", 61),
         ("catalog.item.create", "Ítems — crear", "Crear ítems del catálogo", "catalog", 62),
         ("catalog.item.update", "Ítems — editar", "Editar ítems del catálogo", "catalog", 63),
-        ("catalog.category.manage", "Categorías — administrar", "Crear y editar categorías", "catalog", 64),
+        ("catalog.item.delete", "Ítems — eliminar", "Baja lógica de ítems sin uso", "catalog", 64),
+        ("catalog.category.manage", "Categorías — administrar", "Crear y editar categorías", "catalog", 65),
 
         ("warehousing.read", "Bodegas — acceso", "Ver módulo bodegas", "warehousing", 100),
         ("warehousing.locations.manage", "Bodegas — administrar", "Crear y editar ubicaciones", "warehousing", 101),
@@ -114,7 +115,6 @@ internal static class MenuCatalogSeedData
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Comprobantes", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
-        Item("facturacion-emisor", "facturacion", "Emisor", "building-2", "facturacion/emisor", 2, MenuContextKind.Operational, "facturacion", ["facturacion.emisor.read"]),
         Item("facturacion-sri", "facturacion", "Monitoreo SRI", "shield-check", "facturacion/sri", 3, MenuContextKind.Operational, "facturacion", ["facturacion.sri.read"]),
         Item("facturacion-catalogos", "facturacion", "Catálogos", "library", null, 4, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
         Item("facturacion-catalogos-reglas", "facturacion-catalogos", "Reglas SRI", null, "facturacion/catalogos/reglas", 1, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
@@ -135,16 +135,16 @@ internal static class MenuCatalogSeedData
         Item("contabilidad-cuentas", "contabilidad", "Cuentas", null, "contabilidad/cuentas", 6, MenuContextKind.Operational, "contabilidad", ["contabilidad.cuentas.read"]),
         Item("contabilidad-reportes", "contabilidad", "Reportes", null, "contabilidad/reportes", 7, MenuContextKind.Operational, "contabilidad", ["contabilidad.reportes.read"]),
         Item("contabilidad-configuracion", "contabilidad", "Configuración", null, null, 8, MenuContextKind.Operational, "contabilidad", ["contabilidad.configuracion.read"]),
-        Item("contabilidad-configuracion-sri", "contabilidad-configuracion", "SRI", null, "contabilidad/configuracion/sri", 1, MenuContextKind.Operational, "contabilidad", ["contabilidad.configuracion.read"]),
         Item("contabilidad-configuracion-impuestos", "contabilidad-configuracion", "Impuestos", null, "contabilidad/configuracion/impuestos", 2, MenuContextKind.Operational, "contabilidad", ["contabilidad.configuracion.read"]),
 
         // —— Configuración (contexto alternativo SPA) ——
         Item("configuracion", null, "Configuración", "settings", null, 10, MenuContextKind.Configuration, "identity", ["tenancy.tenant.read"]),
         Item("configuracion-empresa", "configuracion", "Empresa", "domain", "organizacion/perfil", 1, MenuContextKind.Configuration, "identity", ["tenancy.tenant.read"]),
-        Item("configuracion-empleados", "configuracion", "Empleados", "group", "equipo/usuarios", 2, MenuContextKind.Configuration, "identity", ["identity.users.read"]),
-        Item("configuracion-roles", "configuracion", "Roles", "admin_panel_settings", "equipo/roles", 3, MenuContextKind.Configuration, "identity", ["identity.roles.read"]),
-        Item("configuracion-permisos", "configuracion", "Permisos", "key", "seguridad/permisos", 4, MenuContextKind.Configuration, "identity", ["identity.permissions.read"]),
-        Item("configuracion-politicas", "configuracion", "Políticas ABAC", "file-text", null, 5, MenuContextKind.Configuration, "identity", ["identity.policies.manage"], isPlaceholder: true),
+        Item("configuracion-facturacion-electronica", "configuracion", "Facturación electrónica", "receipt", "organizacion/facturacion-electronica", 2, MenuContextKind.Configuration, "facturacion", ["facturacion.emisor.read", "tenancy.tenant.read", "contabilidad.configuracion.read"]),
+        Item("configuracion-empleados", "configuracion", "Empleados", "group", "equipo/usuarios", 3, MenuContextKind.Configuration, "identity", ["identity.users.read"]),
+        Item("configuracion-roles", "configuracion", "Roles", "admin_panel_settings", "equipo/roles", 4, MenuContextKind.Configuration, "identity", ["identity.roles.read"]),
+        Item("configuracion-permisos", "configuracion", "Permisos", "key", "seguridad/permisos", 5, MenuContextKind.Configuration, "identity", ["identity.permissions.read"]),
+        Item("configuracion-politicas", "configuracion", "Políticas ABAC", "file-text", null, 6, MenuContextKind.Configuration, "identity", ["identity.policies.manage"], isPlaceholder: true),
 
         // —— Suscripción (titular de licencia, sin tenant operativo) ——
         Item("sub-home", null, "Inicio", "dashboard", "inicio", 10, MenuContextKind.Subscription, "identity", []),
@@ -175,8 +175,10 @@ internal static class MenuCatalogSeedData
         "facturacion-liquidacion-compra",
         "facturacion-catalogos-tarifas",
         "facturacion-catalogos-retenciones",
+        "facturacion-emisor",
         "facturacion-emisor-datos",
         "facturacion-emisor-certificado",
+        "contabilidad-configuracion-sri",
         "facturacion-config",
         "facturacion-config-impuestos",
         "catalog-soon",

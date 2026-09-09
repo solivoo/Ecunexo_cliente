@@ -44,7 +44,7 @@ import { CreateWarehousePage } from '@/pages/warehousing/CreateWarehousePage'
 import { EditWarehousePage } from '@/pages/warehousing/EditWarehousePage'
 import { WarehousesListPage } from '@/pages/warehousing/WarehousesListPage'
 import { ModulePlaceholderPage } from '@/pages/placeholder/ModulePlaceholderPage'
-import { ContabilidadSriConfigPage } from '@/pages/contabilidad/ContabilidadSriConfigPage'
+import { CompanyElectronicBillingPage } from '@/pages/organization/CompanyElectronicBillingPage'
 import { FacturaEmitirPage } from '@/pages/facturacion/FacturaEmitirPage'
 import { ComprobantesPage } from '@/pages/facturacion/ComprobantesPage'
 import { SriMonitorPage } from '@/pages/facturacion/SriMonitorPage'
@@ -72,6 +72,10 @@ export const routes: RouteObject[] = [
         children: [
           { path: 'inicio', element: <DashboardPage /> },
           { path: 'organizacion/perfil', element: <OrganizationProfilePage /> },
+          {
+            path: 'organizacion/facturacion-electronica',
+            element: <CompanyElectronicBillingPage />,
+          },
           { path: 'organizacion/empresas', element: <CompaniesListPage /> },
           { path: 'organizacion/empresas/nueva', element: <CreateCompanyPage /> },
           { path: 'organizacion/empresas/:companyId/editar', element: <EditCompanyPage /> },
@@ -115,7 +119,10 @@ export const routes: RouteObject[] = [
           { path: 'compras/liquidaciones', element: <ComprasDocumentosPage /> },
           { path: 'facturacion/comprobantes', element: <ComprobantesPage /> },
           { path: 'facturacion/facturas/emitir', element: <FacturaEmitirPage /> },
-          { path: 'facturacion/emisor', element: <ContabilidadSriConfigPage /> },
+          {
+            path: 'facturacion/emisor',
+            element: <Navigate to="/organizacion/facturacion-electronica" replace />,
+          },
           { path: 'facturacion/sri', element: <SriMonitorPage /> },
           { path: 'facturacion/catalogos/reglas', element: <TaxRulesCatalogPage /> },
           {
@@ -152,11 +159,11 @@ export const routes: RouteObject[] = [
           },
           {
             path: 'facturacion/emisor/datos',
-            element: <Navigate to="/facturacion/emisor" replace />,
+            element: <Navigate to="/organizacion/facturacion-electronica" replace />,
           },
           {
             path: 'facturacion/emisor/certificado',
-            element: <Navigate to="/facturacion/emisor" replace />,
+            element: <Navigate to="/organizacion/facturacion-electronica" replace />,
           },
           {
             path: 'facturacion/catalogos/tarifas',
@@ -173,7 +180,10 @@ export const routes: RouteObject[] = [
           { path: 'contabilidad/declaraciones', ...placeholder('Declaraciones') },
           { path: 'contabilidad/cuentas', ...placeholder('Cuentas') },
           { path: 'contabilidad/reportes', ...placeholder('Reportes') },
-          { path: 'contabilidad/configuracion/sri', element: <ContabilidadSriConfigPage /> },
+          {
+            path: 'contabilidad/configuracion/sri',
+            element: <Navigate to="/organizacion/facturacion-electronica" replace />,
+          },
           { path: 'contabilidad/configuracion/impuestos', ...placeholder('Impuestos') },
         ],
       },

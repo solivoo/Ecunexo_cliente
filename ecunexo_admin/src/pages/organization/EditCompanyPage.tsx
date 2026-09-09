@@ -53,6 +53,12 @@ export function EditCompanyPage() {
   const actionItems = useMemo(
     (): PageActionItem[] => [
       { id: 'back-list', label: 'Volver al listado', icon: 'building-2', route: LIST_PATH },
+      {
+        id: 'billing-config',
+        label: 'Facturación electrónica',
+        icon: 'receipt',
+        route: '/organizacion/facturacion-electronica',
+      },
     ],
     []
   )
@@ -99,7 +105,8 @@ export function EditCompanyPage() {
     <div className="ecu-companies-page">
       <div className="ecu-page-header">
         <p className="app-shell__page-lead">
-          Edita el nombre, branding e identidad legal. El SRI solo lee estos datos.
+          Edita el nombre, branding e identidad legal. Puntos de emisión, secuencial y modo SRI
+          están en Facturación electrónica (entra a la empresa primero).
         </p>
         <EcuPageActions
           items={actionItems}

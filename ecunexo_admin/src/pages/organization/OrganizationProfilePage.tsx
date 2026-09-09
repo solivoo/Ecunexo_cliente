@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ColorSwatch } from '@/features/organization/components/ColorSwatch'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { resolveAssetUrl } from '@/features/organization/resolveTenantMark'
@@ -49,7 +50,10 @@ export function OrganizationProfilePage() {
   return (
     <>
       <h1 className="app-shell__page-title">Perfil y branding</h1>
-      <p className="app-shell__page-lead">Identidad de la organización y datos de tu cuenta.</p>
+      <p className="app-shell__page-lead">
+        Identidad de la organización y datos de tu cuenta.{' '}
+        <Link to="/organizacion/facturacion-electronica">Facturación electrónica</Link>
+      </p>
 
       <PageLoadState loading={loading} error={error} empty={!tenant || !user}>
         {tenant && user ? (

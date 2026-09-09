@@ -14,7 +14,7 @@ import {
 } from '@/lib/catalogAttributes'
 import { CatalogExtraAttributeFields } from '@/pages/catalog/CatalogExtraAttributeFields'
 import { readApiError } from '@/lib/readApiError'
-import { getCatalogItem, listCatalogCategories, updateCatalogItem } from '@/services/catalogApi'
+import { getCatalogItem, listCatalogCategories, softDeleteCatalogItem, updateCatalogItem } from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
@@ -31,8 +31,10 @@ export function EditCatalogItemPage() {
   const { itemId } = useParams<{ itemId: string }>()
   const tenantId = useAppSelector(selectTenantId)
   const canEdit = useHasPermission('catalog.item.update')
+  const canDelete = useHasPermission('catalog.item.delete')
 
   const [busy, setBusy] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [item, setItem] = useState<CatalogItemDetailDto | null>(null)
@@ -179,6 +181,35 @@ export function EditCatalogItemPage() {
       toast,
     ]
   )
+
+  const onDelete = useCallback(async () => {
+    if (!tenantId || !itemId || !item || !canDelete) return
+    const ok = window.confirm(
+      `¿Eliminar «${item.name}»? Solo se permite si no tiene stock, movimientos ni documentos.`
+    )
+    if (!ok) return
+
+    setDeleting(true)
+    setError(null)
+    try {
+      await softDeleteCatalogItem(tenantId, itemId)
+      toast.show({
+        title: 'Ítem eliminado',
+        message: `«${item.name}» quedó dado de baja.`,
+        variant: 'success',
+      })
+      void navigate('/catalogo/items', { replace: true })
+    } catch (err: unknown) {
+      const message = readApiError(
+        err,
+        'El ítem tiene registros asociados. Desactívalo (Inactivo) o modifícalo.'
+      )
+      setError(message)
+      toast.show({ title: 'No se pudo eliminar', message, variant: 'error' })
+    } finally {
+      setDeleting(false)
+    }
+  }, [canDelete, item, itemId, navigate, tenantId, toast])
 
   if (!canEdit) {
     return (
@@ -336,10 +367,21 @@ export function EditCatalogItemPage() {
             </section>
 
             <div className="ecu-companies-form__actions">
-              <Button type="submit" variant="primary" loading={busy} disabled={busy}>
+              <Button type="submit" variant="primary" loading={busy} disabled={busy || deleting}>
                 Guardar
               </Button>
-              <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
+              {canDelete ? (
+                <Button
+                  type="button"
+                  variant="danger"
+                  loading={deleting}
+                  disabled={busy || deleting}
+                  onClick={() => void onDelete()}
+                >
+                  Eliminar
+                </Button>
+              ) : null}
+              <Button type="button" variant="outline" disabled={busy || deleting} onClick={goToList}>
                 Atrás
               </Button>
             </div>

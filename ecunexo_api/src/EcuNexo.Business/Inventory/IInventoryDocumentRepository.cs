@@ -11,4 +11,6 @@ public interface IInventoryDocumentRepository
     Task<InventoryDocument?> GetByIdAsync(Guid tenantId, Guid documentId, CancellationToken ct);
 
     Task<InventoryDocument?> GetTrackedWithLinesAsync(Guid tenantId, Guid documentId, CancellationToken ct);
+
+    Task<bool> ExistsForItemAsync(Guid tenantId, Guid catalogItemId, CancellationToken ct);
 }

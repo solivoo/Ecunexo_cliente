@@ -77,3 +77,7 @@ export async function updateCatalogItem(
 ): Promise<void> {
   await api.put(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}`, body)
 }
+
+export async function softDeleteCatalogItem(tenantId: string, itemId: string): Promise<void> {
+  await api.delete(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}`)
+}

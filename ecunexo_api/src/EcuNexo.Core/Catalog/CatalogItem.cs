@@ -225,6 +225,21 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         return Result.Success();
     }
 
+    /// <summary>Baja lógica: deja de listarse. Requiere que el caller valide usos asociados.</summary>
+    public Result SoftDelete(DateTimeOffset utcNow, Guid? deletedBy = null)
+    {
+        if (DeletedAt is not null)
+        {
+            return Result.Success();
+        }
+
+        DeletedAt = utcNow;
+        DeletedBy = deletedBy;
+        Status = CatalogItemStatus.Inactive;
+        Touch(deletedBy);
+        return Result.Success();
+    }
+
     private void Touch(Guid? updatedBy)
     {
         UpdatedAt = DateTimeOffset.UtcNow;

@@ -6,6 +6,7 @@ using EcuNexo.Api.Security;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
+using EcuNexo.Business.Catalog.Commands.SoftDeleteCatalogItem;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.UpdateCategory;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
@@ -54,6 +55,8 @@ public static class CatalogEndpoints
                 PermissionFilters.RequireAny("catalog.item.read", "catalog.product.read"));
         items.MapPut("/{itemId:guid}", UpdateItemAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
+        items.MapDelete("/{itemId:guid}", SoftDeleteItemAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.delete"));
 
         return app;
     }
@@ -164,6 +167,20 @@ public static class CatalogEndpoints
         var result = await sender
             .SendAsync<UpdateCatalogItemCommand, UpdateCatalogItemResponse>(
                 body.ToCommand(tenantId, itemId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> SoftDeleteItemAsync(
+        Guid tenantId,
+        Guid itemId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<SoftDeleteCatalogItemCommand, SoftDeleteCatalogItemResponse>(
+                new SoftDeleteCatalogItemCommand(tenantId, itemId),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

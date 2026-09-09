@@ -7,7 +7,7 @@ import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
 import { CatalogItemsGrid } from '@/pages/catalog/CatalogItemsGrid'
-import { listCatalogItems } from '@/services/catalogApi'
+import { listCatalogItems, softDeleteCatalogItem } from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { CatalogItemListItemDto } from '@/types/catalogApi'
@@ -20,8 +20,10 @@ export function CatalogItemsListPage() {
     useHasPermission('catalog.item.read') || useHasPermission('catalog.product.read')
   const canCreate = useHasPermission('catalog.item.create')
   const canEdit = useHasPermission('catalog.item.update')
+  const canDelete = useHasPermission('catalog.item.delete')
   const [rows, setRows] = useState<CatalogItemListItemDto[]>([])
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(
@@ -94,6 +96,39 @@ export function CatalogItemsListPage() {
     [load]
   )
 
+  const handleDelete = useCallback(
+    async (row: CatalogItemListItemDto) => {
+      if (!tenantId || !canDelete) return
+      const ok = window.confirm(
+        `¿Eliminar «${row.name}»? Solo se permite si no tiene stock, movimientos ni documentos.`
+      )
+      if (!ok) return
+
+      setDeletingId(row.id)
+      try {
+        await softDeleteCatalogItem(tenantId, row.id)
+        toast.show({
+          title: 'Ítem eliminado',
+          message: `«${row.name}» quedó dado de baja.`,
+          variant: 'success',
+        })
+        await load({ silent: true })
+      } catch (err: unknown) {
+        toast.show({
+          title: 'No se pudo eliminar',
+          message: readApiError(
+            err,
+            'El ítem tiene registros asociados. Desactívalo o modifícalo.'
+          ),
+          variant: 'error',
+        })
+      } finally {
+        setDeletingId(null)
+      }
+    },
+    [canDelete, load, tenantId, toast]
+  )
+
   const isEmpty = !loading && rows.length === 0 && !error
 
   if (!canRead) {
@@ -162,7 +197,14 @@ export function CatalogItemsListPage() {
               )}
             </div>
           ) : (
-            <CatalogItemsGrid rows={rows} loading={loading} canEdit={canEdit} />
+            <CatalogItemsGrid
+              rows={rows}
+              loading={loading}
+              canEdit={canEdit}
+              canDelete={canDelete}
+              deletingId={deletingId}
+              onDelete={(row) => void handleDelete(row)}
+            />
           )}
         </div>
       </div>
