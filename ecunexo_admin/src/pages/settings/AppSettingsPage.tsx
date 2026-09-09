@@ -3,7 +3,7 @@ import { AppSettingsAppearanceSection } from '@/pages/settings/AppSettingsAppear
 import { AppSettingsListsSection } from '@/pages/settings/AppSettingsListsSection'
 import { PLATFORM_SETTINGS_READ } from '@/services/settingsApi'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import type { GluboxThemeId, MaxRecords, UiDensity } from '@/lib/appPreferences'
+import type { GluboxThemeId, MaxRecords, ToastPositionId, UiDensity } from '@/lib/appPreferences'
 import type { GridLookback } from '@/lib/gridLookback'
 
 export function AppSettingsPage() {
@@ -45,10 +45,12 @@ export function AppSettingsPage() {
           gluboxTheme={prefs.gluboxTheme}
           density={prefs.density}
           startDarkMode={prefs.startDarkMode}
+          toastPosition={prefs.toastPosition}
           disabled={!canUpdate}
           onThemeChange={(gluboxTheme: GluboxThemeId) => patch({ gluboxTheme })}
           onDensityChange={(density: UiDensity) => patch({ density })}
           onStartDarkModeChange={(startDarkMode: boolean) => patch({ startDarkMode })}
+          onToastPositionChange={(toastPosition: ToastPositionId) => patch({ toastPosition })}
         />
       </div>
     </div>

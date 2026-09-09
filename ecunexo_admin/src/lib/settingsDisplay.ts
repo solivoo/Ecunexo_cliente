@@ -1,10 +1,12 @@
 import { GRID_LOOKBACK_OPTIONS } from '@/lib/gridLookback'
+import { TOAST_POSITION_OPTIONS } from '@/lib/appPreferences'
 
 const SETTING_LABELS: Record<string, string> = {
   'ui.theme.default': 'Tema de interfaz',
   'ui.realtime.enabled': 'Notificaciones en tiempo real',
   'ui.grid.max_records': 'Registros por página',
   'ui.grid.default_lookback': 'Ventana de fechas de listados',
+  'ui.toast.position': 'Ubicación de notificaciones',
 }
 
 export function settingLabel(code: string): string {
@@ -31,6 +33,8 @@ export function formatSettingValue(value: unknown): string {
     }
     const lookback = GRID_LOOKBACK_OPTIONS.find((option) => option.value === trimmed)
     if (lookback) return lookback.label
+    const toastPos = TOAST_POSITION_OPTIONS.find((option) => option.value === trimmed)
+    if (toastPos) return toastPos.label
     return trimmed
   }
   return JSON.stringify(value)

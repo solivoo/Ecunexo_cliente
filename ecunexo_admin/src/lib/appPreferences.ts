@@ -11,6 +11,25 @@ export type GluboxThemeId = (typeof GLUBOX_THEME_IDS)[number]
 export const UI_DENSITY_IDS = ['sm', 'md', 'lg'] as const
 export type UiDensity = (typeof UI_DENSITY_IDS)[number]
 
+export const TOAST_POSITION_IDS = [
+  'bottom-right',
+  'bottom-left',
+  'bottom-center',
+  'top-right',
+  'top-left',
+  'top-center',
+] as const
+export type ToastPositionId = (typeof TOAST_POSITION_IDS)[number]
+
+export const TOAST_POSITION_OPTIONS: readonly { value: ToastPositionId; label: string }[] = [
+  { value: 'bottom-right', label: 'Abajo a la derecha (Predeterminado)' },
+  { value: 'bottom-left', label: 'Abajo a la izquierda' },
+  { value: 'bottom-center', label: 'Abajo al centro' },
+  { value: 'top-right', label: 'Arriba a la derecha' },
+  { value: 'top-left', label: 'Arriba a la izquierda' },
+  { value: 'top-center', label: 'Arriba al centro' },
+] as const
+
 export const MAX_RECORD_OPTIONS = [10, 20, 50, 100] as const
 export type MaxRecords = (typeof MAX_RECORD_OPTIONS)[number]
 
@@ -20,6 +39,7 @@ export type AppPreferences = {
   readonly gluboxTheme: GluboxThemeId
   readonly density: UiDensity
   readonly startDarkMode: boolean
+  readonly toastPosition: ToastPositionId
 }
 
 export const APP_PREFERENCES_EVENT = 'ecunexo:app-preferences'
@@ -31,6 +51,11 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   gluboxTheme: 'default',
   density: 'md',
   startDarkMode: true,
+  toastPosition: 'bottom-right',
+}
+
+function isToastPosition(value: unknown): value is ToastPositionId {
+  return typeof value === 'string' && (TOAST_POSITION_IDS as readonly string[]).includes(value)
 }
 
 function isGluboxTheme(value: unknown): value is GluboxThemeId {
@@ -71,6 +96,9 @@ export function readAppPreferences(): AppPreferences {
       startDarkMode: typeof row.startDarkMode === 'boolean'
         ? row.startDarkMode
         : DEFAULT_APP_PREFERENCES.startDarkMode,
+      toastPosition: isToastPosition(row.toastPosition)
+        ? row.toastPosition
+        : DEFAULT_APP_PREFERENCES.toastPosition,
     }
   } catch {
     return DEFAULT_APP_PREFERENCES
@@ -84,6 +112,7 @@ export function preferencesEqual(a: AppPreferences, b: AppPreferences): boolean 
     && a.gluboxTheme === b.gluboxTheme
     && a.density === b.density
     && a.startDarkMode === b.startDarkMode
+    && a.toastPosition === b.toastPosition
   )
 }
 
@@ -105,6 +134,9 @@ export function preferencesFromResolvedSettings(
     startDarkMode: typeof settings['ui.start_dark'] === 'boolean'
       ? settings['ui.start_dark']
       : fallback.startDarkMode,
+    toastPosition: isToastPosition(settings['ui.toast.position'] ?? settings['ui.toast_position'])
+      ? ((settings['ui.toast.position'] ?? settings['ui.toast_position']) as ToastPositionId)
+      : fallback.toastPosition,
   }
 }
 
