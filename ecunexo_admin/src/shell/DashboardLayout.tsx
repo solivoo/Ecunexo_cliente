@@ -8,6 +8,8 @@ import { clearCredentials, selectPermissions, selectVisibleNavigation } from '@/
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { AppSidebar } from '@/shell/AppSidebar'
 import { AppShellUserMenu } from '@/shell/components/AppShellUserMenu'
+import { AboutAppModal } from '@/components/about/AboutAppModal'
+import { APP_VERSION_INFO } from '@/config/appVersion'
 import './appShell.css'
 
 export function DashboardLayout() {
@@ -17,6 +19,7 @@ export function DashboardLayout() {
   const navigation = useAppSelector(selectVisibleNavigation)
   const permissions = useAppSelector(selectPermissions)
   const [collapsed, setCollapsed] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const menu = useMemo(() => navigationToMenuConfig(navigation, permissions), [navigation, permissions])
   const pageTitle = getPageTitle(pathname, menu, 'EcuNexo', search)
 
@@ -37,6 +40,19 @@ export function DashboardLayout() {
             onCollapsedChange={setCollapsed}
           />
         </div>
+        <div className="app-shell__sidebar-footer">
+          <button
+            type="button"
+            className="app-shell__version-btn"
+            onClick={() => setAboutOpen(true)}
+            title={`EcuNexo v${APP_VERSION_INFO.version} (${APP_VERSION_INFO.gitCommit}) · Clic para ver detalles`}
+          >
+            <span className="app-shell__version-tag">v{APP_VERSION_INFO.version}</span>
+            {!collapsed && (
+              <span className="app-shell__version-commit">{APP_VERSION_INFO.gitCommit}</span>
+            )}
+          </button>
+        </div>
       </aside>
 
       <div className="app-shell__main">
@@ -46,13 +62,15 @@ export function DashboardLayout() {
           </div>
           <div className="app-shell__header-end">
             <ThemeToggleButton variant="icon" />
-            <AppShellUserMenu onLogout={logout} />
+            <AppShellUserMenu onLogout={logout} onOpenAbout={() => setAboutOpen(true)} />
           </div>
         </header>
         <div className="app-shell__content">
           <Outlet />
         </div>
       </div>
+
+      <AboutAppModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </div>
   )
 }

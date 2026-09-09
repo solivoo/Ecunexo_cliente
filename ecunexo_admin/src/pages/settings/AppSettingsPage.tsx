@@ -1,6 +1,7 @@
 import { useAppPreferences } from '@/features/settings/AppPreferencesProvider'
 import { AppSettingsAppearanceSection } from '@/pages/settings/AppSettingsAppearanceSection'
 import { AppSettingsListsSection } from '@/pages/settings/AppSettingsListsSection'
+import { AppSettingsSystemSection } from '@/pages/settings/AppSettingsSystemSection'
 import { PLATFORM_SETTINGS_READ } from '@/services/settingsApi'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import type { GluboxThemeId, MaxRecords, ToastPositionId, UiDensity } from '@/lib/appPreferences'
@@ -52,6 +53,7 @@ export function AppSettingsPage() {
           onStartDarkModeChange={(startDarkMode: boolean) => patch({ startDarkMode })}
           onToastPositionChange={(toastPosition: ToastPositionId) => patch({ toastPosition })}
         />
+        <AppSettingsSystemSection />
       </div>
     </div>
   )

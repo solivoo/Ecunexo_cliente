@@ -247,7 +247,61 @@
 }
 
 .app-shell__sidebar-footer {
-  padding: 0.5rem;  
+  padding: 0.5rem 0.65rem;
+  border-top: 1px solid var(--shell-border);
+  background: var(--shell-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.app-shell--collapsed .app-shell__sidebar-footer {
+  padding: 0.5rem 0.35rem;
+}
+
+.app-shell__version-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.375rem;
+  border: 1px solid color-mix(in srgb, var(--shell-border) 65%, transparent);
+  background: color-mix(in srgb, var(--shell-bg) 45%, var(--shell-surface));
+  color: var(--shell-text);
+  font: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.app-shell--collapsed .app-shell__version-btn {
+  justify-content: center;
+  padding: 0.35rem 0.25rem;
+}
+
+.app-shell__version-btn:hover {
+  background: color-mix(in srgb, var(--shell-primary) 10%, transparent);
+  border-color: color-mix(in srgb, var(--shell-primary) 35%, transparent);
+  color: var(--shell-primary);
+}
+
+.app-shell__version-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: inherit;
+}
+
+.app-shell__version-commit {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.6875rem;
+  color: var(--shell-muted);
+  background: color-mix(in srgb, var(--shell-border) 50%, transparent);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
 }
 
 .app-shell__main {
@@ -1041,4 +1095,219 @@ html.sf-dark-mode .app-shell__chip--active {
 
 html.sf-dark-mode .app-shell__user-menu-trigger {
   background: color-mix(in srgb, var(--shell-bg) 50%, var(--shell-surface));
+}
+
+.app-shell__user-menu-divider {
+  height: 1px;
+  background: var(--shell-border);
+  margin: 0.25rem 0;
+}
+
+.app-shell__user-menu-item--about {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-shell__user-menu-label {
+  flex: 1;
+}
+
+.app-shell__user-menu-version-pill {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--shell-primary) 12%, transparent);
+  color: var(--shell-primary);
+  letter-spacing: 0.02em;
+}
+
+/* Modal Acerca de EcuNexo */
+.ecu-about-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding: 0.25rem 0;
+  color: var(--shell-text);
+}
+
+.ecu-about-modal__hero {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--shell-border);
+}
+
+.ecu-about-modal__logo {
+  flex-shrink: 0;
+  border-radius: 0.625rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.ecu-about-modal__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.ecu-about-modal__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--shell-text);
+  line-height: 1.2;
+}
+
+.ecu-about-modal__subtitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--shell-muted);
+}
+
+.ecu-about-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.ecu-about-modal__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--shell-bg) 60%, var(--shell-surface));
+  border: 1px solid var(--shell-border);
+}
+
+.ecu-about-modal__label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--shell-muted);
+}
+
+.ecu-about-modal__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--shell-text);
+}
+
+.ecu-about-modal__badge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--shell-primary) 15%, transparent);
+  color: var(--shell-primary);
+  font-weight: 700;
+  font-size: 0.8125rem;
+}
+
+.ecu-about-modal__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  color: var(--shell-primary);
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.ecu-about-modal__link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.ecu-about-modal__support {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--shell-primary) 6%, var(--shell-surface));
+  border: 1px dashed color-mix(in srgb, var(--shell-primary) 35%, transparent);
+}
+
+.ecu-about-modal__support-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--shell-muted);
+  line-height: 1.4;
+}
+
+.ecu-about-modal__copy-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Sistema y Versión en Preferencias */
+.ecu-system-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.ecu-system-spec-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--shell-border);
+  background: var(--shell-surface);
+}
+
+.ecu-system-spec-card--span-2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 640px) {
+  .ecu-system-spec-card--span-2 {
+    grid-column: span 1;
+  }
+}
+
+.ecu-system-spec-card__label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--shell-muted);
+}
+
+.ecu-system-spec-card__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--shell-text);
+}
+
+.ecu-system-spec-card__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  color: var(--shell-primary);
+  text-decoration: none;
+}
+
+.ecu-system-spec-card__link:hover {
+  text-decoration: underline;
 }

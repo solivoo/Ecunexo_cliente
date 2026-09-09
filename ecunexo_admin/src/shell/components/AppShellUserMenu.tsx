@@ -13,12 +13,14 @@ import {
 } from '@/store/authSlice'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { restoreHolderSessionThunk } from '@/store/thunks/authThunks'
+import { APP_VERSION_INFO } from '@/config/appVersion'
 
 export interface AppShellUserMenuProps {
   readonly onLogout: () => void
+  readonly onOpenAbout?: () => void
 }
 
-export function AppShellUserMenu({ onLogout }: AppShellUserMenuProps) {
+export function AppShellUserMenu({ onLogout, onOpenAbout }: AppShellUserMenuProps) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const toast = useToast()
@@ -159,6 +161,22 @@ export function AppShellUserMenu({ onLogout }: AppShellUserMenuProps) {
               logout
             </span>
             Cerrar sesión
+          </button>
+          <div className="app-shell__user-menu-divider" />
+          <button
+            type="button"
+            className="app-shell__user-menu-item app-shell__user-menu-item--about"
+            role="menuitem"
+            onClick={() => {
+              close()
+              onOpenAbout?.()
+            }}
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              info
+            </span>
+            <span className="app-shell__user-menu-label">Acerca de EcuNexo</span>
+            <span className="app-shell__user-menu-version-pill">v{APP_VERSION_INFO.version}</span>
           </button>
         </div>
       ) : null}
