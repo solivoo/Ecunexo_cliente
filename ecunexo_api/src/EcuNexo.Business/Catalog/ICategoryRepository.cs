@@ -10,6 +10,8 @@ public interface ICategoryRepository
 
     Task<Category?> GetActiveByIdAsync(Guid tenantId, Guid categoryId, CancellationToken ct);
 
+    Task<Category?> GetTrackedByIdAsync(Guid tenantId, Guid categoryId, CancellationToken ct);
+
     Task<bool> NameExistsIgnoreCaseAsync(Guid tenantId, string name, Guid? excludeId, CancellationToken ct);
 
     Task<bool> ExistsActiveByIdAsync(Guid tenantId, Guid categoryId, CancellationToken ct);

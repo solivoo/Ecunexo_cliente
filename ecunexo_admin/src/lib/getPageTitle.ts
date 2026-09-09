@@ -33,6 +33,7 @@ function staticTitle(pathname: string, search: string): string | null {
   if (pathname === '/catalogo/items/nuevo') return 'Nuevo ítem'
   if (/^\/catalogo\/items\/[^/]+$/.test(pathname)) return 'Editar ítem'
   if (pathname === '/catalogo/categorias/nueva') return 'Nueva categoría'
+  if (/^\/catalogo\/categorias\/[^/]+\/editar$/.test(pathname)) return 'Editar categoría'
   if (pathname === '/bodegas/nueva') return 'Nueva bodega'
   if (/^\/bodegas\/[^/]+$/.test(pathname)) return 'Editar bodega'
   if (pathname === '/inventario/documentos/nuevo') return inventoryNewTitle(search)

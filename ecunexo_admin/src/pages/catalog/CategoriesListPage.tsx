@@ -169,7 +169,7 @@ export function CategoriesListPage() {
               )}
             </div>
           ) : (
-            <CategoriesGrid rows={rows} loading={loading} />
+            <CategoriesGrid rows={rows} loading={loading} canEdit={canManage} />
           )}
         </div>
       </div>

@@ -65,6 +65,8 @@ export type CreateCategoryBody = {
   attributeSchemaJson?: string | null
 }
 
+export type UpdateCategoryBody = CreateCategoryBody
+
 export type CreateCategoryResponseDto = {
   categoryId: string
   tenantId: string

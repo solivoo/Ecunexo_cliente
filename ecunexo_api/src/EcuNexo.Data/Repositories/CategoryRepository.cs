@@ -32,6 +32,11 @@ public sealed class CategoryRepository : ICategoryRepository
                 c => c.TenantId == tenantId && c.Id == categoryId && c.DeletedAt == null,
                 ct);
 
+    public Task<Category?> GetTrackedByIdAsync(Guid tenantId, Guid categoryId, CancellationToken ct) =>
+        _db.Categories.FirstOrDefaultAsync(
+            c => c.TenantId == tenantId && c.Id == categoryId && c.DeletedAt == null,
+            ct);
+
     public async Task<bool> NameExistsIgnoreCaseAsync(
         Guid tenantId,
         string name,

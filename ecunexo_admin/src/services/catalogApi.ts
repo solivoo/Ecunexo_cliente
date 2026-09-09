@@ -9,6 +9,7 @@ import type {
   CreateCategoryBody,
   CreateCategoryResponseDto,
   UpdateCatalogItemBody,
+  UpdateCategoryBody,
 } from '@/types/catalogApi'
 
 export async function listCatalogCategories(tenantId: string): Promise<CategoryListItemDto[]> {
@@ -27,6 +28,14 @@ export async function createCatalogCategory(
     body
   )
   return data
+}
+
+export async function updateCatalogCategory(
+  tenantId: string,
+  categoryId: string,
+  body: UpdateCategoryBody
+): Promise<void> {
+  await api.put(`/api/v1/tenants/${tenantId}/catalog/categories/${categoryId}`, body)
 }
 
 export async function listCatalogItems(

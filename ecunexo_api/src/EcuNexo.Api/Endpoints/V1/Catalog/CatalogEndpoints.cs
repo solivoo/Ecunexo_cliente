@@ -7,6 +7,7 @@ using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
+using EcuNexo.Business.Catalog.Commands.UpdateCategory;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
 using EcuNexo.Business.Catalog.Queries.ListCatalogItems;
 using EcuNexo.Business.Catalog.Queries.ListCategories;
@@ -30,6 +31,8 @@ public static class CatalogEndpoints
             .RequireAuthorization();
 
         categories.MapPost("/", CreateCategoryAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.category.manage"));
+        categories.MapPut("/{categoryId:guid}", UpdateCategoryAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.category.manage"));
         categories.MapGet("/", ListCategoriesAsync)
             .AddEndpointFilter(
@@ -83,6 +86,21 @@ public static class CatalogEndpoints
         var result = await sender
             .AskAsync<ListCategoriesQuery, IReadOnlyList<CategoryListItemResponse>>(
                 new ListCategoriesQuery(tenantId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> UpdateCategoryAsync(
+        Guid tenantId,
+        Guid categoryId,
+        UpdateCategoryRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<UpdateCategoryCommand, UpdateCategoryResponse>(
+                body.ToCommand(tenantId, categoryId),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

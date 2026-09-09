@@ -1,5 +1,8 @@
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { DataGrid, type ColumnDef } from 'glubox'
+import { Pencil } from 'lucide-react'
+import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { formatDateTime } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
@@ -10,16 +13,18 @@ export type CategoryGridRow = CategoryListItemDto & Record<string, unknown>
 export type CategoriesGridProps = {
   readonly rows: CategoryListItemDto[]
   readonly loading?: boolean
+  readonly canEdit?: boolean
 }
 
 const gridMessages = createSpanishDataGridMessages('categoría', 'categorías')
 
-export function CategoriesGrid({ rows, loading = false }: CategoriesGridProps) {
+export function CategoriesGrid({ rows, loading = false, canEdit = false }: CategoriesGridProps) {
+  const navigate = useNavigate()
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
   const byId = useMemo(() => new Map(rows.map((r) => [r.id, r.name])), [rows])
 
   const columns = useMemo((): ColumnDef<CategoryGridRow>[] => {
-    return [
+    const cols: ColumnDef<CategoryGridRow>[] = [
       {
         key: 'name',
         header: 'Nombre',
@@ -54,7 +59,28 @@ export function CategoriesGrid({ rows, loading = false }: CategoriesGridProps) {
           formatDateTime(row.createdAt),
       },
     ]
-  }, [byId])
+
+    if (canEdit) {
+      cols.push({
+        key: 'id',
+        header: 'Acciones',
+        width: 72,
+        align: 'center',
+        sortable: false,
+        renderCell: (_value: CategoryGridRow['id'], row: CategoryGridRow) => (
+          <div className="ecu-companies-grid__actions">
+            <GridIconButton
+              label="Editar"
+              icon={Pencil}
+              onClick={() => navigate(`/catalogo/categorias/${row.id}/editar`)}
+            />
+          </div>
+        ),
+      })
+    }
+
+    return cols
+  }, [byId, canEdit, navigate])
 
   return (
     <DataGrid
