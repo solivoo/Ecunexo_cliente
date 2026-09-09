@@ -145,7 +145,7 @@ function buildCompanyUpdateBody(
     accountingRequired: legal.obligadoContabilidad === 'si',
     isRimpe: rimpe !== 'none',
     rimpeKind: rimpe,
-    preferElectronicInvoice: tenant.preferElectronicInvoice,
+    preferElectronicInvoice: Boolean(tenant.preferElectronicInvoice),
     isExporter: legal.exportador === 'si',
     isLargeTaxpayer: legal.granContribuyente,
     isSpecialTaxpayer: legal.contribuyenteEspecial,
