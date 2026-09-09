@@ -21,8 +21,9 @@ export function productModuleFromPermissionCode(code: string): string | null {
 }
 
 /**
- * Misma regla que ModulePermissionFilter en el API:
- * sin módulos contratados → todo permitido; con lista/entitlements → solo esos.
+ * Misma regla que ModulePermissionFilter.IsModuleEnabled / IsPermittedForModules en el API:
+ * módulo contratado si figura en entitlements O en enabledModules.
+ * (La licencia puede listar p. ej. catalog solo en enabledModules sin fila de tier.)
  */
 export function isPermissionAllowedForModules(
   permissionCode: string,
@@ -32,22 +33,29 @@ export function isPermissionAllowedForModules(
   const product = productModuleFromPermissionCode(permissionCode)
   if (!product) return true
 
-  if (entitlements && entitlements.length > 0) {
-    return entitlements.some(
-      (e) => e.moduleCode.trim().toLowerCase() === product || (
-        e.moduleCode.trim().toLowerCase() === 'invoicing' && product === 'facturacion'
-      ) || (
-        e.moduleCode.trim().toLowerCase() === 'accounting' && product === 'contabilidad'
-      )
-    )
-  }
-
-  if (!enabledModules || enabledModules.length === 0) return true
-
-  return enabledModules.some((m) => {
-    const key = m.trim().toLowerCase()
+  const matches = (raw: string): boolean => {
+    const key = raw.trim().toLowerCase()
     const canonical =
       key === 'invoicing' ? 'facturacion' : key === 'accounting' ? 'contabilidad' : key
     return canonical === product
-  })
+  }
+
+  const inEntitlements =
+    !!entitlements &&
+    entitlements.length > 0 &&
+    entitlements.some((e) => matches(e.moduleCode))
+
+  const inEnabled =
+    !!enabledModules &&
+    enabledModules.length > 0 &&
+    enabledModules.some((m) => matches(m))
+
+  if (inEntitlements || inEnabled) return true
+
+  // Sin lista de módulos en ninguno → sin restricción (legacy).
+  if ((!entitlements || entitlements.length === 0) && (!enabledModules || enabledModules.length === 0)) {
+    return true
+  }
+
+  return false
 }
