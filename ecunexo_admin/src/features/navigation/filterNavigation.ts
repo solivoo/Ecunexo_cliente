@@ -5,7 +5,10 @@ import type { NavigationNode } from '@/types/navigation'
  * - Secciones sin ruta: solo si tienen hijos visibles.
  * - Hojas: solo si no están disabled (salvo placeholder).
  */
-export function filterNavigationTree(nodes: NavigationNode[]): NavigationNode[] {
+export function filterNavigationTree(nodes?: NavigationNode[] | null): NavigationNode[] {
+  if (!nodes || !Array.isArray(nodes)) {
+    return []
+  }
   const result: NavigationNode[] = []
 
   for (const node of nodes) {

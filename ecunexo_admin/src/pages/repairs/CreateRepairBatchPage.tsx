@@ -39,15 +39,8 @@ export function CreateRepairBatchPage() {
 
   const actionItems = useMemo<PageActionItem[]>(() => [
     {
-      id: 'batches',
-      label: 'Listado de lotes',
-      icon: 'layers',
-      route: '/taller/lotes',
-      disabled: false,
-    },
-    {
       id: 'template',
-      label: 'Descargar plantilla Excel',
+      label: 'Plantilla Excel',
       icon: 'download',
       route: null,
       disabled: downloadingTemplate,

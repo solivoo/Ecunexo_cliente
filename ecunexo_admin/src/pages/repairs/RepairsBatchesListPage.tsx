@@ -10,7 +10,7 @@ import {
   StatusBadge,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
-import { Download, Eye, Plus } from 'lucide-react'
+import { Eye, Plus } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
@@ -235,17 +235,7 @@ export function RepairsBatchesListPage() {
   )
 
   const actionItems = useMemo<PageActionItem[]>(() => {
-    const items: PageActionItem[] = []
-    if (canImport) {
-      items.push({
-        id: 'import',
-        label: 'Importar lote',
-        icon: 'plus',
-        route: '/taller/lotes/nuevo',
-        disabled: false,
-      })
-    }
-    items.push(
+    const items: PageActionItem[] = [
       {
         id: 'template',
         label: 'Plantilla Excel',
@@ -259,8 +249,8 @@ export function RepairsBatchesListPage() {
         icon: 'refresh-cw',
         route: null,
         disabled: loading,
-      }
-    )
+      },
+    ]
     if (canReadDispatches) {
       items.push({
         id: 'dispatches',
@@ -280,7 +270,7 @@ export function RepairsBatchesListPage() {
       })
     }
     return items
-  }, [canImport, canReadDispatches, canViewPortal, downloadingTemplate, loading])
+  }, [canReadDispatches, canViewPortal, downloadingTemplate, loading])
 
   const handleActionSelect = useCallback(
     (item: PageActionItem) => {
@@ -336,15 +326,6 @@ export function RepairsBatchesListPage() {
                   Importar Lote
                 </Button>
               )}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleDownloadTemplate}
-                disabled={downloadingTemplate}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                {downloadingTemplate ? 'Descargando...' : 'Plantilla Excel'}
-              </Button>
               <EcuPageActions
                 items={actionItems}
                 variant="outline"

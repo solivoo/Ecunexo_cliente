@@ -103,15 +103,7 @@ export function RepairBatchDetailPage() {
   }, [load])
 
   const actionItems = useMemo<PageActionItem[]>(() => {
-    const items: PageActionItem[] = [
-      {
-        id: 'batches',
-        label: 'Volver a lotes',
-        icon: 'arrow-left',
-        route: '/taller/lotes',
-        disabled: false,
-      },
-    ]
+    const items: PageActionItem[] = []
     if (canReadDispatches) {
       items.push({
         id: 'dispatches',
