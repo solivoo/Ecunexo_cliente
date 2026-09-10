@@ -456,3 +456,166 @@ html.sf-dark-mode .ecu-action-card:hover {
   align-items: center;
   gap: 0.5rem;
 }
+
+/* ==========================================================================
+   Iconos consistentes dentro de botones glubox y botones de acción
+   ========================================================================== */
+.glb-btn svg,
+button svg.lucide,
+.glb-btn svg.lucide {
+  width: 1rem !important;
+  height: 1rem !important;
+  max-width: 1rem;
+  max-height: 1rem;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.glb-btn--sm svg,
+button.glb-btn--sm svg.lucide {
+  width: 0.875rem !important;
+  height: 0.875rem !important;
+  max-width: 0.875rem;
+  max-height: 0.875rem;
+}
+
+.glb-btn--lg svg,
+button.glb-btn--lg svg.lucide {
+  width: 1.125rem !important;
+  height: 1.125rem !important;
+  max-width: 1.125rem;
+  max-height: 1.125rem;
+}
+
+/* ==========================================================================
+   Utilidades de Formularios y Zonas de Carga (M3 Enterprise)
+   ========================================================================== */
+.ecu-form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.ecu-rates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.ecu-rate-card {
+  padding: 1rem;
+  border-radius: 0.875rem;
+  border: 1px solid var(--shell-border);
+  background: var(--glb-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ecu-rate-card--n1 {
+  border-color: rgba(14, 165, 233, 0.28);
+  background: color-mix(in srgb, #0ea5e9 4%, var(--glb-surface));
+}
+
+.ecu-rate-card--n2 {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: color-mix(in srgb, #f59e0b 4%, var(--glb-surface));
+}
+
+.ecu-rate-card--n3 {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: color-mix(in srgb, #ef4444 4%, var(--glb-surface));
+}
+
+.ecu-rate-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ecu-rate-card__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--shell-text);
+}
+
+.ecu-rate-card__hint {
+  font-size: 0.6875rem;
+  color: var(--shell-muted);
+  line-height: 1.35;
+}
+
+.ecu-dropzone {
+  border: 2px dashed var(--shell-border);
+  border-radius: 1rem;
+  padding: 2.25rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  background: var(--glb-surface);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ecu-dropzone:hover {
+  border-color: var(--shell-primary);
+  background: color-mix(in srgb, var(--shell-primary) 3%, var(--glb-surface));
+}
+
+.ecu-dropzone--active {
+  border-color: var(--shell-primary);
+  background: color-mix(in srgb, var(--shell-primary) 8%, var(--glb-surface));
+}
+
+.ecu-dropzone__icon-wrap {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  background: color-mix(in srgb, var(--shell-primary) 12%, transparent);
+  color: var(--shell-primary);
+}
+
+.ecu-dropzone__icon-wrap--success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+html.sf-dark-mode .ecu-dropzone__icon-wrap--success {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.ecu-dropzone__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--shell-text);
+  margin: 0 0 0.25rem 0;
+}
+
+.ecu-dropzone__desc {
+  font-size: 0.8125rem;
+  color: var(--shell-muted);
+  margin: 0;
+}
+
+.ecu-info-banner {
+  margin-top: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  background: color-mix(in srgb, var(--shell-primary) 6%, var(--glb-surface));
+  border: 1px solid color-mix(in srgb, var(--shell-primary) 20%, transparent);
+  color: var(--shell-text);
+}
+

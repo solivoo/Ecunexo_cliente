@@ -232,10 +232,36 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
       await expect(page.getByText(/Nivel 2 \(Medio \/ Chapa\)/i)).toBeVisible()
       await expect(page.getByText(/Nivel 3 \(Grave \/ Estructural\)/i)).toBeVisible()
 
+      // Verificar que los campos iniciales estén limpios (sin datos sucios quemados)
+      await expect(page.locator('#repair-batch-num')).toHaveValue('')
+      await expect(page.locator('#repair-rate-n1')).toHaveValue('')
+
+      // El input nativo de tipo file debe estar oculto con display: none
+      const fileInput = page.locator('input[type="file"][accept=".xlsx,.xls"]')
+      await expect(fileInput).toBeAttached()
+      await expect(fileInput).not.toBeVisible()
+
       // Botón de descargar plantilla
       await expect(
         page.getByRole('button', { name: /Descargar Plantilla Oficial/i })
       ).toBeVisible()
+
+      // Botón de nuevo cliente corporativo abre el popup modal
+      const newCustBtn = page.getByRole('button', { name: /Nuevo Cliente Corporativo/i })
+      await expect(newCustBtn).toBeVisible()
+      await newCustBtn.click()
+
+      await expect(
+        page.getByRole('heading', { name: /Registrar Cliente Corporativo/i })
+      ).toBeVisible()
+      await expect(page.locator('#new-cust-name')).toBeVisible()
+      await expect(page.locator('#new-cust-name')).toHaveValue('')
+
+      // Cerrar modal
+      await page.getByLabel(/Registrar Cliente Corporativo/i).getByRole('button', { name: /Cancelar/i }).click()
+      await expect(
+        page.getByRole('heading', { name: /Registrar Cliente Corporativo/i })
+      ).not.toBeVisible()
     })
 
     test('Actas y Despachos: carga historial y métricas de salida', async ({ page }) => {

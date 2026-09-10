@@ -326,32 +326,10 @@ public static class RepairEndpoints
     private static async Task<IResult> ListCustomersAsync(
         [FromRoute] Guid tenantId,
         [FromServices] ICustomerRepository customerRepo,
-        [FromServices] IUnitOfWork unitOfWork,
         [FromServices] ICallerContext caller,
         CancellationToken ct)
     {
         var customers = await customerRepo.ListByTenantAsync(tenantId, ct).ConfigureAwait(false);
-        if (customers.Count == 0)
-        {
-            var seed = Customer.Create(
-                Guid.NewGuid(),
-                tenantId,
-                "Whirlpool del Ecuador S.A.",
-                "1791234567001",
-                "servicio.b2b@whirlpool.com",
-                "+593 2 398 5000",
-                "Av. República de El Salvador y Naciones Unidas, Quito",
-                "Auditoría Whirlpool B2B",
-                "Contrato corporativo de servicio técnico y reacondicionamiento");
-
-            if (seed.IsSuccess)
-            {
-                await customerRepo.AddAsync(seed.Value!, ct).ConfigureAwait(false);
-                await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
-                customers = [seed.Value!];
-            }
-        }
-
         return Results.Ok(customers);
     }
 

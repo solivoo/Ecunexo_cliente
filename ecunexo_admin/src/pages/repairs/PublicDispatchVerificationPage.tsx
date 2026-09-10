@@ -139,7 +139,7 @@ export function PublicDispatchVerificationPage() {
               {/* Lista de Equipos */}
               <div>
                 <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <FileCheck2 className="w-4 h-4 text-emerald-600" />
+                  <FileCheck2 size={16} strokeWidth={2} style={{ color: '#059669' }} />
                   Equipos Incluidos en el Despacho ({data.equipments.length})
                 </h3>
                 <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800 text-xs">
@@ -171,7 +171,7 @@ export function PublicDispatchVerificationPage() {
                   variant="primary"
                   onClick={handlePrint}
                 >
-                  <Printer className="w-4 h-4 mr-2" />
+                  <Printer size={16} strokeWidth={2} aria-hidden />
                   Imprimir Comprobante de Entrega
                 </Button>
               </div>

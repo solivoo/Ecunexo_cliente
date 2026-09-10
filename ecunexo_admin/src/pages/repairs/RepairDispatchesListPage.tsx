@@ -386,7 +386,7 @@ export function RepairDispatchesListPage() {
             <>
               {canCreate && (
                 <Button type="button" variant="primary" onClick={openCreateModal}>
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus size={16} strokeWidth={2} aria-hidden />
                   Emitir Despacho
                 </Button>
               )}
@@ -445,7 +445,7 @@ export function RepairDispatchesListPage() {
               action={
                 canCreate ? (
                   <Button type="button" variant="primary" onClick={openCreateModal}>
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus size={16} strokeWidth={2} aria-hidden />
                     Emitir Primer Despacho
                   </Button>
                 ) : undefined

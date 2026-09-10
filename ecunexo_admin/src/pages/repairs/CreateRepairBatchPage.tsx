@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Button, Popup, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import { EcuPageActions, PageHeader, SectionCard, StatusBadge } from '@/components/ui'
-import { ArrowLeft, Download, FileSpreadsheet, Info, UploadCloud } from 'lucide-react'
+import { ArrowLeft, Download, FileSpreadsheet, Info, Plus, UploadCloud } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
 import {
+  createRepairCustomer,
   downloadRepairTemplate,
   importRepairBatch,
   listRepairCustomers,
@@ -28,14 +29,26 @@ export function CreateRepairBatchPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [batchNumber, setBatchNumber] = useState('')
   const [contractRef, setContractRef] = useState('')
-  const [rateN1, setRateN1] = useState('35.00')
-  const [rateN2, setRateN2] = useState('65.00')
-  const [rateN3, setRateN3] = useState('110.00')
+  const [rateN1, setRateN1] = useState('')
+  const [rateN2, setRateN2] = useState('')
+  const [rateN3, setRateN3] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [busy, setBusy] = useState(false)
   const [downloadingTemplate, setDownloadingTemplate] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Modal para registrar nuevo cliente corporativo
+  const [newCustomerOpen, setNewCustomerOpen] = useState(false)
+  const [newCustName, setNewCustName] = useState('')
+  const [newCustTaxId, setNewCustTaxId] = useState('')
+  const [newCustPerson, setNewCustPerson] = useState('')
+  const [newCustEmail, setNewCustEmail] = useState('')
+  const [newCustPhone, setNewCustPhone] = useState('')
+  const [newCustAddress, setNewCustAddress] = useState('')
+  const [newCustNotes, setNewCustNotes] = useState('')
+  const [savingCust, setSavingCust] = useState(false)
+  const [newCustError, setNewCustError] = useState<string | null>(null)
 
   const actionItems = useMemo<PageActionItem[]>(() => [
     {
@@ -47,52 +60,7 @@ export function CreateRepairBatchPage() {
     },
   ], [downloadingTemplate])
 
-  const handleActionSelect = useCallback((item: PageActionItem) => {
-    if (item.id === 'template') {
-      void handleDownloadTemplate()
-    }
-  }, [tenantId])
-
-  useEffect(() => {
-    if (!tenantId) return
-    let active = true
-
-    void (async () => {
-      try {
-        const list = await listRepairCustomers(tenantId)
-        if (!active) return
-        setCustomers(list)
-        if (list.length > 0) {
-          const wph = list.find((c) => c.name.toLowerCase().includes('whirlpool')) ?? list[0]
-          setSelectedCustomerId(wph.id)
-        }
-      } catch {
-        if (active) setCustomers([])
-      }
-    })()
-
-    // Generar sugerencia de lote
-    const now = new Date()
-    const year = now.getFullYear()
-    const randomSuffix = Math.floor(100 + Math.random() * 900)
-    setBatchNumber(`LOTE-WPH-${year}-${randomSuffix}`)
-    setContractRef(`CT-WPH-${year}-Q${Math.floor(now.getMonth() / 3) + 1}`)
-
-    return () => {
-      active = false
-    }
-  }, [tenantId])
-
-  const customerOptions = useMemo(
-    () =>
-      customers.map((c) => ({
-        value: c.id,
-        label: `${c.name} ${c.taxId ? `(${c.taxId})` : ''}`,
-      })),
-    [customers]
-  )
-
-  const handleDownloadTemplate = async () => {
+  const handleDownloadTemplate = useCallback(async () => {
     if (!tenantId) return
     setDownloadingTemplate(true)
     try {
@@ -118,6 +86,88 @@ export function CreateRepairBatchPage() {
       })
     } finally {
       setDownloadingTemplate(false)
+    }
+  }, [tenantId, toast])
+
+  const handleActionSelect = useCallback((item: PageActionItem) => {
+    if (item.id === 'template') {
+      void handleDownloadTemplate()
+    }
+  }, [handleDownloadTemplate])
+
+  useEffect(() => {
+    if (!tenantId) return
+    let active = true
+
+    void (async () => {
+      try {
+        const list = await listRepairCustomers(tenantId)
+        if (!active) return
+        setCustomers(list)
+      } catch {
+        if (active) setCustomers([])
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [tenantId])
+
+  const customerOptions = useMemo(
+    () => [
+      { value: '', label: 'Seleccionar cliente corporativo...' },
+      ...customers.map((c) => ({
+        value: c.id,
+        label: `${c.name}${c.taxId ? ` (${c.taxId})` : ''}`,
+      })),
+    ],
+    [customers]
+  )
+
+  const handleCreateCustomer = async (e?: FormEvent) => {
+    if (e) e.preventDefault()
+    if (!tenantId) return
+
+    if (!newCustName.trim()) {
+      setNewCustError('La razón social o nombre comercial del cliente es obligatorio.')
+      return
+    }
+
+    setSavingCust(true)
+    setNewCustError(null)
+
+    try {
+      const created = await createRepairCustomer(tenantId, {
+        name: newCustName.trim(),
+        taxId: newCustTaxId.trim() || undefined,
+        contactPerson: newCustPerson.trim() || undefined,
+        contactEmail: newCustEmail.trim() || undefined,
+        contactPhone: newCustPhone.trim() || undefined,
+        address: newCustAddress.trim() || undefined,
+        notes: newCustNotes.trim() || undefined,
+      })
+
+      setCustomers((prev) => [...prev, created])
+      setSelectedCustomerId(created.id)
+      setNewCustomerOpen(false)
+      setNewCustName('')
+      setNewCustTaxId('')
+      setNewCustPerson('')
+      setNewCustEmail('')
+      setNewCustPhone('')
+      setNewCustAddress('')
+      setNewCustNotes('')
+
+      toast.show({
+        title: 'Cliente corporativo registrado',
+        message: `Cliente "${created.name}" agregado y seleccionado para este lote.`,
+        variant: 'success',
+      })
+    } catch (err: unknown) {
+      setNewCustError(readApiError(err, 'Error al registrar el cliente corporativo.'))
+    } finally {
+      setSavingCust(false)
     }
   }
 
@@ -210,7 +260,7 @@ export function CreateRepairBatchPage() {
               No posees los privilegios requeridos para realizar la importación masiva de lotes de electrodomésticos en esta empresa.
             </p>
             <Button type="button" variant="outline" onClick={() => navigate('/taller/lotes')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft size={16} strokeWidth={2} aria-hidden />
               Volver a Lotes
             </Button>
           </SectionCard>
@@ -236,7 +286,7 @@ export function CreateRepairBatchPage() {
                 variant="outline"
                 onClick={() => navigate('/taller/lotes')}
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft size={16} strokeWidth={2} aria-hidden />
                 Volver a Lotes
               </Button>
               <EcuPageActions
@@ -253,228 +303,387 @@ export function CreateRepairBatchPage() {
 
         <div style={{ maxWidth: '56rem', margin: '0 auto', width: '100%' }}>
           {error && (
-            <div className="ecu-form-error-banner mb-6" role="alert">
+            <div className="ecu-form-error-banner" style={{ marginBottom: '1.5rem' }} role="alert">
               <span className="material-symbols-outlined">error</span>
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-          <SectionCard
-            title="Datos del Contrato y Cliente"
-            subtitle="Identificación del fabricante y número de control interno del lote"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Select
-                  id="repair-customer"
-                  label="Cliente Corporativo *"
-                  labelPosition="outlined"
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Sección 1: Cliente y Contrato */}
+            <SectionCard
+              title="Datos del Contrato y Cliente Corporativo"
+              subtitle="Identificación de la marca/distribuidor y número de control interno del lote"
+              action={
+                <Button
+                  type="button"
                   variant="outline"
-                  options={customerOptions}
-                  value={selectedCustomerId}
-                  onChange={(val: string) => setSelectedCustomerId(val)}
-                  fullWidth
-                />
+                  size="sm"
+                  onClick={() => {
+                    setNewCustError(null)
+                    setNewCustomerOpen(true)
+                  }}
+                >
+                  <Plus size={16} strokeWidth={2} aria-hidden />
+                  Nuevo Cliente Corporativo
+                </Button>
+              }
+            >
+              <div className="ecu-form-grid-2">
+                <div>
+                  <Select
+                    id="repair-customer"
+                    label="Cliente Corporativo *"
+                    labelPosition="outlined"
+                    variant="outline"
+                    options={customerOptions}
+                    value={selectedCustomerId}
+                    onChange={(val: string) => setSelectedCustomerId(val)}
+                    fullWidth
+                  />
+                  {customers.length === 0 && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--shell-muted)' }}>
+                      No hay clientes corporativos registrados aún.{' '}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewCustError(null)
+                          setNewCustomerOpen(true)
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--shell-primary)',
+                          cursor: 'pointer',
+                          padding: 0,
+                          textDecoration: 'underline',
+                          fontWeight: 600,
+                        }}
+                      >
+                        + Registrar primer cliente
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <TextBox
+                    id="repair-batch-num"
+                    label="Número de Lote *"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={batchNumber}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setBatchNumber(e.target.value)}
+                    placeholder="ej. LOTE-2026-001"
+                    required
+                    fullWidth
+                  />
+                </div>
               </div>
 
-              <div>
-                <TextBox
-                  id="repair-batch-num"
-                  label="Número de Lote *"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={batchNumber}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setBatchNumber(e.target.value)}
-                  placeholder="ej. LOTE-WPH-2026-001"
-                  required
-                  fullWidth
-                />
-              </div>
-
-              <div className="md:col-span-2">
+              <div style={{ marginTop: '1rem' }}>
                 <TextBox
                   id="repair-contract-ref"
-                  label="Referencia de Contrato / Orden Marco"
+                  label="Referencia de Contrato / Orden Marco (Opcional)"
                   labelPosition="outlined"
                   variant="outline"
                   value={contractRef}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setContractRef(e.target.value)}
-                  placeholder="ej. Contrato Reacondicionamiento Whirlpool Anual #452"
+                  placeholder="ej. Contrato Reacondicionamiento Anual #452"
                   fullWidth
                 />
               </div>
-            </div>
-          </SectionCard>
+            </SectionCard>
 
-          <SectionCard
-            title="Tarifario Acordado de Servicio ($ USD)"
-            subtitle="Tarifas pactadas por equipo según nivel de daño para la liquidación y facturación SRI"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
-                    Nivel 1 (Leve / Estético)
+            {/* Sección 2: Tarifario */}
+            <SectionCard
+              title="Tarifario Acordado de Servicio ($ USD)"
+              subtitle="Tarifas pactadas por equipo según nivel de daño para la liquidación y facturación (Opcional)"
+            >
+              <div className="ecu-rates-grid">
+                <div className="ecu-rate-card ecu-rate-card--n1">
+                  <div className="ecu-rate-card__header">
+                    <span className="ecu-rate-card__title">
+                      Nivel 1 (Leve / Estético)
+                    </span>
+                    <StatusBadge tone="info">N1</StatusBadge>
+                  </div>
+                  <TextBox
+                    id="repair-rate-n1"
+                    label="Tarifa N1 ($)"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={rateN1}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setRateN1(e.target.value)}
+                    placeholder="0.00"
+                    fullWidth
+                  />
+                  <span className="ecu-rate-card__hint">
+                    Rayones leves, limpieza profunda, sustitución de perillas
                   </span>
-                  <StatusBadge tone="info">N1</StatusBadge>
                 </div>
-                <TextBox
-                  id="repair-rate-n1"
-                  label="Tarifa N1 ($)"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={rateN1}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setRateN1(e.target.value)}
-                  placeholder="35.00"
-                  fullWidth
-                />
-                <span className="text-[11px] text-slate-500 mt-1 block">
-                  Rayones leves, limpieza, perillas
-                </span>
-              </div>
 
-              <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-100 dark:border-amber-900/30">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
-                    Nivel 2 (Medio / Chapa)
+                <div className="ecu-rate-card ecu-rate-card--n2">
+                  <div className="ecu-rate-card__header">
+                    <span className="ecu-rate-card__title">
+                      Nivel 2 (Medio / Chapa)
+                    </span>
+                    <StatusBadge tone="warning">N2</StatusBadge>
+                  </div>
+                  <TextBox
+                    id="repair-rate-n2"
+                    label="Tarifa N2 ($)"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={rateN2}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setRateN2(e.target.value)}
+                    placeholder="0.00"
+                    fullWidth
+                  />
+                  <span className="ecu-rate-card__hint">
+                    Golpes en paneles laterales, pintura, soldadura menor
                   </span>
-                  <StatusBadge tone="warning">N2</StatusBadge>
                 </div>
-                <TextBox
-                  id="repair-rate-n2"
-                  label="Tarifa N2 ($)"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={rateN2}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setRateN2(e.target.value)}
-                  placeholder="65.00"
-                  fullWidth
-                />
-                <span className="text-[11px] text-slate-500 mt-1 block">
-                  Golpes en paneles laterales, pintura
-                </span>
-              </div>
 
-              <div className="p-3 bg-rose-50/50 dark:bg-rose-950/20 rounded-xl border border-rose-100 dark:border-rose-900/30">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-rose-700 dark:text-rose-300">
-                    Nivel 3 (Grave / Estructural)
+                <div className="ecu-rate-card ecu-rate-card--n3">
+                  <div className="ecu-rate-card__header">
+                    <span className="ecu-rate-card__title">
+                      Nivel 3 (Grave / Estructural)
+                    </span>
+                    <StatusBadge tone="danger">N3</StatusBadge>
+                  </div>
+                  <TextBox
+                    id="repair-rate-n3"
+                    label="Tarifa N3 ($)"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={rateN3}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setRateN3(e.target.value)}
+                    placeholder="0.00"
+                    fullWidth
+                  />
+                  <span className="ecu-rate-card__hint">
+                    Descuadre de chasis, reemplazo de compresores o cableado
                   </span>
-                  <StatusBadge tone="danger">N3</StatusBadge>
                 </div>
-                <TextBox
-                  id="repair-rate-n3"
-                  label="Tarifa N3 ($)"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={rateN3}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setRateN3(e.target.value)}
-                  placeholder="110.00"
-                  fullWidth
-                />
-                <span className="text-[11px] text-slate-500 mt-1 block">
-                  Descuadre de chasis, motores, cableado
-                </span>
               </div>
-            </div>
-          </SectionCard>
+            </SectionCard>
 
-          <SectionCard
-            title="Planilla de Equipos (Excel)"
-            subtitle="Arrastra el archivo entregado por Whirlpool o descarga la plantilla oficial con validación"
-            action={
+            {/* Sección 3: Archivo Excel */}
+            <SectionCard
+              title="Planilla de Equipos (Excel)"
+              subtitle="Carga la planilla Excel con los números de serie, modelos y marcas de los equipos recibidos"
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadTemplate}
+                  disabled={downloadingTemplate}
+                >
+                  <Download size={16} strokeWidth={2} aria-hidden />
+                  {downloadingTemplate ? 'Generando...' : 'Descargar Plantilla Oficial'}
+                </Button>
+              }
+            >
+              <div
+                className={`ecu-dropzone ${isDragging ? 'ecu-dropzone--active' : ''}`}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setIsDragging(true)
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
+
+                {file ? (
+                  <>
+                    <div className="ecu-dropzone__icon-wrap ecu-dropzone__icon-wrap--success">
+                      <FileSpreadsheet size={32} />
+                    </div>
+                    <h3 className="ecu-dropzone__title">
+                      {file.name}
+                    </h3>
+                    <p className="ecu-dropzone__desc">
+                      {(file.size / 1024).toFixed(1)} KB — Clic o arrastra otro archivo para reemplazar
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="ecu-dropzone__icon-wrap">
+                      <UploadCloud size={32} />
+                    </div>
+                    <h3 className="ecu-dropzone__title">
+                      Arrastra el archivo Excel aquí o haz clic para examinar
+                    </h3>
+                    <p className="ecu-dropzone__desc">
+                      Formatos soportados: .xlsx, .xls (Máximo 500 equipos por lote)
+                    </p>
+                  </>
+                )}
+              </div>
+
+              <div className="ecu-info-banner">
+                <Info size={16} strokeWidth={2} style={{ color: 'var(--shell-primary)', flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <strong>Mapeo automático y campos personalizados:</strong> Columnas como{' '}
+                  <code>serial_number</code>, <code>model</code>, <code>brand</code> y{' '}
+                  <code>damage_level</code> se homologan directamente al catálogo técnico. Cualquier
+                  columna adicional en el Excel (ej. <em>pallet_id</em>, <em>bodega_origen</em>) se
+                  almacenará de forma dinámica en los atributos JSON del equipo.
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Acciones de envío */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--shell-border)' }}>
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleDownloadTemplate}
-                disabled={downloadingTemplate}
+                onClick={() => navigate('/taller/lotes')}
+                disabled={busy}
               >
-                <Download className="w-4 h-4 mr-2" />
-                {downloadingTemplate ? 'Generando...' : 'Descargar Plantilla Oficial'}
+                Cancelar
               </Button>
-            }
-          >
-            <div
-              className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors cursor-pointer ${
-                isDragging
-                  ? 'border-indigo-500 bg-indigo-50/20'
-                  : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault()
-                setIsDragging(true)
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                className="hidden"
-                onChange={handleFileChange}
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={busy || !file || !selectedCustomerId || !batchNumber.trim()}
+              >
+                {busy ? 'Procesando e Importando...' : 'Importar Lote y Registrar Equipos'}
+              </Button>
+            </div>
+          </form>
+        </div>
+
+        {/* Modal Popup para Registro Rápido de Cliente Corporativo */}
+        <Popup
+          open={newCustomerOpen}
+          title="Registrar Cliente Corporativo"
+          onClose={() => setNewCustomerOpen(false)}
+          width="min(92vw, 36rem)"
+          actions={[
+            {
+              id: 'cancel',
+              label: 'Cancelar',
+              variant: 'ghost',
+              onClick: () => setNewCustomerOpen(false),
+              disabled: savingCust,
+            },
+            {
+              id: 'save',
+              label: savingCust ? 'Guardando...' : 'Guardar y Seleccionar',
+              variant: 'primary',
+              onClick: () => void handleCreateCustomer(),
+              disabled: savingCust || !newCustName.trim(),
+              loading: savingCust,
+            },
+          ]}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '0.5rem' }}>
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--shell-muted)' }}>
+              Ingresa los datos de la marca fabricante, distribuidora o empresa contratante para asociarla a este lote de reparación.
+            </p>
+
+            {newCustError && (
+              <div className="ecu-form-error-banner" role="alert">
+                <span className="material-symbols-outlined">error</span>
+                <span>{newCustError}</span>
+              </div>
+            )}
+
+            <TextBox
+              id="new-cust-name"
+              label="Nombre Comercial / Razón Social *"
+              labelPosition="outlined"
+              variant="outline"
+              value={newCustName}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustName(e.target.value)}
+              placeholder="ej. Mabe del Ecuador S.A."
+              required
+              fullWidth
+            />
+
+            <div className="ecu-form-grid-2">
+              <TextBox
+                id="new-cust-taxid"
+                label="RUC / Cédula / Tax ID"
+                labelPosition="outlined"
+                variant="outline"
+                value={newCustTaxId}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustTaxId(e.target.value)}
+                placeholder="1792345678001"
+                fullWidth
               />
 
-              {file ? (
-                <div className="flex flex-col items-center">
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center mb-3">
-                    <FileSpreadsheet className="w-8 h-8" />
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                    {file.name}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {(file.size / 1024).toFixed(1)} KB — Clic para cambiar archivo
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center mb-3">
-                    <UploadCloud className="w-8 h-8" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                    Arrastra el archivo Excel aquí o haz clic para examinar
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Formatos soportados: .xlsx, .xls (Máximo 500 equipos por lote)
-                  </p>
-                </div>
-              )}
+              <TextBox
+                id="new-cust-person"
+                label="Persona de Contacto"
+                labelPosition="outlined"
+                variant="outline"
+                value={newCustPerson}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustPerson(e.target.value)}
+                placeholder="Ing. Carlos Mendoza"
+                fullWidth
+              />
             </div>
 
-            <div className="mt-4 flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
-              <Info className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-              <div>
-                <strong>Mapeo dinámico y atributos adicionales:</strong> Columnas como{' '}
-                <code>serial_number</code>, <code>model</code>, <code>brand</code> y{' '}
-                <code>damage_level</code> se asignan directamente al catálogo técnico. Cualquier
-                columna adicional en el Excel (ej. <em>pallet_id</em>, <em>bodega_origen</em>) se
-                guardará de forma automática en el esquema JSONB del equipo sin perder datos.
-              </div>
-            </div>
-          </SectionCard>
+            <div className="ecu-form-grid-2">
+              <TextBox
+                id="new-cust-email"
+                type="email"
+                label="Correo Electrónico"
+                labelPosition="outlined"
+                variant="outline"
+                value={newCustEmail}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustEmail(e.target.value)}
+                placeholder="garantias@cliente.com"
+                fullWidth
+              />
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
-            <Button
-              type="button"
+              <TextBox
+                id="new-cust-phone"
+                label="Teléfono / Celular"
+                labelPosition="outlined"
+                variant="outline"
+                value={newCustPhone}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustPhone(e.target.value)}
+                placeholder="0991234567"
+                fullWidth
+              />
+            </div>
+
+            <TextBox
+              id="new-cust-address"
+              label="Dirección / Planta / Centro de Distribución"
+              labelPosition="outlined"
               variant="outline"
-              onClick={() => navigate('/taller/lotes')}
-              disabled={busy}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={busy || !file}
-            >
-              {busy ? 'Procesando e Importando...' : 'Importar Lote y Registrar Equipos'}
-            </Button>
+              value={newCustAddress}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustAddress(e.target.value)}
+              placeholder="Av. Juan Tanca Marengo Km 4.5, Bodega 3"
+              fullWidth
+            />
+
+            <TextBox
+              id="new-cust-notes"
+              label="Notas / Observaciones de Servicio"
+              labelPosition="outlined"
+              variant="outline"
+              value={newCustNotes}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustNotes(e.target.value)}
+              placeholder="Contrato de garantía post-venta regional"
+              fullWidth
+            />
           </div>
-        </form>
-        </div>
+        </Popup>
       </div>
     </TenantSessionGate>
   )

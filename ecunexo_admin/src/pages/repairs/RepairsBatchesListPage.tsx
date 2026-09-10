@@ -322,7 +322,7 @@ export function RepairsBatchesListPage() {
                   variant="primary"
                   onClick={() => navigate('/taller/lotes/nuevo')}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus size={16} strokeWidth={2} aria-hidden />
                   Importar Lote
                 </Button>
               )}
@@ -392,7 +392,7 @@ export function RepairsBatchesListPage() {
                     variant="primary"
                     onClick={() => navigate('/taller/lotes/nuevo')}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus size={16} strokeWidth={2} aria-hidden />
                     Importar Primer Lote
                   </Button>
                 ) : undefined

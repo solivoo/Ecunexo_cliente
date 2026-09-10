@@ -428,7 +428,7 @@ export function RepairBatchDetailPage() {
                 variant="outline"
                 onClick={() => navigate('/taller/lotes')}
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft size={16} strokeWidth={2} aria-hidden />
                 Lotes
               </Button>
               {readyEquipmentsCount > 0 && canDispatch && (
@@ -437,7 +437,7 @@ export function RepairBatchDetailPage() {
                   variant="primary"
                   onClick={() => navigate(`/taller/despachos?batchId=${batchId}`)}
                 >
-                  <Truck className="w-4 h-4 mr-2" />
+                  <Truck size={16} strokeWidth={2} aria-hidden />
                   Despachar Listos ({readyEquipmentsCount})
                 </Button>
               )}
@@ -642,7 +642,7 @@ export function RepairBatchDetailPage() {
             {canUploadPhoto && (
               <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
                 <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Upload className="w-4 h-4 text-indigo-500" />
+                  <Upload size={16} strokeWidth={2} style={{ color: 'var(--shell-primary)' }} />
                   Subir Nueva Fotografía
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
@@ -681,7 +681,7 @@ export function RepairBatchDetailPage() {
                     type="file"
                     accept="image/*"
                     id="photo-upload-input"
-                    className="hidden"
+                    style={{ display: 'none' }}
                     onChange={handlePhotoUpload}
                     disabled={uploadingPhoto}
                   />
@@ -691,7 +691,7 @@ export function RepairBatchDetailPage() {
                     onClick={() => document.getElementById('photo-upload-input')?.click()}
                     disabled={uploadingPhoto}
                   >
-                    <Camera className="w-4 h-4 mr-2" />
+                    <Camera size={16} strokeWidth={2} aria-hidden />
                     {uploadingPhoto ? 'Subiendo a S3...' : 'Seleccionar Foto'}
                   </Button>
                   {uploadingPhoto && (

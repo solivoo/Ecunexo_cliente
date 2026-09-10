@@ -334,7 +334,7 @@ export function WhirlpoolPortalPage() {
                 onClick={handleDownloadReport}
                 disabled={downloadingReport}
               >
-                <Download className="w-4 h-4 mr-2" />
+                <Download size={16} strokeWidth={2} aria-hidden />
                 {downloadingReport ? 'Generando...' : 'Descargar Informe Excel'}
               </Button>
               <EcuPageActions
