@@ -3,6 +3,30 @@
    Complemento de alto nivel para componentes glubox
    ========================================================================== */
 
+/* --- Contenedor Principal y Layout Base con Espaciado Generoso --- */
+.ecu-dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  padding-bottom: 3rem;
+  box-sizing: border-box;
+}
+
+.ecu-dashboard-layout > .ecu-page-header {
+  margin-bottom: 0;
+}
+
+.ecu-dashboard-layout > .ecu-stat-grid {
+  margin-bottom: 0;
+}
+
+.ecu-dashboard-layout > .ecu-section-card {
+  margin-bottom: 0;
+}
+
 /* --- Contenedor de Cabecera de Página (PageHeader) --- */
 .ecu-page-header {
   display: flex;
@@ -618,4 +642,99 @@ html.sf-dark-mode .ecu-dropzone__icon-wrap--success {
   border: 1px solid color-mix(in srgb, var(--shell-primary) 20%, transparent);
   color: var(--shell-text);
 }
+
+.ecu-repairs-grid {
+  margin-top: 0.5rem;
+}
+
+.ecu-filter-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.ecu-preview-table-container {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--shell-border);
+  border-radius: 0.75rem;
+  margin-top: 1rem;
+  background: var(--glb-surface);
+}
+
+.ecu-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.ecu-preview-table th {
+  padding: 0.625rem 0.875rem;
+  background: color-mix(in srgb, var(--shell-primary) 6%, var(--glb-surface));
+  color: var(--shell-text);
+  font-weight: 600;
+  border-bottom: 1px solid var(--shell-border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.ecu-preview-table td {
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--shell-border) 40%, transparent);
+  color: var(--shell-text);
+}
+
+.ecu-preview-table tr:hover td {
+  background: color-mix(in srgb, var(--shell-primary) 3%, transparent);
+}
+
+.ecu-alert-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  margin-top: 1rem;
+}
+
+.ecu-alert-box--danger {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #dc2626;
+}
+
+html.sf-dark-mode .ecu-alert-box--danger {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.ecu-alert-box--warning {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  color: #d97706;
+}
+
+html.sf-dark-mode .ecu-alert-box--warning {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.ecu-alert-box--success {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  color: #059669;
+}
+
+html.sf-dark-mode .ecu-alert-box--success {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
+}
+
 

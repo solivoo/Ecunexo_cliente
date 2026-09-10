@@ -96,15 +96,20 @@ internal static class MenuCatalogSeeder
 
     private static async Task EnsureProductModulesAsync(EcuNexoDbContext db, CancellationToken cancellationToken)
     {
+        var changed = false;
         foreach (var (code, displayName) in MenuCatalogSeedData.ProductModules)
         {
             var normalized = TenantModuleCodes.Canonicalize(code);
-            var exists = await db.ProductModules
-                .AsNoTracking()
-                .AnyAsync(m => m.Code == normalized, cancellationToken)
+            var existing = await db.ProductModules
+                .FirstOrDefaultAsync(m => m.Code == normalized, cancellationToken)
                 .ConfigureAwait(false);
-            if (exists)
+            if (existing is not null)
             {
+                if (existing.DisplayName != displayName)
+                {
+                    existing.DisplayName = displayName;
+                    changed = true;
+                }
                 continue;
             }
 
@@ -114,9 +119,13 @@ internal static class MenuCatalogSeeder
                 DisplayName = displayName,
                 IsActive = true,
             });
+            changed = true;
         }
 
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        if (changed)
+        {
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private static async Task EnsureMenuItemsAsync(EcuNexoDbContext db, CancellationToken cancellationToken)

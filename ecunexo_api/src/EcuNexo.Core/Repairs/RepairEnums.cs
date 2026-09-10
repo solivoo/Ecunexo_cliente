@@ -37,6 +37,9 @@ public enum RepairBatchStatus
 
     /// <summary>Lote totalmente despachado y liquidado administrativamente.</summary>
     Closed = 4,
+
+    /// <summary>Lote anulado sin procesamiento técnico, preservado exclusivamente con fines de trazabilidad y auditoría.</summary>
+    Cancelled = 5,
 }
 
 /// <summary>
@@ -67,6 +70,9 @@ public enum RepairEquipmentStatus
 
     /// <summary>Dictaminado como irreparable / baja técnica.</summary>
     Irreparable = 7,
+
+    /// <summary>Equipo anulado debido a la cancelación o anulación del lote de origen.</summary>
+    Cancelled = 8,
 }
 
 /// <summary>

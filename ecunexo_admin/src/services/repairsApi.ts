@@ -2,6 +2,8 @@ import { api } from '@/lib/apiClient'
 import type {
   BatchDetailDto,
   BatchListItemDto,
+  BatchPreviewResponse,
+  CancelBatchResponse,
   ConfirmPhotoUploadBody,
   CreateCustomerBody,
   CreateRepairDispatchBody,
@@ -60,6 +62,34 @@ export async function importRepairBatch(
         'Content-Type': 'multipart/form-data',
       },
     }
+  )
+  return data
+}
+
+export async function previewRepairBatch(
+  tenantId: string,
+  formData: FormData
+): Promise<BatchPreviewResponse> {
+  const { data } = await api.post<BatchPreviewResponse>(
+    `/api/v1/tenants/${tenantId}/repairs/batches/preview`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  )
+  return data
+}
+
+export async function cancelRepairBatch(
+  tenantId: string,
+  batchId: string,
+  reason: string
+): Promise<CancelBatchResponse> {
+  const { data } = await api.post<CancelBatchResponse>(
+    `/api/v1/tenants/${tenantId}/repairs/batches/${batchId}/cancel`,
+    { reason }
   )
   return data
 }

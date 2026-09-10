@@ -12,6 +12,7 @@ import {
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import {
   ArrowLeft,
+  Ban,
   Camera,
   Image as ImageIcon,
   Truck,
@@ -26,6 +27,7 @@ import { formatDate, formatDateTime } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
+  cancelRepairBatch,
   confirmPhotoUpload,
   getPhotoUploadUrl,
   getRepairBatch,
@@ -41,6 +43,7 @@ import {
   damageLevelLabel,
   PhotoStage,
   photoStageLabel,
+  RepairBatchStatus,
   RepairEquipmentStatus,
   repairEquipmentStatusBadgeTone,
   repairEquipmentStatusLabel,
@@ -60,10 +63,18 @@ export function RepairBatchDetailPage() {
   const tenantId = useAppSelector(selectTenantId)
 
   const canRead = useHasPermission('repairs.batches.read')
+  const canImport = useHasPermission('repairs.batches.import')
+  const canCancel = useHasPermission('repairs.batches.cancel')
   const canUpdateStatus = useHasPermission('repairs.equipments.update.status')
   const canUploadPhoto = useHasPermission('repairs.equipments.upload.photo')
   const canDispatch = useHasPermission('repairs.dispatches.create')
   const canReadDispatches = useHasPermission('repairs.dispatches.read')
+
+  // Modal de anulación de lote
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancellingBatch, setCancellingBatch] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
 
   const [batch, setBatch] = useState<BatchDetailDto | null>(null)
   const [equipments, setEquipments] = useState<RepairEquipmentDto[]>([])
@@ -102,6 +113,45 @@ export function RepairBatchDetailPage() {
     void load({ silent: true })
   }, [load])
 
+  const canCancelBatch = useMemo(() => {
+    if (!canCancel || !batch) return false
+    if (batch.status === RepairBatchStatus.Cancelled) return false
+    return (
+      batch.inRepairCount === 0 &&
+      batch.readyCount === 0 &&
+      batch.dispatchedCount === 0
+    )
+  }, [canCancel, batch])
+
+  const handleCancelBatch = async () => {
+    if (!tenantId || !batchId) return
+    if (!cancelReason.trim()) {
+      setCancelError('El motivo de la anulación es obligatorio.')
+      return
+    }
+
+    setCancellingBatch(true)
+    setCancelError(null)
+
+    try {
+      await cancelRepairBatch(tenantId, batchId, cancelReason.trim())
+      toast.show({
+        title: 'Lote Anulado',
+        message: 'El lote fue anulado para auditoría y sus equipos fueron deshabilitados.',
+        variant: 'success',
+      })
+      setCancelModalOpen(false)
+      setCancelReason('')
+      void load()
+    } catch (err: unknown) {
+      const msg = readApiError(err, 'No se pudo anular el lote.')
+      setCancelError(msg)
+      toast.show({ title: 'Error al anular', message: msg, variant: 'error' })
+    } finally {
+      setCancellingBatch(false)
+    }
+  }
+
   const actionItems = useMemo<PageActionItem[]>(() => {
     const items: PageActionItem[] = []
     if (canReadDispatches) {
@@ -113,6 +163,14 @@ export function RepairBatchDetailPage() {
         disabled: false,
       })
     }
+    if (canCancelBatch && canImport) {
+      items.push({
+        id: 'cancel-batch',
+        label: 'Anular Lote',
+        icon: 'block',
+        route: null,
+      })
+    }
     items.push({
       id: 'refresh',
       label: 'Actualizar',
@@ -121,12 +179,16 @@ export function RepairBatchDetailPage() {
       disabled: loading,
     })
     return items
-  }, [canReadDispatches, loading])
+  }, [canCancelBatch, canImport, canReadDispatches, loading])
 
   const handleActionSelect = useCallback(
     (item: PageActionItem) => {
       if (item.id === 'refresh') {
         void load()
+      } else if (item.id === 'cancel-batch') {
+        setCancelError(null)
+        setCancelReason('')
+        setCancelModalOpen(true)
       }
     },
     [load]
@@ -356,27 +418,36 @@ export function RepairBatchDetailPage() {
         header: 'Acciones',
         width: 130,
         align: 'center',
-        renderCell: (_v: unknown, row: Row) => (
-          <div className="flex items-center justify-center gap-1">
-            {canUpdateStatus && (
-              <GridIconButton
-                icon={Wrench}
-                label="Cambiar estado / Fase técnica"
-                onClick={() => handleOpenStatusModal(row)}
-              />
-            )}
-            {canUploadPhoto && (
-              <GridIconButton
-                icon={Camera}
-                label="Fotos de evidencia S3"
-                onClick={() => void handleOpenPhotosModal(row)}
-              />
-            )}
-          </div>
-        ),
+        renderCell: (_v: unknown, row: Row) => {
+          if (batch?.status === RepairBatchStatus.Cancelled || row.status === RepairEquipmentStatus.Cancelled) {
+            return (
+              <span style={{ fontSize: '0.75rem', color: 'var(--shell-muted)', fontStyle: 'italic' }}>
+                Inhabilitado
+              </span>
+            )
+          }
+          return (
+            <div className="flex items-center justify-center gap-1">
+              {canUpdateStatus && (
+                <GridIconButton
+                  icon={Wrench}
+                  label="Cambiar estado / Fase técnica"
+                  onClick={() => handleOpenStatusModal(row)}
+                />
+              )}
+              {canUploadPhoto && (
+                <GridIconButton
+                  icon={Camera}
+                  label="Fotos de evidencia S3"
+                  onClick={() => void handleOpenPhotosModal(row)}
+                />
+              )}
+            </div>
+          )
+        },
       },
     ],
-    [canUpdateStatus, canUploadPhoto]
+    [canUpdateStatus, canUploadPhoto, batch?.status]
   )
 
   if (!canRead) {
@@ -416,9 +487,13 @@ export function RepairBatchDetailPage() {
           }
           badge={
             batch ? (
-              <StatusBadge tone="primary" withDot>
-                Avance {batch.progressPercentage}%
-              </StatusBadge>
+              batch.status === RepairBatchStatus.Cancelled ? (
+                <StatusBadge tone="danger">Lote Anulado</StatusBadge>
+              ) : (
+                <StatusBadge tone="primary" withDot>
+                  Avance {batch.progressPercentage}%
+                </StatusBadge>
+              )
             ) : undefined
           }
           actions={
@@ -431,7 +506,22 @@ export function RepairBatchDetailPage() {
                 <ArrowLeft size={16} strokeWidth={2} aria-hidden />
                 Lotes
               </Button>
-              {readyEquipmentsCount > 0 && canDispatch && (
+              {canCancelBatch && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCancelError(null)
+                    setCancelReason('')
+                    setCancelModalOpen(true)
+                  }}
+                  style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#dc2626' }}
+                >
+                  <Ban size={16} strokeWidth={2} aria-hidden />
+                  Anular Lote
+                </Button>
+              )}
+              {readyEquipmentsCount > 0 && canDispatch && batch?.status !== RepairBatchStatus.Cancelled && (
                 <Button
                   type="button"
                   variant="primary"
@@ -452,6 +542,24 @@ export function RepairBatchDetailPage() {
             </>
           }
         />
+
+        {batch?.status === RepairBatchStatus.Cancelled && (
+          <div className="ecu-alert-box ecu-alert-box--danger">
+            <Ban size={20} strokeWidth={2} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div>
+              <h4 className="font-semibold text-sm m-0">Lote Anulado para Auditoría</h4>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8125rem' }}>
+                Este lote fue anulado administrativamente antes de iniciar procesos de reparación.
+                Sus equipos permanecen inhabilitados y el registro se conserva exclusivamente para fines de trazabilidad y auditoría.
+              </p>
+              {batch.cancelledReason && (
+                <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.8125rem' }}>
+                  Motivo registrado: <strong>{batch.cancelledReason}</strong>
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {batch && (
           <div className="ecu-stat-grid" aria-label="Métricas del lote">
@@ -747,6 +855,62 @@ export function RepairBatchDetailPage() {
                 </div>
               )}
             </div>
+          </div>
+        </Popup>
+
+        {/* Modal Popup para Confirmar Anulación de Lote (Auditoría) */}
+        <Popup
+          open={cancelModalOpen}
+          title="Anular Lote de Reparación"
+          onClose={() => setCancelModalOpen(false)}
+          width="min(92vw, 32rem)"
+          actions={[
+            {
+              id: 'back',
+              label: 'Volver',
+              variant: 'ghost',
+              onClick: () => setCancelModalOpen(false),
+              disabled: cancellingBatch,
+            },
+            {
+              id: 'confirm',
+              label: cancellingBatch ? 'Anulando...' : 'Confirmar Anulación',
+              variant: 'primary',
+              onClick: () => void handleCancelBatch(),
+              disabled: cancellingBatch || !cancelReason.trim(),
+              loading: cancellingBatch,
+            },
+          ]}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '0.5rem' }}>
+            <div className="ecu-alert-box ecu-alert-box--warning" style={{ margin: 0 }}>
+              <Ban size={18} strokeWidth={2} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '0.8125rem' }}>
+                <strong>Acción administrativa de control:</strong>
+                <p style={{ margin: '0.25rem 0 0 0' }}>
+                  El lote no será eliminado físicamente de la base de datos para preservar la trazabilidad de auditoría. Todos los equipos asociados quedarán deshabilitados.
+                </p>
+              </div>
+            </div>
+
+            {cancelError && (
+              <div className="ecu-form-error-banner" role="alert">
+                <span className="material-symbols-outlined">error</span>
+                <span>{cancelError}</span>
+              </div>
+            )}
+
+            <TextBox
+              id="cancel-batch-reason"
+              label="Motivo de Anulación *"
+              labelPosition="outlined"
+              variant="outline"
+              value={cancelReason}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setCancelReason(e.target.value)}
+              placeholder="ej. Error en archivo original, lote duplicado o cancelado por cliente"
+              required
+              fullWidth
+            />
           </div>
         </Popup>
       </div>

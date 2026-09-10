@@ -51,6 +51,13 @@ public static class RepairEndpoints
             .DisableAntiforgery()
             .AddEndpointFilter(PermissionFilters.Require("repairs.batches.import"));
 
+        repairsGroup.MapPost("/batches/preview", PreviewBatchAsync)
+            .DisableAntiforgery()
+            .AddEndpointFilter(PermissionFilters.Require("repairs.batches.import"));
+
+        repairsGroup.MapPost("/batches/{batchId:guid}/cancel", CancelBatchAsync)
+            .AddEndpointFilter(PermissionFilters.Require("repairs.batches.cancel"));
+
         repairsGroup.MapGet("/batches/{batchId:guid}/equipments", ListBatchEquipmentsAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b.portal.view"));
 
@@ -149,6 +156,122 @@ public static class RepairEndpoints
 
         var result = await sender.SendAsync<ImportRepairBatchCommand, ImportRepairBatchResponse>(command, ct).ConfigureAwait(false);
         return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> PreviewBatchAsync(
+        [FromRoute] Guid tenantId,
+        [FromForm] Guid? customerId,
+        [FromForm] Guid? templateId,
+        IFormFile? file,
+        [FromServices] IRepairBatchTemplateRepository templateRepo,
+        [FromServices] IRepairBatchExcelService excelService,
+        CancellationToken ct)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Result.Failure(
+                new Error("repairs.import.file_empty", "Debe adjuntar un archivo Excel válido.", ErrorType.Validation)).ToHttpResult();
+        }
+
+        RepairBatchTemplate? template = null;
+        if (templateId.HasValue)
+        {
+            template = await templateRepo.GetByIdAsync(tenantId, templateId.Value, ct).ConfigureAwait(false);
+        }
+        if (template == null && customerId.HasValue)
+        {
+            template = await templateRepo.GetDefaultOrActiveForCustomerAsync(tenantId, customerId.Value, ct).ConfigureAwait(false);
+        }
+        if (template == null)
+        {
+            var defaultTemplateResult = RepairBatchTemplate.Create(
+                Guid.NewGuid(),
+                tenantId,
+                "Plantilla Estándar B2B",
+                RepairTemplateSchemaDefaults.GetDefaultWhirlpoolSchemaJson(),
+                customerId);
+            template = defaultTemplateResult.Value!;
+        }
+
+        await using var stream = file.OpenReadStream();
+        var parseResult = excelService.ParseBatchWorkbook(stream, template);
+
+        var level1 = parseResult.Items.Count(i => i.DamageLevel == DamageLevel.Level1);
+        var level2 = parseResult.Items.Count(i => i.DamageLevel == DamageLevel.Level2);
+        var level3 = parseResult.Items.Count(i => i.DamageLevel == DamageLevel.Level3);
+
+        var preview = new
+        {
+            isValid = parseResult.IsSuccess,
+            totalRows = parseResult.Items.Count,
+            errors = parseResult.Errors,
+            warnings = parseResult.Warnings,
+            level1Count = level1,
+            level2Count = level2,
+            level3Count = level3,
+            items = parseResult.Items.Take(100).Select(i => new
+            {
+                rowNumber = i.RowNumber,
+                serialNumber = i.SerialNumber,
+                brand = i.Brand,
+                model = i.Model,
+                productLine = i.ProductLine,
+                damageLevel = (int)i.DamageLevel,
+                damageLevelName = i.DamageLevel switch
+                {
+                    DamageLevel.Level1 => "Nivel 1 (Leve)",
+                    DamageLevel.Level2 => "Nivel 2 (Medio)",
+                    DamageLevel.Level3 => "Nivel 3 (Grave)",
+                    DamageLevel.Irreparable => "Irreparable",
+                    _ => "Sin clasificar"
+                },
+            }),
+        };
+
+        return Results.Ok(preview);
+    }
+
+    private static async Task<IResult> CancelBatchAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid batchId,
+        [FromBody] CancelBatchRequest request,
+        [FromServices] IRepairBatchRepository batchRepo,
+        [FromServices] IUnitOfWork unitOfWork,
+        [FromServices] ICallerContext caller,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return Result.Failure(new Error("repairs.batch.cancel.reason_required", "El motivo de la anulación es obligatorio.", ErrorType.Validation)).ToHttpResult();
+        }
+
+        var batch = await batchRepo.GetTrackedWithEquipmentsAsync(tenantId, batchId, ct).ConfigureAwait(false);
+        if (batch == null)
+        {
+            return Result.Failure(new Error("repairs.batch.not_found", "El lote especificado no existe.", ErrorType.NotFound)).ToHttpResult();
+        }
+
+        var cancelResult = batch.Cancel(request.Reason, caller.UserId);
+        if (cancelResult.IsFailure)
+        {
+            return cancelResult.ToHttpResult();
+        }
+
+        foreach (var equipment in batch.Equipments)
+        {
+            equipment.Cancel(request.Reason, caller.UserId);
+        }
+
+        await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        return Results.Ok(new
+        {
+            batchId = batch.Id,
+            status = (int)batch.Status,
+            statusName = "Anulado",
+            cancelledAt = DateTimeOffset.UtcNow,
+            reason = request.Reason.Trim(),
+        });
     }
 
     private static async Task<IResult> ListBatchEquipmentsAsync(
@@ -398,7 +521,9 @@ public static class RepairEndpoints
             batch.DispatchedCount,
             ProgressPercentage = progress,
             batch.ReceivedAt,
-            batch.ExpectedCompletionAt
+            batch.ExpectedCompletionAt,
+            batch.CancelledReason,
+            batch.CancelledAt,
         });
     }
 

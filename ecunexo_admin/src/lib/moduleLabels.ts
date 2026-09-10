@@ -12,12 +12,16 @@ const MODULE_LABELS: Record<string, string> = {
   contabilidad: 'Contabilidad',
   training: 'Capacitación',
   support: 'Soporte',
+  repairs: 'Reparaciones',
+  repair: 'Reparaciones',
+  taller: 'Reparaciones',
 }
 
 export function moduleKey(code: string | null | undefined): string {
   const key = code?.trim().toLowerCase() ?? ''
   if (key === 'invoicing') return 'facturacion'
   if (key === 'accounting') return 'contabilidad'
+  if (key === 'repair' || key === 'taller') return 'repairs'
   return key
 }
 

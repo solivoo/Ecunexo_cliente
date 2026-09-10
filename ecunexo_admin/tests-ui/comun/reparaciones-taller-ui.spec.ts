@@ -61,6 +61,7 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
             permissions: [
               'repairs.batches.read',
               'repairs.batches.import',
+              'repairs.batches.cancel',
               'repairs.equipments.update.status',
               'repairs.equipments.upload.photo',
               'repairs.dispatches.read',
@@ -75,7 +76,7 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
                 children: [
                   { id: 'batches', label: 'Lotes B2B', route: '/taller/lotes', children: [] },
                   { id: 'dispatches', label: 'Despachos', route: '/taller/despachos', children: [] },
-                  { id: 'portal', label: 'Portal Whirlpool', route: '/taller/portal', children: [] },
+                  { id: 'portal', label: 'Portal Corporativo', route: '/taller/portal', children: [] },
                 ],
               },
             ],
@@ -103,6 +104,20 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
               readyCount: 3,
               dispatchedCount: 2,
               progressPercentage: 33.3,
+            },
+            {
+              id: 'batch-002',
+              batchNumber: 'LOTE-WPH-2026-002',
+              customerName: 'Whirlpool del Ecuador S.A.',
+              contractReference: 'CT-WPH-2026-Q2',
+              status: 1,
+              receivedAt: '2026-09-02T10:00:00Z',
+              totalCount: 5,
+              receivedCount: 5,
+              inRepairCount: 0,
+              readyCount: 0,
+              dispatchedCount: 0,
+              progressPercentage: 0,
             },
           ]),
         })
@@ -173,6 +188,95 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
               notes: 'Filtro obstruido',
             },
           ]),
+        })
+      })
+
+      await page.route('**/api/v1/tenants/*/repairs/batches/batch-002', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: 'batch-002',
+            batchNumber: 'LOTE-WPH-2026-002',
+            customerName: 'Whirlpool del Ecuador S.A.',
+            customerTaxId: '1790012345001',
+            contractReference: 'CT-WPH-2026-Q2',
+            status: 1,
+            receivedAt: '2026-09-02T10:00:00Z',
+            totalCount: 5,
+            receivedCount: 5,
+            inRepairCount: 0,
+            readyCount: 0,
+            dispatchedCount: 0,
+            rateN1: 45.0,
+            rateN2: 85.0,
+            rateN3: 150.0,
+          }),
+        })
+      })
+
+      await page.route('**/api/v1/tenants/*/repairs/batches/batch-002/equipments', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 'eq-002',
+              batchId: 'batch-002',
+              serialNumber: 'WP-SN-002233',
+              model: 'SECADORA GAS 20KG',
+              brand: 'Whirlpool',
+              damageLevel: 2,
+              status: 1,
+              photosCount: 0,
+              notes: 'Sin procesar',
+            },
+          ]),
+        })
+      })
+
+      await page.route('**/api/v1/tenants/*/repairs/batches/preview', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            totalRows: 3,
+            level1Count: 1,
+            level2Count: 2,
+            level3Count: 0,
+            isValid: true,
+            errors: [],
+            warnings: ['Alerta de prueba: verificación preliminar correcta.'],
+            items: [
+              {
+                rowNumber: 2,
+                serialNumber: 'TEST-PREVIEW-001',
+                brand: 'Whirlpool',
+                model: 'LAVADORA CARGA FRONTAL',
+                damageLevel: 1,
+                damageLevelName: 'Nivel 1 (Leve)',
+                color: 'Gris',
+                detectedFault: 'Desgaste estético',
+                technicalNotes: 'Fase de revisión',
+              },
+            ],
+          }),
+        })
+      })
+
+      await page.route('**/api/v1/tenants/*/repairs/batches/batch-002/cancel', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: 'batch-002',
+            batchNumber: 'LOTE-WPH-2026-002',
+            status: 5,
+            cancelledReason: 'Error de digitación en contrato',
+            cancelledAt: '2026-09-10T12:00:00Z',
+            cancelledBy: 'usr-e2e-1',
+            affectedEquipmentsCount: 5,
+          }),
         })
       })
 
@@ -276,14 +380,14 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
       await expect(page.getByRole('button', { name: /Emitir Despacho/i })).toBeVisible()
     })
 
-    test('Portal Corporativo Whirlpool: carga branding ejecutivo y buscador de serie', async ({ page }) => {
+    test('Portal Corporativo B2B: carga branding ejecutivo y buscador de serie', async ({ page }) => {
       await page.getByRole('button', { name: /Reparaciones/i }).click()
-      await page.getByRole('button', { name: /Portal Whirlpool/i }).click()
+      await page.getByRole('button', { name: /Portal Corporativo/i }).click()
       await expect(page.locator('.app-shell')).toBeVisible({ timeout: 20_000 })
 
       // Branding corporativo y PageHeader M3
       await expect(
-        page.getByRole('heading', { name: /Portal Corporativo Whirlpool/i })
+        page.getByRole('heading', { name: /Portal Corporativo B2B/i })
       ).toBeVisible({ timeout: 20_000 })
       await expect(page.getByText(/Auditoría B2B Certificada/i)).toBeVisible()
 
@@ -331,6 +435,105 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
 
       // Verificar que el Popup de evidencia fotográfica abrió
       await expect(page.getByRole('heading', { name: /Evidencia Fotográfica/i })).toBeVisible()
+    })
+
+    test('Previsualización de Lote: valida archivo Excel antes de permitir el guardado', async ({ page }) => {
+      await page.getByRole('button', { name: /Reparaciones/i }).click()
+      await page.getByRole('button', { name: /Lotes B2B/i }).click()
+      await page.getByRole('button', { name: /Importar Lote/i }).click()
+
+      await expect(
+        page.getByRole('heading', { name: /Importar Lote de Reparación/i })
+      ).toBeVisible({ timeout: 20_000 })
+
+      // El botón de importar debe estar deshabilitado inicialmente (sin archivo ni datos)
+      const submitBtn = page.getByRole('button', { name: /^Importar Lote$/i })
+      await expect(submitBtn).toBeDisabled()
+
+      // Simular selección de archivo Excel
+      const fileInput = page.locator('input[type="file"][accept=".xlsx,.xls"]')
+      await fileInput.setInputFiles({
+        name: 'test_lote.xlsx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        buffer: Buffer.from('mock excel content'),
+      })
+
+      // Se debe mostrar la previsualización y el resumen de equipos
+      await expect(page.getByRole('heading', { name: /Previsualización del Lote/i })).toBeVisible()
+      await expect(page.getByText('TEST-PREVIEW-001')).toBeVisible()
+      await expect(page.getByText('LAVADORA CARGA FRONTAL')).toBeVisible()
+      await expect(page.getByText(/Alerta de prueba: verificación preliminar correcta/i)).toBeVisible()
+
+      // Llenar campos requeridos
+      await page.locator('#repair-batch-num').fill('LOTE-WPH-TEST-PREVIEW')
+      await page.locator('#repair-customer').click()
+      await page.getByRole('option', { name: /Whirlpool/i }).click()
+
+      // Con previsualización válida y campos completos, el botón de importar se transforma y se habilita
+      const confirmBtn = page.getByRole('button', { name: /Confirmar e Importar Lote/i })
+      await expect(confirmBtn).toBeEnabled()
+    })
+
+    test('Anulación de Lote: anula lote no intervenido con motivo obligatorio y preservación de auditoría', async ({ page }) => {
+      await page.getByRole('button', { name: /Reparaciones/i }).click()
+      await page.getByRole('button', { name: /Lotes B2B/i }).click()
+
+      // En la tabla, hacer clic en el lote sin procesar LOTE-WPH-2026-002
+      await page.getByRole('button', { name: 'LOTE-WPH-2026-002' }).click()
+
+      await expect(
+        page.getByRole('heading', { name: /Lote LOTE-WPH-2026-002/i })
+      ).toBeVisible({ timeout: 20_000 })
+
+      // Como no tiene equipos intervenidos y el usuario tiene el permiso repairs.batches.cancel, el botón "Anular Lote" debe ser visible
+      const cancelBatchBtn = page.getByRole('button', { name: /Anular Lote/i }).first()
+      await expect(cancelBatchBtn).toBeVisible()
+      await cancelBatchBtn.click()
+
+      // Modal Popup de anulación
+      await expect(
+        page.getByRole('heading', { name: /Anular Lote de Reparación/i })
+      ).toBeVisible()
+
+      // El botón confirmar debe estar presente
+      const confirmCancelBtn = page.getByRole('button', { name: /Confirmar Anulación/i })
+      await expect(confirmCancelBtn).toBeVisible()
+
+      // Llenar motivo de anulación
+      const reasonInput = page.locator('#cancel-batch-reason')
+      await reasonInput.fill('Error de digitación en contrato')
+
+      // Mockear la respuesta actualizada del lote como Anulado (status: 5) al recargar
+      await page.route('**/api/v1/tenants/*/repairs/batches/batch-002', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: 'batch-002',
+            batchNumber: 'LOTE-WPH-2026-002',
+            customerName: 'Whirlpool del Ecuador S.A.',
+            customerTaxId: '1790012345001',
+            contractReference: 'CT-WPH-2026-Q2',
+            status: 5,
+            receivedAt: '2026-09-02T10:00:00Z',
+            totalCount: 5,
+            receivedCount: 0,
+            inRepairCount: 0,
+            readyCount: 0,
+            dispatchedCount: 0,
+            rateN1: 45.0,
+            rateN2: 85.0,
+            rateN3: 150.0,
+            cancelledReason: 'Error de digitación en contrato',
+          }),
+        })
+      })
+
+      await confirmCancelBtn.click()
+
+      // El banner de aviso de auditoría de lote anulado debe estar visible
+      await expect(page.getByRole('heading', { name: /Lote Anulado para Auditoría/i })).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText('Error de digitación en contrato')).toBeVisible()
     })
   })
 })

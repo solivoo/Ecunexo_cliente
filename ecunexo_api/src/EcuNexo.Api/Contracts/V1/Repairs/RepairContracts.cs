@@ -40,3 +40,6 @@ public sealed record CreateCustomerRequest(
     string? Address = null,
     string? ContactPerson = null,
     string? Notes = null);
+
+public sealed record CancelBatchRequest(string Reason);
+

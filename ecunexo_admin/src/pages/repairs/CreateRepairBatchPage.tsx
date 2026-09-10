@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { useNavigate } from 'react-router-dom'
 import { Button, Popup, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import { EcuPageActions, PageHeader, SectionCard, StatusBadge } from '@/components/ui'
-import { ArrowLeft, Download, FileSpreadsheet, Info, Plus, UploadCloud } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FileSpreadsheet, Info, Plus, RefreshCw, UploadCloud, XCircle } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -12,10 +12,11 @@ import {
   downloadRepairTemplate,
   importRepairBatch,
   listRepairCustomers,
+  previewRepairBatch,
 } from '@/services/repairsApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import type { RepairCustomerDto } from '@/types/repairsApi'
+import type { BatchPreviewResponse, RepairCustomerDto } from '@/types/repairsApi'
 
 export function CreateRepairBatchPage() {
   const toast = useToast()
@@ -37,6 +38,10 @@ export function CreateRepairBatchPage() {
   const [busy, setBusy] = useState(false)
   const [downloadingTemplate, setDownloadingTemplate] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Previsualización y validación previa de la plantilla
+  const [previewResult, setPreviewResult] = useState<BatchPreviewResponse | null>(null)
+  const [validatingFile, setValidatingFile] = useState(false)
 
   // Modal para registrar nuevo cliente corporativo
   const [newCustomerOpen, setNewCustomerOpen] = useState(false)
@@ -171,11 +176,50 @@ export function CreateRepairBatchPage() {
     }
   }
 
+  const validateAndPreviewFile = async (fileToValidate: File) => {
+    if (!tenantId) return
+    setValidatingFile(true)
+    setError(null)
+    setPreviewResult(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', fileToValidate)
+      if (selectedCustomerId) {
+        formData.append('customerId', selectedCustomerId)
+      }
+
+      const preview = await previewRepairBatch(tenantId, formData)
+      setPreviewResult(preview)
+
+      if (!preview.isValid) {
+        toast.show({
+          title: 'Errores detectados en la plantilla',
+          message: `Se encontraron ${preview.errors.length} inconsistencias que impiden la importación. Revisa el resumen.`,
+          variant: 'error',
+        })
+      } else {
+        toast.show({
+          title: 'Plantilla analizada con éxito',
+          message: `${preview.totalRows} equipos listos para ser importados tras confirmación.`,
+          variant: 'success',
+        })
+      }
+    } catch (err: unknown) {
+      const msg = readApiError(err, 'No se pudo analizar la estructura del archivo Excel.')
+      setError(msg)
+      toast.show({ title: 'Error de análisis', message: msg, variant: 'error' })
+    } finally {
+      setValidatingFile(false)
+    }
+  }
+
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0]
     if (selected) {
       setFile(selected)
       setError(null)
+      void validateAndPreviewFile(selected)
     }
   }
 
@@ -190,6 +234,7 @@ export function CreateRepairBatchPage() {
       }
       setFile(dropped)
       setError(null)
+      void validateAndPreviewFile(dropped)
     }
   }
 
@@ -212,6 +257,16 @@ export function CreateRepairBatchPage() {
       return
     }
 
+    if (!previewResult) {
+      setError('Debes esperar a que termine la validación previa del archivo.')
+      return
+    }
+
+    if (!previewResult.isValid) {
+      setError('No puedes importar el lote mientras existan errores en el archivo Excel. Corrige la plantilla e intenta nuevamente.')
+      return
+    }
+
     setBusy(true)
     setError(null)
 
@@ -220,9 +275,9 @@ export function CreateRepairBatchPage() {
       formData.append('customerId', selectedCustomerId)
       formData.append('batchNumber', batchNumber.trim())
       if (contractRef.trim()) formData.append('contractReference', contractRef.trim())
-      if (rateN1) formData.append('rateN1', rateN1)
-      if (rateN2) formData.append('rateN2', rateN2)
-      if (rateN3) formData.append('rateN3', rateN3)
+      if (rateN1.trim()) formData.append('rateN1', rateN1.trim())
+      if (rateN2.trim()) formData.append('rateN2', rateN2.trim())
+      if (rateN3.trim()) formData.append('rateN3', rateN3.trim())
       formData.append('file', file)
 
       const result = await importRepairBatch(tenantId, formData)
@@ -531,6 +586,116 @@ export function CreateRepairBatchPage() {
                 )}
               </div>
 
+              {validatingFile && (
+                <div className="ecu-alert-box ecu-alert-box--warning" style={{ marginTop: '1rem' }}>
+                  <RefreshCw size={18} className="animate-spin" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <strong>Analizando libro Excel...</strong>
+                    <div style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                      Validando columnas obligatorias (serial, marca, modelo), formatos de daño y ausencia de duplicados...
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {previewResult && !previewResult.isValid && (
+                <div className="ecu-alert-box ecu-alert-box--danger" style={{ marginTop: '1rem' }}>
+                  <XCircle size={18} strokeWidth={2} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <strong>Se detectaron {previewResult.errors.length} inconsistencias en la plantilla:</strong>
+                    <ul style={{ margin: '0.5rem 0 0 1.25rem', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem' }}>
+                      {previewResult.errors.map((err, idx) => (
+                        <li key={idx}>{err}</li>
+                      ))}
+                    </ul>
+                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem' }}>
+                      Corrige estos registros en tu archivo Excel y vuelve a cargarlo antes de continuar.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {previewResult && previewResult.warnings.length > 0 && (
+                <div className="ecu-alert-box ecu-alert-box--warning" style={{ marginTop: '1rem' }}>
+                  <AlertTriangle size={18} strokeWidth={2} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <strong>Advertencias ({previewResult.warnings.length}):</strong>
+                    <ul style={{ margin: '0.5rem 0 0 1.25rem', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem' }}>
+                      {previewResult.warnings.map((w, idx) => (
+                        <li key={idx}>{w}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {previewResult && previewResult.isValid && (
+                <>
+                  <div className="ecu-alert-box ecu-alert-box--success" style={{ marginTop: '1rem' }}>
+                    <CheckCircle2 size={18} strokeWidth={2} style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <strong>Plantilla validada: {previewResult.totalRows} equipos listos para ingresar</strong>
+                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          <StatusBadge tone="info">N1: {previewResult.level1Count}</StatusBadge>
+                          <StatusBadge tone="warning">N2: {previewResult.level2Count}</StatusBadge>
+                          <StatusBadge tone="danger">N3: {previewResult.level3Count}</StatusBadge>
+                        </div>
+                      </div>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.75rem', opacity: 0.9 }}>
+                        Revisa la previsualización de equipos a continuación antes de confirmar el registro definitivo.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Tabla de previsualización con scroll */}
+                  <div style={{ marginTop: '1.25rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <h4 className="font-semibold text-sm m-0 text-slate-900 dark:text-slate-100">Previsualización del Lote</h4>
+                    <span className="text-xs text-slate-500">{previewResult.totalRows} equipos detectados</span>
+                  </div>
+                  <div className="ecu-preview-table-container">
+                    <table className="ecu-preview-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '60px' }}>Fila</th>
+                          <th>Nº Serie</th>
+                          <th>Marca</th>
+                          <th>Modelo</th>
+                          <th>Línea</th>
+                          <th style={{ width: '140px' }}>Nivel de Daño</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewResult.items.map((it) => (
+                          <tr key={it.rowNumber}>
+                            <td style={{ color: 'var(--shell-muted)', fontFamily: 'monospace' }}>#{it.rowNumber}</td>
+                            <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>{it.serialNumber}</td>
+                            <td>{it.brand || '—'}</td>
+                            <td>{it.model || '—'}</td>
+                            <td>{it.productLine || '—'}</td>
+                            <td>
+                              <StatusBadge
+                                tone={
+                                  it.damageLevel === 1
+                                    ? 'info'
+                                    : it.damageLevel === 2
+                                    ? 'warning'
+                                    : it.damageLevel === 3
+                                    ? 'danger'
+                                    : 'neutral'
+                                }
+                              >
+                                {it.damageLevelName}
+                              </StatusBadge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
               <div className="ecu-info-banner">
                 <Info size={16} strokeWidth={2} style={{ color: 'var(--shell-primary)', flexShrink: 0, marginTop: '2px' }} />
                 <div>
@@ -544,7 +709,7 @@ export function CreateRepairBatchPage() {
             </SectionCard>
 
             {/* Acciones de envío */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--shell-border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '1.25rem', borderTop: '1px solid var(--shell-border)' }}>
               <Button
                 type="button"
                 variant="outline"
@@ -556,9 +721,15 @@ export function CreateRepairBatchPage() {
               <Button
                 type="submit"
                 variant="primary"
-                disabled={busy || !file || !selectedCustomerId || !batchNumber.trim()}
+                disabled={busy || !file || !selectedCustomerId || !batchNumber.trim() || validatingFile || !previewResult || !previewResult.isValid}
               >
-                {busy ? 'Procesando e Importando...' : 'Importar Lote y Registrar Equipos'}
+                {busy
+                  ? 'Procesando e Importando...'
+                  : validatingFile
+                  ? 'Validando...'
+                  : previewResult?.isValid
+                  ? `Confirmar e Importar Lote (${previewResult.totalRows} Equipos)`
+                  : 'Importar Lote'}
               </Button>
             </div>
           </form>

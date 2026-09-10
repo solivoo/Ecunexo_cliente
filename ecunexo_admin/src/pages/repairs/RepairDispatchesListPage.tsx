@@ -119,7 +119,7 @@ export function RepairDispatchesListPage() {
     if (canViewPortal) {
       items.push({
         id: 'portal',
-        label: 'Portal Whirlpool',
+        label: 'Portal Corporativo',
         icon: 'shield-check',
         route: '/taller/portal',
         disabled: false,

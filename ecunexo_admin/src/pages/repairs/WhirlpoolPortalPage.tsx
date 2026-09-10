@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, DataGrid, TextBox, useToast, type ColumnDef, type PageActionItem } from 'glubox'
+import { Button, DataGrid, Select, TextBox, useToast, type ColumnDef, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   EmptyState,
@@ -37,6 +37,7 @@ import {
   repairEquipmentStatusBadgeTone,
   repairEquipmentStatusLabel,
   type BatchListItemDto,
+  type CustomerDto,
   type RepairEquipmentDto,
 } from '@/types/repairsApi'
 
@@ -45,7 +46,7 @@ type EquipmentRow = RepairEquipmentDto & { batchNumber?: string } & Record<strin
 
 const messages = createSpanishDataGridMessages('lote', 'lotes')
 
-export function WhirlpoolPortalPage() {
+export function CorporatePortalPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
@@ -54,6 +55,8 @@ export function WhirlpoolPortalPage() {
   const canReadBatches = useHasPermission('repairs.batches.read')
   const canReadDispatches = useHasPermission('repairs.dispatches.read')
 
+  const [customers, setCustomers] = useState<CustomerDto[]>([])
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('')
   const [batches, setBatches] = useState<BatchListItemDto[]>([])
   const [allEquipments, setAllEquipments] = useState<EquipmentRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,18 +65,17 @@ export function WhirlpoolPortalPage() {
   const [error, setError] = useState<string | null>(null)
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (customerIdFilter?: string) => {
     if (!tenantId) return
     setLoading(true)
     try {
-      const customers = await listRepairCustomers(tenantId)
-      const whirlpoolCustomer = customers.find((c) =>
-        c.name.toLowerCase().includes('whirlpool')
-      )
+      const custList = await listRepairCustomers(tenantId)
+      setCustomers(custList)
 
+      const effectiveCustomerId = customerIdFilter !== undefined ? customerIdFilter : selectedCustomerId
       const bList = await listRepairBatches(
         tenantId,
-        whirlpoolCustomer ? { customerId: whirlpoolCustomer.id } : undefined
+        effectiveCustomerId ? { customerId: effectiveCustomerId } : undefined
       )
       setBatches(bList)
 
@@ -91,11 +93,16 @@ export function WhirlpoolPortalPage() {
     } finally {
       setLoading(false)
     }
-  }, [tenantId])
+  }, [selectedCustomerId, tenantId])
 
   useEffect(() => {
     void load()
   }, [load])
+
+  const handleCustomerChange = (val: string) => {
+    setSelectedCustomerId(val)
+    void load(val)
+  }
 
   const actionItems = useMemo<PageActionItem[]>(() => {
     const items: PageActionItem[] = []
@@ -187,7 +194,7 @@ export function WhirlpoolPortalPage() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Reporte_Whirlpool_Taller_${new Date().toISOString().slice(0, 10)}.xlsx`
+      a.download = `Reporte_Corporativo_Taller_${new Date().toISOString().slice(0, 10)}.xlsx`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -208,7 +215,7 @@ export function WhirlpoolPortalPage() {
     (): ColumnDef<BatchRow>[] => [
       {
         key: 'batchNumber',
-        header: 'Nº Lote Whirlpool',
+        header: 'Nº Lote',
         width: 180,
         sortable: true,
         renderCell: (_v: BatchRow['batchNumber'], row: BatchRow) => (
@@ -298,8 +305,8 @@ export function WhirlpoolPortalPage() {
   if (!canViewPortal) {
     return (
       <TenantSessionGate
-        title="Portal Whirlpool"
-        lead="Auditoría y trazabilidad para clientes corporativos aliados."
+        title="Portal Corporativo B2B"
+        lead="Auditoría y trazabilidad para clientes corporativos y marcas aliadas."
       >
         <div className="ecu-dashboard-layout">
           <PageHeader
@@ -314,12 +321,12 @@ export function WhirlpoolPortalPage() {
 
   return (
     <TenantSessionGate
-      title="Portal Corporativo Whirlpool"
+      title="Portal Corporativo B2B"
       lead="Supervisión en tiempo real de equipos en garantía y órdenes de reacondicionamiento."
     >
       <div className="ecu-dashboard-layout">
         <PageHeader
-          title="Portal Corporativo Whirlpool"
+          title="Portal Corporativo B2B"
           subtitle="Monitoreo en tiempo real de lotes en reacondicionamiento, disponibilidad inmediata para coordinación logística de transporte y verificación de series auditada."
           badge={
             <StatusBadge tone="info" withDot>
@@ -328,6 +335,20 @@ export function WhirlpoolPortalPage() {
           }
           actions={
             <>
+              {customers.length > 1 && (
+                <Select
+                  id="portal-customer-filter"
+                  aria-label="Filtrar por empresa cliente"
+                  options={[
+                    { value: '', label: 'Todos los clientes' },
+                    ...customers.map((c) => ({ value: c.id, label: c.name })),
+                  ]}
+                  value={selectedCustomerId}
+                  onChange={handleCustomerChange}
+                  placeholder="Empresa cliente..."
+                  width="14rem"
+                />
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -349,7 +370,7 @@ export function WhirlpoolPortalPage() {
           }
         />
 
-        <div className="ecu-stat-grid" aria-label="Métricas corporativas Whirlpool">
+        <div className="ecu-stat-grid" aria-label="Métricas operativas corporativas">
           <StatCard
             label="Total Equipos Entregados"
             value={totals.total}
@@ -383,7 +404,7 @@ export function WhirlpoolPortalPage() {
         {/* Buscador Instantáneo por Número de Serie */}
         <SectionCard
           title="Rastreo Instantáneo por Número de Serie"
-          subtitle="Consulta el estado exacto de cualquier lavadora, refrigerador o secadora ingresado por Whirlpool"
+          subtitle="Consulta el estado exacto de cualquier electrodoméstico o equipo registrado en los lotes"
         >
           <div className="relative mb-4">
             <TextBox
@@ -454,10 +475,10 @@ export function WhirlpoolPortalPage() {
           )}
         </SectionCard>
 
-        {/* Lotes Activos de Whirlpool */}
+        {/* Lotes Activos Corporativos */}
         <SectionCard
           title="Lotes en Taller"
-          subtitle="Avance consolidado de los lotes entregados bajo contrato de garantía"
+          subtitle="Avance consolidado de los lotes entregados bajo contrato corporativo"
         >
           {error && (
             <div className="ecu-form-error-banner mb-4" role="alert">
@@ -469,8 +490,8 @@ export function WhirlpoolPortalPage() {
           {batches.length === 0 && !loading ? (
             <EmptyState
               icon="layers"
-              title="No hay lotes activos para Whirlpool"
-              description="Cuando el taller reciba un nuevo lote, se reflejará inmediatamente en este portal con las estadísticas de avance."
+              title="No hay lotes registrados para esta empresa"
+              description="Cuando el taller reciba un nuevo lote, se reflejará inmediatamente en este portal con las estadísticas de avance y números de serie."
             />
           ) : (
             <DataGrid
@@ -496,3 +517,5 @@ export function WhirlpoolPortalPage() {
     </TenantSessionGate>
   )
 }
+
+export const WhirlpoolPortalPage = CorporatePortalPage

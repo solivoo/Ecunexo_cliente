@@ -24,6 +24,7 @@ import { useAppSelector } from '@/store/hooks'
 import {
   repairBatchStatusBadgeTone,
   repairBatchStatusLabel,
+  RepairBatchStatus,
   type BatchListItemDto,
 } from '@/types/repairsApi'
 
@@ -110,6 +111,7 @@ export function RepairsBatchesListPage() {
     let dispatched = 0
 
     for (const r of rows) {
+      if (r.status === RepairBatchStatus.Cancelled) continue
       totalEquipments += r.totalCount
       inRepair += r.inRepairCount + r.receivedCount
       ready += r.readyCount
@@ -263,7 +265,7 @@ export function RepairsBatchesListPage() {
     if (canViewPortal) {
       items.push({
         id: 'portal',
-        label: 'Portal Whirlpool',
+        label: 'Portal Corporativo',
         icon: 'shield-check',
         route: '/taller/portal',
         disabled: false,
@@ -311,7 +313,7 @@ export function RepairsBatchesListPage() {
           subtitle="Recepción masiva de electrodomésticos, control de avance por fases técnicas y actas de despacho para fabricantes aliados."
           badge={
             <StatusBadge tone="primary" withDot>
-              {rows.length} {rows.length === 1 ? 'Lote activo' : 'Lotes activos'}
+              {rows.length} {rows.length === 1 ? 'Lote registrado' : 'Lotes registrados'}
             </StatusBadge>
           }
           actions={
@@ -384,7 +386,7 @@ export function RepairsBatchesListPage() {
             <EmptyState
               icon="layers"
               title="Aún no hay lotes registrados"
-              description="Descarga la plantilla de Excel oficial para preparar los números de serie o importa directamente el archivo entregado por Whirlpool."
+              description="Descarga la plantilla de Excel oficial para preparar los números de serie o importa directamente el archivo entregado por el cliente corporativo."
               action={
                 canImport ? (
                   <Button

@@ -264,6 +264,26 @@ public sealed class RepairEquipment : AggregateRoot<Guid>, ITenantEntity, IAudit
         return Result.Success();
     }
 
+    public Result Cancel(string? reason = null, Guid? modifiedBy = null)
+    {
+        if (Status != RepairEquipmentStatus.Received && Status != RepairEquipmentStatus.Cancelled)
+        {
+            return Result.Failure(new Error("repairs.equipment.cannot_cancel_processed", "Solo se pueden anular equipos no intervenidos en diagnóstico o reparación.", ErrorType.Validation));
+        }
+
+        Status = RepairEquipmentStatus.Cancelled;
+        if (!string.IsNullOrWhiteSpace(reason))
+        {
+            DiagnosticNotes = string.IsNullOrWhiteSpace(DiagnosticNotes)
+                ? $"[ANULADO]: {reason.Trim()}"
+                : $"{DiagnosticNotes}\n[ANULADO]: {reason.Trim()}";
+        }
+        UpdatedAt = DateTimeOffset.UtcNow;
+        UpdatedBy = modifiedBy;
+
+        return Result.Success();
+    }
+
     private static string NormalizeJson(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))

@@ -28,7 +28,7 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: 'pnpm run dev',
+    command: 'VITE_USE_POLLING=true pnpm run dev',
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

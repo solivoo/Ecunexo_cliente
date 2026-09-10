@@ -13,6 +13,7 @@ export const RepairBatchStatus = {
   PartiallyDispatched: 2,
   Completed: 3,
   Closed: 4,
+  Cancelled: 5,
 } as const
 
 export type RepairBatchStatus = (typeof RepairBatchStatus)[keyof typeof RepairBatchStatus]
@@ -25,6 +26,8 @@ export const RepairEquipmentStatus = {
   ReadyToDispatch: 4,
   Dispatched: 5,
   Invoiced: 6,
+  Irreparable: 7,
+  Cancelled: 8,
 } as const
 
 export type RepairEquipmentStatus = (typeof RepairEquipmentStatus)[keyof typeof RepairEquipmentStatus]
@@ -57,6 +60,8 @@ export type RepairCustomerDto = {
   isActive: boolean
   createdAt: string
 }
+
+export type CustomerDto = RepairCustomerDto
 
 export type CreateCustomerBody = {
   name: string
@@ -103,6 +108,8 @@ export type BatchDetailDto = {
   progressPercentage: number
   receivedAt: string
   expectedCompletionAt: string | null
+  cancelledReason?: string | null
+  cancelledAt?: string | null
 }
 
 export type RepairEquipmentPhotoDto = {
@@ -282,12 +289,14 @@ export function repairBatchStatusLabel(status: RepairBatchStatus): string {
       return 'Completado'
     case RepairBatchStatus.Closed:
       return 'Cerrado'
+    case RepairBatchStatus.Cancelled:
+      return 'Anulado'
     default:
       return `Estado ${status}`
   }
 }
 
-export function repairBatchStatusBadgeTone(status: RepairBatchStatus): 'info' | 'warning' | 'success' | 'neutral' {
+export function repairBatchStatusBadgeTone(status: RepairBatchStatus): 'info' | 'warning' | 'success' | 'neutral' | 'danger' {
   switch (status) {
     case RepairBatchStatus.Received:
       return 'info'
@@ -299,6 +308,8 @@ export function repairBatchStatusBadgeTone(status: RepairBatchStatus): 'info' | 
       return 'success'
     case RepairBatchStatus.Closed:
       return 'neutral'
+    case RepairBatchStatus.Cancelled:
+      return 'danger'
     default:
       return 'neutral'
   }
@@ -320,6 +331,10 @@ export function repairEquipmentStatusLabel(status: RepairEquipmentStatus): strin
       return 'Despachado'
     case RepairEquipmentStatus.Invoiced:
       return 'Facturado'
+    case RepairEquipmentStatus.Irreparable:
+      return 'Irreparable'
+    case RepairEquipmentStatus.Cancelled:
+      return 'Anulado'
     default:
       return `Estado ${status}`
   }
@@ -343,6 +358,10 @@ export function repairEquipmentStatusBadgeTone(
       return 'success'
     case RepairEquipmentStatus.Invoiced:
       return 'success'
+    case RepairEquipmentStatus.Irreparable:
+      return 'danger'
+    case RepairEquipmentStatus.Cancelled:
+      return 'danger'
     default:
       return 'neutral'
   }
@@ -360,3 +379,33 @@ export function photoStageLabel(stage: PhotoStage): string {
       return `Fase ${stage}`
   }
 }
+
+export type BatchPreviewItemDto = {
+  rowNumber: number
+  serialNumber: string
+  brand: string
+  model: string
+  productLine: string | null
+  damageLevel: number
+  damageLevelName: string
+}
+
+export type BatchPreviewResponse = {
+  isValid: boolean
+  totalRows: number
+  errors: string[]
+  warnings: string[]
+  level1Count: number
+  level2Count: number
+  level3Count: number
+  items: BatchPreviewItemDto[]
+}
+
+export type CancelBatchResponse = {
+  batchId: string
+  status: number
+  statusName: string
+  cancelledAt: string
+  reason: string
+}
+

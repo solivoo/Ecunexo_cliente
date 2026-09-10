@@ -68,6 +68,10 @@ public sealed class RepairBatch : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
     public Guid? UpdatedBy { get; private set; }
 
+    public string? CancelledReason => GetCancellationReason();
+
+    public DateTimeOffset? CancelledAt => Status == RepairBatchStatus.Cancelled ? UpdatedAt : null;
+
     public IReadOnlyCollection<RepairEquipment> Equipments => _equipments.AsReadOnly();
 
     public IReadOnlyCollection<RepairDispatch> Dispatches => _dispatches.AsReadOnly();
@@ -177,6 +181,56 @@ public sealed class RepairBatch : AggregateRoot<Guid>, ITenantEntity, IAuditable
     {
         Status = RepairBatchStatus.Closed;
         UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public Result Cancel(string reason, Guid? cancelledBy = null)
+    {
+        if (Status == RepairBatchStatus.Cancelled)
+        {
+            return Result.Failure(new Error("repairs.batch.already_cancelled", "El lote ya se encuentra anulado.", ErrorType.Validation));
+        }
+
+        if (InRepairCount > 0 || ReadyCount > 0 || DispatchedCount > 0)
+        {
+            return Result.Failure(new Error("repairs.batch.cannot_cancel_processed", "No se puede anular un lote con equipos que ya han sido intervenidos técnicamente o despachados.", ErrorType.Validation));
+        }
+
+        Status = RepairBatchStatus.Cancelled;
+        UpdatedAt = DateTimeOffset.UtcNow;
+        UpdatedBy = cancelledBy;
+
+        try
+        {
+            var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(MetadataJson) ?? new();
+            dict["cancellationReason"] = reason.Trim();
+            if (cancelledBy.HasValue)
+            {
+                dict["cancelledBy"] = cancelledBy.Value;
+            }
+            MetadataJson = JsonSerializer.Serialize(dict);
+        }
+        catch
+        {
+            // fallback
+        }
+
+        return Result.Success();
+    }
+
+    private string? GetCancellationReason()
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(MetadataJson);
+            if (doc.RootElement.TryGetProperty("cancellationReason", out var prop))
+            {
+                return prop.GetString();
+            }
+        }
+        catch
+        {
+        }
+        return null;
     }
 
     private static string NormalizeMetadata(string? json)

@@ -83,7 +83,8 @@ internal static class MenuCatalogSeedData
         ("repairs.equipments.update.status", "Equipos — gestionar estado", "Cambiar fases de diagnóstico y reparación", "repairs", 122),
         ("repairs.dispatches.create", "Despachos — emitir", "Generar actas de entrega y despachos QR", "repairs", 123),
         ("repairs.dispatches.read", "Despachos — lectura", "Consultar actas y despachos", "repairs", 124),
-        ("repairs.b2b.portal.view", "Portal B2B — auditoría", "Portal exclusivo cliente corporativo Whirlpool", "repairs", 125),
+        ("repairs.b2b.portal.view", "Portal B2B — auditoría", "Portal de auditoría para clientes corporativos aliados", "repairs", 125),
+        ("repairs.batches.cancel", "Lotes — anular", "Anular lotes sin procesar con fines de auditoría", "repairs", 126),
     ];
 
     public static IReadOnlyList<(string Code, string DisplayName)> ProductModules =>
@@ -95,7 +96,7 @@ internal static class MenuCatalogSeedData
         ("inventory", "Inventario"),
         ("facturacion", "Facturación electrónica"),
         ("contabilidad", "Contabilidad"),
-        ("repairs", "Taller y Reparaciones B2B"),
+        ("repairs", "Reparaciones"),
     ];
 
     public static IReadOnlyList<MenuItem> MenuItems =>
@@ -124,7 +125,7 @@ internal static class MenuCatalogSeedData
         Item("repairs", null, "Reparaciones", "build", null, 56, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
         Item("repairs-batches", "repairs", "Lotes de Equipos", "layers", "taller/lotes", 1, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
         Item("repairs-dispatches", "repairs", "Actas y Despachos", "truck", "taller/despachos", 2, MenuContextKind.Operational, "repairs", ["repairs.dispatches.create", "repairs.batches.read"]),
-        Item("repairs-portal", "repairs", "Portal Whirlpool", "eye", "taller/portal", 3, MenuContextKind.Operational, "repairs", ["repairs.b2b.portal.view"]),
+        Item("repairs-portal", "repairs", "Portal Corporativo", "eye", "taller/portal", 3, MenuContextKind.Operational, "repairs", ["repairs.b2b.portal.view"]),
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Comprobantes", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
