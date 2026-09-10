@@ -1,6 +1,5 @@
 /**
- * Estilos de Configuración SRI (Contabilidad).
- * Layout principal + aside de estado/consejos.
+ * Facturación electrónica / Configuración SRI — layout enterprise.
  */
 .sri-config-page {
   display: flex;
@@ -8,120 +7,11 @@
   gap: 1.25rem;
 }
 
-.sri-config-page__layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.25rem;
-  align-items: start;
-}
-
-/* Página: 3 columnas de formulario + aside = 4 columnas del mockup */
-@media (min-width: 1100px) {
-  .sri-config-page__layout {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(240px, 0.85fr);
-    column-gap: 1.25rem;
-  }
-
-  .sri-config-page__main {
-    grid-column: 1 / 4;
-  }
-
-  .sri-config-page__aside {
-    grid-column: 4;
-    position: sticky;
-    top: 1rem;
-  }
-}
-
-.sri-config-page__main {
+.sri-config-page__stack {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   min-width: 0;
-}
-
-.sri-config-page__aside {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-width: 0;
-}
-
-.sri-config-status {
-  padding: 1.15rem 1.2rem;
-  border-radius: 12px;
-  border: 1px solid var(--shell-border);
-  background: color-mix(in srgb, var(--shell-primary) 12%, var(--shell-surface));
-  color: var(--shell-text);
-}
-
-.sri-config-status__label {
-  margin: 0 0 0.35rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--shell-muted);
-}
-
-.sri-config-status__value {
-  margin: 0 0 0.75rem;
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
-.sri-config-status__bar {
-  height: 0.4rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--shell-muted) 25%, transparent);
-  overflow: hidden;
-  margin-bottom: 0.65rem;
-}
-
-.sri-config-status__bar-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--shell-primary);
-  transition: width 0.25s ease;
-}
-
-.sri-config-status__hint {
-  margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--shell-muted);
-}
-
-.sri-config-tips {
-  padding: 1.15rem 1.2rem;
-  border-radius: 12px;
-  border: 1px solid var(--shell-border);
-  background: var(--shell-surface);
-}
-
-.sri-config-tips__title {
-  margin: 0 0 0.75rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.sri-config-tips__list {
-  margin: 0;
-  padding-left: 1.1rem;
-  font-size: 0.8125rem;
-  line-height: 1.55;
-  color: var(--shell-muted);
-}
-
-.sri-config-tips__list li + li {
-  margin-top: 0.4rem;
-}
-
-.sri-config-checks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
-  grid-column: 1 / -1;
 }
 
 .sri-config-field-stack {
@@ -131,19 +21,12 @@
   min-width: 0;
 }
 
-@media (min-width: 960px) {
-  .sri-config-field--row-span-2 {
-    grid-row: span 2;
-  }
-}
-
 .sri-config-field--check-align {
   display: flex;
   align-items: center;
   min-height: 3.25rem;
 }
 
-/* Checks planos: sin card / borde de CheckButton */
 .sri-config-page .glb-checkbtn,
 .sri-config-page .glb-checkbtn--outline,
 .sri-config-page .glb-checkbtn--ghost {
@@ -172,29 +55,14 @@
   border-radius: 4px;
 }
 
-.sri-config-page__actions {
-  padding-top: 0.5rem;
-}
-
-.sri-config-page__actions > * {
-  flex: 0 0 auto;
-  min-width: 14rem;
-  width: auto;
-}
-
-.sri-config-page__actions .glb-btn {
-  width: auto;
-  min-height: 2.75rem;
-  padding-inline: 1.35rem;
-  padding-block: 0.7rem;
-  font-weight: 600;
-}
-
 .sri-config-profile-note {
-  margin-top: 0.85rem;
-  padding: 0.85rem 1rem;
+  margin: 0;
+  padding: 0.75rem 0.9rem;
   border-radius: 10px;
   border: 1px solid var(--shell-border, #d0d5dd);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--shell-muted, #667085);
 }
 
 .sri-config-profile-note--dev {
@@ -205,52 +73,4 @@
 .sri-config-profile-note--prod {
   background: color-mix(in srgb, #b42318 8%, var(--shell-surface, #fff));
   border-color: color-mix(in srgb, #b42318 30%, transparent);
-}
-
-.sri-config-profile-note__title {
-  margin: 0 0 0.35rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.sri-config-profile-note__text {
-  margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--shell-muted, #667085);
-}
-
-.sri-config-mode-badge {
-  padding: 1rem 1.15rem;
-  border-radius: 12px;
-  border: 1px solid var(--shell-border, #d0d5dd);
-  background: var(--shell-surface, #fff);
-}
-
-.sri-config-mode-badge--dev {
-  border-color: color-mix(in srgb, #b54708 40%, transparent);
-  background: color-mix(in srgb, #b54708 8%, var(--shell-surface, #fff));
-}
-
-.sri-config-mode-badge--prod {
-  border-color: color-mix(in srgb, #b42318 35%, transparent);
-  background: color-mix(in srgb, #b42318 7%, var(--shell-surface, #fff));
-}
-
-.sri-config-mode-badge__label {
-  margin: 0 0 0.25rem;
-  font-size: 0.68rem;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--shell-muted, #667085);
-}
-
-.sri-config-mode-badge__value {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 650;
-  color: var(--shell-text, #101828);
 }

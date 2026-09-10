@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Button, useToast } from 'glubox'
-import { PageHeader, StatusBadge } from '@/components/ui'
+import { PageHeader, SectionCard, StatCard, StatusBadge } from '@/components/ui'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { parseRimpeKind } from '@/features/organization/rimpeKind'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -17,7 +17,6 @@ import {
   storeBillingEmissionPoint,
 } from '@/lib/billingSriEmission'
 import { readApiError } from '@/lib/readApiError'
-import { SriConfigAside } from '@/pages/contabilidad/SriConfigAside'
 import {
   SriEmissionFields,
   SriIdentityCard,
@@ -159,7 +158,7 @@ function buildCompanyUpdateBody(
 
 function pageTitle(pathname: string): string {
   if (pathname.includes('/organizacion/facturacion-electronica')) {
-    return 'Facturación electrónica'
+    return 'Facturación Electrónica'
   }
   if (pathname.includes('/facturacion/emisor')) return 'Emisor'
   return 'Configuración SRI'
@@ -191,9 +190,15 @@ export function ContabilidadSriConfigPage() {
   const [signature, setSignature] = useState<SriSignatureValues>(INITIAL_SIGNATURE)
 
   const progress = useMemo(() => computeProgress(legal, signature), [legal, signature])
-  const statusLabel = progress >= 100 ? 'Completo' : progress === 0 ? 'Sin iniciar' : 'Incompleto'
+  const emitProfile = useMemo(
+    () => getBillingEmitProfile(signature.emitProfile),
+    [signature.emitProfile]
+  )
+  const statusTone = progress >= 100 ? 'success' : progress === 0 ? 'neutral' : 'warning'
+  const statusLabel = progress >= 100 ? 'Listo' : progress === 0 ? 'Sin configurar' : 'Incompleto'
   const formDisabled = busy || loading || !canUpdate
   const title = pageTitle(location.pathname)
+  const nextDocPreview = `${legal.establecimiento || '001'}-${legal.puntoEmision || '001'}-${legal.secuencialSiguiente || '000000001'}`
 
   const loadCompany = useCallback(async () => {
     if (!tenantId) {
@@ -231,7 +236,7 @@ export function ContabilidadSriConfigPage() {
           setLoadError(
             readApiError(
               billingErr,
-              'No se pudo leer el secuencial en Billing. Al guardar se intentará de nuevo.'
+              'No se pudo leer el secuencial. Al guardar se intentará de nuevo.'
             )
           )
         }
@@ -281,16 +286,12 @@ export function ContabilidadSriConfigPage() {
 
   const onSubmit = useCallback(async () => {
     if (!tenantId) {
-      toast.show({
-        title: title,
-        message: 'No hay empresa seleccionada.',
-        variant: 'error',
-      })
+      toast.show({ title, message: 'No hay empresa seleccionada.', variant: 'error' })
       return
     }
     if (!tenantSnapshot) {
       toast.show({
-        title: title,
+        title,
         message: 'No hay ficha de empresa cargada. Recarga la página.',
         variant: 'error',
       })
@@ -299,7 +300,7 @@ export function ContabilidadSriConfigPage() {
     if (!canUpdate) {
       toast.show({
         title: 'Sin permiso',
-        message: 'Necesitas permiso para guardar la configuración de la empresa.',
+        message: 'Necesitas permiso para guardar la configuración.',
         variant: 'error',
       })
       return
@@ -309,7 +310,7 @@ export function ContabilidadSriConfigPage() {
     if (ruc.length < 13) {
       toast.show({
         title: 'RUC incompleto',
-        message: 'Indica un RUC de 13 dígitos para sincronizar el emisor y el secuencial.',
+        message: 'Indica un RUC de 13 dígitos para sincronizar el emisor.',
         variant: 'error',
       })
       return
@@ -358,10 +359,10 @@ export function ContabilidadSriConfigPage() {
 
       const profile = getBillingEmitProfile(signature.emitProfile)
       toast.show({
-        title: title,
+        title,
         message: companySynced
-          ? `Guardado en empresa y Billing. Próximo ${savedSeq.establishment}-${savedSeq.emissionPoint}-${savedSeq.nextSequential}. Modo: ${profile.label}.`
-          : `Guardado en Billing (estab ${savedSeq.establishment}-${savedSeq.emissionPoint}-${savedSeq.nextSequential}). La ficha legal requiere titular (tenancy.tenants.update). Modo: ${profile.label}.`,
+          ? `Guardado. Próximo ${savedSeq.establishment}-${savedSeq.emissionPoint}-${savedSeq.nextSequential} · ${profile.label}.`
+          : `Guardado en Billing. La ficha legal requiere titular. Modo: ${profile.label}.`,
         variant: 'success',
       })
       await loadCompany()
@@ -391,8 +392,8 @@ export function ContabilidadSriConfigPage() {
       <div className="ecu-dashboard-layout sri-config-page">
         <PageHeader
           title={title}
-          subtitle="No tienes permiso para ver la configuración SRI. Pide a un administrador los permisos correspondientes (facturacion.emisor.read, tenancy.tenant.read o contabilidad.configuracion.read)."
-          badge={<StatusBadge tone="danger">Acceso Restringido</StatusBadge>}
+          subtitle="Requieres permiso de emisor, empresa o contabilidad para ver esta configuración."
+          badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
         />
       </div>
     )
@@ -404,10 +405,27 @@ export function ContabilidadSriConfigPage() {
         title={title}
         subtitle={
           companyLabel
-            ? `Identidad, puntos de emisión y modo SRI — ${companyLabel}`
-            : 'Configura la identidad legal, emisión y firma electrónica de la empresa.'
+            ? `Emisor, secuencial y firma electrónica — ${companyLabel}`
+            : 'Configura el emisor SRI, el secuencial y la firma de la empresa.'
         }
-        badge={<StatusBadge tone="primary">SRI Ecuador</StatusBadge>}
+        badge={
+          <StatusBadge tone={statusTone} withDot>
+            {statusLabel}
+          </StatusBadge>
+        }
+        actions={
+          canUpdate ? (
+            <Button
+              type="button"
+              variant="primary"
+              disabled={formDisabled}
+              loading={busy}
+              onClick={() => void onSubmit()}
+            >
+              {busy ? 'Guardando…' : 'Guardar'}
+            </Button>
+          ) : undefined
+        }
       />
 
       <PageLoadState
@@ -417,82 +435,98 @@ export function ContabilidadSriConfigPage() {
         emptyMessage="Entra a una empresa para configurar la facturación electrónica."
       >
         {loadError && tenantId ? (
-          <p className="ecu-companies-form__hint" role="status">
-            {loadError} Se muestran los datos de sesión disponibles.
-          </p>
+          <div className="ecu-form-error-banner" role="status">
+            <span className="material-symbols-outlined">info</span>
+            <span>{loadError}</span>
+          </div>
         ) : null}
+
         {!canUpdate ? (
-          <p className="ecu-companies-form__hint" role="status">
-            Solo lectura: falta permiso para guardar.
-          </p>
+          <div className="ecu-form-error-banner" role="status">
+            <span className="material-symbols-outlined">lock</span>
+            <span>Solo lectura: no tienes permiso para guardar.</span>
+          </div>
         ) : null}
+
         {!canPersistCompany && canUpdate ? (
           <p className="ecu-companies-form__hint" role="note">
-            Puedes ajustar emisión y secuencial en Billing. Para persistir RUC/razón social en la
-            ficha, usa el titular en{' '}
-            <Link to="/organizacion/empresas">listado de empresas</Link>.
+            Puedes ajustar emisión y secuencial. Para editar RUC y razón social usa el titular en{' '}
+            <Link to="/organizacion/empresas">empresas</Link>.
           </p>
         ) : null}
-        <p className="ecu-companies-form__hint" role="note">
-          Firma electrónica de plataforma (Infisical) por ahora. Más adelante cada cliente tendrá su
-          propio certificado. En modo pruebas el SRI puede recibir identidad EcuNexo aunque el PDF
-          muestre datos del tenant.
-        </p>
-        <p className="ecu-companies-form__hint" role="note">
-          El próximo secuencial es el de la siguiente factura. No rebobines por debajo del último ya
-          usado en Billing / SRI.
-        </p>
 
-        <div className="sri-config-page__layout">
-          <div className="sri-config-page__main ecu-companies-form">
-            <SriIdentityCard
-              values={legal}
-              disabled={formDisabled || !canPersistCompany}
-              onChange={canPersistCompany ? patchLegal : undefined}
-            />
-            <SriSoftwareProviderSection disabled={formDisabled} suggestedRuc={legal.ruc} />
-            <form
-              className="ecu-companies-form"
-              onSubmit={(e) => {
-                e.preventDefault()
-                void onSubmit()
-              }}
-              noValidate
-            >
-              <SriEmissionFields
-                values={{
-                  establecimiento: legal.establecimiento,
-                  puntoEmision: legal.puntoEmision,
-                  secuencialSiguiente: legal.secuencialSiguiente,
-                }}
-                disabled={formDisabled}
-                onChange={patchEmission}
-              />
-              <SriSignatureSection
-                values={signature}
-                disabled={formDisabled}
-                onChange={patchSignature}
-              />
-              <footer className="ecu-companies-form__actions sri-config-page__actions">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  disabled={formDisabled}
-                  loading={busy}
-                >
-                  {busy ? 'Guardando…' : 'Guardar configuración'}
-                </Button>
-              </footer>
-            </form>
-          </div>
-
-          <SriConfigAside
-            progressPercent={progress}
-            statusLabel={statusLabel}
-            emitProfileLabel={getBillingEmitProfile(signature.emitProfile).label}
-            emitProfileIsDev={getBillingEmitProfile(signature.emitProfile).isDevelopment}
+        <div className="ecu-stat-grid" aria-label="Resumen de facturación electrónica">
+          <StatCard
+            label="Estado"
+            value={statusLabel}
+            icon="verified"
+            toneColor={progress >= 100 ? '#10b981' : '#f59e0b'}
+            footerText={`${progress}% de configuración`}
           />
+          <StatCard
+            label="Modo de emisión"
+            value={emitProfile.isDevelopment ? 'Pruebas' : 'Producción'}
+            icon="bolt"
+            toneColor={emitProfile.isDevelopment ? '#f59e0b' : '#b42318'}
+            footerText={emitProfile.label}
+          />
+          <StatCard
+            label="Próximo comprobante"
+            value={nextDocPreview}
+            icon="receipt_long"
+            toneColor="#4f46e5"
+            footerText="Establecimiento · punto · secuencial"
+          />
+          <StatCard
+            label="RUC emisor"
+            value={legal.ruc.trim() || '—'}
+            icon="badge"
+            toneColor="#0284c7"
+            footerText={legal.razonSocial.trim() || 'Sin razón social'}
+          />
+        </div>
+
+        <div className="sri-config-page__stack ecu-companies-form">
+          <SriIdentityCard
+            values={legal}
+            disabled={formDisabled || !canPersistCompany}
+            onChange={canPersistCompany ? patchLegal : undefined}
+          />
+
+          <SectionCard
+            title="Emisión SRI"
+            subtitle="Establecimiento, punto de emisión y próximo secuencial"
+          >
+            <SriEmissionFields
+              values={{
+                establecimiento: legal.establecimiento,
+                puntoEmision: legal.puntoEmision,
+                secuencialSiguiente: legal.secuencialSiguiente,
+              }}
+              disabled={formDisabled}
+              onChange={patchEmission}
+              embedded
+            />
+          </SectionCard>
+
+          <SectionCard
+            title="Firma y modo"
+            subtitle="Certificado electrónico y perfil de emisión hacia el SRI"
+          >
+            <SriSignatureSection
+              values={signature}
+              disabled={formDisabled}
+              onChange={patchSignature}
+              embedded
+            />
+          </SectionCard>
+
+          <SectionCard
+            title="Proveedor del sistema"
+            subtitle="RUC del software en el campo adicional del comprobante"
+          >
+            <SriSoftwareProviderSection disabled={formDisabled} suggestedRuc={legal.ruc} embedded />
+          </SectionCard>
         </div>
       </PageLoadState>
     </div>

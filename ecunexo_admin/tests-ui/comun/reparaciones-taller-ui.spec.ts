@@ -56,9 +56,11 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
               maxUsers: 10,
               maxWarehouses: 5,
               subscriptionMaxTenants: 1,
-              enabledModules: ['repairs', 'taller'],
+              enabledModules: ['customers', 'repairs', 'taller'],
             },
             permissions: [
+              'customers.read',
+              'customers.manage',
               'repairs.batches.read',
               'repairs.batches.import',
               'repairs.batches.cancel',
@@ -70,6 +72,15 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
             ],
             navigation: [
               {
+                id: 'customers',
+                label: 'Clientes',
+                icon: 'users',
+                children: [
+                  { id: 'customers-directory', label: 'Directorio de Clientes', route: '/clientes', children: [] },
+                  { id: 'customers-types', label: 'Tipos de cliente', route: '/clientes/tipos', children: [] },
+                ],
+              },
+              {
                 id: 'taller',
                 label: 'Reparaciones',
                 icon: 'wrench',
@@ -77,7 +88,6 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
                   { id: 'batches', label: 'Lotes B2B', route: '/taller/lotes', children: [] },
                   { id: 'dispatches', label: 'Despachos', route: '/taller/despachos', children: [] },
                   { id: 'portal', label: 'Portal Corporativo', route: '/taller/portal', children: [] },
-                  { id: 'customers', label: 'Directorio de Clientes', route: '/taller/clientes', children: [] },
                 ],
               },
             ],
@@ -143,6 +153,8 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
           id: 'cust-001',
           name: 'Whirlpool del Ecuador S.A.',
           taxId: '1790012345001',
+          customerType: 1,
+          identificationType: 1,
           contactEmail: 'servicio@whirlpool.ec',
           contactPhone: '042999888',
           contactPerson: 'Ing. Carlos Mendoza',
@@ -150,11 +162,138 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
           notes: 'Contrato corporativo oficial',
           isActive: true,
           active: true,
-          createdAt: '2026-01-01T00:00:00Z',
+          createdAt: new Date().toISOString(),
         },
       ]
 
-      await page.route(/\/api\/v1\/tenants\/[^/]+\/(repairs\/)?customers\/.+/, async (route) => {
+      const mockCustomerTypes = [
+        {
+          id: 'ctype-1',
+          code: 1,
+          name: 'Corporativo B2B / Fabricante',
+          shortLabel: 'Corporativo B2B',
+          tone: 'primary',
+          sortOrder: 1,
+          isSystem: true,
+          isActive: true,
+        },
+        {
+          id: 'ctype-2',
+          code: 2,
+          name: 'Persona Natural / Particular',
+          shortLabel: 'Persona Natural',
+          tone: 'success',
+          sortOrder: 2,
+          isSystem: true,
+          isActive: true,
+        },
+        {
+          id: 'ctype-3',
+          code: 3,
+          name: 'Distribuidor / Mayorista',
+          shortLabel: 'Distribuidor',
+          tone: 'warning',
+          sortOrder: 3,
+          isSystem: true,
+          isActive: true,
+        },
+        {
+          id: 'ctype-4',
+          code: 4,
+          name: 'Taller Técnico Aliado',
+          shortLabel: 'Taller Aliado',
+          tone: 'neutral',
+          sortOrder: 4,
+          isSystem: true,
+          isActive: true,
+        },
+        {
+          id: 'ctype-5',
+          code: 5,
+          name: 'Consumidor Final',
+          shortLabel: 'Consumidor Final',
+          tone: 'neutral',
+          sortOrder: 5,
+          isSystem: true,
+          isActive: true,
+        },
+        {
+          id: 'ctype-6',
+          code: 6,
+          name: 'Institución Pública / Gobierno',
+          shortLabel: 'Sector Público',
+          tone: 'warning',
+          sortOrder: 6,
+          isSystem: true,
+          isActive: true,
+        },
+      ]
+
+      await page.route(/\/api\/v1\/tenants\/[^/]+\/customers\/types(\/[^/?]+)?(\?.*)?$/, async (route) => {
+        const url = route.request().url()
+        const method = route.request().method()
+
+        if (method === 'GET') {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(mockCustomerTypes),
+          })
+          return
+        }
+
+        if (method === 'POST') {
+          const body = route.request().postDataJSON()
+          const created = {
+            id: `ctype-${Date.now()}`,
+            code: 100 + mockCustomerTypes.filter((t) => !t.isSystem).length,
+            name: body.name,
+            shortLabel: body.shortLabel || body.name,
+            tone: body.tone || 'primary',
+            sortOrder: body.sortOrder ?? 100,
+            isSystem: false,
+            isActive: true,
+          }
+          mockCustomerTypes.push(created)
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(created),
+          })
+          return
+        }
+
+        if (method === 'PUT') {
+          const body = route.request().postDataJSON()
+          const type = mockCustomerTypes.find((t) => url.includes(t.id))
+          if (type) {
+            Object.assign(type, {
+              name: body.name ?? type.name,
+              shortLabel: body.shortLabel ?? type.shortLabel,
+              tone: body.tone ?? type.tone,
+              sortOrder: body.sortOrder ?? type.sortOrder,
+              isActive: body.isActive ?? type.isActive,
+            })
+          }
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(type || {}),
+          })
+          return
+        }
+
+        if (method === 'DELETE') {
+          const idx = mockCustomerTypes.findIndex((t) => url.includes(t.id) && !t.isSystem)
+          if (idx >= 0) mockCustomerTypes.splice(idx, 1)
+          await route.fulfill({ status: 204, body: '' })
+          return
+        }
+
+        await route.fulfill({ status: 405, body: '' })
+      })
+
+      await page.route(/\/api\/v1\/tenants\/[^/]+\/(repairs\/)?customers\/(?!types)[^/?]+/, async (route) => {
         const url = route.request().url()
         if (url.includes('/status') && route.request().method() === 'PATCH') {
           const body = route.request().postDataJSON()
@@ -639,7 +778,7 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
     })
 
     test('Directorio de Clientes: listado, validaciones en tiempo real de RUC/Cédula y registro corporativo', async ({ page }) => {
-      await page.getByRole('button', { name: /Reparaciones/i }).click()
+      await page.getByRole('button', { name: /^Clientes$/i }).click()
       await page.getByRole('button', { name: /Directorio de Clientes/i }).click()
 
       // Validar PageHeader y métricas KPI
@@ -647,11 +786,19 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
       await expect(page.getByText(/Total Clientes/i)).toBeVisible()
       await expect(page.getByText(/Clientes Activos/i)).toBeVisible()
 
-      // Verificar que el cliente inicial esté en la tabla
-      await expect(page.getByText('Whirlpool del Ecuador S.A.').first()).toBeVisible()
-      await expect(page.getByText('1790012345001').first()).toBeVisible()
+      const emptyFiltered = page.getByRole('heading', {
+        name: /No se encontraron clientes con los filtros seleccionados/i,
+      })
+      if (await emptyFiltered.isVisible().catch(() => false)) {
+        await page.getByRole('button', { name: /Ver Todos los Clientes/i }).click()
+      }
 
-      // Abrir modal de nuevo cliente
+      // Verificar que el cliente inicial esté en la tabla
+      await expect(page.getByText('Whirlpool del Ecuador S.A.').first()).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText('1790012345001').first()).toBeVisible()
+      await expect(page.getByText('Corporativo B2B').first()).toBeVisible()
+
+      // Abrir modal de nuevo cliente (requiere customers.manage)
       await page.getByRole('button', { name: /Nuevo Cliente/i }).click()
       await expect(page.getByRole('heading', { name: /Registrar Nuevo Cliente/i })).toBeVisible()
 

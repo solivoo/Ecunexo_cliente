@@ -18,6 +18,7 @@ export type InvoiceMetaFieldsProps = {
     key: K,
     value: InvoiceCounterpartyValues[K]
   ) => void
+  readonly onCounterpartyReplace?: (next: InvoiceCounterpartyValues) => void
 }
 
 /** Cabecera de emisión + cliente en grilla responsive (móvil / tablet / escritorio). */
@@ -28,6 +29,7 @@ export function InvoiceMetaFields({
   disabled = false,
   onHeaderChange,
   onCounterpartyChange,
+  onCounterpartyReplace,
 }: InvoiceMetaFieldsProps) {
   return (
     <div className="factura-emitir__meta">
@@ -42,6 +44,7 @@ export function InvoiceMetaFields({
         paymentFormCode={header.paymentFormCode}
         disabled={disabled}
         onCounterpartyChange={onCounterpartyChange}
+        onCounterpartyReplace={onCounterpartyReplace}
         onPaymentFormChange={(code) => onHeaderChange('paymentFormCode', code)}
       />
     </div>

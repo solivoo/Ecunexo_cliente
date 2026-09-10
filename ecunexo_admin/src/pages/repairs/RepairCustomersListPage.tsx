@@ -6,6 +6,7 @@ import {
   DataGrid,
   Popup,
   Select,
+  TextArea,
   TextBox,
   useToast,
   type ColumnDef,
@@ -24,7 +25,6 @@ import { GridIconButton } from '@/components/ui/GridIconButton'
 import {
   AlertCircle,
   Building2,
-  CheckCircle2,
   FilePlus,
   Layers,
   Mail,
@@ -52,6 +52,7 @@ import {
 } from '@/lib/ecuadorTaxIdValidator'
 import {
   createCustomer,
+  listCustomerTypes,
   listCustomers,
   toggleCustomerStatus,
   updateCustomer,
@@ -62,9 +63,11 @@ import {
   CustomerIdentificationType,
   CustomerType,
   CUSTOMER_IDENTIFICATION_LABELS,
-  CUSTOMER_TYPE_METADATA,
+  resolveCustomerTypeMeta,
   type CustomerDto,
+  type CustomerTypeDefinitionDto,
 } from '@/types/customersApi'
+import './ecu-customer-form.css'
 
 type CustomerRow = CustomerDto & Record<string, unknown>
 
@@ -78,14 +81,12 @@ export default function RepairCustomersListPage() {
     useHasPermission('customers.read') ||
     useHasPermission('customers.manage') ||
     useHasPermission('repairs.batches.read')
-  const canManage =
-    useHasPermission('customers.manage') ||
-    useHasPermission('repairs.batches.import') ||
-    useHasPermission('repairs.batches.read')
+  const canManage = useHasPermission('customers.manage')
   const canReadBatches = useHasPermission('repairs.batches.read')
   const canImportBatches = useHasPermission('repairs.batches.import')
 
   const [customers, setCustomers] = useState<CustomerDto[]>([])
+  const [customerTypes, setCustomerTypes] = useState<CustomerTypeDefinitionDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -121,8 +122,12 @@ export default function RepairCustomersListPage() {
       setLoading(true)
       setError(null)
       try {
-        const data = await listCustomers(tenantId)
+        const [data, types] = await Promise.all([
+          listCustomers(tenantId),
+          listCustomerTypes(tenantId, false),
+        ])
         setCustomers(data)
+        setCustomerTypes(types)
         if (!opts?.silent) {
           toast.show({
             title: 'Actualizado',
@@ -229,7 +234,7 @@ export default function RepairCustomersListPage() {
   // Manejo de Modal
   const handleOpenCreate = () => {
     setEditingCustomer(null)
-    setCustomerType(CustomerType.CorporativoB2B)
+    setCustomerType(defaultCustomerType)
     setIdentificationType(CustomerIdentificationType.Ruc)
     setDocType('AUTO')
     setTaxId('')
@@ -322,7 +327,7 @@ export default function RepairCustomersListPage() {
         setCustomers((prev) => [created, ...prev])
         toast.show({
           title: 'Cliente registrado',
-          message: `El cliente "${created.name}" fue creado exitosamente con clasificación "${CUSTOMER_TYPE_METADATA[created.customerType]?.shortLabel || 'Comercial'}".`,
+          message: `El cliente "${created.name}" fue creado exitosamente con clasificación "${resolveCustomerTypeMeta(created.customerType, customerTypes).shortLabel}".`,
           variant: 'success',
         })
       }
@@ -365,6 +370,42 @@ export default function RepairCustomersListPage() {
     })
   }, [customers, statusFilter, typeFilter, from, to])
 
+  const activeTypeOptions = useMemo(() => {
+    const active = customerTypes.filter((t) => t.isActive)
+    const source = active.length > 0 ? active : customerTypes
+    return source.map((t) => ({
+      value: String(t.code),
+      label: t.name,
+      shortLabel: t.shortLabel,
+    }))
+  }, [customerTypes])
+
+  const formTypeOptions = useMemo(() => {
+    const opts = [...activeTypeOptions]
+    if (!editingCustomer) return opts
+    const code = String(editingCustomer.customerType)
+    if (opts.some((o) => o.value === code)) return opts
+    const meta = resolveCustomerTypeMeta(editingCustomer.customerType, customerTypes)
+    return [{ value: code, label: `${meta.label} (inactivo)`, shortLabel: meta.shortLabel }, ...opts]
+  }, [activeTypeOptions, customerTypes, editingCustomer])
+
+  const typeFilterOptions = useMemo(
+    () => [
+      { value: 'all', label: 'Todos los tipos' },
+      ...customerTypes.map((t) => ({ value: String(t.code), label: t.shortLabel })),
+    ],
+    [customerTypes]
+  )
+
+  const defaultCustomerType = useMemo(() => {
+    const preferred = customerTypes.find(
+      (t) => t.isActive && t.code === CustomerType.CorporativoB2B
+    )
+    if (preferred) return preferred.code as CustomerType
+    const firstActive = customerTypes.find((t) => t.isActive)
+    return (firstActive?.code ?? CustomerType.CorporativoB2B) as CustomerType
+  }, [customerTypes])
+
   const stats = useMemo(() => {
     const total = customers.length
     const active = customers.filter((c) => c.isActive).length
@@ -388,6 +429,13 @@ export default function RepairCustomersListPage() {
         label: 'Actualizar',
         icon: 'refresh-cw',
         disabled: loading,
+      },
+      {
+        id: 'types',
+        label: 'Tipos de cliente',
+        icon: 'tags',
+        route: '/clientes/tipos',
+        disabled: false,
       },
     ]
     if (canReadBatches) {
@@ -444,10 +492,7 @@ export default function RepairCustomersListPage() {
         sortable: true,
         renderCell: (_v, row: CustomerRow) => {
           const type = row.customerType ?? CustomerType.CorporativoB2B
-          const meta = CUSTOMER_TYPE_METADATA[type] ?? {
-            shortLabel: 'Comercial',
-            tone: 'primary',
-          }
+          const meta = resolveCustomerTypeMeta(type, customerTypes)
           return (
             <StatusBadge tone={meta.tone} withDot>
               {meta.shortLabel}
@@ -585,7 +630,7 @@ export default function RepairCustomersListPage() {
         ),
       },
     ],
-    [canImportBatches, canManage, canReadBatches, navigate]
+    [canImportBatches, canManage, canReadBatches, customerTypes, navigate]
   )
 
   if (!canRead) {
@@ -750,15 +795,7 @@ export default function RepairCustomersListPage() {
                       id="filter-customers-type"
                       aria-label="Filtrar por clasificación de cliente"
                       variant="outline"
-                      options={[
-                        { value: 'all', label: 'Todos los tipos' },
-                        { value: String(CustomerType.CorporativoB2B), label: 'Corporativo B2B' },
-                        { value: String(CustomerType.PersonaNatural), label: 'Persona Natural' },
-                        { value: String(CustomerType.DistribuidorMayorista), label: 'Distribuidor Mayorista' },
-                        { value: String(CustomerType.TallerAliado), label: 'Taller Aliado' },
-                        { value: String(CustomerType.ConsumidorFinal), label: 'Consumidor Final' },
-                        { value: String(CustomerType.InstitucionPublica), label: 'Institución Pública' },
-                      ]}
+                      options={typeFilterOptions}
                       value={typeFilter}
                       onChange={(val: string) => setTypeFilter(val)}
                     />
@@ -787,7 +824,7 @@ export default function RepairCustomersListPage() {
           open={modalOpen}
           title={editingCustomer ? 'Editar Ficha de Cliente' : 'Registrar Nuevo Cliente'}
           onClose={handleCloseModal}
-          width="min(92vw, 42rem)"
+          width="min(94vw, 48rem)"
           actions={[
             {
               id: 'cancel',
@@ -806,7 +843,7 @@ export default function RepairCustomersListPage() {
             },
           ]}
         >
-          <form onSubmit={handleSaveCustomer} className="space-y-4" noValidate>
+          <form onSubmit={handleSaveCustomer} className="ecu-customer-form" noValidate>
             {formError && (
               <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-xl text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2">
                 <AlertCircle size={16} className="shrink-0 text-rose-600" />
@@ -814,32 +851,25 @@ export default function RepairCustomersListPage() {
               </div>
             )}
 
-            {/* Fila 1: Razón Social */}
-            <div>
-              <TextBox
-                id="customer-name"
-                label="Razón Social / Nombre Comercial *"
-                labelPosition="outlined"
-                variant="outline"
-                value={name}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                  setName(e.target.value)
-                  if (formError) setFormError(null)
-                }}
-                placeholder="Ej. Whirlpool del Ecuador S.A., Mabe, Comercial Andina, Juan Pérez..."
-                fullWidth
-                disabled={saving}
-              />
-              {!name.trim() && (
-                <span className="text-[11px] text-slate-400 mt-0.5 block">
-                  Nombre obligatorio con el que se identificará al cliente en lotes y comprobantes.
-                </span>
-              )}
-            </div>
+            <div className="ecu-customer-form__grid">
+              <div className="ecu-customer-form__field ecu-customer-form__field--span">
+                <TextBox
+                  id="customer-name"
+                  label="Razón Social / Nombre Comercial *"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={name}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                    setName(e.target.value)
+                    if (formError) setFormError(null)
+                  }}
+                  placeholder="Nombre o razón social"
+                  fullWidth
+                  disabled={saving}
+                />
+              </div>
 
-            {/* Fila 2: Clasificación y Tipo de Identificación */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
+              <div className="ecu-customer-form__field">
                 <Select
                   id="customer-type-select"
                   label="Clasificación de Cliente"
@@ -847,20 +877,13 @@ export default function RepairCustomersListPage() {
                   variant="outline"
                   value={String(customerType)}
                   onChange={handleCustomerTypeChange}
-                  options={[
-                    { value: String(CustomerType.CorporativoB2B), label: 'Corporativo B2B / Fabricante' },
-                    { value: String(CustomerType.PersonaNatural), label: 'Persona Natural / Particular' },
-                    { value: String(CustomerType.DistribuidorMayorista), label: 'Distribuidor / Mayorista' },
-                    { value: String(CustomerType.TallerAliado), label: 'Taller Técnico Aliado' },
-                    { value: String(CustomerType.ConsumidorFinal), label: 'Consumidor Final' },
-                    { value: String(CustomerType.InstitucionPublica), label: 'Institución Pública / Gobierno' },
-                  ]}
+                  options={formTypeOptions}
                   fullWidth
                   disabled={saving}
                 />
               </div>
 
-              <div>
+              <div className="ecu-customer-form__field">
                 <Select
                   id="customer-doc-type"
                   label="Tipo de Identificación"
@@ -890,11 +913,8 @@ export default function RepairCustomersListPage() {
                   disabled={saving}
                 />
               </div>
-            </div>
 
-            {/* Fila 3: RUC / Cédula y Persona de Contacto */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
+              <div className="ecu-customer-form__field">
                 <TextBox
                   id="customer-tax-id"
                   label="RUC o Identificación Fiscal"
@@ -907,32 +927,28 @@ export default function RepairCustomersListPage() {
                   }}
                   placeholder={
                     identificationType === CustomerIdentificationType.Cedula
-                      ? 'Ej. 0923456789 (10 dígitos)'
+                      ? '10 dígitos'
                       : identificationType === CustomerIdentificationType.ConsumidorFinal
                         ? '9999999999999'
-                        : 'Ej. 0992345671001 (13 dígitos)'
+                        : '13 dígitos'
                   }
                   fullWidth
                   disabled={saving}
                 />
-                {taxId.trim() && taxIdValidation && (
-                  <div className="mt-1 flex items-center gap-1.5 text-[11px]">
-                    {taxIdValidation.isValid ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 size={13} aria-hidden />
-                        {taxIdValidation.label}
-                      </span>
-                    ) : (
-                      <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1">
-                        <AlertCircle size={13} aria-hidden />
-                        {taxIdValidation.error}
-                      </span>
-                    )}
-                  </div>
-                )}
+                {taxId.trim() && taxIdValidation ? (
+                  <span
+                    className={`ecu-customer-form__hint ${
+                      taxIdValidation.isValid
+                        ? 'ecu-customer-form__hint--ok'
+                        : 'ecu-customer-form__hint--error'
+                    }`}
+                  >
+                    {taxIdValidation.isValid ? taxIdValidation.label : taxIdValidation.error}
+                  </span>
+                ) : null}
               </div>
 
-              <div>
+              <div className="ecu-customer-form__field">
                 <TextBox
                   id="customer-person"
                   label="Persona o Ejecutivo de Contacto"
@@ -940,16 +956,13 @@ export default function RepairCustomersListPage() {
                   variant="outline"
                   value={contactPerson}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setContactPerson(e.target.value)}
-                  placeholder="Ej. Ing. Carlos Mendoza, Lic. Ana Morales..."
+                  placeholder="Nombre del contacto"
                   fullWidth
                   disabled={saving}
                 />
               </div>
-            </div>
 
-            {/* Fila 4: Correo y Teléfono */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
+              <div className="ecu-customer-form__field">
                 <TextBox
                   id="customer-email"
                   label="Correo Electrónico"
@@ -961,18 +974,18 @@ export default function RepairCustomersListPage() {
                     setContactEmail(e.target.value)
                     if (formError) setFormError(null)
                   }}
-                  placeholder="garantias@marca.com, compras@..."
+                  placeholder="correo@empresa.com"
                   fullWidth
                   disabled={saving}
                 />
-                {contactEmail.trim() && !emailValidation.isValid && (
-                  <span className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5 block">
+                {contactEmail.trim() && !emailValidation.isValid ? (
+                  <span className="ecu-customer-form__hint ecu-customer-form__hint--error">
                     {emailValidation.error}
                   </span>
-                )}
+                ) : null}
               </div>
 
-              <div>
+              <div className="ecu-customer-form__field">
                 <TextBox
                   id="customer-phone"
                   label="Teléfono de Contacto"
@@ -983,56 +996,54 @@ export default function RepairCustomersListPage() {
                     setContactPhone(e.target.value)
                     if (formError) setFormError(null)
                   }}
-                  placeholder="Ej. 0991234567 o 042999888"
+                  placeholder="0991234567"
                   fullWidth
                   disabled={saving}
                 />
-                {contactPhone.trim() && !phoneValidation.isValid && (
-                  <span className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5 block">
+                {contactPhone.trim() && !phoneValidation.isValid ? (
+                  <span className="ecu-customer-form__hint ecu-customer-form__hint--error">
                     {phoneValidation.error}
                   </span>
-                )}
+                ) : null}
+              </div>
+
+              <div className="ecu-customer-form__field ecu-customer-form__field--span">
+                <TextBox
+                  id="customer-address"
+                  label="Dirección Física o Planta"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={address}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setAddress(e.target.value)}
+                  placeholder="Dirección"
+                  fullWidth
+                  disabled={saving}
+                />
+              </div>
+
+              <div className="ecu-customer-form__field ecu-customer-form__field--span">
+                <TextArea
+                  id="customer-notes"
+                  label="Notas y Condiciones Particulares"
+                  labelPosition="outlined"
+                  variant="outline"
+                  rows={3}
+                  value={notes}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
+                  placeholder="Opcional"
+                  fullWidth
+                  disabled={saving}
+                />
               </div>
             </div>
 
-            {/* Fila 5: Dirección */}
-            <div>
-              <TextBox
-                id="customer-address"
-                label="Dirección Física o Planta"
-                labelPosition="outlined"
-                variant="outline"
-                value={address}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setAddress(e.target.value)}
-                placeholder="Ej. Av. Juan Tanca Marengo Km 4.5, Bodega 12..."
-                fullWidth
-                disabled={saving}
-              />
-            </div>
-
-            {/* Fila 6: Notas / Observaciones */}
-            <div>
-              <TextBox
-                id="customer-notes"
-                label="Notas y Condiciones Particulares"
-                labelPosition="outlined"
-                variant="outline"
-                value={notes}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setNotes(e.target.value)}
-                placeholder="Condiciones de garantía, SLAs, contacto de auditoría..."
-                fullWidth
-                disabled={saving}
-              />
-            </div>
-
-            {/* Fila 7: Estado Habilitado */}
-            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center gap-3">
+            <div className="ecu-customer-form__status">
               <CheckButton
                 checked={isActive}
                 onChange={(checked: boolean) => setIsActive(checked)}
                 disabled={saving}
               >
-                Cliente Habilitado para Operaciones
+                Cliente habilitado para operaciones
               </CheckButton>
             </div>
           </form>

@@ -1,8 +1,7 @@
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Common;
-using EcuNexo.Core.Customers;
 
-namespace EcuNexo.Core.Repairs;
+namespace EcuNexo.Core.Customers;
 
 /// <summary>
 /// Cliente corporativo, persona natural, distribuidor o aliado que contrata servicios o adquiere bienes en la plataforma EcuNexo.
@@ -68,26 +67,26 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
     {
         if (id == Guid.Empty)
         {
-            return Result.Failure<Customer>(new Error("repairs.customer.id.empty", "El Id del cliente es obligatorio.", ErrorType.Validation));
+            return Result.Failure<Customer>(new Error("customer.id.empty", "El Id del cliente es obligatorio.", ErrorType.Validation));
         }
 
         if (tenantId == Guid.Empty)
         {
-            return Result.Failure<Customer>(new Error("repairs.customer.tenant.empty", "El TenantId es obligatorio.", ErrorType.Validation));
+            return Result.Failure<Customer>(new Error("customer.tenant.empty", "El TenantId es obligatorio.", ErrorType.Validation));
         }
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            return Result.Failure<Customer>(new Error("repairs.customer.name.empty", "El nombre o razón social del cliente es obligatorio.", ErrorType.Validation));
+            return Result.Failure<Customer>(new Error("customer.name.empty", "El nombre o razón social del cliente es obligatorio.", ErrorType.Validation));
         }
 
         var trimmedName = name.Trim();
         if (trimmedName.Length > NameMaxLength)
         {
-            return Result.Failure<Customer>(new Error("repairs.customer.name.toolong", $"El nombre no puede exceder {NameMaxLength} caracteres.", ErrorType.Validation));
+            return Result.Failure<Customer>(new Error("customer.name.toolong", $"El nombre no puede exceder {NameMaxLength} caracteres.", ErrorType.Validation));
         }
 
-        if (!Enum.IsDefined(customerType))
+        if (customerType <= 0)
         {
             return Result.Failure<Customer>(new Error("customer.type.invalid", "El tipo de cliente especificado no es válido.", ErrorType.Validation));
         }
@@ -156,17 +155,17 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            return Result.Failure(new Error("repairs.customer.name.empty", "El nombre o razón social del cliente es obligatorio.", ErrorType.Validation));
+            return Result.Failure(new Error("customer.name.empty", "El nombre o razón social del cliente es obligatorio.", ErrorType.Validation));
         }
 
         var trimmedName = name.Trim();
         if (trimmedName.Length > NameMaxLength)
         {
-            return Result.Failure(new Error("repairs.customer.name.toolong", $"El nombre no puede exceder {NameMaxLength} caracteres.", ErrorType.Validation));
+            return Result.Failure(new Error("customer.name.toolong", $"El nombre no puede exceder {NameMaxLength} caracteres.", ErrorType.Validation));
         }
 
         var resolvedType = customerType ?? CustomerType;
-        if (!Enum.IsDefined(resolvedType))
+        if ((int)resolvedType <= 0)
         {
             return Result.Failure(new Error("customer.type.invalid", "El tipo de cliente especificado no es válido.", ErrorType.Validation));
         }
@@ -221,7 +220,7 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
 
     public Result ChangeClassification(CustomerType newType)
     {
-        if (!Enum.IsDefined(newType))
+        if ((int)newType <= 0)
         {
             return Result.Failure(new Error("customer.type.invalid", "El tipo de cliente especificado no es válido.", ErrorType.Validation));
         }

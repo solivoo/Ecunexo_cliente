@@ -1,6 +1,7 @@
 using System.Text.Json;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Common;
+using EcuNexo.Core.Customers;
 
 namespace EcuNexo.Core.Repairs;
 

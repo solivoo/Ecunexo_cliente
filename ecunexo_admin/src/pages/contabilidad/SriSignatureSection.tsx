@@ -1,7 +1,6 @@
 import type { ChangeEvent } from 'react'
 import { useState } from 'react'
 import { CheckButton, DateBox, FileBox, Select, TextBox } from 'glubox'
-import { PenLine } from 'lucide-react'
 import {
   BILLING_EMIT_PROFILES,
   getBillingEmitProfile,
@@ -23,6 +22,7 @@ export type SriSignatureSectionProps = {
     key: K,
     value: SriSignatureValues[K]
   ) => void
+  readonly embedded?: boolean
 }
 
 const PROFILE_OPTIONS = BILLING_EMIT_PROFILES.map((p) => ({
@@ -36,6 +36,7 @@ export function SriSignatureSection({
   values,
   disabled = false,
   onChange,
+  embedded = false,
 }: SriSignatureSectionProps) {
   const [certFiles, setCertFiles] = useState<File[]>([])
   const profile = getBillingEmitProfile(values.emitProfile)
@@ -50,124 +51,110 @@ export function SriSignatureSection({
     emitChange('fileName', files[0]?.name ?? null)
   }
 
-  return (
-    <>
-      <section className="app-shell__card ecu-companies-form__card">
-        <h2 className="app-shell__section-title">
-          <PenLine size={18} strokeWidth={1.75} aria-hidden /> Firma electrónica
-        </h2>
-        <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
-          <div className="ecu-companies-form__field">
-            <TextBox
-              id="sri-cert-password"
-              label="Contraseña"
-              labelPosition="outlined"
-              variant="outline"
-              size="md"
-              type="password"
-              showPasswordToggle
-              value={values.password}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                emitChange('password', e.target.value)
-              }
-              autoComplete="new-password"
-              disabled={disabled}
-              fullWidth
-            />
-          </div>
-          <div className="ecu-companies-form__field">
-            <DateBox
-              id="sri-cert-expires"
-              label="Fecha de expiración *"
-              labelPosition="outlined"
-              variant="outline"
-              size="md"
-              value={values.expiresAt}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                emitChange('expiresAt', e.target.value)
-              }
-              disabled={disabled}
-              fullWidth
-            />
-          </div>
-          <div className="ecu-companies-form__field sri-config-field--check-align">
-            <CheckButton
-              variant="ghost"
-              checked={values.autoSign}
-              onChange={(checked: boolean) => emitChange('autoSign', checked)}
-              disabled={disabled}
-            >
-              Firmado automático
-            </CheckButton>
-          </div>
-          <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
-            <FileBox
-              id="sri-cert-file"
-              label="Certificado digital"
-              labelPosition="outlined"
-              variant="outline"
-              size="md"
-              displayMode="dropzone"
-              accept={CERT_ACCEPT}
-              multiple={false}
-              value={certFiles}
-              onChange={onPickFiles}
-              onReject={(rejected) => {
-                if (disabled) return
-                if (rejected[0]?.reason === 'type') {
-                  emitChange('fileName', null)
-                  setCertFiles([])
-                }
-              }}
-              placeholder="Arrastra o selecciona el certificado .p12 / .pfx"
-              buttonLabel="Examinar"
-              helperText={
-                values.fileName
-                  ? `Seleccionado: ${values.fileName}`
-                  : 'Certificado PKCS#12 (.p12 o .pfx) para firma electrónica SRI.'
-              }
-              disabled={disabled}
-              fullWidth
-            />
-          </div>
+  const body = (
+    <div className="sri-config-field-stack">
+      <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+        <div className="ecu-companies-form__field">
+          <TextBox
+            id="sri-cert-password"
+            label="Contraseña"
+            labelPosition="outlined"
+            variant="outline"
+            size="md"
+            type="password"
+            showPasswordToggle
+            value={values.password}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              emitChange('password', e.target.value)
+            }
+            autoComplete="new-password"
+            disabled={disabled}
+            fullWidth
+          />
         </div>
-      </section>
+        <div className="ecu-companies-form__field">
+          <DateBox
+            id="sri-cert-expires"
+            label="Expiración"
+            labelPosition="outlined"
+            variant="outline"
+            size="md"
+            value={values.expiresAt}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              emitChange('expiresAt', e.target.value)
+            }
+            disabled={disabled}
+            fullWidth
+          />
+        </div>
+        <div className="ecu-companies-form__field sri-config-field--check-align">
+          <CheckButton
+            variant="ghost"
+            checked={values.autoSign}
+            onChange={(checked: boolean) => emitChange('autoSign', checked)}
+            disabled={disabled}
+          >
+            Firmado automático
+          </CheckButton>
+        </div>
+        <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
+          <FileBox
+            id="sri-cert-file"
+            label="Certificado digital"
+            labelPosition="outlined"
+            variant="outline"
+            size="md"
+            displayMode="dropzone"
+            accept={CERT_ACCEPT}
+            multiple={false}
+            value={certFiles}
+            onChange={onPickFiles}
+            onReject={(rejected) => {
+              if (disabled) return
+              if (rejected[0]?.reason === 'type') {
+                emitChange('fileName', null)
+                setCertFiles([])
+              }
+            }}
+            placeholder="Archivo .p12 / .pfx"
+            buttonLabel="Examinar"
+            helperText={values.fileName ? values.fileName : 'Certificado PKCS#12'}
+            disabled={disabled}
+            fullWidth
+          />
+        </div>
+      </div>
 
-      <section className="app-shell__card ecu-companies-form__card">
-        <h2 className="app-shell__section-title">Modo de emisión</h2>
-        <p className="ecu-companies-form__hint">
-          Define qué hace Emitir factura: solo validar, firmar, o enviar al SRI (pruebas o
-          producción).
-        </p>
-        <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
-          <div className="ecu-companies-form__field">
-            <Select
-              id="sri-emit-profile"
-              label="Perfil"
-              labelPosition="outlined"
-              variant="outline"
-              options={[...PROFILE_OPTIONS]}
-              value={values.emitProfile}
-              onChange={(v) => emitChange('emitProfile', v as BillingEmitProfileId)}
-              disabled={disabled}
-              fullWidth
-            />
-          </div>
+      <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
+        <div className="ecu-companies-form__field">
+          <Select
+            id="sri-emit-profile"
+            label="Perfil de emisión"
+            labelPosition="outlined"
+            variant="outline"
+            options={[...PROFILE_OPTIONS]}
+            value={values.emitProfile}
+            onChange={(v) => emitChange('emitProfile', v as BillingEmitProfileId)}
+            disabled={disabled}
+            fullWidth
+          />
         </div>
-        <div
-          className={
-            profile.isDevelopment
-              ? 'sri-config-profile-note sri-config-profile-note--dev'
-              : 'sri-config-profile-note sri-config-profile-note--prod'
-          }
-          role="note"
-        >
-          <p className="sri-config-profile-note__title">
-            {profile.isDevelopment ? 'Ambiente de desarrollo' : 'Ambiente de producción'}
-          </p>
-          <p className="sri-config-profile-note__text">{profile.description}</p>
-        </div>
-      </section>
-    </>
+      </div>
+
+      <p
+        className={
+          profile.isDevelopment
+            ? 'sri-config-profile-note sri-config-profile-note--dev'
+            : 'sri-config-profile-note sri-config-profile-note--prod'
+        }
+        role="note"
+      >
+        {profile.description}
+      </p>
+    </div>
   )
+
+  if (embedded) return body
+
+  return <section className="app-shell__card ecu-companies-form__card">{body}</section>
 }

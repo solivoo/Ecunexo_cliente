@@ -9,6 +9,8 @@ export const CustomerType = {
 
 export type CustomerType = (typeof CustomerType)[keyof typeof CustomerType]
 
+export type CustomerTypeTone = 'primary' | 'success' | 'warning' | 'neutral' | 'danger' | 'info'
+
 export const CustomerIdentificationType = {
   Ruc: 1,
   Cedula: 2,
@@ -21,7 +23,7 @@ export type CustomerIdentificationType = (typeof CustomerIdentificationType)[key
 export interface CustomerTypeMeta {
   label: string
   shortLabel: string
-  tone: 'primary' | 'success' | 'warning' | 'neutral'
+  tone: CustomerTypeTone
   badgeColor?: string
   description: string
 }
@@ -120,4 +122,69 @@ export type CustomerFilterParams = {
   search?: string
   from?: string
   to?: string
+}
+
+export type CustomerTypeDefinitionDto = {
+  id: string
+  code: number
+  name: string
+  shortLabel: string
+  tone: string
+  sortOrder: number
+  isSystem: boolean
+  isActive: boolean
+}
+
+export type CreateCustomerTypePayload = {
+  name: string
+  shortLabel: string
+  tone?: string
+  sortOrder?: number
+}
+
+export type UpdateCustomerTypePayload = {
+  name: string
+  shortLabel: string
+  tone?: string
+  sortOrder?: number
+  isActive?: boolean
+}
+
+export function resolveCustomerTypeMeta(
+  code: number,
+  definitions?: CustomerTypeDefinitionDto[]
+): CustomerTypeMeta {
+  const fromApi = definitions?.find((d) => d.code === code)
+  if (fromApi) {
+    return {
+      label: fromApi.name,
+      shortLabel: fromApi.shortLabel,
+      tone: normalizeCustomerTypeTone(fromApi.tone),
+      description: fromApi.isSystem ? 'Tipo de sistema' : 'Tipo personalizado',
+    }
+  }
+
+  const fallback = CUSTOMER_TYPE_METADATA[code as CustomerType]
+  if (fallback) return fallback
+
+  return {
+    label: `Tipo ${code}`,
+    shortLabel: `Tipo ${code}`,
+    tone: 'neutral',
+    description: 'Clasificación comercial',
+  }
+}
+
+export function normalizeCustomerTypeTone(tone: string): CustomerTypeTone {
+  switch (tone) {
+    case 'primary':
+    case 'success':
+    case 'warning':
+    case 'neutral':
+    case 'danger':
+    case 'info':
+      return tone
+    default:
+      return 'primary'
+  }
 }

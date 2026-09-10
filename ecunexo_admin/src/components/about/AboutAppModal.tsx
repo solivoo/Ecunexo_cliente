@@ -110,11 +110,13 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Clientes Comerciales, Filtros DataGrid & Taller B2B</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Tipos de Cliente y Permisos</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Tipos de cliente editables:</strong> Crea, edita y desactiva clasificaciones personalizadas en Clientes → Tipos; el directorio usa esos tipos al registrar o editar fichas.</li>
+            <li><strong>Permiso customers.manage:</strong> Alta, edición y estado de clientes (y tipos) quedan acotados a este permiso; la lectura del directorio sigue con customers.read.</li>
+            <li><strong>Clientes unificados:</strong> El directorio vive bajo Clientes; Reparaciones y Facturación seleccionan los mismos clientes habilitados al crear lotes o emitir facturas.</li>
             <li><strong>Directorio de Clientes estabilizado:</strong> Migración de clasificación comercial (tipo e identificación) y UI alineada al patrón enterprise (PageHeader, KPIs, filtros en SectionCard/DataGrid).</li>
-            <li><strong>Módulo Autónomo de Clientes:</strong> Directorio comercial transversal con clasificación comercial (Corporativo B2B, Persona Natural, Distribuidor Mayorista, Taller Aliado, Consumidor Final, Institución Pública) y cuotas por plan.</li>
             <li><strong>Validación SRI & Rangos de Fecha en DataGrid:</strong> Validación algorítmica SRI (Cédula Módulo 10, RUC Módulo 11) e integración de componentes glubox (RangeDateBox, Select) en cabeceras de datos.</li>
             <li><strong>Taller y Lotes B2B:</strong> Gestión integral de lotes de reacondicionamiento masivo con tarifas parametrizadas por severidad de daño (N1, N2, N3).</li>
             <li><strong>Importación Excel Inteligente:</strong> Carga masiva mediante plantillas dinámicas ClosedXML y validación estricta de series duplicadas en muelle.</li>

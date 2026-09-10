@@ -87,7 +87,7 @@ internal static class MenuCatalogSeedData
         ("repairs.batches.cancel", "Lotes — anular", "Anular lotes sin procesar con fines de auditoría", "repairs", 126),
 
         ("customers.read", "Clientes — consultar", "Listar y consultar clientes del directorio", "customers", 130),
-        ("customers.manage", "Clientes — administrar", "Crear, editar y clasificar clientes", "customers", 131),
+        ("customers.manage", "Clientes — administrar", "Crear, editar clientes y gestionar tipos de clasificación", "customers", 131),
     ];
 
     public static IReadOnlyList<(string Code, string DisplayName)> ProductModules =>
@@ -126,13 +126,14 @@ internal static class MenuCatalogSeedData
         Item("inventory-documents", "inventory", "Documentos", "file-text", "inventario/documentos", 2, MenuContextKind.Operational, "inventory", ["inventory.documents.create", "inventory.documents.approve", "inventory.stock.read"]),
         Item("inventory-kardex", "inventory", "Kárdex", "list", "inventario/kardex", 3, MenuContextKind.Operational, "inventory", ["inventory.movement.read", "inventory.stock.read"]),
 
-        Item("customers", null, "Clientes", "users", "clientes", 55, MenuContextKind.Operational, "customers", ["customers.read"]),
+        Item("customers", null, "Clientes", "users", null, 55, MenuContextKind.Operational, "customers", ["customers.read"]),
+        Item("customers-directory", "customers", "Directorio", "users", "clientes", 1, MenuContextKind.Operational, "customers", ["customers.read"]),
+        Item("customers-types", "customers", "Tipos de cliente", "tags", "clientes/tipos", 2, MenuContextKind.Operational, "customers", ["customers.read", "customers.manage"]),
 
         Item("repairs", null, "Reparaciones", "build", null, 56, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
         Item("repairs-batches", "repairs", "Lotes de Equipos", "layers", "taller/lotes", 1, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
         Item("repairs-dispatches", "repairs", "Actas y Despachos", "truck", "taller/despachos", 2, MenuContextKind.Operational, "repairs", ["repairs.dispatches.create", "repairs.batches.read"]),
         Item("repairs-portal", "repairs", "Portal Corporativo", "eye", "taller/portal", 3, MenuContextKind.Operational, "repairs", ["repairs.b2b.portal.view"]),
-        Item("repairs-customers", "repairs", "Directorio de Clientes", "users", "taller/clientes", 4, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Comprobantes", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
@@ -204,6 +205,7 @@ internal static class MenuCatalogSeedData
         "facturacion-config",
         "facturacion-config-impuestos",
         "catalog-soon",
+        "repairs-customers",
     ];
 
     private static MenuItem Item(

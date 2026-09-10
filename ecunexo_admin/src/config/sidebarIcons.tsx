@@ -28,6 +28,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Sun,
+  Tags,
   Trash2,
   Truck,
   UserPlus,
@@ -89,6 +90,7 @@ const iconMap: Record<string, LucideIcon> = {
   build: Wrench,
   wrench: Wrench,
   layers: Layers,
+  tags: Tags,
   truck: Truck,
   eye: Eye,
 }

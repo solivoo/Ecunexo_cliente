@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Popup, useToast, type PageActionItem } from 'glubox'
+import { Plus } from 'lucide-react'
 import {
   EmptyState,
   PageHeader,
@@ -33,6 +34,16 @@ import type {
   ListSubscriptionCompaniesDto,
   SubscriptionCompanyListItemDto,
 } from '@/types/companiesApi'
+
+/** Trial = 0, Active = 1 (TenantStatus). */
+function companyStatusFooter(companies: readonly SubscriptionCompanyListItemDto[]): string {
+  const active = companies.filter((c) => c.status === 1).length
+  const trial = companies.filter((c) => c.status === 0).length
+  if (active > 0 && trial > 0) return `${active} activas · ${trial} en prueba`
+  if (active > 0) return `${active} ${active === 1 ? 'activa' : 'activas'}`
+  if (trial > 0) return `${trial} en prueba`
+  return 'Sin empresas operativas'
+}
 
 export function CompaniesListPage() {
   const toast = useToast()
@@ -159,28 +170,16 @@ export function CompaniesListPage() {
   const canCreateMore = summary?.canCreateMore ?? false
 
   const actionItems = useMemo((): PageActionItem[] => {
-    const items: PageActionItem[] = []
-    if (canCreate) {
-      items.push({
-        id: 'create',
-        label: 'Crear empresa',
-        icon: 'plus',
-        route: '/organizacion/empresas/nueva',
-        disabled: !canCreateMore,
-        disabledReason: canCreateMore
-          ? null
-          : 'No quedan cupos en la licencia',
-      })
-    }
-    items.push({
-      id: 'refresh',
-      label: 'Actualizar',
-      icon: 'refresh-cw',
-      route: null,
-      disabled: loading,
-    })
-    return items
-  }, [canCreate, canCreateMore, loading])
+    return [
+      {
+        id: 'refresh',
+        label: 'Actualizar',
+        icon: 'refresh-cw',
+        route: null,
+        disabled: loading,
+      },
+    ]
+  }, [loading])
 
   const handleActionSelect = useCallback(
     (item: PageActionItem) => {
@@ -205,19 +204,33 @@ export function CompaniesListPage() {
             ) : undefined
           }
           actions={
-            <EcuPageActions
-              items={actionItems}
-              variant="outline"
-              triggerLabel="Acciones de empresas"
-              renderIcon={renderSidebarIcon}
-              onNavigate={(route: string) => navigate(route)}
-              onActionSelect={handleActionSelect}
-            />
+            <>
+              {canCreate ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={!canCreateMore}
+                  title={canCreateMore ? undefined : 'No quedan cupos en la licencia'}
+                  onClick={() => navigate('/organizacion/empresas/nueva')}
+                >
+                  <Plus size={16} strokeWidth={2} aria-hidden />
+                  Crear empresa
+                </Button>
+              ) : null}
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de empresas"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
           }
         />
 
         {summary ? (
-          <div className="ecu-stat-cards-grid">
+          <div className="ecu-stat-grid" aria-label="Resumen de cupos y empresas">
             <StatCard
               label="Cupo Usado"
               value={`${summary.usedCount} / ${summary.maxTenants}`}
@@ -237,7 +250,7 @@ export function CompaniesListPage() {
               value={summary.companies.length}
               icon="layers"
               toneColor="#0284c7"
-              footerText={`${summary.companies.filter((c) => c.status === 1).length} activas`}
+              footerText={companyStatusFooter(summary.companies)}
             />
             <StatCard
               label="Tipo de Licencia"

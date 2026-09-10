@@ -1,5 +1,4 @@
 using EcuNexo.Core.Customers;
-using EcuNexo.Core.Repairs;
 
 namespace EcuNexo.Core.UnitTests.Customers;
 
@@ -103,17 +102,30 @@ public sealed class CustomerEntitiesTests
         result.Error!.Code.Should().Be("customer.tax_id.ruc.invalid");
     }
 
-    [Fact(DisplayName = "Customer.Create con CustomerType inválido devuelve error")]
+    [Fact(DisplayName = "Customer.Create con CustomerType inválido (<= 0) devuelve error")]
     public void Customer_Create_WithInvalidType_Fails()
     {
         var result = Customer.Create(
             Guid.NewGuid(),
             Guid.NewGuid(),
             "Cliente Tipo Inválido",
-            customerType: (CustomerType)999);
+            customerType: (CustomerType)0);
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("customer.type.invalid");
+    }
+
+    [Fact(DisplayName = "Customer.Create acepta códigos de tipo personalizados (>= 100)")]
+    public void Customer_Create_WithCustomTypeCode_Succeeds()
+    {
+        var result = Customer.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Cliente Tipo Personalizado",
+            customerType: (CustomerType)100);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.CustomerType.Should().Be((CustomerType)100);
     }
 
     [Fact(DisplayName = "Customer.ChangeClassification actualiza la clasificación y fecha de modificación")]

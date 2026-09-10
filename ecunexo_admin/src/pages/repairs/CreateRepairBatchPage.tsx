@@ -8,16 +8,20 @@ import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
 import { validateEcuadorTaxId, validateEmail, validatePhone } from '@/lib/ecuadorTaxIdValidator'
+import { createCustomer, listCustomers } from '@/services/customersApi'
 import {
-  createRepairCustomer,
   downloadRepairTemplate,
   importRepairBatch,
-  listRepairCustomers,
   previewRepairBatch,
 } from '@/services/repairsApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import type { BatchPreviewResponse, RepairCustomerDto } from '@/types/repairsApi'
+import {
+  CustomerIdentificationType,
+  CustomerType,
+  type CustomerDto,
+} from '@/types/customersApi'
+import type { BatchPreviewResponse } from '@/types/repairsApi'
 
 export function CreateRepairBatchPage() {
   const toast = useToast()
@@ -27,7 +31,7 @@ export function CreateRepairBatchPage() {
 
   const canImport = useHasPermission('repairs.batches.import')
 
-  const [customers, setCustomers] = useState<RepairCustomerDto[]>([])
+  const [customers, setCustomers] = useState<CustomerDto[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [batchNumber, setBatchNumber] = useState('')
   const [contractRef, setContractRef] = useState('')
@@ -107,9 +111,9 @@ export function CreateRepairBatchPage() {
 
     void (async () => {
       try {
-        const list = await listRepairCustomers(tenantId)
+        const list = await listCustomers(tenantId)
         if (!active) return
-        setCustomers(list)
+        setCustomers(list.filter((c) => c.isActive))
       } catch {
         if (active) setCustomers([])
       }
@@ -122,7 +126,7 @@ export function CreateRepairBatchPage() {
 
   const customerOptions = useMemo(
     () => [
-      { value: '', label: 'Seleccionar cliente corporativo...' },
+      { value: '', label: 'Seleccionar cliente habilitado...' },
       ...customers.map((c) => ({
         value: c.id,
         label: `${c.name}${c.taxId ? ` (${c.taxId})` : ''}`,
@@ -168,14 +172,25 @@ export function CreateRepairBatchPage() {
     setNewCustError(null)
 
     try {
-      const created = await createRepairCustomer(tenantId, {
+      const tax = newCustTaxId.trim()
+      const identificationType =
+        tax.length === 10
+          ? CustomerIdentificationType.Cedula
+          : tax.length === 13
+            ? CustomerIdentificationType.Ruc
+            : CustomerIdentificationType.Ruc
+
+      const created = await createCustomer(tenantId, {
         name: newCustName.trim(),
-        taxId: newCustTaxId.trim() || undefined,
-        contactPerson: newCustPerson.trim() || undefined,
-        contactEmail: newCustEmail.trim() || undefined,
-        contactPhone: newCustPhone.trim() || undefined,
-        address: newCustAddress.trim() || undefined,
-        notes: newCustNotes.trim() || undefined,
+        taxId: tax || null,
+        customerType: CustomerType.CorporativoB2B,
+        identificationType,
+        contactPerson: newCustPerson.trim() || null,
+        contactEmail: newCustEmail.trim() || null,
+        contactPhone: newCustPhone.trim() || null,
+        address: newCustAddress.trim() || null,
+        notes: newCustNotes.trim() || null,
+        isActive: true,
       })
 
       setCustomers((prev) => [...prev, created])
@@ -190,12 +205,12 @@ export function CreateRepairBatchPage() {
       setNewCustNotes('')
 
       toast.show({
-        title: 'Cliente corporativo registrado',
-        message: `Cliente "${created.name}" agregado y seleccionado para este lote.`,
+        title: 'Cliente registrado',
+        message: `«${created.name}» quedó en el directorio comercial y seleccionado para este lote.`,
         variant: 'success',
       })
     } catch (err: unknown) {
-      setNewCustError(readApiError(err, 'Error al registrar el cliente corporativo.'))
+      setNewCustError(readApiError(err, 'Error al registrar el cliente en el directorio.'))
     } finally {
       setSavingCust(false)
     }
@@ -413,7 +428,7 @@ export function CreateRepairBatchPage() {
                 <div>
                   <Select
                     id="repair-customer"
-                    label="Cliente Corporativo *"
+                    label="Cliente del directorio *"
                     labelPosition="outlined"
                     variant="outline"
                     options={customerOptions}
@@ -438,7 +453,7 @@ export function CreateRepairBatchPage() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => navigate('/taller/clientes')}
+                      onClick={() => navigate('/clientes')}
                       style={{ padding: 0, height: 'auto', color: 'var(--shell-primary)' }}
                     >
                       Ir al Directorio de Clientes &rarr;
@@ -803,7 +818,7 @@ export function CreateRepairBatchPage() {
               variant="outline"
               value={newCustName}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustName(e.target.value)}
-              placeholder="ej. Mabe del Ecuador S.A."
+              placeholder="Razón social"
               required
               fullWidth
             />
@@ -811,12 +826,12 @@ export function CreateRepairBatchPage() {
             <div className="ecu-form-grid-2">
               <TextBox
                 id="new-cust-taxid"
-                label="RUC / Cédula / Tax ID"
+                label="RUC / Cédula"
                 labelPosition="outlined"
                 variant="outline"
                 value={newCustTaxId}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustTaxId(e.target.value)}
-                placeholder="1792345678001"
+                placeholder="Identificación"
                 fullWidth
               />
 
@@ -827,7 +842,7 @@ export function CreateRepairBatchPage() {
                 variant="outline"
                 value={newCustPerson}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustPerson(e.target.value)}
-                placeholder="Ing. Carlos Mendoza"
+                placeholder="Contacto"
                 fullWidth
               />
             </div>
@@ -841,13 +856,13 @@ export function CreateRepairBatchPage() {
                 variant="outline"
                 value={newCustEmail}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustEmail(e.target.value)}
-                placeholder="garantias@cliente.com"
+                placeholder="correo@empresa.com"
                 fullWidth
               />
 
               <TextBox
                 id="new-cust-phone"
-                label="Teléfono / Celular"
+                label="Teléfono"
                 labelPosition="outlined"
                 variant="outline"
                 value={newCustPhone}
@@ -859,23 +874,23 @@ export function CreateRepairBatchPage() {
 
             <TextBox
               id="new-cust-address"
-              label="Dirección / Planta / Centro de Distribución"
+              label="Dirección"
               labelPosition="outlined"
               variant="outline"
               value={newCustAddress}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustAddress(e.target.value)}
-              placeholder="Av. Juan Tanca Marengo Km 4.5, Bodega 3"
+              placeholder="Dirección"
               fullWidth
             />
 
             <TextBox
               id="new-cust-notes"
-              label="Notas / Observaciones de Servicio"
+              label="Notas"
               labelPosition="outlined"
               variant="outline"
               value={newCustNotes}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setNewCustNotes(e.target.value)}
-              placeholder="Contrato de garantía post-venta regional"
+              placeholder="Opcional"
               fullWidth
             />
           </div>

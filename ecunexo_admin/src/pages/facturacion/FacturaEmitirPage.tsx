@@ -111,6 +111,7 @@ export function FacturaEmitirPage() {
               disabled={form.formDisabled}
               onHeaderChange={form.patchHeader}
               onCounterpartyChange={form.patchCounterparty}
+              onCounterpartyReplace={form.replaceCounterparty}
             />
 
             <InvoiceNotesFields

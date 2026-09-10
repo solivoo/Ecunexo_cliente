@@ -248,6 +248,10 @@ export function useInvoiceEmitForm({
     []
   )
 
+  const replaceCounterparty = useCallback((next: InvoiceCounterpartyValues) => {
+    setCounterparty(next)
+  }, [])
+
   const addLine = useCallback(() => {
     setLines((prev) => [...prev, createEmptyLine(newLineId())])
   }, [])
@@ -507,6 +511,7 @@ export function useInvoiceEmitForm({
     onPreview,
     patchHeader,
     patchCounterparty,
+    replaceCounterparty,
     addLine,
     removeLine,
     patchLine,

@@ -1,0 +1,70 @@
+/* Formulario del modal Registrar/Editar Cliente — ritmo vertical y grilla 2 columnas */
+
+.ecu-customer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-top: 0.85rem;
+}
+
+.ecu-customer-form__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem 1.15rem;
+  align-items: start;
+}
+
+@media (min-width: 520px) {
+  .ecu-customer-form__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.ecu-customer-form__field {
+  min-width: 0;
+  width: 100%;
+  /* Aire superior para labels outlined (flotan sobre el borde) */
+  padding-top: 0.4rem;
+}
+
+.ecu-customer-form__field--span {
+  grid-column: 1 / -1;
+}
+
+.ecu-customer-form__field .glb-textbox,
+.ecu-customer-form__field .glb-select,
+.ecu-customer-form__field .glb-textarea {
+  width: 100%;
+}
+
+.ecu-customer-form__hint {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--glb-muted, #94a3b8);
+}
+
+.ecu-customer-form__hint--error {
+  color: #f87171;
+}
+
+.ecu-customer-form__hint--ok {
+  color: #34d399;
+}
+
+.ecu-customer-form__status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--glb-border, rgba(255, 255, 255, 0.08));
+}
+
+.ecu-customer-form__status .glb-checkbtn {
+  width: auto;
+  max-width: 100%;
+  min-height: 2.5rem;
+  padding-inline: 0.85rem;
+}

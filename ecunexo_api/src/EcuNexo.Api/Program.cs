@@ -134,6 +134,7 @@ app.MapCatalogEndpointsV1();
 app.MapWarehouseEndpointsV1();
 app.MapInventoryEndpointsV1();
 app.MapCustomerEndpointsV1();
+app.MapCustomerTypeEndpointsV1();
 app.MapRepairEndpointsV1();
 
 var migrateOnStartup = app.Configuration.GetValue(

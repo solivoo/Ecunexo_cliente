@@ -42,3 +42,26 @@ public sealed record UpdateCustomerApiRequest(
     bool? IsActive = null);
 
 public sealed record ToggleCustomerStatusApiRequest(bool IsActive);
+
+public sealed record CustomerTypeDefinitionDto(
+    Guid Id,
+    int Code,
+    string Name,
+    string ShortLabel,
+    string Tone,
+    int SortOrder,
+    bool IsSystem,
+    bool IsActive);
+
+public sealed record CreateCustomerTypeApiRequest(
+    string Name,
+    string ShortLabel,
+    string? Tone = null,
+    int? SortOrder = null);
+
+public sealed record UpdateCustomerTypeApiRequest(
+    string Name,
+    string ShortLabel,
+    string? Tone = null,
+    int? SortOrder = null,
+    bool? IsActive = null);

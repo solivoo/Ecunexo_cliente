@@ -1,6 +1,5 @@
-using EcuNexo.Business.Repairs.Repositories;
+using EcuNexo.Business.Customers.Repositories;
 using EcuNexo.Core.Customers;
-using EcuNexo.Core.Repairs;
 using Microsoft.EntityFrameworkCore;
 
 namespace EcuNexo.Data.Repositories;
@@ -68,7 +67,8 @@ public sealed class CustomerRepository : ICustomerRepository
         }
 
         return await query
-            .OrderBy(c => c.Name)
+            .OrderByDescending(c => c.CreatedAt)
+            .ThenBy(c => c.Name)
             .ToListAsync(ct)
             .ConfigureAwait(false);
     }

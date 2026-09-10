@@ -7,11 +7,13 @@ import { getRideProvider, updateRideProvider } from '@/services/billingApi'
 export type SriSoftwareProviderSectionProps = {
   readonly disabled?: boolean
   readonly suggestedRuc?: string
+  readonly embedded?: boolean
 }
 
 export function SriSoftwareProviderSection({
   disabled = false,
   suggestedRuc = '',
+  embedded = false,
 }: SriSoftwareProviderSectionProps) {
   const toast = useToast()
   const [busy, setBusy] = useState(false)
@@ -35,9 +37,7 @@ export function SriSoftwareProviderSection({
       } catch (err: unknown) {
         if (cancelled) return
         if (suggestedRuc) setRuc(suggestedRuc)
-        setLoadError(
-          readApiError(err, 'No se pudo leer el RUC proveedor en Billing.Api (:5203).')
-        )
+        setLoadError(readApiError(err, 'No se pudo leer el proveedor en Billing.'))
       }
     })()
     return () => {
@@ -59,16 +59,16 @@ export function SriSoftwareProviderSection({
       setFallback(saved.usesEmitterFallback)
       setLoadError(null)
       toast.show({
-        title: 'Proveedor del sistema',
+        title: 'Proveedor guardado',
         message: saved.usesEmitterFallback
-          ? 'Guardado. Sin RUC de plataforma, cada factura usará el RUC del emisor.'
-          : `Guardado. RUC Proveedor ${saved.ruc} en XML y RIDE.`,
+          ? 'Sin RUC de plataforma: se usará el RUC del emisor.'
+          : `RUC proveedor ${saved.ruc}.`,
         variant: 'success',
       })
     } catch (err: unknown) {
       toast.show({
         title: 'No se pudo guardar',
-        message: readApiError(err, 'Revisa que Billing.Api (:5203) esté en marcha.'),
+        message: readApiError(err, 'Revisa que Billing esté en marcha.'),
         variant: 'error',
       })
     } finally {
@@ -76,16 +76,8 @@ export function SriSoftwareProviderSection({
     }
   }, [footerLine, legalName, ruc, toast])
 
-  return (
-    <section className="app-shell__card ecu-companies-form__card">
-      <h2 className="app-shell__section-title">Proveedor del sistema (SRI)</h2>
-      <p className="ecu-companies-form__hint">
-        Resolución NAC-DGERCGC26-00000027: en cada factura debe ir el campo adicional «RUC
-        Proveedor» con el RUC de quien comercializa el software. Si EcuNexo y la empresa emisora
-        son la misma persona jurídica, ese RUC coincide con el de esta empresa — igual hay que
-        emitirlo. Si más adelante facturan clientes terceros, no cambien este valor: sigue siendo
-        el RUC de EcuNexo.
-      </p>
+  const body = (
+    <>
       {loadError ? (
         <p className="ecu-companies-form__hint" role="status">
           {loadError}
@@ -93,15 +85,14 @@ export function SriSoftwareProviderSection({
       ) : null}
       {fallback ? (
         <p className="ecu-companies-form__hint" role="status">
-          Hoy no hay RUC de plataforma. Las facturas nuevas usarán el RUC del emisor (correcto
-          solo mientras sean la misma empresa).
+          Sin RUC de plataforma: las facturas usarán el RUC del emisor.
         </p>
       ) : null}
       <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
         <div className="ecu-companies-form__field">
           <TextBox
             id="ride-provider-ruc"
-            label="RUC proveedor del sistema"
+            label="RUC proveedor"
             labelPosition="outlined"
             variant="outline"
             value={ruc}
@@ -114,7 +105,7 @@ export function SriSoftwareProviderSection({
         <div className="ecu-companies-form__field">
           <TextBox
             id="ride-provider-name"
-            label="Nombre comercial del software"
+            label="Nombre del software"
             labelPosition="outlined"
             variant="outline"
             value={legalName}
@@ -141,7 +132,7 @@ export function SriSoftwareProviderSection({
       <footer className="ecu-companies-form__actions">
         <Button
           type="button"
-          variant="primary"
+          variant="outline"
           size="md"
           disabled={disabled || busy}
           loading={busy}
@@ -150,6 +141,15 @@ export function SriSoftwareProviderSection({
           {busy ? 'Guardando…' : 'Guardar proveedor'}
         </Button>
       </footer>
+    </>
+  )
+
+  if (embedded) return body
+
+  return (
+    <section className="app-shell__card ecu-companies-form__card">
+      <h2 className="app-shell__section-title">Proveedor del sistema</h2>
+      {body}
     </section>
   )
 }

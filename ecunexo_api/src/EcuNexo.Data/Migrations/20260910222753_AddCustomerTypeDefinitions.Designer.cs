@@ -5,6 +5,7 @@ using EcuNexo.Core.Tenancy;
 using EcuNexo.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EcuNexo.Data.Migrations
 {
     [DbContext(typeof(EcuNexoDbContext))]
-    partial class EcuNexoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260910222753_AddCustomerTypeDefinitions")]
+    partial class AddCustomerTypeDefinitions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1154,7 +1157,7 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("sys_settings", "platform");
                 });
 
-            modelBuilder.Entity("EcuNexo.Core.Customers.Customer", b =>
+            modelBuilder.Entity("EcuNexo.Core.Repairs.Customer", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
@@ -2706,7 +2709,7 @@ namespace EcuNexo.Data.Migrations
 
             modelBuilder.Entity("EcuNexo.Core.Repairs.RepairBatch", b =>
                 {
-                    b.HasOne("EcuNexo.Core.Customers.Customer", "Customer")
+                    b.HasOne("EcuNexo.Core.Repairs.Customer", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -2726,7 +2729,7 @@ namespace EcuNexo.Data.Migrations
 
             modelBuilder.Entity("EcuNexo.Core.Repairs.RepairBatchTemplate", b =>
                 {
-                    b.HasOne("EcuNexo.Core.Customers.Customer", "Customer")
+                    b.HasOne("EcuNexo.Core.Repairs.Customer", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.SetNull)

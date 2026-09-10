@@ -1,7 +1,6 @@
 using EcuNexo.Core.Customers;
-using EcuNexo.Core.Repairs;
 
-namespace EcuNexo.Business.Repairs.Repositories;
+namespace EcuNexo.Business.Customers.Repositories;
 
 public interface ICustomerRepository
 {

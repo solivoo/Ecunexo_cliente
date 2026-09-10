@@ -1,3 +1,4 @@
+using EcuNexo.Core.Customers;
 using EcuNexo.Core.Repairs;
 
 namespace EcuNexo.Core.UnitTests.Repairs;
@@ -35,7 +36,7 @@ public sealed class RepairEntitiesTests
         var result = Customer.Create(Guid.NewGuid(), Guid.NewGuid(), "   ");
 
         result.IsFailure.Should().BeTrue();
-        result.Error!.Code.Should().Be("repairs.customer.name.empty");
+        result.Error!.Code.Should().Be("customer.name.empty");
     }
 
     [Fact(DisplayName = "RepairBatchTemplate.Create con JSON válido es exitoso")]

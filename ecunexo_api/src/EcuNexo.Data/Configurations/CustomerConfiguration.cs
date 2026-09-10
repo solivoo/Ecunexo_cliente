@@ -1,4 +1,4 @@
-using EcuNexo.Core.Repairs;
+using EcuNexo.Core.Customers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

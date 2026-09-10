@@ -1,5 +1,6 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Core.Catalog;
+using EcuNexo.Core.Customers;
 using EcuNexo.Core.Identity;
 using EcuNexo.Core.Inventory;
 using EcuNexo.Core.Platform;
@@ -70,6 +71,8 @@ public sealed class EcuNexoDbContext : DbContext
     public DbSet<InvoiceStockEgress> InvoiceStockEgresses => Set<InvoiceStockEgress>();
 
     public DbSet<Customer> Customers => Set<Customer>();
+
+    public DbSet<CustomerTypeDefinition> CustomerTypeDefinitions => Set<CustomerTypeDefinition>();
 
     public DbSet<RepairBatchTemplate> RepairBatchTemplates => Set<RepairBatchTemplate>();
 

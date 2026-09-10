@@ -5,7 +5,9 @@ using EcuNexo.Business.Repairs.Commands.ImportRepairBatch;
 using EcuNexo.Business.Repairs.Commands.UpdateEquipmentStatus;
 using EcuNexo.Business.Repairs.Excel;
 using EcuNexo.Business.Repairs.Queries.VerifyDispatchPublic;
+using EcuNexo.Business.Customers.Repositories;
 using EcuNexo.Business.Repairs.Repositories;
+using EcuNexo.Core.Customers;
 using EcuNexo.Core.Repairs;
 using NSubstitute;
 

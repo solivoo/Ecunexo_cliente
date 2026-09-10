@@ -1,9 +1,12 @@
 import { api } from '@/lib/apiClient'
 import type {
   CreateCustomerPayload,
+  CreateCustomerTypePayload,
   CustomerDto,
   CustomerFilterParams,
+  CustomerTypeDefinitionDto,
   UpdateCustomerPayload,
+  UpdateCustomerTypePayload,
 } from '@/types/customersApi'
 
 /**
@@ -89,4 +92,57 @@ export async function toggleCustomerStatus(
     { isActive }
   )
   return data
+}
+
+/**
+ * Listar definiciones de tipos de cliente (sistema + personalizados).
+ */
+export async function listCustomerTypes(
+  tenantId: string,
+  activeOnly = false
+): Promise<CustomerTypeDefinitionDto[]> {
+  const { data } = await api.get<CustomerTypeDefinitionDto[]>(
+    `/api/v1/tenants/${tenantId}/customers/types`,
+    { params: { activeOnly } }
+  )
+  return data
+}
+
+/**
+ * Crear un tipo de cliente personalizado.
+ */
+export async function createCustomerType(
+  tenantId: string,
+  payload: CreateCustomerTypePayload
+): Promise<CustomerTypeDefinitionDto> {
+  const { data } = await api.post<CustomerTypeDefinitionDto>(
+    `/api/v1/tenants/${tenantId}/customers/types`,
+    payload
+  )
+  return data
+}
+
+/**
+ * Actualizar un tipo de cliente existente.
+ */
+export async function updateCustomerType(
+  tenantId: string,
+  typeId: string,
+  payload: UpdateCustomerTypePayload
+): Promise<CustomerTypeDefinitionDto> {
+  const { data } = await api.put<CustomerTypeDefinitionDto>(
+    `/api/v1/tenants/${tenantId}/customers/types/${typeId}`,
+    payload
+  )
+  return data
+}
+
+/**
+ * Eliminar (baja lógica) un tipo personalizado.
+ */
+export async function deleteCustomerType(
+  tenantId: string,
+  typeId: string
+): Promise<void> {
+  await api.delete(`/api/v1/tenants/${tenantId}/customers/types/${typeId}`)
 }

@@ -4,9 +4,8 @@ using EcuNexo.Api.Contracts.V1.Customers;
 using EcuNexo.Api.Extensions;
 using EcuNexo.Api.Security;
 using EcuNexo.Business.Abstractions;
-using EcuNexo.Business.Repairs.Repositories;
+using EcuNexo.Business.Customers.Repositories;
 using EcuNexo.Core.Customers;
-using EcuNexo.Core.Repairs;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EcuNexo.Api.Endpoints.V1.Customers;
@@ -27,19 +26,32 @@ public static class CustomerEndpoints
             .RequireAuthorization();
 
         group.MapGet("/", ListCustomersAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("customers.read", "customers.manage", "repairs.batches.read"));
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "customers.read",
+                "customers.manage",
+                "repairs.batches.read",
+                "repairs.batches.import",
+                "facturacion.read",
+                "facturacion.facturas.create",
+                "facturacion.comprobantes.read"));
 
         group.MapGet("/{customerId:guid}", GetCustomerByIdAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("customers.read", "customers.manage", "repairs.batches.read"));
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "customers.read",
+                "customers.manage",
+                "repairs.batches.read",
+                "facturacion.read",
+                "facturacion.facturas.create",
+                "facturacion.comprobantes.read"));
 
         group.MapPost("/", CreateCustomerAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("customers.manage", "repairs.batches.import", "repairs.batches.read"));
+            .AddEndpointFilter(PermissionFilters.Require("customers.manage"));
 
         group.MapPut("/{customerId:guid}", UpdateCustomerAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("customers.manage", "repairs.batches.import", "repairs.batches.read"));
+            .AddEndpointFilter(PermissionFilters.Require("customers.manage"));
 
         group.MapPatch("/{customerId:guid}/status", ToggleCustomerStatusAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("customers.manage", "repairs.batches.import", "repairs.batches.read"));
+            .AddEndpointFilter(PermissionFilters.Require("customers.manage"));
 
         return app;
     }
@@ -76,12 +88,20 @@ public static class CustomerEndpoints
         [FromRoute] Guid tenantId,
         [FromBody] CreateCustomerApiRequest request,
         [FromServices] ICustomerRepository customerRepo,
+        [FromServices] ICustomerTypeDefinitionRepository typeRepo,
         [FromServices] IUnitOfWork unitOfWork,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return Results.BadRequest(new { error = "El nombre o razón social del cliente es obligatorio." });
+        }
+
+        var typeCheck = await EnsureActiveCustomerTypeAsync(tenantId, request.CustomerType, typeRepo, ct)
+            .ConfigureAwait(false);
+        if (typeCheck is not null)
+        {
+            return typeCheck;
         }
 
         var trimmedName = request.Name.Trim();
@@ -126,6 +146,7 @@ public static class CustomerEndpoints
         [FromRoute] Guid customerId,
         [FromBody] UpdateCustomerApiRequest request,
         [FromServices] ICustomerRepository customerRepo,
+        [FromServices] ICustomerTypeDefinitionRepository typeRepo,
         [FromServices] IUnitOfWork unitOfWork,
         CancellationToken ct)
     {
@@ -138,6 +159,16 @@ public static class CustomerEndpoints
         if (customer == null)
         {
             return Results.NotFound(new { message = "Cliente no encontrado." });
+        }
+
+        if (request.CustomerType.HasValue)
+        {
+            var typeCheck = await EnsureActiveCustomerTypeAsync(tenantId, request.CustomerType.Value, typeRepo, ct)
+                .ConfigureAwait(false);
+            if (typeCheck is not null)
+            {
+                return typeCheck;
+            }
         }
 
         var trimmedName = request.Name.Trim();
@@ -210,5 +241,21 @@ public static class CustomerEndpoints
 
         await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
         return Results.Ok(customer);
+    }
+
+    private static async Task<IResult?> EnsureActiveCustomerTypeAsync(
+        Guid tenantId,
+        CustomerType customerType,
+        ICustomerTypeDefinitionRepository typeRepo,
+        CancellationToken ct)
+    {
+        await typeRepo.EnsureSystemDefaultsAsync(tenantId, ct).ConfigureAwait(false);
+        var definition = await typeRepo.GetByCodeAsync(tenantId, (int)customerType, ct).ConfigureAwait(false);
+        if (definition is null || !definition.IsActive)
+        {
+            return Results.BadRequest(new { error = "El tipo de cliente no existe o está desactivado." });
+        }
+
+        return null;
     }
 }

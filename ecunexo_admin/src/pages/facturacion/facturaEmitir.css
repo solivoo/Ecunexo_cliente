@@ -137,6 +137,10 @@
     grid-column: 2;
   }
 
+  .factura-emitir__meta-grid--client .factura-emitir__cell--directory {
+    grid-column: 1 / -1;
+  }
+
   .factura-emitir__meta-grid--client .factura-emitir__cell--addr {
     grid-column: 1 / -1;
   }
@@ -153,6 +157,10 @@
 
   .factura-emitir__meta-grid--issuer .factura-emitir__cell--fecha {
     grid-column: span 1;
+  }
+
+  .factura-emitir__meta-grid--client .factura-emitir__cell--directory {
+    grid-column: 1 / -1;
   }
 
   .factura-emitir__meta-grid--client .factura-emitir__cell--id-type,

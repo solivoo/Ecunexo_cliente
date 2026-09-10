@@ -89,6 +89,22 @@ export function isConsumidorFinalType(type: string): boolean {
   return type === ID_TYPE_CONSUMIDOR_FINAL
 }
 
+/** Mapea identificación del directorio comercial → código SRI de comprador. */
+export function customerIdentificationToSriType(identificationType: number): string {
+  switch (identificationType) {
+    case 1:
+      return '04' // RUC
+    case 2:
+      return '05' // Cédula
+    case 3:
+      return '06' // Pasaporte
+    case 4:
+      return ID_TYPE_CONSUMIDOR_FINAL
+    default:
+      return '04'
+  }
+}
+
 /** Al elegir/cambiar tipo de ID: rellena o limpia campos de consumidor final. */
 export function applyCounterpartyIdType(
   prev: InvoiceCounterpartyValues,
