@@ -17,4 +17,5 @@ public sealed record StockListItemResponse(
     decimal Quantity,
     decimal? MinimumQuantity,
     bool IsBelowMinimum,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt,
+    string? CustomAttributesJson = null);

@@ -86,6 +86,7 @@ export type StockListItemDto = {
   minimumQuantity: number | null
   isBelowMinimum: boolean
   updatedAt: string | null
+  customAttributesJson?: string | null
 }
 
 export type InventoryDocumentListItemDto = {

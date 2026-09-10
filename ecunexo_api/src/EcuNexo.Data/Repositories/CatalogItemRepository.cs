@@ -22,6 +22,7 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
     public async Task<IReadOnlyList<CatalogItem>> ListActiveByTenantAsync(
         Guid tenantId,
         CatalogItemKind? kind,
+        CatalogItemStatus? status,
         CancellationToken ct)
     {
         var query = _db.CatalogItems.AsNoTracking()
@@ -29,6 +30,10 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
         if (kind.HasValue)
         {
             query = query.Where(i => i.Kind == kind.Value);
+        }
+        if (status.HasValue)
+        {
+            query = query.Where(i => i.Status == status.Value);
         }
 
         return await query

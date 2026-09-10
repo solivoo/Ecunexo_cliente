@@ -19,7 +19,7 @@ public sealed class ListCatalogItemsHandler
         ListCatalogItemsQuery query,
         CancellationToken ct)
     {
-        var list = await _items.ListActiveByTenantAsync(query.TenantId, query.Kind, ct).ConfigureAwait(false);
+        var list = await _items.ListActiveByTenantAsync(query.TenantId, query.Kind, query.Status, ct).ConfigureAwait(false);
         var categories = await _categories.ListActiveByTenantAsync(query.TenantId, ct).ConfigureAwait(false);
         var names = categories.ToDictionary(c => c.Id, c => c.Name);
 

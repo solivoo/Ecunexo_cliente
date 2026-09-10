@@ -3,6 +3,7 @@ import type {
   CatalogItemDetailDto,
   CatalogItemKind,
   CatalogItemListItemDto,
+  CatalogItemStatus,
   CategoryListItemDto,
   CreateCatalogItemBody,
   CreateCatalogItemResponseDto,
@@ -47,11 +48,16 @@ export async function softDeleteCatalogCategory(
 
 export async function listCatalogItems(
   tenantId: string,
-  kind?: CatalogItemKind
+  kind?: CatalogItemKind,
+  status?: CatalogItemStatus
 ): Promise<CatalogItemListItemDto[]> {
+  const params: Record<string, unknown> = {}
+  if (kind !== undefined) params.kind = kind
+  if (status !== undefined) params.status = status
+
   const { data } = await api.get<CatalogItemListItemDto[]>(
     `/api/v1/tenants/${tenantId}/catalog/items`,
-    { params: kind === undefined ? undefined : { kind } }
+    { params: Object.keys(params).length > 0 ? params : undefined }
   )
   return data
 }

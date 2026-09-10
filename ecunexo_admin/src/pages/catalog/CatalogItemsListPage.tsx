@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Popup, useToast, type PageActionItem } from 'glubox'
+import { Button, Popup, Select, useToast, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   PageHeader,
@@ -27,8 +27,9 @@ export function CatalogItemsListPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
-  const canRead =
-    useHasPermission('catalog.item.read') || useHasPermission('catalog.product.read')
+  const hasItemRead = useHasPermission('catalog.item.read')
+  const hasProductRead = useHasPermission('catalog.product.read')
+  const canRead = hasItemRead || hasProductRead
   const canCreate = useHasPermission('catalog.item.create')
   const canEdit = useHasPermission('catalog.item.update')
   const canDelete = useHasPermission('catalog.item.delete')
@@ -148,6 +149,20 @@ export function CatalogItemsListPage() {
     () => rows.filter((r) => r.status === CatalogItemStatus.Active).length,
     [rows]
   )
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const inactiveCount = useMemo(
+    () => rows.filter((r) => r.status === CatalogItemStatus.Inactive).length,
+    [rows]
+  )
+  const filteredRows = useMemo(() => {
+    if (statusFilter === 'active') {
+      return rows.filter((r) => r.status === CatalogItemStatus.Active)
+    }
+    if (statusFilter === 'inactive') {
+      return rows.filter((r) => r.status === CatalogItemStatus.Inactive)
+    }
+    return rows
+  }, [rows, statusFilter])
 
   if (!canRead) {
     return (
@@ -261,12 +276,28 @@ export function CatalogItemsListPage() {
             />
           ) : (
             <CatalogItemsGrid
-              rows={rows}
+              rows={filteredRows}
               loading={loading}
               canEdit={canEdit}
               canDelete={canDelete}
               deletingId={deletingId}
               onDelete={setConfirmDelete}
+              toolbarRight={
+                <div style={{ minWidth: 170 }}>
+                  <Select
+                    id="catalog-items-status-filter"
+                    aria-label="Filtrar por estado"
+                    variant="outline"
+                    options={[
+                      { value: 'all', label: `Todos (${rows.length})` },
+                      { value: 'active', label: `Activos (${activeCount})` },
+                      { value: 'inactive', label: `Inactivos (${inactiveCount})` },
+                    ]}
+                    value={statusFilter}
+                    onChange={(val) => setStatusFilter(val as 'all' | 'active' | 'inactive')}
+                  />
+                </div>
+              }
             />
           )}
         </SectionCard>

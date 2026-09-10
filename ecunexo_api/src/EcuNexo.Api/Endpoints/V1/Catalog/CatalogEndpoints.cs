@@ -149,12 +149,13 @@ public static class CatalogEndpoints
     private static async Task<IResult> ListItemsAsync(
         Guid tenantId,
         CatalogItemKind? kind,
+        CatalogItemStatus? status,
         ISender sender,
         CancellationToken ct)
     {
         var result = await sender
             .AskAsync<ListCatalogItemsQuery, IReadOnlyList<CatalogItemListItemResponse>>(
-                new ListCatalogItemsQuery(tenantId, kind),
+                new ListCatalogItemsQuery(tenantId, kind, status),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

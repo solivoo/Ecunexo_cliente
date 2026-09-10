@@ -3,7 +3,10 @@ using EcuNexo.Core.Catalog;
 
 namespace EcuNexo.Business.Catalog.Queries.ListCatalogItems;
 
-public sealed record ListCatalogItemsQuery(Guid TenantId, CatalogItemKind? Kind = null)
+public sealed record ListCatalogItemsQuery(
+    Guid TenantId,
+    CatalogItemKind? Kind = null,
+    CatalogItemStatus? Status = null)
     : IQuery<IReadOnlyList<CatalogItemListItemResponse>>;
 
 public sealed record CatalogItemListItemResponse(

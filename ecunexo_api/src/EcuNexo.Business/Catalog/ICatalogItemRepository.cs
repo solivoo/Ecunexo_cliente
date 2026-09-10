@@ -9,7 +9,14 @@ public interface ICatalogItemRepository
     Task<IReadOnlyList<CatalogItem>> ListActiveByTenantAsync(
         Guid tenantId,
         CatalogItemKind? kind,
+        CatalogItemStatus? status,
         CancellationToken ct);
+
+    Task<IReadOnlyList<CatalogItem>> ListActiveByTenantAsync(
+        Guid tenantId,
+        CatalogItemKind? kind,
+        CancellationToken ct) =>
+        ListActiveByTenantAsync(tenantId, kind, null, ct);
 
     Task<CatalogItem?> GetActiveByIdAsync(Guid tenantId, Guid itemId, CancellationToken ct);
 

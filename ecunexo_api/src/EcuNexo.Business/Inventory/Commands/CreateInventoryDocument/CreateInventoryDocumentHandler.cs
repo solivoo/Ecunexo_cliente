@@ -104,6 +104,15 @@ public sealed class CreateInventoryDocumentHandler
             {
                 return Result.Failure<CreateInventoryDocumentResponse>(stockable.Error!);
             }
+
+            if (item.Status != Core.Catalog.CatalogItemStatus.Active)
+            {
+                return Result.Failure<CreateInventoryDocumentResponse>(
+                    new Error(
+                        "catalog.item.inactive",
+                        $"El ítem «{item.Name}» está inactivo y no puede utilizarse en nuevos documentos de inventario.",
+                        ErrorType.Conflict));
+            }
         }
 
         var lineInputs = command.Lines

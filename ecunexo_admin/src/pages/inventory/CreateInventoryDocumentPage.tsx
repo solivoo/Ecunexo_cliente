@@ -16,7 +16,7 @@ import { listCatalogItems } from '@/services/catalogApi'
 import { approveInventoryDocument, createInventoryDocument, listWarehouses } from '@/services/inventoryApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import { CatalogItemKind } from '@/types/catalogApi'
+import { CatalogItemKind, CatalogItemStatus } from '@/types/catalogApi'
 import {
   InventoryDocumentType,
   InventoryReceiptOrigin,
@@ -68,14 +68,18 @@ export function CreateInventoryDocumentPage() {
       try {
         const [wh, catalog] = await Promise.all([
           listWarehouses(tenantId),
-          listCatalogItems(tenantId, CatalogItemKind.Physical),
+          listCatalogItems(tenantId, CatalogItemKind.Physical, CatalogItemStatus.Active),
         ])
         if (cancelled) return
         const operational = wh.filter((w) => w.systemRole !== 1)
         setWarehouses(operational)
         setWarehouseId((current) => current || operational[0]?.id || '')
         setDestinationWarehouseId((current) => current || operational[1]?.id || operational[0]?.id || '')
-        setItems(catalog.map((c) => ({ id: c.id, name: c.name, sku: c.sku })))
+        setItems(
+          catalog
+            .filter((c) => c.status === CatalogItemStatus.Active)
+            .map((c) => ({ id: c.id, name: c.name, sku: c.sku }))
+        )
       } catch {
         if (!cancelled) {
           setWarehouses([])

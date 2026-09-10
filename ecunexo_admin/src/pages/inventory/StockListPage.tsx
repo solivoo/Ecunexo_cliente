@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, DataGrid, TextBox, useToast, type ColumnDef, type PageActionItem } from 'glubox'
+import { Button, DataGrid, Popup, TextBox, useToast, type ColumnDef, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   PageHeader,
@@ -9,12 +9,13 @@ import {
   StatusBadge,
   EmptyState,
 } from '@/components/ui'
-import { Settings2 } from 'lucide-react'
+import { Eye, Settings2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { buildAttributeSearchString, flattenAttributeEntries } from '@/lib/catalogAttributes'
 import { formatDateTime } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
@@ -41,6 +42,7 @@ export function StockListPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [inspectingStock, setInspectingStock] = useState<Row | null>(null)
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
 
   const load = useCallback(
@@ -262,30 +264,44 @@ export function StockListPage() {
         renderCell: (_v: Row['updatedAt'], row: Row) =>
           row.updatedAt ? formatDateTime(row.updatedAt) : '—',
       },
-      ...(canManage
-        ? ([
-            {
-              key: 'id',
-              header: '',
-              width: 56,
-              align: 'center' as const,
-              sortable: false,
-              renderCell: (_v: Row['id'], row: Row) => (
-                <GridIconButton
-                  label="Configurar mínimo"
-                  icon={Settings2}
-                  onClick={() => startEdit(row)}
-                />
-              ),
-            },
-          ] satisfies ColumnDef<Row>[])
-        : []),
+      {
+        key: 'id',
+        header: 'Acciones',
+        width: canManage ? 96 : 56,
+        align: 'center' as const,
+        sortable: false,
+        renderCell: (_v: Row['id'], row: Row) => (
+          <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+            <GridIconButton
+              label="Ver ficha técnica"
+              icon={Eye}
+              onClick={() => setInspectingStock(row)}
+            />
+            {canManage ? (
+              <GridIconButton
+                label="Configurar mínimo"
+                icon={Settings2}
+                onClick={() => startEdit(row)}
+              />
+            ) : null}
+          </div>
+        ),
+      },
     ],
     [busyId, canManage, editValue, editingId, saveMinimum, startEdit]
   )
 
   const lowCount = rows.filter((r) => r.isBelowMinimum).length
   const warehouseCount = new Set(rows.map((r) => r.warehouseId)).size
+
+  const enrichedRows = useMemo<Row[]>(
+    () =>
+      rows.map((r) => ({
+        ...r,
+        customAttributesSearch: buildAttributeSearchString(r.customAttributesJson),
+      })),
+    [rows]
+  )
 
   if (!canRead) {
     return (
@@ -414,15 +430,15 @@ export function StockListPage() {
           ) : (
             <DataGrid
               className="ecu-companies-grid"
-              dataSource={rows as Row[]}
+              dataSource={enrichedRows}
               keyExpr="id"
               columns={columns}
               selectionMode="none"
               showSearch
               searchPosition="left"
-              searchWidth={280}
-              searchPlaceholder="Buscar ítem, SKU o bodega…"
-              searchKeys={['catalogItemName', 'sku', 'warehouseName']}
+              searchWidth={320}
+              searchPlaceholder="Buscar ítem, SKU, bodega o especificaciones…"
+              searchKeys={['catalogItemName', 'sku', 'warehouseName', 'customAttributesSearch']}
               paging={paging}
               onPageChange={onPageChange}
               onPageSizeChange={onPageSizeChange}
@@ -435,6 +451,137 @@ export function StockListPage() {
           )}
         </SectionCard>
       </div>
+
+      <Popup
+        open={inspectingStock !== null}
+        title={inspectingStock ? `Ficha técnica: ${inspectingStock.catalogItemName}` : 'Ficha técnica'}
+        onClose={() => setInspectingStock(null)}
+        width="min(94vw, 38rem)"
+        actions={[
+          {
+            id: 'close',
+            label: 'Cerrar',
+            variant: 'ghost',
+            onClick: () => setInspectingStock(null),
+          },
+        ]}
+      >
+        {inspectingStock ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                gap: '0.75rem',
+                padding: '0.85rem',
+                borderRadius: '8px',
+                background: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.03))',
+                border: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+              }}
+            >
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #6b7280)', display: 'block' }}>
+                  SKU / Referencia
+                </span>
+                <strong style={{ fontSize: '0.9rem' }}>{inspectingStock.sku || '—'}</strong>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #6b7280)', display: 'block' }}>
+                  Bodega
+                </span>
+                <strong style={{ fontSize: '0.9rem' }}>{inspectingStock.warehouseName}</strong>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #6b7280)', display: 'block' }}>
+                  Existencias en stock
+                </span>
+                <strong
+                  style={{
+                    fontSize: '0.9rem',
+                    color: inspectingStock.isBelowMinimum ? 'var(--color-danger, #ef4444)' : 'inherit',
+                  }}
+                >
+                  {inspectingStock.quantity.toFixed(2)}
+                </strong>
+              </div>
+            </div>
+
+            <div>
+              <h4 style={{ margin: '0 0 0.6rem 0', fontSize: '0.9rem', fontWeight: 600 }}>
+                Especificaciones y Atributos Técnicos
+              </h4>
+              {(() => {
+                const entries = flattenAttributeEntries(inspectingStock.customAttributesJson)
+                if (entries.length === 0) {
+                  return (
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-muted, #6b7280)' }}>
+                      Este ítem no tiene especificaciones ni atributos dinámicos configurados en su catálogo.
+                    </p>
+                  )
+                }
+
+                const grouped = new Map<string, typeof entries>()
+                for (const entry of entries) {
+                  const g = entry.group || 'Características generales'
+                  if (!grouped.has(g)) grouped.set(g, [])
+                  grouped.get(g)!.push(entry)
+                }
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {Array.from(grouped.entries()).map(([groupName, items]) => (
+                      <div
+                        key={groupName}
+                        style={{
+                          border: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            background: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.03))',
+                            padding: '0.45rem 0.8rem',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                            borderBottom: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.06))',
+                          }}
+                        >
+                          {groupName}
+                        </div>
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                            gap: '0.6rem 1rem',
+                            padding: '0.75rem 0.8rem',
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          {items.map((item) => (
+                            <div key={item.key}>
+                              <span
+                                style={{
+                                  color: 'var(--glb-muted, #6b7280)',
+                                  fontSize: '0.75rem',
+                                  display: 'block',
+                                }}
+                              >
+                                {item.label}
+                              </span>
+                              <span style={{ fontWeight: 500 }}>{item.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+        ) : null}
+      </Popup>
     </TenantSessionGate>
   )
 }

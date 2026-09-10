@@ -11,6 +11,17 @@ public static class CatalogAttributeSchema
     public const string EmptyArrayJson = "[]";
     public const string EmptyObjectJson = "{}";
 
+    private static readonly HashSet<string> ReservedKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "name", "nombre",
+        "sku", "codigo", "codigo_sku", "codigosku", "referencia",
+        "price", "precio", "baseprice", "precio_base",
+        "description", "descripcion",
+        "category", "categoria", "categoryid",
+        "kind", "tipo",
+        "status", "estado"
+    };
+
     public static Result<string> NormalizeSchema(string? raw)
     {
         var json = string.IsNullOrWhiteSpace(raw) ? EmptyArrayJson : raw.Trim();
@@ -25,6 +36,9 @@ public static class CatalogAttributeSchema
                         "El molde de atributos debe ser un arreglo JSON.",
                         ErrorType.Validation));
             }
+
+            var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var field in doc.RootElement.EnumerateArray())
             {
@@ -46,6 +60,50 @@ public static class CatalogAttributeSchema
                             "catalog.schema.key",
                             "Cada campo del molde requiere una clave (key) no vacía.",
                             ErrorType.Validation));
+                }
+
+                var key = keyEl.GetString()!.Trim();
+                if (ReservedKeys.Contains(key))
+                {
+                    return Result.Failure<string>(
+                        new Error(
+                            "catalog.schema.reserved_key",
+                            $"El campo '{key}' coincide con un campo estándar del ítem (nombre, sku, precio, etc.).",
+                            ErrorType.Validation));
+                }
+
+                if (!seenKeys.Add(key))
+                {
+                    return Result.Failure<string>(
+                        new Error(
+                            "catalog.schema.duplicate_key",
+                            $"El campo '{key}' está duplicado en el molde.",
+                            ErrorType.Validation));
+                }
+
+                if (field.TryGetProperty("label", out var labelEl) && labelEl.ValueKind == JsonValueKind.String)
+                {
+                    var label = labelEl.GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(label))
+                    {
+                        if (ReservedKeys.Contains(label))
+                        {
+                            return Result.Failure<string>(
+                                new Error(
+                                    "catalog.schema.reserved_label",
+                                    $"La etiqueta «{label}» coincide con un campo estándar del ítem (nombre, sku, precio, etc.).",
+                                    ErrorType.Validation));
+                        }
+
+                        if (!seenLabels.Add(label))
+                        {
+                            return Result.Failure<string>(
+                                new Error(
+                                    "catalog.schema.duplicate_label",
+                                    $"El campo con etiqueta «{label}» ya existe en el molde.",
+                                    ErrorType.Validation));
+                        }
+                    }
                 }
             }
 

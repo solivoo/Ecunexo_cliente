@@ -87,4 +87,34 @@ public sealed class CatalogItemTests
         item.Kind.Should().Be(CatalogItemKind.Service);
         item.Sku.Should().BeNull();
     }
+
+    [Fact(DisplayName = "NormalizeSchema rechaza claves duplicadas")]
+    public void NormalizeSchema_DuplicateKeys_ReturnsValidationError()
+    {
+        var json = """[{"key":"color","label":"Color"},{"key":"color","label":"Color 2"}]""";
+        var result = CatalogAttributeSchema.NormalizeSchema(json);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("catalog.schema.duplicate_key");
+    }
+
+    [Fact(DisplayName = "NormalizeSchema rechaza etiquetas duplicadas")]
+    public void NormalizeSchema_DuplicateLabels_ReturnsValidationError()
+    {
+        var json = """[{"key":"capacidad_1","label":"Capacidad"},{"key":"capacidad_2","label":"Capacidad"}]""";
+        var result = CatalogAttributeSchema.NormalizeSchema(json);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("catalog.schema.duplicate_label");
+    }
+
+    [Fact(DisplayName = "NormalizeSchema rechaza campos que coinciden con campos nativos del ítem")]
+    public void NormalizeSchema_ReservedKeyOrLabel_ReturnsValidationError()
+    {
+        var json = """[{"key":"nombre","label":"Nombre"}]""";
+        var result = CatalogAttributeSchema.NormalizeSchema(json);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("catalog.schema.reserved_key");
+    }
 }

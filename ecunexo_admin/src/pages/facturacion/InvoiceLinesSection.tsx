@@ -12,7 +12,7 @@ import {
 import { listCatalogItems } from '@/services/catalogApi'
 import { selectEnabledModules } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
+import { CatalogItemKind, CatalogItemStatus, type CatalogItemListItemDto } from '@/types/catalogApi'
 
 export type InvoiceLinesSectionProps = {
   readonly tenantId: string | null
@@ -76,14 +76,23 @@ export function InvoiceLinesSection({
     }
   }, [tenantId, hasCatalog])
 
-  const productOptions = useMemo(
-    () =>
-      catalogItems.map((item) => ({
-        value: item.id,
-        label: item.sku?.trim() ? `${item.sku} — ${item.name}` : item.name,
-      })),
-    [catalogItems]
-  )
+  const productOptions = useMemo(() => {
+    const selectedIds = new Set(
+      lines
+        .map((l) => l.catalogItemId || l.productId)
+        .filter((id): id is string => Boolean(id))
+    )
+    return catalogItems
+      .filter((item) => item.status === CatalogItemStatus.Active || selectedIds.has(item.id))
+      .map((item) => {
+        const prefix = item.sku?.trim() ? `${item.sku} — ` : ''
+        const baseLabel = `${prefix}${item.name}`
+        return {
+          value: item.id,
+          label: item.status === CatalogItemStatus.Inactive ? `${baseLabel} (Inactivo)` : baseLabel,
+        }
+      })
+  }, [catalogItems, lines])
 
   const applyProduct = (lineId: string, productId: string) => {
     if (!productId) {

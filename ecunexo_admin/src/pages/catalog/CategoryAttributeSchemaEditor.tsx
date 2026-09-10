@@ -1,6 +1,7 @@
-import type { ChangeEvent } from 'react'
+import { useMemo, type ChangeEvent } from 'react'
 import { Button, CheckButton, Select, TextBox } from 'glubox'
 import { Plus, Trash2 } from 'lucide-react'
+import { isReservedAttributeKey } from '@/lib/catalogAttributes'
 import type { CatalogAttributeField } from '@/types/catalogApi'
 import './categoryAttributeSchemaEditor.css'
 
@@ -40,6 +41,30 @@ export function CategoryAttributeSchemaEditor({
   disabled = false,
   onChange,
 }: CategoryAttributeSchemaEditorProps) {
+  const rowErrors = useMemo(() => {
+    const errors: Record<string, string> = {}
+    const seen = new Map<string, string>()
+
+    fields.forEach((f) => {
+      const label = (f.label ?? '').trim()
+      if (!label) return
+
+      const norm = label.toLowerCase()
+      if (isReservedAttributeKey(label)) {
+        errors[f.rowId] = `«${label}» coincide con un campo estándar del ítem (Nombre, SKU, etc.).`
+        return
+      }
+
+      if (seen.has(norm)) {
+        errors[f.rowId] = `El campo «${label}» está repetido.`
+        return
+      }
+      seen.set(norm, f.rowId)
+    })
+
+    return errors
+  }, [fields])
+
   const patchRow = (rowId: string, patch: Partial<CategoryAttributeDraft>) => {
     onChange(fields.map((f) => (f.rowId === rowId ? { ...f, ...patch } : f)))
   }
@@ -55,8 +80,8 @@ export function CategoryAttributeSchemaEditor({
       <div className="cat-attr-schema__head">
         <h3 className="cat-attr-schema__title">Campos adicionales</h3>
         <p className="cat-attr-schema__hint">
-          Opcional. Al crear un ítem se pedirán estos datos. Tipo Color (varios) abre un
-          picker y permite más de un color.
+          Opcional. Define especificaciones del producto (ej. Marca, Capacidad, Motor).
+          No dupliques campos estándar del ítem como Nombre, SKU o Precio.
         </p>
       </div>
 
@@ -80,6 +105,19 @@ export function CategoryAttributeSchemaEditor({
                   disabled={disabled}
                   fullWidth
                 />
+                {rowErrors[field.rowId] ? (
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--color-danger, #ef4444)',
+                      marginTop: 3,
+                      display: 'block',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {rowErrors[field.rowId]}
+                  </span>
+                ) : null}
               </div>
               <div className="cat-attr-schema__field cat-attr-schema__field--type">
                 <Select

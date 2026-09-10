@@ -10,7 +10,7 @@ import {
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { serializeAttributeSchema } from '@/lib/catalogAttributes'
+import { serializeAttributeSchema, validateAttributeSchemaFields } from '@/lib/catalogAttributes'
 import { readApiError } from '@/lib/readApiError'
 import {
   CategoryAttributeSchemaEditor,
@@ -65,9 +65,9 @@ export function CreateCategoryPage() {
       try {
         if (!name.trim()) throw new Error('El nombre de la categoría es obligatorio.')
 
-        const incomplete = attributeFields.some((f) => !(f.label ?? '').trim())
-        if (incomplete) {
-          throw new Error('Completa el nombre de cada campo adicional o quítalo.')
+        const valError = validateAttributeSchemaFields(attributeFields)
+        if (valError) {
+          throw new Error(valError.message)
         }
 
         await createCatalogCategory(tenantId, {
