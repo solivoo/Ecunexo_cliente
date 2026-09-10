@@ -110,14 +110,14 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Command Palette & UI Testing Suite</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Catálogo, Control de Stock & Integridad</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
-            <li><strong>Buscador Global (Ctrl + K):</strong> Command Palette para ejecutar acciones rápidas (+ Factura, + Usuario, + Bodega), saltar entre módulos autorizados y alternar modo oscuro instantáneamente.</li>
-            <li><strong>Suite de Testing UI:</strong> Pruebas automatizadas de extremo a extremo en Playwright organizadas por módulo (`tests-ui/comun/`).</li>
-            <li><strong>Iconografía SVG Nativa:</strong> Mapeo robusto con componentes Lucide para máxima nitidez y rendimiento.</li>
-            <li><strong>Google Material Design 3:</strong> Superficies tonales, tarjetas elevadas y soporte dark mode transparente en el 100% de las vistas.</li>
-            <li><strong>PageHeader Unificado & StatCards:</strong> Jerarquía visual clara, métricas analíticas KPI y menús de acciones rápidas.</li>
+            <li><strong>Ficha Técnica en Stock:</strong> Inspección rápida y modal interactivo para visualizar especificaciones físicas, técnicas y operativas sin saturar la tabla.</li>
+            <li><strong>Búsqueda Inteligente por Atributos:</strong> Búsqueda global en Stock indexando números de serie, modelo, marca y características técnicas.</li>
+            <li><strong>Control de Ítems Inactivos:</strong> Bloqueo estricto de productos inactivos en facturación y movimientos de bodega, con trazabilidad en borradores.</li>
+            <li><strong>Validación de Esquemas y Atributos:</strong> Prevención en tiempo real de nombres duplicados y colisiones con atributos nativos del sistema.</li>
+            <li><strong>Buscador Global (Ctrl + K):</strong> Command Palette para ejecutar acciones rápidas, navegar módulos y cambiar temas.</li>
           </ul>
         </div>
 
