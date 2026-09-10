@@ -421,39 +421,28 @@ export function CreateRepairBatchPage() {
                     onChange={(val: string) => setSelectedCustomerId(val)}
                     fullWidth
                   />
-                  <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--shell-muted)' }}>
-                    <button
+                  <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => {
                         setNewCustError(null)
                         setNewCustomerOpen(true)
                       }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--shell-primary)',
-                        cursor: 'pointer',
-                        padding: 0,
-                        textDecoration: 'underline',
-                        fontWeight: 600,
-                      }}
+                      style={{ padding: 0, height: 'auto', fontWeight: 600, color: 'var(--shell-primary)' }}
                     >
                       + Registrar nuevo cliente
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => navigate('/taller/clientes')}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--shell-primary)',
-                        cursor: 'pointer',
-                        padding: 0,
-                        textDecoration: 'underline',
-                      }}
+                      style={{ padding: 0, height: 'auto', color: 'var(--shell-primary)' }}
                     >
                       Ir al Directorio de Clientes &rarr;
-                    </button>
+                    </Button>
                   </div>
                 </div>
 

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, DataGrid, Select, TextBox, useToast, type ColumnDef } from 'glubox'
+import { Button, CheckButton, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
 import {
-  EcuModal,
   EmptyState,
   PageHeader,
   SectionCard,
@@ -493,40 +492,31 @@ export default function RepairCustomersListPage() {
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Filtro por estado:
               </span>
-              <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-slate-50 dark:bg-slate-800">
-                <button
+              <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <Button
                   type="button"
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                    statusFilter === 'all'
-                      ? 'bg-white dark:bg-slate-700 text-primary shadow-xs font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                  }`}
+                  variant={statusFilter === 'all' ? 'primary' : 'ghost'}
+                  size="sm"
                   onClick={() => setStatusFilter('all')}
                 >
                   Todos ({stats.total})
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                    statusFilter === 'active'
-                      ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-xs font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                  }`}
+                  variant={statusFilter === 'active' ? 'primary' : 'ghost'}
+                  size="sm"
                   onClick={() => setStatusFilter('active')}
                 >
                   Activos ({stats.active})
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                    statusFilter === 'inactive'
-                      ? 'bg-white dark:bg-slate-700 text-amber-600 shadow-xs font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                  }`}
+                  variant={statusFilter === 'inactive' ? 'primary' : 'ghost'}
+                  size="sm"
                   onClick={() => setStatusFilter('inactive')}
                 >
                   Inactivos ({stats.inactive})
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -574,31 +564,29 @@ export default function RepairCustomersListPage() {
           )}
         </SectionCard>
 
-        {/* Modal de Registro / Edición */}
-        <EcuModal
+        {/* Modal Popup de Registro / Edición */}
+        <Popup
           open={modalOpen}
           title={editingCustomer ? 'Editar Cliente Corporativo' : 'Registrar Nuevo Cliente'}
           onClose={handleCloseModal}
-          footer={
-            <div className="flex items-center justify-end gap-2 w-full">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleCloseModal}
-                disabled={saving}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleSaveCustomer}
-                disabled={saving || !isFormValid}
-              >
-                {saving ? 'Guardando...' : editingCustomer ? 'Guardar Cambios' : 'Registrar Cliente'}
-              </Button>
-            </div>
-          }
+          width="min(92vw, 38rem)"
+          actions={[
+            {
+              id: 'cancel',
+              label: 'Cancelar',
+              variant: 'outline',
+              onClick: handleCloseModal,
+              disabled: saving,
+            },
+            {
+              id: 'save',
+              label: saving ? 'Guardando...' : editingCustomer ? 'Guardar Cambios' : 'Registrar Cliente',
+              variant: 'primary',
+              onClick: () => void handleSaveCustomer(),
+              disabled: saving || !isFormValid,
+              loading: saving,
+            },
+          ]}
         >
           <form onSubmit={handleSaveCustomer} className="space-y-4" noValidate>
             {formError && (
@@ -781,22 +769,23 @@ export default function RepairCustomersListPage() {
               />
             </div>
 
-            {/* Fila 7: Estado Activo / Inactivo */}
-            <div className="flex items-center gap-3 pt-1 border-t border-slate-100 dark:border-slate-800">
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300 select-none">
-                <input
-                  id="customer-active-toggle"
-                  type="checkbox"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                  disabled={saving}
-                  className="rounded border-slate-300 text-primary focus:ring-primary w-4 h-4"
-                />
-                Cliente Activo (habilitado para asociar nuevos lotes y consultas)
-              </label>
+            {/* Fila 7: Estado Activo / Inactivo con CheckButton */}
+            <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <CheckButton
+                id="customer-active-toggle"
+                checked={isActive}
+                onChange={(chk: boolean) => setIsActive(chk)}
+                disabled={saving}
+                variant={isActive ? 'primary' : 'outline'}
+                size="sm"
+              >
+                {isActive
+                  ? 'Cliente Activo (habilitado para asociar nuevos lotes)'
+                  : 'Cliente Inactivo (deshabilitado para nuevos lotes)'}
+              </CheckButton>
             </div>
           </form>
-        </EcuModal>
+        </Popup>
       </div>
     </TenantSessionGate>
   )

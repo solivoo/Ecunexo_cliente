@@ -141,7 +141,7 @@ export function RepairBatchDetailPage() {
       })
       setCancelModalOpen(false)
       setCancelReason('')
-      void load()
+      void load({ silent: true })
     } catch (err: unknown) {
       const msg = readApiError(err, 'No se pudo anular el lote.')
       setCancelError(msg)
@@ -384,7 +384,10 @@ export function RepairBatchDetailPage() {
         width: 160,
         sortable: true,
         renderCell: (_v: Row['status'], row: Row) => (
-          <StatusBadge tone={repairEquipmentStatusBadgeTone(row.status)} withDot>
+          <StatusBadge
+            tone={repairEquipmentStatusBadgeTone(row.status)}
+            withDot={row.status !== RepairEquipmentStatus.Cancelled}
+          >
             {repairEquipmentStatusLabel(row.status)}
           </StatusBadge>
         ),
@@ -498,6 +501,8 @@ export function RepairBatchDetailPage() {
                   type="button"
                   variant="outline"
                   onClick={() => {
+                    setStatusModalOpen(false)
+                    setPhotosModalOpen(false)
                     setCancelError(null)
                     setCancelReason('')
                     setCancelModalOpen(true)
@@ -588,8 +593,8 @@ export function RepairBatchDetailPage() {
             <div className="flex items-center gap-2">
               <Select
                 id="filter-equipment-status"
-                label="Filtrar por fase"
-                width="230px"
+                label="Filtrar por estado / fase"
+                width="240px"
                 labelPosition="outlined"
                 variant="outline"
                 options={[
@@ -600,6 +605,8 @@ export function RepairBatchDetailPage() {
                   { value: String(RepairEquipmentStatus.QualityCheck), label: 'Control de Calidad' },
                   { value: String(RepairEquipmentStatus.ReadyToDispatch), label: 'Listo para Retiro' },
                   { value: String(RepairEquipmentStatus.Dispatched), label: 'Despachado' },
+                  { value: String(RepairEquipmentStatus.Irreparable), label: 'Irreparable / Scrap' },
+                  { value: String(RepairEquipmentStatus.Cancelled), label: 'Sin Procesar (Lote Anulado)' },
                 ]}
                 value={statusFilter}
                 onChange={(val: string) => setStatusFilter(val)}

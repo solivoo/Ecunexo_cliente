@@ -208,13 +208,15 @@ export function CorporatePortalPage() {
         width: 180,
         sortable: true,
         renderCell: (_v: BatchRow['batchNumber'], row: BatchRow) => (
-          <button
+          <Button
             type="button"
-            className="font-bold text-primary hover:underline cursor-pointer bg-transparent border-none p-0 text-left"
+            variant="ghost"
+            size="sm"
+            style={{ fontWeight: 700, padding: 0, height: 'auto', color: 'var(--shell-primary)', justifyContent: 'flex-start' }}
             onClick={() => navigate(`/taller/lotes/${row.id}`)}
           >
             {row.batchNumber}
-          </button>
+          </Button>
         ),
       },
       {

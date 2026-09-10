@@ -345,7 +345,7 @@ export function repairEquipmentStatusLabel(status: RepairEquipmentStatus): strin
     case RepairEquipmentStatus.Irreparable:
       return 'Irreparable'
     case RepairEquipmentStatus.Cancelled:
-      return 'Anulado'
+      return 'Sin Procesar (Lote Anulado)'
     default:
       return `Estado ${status}`
   }
@@ -358,7 +358,7 @@ export function repairEquipmentStatusBadgeTone(
     case RepairEquipmentStatus.Received:
       return 'neutral'
     case RepairEquipmentStatus.Diagnosing:
-      return 'info'
+      return 'warning'
     case RepairEquipmentStatus.InRepair:
       return 'warning'
     case RepairEquipmentStatus.QualityCheck:
@@ -368,11 +368,11 @@ export function repairEquipmentStatusBadgeTone(
     case RepairEquipmentStatus.Dispatched:
       return 'success'
     case RepairEquipmentStatus.Invoiced:
-      return 'success'
+      return 'neutral'
     case RepairEquipmentStatus.Irreparable:
       return 'danger'
     case RepairEquipmentStatus.Cancelled:
-      return 'danger'
+      return 'neutral'
     default:
       return 'neutral'
   }

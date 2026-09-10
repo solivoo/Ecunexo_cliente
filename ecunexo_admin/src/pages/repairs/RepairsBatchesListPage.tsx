@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, DataGrid, useToast, type ColumnDef, type PageActionItem } from 'glubox'
+import { Button, DataGrid, Select, useToast, type ColumnDef, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   EmptyState,
@@ -43,10 +43,34 @@ export function RepairsBatchesListPage() {
   const canViewPortal = useHasPermission('repairs.b2b.portal.view')
 
   const [rows, setRows] = useState<BatchListItemDto[]>([])
+  const [statusFilter, setStatusFilter] = useState<'active' | 'all' | 'cancelled'>('active')
   const [loading, setLoading] = useState(true)
   const [downloadingTemplate, setDownloadingTemplate] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
+
+  const counts = useMemo(() => {
+    let active = 0
+    let cancelled = 0
+    for (const r of rows) {
+      if (r.status === RepairBatchStatus.Cancelled) {
+        cancelled++
+      } else {
+        active++
+      }
+    }
+    return { active, cancelled, total: rows.length }
+  }, [rows])
+
+  const filteredRows = useMemo(() => {
+    if (statusFilter === 'active') {
+      return rows.filter((r) => r.status !== RepairBatchStatus.Cancelled)
+    }
+    if (statusFilter === 'cancelled') {
+      return rows.filter((r) => r.status === RepairBatchStatus.Cancelled)
+    }
+    return rows
+  }, [rows, statusFilter])
 
   const load = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -129,13 +153,15 @@ export function RepairsBatchesListPage() {
         width: 170,
         sortable: true,
         renderCell: (_v: Row['batchNumber'], row: Row) => (
-          <button
+          <Button
             type="button"
-            className="font-medium text-primary hover:underline cursor-pointer text-left bg-transparent border-none p-0"
+            variant="ghost"
+            size="sm"
+            style={{ fontWeight: 600, padding: 0, height: 'auto', color: 'var(--shell-primary)', justifyContent: 'flex-start' }}
             onClick={() => navigate(`/taller/lotes/${row.id}`)}
           >
             {row.batchNumber}
-          </button>
+          </Button>
         ),
       },
       {
@@ -373,7 +399,31 @@ export function RepairsBatchesListPage() {
 
         <SectionCard
           title="Lotes Recibidos"
-          subtitle="Listado cronológico de ingresos por contrato corporativo"
+          subtitle={
+            statusFilter === 'active'
+              ? 'Lotes activos en proceso técnico o despacho (excluye lotes anulados)'
+              : statusFilter === 'cancelled'
+                ? 'Lotes anulados administrativamente para trazabilidad y auditoría'
+                : 'Listado completo de lotes registrados en el taller'
+          }
+          action={
+            <div className="flex items-center gap-2">
+              <Select
+                id="filter-batches-status"
+                label="Mostrar"
+                width="220px"
+                labelPosition="outlined"
+                variant="outline"
+                options={[
+                  { value: 'active', label: `Lotes Activos (${counts.active})` },
+                  { value: 'all', label: `Todos los Lotes (${counts.total})` },
+                  { value: 'cancelled', label: `Solo Anulados (${counts.cancelled})` },
+                ]}
+                value={statusFilter}
+                onChange={(val: string) => setStatusFilter(val as 'active' | 'all' | 'cancelled')}
+              />
+            </div>
+          }
         >
           {error && (
             <div className="ecu-form-error-banner mb-4" role="alert">
@@ -382,28 +432,49 @@ export function RepairsBatchesListPage() {
             </div>
           )}
 
-          {rows.length === 0 && !loading ? (
-            <EmptyState
-              icon="layers"
-              title="Aún no hay lotes registrados"
-              description="Descarga la plantilla de Excel oficial para preparar los números de serie o importa directamente el archivo entregado por el cliente corporativo."
-              action={
-                canImport ? (
+          {filteredRows.length === 0 && !loading ? (
+            rows.length === 0 ? (
+              <EmptyState
+                icon="layers"
+                title="Aún no hay lotes registrados"
+                description="Descarga la plantilla de Excel oficial para preparar los números de serie o importa directamente el archivo entregado por el cliente corporativo."
+                action={
+                  canImport ? (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/taller/lotes/nuevo')}
+                    >
+                      <Plus size={16} strokeWidth={2} aria-hidden />
+                      Importar Primer Lote
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <EmptyState
+                icon="filter"
+                title={statusFilter === 'active' ? 'No hay lotes activos' : 'No hay lotes anulados'}
+                description={
+                  statusFilter === 'active'
+                    ? `Todos los lotes registrados (${counts.cancelled}) están en estado Anulado. Cambia el selector a "Todos los Lotes" para consultarlos.`
+                    : 'No existen lotes anulados en el historial de este taller.'
+                }
+                action={
                   <Button
                     type="button"
-                    variant="primary"
-                    onClick={() => navigate('/taller/lotes/nuevo')}
+                    variant="outline"
+                    onClick={() => setStatusFilter('all')}
                   >
-                    <Plus size={16} strokeWidth={2} aria-hidden />
-                    Importar Primer Lote
+                    Ver Todos los Lotes ({counts.total})
                   </Button>
-                ) : undefined
-              }
-            />
+                }
+              />
+            )
           ) : (
             <DataGrid
               className="ecu-repairs-grid"
-              dataSource={rows as Row[]}
+              dataSource={filteredRows as Row[]}
               keyExpr="id"
               columns={columns}
               selectionMode="none"

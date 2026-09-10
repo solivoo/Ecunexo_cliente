@@ -120,6 +120,20 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
               dispatchedCount: 0,
               progressPercentage: 0,
             },
+            {
+              id: 'batch-003',
+              batchNumber: 'LOTE-WPH-2026-ANULADO',
+              customerName: 'Whirlpool del Ecuador S.A.',
+              contractReference: 'CT-WPH-2026-Q3',
+              status: 5, // Cancelled
+              receivedAt: '2026-09-03T10:00:00Z',
+              totalCount: 2,
+              receivedCount: 0,
+              inRepairCount: 0,
+              readyCount: 0,
+              dispatchedCount: 0,
+              progressPercentage: 0,
+            },
           ]),
         })
       })
@@ -375,8 +389,27 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
       const statCards = page.locator('.ecu-stat-card')
       expect(await statCards.count()).toBeGreaterThanOrEqual(3)
 
-      // Tabla DataGrid con lote mockeado
+      // Tabla DataGrid con lote mockeado activo
       await expect(page.getByText('LOTE-WPH-2026-001')).toBeVisible()
+
+      // Por defecto no debe mostrar lotes anulados
+      await expect(page.getByText('LOTE-WPH-2026-ANULADO')).not.toBeVisible()
+
+      // Selector de filtro de lotes con glubox Select
+      const filterSelect = page.locator('#filter-batches-status')
+      await expect(filterSelect).toBeVisible()
+      await filterSelect.click()
+      await page.getByRole('option', { name: /Solo Anulados/i }).click()
+
+      // Ahora debe mostrar el lote anulado y ocultar los activos
+      await expect(page.getByText('LOTE-WPH-2026-ANULADO')).toBeVisible()
+      await expect(page.getByText('LOTE-WPH-2026-001')).not.toBeVisible()
+
+      // Restaurar a Lotes Activos
+      await filterSelect.click()
+      await page.getByRole('option', { name: /Lotes Activos/i }).click()
+      await expect(page.getByText('LOTE-WPH-2026-001')).toBeVisible()
+      await expect(page.getByText('LOTE-WPH-2026-ANULADO')).not.toBeVisible()
     })
 
     test('Nuevo Lote: carga asistente, tarifario N1/N2/N3 y zona de carga Excel', async ({ page }) => {

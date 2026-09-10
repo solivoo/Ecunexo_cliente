@@ -576,15 +576,17 @@ export function RepairDispatchesListPage() {
                   Equipos Listos para Despacho ({readyEquipments.length})
                 </span>
                 {readyEquipments.length > 0 && (
-                  <button
+                  <Button
                     type="button"
-                    className="text-xs text-primary hover:underline font-medium bg-transparent border-none p-0 cursor-pointer"
+                    variant="ghost"
+                    size="sm"
+                    style={{ padding: 0, height: 'auto', fontSize: '0.75rem', color: 'var(--shell-primary)' }}
                     onClick={toggleSelectAll}
                   >
                     {selectedEquipmentIds.size === readyEquipments.length
                       ? 'Deseleccionar todos'
                       : 'Seleccionar todos'}
-                  </button>
+                  </Button>
                 )}
               </div>
 
