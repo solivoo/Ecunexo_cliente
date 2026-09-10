@@ -327,13 +327,15 @@ public partial class AddRepairsModule : Migration
                 name: "ix_customers_tenant_id_name",
                 schema: "repairs",
                 table: "customers",
-                columns: new[] { "tenant_id", "name" });
+                columns: new[] { "tenant_id", "name" },
+                filter: "\"deleted_at\" IS NULL");
 
             migrationBuilder.CreateIndex(
                 name: "ix_customers_tenant_id_tax_id",
                 schema: "repairs",
                 table: "customers",
-                columns: new[] { "tenant_id", "tax_id" });
+                columns: new[] { "tenant_id", "tax_id" },
+                filter: "\"deleted_at\" IS NULL");
 
             migrationBuilder.CreateIndex(
                 name: "ix_dispatch_items_dispatch_id_equipment_id",

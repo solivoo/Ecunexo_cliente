@@ -10,6 +10,7 @@ using EcuNexo.Business.Tenancy.Licensing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Data.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EcuNexo.Data;
@@ -27,7 +28,8 @@ public static class DependencyInjection
                     npg.ConfigureDataSource(ds => ds.EnableDynamicJson())
                        .MigrationsHistoryTable("__ef_migrations_history", "tenancy");
                 })
-                .UseSnakeCaseNamingConvention();
+                .UseSnakeCaseNamingConvention()
+                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
 
         services.AddScoped<IIdGenerator, UuidV7Generator>();

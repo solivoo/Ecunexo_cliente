@@ -1151,10 +1151,12 @@ namespace EcuNexo.Data.Migrations
                         .HasName("pk_customers");
 
                     b.HasIndex("TenantId", "Name")
-                        .HasDatabaseName("ix_customers_tenant_id_name");
+                        .HasDatabaseName("ix_customers_tenant_id_name")
+                        .HasFilter("\"deleted_at\" IS NULL");
 
                     b.HasIndex("TenantId", "TaxId")
-                        .HasDatabaseName("ix_customers_tenant_id_tax_id");
+                        .HasDatabaseName("ix_customers_tenant_id_tax_id")
+                        .HasFilter("\"deleted_at\" IS NULL");
 
                     b.ToTable("customers", "repairs");
                 });
