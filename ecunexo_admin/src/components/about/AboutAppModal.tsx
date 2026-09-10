@@ -113,6 +113,7 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
             <span>Novedades v{APP_VERSION_INFO.version} — Clientes Comerciales, Filtros DataGrid & Taller B2B</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Directorio de Clientes estabilizado:</strong> Migración de clasificación comercial (tipo e identificación) y UI alineada al patrón enterprise (PageHeader, KPIs, filtros en SectionCard/DataGrid).</li>
             <li><strong>Módulo Autónomo de Clientes:</strong> Directorio comercial transversal con clasificación comercial (Corporativo B2B, Persona Natural, Distribuidor Mayorista, Taller Aliado, Consumidor Final, Institución Pública) y cuotas por plan.</li>
             <li><strong>Validación SRI & Rangos de Fecha en DataGrid:</strong> Validación algorítmica SRI (Cédula Módulo 10, RUC Módulo 11) e integración de componentes glubox (RangeDateBox, Select) en cabeceras de datos.</li>
             <li><strong>Taller y Lotes B2B:</strong> Gestión integral de lotes de reacondicionamiento masivo con tarifas parametrizadas por severidad de daño (N1, N2, N3).</li>

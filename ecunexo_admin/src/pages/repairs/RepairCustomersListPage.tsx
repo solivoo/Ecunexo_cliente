@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, CheckButton, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
 import {
+  Button,
+  CheckButton,
+  DataGrid,
+  Popup,
+  Select,
+  TextBox,
+  useToast,
+  type ColumnDef,
+  type PageActionItem,
+} from 'glubox'
+import {
+  EcuPageActions,
   EmptyState,
   PageHeader,
   SectionCard,
@@ -22,10 +33,10 @@ import {
   Phone,
   Plus,
   Power,
-  RefreshCw,
   User,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
+import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useGridDateRange } from '@/hooks/useGridDateRange'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -63,19 +74,23 @@ export default function RepairCustomersListPage() {
   const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
 
+  const canRead =
+    useHasPermission('customers.read') ||
+    useHasPermission('customers.manage') ||
+    useHasPermission('repairs.batches.read')
   const canManage =
     useHasPermission('customers.manage') ||
     useHasPermission('repairs.batches.import') ||
     useHasPermission('repairs.batches.read')
+  const canReadBatches = useHasPermission('repairs.batches.read')
+  const canImportBatches = useHasPermission('repairs.batches.import')
 
   const [customers, setCustomers] = useState<CustomerDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Filtros de estado, tipo y fechas
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
   const [typeFilter, setTypeFilter] = useState<string>('all')
-  const [filterByDate, setFilterByDate] = useState(false)
   const { from, to, setRange, lookback } = useGridDateRange()
 
   // Modal de Crear / Editar
@@ -100,24 +115,36 @@ export default function RepairCustomersListPage() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  // Cargar clientes
-  const loadCustomers = useCallback(async () => {
-    if (!tenantId) return
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await listCustomers(tenantId)
-      setCustomers(data)
-    } catch (err: unknown) {
-      setError(readApiError(err, 'No fue posible cargar el directorio de clientes.'))
-    } finally {
-      setLoading(false)
-    }
-  }, [tenantId])
+  const loadCustomers = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!tenantId) return
+      setLoading(true)
+      setError(null)
+      try {
+        const data = await listCustomers(tenantId)
+        setCustomers(data)
+        if (!opts?.silent) {
+          toast.show({
+            title: 'Actualizado',
+            message: 'Directorio de clientes sincronizado con éxito.',
+            variant: 'success',
+          })
+        }
+      } catch (err: unknown) {
+        const message = readApiError(err, 'No fue posible cargar el directorio de clientes.')
+        setError(message)
+        setCustomers([])
+        toast.show({ title: 'Error', message, variant: 'error' })
+      } finally {
+        setLoading(false)
+      }
+    },
+    [tenantId, toast]
+  )
 
   useEffect(() => {
-    void loadCustomers()
-  }, [loadCustomers])
+    if (canRead) void loadCustomers({ silent: true })
+  }, [canRead, loadCustomers])
 
   // Abrir modal si query string contiene ?nuevo=1
   useEffect(() => {
@@ -328,16 +355,15 @@ export default function RepairCustomersListPage() {
     }
   }
 
-  // Filtrado y KPIs
   const filteredCustomers = useMemo(() => {
     return customers.filter((c) => {
       if (statusFilter === 'active' && !c.isActive) return false
       if (statusFilter === 'inactive' && c.isActive) return false
       if (typeFilter !== 'all' && String(c.customerType) !== typeFilter) return false
-      if (filterByDate && c.createdAt && !isoInstantInRange(c.createdAt, { from, to })) return false
+      if (c.createdAt && !isoInstantInRange(c.createdAt, { from, to })) return false
       return true
     })
-  }, [customers, statusFilter, typeFilter, filterByDate, from, to])
+  }, [customers, statusFilter, typeFilter, from, to])
 
   const stats = useMemo(() => {
     const total = customers.length
@@ -354,6 +380,36 @@ export default function RepairCustomersListPage() {
   // Paginación y mensajes DataGrid
   const messages = useMemo(() => createSpanishDataGridMessages('cliente', 'clientes'), [])
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging(10)
+
+  const actionItems = useMemo((): PageActionItem[] => {
+    const items: PageActionItem[] = [
+      {
+        id: 'refresh',
+        label: 'Actualizar',
+        icon: 'refresh-cw',
+        disabled: loading,
+      },
+    ]
+    if (canReadBatches) {
+      items.push({
+        id: 'batches',
+        label: 'Lotes de taller',
+        icon: 'layers',
+        route: '/taller/lotes',
+        disabled: false,
+      })
+    }
+    return items
+  }, [canReadBatches, loading])
+
+  const handleActionSelect = useCallback(
+    (item: PageActionItem) => {
+      if (item.id === 'refresh') {
+        void loadCustomers()
+      }
+    },
+    [loadCustomers]
+  )
 
   // Columnas DataGrid
   const columns = useMemo(
@@ -493,36 +549,61 @@ export default function RepairCustomersListPage() {
       {
         key: 'id',
         header: 'Acciones',
-        width: 170,
+        width: canReadBatches || canImportBatches ? 170 : 110,
         sortable: false,
         renderCell: (_v, row: CustomerRow) => (
           <div className="flex items-center gap-1.5 py-1">
-            <GridIconButton
-              label="Editar cliente"
-              icon={Pencil}
-              onClick={() => handleOpenEdit(row)}
-            />
-            <GridIconButton
-              label={row.isActive ? 'Desactivar cliente' : 'Activar cliente'}
-              icon={Power}
-              onClick={() => void handleToggleStatus(row)}
-            />
-            <GridIconButton
-              label="Ver Lotes de Reparación"
-              icon={Layers}
-              onClick={() => navigate(`/taller/lotes?clienteId=${row.id}`)}
-            />
-            <GridIconButton
-              label="Importar Lote para este Cliente"
-              icon={FilePlus}
-              onClick={() => navigate(`/taller/lotes/nuevo?clienteId=${row.id}`)}
-            />
+            {canManage && (
+              <>
+                <GridIconButton
+                  label="Editar cliente"
+                  icon={Pencil}
+                  onClick={() => handleOpenEdit(row)}
+                />
+                <GridIconButton
+                  label={row.isActive ? 'Desactivar cliente' : 'Activar cliente'}
+                  icon={Power}
+                  onClick={() => void handleToggleStatus(row)}
+                />
+              </>
+            )}
+            {canReadBatches && (
+              <GridIconButton
+                label="Ver Lotes de Reparación"
+                icon={Layers}
+                onClick={() => navigate(`/taller/lotes?clienteId=${row.id}`)}
+              />
+            )}
+            {canImportBatches && (
+              <GridIconButton
+                label="Importar Lote para este Cliente"
+                icon={FilePlus}
+                onClick={() => navigate(`/taller/lotes/nuevo?clienteId=${row.id}`)}
+              />
+            )}
           </div>
         ),
       },
     ],
-    [navigate]
+    [canImportBatches, canManage, canReadBatches, navigate]
   )
+
+  if (!canRead) {
+    return (
+      <TenantSessionGate
+        title="Directorio de Clientes"
+        lead="Gestión y clasificación comercial de clientes."
+      >
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres el permiso customers.read para consultar el directorio de clientes."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
+      </TenantSessionGate>
+    )
+  }
 
   return (
     <TenantSessionGate
@@ -539,31 +620,25 @@ export default function RepairCustomersListPage() {
             </StatusBadge>
           }
           actions={
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => void loadCustomers()}
-                disabled={loading}
-              >
-                <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden />
-                Actualizar
-              </Button>
+            <>
               {canManage && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={handleOpenCreate}
-                >
+                <Button type="button" variant="primary" onClick={handleOpenCreate}>
                   <Plus size={16} strokeWidth={2} aria-hidden />
                   Nuevo Cliente
                 </Button>
               )}
-            </div>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de clientes"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
           }
         />
 
-        {/* Tira de KPIs / Métricas */}
         <div className="ecu-stat-grid" aria-label="Métricas del directorio de clientes">
           <StatCard
             label="Total Clientes"
@@ -595,10 +670,33 @@ export default function RepairCustomersListPage() {
           />
         </div>
 
-        {/* Listado y Filtros */}
         <SectionCard
           title="Cartera y Directorio"
-          subtitle="Consulta, segmentación por tipo, búsqueda instantánea y mantenimiento de información de contacto"
+          subtitle={
+            statusFilter === 'active'
+              ? 'Clientes habilitados para operaciones comerciales y de taller'
+              : statusFilter === 'inactive'
+                ? 'Clientes desactivados; no participan en nuevas operaciones'
+                : 'Consulta, segmentación por tipo y mantenimiento de la cartera'
+          }
+          action={
+            <div className="flex items-center gap-2">
+              <Select
+                id="filter-customers-status"
+                label="Mostrar"
+                width="220px"
+                labelPosition="outlined"
+                variant="outline"
+                options={[
+                  { value: 'active', label: `Activos (${stats.active})` },
+                  { value: 'all', label: `Todos (${stats.total})` },
+                  { value: 'inactive', label: `Inactivos (${stats.inactive})` },
+                ]}
+                value={statusFilter}
+                onChange={(val: string) => setStatusFilter(val as 'all' | 'active' | 'inactive')}
+              />
+            </div>
+          }
         >
           {error && (
             <div className="ecu-form-error-banner mb-4" role="alert">
@@ -607,63 +705,33 @@ export default function RepairCustomersListPage() {
             </div>
           )}
 
-          {/* Barra de Filtro de Estado */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Filtro por estado:
-              </span>
-              <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <Button
-                  type="button"
-                  variant={statusFilter === 'all' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setStatusFilter('all')}
-                >
-                  Todos ({stats.total})
-                </Button>
-                <Button
-                  type="button"
-                  variant={statusFilter === 'active' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setStatusFilter('active')}
-                >
-                  Activos ({stats.active})
-                </Button>
-                <Button
-                  type="button"
-                  variant={statusFilter === 'inactive' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setStatusFilter('inactive')}
-                >
-                  Inactivos ({stats.inactive})
-                </Button>
-              </div>
-            </div>
-          </div>
-
           {filteredCustomers.length === 0 && !loading ? (
-            <EmptyState
-              icon="group"
-              title={
-                statusFilter === 'all' && typeFilter === 'all'
-                  ? 'No hay clientes registrados en este momento'
-                  : 'No se encontraron clientes con los filtros seleccionados'
-              }
-              description="Registra clientes corporativos, talleres o personas naturales con validación tributaria para utilizarlos en lotes de reparación, facturación y operaciones del sistema."
-              action={
-                canManage ? (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={handleOpenCreate}
-                  >
-                    <Plus size={16} strokeWidth={2} aria-hidden />
-                    Registrar Primer Cliente
+            customers.length === 0 ? (
+              <EmptyState
+                icon="group"
+                title="No hay clientes registrados en este momento"
+                description="Registra clientes corporativos, talleres o personas naturales con validación tributaria para utilizarlos en lotes de reparación, facturación y operaciones del sistema."
+                action={
+                  canManage ? (
+                    <Button type="button" variant="primary" onClick={handleOpenCreate}>
+                      <Plus size={16} strokeWidth={2} aria-hidden />
+                      Registrar Primer Cliente
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <EmptyState
+                icon="filter"
+                title="No se encontraron clientes con los filtros seleccionados"
+                description="Ajusta el estado, la clasificación o el rango de fechas para ampliar la búsqueda en el directorio."
+                action={
+                  <Button type="button" variant="outline" onClick={() => setStatusFilter('all')}>
+                    Ver Todos los Clientes ({stats.total})
                   </Button>
-                ) : undefined
-              }
-            />
+                }
+              />
+            )
           ) : (
             <DataGrid
               className="ecu-customers-grid"
@@ -695,23 +763,13 @@ export default function RepairCustomersListPage() {
                       onChange={(val: string) => setTypeFilter(val)}
                     />
                   </div>
-                  <Button
-                    type="button"
-                    variant={filterByDate ? 'primary' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilterByDate(!filterByDate)}
-                  >
-                    {filterByDate ? 'Ocultar Fechas' : 'Filtrar por Fecha'}
-                  </Button>
-                  {filterByDate && (
-                    <GridDateRangeBox
-                      from={from}
-                      to={to}
-                      lookback={lookback}
-                      disabled={loading}
-                      onChange={setRange}
-                    />
-                  )}
+                  <GridDateRangeBox
+                    from={from}
+                    to={to}
+                    lookback={lookback}
+                    disabled={loading}
+                    onChange={setRange}
+                  />
                 </div>
               }
               loading={loading}

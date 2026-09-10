@@ -30,11 +30,13 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.CustomerType)
             .HasConversion<int>()
             .HasDefaultValue(EcuNexo.Core.Customers.CustomerType.CorporativoB2B)
+            .HasSentinel(default(EcuNexo.Core.Customers.CustomerType))
             .IsRequired();
 
         builder.Property(c => c.IdentificationType)
             .HasConversion<int>()
             .HasDefaultValue(EcuNexo.Core.Customers.CustomerIdentificationType.Ruc)
+            .HasSentinel(default(EcuNexo.Core.Customers.CustomerIdentificationType))
             .IsRequired();
 
         builder.Property(c => c.ContactEmail)
