@@ -1067,6 +1067,637 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("sys_settings", "platform");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Repairs.Customer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("contact_email");
+
+                    b.Property<string>("ContactPerson")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("contact_person");
+
+                    b.Property<string>("ContactPhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("contact_phone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tax_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customers");
+
+                    b.HasIndex("TenantId", "Name")
+                        .HasDatabaseName("ix_customers_tenant_id_name");
+
+                    b.HasIndex("TenantId", "TaxId")
+                        .HasDatabaseName("ix_customers_tenant_id_tax_id");
+
+                    b.ToTable("customers", "repairs");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairBatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal?>("AgreedRateN1")
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("agreed_rate_n1");
+
+                    b.Property<decimal?>("AgreedRateN2")
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("agreed_rate_n2");
+
+                    b.Property<decimal?>("AgreedRateN3")
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("agreed_rate_n3");
+
+                    b.Property<string>("BatchNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("batch_number");
+
+                    b.Property<string>("ContractReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("contract_reference");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<int>("DispatchedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("dispatched_count");
+
+                    b.Property<DateTimeOffset?>("ExpectedCompletionAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("expected_completion_at");
+
+                    b.Property<int>("InRepairCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("in_repair_count");
+
+                    b.Property<string>("MetadataJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("metadata_json");
+
+                    b.Property<int>("ReadyCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("ready_count");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("received_at");
+
+                    b.Property<int>("ReceivedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("received_count");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid?>("TemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("TotalCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("total_count");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_batches");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_batches_customer_id");
+
+                    b.HasIndex("TemplateId")
+                        .HasDatabaseName("ix_batches_template_id");
+
+                    b.HasIndex("TenantId", "BatchNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_batches_tenant_id_batch_number");
+
+                    b.HasIndex("TenantId", "CustomerId")
+                        .HasDatabaseName("ix_batches_tenant_id_customer_id");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("ix_batches_tenant_id_status");
+
+                    b.ToTable("batches", "repairs");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairBatchTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ColumnDefinitionsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("column_definitions_json");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_batch_templates");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_batch_templates_customer_id");
+
+                    b.HasIndex("TenantId", "Name")
+                        .HasDatabaseName("ix_batch_templates_tenant_id_name");
+
+                    b.ToTable("batch_templates", "repairs");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairDispatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("batch_id");
+
+                    b.Property<string>("CarrierDocument")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("carrier_document");
+
+                    b.Property<string>("CarrierName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("carrier_name");
+
+                    b.Property<string>("CarrierVehiclePlate")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("carrier_vehicle_plate");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("DispatchNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("dispatch_number");
+
+                    b.Property<DateTimeOffset?>("DispatchedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("dispatched_at");
+
+                    b.Property<Guid?>("InvoiceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invoice_id");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("QrCodeUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("qr_code_url");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("VerificationHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("verification_hash");
+
+                    b.HasKey("Id")
+                        .HasName("pk_dispatches");
+
+                    b.HasIndex("VerificationHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_dispatches_verification_hash");
+
+                    b.HasIndex("BatchId", "Status")
+                        .HasDatabaseName("ix_dispatches_batch_id_status");
+
+                    b.HasIndex("TenantId", "DispatchNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_dispatches_tenant_id_dispatch_number");
+
+                    b.ToTable("dispatches", "repairs");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairDispatchItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("DispatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("dispatch_id");
+
+                    b.Property<Guid>("EquipmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipment_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_dispatch_items");
+
+                    b.HasIndex("EquipmentId")
+                        .HasDatabaseName("ix_dispatch_items_equipment_id");
+
+                    b.HasIndex("DispatchId", "EquipmentId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_dispatch_items_dispatch_id_equipment_id");
+
+                    b.ToTable("dispatch_items", "repairs");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairEquipment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AssignedTechnicianId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_technician_id");
+
+                    b.Property<Guid>("BatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("batch_id");
+
+                    b.Property<string>("Brand")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("brand");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("CustomAttributesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("custom_attributes_json");
+
+                    b.Property<int>("DamageLevel")
+                        .HasColumnType("integer")
+                        .HasColumnName("damage_level");
+
+                    b.Property<DateTimeOffset?>("DiagnosedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("diagnosed_at");
+
+                    b.Property<string>("DiagnosticNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("diagnostic_notes");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("model");
+
+                    b.Property<bool?>("PassedQualityCheck")
+                        .HasColumnType("boolean")
+                        .HasColumnName("passed_quality_check");
+
+                    b.Property<string>("ProductLine")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("product_line");
+
+                    b.Property<string>("QualityCheckNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("quality_check_notes");
+
+                    b.Property<DateTimeOffset?>("QualityCheckedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("quality_checked_at");
+
+                    b.Property<string>("RepairNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("repair_notes");
+
+                    b.Property<DateTimeOffset?>("RepairedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("repaired_at");
+
+                    b.Property<string>("SerialNumber")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("serial_number");
+
+                    b.Property<decimal?>("ServiceFeeApplied")
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("service_fee_applied");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_equipments");
+
+                    b.HasIndex("CustomAttributesJson")
+                        .HasDatabaseName("ix_equipments_custom_attributes_json");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CustomAttributesJson"), "gin");
+
+                    b.HasIndex("BatchId", "Status")
+                        .HasDatabaseName("ix_equipments_batch_id_status");
+
+                    b.HasIndex("TenantId", "SerialNumber")
+                        .HasDatabaseName("ix_equipments_tenant_id_serial_number");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("ix_equipments_tenant_id_status");
+
+                    b.ToTable("equipments", "repairs");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairEquipmentEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("EquipmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipment_id");
+
+                    b.Property<int>("FromStatus")
+                        .HasColumnType("integer")
+                        .HasColumnName("from_status");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("note");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<int>("ToStatus")
+                        .HasColumnType("integer")
+                        .HasColumnName("to_status");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_equipment_events");
+
+                    b.HasIndex("EquipmentId", "OccurredAt")
+                        .HasDatabaseName("ix_equipment_events_equipment_id_occurred_at");
+
+                    b.ToTable("equipment_events", "repairs");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairEquipmentPhoto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Caption")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("caption");
+
+                    b.Property<DateTimeOffset>("CapturedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("captured_at");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("image/webp")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("EquipmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("equipment_id");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("file_name");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("file_size_bytes");
+
+                    b.Property<string>("S3Bucket")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("s3bucket");
+
+                    b.Property<string>("S3Key")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("s3key");
+
+                    b.Property<int>("Stage")
+                        .HasColumnType("integer")
+                        .HasColumnName("stage");
+
+                    b.Property<Guid?>("UploadedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_equipment_photos");
+
+                    b.HasIndex("EquipmentId", "Stage")
+                        .HasDatabaseName("ix_equipment_photos_equipment_id_stage");
+
+                    b.ToTable("equipment_photos", "repairs");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Tenancy.ActivationCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1968,6 +2599,104 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Warehouse");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairBatch", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Repairs.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_batches_customers_customer_id");
+
+                    b.HasOne("EcuNexo.Core.Repairs.RepairBatchTemplate", "Template")
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_batches_repair_batch_templates_template_id");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Template");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairBatchTemplate", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Repairs.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_batch_templates_customers_customer_id");
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairDispatch", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Repairs.RepairBatch", "Batch")
+                        .WithMany("Dispatches")
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_dispatches_batches_batch_id");
+
+                    b.Navigation("Batch");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairDispatchItem", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Repairs.RepairDispatch", "Dispatch")
+                        .WithMany("Items")
+                        .HasForeignKey("DispatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_dispatch_items_dispatches_dispatch_id");
+
+                    b.HasOne("EcuNexo.Core.Repairs.RepairEquipment", "Equipment")
+                        .WithMany()
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_dispatch_items_repair_equipments_equipment_id");
+
+                    b.Navigation("Dispatch");
+
+                    b.Navigation("Equipment");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairEquipment", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Repairs.RepairBatch", "Batch")
+                        .WithMany("Equipments")
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_equipments_batches_batch_id");
+
+                    b.Navigation("Batch");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairEquipmentEvent", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Repairs.RepairEquipment", null)
+                        .WithMany("Events")
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_equipment_events_equipments_equipment_id");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairEquipmentPhoto", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Repairs.RepairEquipment", "Equipment")
+                        .WithMany("Photos")
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_equipment_photos_equipments_equipment_id");
+
+                    b.Navigation("Equipment");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Tenancy.TenantBrandLogo", b =>
                 {
                     b.HasOne("EcuNexo.Core.Tenancy.Tenant", null)
@@ -2012,6 +2741,25 @@ namespace EcuNexo.Data.Migrations
             modelBuilder.Entity("EcuNexo.Core.Inventory.InventoryDocument", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairBatch", b =>
+                {
+                    b.Navigation("Dispatches");
+
+                    b.Navigation("Equipments");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairDispatch", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Repairs.RepairEquipment", b =>
+                {
+                    b.Navigation("Events");
+
+                    b.Navigation("Photos");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Tenancy.Tenant", b =>

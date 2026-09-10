@@ -68,10 +68,10 @@ test.describe('Enterprise Shell UI — Header, Tema y Modal Acerca de', () => {
     await expect(modal).toBeVisible()
 
     // Información de release
-    await expect(modal.locator('.ecu-about-modal__badge')).toContainText('v0.4.0')
+    await expect(modal.locator('.ecu-about-modal__badge')).toContainText('v0.5.0')
     await expect(modal.locator('.ecu-about-modal__changelog')).toBeVisible()
-    await expect(modal).toContainText('Ficha Técnica en Stock')
-    await expect(modal).toContainText('Buscador Global (Ctrl + K)')
+    await expect(modal).toContainText('Taller y Lotes B2B')
+    await expect(modal).toContainText('Actas de Despacho Criptográficas con QR')
 
     // Botón de copiado de soporte
     const copyBtn = modal.locator('.ecu-about-modal__copy-btn')

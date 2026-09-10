@@ -77,6 +77,12 @@ internal static class MenuCatalogSeedData
         ("contabilidad.cuentas.read", "Cuentas — lectura", "Ver cuentas contables", "contabilidad", 96),
         ("contabilidad.reportes.read", "Reportes contables — lectura", "Ver reportes contables", "contabilidad", 97),
         ("contabilidad.configuracion.read", "Config. contabilidad — lectura", "Ver configuración contable", "contabilidad", 98),
+
+        ("repairs.batches.read", "Lotes — lectura", "Consultar lotes de reparación", "repairs", 120),
+        ("repairs.batches.import", "Lotes — importar", "Importar lotes masivos de equipos", "repairs", 121),
+        ("repairs.equipments.update_status", "Equipos — gestionar estado", "Cambiar fases de diagnóstico y reparación", "repairs", 122),
+        ("repairs.dispatches.create", "Despachos — emitir", "Generar actas de entrega y despachos QR", "repairs", 123),
+        ("repairs.b2b_portal.view", "Portal B2B — auditoría", "Portal exclusivo cliente corporativo Whirlpool", "repairs", 124),
     ];
 
     public static IReadOnlyList<(string Code, string DisplayName)> ProductModules =>
@@ -88,6 +94,7 @@ internal static class MenuCatalogSeedData
         ("inventory", "Inventario"),
         ("facturacion", "Facturación electrónica"),
         ("contabilidad", "Contabilidad"),
+        ("repairs", "Taller y Reparaciones B2B"),
     ];
 
     public static IReadOnlyList<MenuItem> MenuItems =>
@@ -112,6 +119,11 @@ internal static class MenuCatalogSeedData
         Item("inventory-stock", "inventory", "Stock", "package", "inventario/stock", 1, MenuContextKind.Operational, "inventory", ["inventory.stock.read"]),
         Item("inventory-documents", "inventory", "Documentos", "file-text", "inventario/documentos", 2, MenuContextKind.Operational, "inventory", ["inventory.documents.create", "inventory.documents.approve", "inventory.stock.read"]),
         Item("inventory-kardex", "inventory", "Kárdex", "list", "inventario/kardex", 3, MenuContextKind.Operational, "inventory", ["inventory.movement.read", "inventory.stock.read"]),
+
+        Item("repairs", null, "Taller B2B", "build", null, 56, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
+        Item("repairs-batches", "repairs", "Lotes de Equipos", "layers", "taller/lotes", 1, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
+        Item("repairs-dispatches", "repairs", "Actas y Despachos", "truck", "taller/despachos", 2, MenuContextKind.Operational, "repairs", ["repairs.dispatches.create", "repairs.batches.read"]),
+        Item("repairs-portal", "repairs", "Portal Whirlpool", "eye", "taller/portal", 3, MenuContextKind.Operational, "repairs", ["repairs.b2b_portal.view"]),
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Comprobantes", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),

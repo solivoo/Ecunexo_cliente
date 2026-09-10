@@ -4,6 +4,7 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup Label="Identity / ABAC">
+    <PackageVersion Include="ClosedXML" Version="0.105.1" />
     <PackageVersion Include="DynamicExpresso.Core" Version="2.19.3" />
   </ItemGroup>
   <ItemGroup Label="EF Core / PostgreSQL">

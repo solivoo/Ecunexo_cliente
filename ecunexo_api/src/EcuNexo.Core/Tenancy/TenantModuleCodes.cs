@@ -23,8 +23,10 @@ public static class TenantModuleCodes
 
     public const string Support = "support";
 
+    public const string Repairs = "repairs";
+
     public static readonly IReadOnlyList<string> All =
-        [Identity, Catalog, Warehousing, Inventory, Invoicing, Accounting, Training, Support];
+        [Identity, Catalog, Warehousing, Inventory, Invoicing, Accounting, Training, Support, Repairs];
 
     public static bool IsKnown(string code) =>
         All.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase));

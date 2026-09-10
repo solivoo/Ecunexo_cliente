@@ -4,6 +4,7 @@ using EcuNexo.Core.Identity;
 using EcuNexo.Core.Inventory;
 using EcuNexo.Core.Platform;
 using EcuNexo.Core.Platform.Navigation;
+using EcuNexo.Core.Repairs;
 using EcuNexo.Core.Tenancy;
 using EcuNexo.Core.Warehousing;
 using Microsoft.EntityFrameworkCore;
@@ -67,6 +68,22 @@ public sealed class EcuNexoDbContext : DbContext
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
 
     public DbSet<InvoiceStockEgress> InvoiceStockEgresses => Set<InvoiceStockEgress>();
+
+    public DbSet<Customer> Customers => Set<Customer>();
+
+    public DbSet<RepairBatchTemplate> RepairBatchTemplates => Set<RepairBatchTemplate>();
+
+    public DbSet<RepairBatch> RepairBatches => Set<RepairBatch>();
+
+    public DbSet<RepairEquipment> RepairEquipments => Set<RepairEquipment>();
+
+    public DbSet<RepairEquipmentPhoto> RepairEquipmentPhotos => Set<RepairEquipmentPhoto>();
+
+    public DbSet<RepairEquipmentEvent> RepairEquipmentEvents => Set<RepairEquipmentEvent>();
+
+    public DbSet<RepairDispatch> RepairDispatches => Set<RepairDispatch>();
+
+    public DbSet<RepairDispatchItem> RepairDispatchItems => Set<RepairDispatchItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

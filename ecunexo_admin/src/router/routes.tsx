@@ -51,6 +51,12 @@ import { ComprobantesPage } from '@/pages/facturacion/ComprobantesPage'
 import { SriMonitorPage } from '@/pages/facturacion/SriMonitorPage'
 import { TaxRulesCatalogPage } from '@/pages/facturacion/TaxRulesCatalogPage'
 import { ComprasDocumentosPage } from '@/pages/compras/ComprasDocumentosPage'
+import { RepairsBatchesListPage } from '@/pages/repairs/RepairsBatchesListPage'
+import { CreateRepairBatchPage } from '@/pages/repairs/CreateRepairBatchPage'
+import { RepairBatchDetailPage } from '@/pages/repairs/RepairBatchDetailPage'
+import { RepairDispatchesListPage } from '@/pages/repairs/RepairDispatchesListPage'
+import { WhirlpoolPortalPage } from '@/pages/repairs/WhirlpoolPortalPage'
+import { PublicDispatchVerificationPage } from '@/pages/repairs/PublicDispatchVerificationPage'
 import { DashboardLayout } from '@/shell/DashboardLayout'
 
 const placeholder = (title: string): RouteObject => ({
@@ -60,6 +66,7 @@ const placeholder = (title: string): RouteObject => ({
 
 export const routes: RouteObject[] = [
   { path: '/', element: <LoginLayout /> },
+  { path: '/verificar/despacho/:verificationHash', element: <PublicDispatchVerificationPage /> },
   {
     path: '/bienvenida',
     element: <WelcomeLayout />,
@@ -116,6 +123,12 @@ export const routes: RouteObject[] = [
           { path: 'inventario/documentos/nuevo', element: <CreateInventoryDocumentPage /> },
           { path: 'inventario/documentos/:documentId', element: <InventoryDocumentDetailPage /> },
           { path: 'inventario/kardex', element: <InventoryKardexPage /> },
+          { path: 'taller', element: <Navigate to="/taller/lotes" replace /> },
+          { path: 'taller/lotes', element: <RepairsBatchesListPage /> },
+          { path: 'taller/lotes/nuevo', element: <CreateRepairBatchPage /> },
+          { path: 'taller/lotes/:batchId', element: <RepairBatchDetailPage /> },
+          { path: 'taller/despachos', element: <RepairDispatchesListPage /> },
+          { path: 'taller/portal', element: <WhirlpoolPortalPage /> },
           { path: 'compras/documentos', element: <ComprasDocumentosPage /> },
           { path: 'compras/retenciones', element: <ComprasDocumentosPage /> },
           { path: 'compras/liquidaciones', element: <ComprasDocumentosPage /> },

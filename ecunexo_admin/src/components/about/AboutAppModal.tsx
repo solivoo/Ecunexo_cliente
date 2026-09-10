@@ -110,14 +110,14 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Catálogo, Control de Stock & Integridad</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Taller, Reparaciones B2B & Actas QR</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
-            <li><strong>Ficha Técnica en Stock:</strong> Inspección rápida y modal interactivo para visualizar especificaciones físicas, técnicas y operativas sin saturar la tabla.</li>
-            <li><strong>Búsqueda Inteligente por Atributos:</strong> Búsqueda global en Stock indexando números de serie, modelo, marca y características técnicas.</li>
-            <li><strong>Control de Ítems Inactivos:</strong> Bloqueo estricto de productos inactivos en facturación y movimientos de bodega, con trazabilidad en borradores.</li>
-            <li><strong>Validación de Esquemas y Atributos:</strong> Prevención en tiempo real de nombres duplicados y colisiones con atributos nativos del sistema.</li>
-            <li><strong>Buscador Global (Ctrl + K):</strong> Command Palette para ejecutar acciones rápidas, navegar módulos y cambiar temas.</li>
+            <li><strong>Taller y Lotes B2B:</strong> Gestión integral de lotes de reacondicionamiento masivo con tarifas parametrizadas por severidad de daño (N1, N2, N3).</li>
+            <li><strong>Importación Excel Inteligente:</strong> Carga masiva mediante plantillas dinámicas ClosedXML y validación estricta de series duplicadas en muelle.</li>
+            <li><strong>Custodia Fotográfica en AWS S3:</strong> Evidencia visual por etapas (Recepción, Proceso, Finalizado) con URLs prefirmadas y arquitectura cero-blob.</li>
+            <li><strong>Actas de Despacho Criptográficas con QR:</strong> Generación de albaranes inalterables con hash SHA-256 y verificación pública instantánea desde móviles.</li>
+            <li><strong>Portal Ejecutivo Whirlpool / B2B:</strong> Buscador en tiempo real por número de serie, índice de rescate y trazabilidad para marcas matrices.</li>
           </ul>
         </div>
 

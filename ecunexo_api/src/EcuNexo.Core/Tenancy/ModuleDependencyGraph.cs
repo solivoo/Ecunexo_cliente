@@ -26,6 +26,7 @@ public static class ModuleDependencyGraph
             [TenantModuleCodes.Inventory] = [TenantModuleCodes.Catalog, TenantModuleCodes.Warehousing],
             [TenantModuleCodes.Warehousing] = [TenantModuleCodes.Catalog],
             [TenantModuleCodes.Invoicing] = [TenantModuleCodes.Catalog],
+            [TenantModuleCodes.Repairs] = [TenantModuleCodes.Identity],
         };
 
     /// <summary>
@@ -152,6 +153,7 @@ public static class ModuleDependencyGraph
         TenantModuleCodes.Accounting => "Contabilidad",
         TenantModuleCodes.Training => "Capacitación",
         TenantModuleCodes.Support => "Soporte",
+        TenantModuleCodes.Repairs => "Taller y Reparaciones B2B",
         _ => code,
     };
 

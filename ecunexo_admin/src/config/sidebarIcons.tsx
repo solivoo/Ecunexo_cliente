@@ -6,10 +6,12 @@ import {
   Check,
   CirclePlus,
   Copy,
+  Eye,
   FileText,
   FolderTree,
   Info,
   Key,
+  Layers,
   LayoutDashboard,
   Library,
   LogOut,
@@ -27,10 +29,12 @@ import {
   Sparkles,
   Sun,
   Trash2,
+  Truck,
   UserPlus,
   UserX,
   Users,
   Warehouse,
+  Wrench,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -82,6 +86,11 @@ const iconMap: Record<string, LucideIcon> = {
   sun: Sun,
   moon: Moon,
   check: Check,
+  build: Wrench,
+  wrench: Wrench,
+  layers: Layers,
+  truck: Truck,
+  eye: Eye,
 }
 
 export function renderSidebarIcon(name: string, className?: string): ReactElement | null {

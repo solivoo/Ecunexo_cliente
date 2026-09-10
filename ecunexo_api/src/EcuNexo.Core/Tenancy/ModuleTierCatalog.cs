@@ -167,6 +167,36 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
+    // Repairs — Lotes y equipos en reacondicionamiento
+    // ──────────────────────────────────────────────
+    public const string LimitMaxActiveBatches = "max_active_batches";
+    public const string LimitMaxEquipmentsPerBatch = "max_equipments_per_batch";
+
+    private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> RepairsLimits = new()
+    {
+        [ModuleTier.Small] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveBatches] = 10,
+            [LimitMaxEquipmentsPerBatch] = 100,
+        },
+        [ModuleTier.Medium] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveBatches] = 50,
+            [LimitMaxEquipmentsPerBatch] = 500,
+        },
+        [ModuleTier.Big] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveBatches] = 200,
+            [LimitMaxEquipmentsPerBatch] = 2_000,
+        },
+        [ModuleTier.Enterprise] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveBatches] = int.MaxValue,
+            [LimitMaxEquipmentsPerBatch] = int.MaxValue,
+        },
+    };
+
+    // ──────────────────────────────────────────────
     // Resolución
     // ──────────────────────────────────────────────
 
@@ -184,6 +214,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Identity => IdentityLimits,
             TenantModuleCodes.Training => TrainingLimits,
             TenantModuleCodes.Support => SupportLimits,
+            TenantModuleCodes.Repairs => RepairsLimits,
             _ => null,
         };
 
@@ -209,6 +240,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Identity => IdentityLimits,
             TenantModuleCodes.Training => TrainingLimits,
             TenantModuleCodes.Support => SupportLimits,
+            TenantModuleCodes.Repairs => RepairsLimits,
             _ => null,
         };
 

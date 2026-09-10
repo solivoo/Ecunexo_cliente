@@ -25,6 +25,7 @@ Documentación paso a paso del armado de **EcuNexo**: para qué sirve cada archi
 | 14 | [`14-onboarding-y-codigos-activacion.md`](14-onboarding-y-codigos-activacion.md) | **Canje de licencia** (`activate-license`), titular de suscripción, empresas (`/subscription/*`), legacy `tenant-with-activation` | `ecunexo-architecture`, `ecunexo-data-model`, `ecunexo-licensing-security` |
 | 15 | [`15-catalogo-vs-inventario-y-planes.md`](15-catalogo-vs-inventario-y-planes.md) | **Catálogo maestro vs Inventario transaccional**, plan `services-starter`, RBAC+ABAC por módulo | `ecunexo-architecture`, `ecunexo-data-model` |
 | 16 | [`16-api-versionamiento.md`](16-api-versionamiento.md) | **Versionado HTTP** (`/api/v1`), Asp.Versioning, carpetas `Endpoints/V1`–`V2`, OpenAPI/Scalar, cómo abrir v2 | `ecunexo-architecture`, `ecunexo-coding-standards` |
+| 17 | [`17-modulo-reparaciones-lotes-taller.md`](17-modulo-reparaciones-lotes-taller.md) | **Reparaciones por lotes (Taller B2B)**, plantilla Excel dinámica (JSONB), portal cliente, niveles de golpe y facturación de servicios | `ecunexo-architecture`, `ecunexo-data-model` |
 
 ## Plataforma de licencias (Obsidian)
 

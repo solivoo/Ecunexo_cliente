@@ -64,6 +64,7 @@ const materialToLucide: Record<string, string> = {
   receipt: 'receipt',
   'shopping-cart': 'shopping-cart',
   'shield-check': 'shield-check',
+  build: 'wrench',
 }
 
 function mapIcon(icon: string | null): string | undefined {
