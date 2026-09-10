@@ -1,4 +1,4 @@
-import { Button, CheckButton, Select, useToast } from 'glubox'
+import { CheckButton, Select, useToast } from 'glubox'
 import { SectionCard } from '@/components/ui'
 import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import {
@@ -44,12 +44,19 @@ export function AppSettingsAppearanceSection({
   const size = useGluComponentSize()
   const toast = useToast()
 
-  const handleTestToast = () => {
-    toast.show({
-      title: 'Notificación de prueba',
-      message: 'Esta es la ubicación configurada para los avisos del sistema.',
-      variant: 'info',
-    })
+  const handleToastPositionChange = (value: string) => {
+    if (!value) return
+    const pos = value as ToastPositionId
+    onToastPositionChange(pos)
+    const label = TOAST_POSITION_OPTIONS.find((opt) => opt.value === pos)?.label ?? pos
+    setTimeout(() => {
+      toast.dismissAll?.()
+      toast.show({
+        title: 'Ubicación de notificaciones',
+        message: `Los avisos del sistema se mostrarán en: ${label}.`,
+        variant: 'info',
+      })
+    }, 80)
   }
 
   return (
@@ -94,7 +101,7 @@ export function AppSettingsAppearanceSection({
             variant="outline"
             options={[...TOAST_POSITION_OPTIONS]}
             value={toastPosition}
-            onChange={(value: string) => onToastPositionChange(value as ToastPositionId)}
+            onChange={handleToastPositionChange}
             disabled={disabled}
             fullWidth
             size={size}
@@ -110,17 +117,6 @@ export function AppSettingsAppearanceSection({
           >
             Iniciar en modo oscuro
           </CheckButton>
-        </div>
-        <div className="ecu-companies-form__field ecu-companies-form__field--check-align">
-          <Button
-            type="button"
-            variant="outline"
-            size={size}
-            onClick={handleTestToast}
-            disabled={disabled}
-          >
-            Probar notificación
-          </Button>
         </div>
       </div>
     </SectionCard>

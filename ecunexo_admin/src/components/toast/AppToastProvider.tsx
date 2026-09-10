@@ -34,7 +34,6 @@ export function AppToastProvider({
 
   return (
     <ToastProvider
-      key={activePosition}
       position={activePosition}
       maxToasts={maxToasts}
       defaultDuration={defaultDuration}
