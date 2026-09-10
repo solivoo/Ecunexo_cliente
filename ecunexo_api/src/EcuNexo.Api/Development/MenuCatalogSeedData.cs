@@ -121,7 +121,7 @@ internal static class MenuCatalogSeedData
         Item("inventory-documents", "inventory", "Documentos", "file-text", "inventario/documentos", 2, MenuContextKind.Operational, "inventory", ["inventory.documents.create", "inventory.documents.approve", "inventory.stock.read"]),
         Item("inventory-kardex", "inventory", "Kárdex", "list", "inventario/kardex", 3, MenuContextKind.Operational, "inventory", ["inventory.movement.read", "inventory.stock.read"]),
 
-        Item("repairs", null, "Taller B2B", "build", null, 56, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
+        Item("repairs", null, "Reparaciones", "build", null, 56, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
         Item("repairs-batches", "repairs", "Lotes de Equipos", "layers", "taller/lotes", 1, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
         Item("repairs-dispatches", "repairs", "Actas y Despachos", "truck", "taller/despachos", 2, MenuContextKind.Operational, "repairs", ["repairs.dispatches.create", "repairs.batches.read"]),
         Item("repairs-portal", "repairs", "Portal Whirlpool", "eye", "taller/portal", 3, MenuContextKind.Operational, "repairs", ["repairs.b2b.portal.view"]),
