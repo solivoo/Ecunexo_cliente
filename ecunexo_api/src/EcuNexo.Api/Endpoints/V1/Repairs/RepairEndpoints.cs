@@ -35,58 +35,58 @@ public static class RepairEndpoints
 
         // 0. Clientes Corporativos (Whirlpool, Mabe, etc.)
         repairsGroup.MapGet("/customers", ListCustomersAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b_portal.view"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b.portal.view"));
 
         repairsGroup.MapPost("/customers", CreateCustomerAsync)
             .AddEndpointFilter(PermissionFilters.Require("repairs.batches.import"));
 
         // 1. Lotes (Batches)
         repairsGroup.MapGet("/batches", ListBatchesAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b_portal.view"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b.portal.view"));
 
         repairsGroup.MapGet("/batches/{batchId:guid}", GetBatchByIdAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b_portal.view"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b.portal.view"));
 
         repairsGroup.MapPost("/batches/import", ImportBatchAsync)
             .DisableAntiforgery()
             .AddEndpointFilter(PermissionFilters.Require("repairs.batches.import"));
 
         repairsGroup.MapGet("/batches/{batchId:guid}/equipments", ListBatchEquipmentsAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b_portal.view"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b.portal.view"));
 
         // 2. Plantillas Excel
         repairsGroup.MapGet("/templates", ListTemplatesAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b_portal.view"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b.portal.view"));
 
         repairsGroup.MapGet("/templates/download-default-excel", DownloadDefaultTemplateExcelAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.batches.import", "repairs.b2b_portal.view"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.batches.import", "repairs.b2b.portal.view"));
 
         repairsGroup.MapGet("/templates/{templateId:guid}/download-excel", DownloadTemplateExcelAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.batches.import", "repairs.b2b_portal.view"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.batches.import", "repairs.b2b.portal.view"));
 
         // 3. Equipos y Estados
         repairsGroup.MapPatch("/equipments/{equipmentId:guid}/status", UpdateEquipmentStatusAsync)
-            .AddEndpointFilter(PermissionFilters.Require("repairs.equipments.update_status"));
+            .AddEndpointFilter(PermissionFilters.Require("repairs.equipments.update.status"));
 
         // 4. Fotos de Evidencia en Amazon S3
         repairsGroup.MapPost("/equipments/{equipmentId:guid}/photos/presigned-upload", GeneratePhotoUploadUrlAsync)
-            .AddEndpointFilter(PermissionFilters.Require("repairs.equipments.update_status"));
+            .AddEndpointFilter(PermissionFilters.Require("repairs.equipments.update.status"));
 
         repairsGroup.MapPost("/equipments/{equipmentId:guid}/photos/confirm", ConfirmPhotoUploadAsync)
-            .AddEndpointFilter(PermissionFilters.Require("repairs.equipments.update_status"));
+            .AddEndpointFilter(PermissionFilters.Require("repairs.equipments.update.status"));
 
         repairsGroup.MapGet("/equipments/{equipmentId:guid}/photos", ListEquipmentPhotosAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b_portal.view"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b.portal.view"));
 
         // 5. Despachos
         repairsGroup.MapPost("/dispatches", CreateDispatchAsync)
             .AddEndpointFilter(PermissionFilters.Require("repairs.dispatches.create"));
 
         repairsGroup.MapGet("/dispatches", ListDispatchesAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.dispatches.read", "repairs.b2b_portal.view"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.dispatches.read", "repairs.b2b.portal.view"));
 
         repairsGroup.MapGet("/dispatches/{dispatchId:guid}", GetDispatchByIdAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.dispatches.read", "repairs.b2b_portal.view"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.dispatches.read", "repairs.b2b.portal.view"));
 
         // 6. Validación Pública QR (Sin Autenticación)
         RouteGroupBuilder publicGroup = app
