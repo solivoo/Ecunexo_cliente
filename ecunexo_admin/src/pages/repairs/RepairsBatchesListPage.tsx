@@ -10,13 +10,16 @@ import {
   StatusBadge,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
+import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { Eye, Plus } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { useGridDateRange } from '@/hooks/useGridDateRange'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
+import { isoInstantInRange } from '@/lib/gridLookback'
 import { readApiError } from '@/lib/readApiError'
 import { downloadRepairTemplate, listRepairBatches } from '@/services/repairsApi'
 import { selectTenantId } from '@/store/authSlice'
@@ -48,6 +51,7 @@ export function RepairsBatchesListPage() {
   const [downloadingTemplate, setDownloadingTemplate] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
+  const { from, to, setRange, lookback } = useGridDateRange()
 
   const counts = useMemo(() => {
     let active = 0
@@ -63,14 +67,20 @@ export function RepairsBatchesListPage() {
   }, [rows])
 
   const filteredRows = useMemo(() => {
-    if (statusFilter === 'active') {
-      return rows.filter((r) => r.status !== RepairBatchStatus.Cancelled)
-    }
-    if (statusFilter === 'cancelled') {
-      return rows.filter((r) => r.status === RepairBatchStatus.Cancelled)
-    }
-    return rows
-  }, [rows, statusFilter])
+    return rows.filter((r) => {
+      if (statusFilter === 'active' && r.status === RepairBatchStatus.Cancelled) {
+        return false
+      }
+      if (statusFilter === 'cancelled' && r.status !== RepairBatchStatus.Cancelled) {
+        return false
+      }
+      const batchDate = r.receivedAt
+      if (batchDate && !isoInstantInRange(batchDate, { from, to })) {
+        return false
+      }
+      return true
+    })
+  }, [rows, statusFilter, from, to])
 
   const load = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -482,6 +492,15 @@ export function RepairsBatchesListPage() {
               searchPosition="left"
               searchWidth={280}
               searchPlaceholder="Buscar por lote o cliente..."
+              toolbarRight={
+                <GridDateRangeBox
+                  from={from}
+                  to={to}
+                  lookback={lookback}
+                  disabled={loading}
+                  onChange={setRange}
+                />
+              }
               loading={loading}
               paging={paging}
               pageSizeOptions={pageSizeOptions}

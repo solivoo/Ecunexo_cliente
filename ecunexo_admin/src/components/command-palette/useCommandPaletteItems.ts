@@ -179,16 +179,21 @@ export function useCommandPaletteItems({
     }
 
     // Nuevo Cliente Corporativo / Comercial
-    if (hasPerm('repairs.batches.import') || hasPerm('repairs.batches.read')) {
+    if (
+      hasPerm('customers.manage') ||
+      hasPerm('customers.read') ||
+      hasPerm('repairs.batches.import') ||
+      hasPerm('repairs.batches.read')
+    ) {
       items.push({
         id: 'action-new-customer',
         title: 'Registrar Cliente / Aliado',
-        subtitle: 'Alta de cliente corporativo con validación de cédula y RUC',
+        subtitle: 'Alta de cliente corporativo, persona natural o taller aliado con validación SRI',
         category: 'Acciones Rápidas',
         icon: 'users',
         badge: 'Clientes',
-        keywords: ['cliente', 'aliado', 'empresa', 'ruc', 'cedula', 'registro', 'nuevo', 'taller'],
-        onSelect: () => navigate('/taller/clientes?nuevo=1'),
+        keywords: ['cliente', 'aliado', 'empresa', 'ruc', 'cedula', 'registro', 'nuevo', 'directorio'],
+        onSelect: () => navigate('/clientes?nuevo=1'),
       })
     }
 

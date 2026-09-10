@@ -154,7 +154,7 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
         },
       ]
 
-      await page.route('**/api/v1/tenants/*/repairs/customers/**', async (route) => {
+      await page.route(/\/api\/v1\/tenants\/[^/]+\/(repairs\/)?customers\/.+/, async (route) => {
         const url = route.request().url()
         if (url.includes('/status') && route.request().method() === 'PATCH') {
           const body = route.request().postDataJSON()
@@ -188,13 +188,15 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
         await route.continue()
       })
 
-      await page.route('**/api/v1/tenants/*/repairs/customers', async (route) => {
+      await page.route(/\/api\/v1\/tenants\/[^/]+\/(repairs\/)?customers(\?.*)?$/, async (route) => {
         if (route.request().method() === 'POST') {
           const body = route.request().postDataJSON()
           const created = {
             id: `cust-${Date.now()}`,
             name: body.name,
             taxId: body.taxId || null,
+            customerType: body.customerType ?? 1,
+            identificationType: body.identificationType ?? 1,
             contactPerson: body.contactPerson || null,
             contactEmail: body.contactEmail || null,
             contactPhone: body.contactPhone || null,

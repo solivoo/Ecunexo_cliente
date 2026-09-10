@@ -39,7 +39,9 @@ public sealed record CreateCustomerRequest(
     string? ContactPhone = null,
     string? Address = null,
     string? ContactPerson = null,
-    string? Notes = null);
+    string? Notes = null,
+    EcuNexo.Core.Customers.CustomerType? CustomerType = null,
+    EcuNexo.Core.Customers.CustomerIdentificationType? IdentificationType = null);
 
 public sealed record UpdateCustomerRequest(
     string Name,
@@ -49,7 +51,9 @@ public sealed record UpdateCustomerRequest(
     string? Address = null,
     string? ContactPerson = null,
     string? Notes = null,
-    bool? IsActive = null);
+    bool? IsActive = null,
+    EcuNexo.Core.Customers.CustomerType? CustomerType = null,
+    EcuNexo.Core.Customers.CustomerIdentificationType? IdentificationType = null);
 
 public sealed record ToggleCustomerStatusRequest(bool IsActive);
 

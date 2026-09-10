@@ -110,15 +110,15 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Taller, Reparaciones B2B & Actas QR</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Clientes Comerciales, Filtros DataGrid & Taller B2B</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
-            <li><strong>Directorio Centralizado de Clientes:</strong> Gestión fiscal y corporativa con validación algorítmica SRI (Cédula Módulo 10, RUC Natural, Sociedades Privadas y Públicas Módulo 11).</li>
+            <li><strong>Módulo Autónomo de Clientes:</strong> Directorio comercial transversal con clasificación comercial (Corporativo B2B, Persona Natural, Distribuidor Mayorista, Taller Aliado, Consumidor Final, Institución Pública) y cuotas por plan.</li>
+            <li><strong>Validación SRI & Rangos de Fecha en DataGrid:</strong> Validación algorítmica SRI (Cédula Módulo 10, RUC Módulo 11) e integración de componentes glubox (RangeDateBox, Select) en cabeceras de datos.</li>
             <li><strong>Taller y Lotes B2B:</strong> Gestión integral de lotes de reacondicionamiento masivo con tarifas parametrizadas por severidad de daño (N1, N2, N3).</li>
             <li><strong>Importación Excel Inteligente:</strong> Carga masiva mediante plantillas dinámicas ClosedXML y validación estricta de series duplicadas en muelle.</li>
             <li><strong>Custodia Fotográfica en AWS S3:</strong> Evidencia visual por etapas (Recepción, Proceso, Finalizado) con URLs prefirmadas y arquitectura cero-blob.</li>
             <li><strong>Actas de Despacho Criptográficas con QR:</strong> Generación de albaranes inalterables con hash SHA-256 y verificación pública instantánea desde móviles.</li>
-            <li><strong>Portal Ejecutivo Corporativo B2B:</strong> Buscador en tiempo real por número de serie, índice de rescate y trazabilidad para marcas aliadas.</li>
           </ul>
         </div>
 

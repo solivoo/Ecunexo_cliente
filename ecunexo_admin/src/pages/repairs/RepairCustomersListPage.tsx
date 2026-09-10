@@ -8,11 +8,13 @@ import {
   StatCard,
   StatusBadge,
 } from '@/components/ui'
+import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import {
   AlertCircle,
   Building2,
   CheckCircle2,
+  FilePlus,
   Layers,
   Mail,
   MapPin,
@@ -21,11 +23,15 @@ import {
   Plus,
   Power,
   RefreshCw,
+  User,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { useGridDateRange } from '@/hooks/useGridDateRange'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
+import { isoInstantInRange } from '@/lib/gridLookback'
 import { readApiError } from '@/lib/readApiError'
 import {
   type DocumentTypeOption,
@@ -34,16 +40,22 @@ import {
   validatePhone,
 } from '@/lib/ecuadorTaxIdValidator'
 import {
-  createRepairCustomer,
-  listRepairCustomers,
-  toggleRepairCustomerStatus,
-  updateRepairCustomer,
-} from '@/services/repairsApi'
+  createCustomer,
+  listCustomers,
+  toggleCustomerStatus,
+  updateCustomer,
+} from '@/services/customersApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import type { RepairCustomerDto } from '@/types/repairsApi'
+import {
+  CustomerIdentificationType,
+  CustomerType,
+  CUSTOMER_IDENTIFICATION_LABELS,
+  CUSTOMER_TYPE_METADATA,
+  type CustomerDto,
+} from '@/types/customersApi'
 
-type CustomerRow = RepairCustomerDto & Record<string, unknown>
+type CustomerRow = CustomerDto & Record<string, unknown>
 
 export default function RepairCustomersListPage() {
   const navigate = useNavigate()
@@ -51,20 +63,30 @@ export default function RepairCustomersListPage() {
   const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
 
-  const canManage = useHasPermission('repairs.batches.import') || useHasPermission('repairs.batches.read')
+  const canManage =
+    useHasPermission('customers.manage') ||
+    useHasPermission('repairs.batches.import') ||
+    useHasPermission('repairs.batches.read')
 
-  const [customers, setCustomers] = useState<RepairCustomerDto[]>([])
+  const [customers, setCustomers] = useState<CustomerDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Filtro de estado
+  // Filtros de estado, tipo y fechas
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [filterByDate, setFilterByDate] = useState(false)
+  const { from, to, setRange, lookback } = useGridDateRange()
 
   // Modal de Crear / Editar
   const [modalOpen, setModalOpen] = useState(false)
-  const [editingCustomer, setEditingCustomer] = useState<RepairCustomerDto | null>(null)
+  const [editingCustomer, setEditingCustomer] = useState<CustomerDto | null>(null)
 
   // Campos de formulario
+  const [customerType, setCustomerType] = useState<CustomerType>(CustomerType.CorporativoB2B)
+  const [identificationType, setIdentificationType] = useState<CustomerIdentificationType>(
+    CustomerIdentificationType.Ruc
+  )
   const [docType, setDocType] = useState<DocumentTypeOption>('AUTO')
   const [taxId, setTaxId] = useState('')
   const [name, setName] = useState('')
@@ -84,7 +106,7 @@ export default function RepairCustomersListPage() {
     setLoading(true)
     setError(null)
     try {
-      const data = await listRepairCustomers(tenantId)
+      const data = await listCustomers(tenantId)
       setCustomers(data)
     } catch (err: unknown) {
       setError(readApiError(err, 'No fue posible cargar el directorio de clientes.'))
@@ -128,9 +150,60 @@ export default function RepairCustomersListPage() {
     return true
   }, [name, taxId, taxIdValidation, contactEmail, emailValidation, contactPhone, phoneValidation])
 
+  // Sincronización automática de identificador al cambiar tipo de cliente
+  const handleCustomerTypeChange = (newTypeStr: string) => {
+    const newType = Number(newTypeStr) as CustomerType
+    setCustomerType(newType)
+
+    if (newType === CustomerType.ConsumidorFinal) {
+      setIdentificationType(CustomerIdentificationType.ConsumidorFinal)
+      setDocType('CONSUMIDOR_FINAL')
+      if (!taxId.trim() || taxId === '9999999999999') {
+        setTaxId('9999999999999')
+      }
+    } else if (newType === CustomerType.PersonaNatural) {
+      if (identificationType === CustomerIdentificationType.Ruc) {
+        setIdentificationType(CustomerIdentificationType.Cedula)
+        setDocType('CEDULA')
+      }
+    } else if (
+      newType === CustomerType.CorporativoB2B ||
+      newType === CustomerType.DistribuidorMayorista ||
+      newType === CustomerType.InstitucionPublica
+    ) {
+      if (identificationType === CustomerIdentificationType.ConsumidorFinal) {
+        setIdentificationType(CustomerIdentificationType.Ruc)
+        setDocType('RUC')
+        if (taxId === '9999999999999') setTaxId('')
+      }
+    }
+  }
+
+  const handleIdentificationTypeChange = (newIdTypeStr: string) => {
+    const newIdType = Number(newIdTypeStr) as CustomerIdentificationType
+    setIdentificationType(newIdType)
+    switch (newIdType) {
+      case CustomerIdentificationType.Ruc:
+        setDocType('RUC')
+        break
+      case CustomerIdentificationType.Cedula:
+        setDocType('CEDULA')
+        break
+      case CustomerIdentificationType.Pasaporte:
+        setDocType('PASAPORTE')
+        break
+      case CustomerIdentificationType.ConsumidorFinal:
+        setDocType('CONSUMIDOR_FINAL')
+        if (!taxId.trim()) setTaxId('9999999999999')
+        break
+    }
+  }
+
   // Manejo de Modal
   const handleOpenCreate = () => {
     setEditingCustomer(null)
+    setCustomerType(CustomerType.CorporativoB2B)
+    setIdentificationType(CustomerIdentificationType.Ruc)
     setDocType('AUTO')
     setTaxId('')
     setName('')
@@ -144,8 +217,10 @@ export default function RepairCustomersListPage() {
     setModalOpen(true)
   }
 
-  const handleOpenEdit = (customer: RepairCustomerDto) => {
+  const handleOpenEdit = (customer: CustomerDto) => {
     setEditingCustomer(customer)
+    setCustomerType(customer.customerType ?? CustomerType.CorporativoB2B)
+    setIdentificationType(customer.identificationType ?? CustomerIdentificationType.Ruc)
     setDocType('AUTO')
     setTaxId(customer.taxId ?? '')
     setName(customer.name)
@@ -197,6 +272,8 @@ export default function RepairCustomersListPage() {
       const payload = {
         name: name.trim(),
         taxId: taxId.trim() || null,
+        customerType,
+        identificationType,
         contactPerson: contactPerson.trim() || null,
         contactEmail: contactEmail.trim() || null,
         contactPhone: contactPhone.trim() || null,
@@ -206,7 +283,7 @@ export default function RepairCustomersListPage() {
       }
 
       if (editingCustomer) {
-        const updated = await updateRepairCustomer(tenantId, editingCustomer.id, payload)
+        const updated = await updateCustomer(tenantId, editingCustomer.id, payload)
         setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
         toast.show({
           title: 'Cliente actualizado',
@@ -214,11 +291,11 @@ export default function RepairCustomersListPage() {
           variant: 'success',
         })
       } else {
-        const created = await createRepairCustomer(tenantId, payload)
+        const created = await createCustomer(tenantId, payload)
         setCustomers((prev) => [created, ...prev])
         toast.show({
           title: 'Cliente registrado',
-          message: `El cliente "${created.name}" fue creado exitosamente con validación de identidad.`,
+          message: `El cliente "${created.name}" fue creado exitosamente con clasificación "${CUSTOMER_TYPE_METADATA[created.customerType]?.shortLabel || 'Comercial'}".`,
           variant: 'success',
         })
       }
@@ -231,11 +308,11 @@ export default function RepairCustomersListPage() {
     }
   }
 
-  const handleToggleStatus = async (customer: RepairCustomerDto) => {
+  const handleToggleStatus = async (customer: CustomerDto) => {
     if (!tenantId) return
     const newStatus = !customer.isActive
     try {
-      const updated = await toggleRepairCustomerStatus(tenantId, customer.id, newStatus)
+      const updated = await toggleCustomerStatus(tenantId, customer.id, newStatus)
       setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
       toast.show({
         title: newStatus ? 'Cliente reactivado' : 'Cliente desactivado',
@@ -254,18 +331,24 @@ export default function RepairCustomersListPage() {
   // Filtrado y KPIs
   const filteredCustomers = useMemo(() => {
     return customers.filter((c) => {
-      if (statusFilter === 'active') return c.isActive
-      if (statusFilter === 'inactive') return !c.isActive
+      if (statusFilter === 'active' && !c.isActive) return false
+      if (statusFilter === 'inactive' && c.isActive) return false
+      if (typeFilter !== 'all' && String(c.customerType) !== typeFilter) return false
+      if (filterByDate && c.createdAt && !isoInstantInRange(c.createdAt, { from, to })) return false
       return true
     })
-  }, [customers, statusFilter])
+  }, [customers, statusFilter, typeFilter, filterByDate, from, to])
 
   const stats = useMemo(() => {
     const total = customers.length
     const active = customers.filter((c) => c.isActive).length
     const inactive = total - active
+    const corporativos = customers.filter(
+      (c) => c.customerType === CustomerType.CorporativoB2B || !c.customerType
+    ).length
+    const personas = customers.filter((c) => c.customerType === CustomerType.PersonaNatural).length
     const withTaxId = customers.filter((c) => Boolean(c.taxId && c.taxId.trim())).length
-    return { total, active, inactive, withTaxId }
+    return { total, active, inactive, corporativos, personas, withTaxId }
   }, [customers])
 
   // Paginación y mensajes DataGrid
@@ -277,13 +360,17 @@ export default function RepairCustomersListPage() {
     (): ColumnDef<CustomerRow>[] => [
       {
         key: 'name',
-        header: 'Razón Social / Empresa',
-        width: 250,
+        header: 'Razón Social / Cliente',
+        width: 260,
         sortable: true,
         renderCell: (_v, row: CustomerRow) => (
           <div className="flex flex-col py-1">
             <div className="flex items-center gap-2">
-              <Building2 size={16} className="text-primary/70 shrink-0" aria-hidden />
+              {row.customerType === CustomerType.PersonaNatural ? (
+                <User size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden />
+              ) : (
+                <Building2 size={16} className="text-primary/70 shrink-0" aria-hidden />
+              )}
               <span className="font-semibold text-slate-900 dark:text-slate-100">{row.name}</span>
             </div>
             {row.contactPerson && (
@@ -295,9 +382,27 @@ export default function RepairCustomersListPage() {
         ),
       },
       {
+        key: 'customerType',
+        header: 'Clasificación',
+        width: 170,
+        sortable: true,
+        renderCell: (_v, row: CustomerRow) => {
+          const type = row.customerType ?? CustomerType.CorporativoB2B
+          const meta = CUSTOMER_TYPE_METADATA[type] ?? {
+            shortLabel: 'Comercial',
+            tone: 'primary',
+          }
+          return (
+            <StatusBadge tone={meta.tone} withDot>
+              {meta.shortLabel}
+            </StatusBadge>
+          )
+        },
+      },
+      {
         key: 'taxId',
-        header: 'RUC / Identificación',
-        width: 190,
+        header: 'Identificación / SRI',
+        width: 180,
         sortable: true,
         renderCell: (_v, row: CustomerRow) => {
           if (!row.taxId) {
@@ -323,7 +428,7 @@ export default function RepairCustomersListPage() {
       {
         key: 'contactEmail',
         header: 'Contacto y Canales',
-        width: 240,
+        width: 220,
         sortable: true,
         renderCell: (_v, row: CustomerRow) => (
           <div className="flex flex-col gap-1 py-1 text-xs">
@@ -347,8 +452,8 @@ export default function RepairCustomersListPage() {
       },
       {
         key: 'address',
-        header: 'Ubicación / Dirección',
-        width: 200,
+        header: 'Ubicación',
+        width: 180,
         sortable: true,
         renderCell: (_v, row: CustomerRow) => (
           <div className="flex items-start gap-1.5 text-xs text-slate-600 dark:text-slate-300 py-1">
@@ -364,9 +469,20 @@ export default function RepairCustomersListPage() {
         ),
       },
       {
+        key: 'createdAt',
+        header: 'Fecha Registro',
+        width: 130,
+        sortable: true,
+        renderCell: (_v, row: CustomerRow) => (
+          <span className="text-xs text-slate-600 dark:text-slate-300">
+            {row.createdAt ? formatDate(row.createdAt) : '—'}
+          </span>
+        ),
+      },
+      {
         key: 'isActive',
         header: 'Estado',
-        width: 120,
+        width: 100,
         sortable: true,
         renderCell: (_v, row: CustomerRow) => (
           <StatusBadge tone={row.isActive ? 'success' : 'neutral'} withDot>
@@ -377,7 +493,7 @@ export default function RepairCustomersListPage() {
       {
         key: 'id',
         header: 'Acciones',
-        width: 160,
+        width: 170,
         sortable: false,
         renderCell: (_v, row: CustomerRow) => (
           <div className="flex items-center gap-1.5 py-1">
@@ -396,6 +512,11 @@ export default function RepairCustomersListPage() {
               icon={Layers}
               onClick={() => navigate(`/taller/lotes?clienteId=${row.id}`)}
             />
+            <GridIconButton
+              label="Importar Lote para este Cliente"
+              icon={FilePlus}
+              onClick={() => navigate(`/taller/lotes/nuevo?clienteId=${row.id}`)}
+            />
           </div>
         ),
       },
@@ -406,12 +527,12 @@ export default function RepairCustomersListPage() {
   return (
     <TenantSessionGate
       title="Directorio de Clientes"
-      lead="Gestión integral de clientes corporativos, marcas fabricantes y aliados comerciales con validación de identidad SRI."
+      lead="Gestión y clasificación comercial de clientes, fabricantes aliados y personas naturales con validación SRI."
     >
       <div className="ecu-dashboard-layout">
         <PageHeader
           title="Directorio de Clientes"
-          subtitle="Empresas aliadas, clientes corporativos y fabricantes con validación tributaria oficial de cédula y RUC."
+          subtitle="Clasificación comercial, empresas aliadas y clientes corporativos con validación oficial de cédula y RUC."
           badge={
             <StatusBadge tone="primary" withDot>
               {customers.length} {customers.length === 1 ? 'Cliente registrado' : 'Clientes registrados'}
@@ -449,35 +570,35 @@ export default function RepairCustomersListPage() {
             value={stats.total}
             icon="group"
             toneColor="#4f46e5"
-            footerText="En el tenant operativo actual"
+            footerText="En la empresa activa"
           />
           <StatCard
             label="Clientes Activos"
             value={stats.active}
             icon="verified"
             toneColor="#10b981"
-            footerText="Habilitados para lotes y servicios"
+            footerText="Operativos para transacciones"
           />
           <StatCard
-            label="Clientes Inactivos"
-            value={stats.inactive}
-            icon="pause_circle"
-            toneColor="#f59e0b"
-            footerText="Suspendidos o temporalmente inactivos"
+            label="Corporativos B2B"
+            value={stats.corporativos}
+            icon="domain"
+            toneColor="#6366f1"
+            footerText="Marcas y fabricantes aliados"
           />
           <StatCard
-            label="Con RUC / SRI Verificado"
-            value={stats.withTaxId}
-            icon="shield_check"
+            label="Personas Naturales"
+            value={stats.personas}
+            icon="person"
             toneColor="#0284c7"
-            footerText="Con identificación fiscal registrada"
+            footerText="Clientes finales y particulares"
           />
         </div>
 
         {/* Listado y Filtros */}
         <SectionCard
           title="Cartera y Directorio"
-          subtitle="Consulta, búsqueda instantánea y mantenimiento de información de contacto y fiscal"
+          subtitle="Consulta, segmentación por tipo, búsqueda instantánea y mantenimiento de información de contacto"
         >
           {error && (
             <div className="ecu-form-error-banner mb-4" role="alert">
@@ -525,11 +646,11 @@ export default function RepairCustomersListPage() {
             <EmptyState
               icon="group"
               title={
-                statusFilter === 'all'
+                statusFilter === 'all' && typeFilter === 'all'
                   ? 'No hay clientes registrados en este momento'
-                  : 'No se encontraron clientes con el filtro seleccionado'
+                  : 'No se encontraron clientes con los filtros seleccionados'
               }
-              description="Registra empresas aliadas o clientes corporativos con validación de cédula y RUC ecuatoriano para utilizarlos en lotes de reparación y en todo el sistema."
+              description="Registra clientes corporativos, talleres o personas naturales con validación tributaria para utilizarlos en lotes de reparación, facturación y operaciones del sistema."
               action={
                 canManage ? (
                   <Button
@@ -552,8 +673,47 @@ export default function RepairCustomersListPage() {
               selectionMode="none"
               showSearch
               searchPosition="left"
-              searchWidth={320}
+              searchWidth={300}
               searchPlaceholder="Buscar por razón social, RUC o contacto..."
+              toolbarRight={
+                <div className="flex flex-wrap items-center gap-2">
+                  <div style={{ minWidth: 180 }}>
+                    <Select
+                      id="filter-customers-type"
+                      aria-label="Filtrar por clasificación de cliente"
+                      variant="outline"
+                      options={[
+                        { value: 'all', label: 'Todos los tipos' },
+                        { value: String(CustomerType.CorporativoB2B), label: 'Corporativo B2B' },
+                        { value: String(CustomerType.PersonaNatural), label: 'Persona Natural' },
+                        { value: String(CustomerType.DistribuidorMayorista), label: 'Distribuidor Mayorista' },
+                        { value: String(CustomerType.TallerAliado), label: 'Taller Aliado' },
+                        { value: String(CustomerType.ConsumidorFinal), label: 'Consumidor Final' },
+                        { value: String(CustomerType.InstitucionPublica), label: 'Institución Pública' },
+                      ]}
+                      value={typeFilter}
+                      onChange={(val: string) => setTypeFilter(val)}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant={filterByDate ? 'primary' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterByDate(!filterByDate)}
+                  >
+                    {filterByDate ? 'Ocultar Fechas' : 'Filtrar por Fecha'}
+                  </Button>
+                  {filterByDate && (
+                    <GridDateRangeBox
+                      from={from}
+                      to={to}
+                      lookback={lookback}
+                      disabled={loading}
+                      onChange={setRange}
+                    />
+                  )}
+                </div>
+              }
               loading={loading}
               paging={paging}
               pageSizeOptions={pageSizeOptions}
@@ -567,9 +727,9 @@ export default function RepairCustomersListPage() {
         {/* Modal Popup de Registro / Edición */}
         <Popup
           open={modalOpen}
-          title={editingCustomer ? 'Editar Cliente Corporativo' : 'Registrar Nuevo Cliente'}
+          title={editingCustomer ? 'Editar Ficha de Cliente' : 'Registrar Nuevo Cliente'}
           onClose={handleCloseModal}
-          width="min(92vw, 38rem)"
+          width="min(92vw, 42rem)"
           actions={[
             {
               id: 'cancel',
@@ -608,7 +768,7 @@ export default function RepairCustomersListPage() {
                   setName(e.target.value)
                   if (formError) setFormError(null)
                 }}
-                placeholder="Ej. Whirlpool del Ecuador S.A., Mabe, Comercial Andina..."
+                placeholder="Ej. Whirlpool del Ecuador S.A., Mabe, Comercial Andina, Juan Pérez..."
                 fullWidth
                 disabled={saving}
               />
@@ -619,28 +779,63 @@ export default function RepairCustomersListPage() {
               )}
             </div>
 
-            {/* Fila 2: Tipo de Identificación y RUC/Cédula */}
+            {/* Fila 2: Clasificación y Tipo de Identificación */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <Select
-                  id="customer-doc-type"
-                  label="Tipo de Identificación"
+                  id="customer-type-select"
+                  label="Clasificación de Cliente"
                   labelPosition="outlined"
                   variant="outline"
-                  value={docType}
-                  onChange={(val: string) => setDocType(val as DocumentTypeOption)}
+                  value={String(customerType)}
+                  onChange={handleCustomerTypeChange}
                   options={[
-                    { value: 'AUTO', label: 'Detección automática (RUC / Cédula)' },
-                    { value: 'RUC', label: 'RUC Ecuador (13 dígitos)' },
-                    { value: 'CEDULA', label: 'Cédula de Identidad (10 dígitos)' },
-                    { value: 'PASAPORTE', label: 'Pasaporte / Extranjero' },
-                    { value: 'CONSUMIDOR_FINAL', label: 'Consumidor Final (9999999999999)' },
+                    { value: String(CustomerType.CorporativoB2B), label: 'Corporativo B2B / Fabricante' },
+                    { value: String(CustomerType.PersonaNatural), label: 'Persona Natural / Particular' },
+                    { value: String(CustomerType.DistribuidorMayorista), label: 'Distribuidor / Mayorista' },
+                    { value: String(CustomerType.TallerAliado), label: 'Taller Técnico Aliado' },
+                    { value: String(CustomerType.ConsumidorFinal), label: 'Consumidor Final' },
+                    { value: String(CustomerType.InstitucionPublica), label: 'Institución Pública / Gobierno' },
                   ]}
                   fullWidth
                   disabled={saving}
                 />
               </div>
 
+              <div>
+                <Select
+                  id="customer-doc-type"
+                  label="Tipo de Identificación"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={String(identificationType)}
+                  onChange={handleIdentificationTypeChange}
+                  options={[
+                    {
+                      value: String(CustomerIdentificationType.Ruc),
+                      label: CUSTOMER_IDENTIFICATION_LABELS[CustomerIdentificationType.Ruc],
+                    },
+                    {
+                      value: String(CustomerIdentificationType.Cedula),
+                      label: CUSTOMER_IDENTIFICATION_LABELS[CustomerIdentificationType.Cedula],
+                    },
+                    {
+                      value: String(CustomerIdentificationType.Pasaporte),
+                      label: CUSTOMER_IDENTIFICATION_LABELS[CustomerIdentificationType.Pasaporte],
+                    },
+                    {
+                      value: String(CustomerIdentificationType.ConsumidorFinal),
+                      label: CUSTOMER_IDENTIFICATION_LABELS[CustomerIdentificationType.ConsumidorFinal],
+                    },
+                  ]}
+                  fullWidth
+                  disabled={saving}
+                />
+              </div>
+            </div>
+
+            {/* Fila 3: RUC / Cédula y Persona de Contacto */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <TextBox
                   id="customer-tax-id"
@@ -652,42 +847,71 @@ export default function RepairCustomersListPage() {
                     setTaxId(e.target.value)
                     if (formError) setFormError(null)
                   }}
-                  placeholder="Ej. 1790010937001 o 1710034065..."
+                  placeholder={
+                    identificationType === CustomerIdentificationType.Cedula
+                      ? 'Ej. 0923456789 (10 dígitos)'
+                      : identificationType === CustomerIdentificationType.ConsumidorFinal
+                        ? '9999999999999'
+                        : 'Ej. 0992345671001 (13 dígitos)'
+                  }
                   fullWidth
                   disabled={saving}
                 />
-                {taxIdValidation && (
-                  <div className="mt-1">
+                {taxId.trim() && taxIdValidation && (
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px]">
                     {taxIdValidation.isValid ? (
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                        <CheckCircle2 size={13} className="shrink-0" />
+                      <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 size={13} aria-hidden />
                         {taxIdValidation.label}
                       </span>
                     ) : (
-                      <span className="text-xs text-rose-600 dark:text-rose-400 flex items-center gap-1 font-medium">
-                        <AlertCircle size={13} className="shrink-0" />
+                      <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                        <AlertCircle size={13} aria-hidden />
                         {taxIdValidation.error}
                       </span>
                     )}
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Fila 3: Persona de Contacto y Teléfono */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <TextBox
                   id="customer-person"
-                  label="Persona de Contacto / Representante"
+                  label="Persona o Ejecutivo de Contacto"
                   labelPosition="outlined"
                   variant="outline"
                   value={contactPerson}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setContactPerson(e.target.value)}
-                  placeholder="Ej. Ing. Carlos Mendoza (Jefe de Garantías)"
+                  placeholder="Ej. Ing. Carlos Mendoza, Lic. Ana Morales..."
                   fullWidth
                   disabled={saving}
                 />
+              </div>
+            </div>
+
+            {/* Fila 4: Correo y Teléfono */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <TextBox
+                  id="customer-email"
+                  label="Correo Electrónico"
+                  labelPosition="outlined"
+                  variant="outline"
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                    setContactEmail(e.target.value)
+                    if (formError) setFormError(null)
+                  }}
+                  placeholder="garantias@marca.com, compras@..."
+                  fullWidth
+                  disabled={saving}
+                />
+                {contactEmail.trim() && !emailValidation.isValid && (
+                  <span className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5 block">
+                    {emailValidation.error}
+                  </span>
+                )}
               </div>
 
               <div>
@@ -706,82 +930,51 @@ export default function RepairCustomersListPage() {
                   disabled={saving}
                 />
                 {contactPhone.trim() && !phoneValidation.isValid && (
-                  <span className="text-xs text-rose-600 dark:text-rose-400 flex items-center gap-1 mt-1 font-medium">
-                    <AlertCircle size={13} className="shrink-0" />
+                  <span className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5 block">
                     {phoneValidation.error}
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Fila 4: Correo Electrónico */}
-            <div>
-              <TextBox
-                id="customer-email"
-                type="email"
-                label="Correo Electrónico de Notificaciones"
-                labelPosition="outlined"
-                variant="outline"
-                value={contactEmail}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                  setContactEmail(e.target.value)
-                  if (formError) setFormError(null)
-                }}
-                placeholder="Ej. garantias@marca.com, servicio@distribuidor.ec"
-                fullWidth
-                disabled={saving}
-              />
-              {contactEmail.trim() && !emailValidation.isValid && (
-                <span className="text-xs text-rose-600 dark:text-rose-400 flex items-center gap-1 mt-1 font-medium">
-                  <AlertCircle size={13} className="shrink-0" />
-                  {emailValidation.error}
-                </span>
-              )}
-            </div>
-
             {/* Fila 5: Dirección */}
             <div>
               <TextBox
                 id="customer-address"
-                label="Dirección / Instalaciones"
+                label="Dirección Física o Planta"
                 labelPosition="outlined"
                 variant="outline"
                 value={address}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setAddress(e.target.value)}
-                placeholder="Ej. Av. Juan Tanca Marengo Km 4.5, Bodega Central #4"
+                placeholder="Ej. Av. Juan Tanca Marengo Km 4.5, Bodega 12..."
                 fullWidth
                 disabled={saving}
               />
             </div>
 
-            {/* Fila 6: Observaciones y Notas */}
+            {/* Fila 6: Notas / Observaciones */}
             <div>
               <TextBox
                 id="customer-notes"
-                label="Observaciones y Condiciones Especiales"
+                label="Notas y Condiciones Particulares"
                 labelPosition="outlined"
                 variant="outline"
                 value={notes}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setNotes(e.target.value)}
-                placeholder="Condiciones de despacho, horario de recepción o acuerdos de garantía..."
+                placeholder="Condiciones de garantía, SLAs, contacto de auditoría..."
                 fullWidth
                 disabled={saving}
               />
             </div>
 
-            {/* Fila 7: Estado Activo / Inactivo con CheckButton */}
-            <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+            {/* Fila 7: Estado Habilitado */}
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center gap-3">
               <CheckButton
-                id="customer-active-toggle"
                 checked={isActive}
-                onChange={(chk: boolean) => setIsActive(chk)}
+                onChange={(checked: boolean) => setIsActive(checked)}
                 disabled={saving}
-                variant={isActive ? 'primary' : 'outline'}
-                size="sm"
               >
-                {isActive
-                  ? 'Cliente Activo (habilitado para asociar nuevos lotes)'
-                  : 'Cliente Inactivo (deshabilitado para nuevos lotes)'}
+                Cliente Habilitado para Operaciones
               </CheckButton>
             </div>
           </form>

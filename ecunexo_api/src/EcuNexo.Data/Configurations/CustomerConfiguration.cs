@@ -27,6 +27,16 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.TaxId)
             .HasMaxLength(Customer.TaxIdMaxLength);
 
+        builder.Property(c => c.CustomerType)
+            .HasConversion<int>()
+            .HasDefaultValue(EcuNexo.Core.Customers.CustomerType.CorporativoB2B)
+            .IsRequired();
+
+        builder.Property(c => c.IdentificationType)
+            .HasConversion<int>()
+            .HasDefaultValue(EcuNexo.Core.Customers.CustomerIdentificationType.Ruc)
+            .IsRequired();
+
         builder.Property(c => c.ContactEmail)
             .HasMaxLength(120);
 
@@ -68,6 +78,8 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.HasIndex(c => new { c.TenantId, c.Name })
             .HasFilter("\"deleted_at\" IS NULL");
         builder.HasIndex(c => new { c.TenantId, c.TaxId })
+            .HasFilter("\"deleted_at\" IS NULL");
+        builder.HasIndex(c => new { c.TenantId, c.CustomerType })
             .HasFilter("\"deleted_at\" IS NULL");
     }
 }

@@ -131,7 +131,7 @@ export const routes: RouteObject[] = [
           { path: 'taller/despachos', element: <RepairDispatchesListPage /> },
           { path: 'taller/portal', element: <WhirlpoolPortalPage /> },
           { path: 'taller/clientes', element: <RepairCustomersListPage /> },
-          { path: 'clientes', element: <Navigate to="/taller/clientes" replace /> },
+          { path: 'clientes', element: <RepairCustomersListPage /> },
           { path: 'compras/documentos', element: <ComprasDocumentosPage /> },
           { path: 'compras/retenciones', element: <ComprasDocumentosPage /> },
           { path: 'compras/liquidaciones', element: <ComprasDocumentosPage /> },

@@ -85,6 +85,9 @@ internal static class MenuCatalogSeedData
         ("repairs.dispatches.read", "Despachos — lectura", "Consultar actas y despachos", "repairs", 124),
         ("repairs.b2b.portal.view", "Portal B2B — auditoría", "Portal de auditoría para clientes corporativos aliados", "repairs", 125),
         ("repairs.batches.cancel", "Lotes — anular", "Anular lotes sin procesar con fines de auditoría", "repairs", 126),
+
+        ("customers.read", "Clientes — consultar", "Listar y consultar clientes del directorio", "customers", 130),
+        ("customers.manage", "Clientes — administrar", "Crear, editar y clasificar clientes", "customers", 131),
     ];
 
     public static IReadOnlyList<(string Code, string DisplayName)> ProductModules =>
@@ -97,6 +100,7 @@ internal static class MenuCatalogSeedData
         ("facturacion", "Facturación electrónica"),
         ("contabilidad", "Contabilidad"),
         ("repairs", "Reparaciones"),
+        ("customers", "Clientes"),
     ];
 
     public static IReadOnlyList<MenuItem> MenuItems =>
@@ -121,6 +125,8 @@ internal static class MenuCatalogSeedData
         Item("inventory-stock", "inventory", "Stock", "package", "inventario/stock", 1, MenuContextKind.Operational, "inventory", ["inventory.stock.read"]),
         Item("inventory-documents", "inventory", "Documentos", "file-text", "inventario/documentos", 2, MenuContextKind.Operational, "inventory", ["inventory.documents.create", "inventory.documents.approve", "inventory.stock.read"]),
         Item("inventory-kardex", "inventory", "Kárdex", "list", "inventario/kardex", 3, MenuContextKind.Operational, "inventory", ["inventory.movement.read", "inventory.stock.read"]),
+
+        Item("customers", null, "Clientes", "users", "clientes", 55, MenuContextKind.Operational, "customers", ["customers.read"]),
 
         Item("repairs", null, "Reparaciones", "build", null, 56, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
         Item("repairs-batches", "repairs", "Lotes de Equipos", "layers", "taller/lotes", 1, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),

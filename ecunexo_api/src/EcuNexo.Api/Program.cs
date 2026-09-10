@@ -3,6 +3,7 @@ using EcuNexo.Api.Configuration;
 using EcuNexo.Api.Development;
 using EcuNexo.Api.Endpoints.V1.Auth;
 using EcuNexo.Api.Endpoints.V1.Catalog;
+using EcuNexo.Api.Endpoints.V1.Customers;
 using EcuNexo.Api.Endpoints.V1.Identity;
 using EcuNexo.Api.Endpoints.V1.Inventory;
 using EcuNexo.Api.Endpoints.V1.Platform;
@@ -132,6 +133,7 @@ app.MapPermissionEndpointsV1();
 app.MapCatalogEndpointsV1();
 app.MapWarehouseEndpointsV1();
 app.MapInventoryEndpointsV1();
+app.MapCustomerEndpointsV1();
 app.MapRepairEndpointsV1();
 
 var migrateOnStartup = app.Configuration.GetValue(

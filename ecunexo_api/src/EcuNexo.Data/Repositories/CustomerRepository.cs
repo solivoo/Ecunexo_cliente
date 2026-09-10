@@ -1,4 +1,5 @@
 using EcuNexo.Business.Repairs.Repositories;
+using EcuNexo.Core.Customers;
 using EcuNexo.Core.Repairs;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,12 +28,50 @@ public sealed class CustomerRepository : ICustomerRepository
         _db.Customers
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == customerId && c.DeletedAt == null, ct);
 
-    public async Task<IReadOnlyList<Customer>> ListByTenantAsync(Guid tenantId, CancellationToken ct) =>
-        await _db.Customers.AsNoTracking()
-            .Where(c => c.TenantId == tenantId && c.DeletedAt == null)
+    public Task<IReadOnlyList<Customer>> ListByTenantAsync(Guid tenantId, CancellationToken ct) =>
+        ListAsync(tenantId, null, null, null, null, ct);
+
+    public async Task<IReadOnlyList<Customer>> ListAsync(
+        Guid tenantId,
+        CustomerType? type,
+        string? search,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        CancellationToken ct)
+    {
+        var query = _db.Customers.AsNoTracking()
+            .Where(c => c.TenantId == tenantId && c.DeletedAt == null);
+
+        if (type.HasValue)
+        {
+            query = query.Where(c => c.CustomerType == type.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = $"%{search.Trim()}%";
+            query = query.Where(c =>
+                EF.Functions.ILike(c.Name, pattern) ||
+                (c.TaxId != null && EF.Functions.ILike(c.TaxId, pattern)) ||
+                (c.ContactPerson != null && EF.Functions.ILike(c.ContactPerson, pattern)) ||
+                (c.ContactEmail != null && EF.Functions.ILike(c.ContactEmail, pattern)));
+        }
+
+        if (from.HasValue)
+        {
+            query = query.Where(c => c.CreatedAt >= from.Value);
+        }
+
+        if (to.HasValue)
+        {
+            query = query.Where(c => c.CreatedAt <= to.Value);
+        }
+
+        return await query
             .OrderBy(c => c.Name)
             .ToListAsync(ct)
             .ConfigureAwait(false);
+    }
 
     public Task<bool> ExistsByNameAsync(Guid tenantId, string name, Guid? excludeId, CancellationToken ct) =>
         _db.Customers.AsNoTracking()

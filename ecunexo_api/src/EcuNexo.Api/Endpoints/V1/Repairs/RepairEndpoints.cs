@@ -515,7 +515,9 @@ public static class RepairEndpoints
             request.ContactPhone,
             request.Address,
             request.ContactPerson,
-            request.Notes);
+            request.Notes,
+            request.CustomerType ?? EcuNexo.Core.Customers.CustomerType.CorporativoB2B,
+            request.IdentificationType ?? EcuNexo.Core.Customers.CustomerIdentificationType.Ruc);
 
         if (customerResult.IsFailure)
         {
@@ -568,7 +570,9 @@ public static class RepairEndpoints
             request.ContactPhone,
             request.Address,
             request.ContactPerson,
-            request.Notes);
+            request.Notes,
+            request.CustomerType,
+            request.IdentificationType);
 
         if (updateResult.IsFailure)
         {

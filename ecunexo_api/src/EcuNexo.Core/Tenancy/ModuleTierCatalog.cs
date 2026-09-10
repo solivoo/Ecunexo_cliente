@@ -197,6 +197,31 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
+    // Customers — Directorio comercial y clientes
+    // ──────────────────────────────────────────────
+    public const string LimitMaxCustomers = "max_customers";
+
+    private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> CustomersLimits = new()
+    {
+        [ModuleTier.Small] = new Dictionary<string, int>
+        {
+            [LimitMaxCustomers] = 100,
+        },
+        [ModuleTier.Medium] = new Dictionary<string, int>
+        {
+            [LimitMaxCustomers] = 1_000,
+        },
+        [ModuleTier.Big] = new Dictionary<string, int>
+        {
+            [LimitMaxCustomers] = 10_000,
+        },
+        [ModuleTier.Enterprise] = new Dictionary<string, int>
+        {
+            [LimitMaxCustomers] = int.MaxValue,
+        },
+    };
+
+    // ──────────────────────────────────────────────
     // Resolución
     // ──────────────────────────────────────────────
 
@@ -215,6 +240,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Training => TrainingLimits,
             TenantModuleCodes.Support => SupportLimits,
             TenantModuleCodes.Repairs => RepairsLimits,
+            TenantModuleCodes.Customers => CustomersLimits,
             _ => null,
         };
 
@@ -241,6 +267,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Training => TrainingLimits,
             TenantModuleCodes.Support => SupportLimits,
             TenantModuleCodes.Repairs => RepairsLimits,
+            TenantModuleCodes.Customers => CustomersLimits,
             _ => null,
         };
 

@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test'
 import { loginAsSeedUser } from '../helpers/loginAsSeedUser'
 import { requireFixedCredentials } from '../helpers/requirePlan'
+import { readFileSync } from 'fs'
 
-import pkg from '../../package.json'
+const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'))
 
 test.describe('Enterprise Shell UI — Header, Tema y Modal Acerca de', () => {
   test.beforeEach(async ({ page }) => {
