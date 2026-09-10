@@ -1,13 +1,16 @@
 {
   "name": "admin_ecunexo",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.8.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
     "test:ui": "playwright test",
     "test:ui:headed": "playwright test --headed",
     "test:ui:comun": "playwright test tests-ui/comun",

@@ -113,6 +113,7 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
             <span>Novedades v{APP_VERSION_INFO.version} — Taller, Reparaciones B2B & Actas QR</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Directorio Centralizado de Clientes:</strong> Gestión fiscal y corporativa con validación algorítmica SRI (Cédula Módulo 10, RUC Natural, Sociedades Privadas y Públicas Módulo 11).</li>
             <li><strong>Taller y Lotes B2B:</strong> Gestión integral de lotes de reacondicionamiento masivo con tarifas parametrizadas por severidad de daño (N1, N2, N3).</li>
             <li><strong>Importación Excel Inteligente:</strong> Carga masiva mediante plantillas dinámicas ClosedXML y validación estricta de series duplicadas en muelle.</li>
             <li><strong>Custodia Fotográfica en AWS S3:</strong> Evidencia visual por etapas (Recepción, Proceso, Finalizado) con URLs prefirmadas y arquitectura cero-blob.</li>

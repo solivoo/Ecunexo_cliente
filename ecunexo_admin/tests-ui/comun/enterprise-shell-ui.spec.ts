@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test'
 import { loginAsSeedUser } from '../helpers/loginAsSeedUser'
 import { requireFixedCredentials } from '../helpers/requirePlan'
 
+import pkg from '../../package.json'
+
 test.describe('Enterprise Shell UI — Header, Tema y Modal Acerca de', () => {
   test.beforeEach(async ({ page }) => {
     requireFixedCredentials()
@@ -68,7 +70,7 @@ test.describe('Enterprise Shell UI — Header, Tema y Modal Acerca de', () => {
     await expect(modal).toBeVisible()
 
     // Información de release
-    await expect(modal.locator('.ecu-about-modal__badge')).toContainText('v0.7.0')
+    await expect(modal.locator('.ecu-about-modal__badge')).toContainText(`v${pkg.version}`)
     await expect(modal.locator('.ecu-about-modal__changelog')).toBeVisible()
     await expect(modal).toContainText('Taller y Lotes B2B')
     await expect(modal).toContainText('Actas de Despacho Criptográficas con QR')
