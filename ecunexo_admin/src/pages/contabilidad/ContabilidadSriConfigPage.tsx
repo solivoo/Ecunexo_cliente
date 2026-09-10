@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Button, useToast } from 'glubox'
+import { PageHeader, StatusBadge } from '@/components/ui'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { parseRimpeKind } from '@/features/organization/rimpeKind'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -387,27 +388,27 @@ export function ContabilidadSriConfigPage() {
 
   if (!canRead) {
     return (
-      <div className="sri-config-page">
-        <h1 className="app-shell__page-title">{title}</h1>
-        <p className="app-shell__page-lead">
-          No tienes permiso para ver la configuración SRI. Pide a un administrador uno de estos
-          permisos: <code>facturacion.emisor.read</code>, <code>tenancy.tenant.read</code> o{' '}
-          <code>contabilidad.configuracion.read</code> (Equipo → Roles).
-        </p>
+      <div className="ecu-dashboard-layout sri-config-page">
+        <PageHeader
+          title={title}
+          subtitle="No tienes permiso para ver la configuración SRI. Pide a un administrador los permisos correspondientes (facturacion.emisor.read, tenancy.tenant.read o contabilidad.configuracion.read)."
+          badge={<StatusBadge tone="danger">Acceso Restringido</StatusBadge>}
+        />
       </div>
     )
   }
 
   return (
-    <div className="sri-config-page">
-      <div>
-        <h1 className="app-shell__page-title">{title}</h1>
-        <p className="app-shell__page-lead">
-          {companyLabel
+    <div className="ecu-dashboard-layout sri-config-page">
+      <PageHeader
+        title={title}
+        subtitle={
+          companyLabel
             ? `Identidad, puntos de emisión y modo SRI — ${companyLabel}`
-            : 'Configura la identidad legal, emisión y firma electrónica de la empresa.'}
-        </p>
-      </div>
+            : 'Configura la identidad legal, emisión y firma electrónica de la empresa.'
+        }
+        badge={<StatusBadge tone="primary">SRI Ecuador</StatusBadge>}
+      />
 
       <PageLoadState
         loading={loading}

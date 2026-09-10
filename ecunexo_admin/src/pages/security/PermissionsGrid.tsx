@@ -6,6 +6,7 @@ import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { moduleLabel } from '@/lib/moduleLabels'
+import { StatusBadge } from '@/components/ui'
 import { permissionStatusLabel } from '@/lib/enumLabels'
 import type { PermissionListItemDto } from '@/types/identityApi'
 
@@ -55,10 +56,16 @@ export function PermissionsGrid({ rows, loading = false, toolbarRight }: Permiss
       {
         key: 'status',
         header: 'Estado',
-        width: 120,
+        width: 130,
         sortable: true,
-        renderCell: (_value: PermissionGridRow['status'], row: PermissionGridRow) =>
-          permissionStatusLabel(row.status),
+        renderCell: (_value: PermissionGridRow['status'], row: PermissionGridRow) => (
+          <StatusBadge
+            tone={row.status === 0 ? 'success' : 'neutral'}
+            withDot={row.status === 0}
+          >
+            {permissionStatusLabel(row.status)}
+          </StatusBadge>
+        ),
       },
       {
         key: 'id',

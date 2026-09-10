@@ -1,7 +1,14 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -88,96 +95,152 @@ export function ComprobantesPage() {
     [load, toast]
   )
 
+  if (!canRead && !canCreate) {
+    return (
+      <TenantSessionGate title="Comprobantes" lead="Comprobantes de venta electrónicos.">
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Sin permiso para consultar comprobantes de venta electrónicos."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
+      </TenantSessionGate>
+    )
+  }
+
   return (
     <TenantSessionGate
       title="Comprobantes"
-      lead="Entra a una empresa para ver y emitir documentos electrónicos."
+      lead="Emisión y consulta de comprobantes electrónicos autorizados ante el SRI."
     >
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <div>
-            <h1 className="app-shell__page-title">Comprobantes</h1>
-            <p className="app-shell__page-lead">
-              Comprobantes de venta. Retenciones y liquidaciones están en Compras.
-            </p>
-          </div>
-          <div className="ecu-page-header__actions">
-            {canCreate ? (
-              <Button
-                type="button"
-                variant="primary"
-                onClick={() => navigate('/facturacion/facturas/emitir')}
-              >
-                Nueva factura
-              </Button>
-            ) : null}
-            <EcuPageActions
-              items={actionItems}
-              variant="outline"
-              triggerLabel="Más tipos"
-              renderIcon={renderSidebarIcon}
-              onNavigate={(route: string) => navigate(route)}
-              onActionSelect={handleActionSelect}
-            />
-          </div>
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Comprobantes Electrónicos"
+          subtitle="Comprobantes de venta autorizados ante el SRI. Para retenciones en compras y liquidaciones, consulta el módulo de Compras."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              {visibleRows.length} {visibleRows.length === 1 ? 'Comprobante' : 'Comprobantes'}
+            </StatusBadge>
+          }
+          actions={
+            <>
+              {canCreate && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => navigate('/facturacion/facturas/emitir')}
+                >
+                  + Nueva Factura
+                </Button>
+              )}
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Más tipos SRI"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
+          }
+        />
 
-        <div className="ecu-companies-page__metrics" aria-label="Resumen de comprobantes">
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">En listado</p>
-            <p className="ecu-companies-page__metric-value">{visibleRows.length}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Autorizadas</p>
-            <p className="ecu-companies-page__metric-value">{authorizedCount}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Anuladas</p>
-            <p className="ecu-companies-page__metric-value">{voidedCount}</p>
-          </article>
-        </div>
-
-        {error ? <p className="ecu-companies-page__error">{error}</p> : null}
-        {rows.length < totalCount ? (
-          <p className="ecu-companies-form__hint">
-            Se muestran {rows.length} de {totalCount} en el periodo. Acota el rango de fechas para ver el resto.
-          </p>
-        ) : null}
-
-        {!canRead && !canCreate ? (
-          <p>Sin permiso para consultar comprobantes.</p>
-        ) : (
-          <FacturasGrid
-            rows={visibleRows}
-            loading={loading}
-            emitterId={emitterId}
-            canOperateInvoice={canCreate}
-            onResent={() => void load({ silent: true })}
-            toolbarRight={
-              <div className="ecu-comprobantes-filters">
-                <GridDateRangeBox
-                  from={from}
-                  to={to}
-                  lookback={lookback}
-                  disabled={loading}
-                  onChange={setRange}
-                />
-                <ComprobantesTypeFilters
-                  value={typeCode}
-                  options={sriTypeFilterOptions(SALE_DOCUMENT_TYPES)}
-                  ariaLabel="Tipo de comprobante de venta"
-                  disabled={loading}
-                  onChange={(next) => {
-                    const copy = new URLSearchParams(params)
-                    if (next === 'all') copy.delete('tipo')
-                    else copy.set('tipo', next)
-                    setParams(copy, { replace: true })
-                  }}
-                />
-              </div>
-            }
+        <div className="ecu-stat-grid" aria-label="Resumen de comprobantes">
+          <StatCard
+            label="En Listado"
+            value={visibleRows.length}
+            icon="receipt"
+            toneColor="#4f46e5"
+            footerText="Comprobantes filtrados"
           />
-        )}
+          <StatCard
+            label="Autorizadas por SRI"
+            value={authorizedCount}
+            icon="verified"
+            toneColor="#10b981"
+            footerText="Con validez fiscal"
+          />
+          <StatCard
+            label="Anuladas"
+            value={voidedCount}
+            icon="cancel"
+            toneColor={voidedCount > 0 ? '#ef4444' : '#6b7280'}
+            footerText="Comprobantes invalidados"
+          />
+          <StatCard
+            label="Total en Período"
+            value={totalCount}
+            icon="calendar_month"
+            toneColor="#8b5cf6"
+            footerText="Registros de facturación"
+          />
+        </div>
+
+        <SectionCard
+          title="Listado de Comprobantes de Venta"
+          subtitle="Facturas, notas de crédito y débito emitidas en el rango de fechas seleccionado"
+          action={
+            <div
+              className="ecu-comprobantes-filters"
+              style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}
+            >
+              <GridDateRangeBox
+                from={from}
+                to={to}
+                lookback={lookback}
+                disabled={loading}
+                onChange={setRange}
+              />
+              <ComprobantesTypeFilters
+                value={typeCode}
+                options={sriTypeFilterOptions(SALE_DOCUMENT_TYPES)}
+                ariaLabel="Tipo de comprobante de venta"
+                disabled={loading}
+                onChange={(next) => {
+                  const copy = new URLSearchParams(params)
+                  if (next === 'all') copy.delete('tipo')
+                  else copy.set('tipo', next)
+                  setParams(copy, { replace: true })
+                }}
+              />
+            </div>
+          }
+        >
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
+            </div>
+          ) : null}
+
+          {visibleRows.length === 0 && !loading ? (
+            <EmptyState
+              icon="receipt"
+              title="Sin comprobantes de venta en este período"
+              description="No se registran comprobantes emitidos con los filtros actuales. Ajusta el rango de fechas o emite una nueva factura electrónica."
+              action={
+                canCreate ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => navigate('/facturacion/facturas/emitir')}
+                  >
+                    + Nueva Factura
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <FacturasGrid
+              rows={visibleRows}
+              loading={loading}
+              emitterId={emitterId}
+              canOperateInvoice={canCreate}
+              onResent={() => void load({ silent: true })}
+            />
+          )}
+        </SectionCard>
       </div>
     </TenantSessionGate>
   )

@@ -4,10 +4,15 @@ import { DataGrid, type ColumnDef } from 'glubox'
 import { Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { StatusBadge } from '@/components/ui'
 import { catalogItemKindLabel, catalogItemStatusLabel } from '@/lib/catalogLabels'
 import { formatDateTime } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
-import type { CatalogItemListItemDto } from '@/types/catalogApi'
+import {
+  CatalogItemKind,
+  CatalogItemStatus,
+  type CatalogItemListItemDto,
+} from '@/types/catalogApi'
 
 export type CatalogItemGridRow = CatalogItemListItemDto & Record<string, unknown>
 
@@ -49,10 +54,13 @@ export function CatalogItemsGrid({
       {
         key: 'kind',
         header: 'Tipo',
-        width: 110,
+        width: 120,
         sortable: true,
-        renderCell: (_value: CatalogItemGridRow['kind'], row: CatalogItemGridRow) =>
-          catalogItemKindLabel(row.kind),
+        renderCell: (_value: CatalogItemGridRow['kind'], row: CatalogItemGridRow) => (
+          <StatusBadge tone={row.kind === CatalogItemKind.Physical ? 'info' : 'neutral'}>
+            {catalogItemKindLabel(row.kind)}
+          </StatusBadge>
+        ),
       },
       {
         key: 'sku',
@@ -60,7 +68,7 @@ export function CatalogItemsGrid({
         width: 140,
         sortable: true,
         renderCell: (_value: CatalogItemGridRow['sku'], row: CatalogItemGridRow) =>
-          row.sku ?? '—',
+          row.sku ? <code className="ecu-code">{row.sku}</code> : '—',
       },
       {
         key: 'categoryName',
@@ -72,19 +80,25 @@ export function CatalogItemsGrid({
       },
       {
         key: 'basePrice',
-        header: 'Precio',
-        width: 110,
+        header: 'Precio base',
+        width: 120,
         sortable: true,
         renderCell: (_value: CatalogItemGridRow['basePrice'], row: CatalogItemGridRow) =>
-          row.basePrice == null ? '—' : row.basePrice.toFixed(2),
+          row.basePrice == null ? '—' : `$ ${row.basePrice.toFixed(2)}`,
       },
       {
         key: 'status',
         header: 'Estado',
-        width: 110,
+        width: 120,
         sortable: true,
-        renderCell: (_value: CatalogItemGridRow['status'], row: CatalogItemGridRow) =>
-          catalogItemStatusLabel(row.status),
+        renderCell: (_value: CatalogItemGridRow['status'], row: CatalogItemGridRow) => (
+          <StatusBadge
+            tone={row.status === CatalogItemStatus.Active ? 'success' : 'neutral'}
+            withDot={row.status === CatalogItemStatus.Active}
+          >
+            {catalogItemStatusLabel(row.status)}
+          </StatusBadge>
+        ),
       },
       {
         key: 'createdAt',

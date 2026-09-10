@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { DataGrid, type ColumnDef } from 'glubox'
 import { LogIn, Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
+import { StatusBadge } from '@/components/ui'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { formatDateTime } from '@/lib/formatDate'
@@ -55,10 +56,23 @@ export function CompaniesGrid({
       {
         key: 'status',
         header: 'Estado',
-        width: 120,
+        width: 130,
         sortable: true,
-        renderCell: (_value: CompanyGridRow['status'], row: CompanyGridRow) =>
-          tenantStatusLabel(row.status),
+        renderCell: (_value: CompanyGridRow['status'], row: CompanyGridRow) => {
+          const tone =
+            row.status === 1
+              ? 'success'
+              : row.status === 2
+                ? 'danger'
+                : row.status === 0
+                  ? 'warning'
+                  : 'neutral'
+          return (
+            <StatusBadge tone={tone} withDot>
+              {tenantStatusLabel(row.status)}
+            </StatusBadge>
+          )
+        },
       },
       {
         key: 'createdAt',

@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
-import { Warehouse } from 'lucide-react'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -118,10 +122,21 @@ export function EditWarehousePage() {
   if (!canManage) {
     return (
       <TenantSessionGate title="Editar bodega" lead="Corrige la ficha de una ubicación operativa.">
-        <p className="app-shell__page-lead">Requieres warehousing.locations.manage.</p>
-        <Button type="button" variant="outline" onClick={goToList}>
-          Volver
-        </Button>
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres warehousing.locations.manage para editar bodegas."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+          <SectionCard title="Permisos insuficientes">
+            <p className="app-shell__muted" style={{ marginBottom: '1rem' }}>
+              No posees permisos de gestión sobre las ubicaciones de almacenamiento.
+            </p>
+            <Button type="button" variant="outline" onClick={goToList}>
+              Volver al listado
+            </Button>
+          </SectionCard>
+        </div>
       </TenantSessionGate>
     )
   }
@@ -129,50 +144,78 @@ export function EditWarehousePage() {
   if (warehouse?.isSystem) {
     return (
       <TenantSessionGate title="Editar bodega" lead="Las bodegas de sistema no se editan.">
-        <p className="app-shell__page-lead">
-          «{warehouse.name}» es de sistema (tránsito). El stock en tránsito no se renombra: así las
-          transferencias siguen un mismo proceso en todos los tenants.
-        </p>
-        <Button type="button" variant="outline" onClick={goToList}>
-          Volver al listado
-        </Button>
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Bodega de Sistema"
+            subtitle={`«${warehouse.name}» es una ubicación reservada para transferencias de stock en tránsito.`}
+            badge={<StatusBadge tone="warning">Protegida</StatusBadge>}
+          />
+          <SectionCard title="Ubicación no modificable">
+            <p className="app-shell__muted" style={{ marginBottom: '1rem' }}>
+              Las bodegas de sistema son esenciales para garantizar la trazabilidad de kárdex entre sucursales y no admiten modificaciones manuales de nombre o código.
+            </p>
+            <Button type="button" variant="outline" onClick={goToList}>
+              Volver al listado
+            </Button>
+          </SectionCard>
+        </div>
       </TenantSessionGate>
     )
   }
 
   return (
     <TenantSessionGate title="Editar bodega" lead="Corrige nombre, código y dirección. El stock no se mueve.">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Cambiar el nombre no crea otra bodega: el kárdex y el saldo siguen ligados a este id.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de editar bodega"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title={warehouse ? `Editar: ${warehouse.name}` : 'Editar Bodega'}
+          subtitle={
+            warehouse
+              ? `${warehouse.code ? `Código: ${warehouse.code} · ` : ''}${warehouse.isMain ? 'Bodega Principal de la Empresa' : 'Bodega Operativa'}`
+              : 'Cargando información de la bodega…'
+          }
+          badge={
+            warehouse ? (
+              <StatusBadge
+                tone={warehouse.isMain ? 'success' : 'info'}
+                withDot={warehouse.isMain}
+              >
+                {warehouse.isMain ? 'Principal' : 'Operativa'}
+              </StatusBadge>
+            ) : undefined
+          }
+          actions={
+            <EcuPageActions
+              items={actionItems}
+              variant="outline"
+              triggerLabel="Acciones de editar bodega"
+              renderIcon={renderSidebarIcon}
+              onNavigate={(route: string) => navigate(route)}
+            />
+          }
+        />
+
         {loading ? (
-          <p className="app-shell__muted">Cargando bodega…</p>
+          <SectionCard title="Cargando…">
+            <p className="app-shell__muted">Recuperando detalles de la bodega…</p>
+          </SectionCard>
         ) : (
-          <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-            <section className="app-shell__card ecu-companies-form__card">
-              <h2 className="app-shell__section-title">
-                <Warehouse size={18} strokeWidth={1.75} aria-hidden /> Ficha
-              </h2>
+          <form onSubmit={(e) => void onSubmit(e)} noValidate>
+            <SectionCard
+              title="Ficha Técnica de la Bodega"
+              subtitle="Corrige los datos de identificación y localización física sin alterar el historial de movimientos de kárdex"
+            >
+              {error ? (
+                <div className="ecu-form-error-banner" role="alert">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{error}</span>
+                </div>
+              ) : null}
+
               <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                   <TextBox
                     id="wh-name"
-                    label="Nombre"
+                    label="Nombre de la bodega"
                     labelPosition="outlined"
                     variant="outline"
                     value={name}
@@ -197,11 +240,12 @@ export function EditWarehousePage() {
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                   <TextBox
                     id="wh-line1"
-                    label="Dirección"
+                    label="Dirección física"
                     labelPosition="outlined"
                     variant="outline"
                     value={line1}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setLine1(e.target.value)}
+                    placeholder="Av. Principal #123"
                     disabled={busy}
                     fullWidth
                   />
@@ -214,6 +258,7 @@ export function EditWarehousePage() {
                     variant="outline"
                     value={city}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setCity(e.target.value)}
+                    placeholder="Quito, Guayaquil, Cuenca…"
                     disabled={busy}
                     fullWidth
                   />
@@ -221,25 +266,34 @@ export function EditWarehousePage() {
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
                   <TextBox
                     id="wh-notes"
-                    label="Notas de ubicación"
+                    label="Notas de ubicación o referencia"
                     labelPosition="outlined"
                     variant="outline"
                     value={notes}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setNotes(e.target.value)}
+                    placeholder="Referencias de acceso, horarios o encargado de bodega…"
                     disabled={busy}
                     fullWidth
                   />
                 </div>
               </div>
-            </section>
-            <div className="ecu-companies-form__actions">
-              <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-                Guardar
-              </Button>
-              <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
-                Atrás
-              </Button>
-            </div>
+
+              <div
+                className="ecu-companies-form__actions"
+                style={{
+                  marginTop: '1.5rem',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+                }}
+              >
+                <Button type="submit" variant="primary" loading={busy} disabled={busy}>
+                  Guardar Cambios
+                </Button>
+                <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
+                  Cancelar
+                </Button>
+              </div>
+            </SectionCard>
           </form>
         )}
       </div>

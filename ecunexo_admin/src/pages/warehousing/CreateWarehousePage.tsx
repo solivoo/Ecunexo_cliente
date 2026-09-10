@@ -1,8 +1,12 @@
 import { useCallback, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
-import { Warehouse } from 'lucide-react'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -42,7 +46,7 @@ export function CreateWarehousePage() {
         await createWarehouse(tenantId, { name: name.trim(), code: code.trim() || null })
         toast.show({
           title: 'Bodega creada',
-          message: `«${name.trim()}» ya está disponible.`,
+          message: `«${name.trim()}» ya está disponible para el stock.`,
           variant: 'success',
         })
         void navigate('/bodegas', { replace: true })
@@ -61,46 +65,69 @@ export function CreateWarehousePage() {
   if (!canManage) {
     return (
       <TenantSessionGate title="Nueva bodega" lead="Alta de una ubicación de stock.">
-        <p className="app-shell__page-lead">Requieres warehousing.locations.manage.</p>
-        <Button type="button" variant="outline" onClick={goToList}>
-          Volver
-        </Button>
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres warehousing.locations.manage para dar de alta nuevas ubicaciones."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+          <SectionCard title="Permisos insuficientes">
+            <p className="app-shell__muted" style={{ marginBottom: '1rem' }}>
+              No posees las autorizaciones necesarias para crear bodegas en esta empresa.
+            </p>
+            <Button type="button" variant="outline" onClick={goToList}>
+              Volver al listado
+            </Button>
+          </SectionCard>
+        </div>
       </TenantSessionGate>
     )
   }
 
   return (
-    <TenantSessionGate title="Nueva bodega" lead="Alta de una ubicación operativa (no de tránsito).">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">La bodega en tránsito no se crea desde aquí: es de sistema.</p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de crear bodega"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-          <section className="app-shell__card ecu-companies-form__card">
-            <h2 className="app-shell__section-title">
-              <Warehouse size={18} strokeWidth={1.75} aria-hidden /> Bodega
-            </h2>
+    <TenantSessionGate title="Nueva bodega" lead="Alta de una ubicación operativa de stock.">
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Nueva Bodega"
+          subtitle="Alta de una ubicación física operativa para el almacenamiento y despacho de productos."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              Nueva Ubicación
+            </StatusBadge>
+          }
+          actions={
+            <EcuPageActions
+              items={actionItems}
+              variant="outline"
+              triggerLabel="Acciones de crear bodega"
+              renderIcon={renderSidebarIcon}
+              onNavigate={(route: string) => navigate(route)}
+            />
+          }
+        />
+
+        <form onSubmit={(e) => void onSubmit(e)} noValidate>
+          <SectionCard
+            title="Datos de la Bodega"
+            subtitle="Especifica el nombre comercial y código interno de control. Las bodegas en tránsito se gestionan automáticamente por el sistema."
+          >
+            {error ? (
+              <div className="ecu-form-error-banner" role="alert">
+                <span className="material-symbols-outlined">error</span>
+                <span>{error}</span>
+              </div>
+            ) : null}
+
             <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
               <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                 <TextBox
                   id="wh-name"
-                  label="Nombre"
+                  label="Nombre de la bodega"
                   labelPosition="outlined"
                   variant="outline"
                   value={name}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                  placeholder="Ej. Bodega Central, Depósito Norte"
                   required
                   disabled={busy}
                   fullWidth
@@ -109,25 +136,34 @@ export function CreateWarehousePage() {
               <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                 <TextBox
                   id="wh-code"
-                  label="Código"
+                  label="Código identificador (opcional)"
                   labelPosition="outlined"
                   variant="outline"
                   value={code}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setCode(e.target.value.toUpperCase())}
+                  placeholder="BOD-01"
                   disabled={busy}
                   fullWidth
                 />
               </div>
             </div>
-          </section>
-          <div className="ecu-companies-form__actions">
-            <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-              Guardar
-            </Button>
-            <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
-              Atrás
-            </Button>
-          </div>
+
+            <div
+              className="ecu-companies-form__actions"
+              style={{
+                marginTop: '1.5rem',
+                paddingTop: '1rem',
+                borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+              }}
+            >
+              <Button type="submit" variant="primary" loading={busy} disabled={busy}>
+                Guardar Bodega
+              </Button>
+              <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
+                Cancelar
+              </Button>
+            </div>
+          </SectionCard>
         </form>
       </div>
     </TenantSessionGate>

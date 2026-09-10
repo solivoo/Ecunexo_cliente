@@ -1,7 +1,13 @@
 import { useMemo } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Button, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -51,30 +57,44 @@ export function RolePermissionsPage() {
 
   return (
     <TenantSessionGate title="Permisos del rol" lead="Marca qué permisos hereda este perfil.">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <div>
-            <p className="app-shell__page-lead">
-              {editor.role
-                ? `Selecciona los permisos del rol «${editor.role.name}».`
-                : 'Selecciona los permisos que hereda el rol.'}
-            </p>
-            <p className="ecu-companies-form__hint">
-              Todos / Marcados / Sin marcar filtra esta pantalla; no cambia el rol hasta Guardar.
-              Marcá filas con el checkbox de cada permiso (evitá «seleccionar todos» del grid).{' '}
-              <Link to="/seguridad/permisos" className="login-page__link-muted">
-                Ir al catálogo
-              </Link>
-            </p>
-          </div>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de permisos del rol"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title={editor.role ? `Permisos: ${editor.role.name}` : 'Permisos del Rol'}
+          subtitle="Selecciona las capacidades y directivas que heredarán los usuarios asociados a este rol."
+          badge={
+            <StatusBadge tone={editor.dirty ? 'warning' : 'neutral'} withDot>
+              {editor.dirty ? 'Cambios pendientes' : 'Sincronizado'}
+            </StatusBadge>
+          }
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="primary"
+                loading={editor.busy}
+                disabled={editor.busy || !editor.dirty}
+                onClick={() => void editor.onSave()}
+              >
+                Guardar Permisos
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={editor.busy}
+                onClick={() => navigate(detailPath)}
+              >
+                Volver al Rol
+              </Button>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+              />
+            </>
+          }
+        />
 
         <PageLoadState
           loading={editor.loading}
@@ -83,25 +103,41 @@ export function RolePermissionsPage() {
         >
           {editor.role ? (
             <>
-              <div className="ecu-companies-page__metrics" aria-label="Resumen de permisos">
-                <article className="ecu-companies-page__metric">
-                  <p className="ecu-companies-page__metric-label">Catálogo</p>
-                  <p className="ecu-companies-page__metric-value">{editor.perms.length}</p>
-                </article>
-                <article className="ecu-companies-page__metric">
-                  <p className="ecu-companies-page__metric-label">Asignados</p>
-                  <p className="ecu-companies-page__metric-value">{editor.selectedIds.length}</p>
-                </article>
-                <article className="ecu-companies-page__metric">
-                  <p className="ecu-companies-page__metric-label">Visibles</p>
-                  <p className="ecu-companies-page__metric-value">{editor.filteredRows.length}</p>
-                </article>
-                <article className="ecu-companies-page__metric">
-                  <p className="ecu-companies-page__metric-label">Cambios</p>
-                  <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
-                    {editor.dirty ? 'Pendientes' : 'Sin cambios'}
-                  </p>
-                </article>
+              <div className="ecu-stat-grid" aria-label="Resumen de permisos">
+                <StatCard
+                  label="Catálogo Total"
+                  value={editor.perms.length}
+                  icon="key"
+                  toneColor="#4f46e5"
+                  footerText="Directivas disponibles"
+                />
+                <StatCard
+                  label="Asignados al Rol"
+                  value={editor.selectedIds.length}
+                  icon="verified"
+                  toneColor="#059669"
+                  badge={<StatusBadge tone="success">Activos</StatusBadge>}
+                  footerText="Capacidades otorgadas"
+                />
+                <StatCard
+                  label="En Pantalla"
+                  value={editor.filteredRows.length}
+                  icon="filter_list"
+                  toneColor="#0284c7"
+                  footerText="Filtrados por módulo"
+                />
+                <StatCard
+                  label="Estado de Edición"
+                  value={editor.dirty ? 'Pendiente' : 'Al día'}
+                  icon="pending_actions"
+                  toneColor={editor.dirty ? '#d97706' : '#7c3aed'}
+                  badge={
+                    <StatusBadge tone={editor.dirty ? 'warning' : 'neutral'}>
+                      {editor.dirty ? 'Por guardar' : 'Sin cambios'}
+                    </StatusBadge>
+                  }
+                  footerText={editor.dirty ? 'Requiere guardar' : 'Configuración guardada'}
+                />
               </div>
 
               {editor.error ? (
@@ -117,10 +153,10 @@ export function RolePermissionsPage() {
                 </p>
               ) : null}
 
-              <section className="app-shell__card ecu-companies-form__card">
-                <h2 className="app-shell__section-title ecu-role-perms-title">
-                  Permisos
-                </h2>
+              <SectionCard
+                title="Matriz de Directivas por Módulo"
+                subtitle="Filtra por módulo y marca las casillas de los permisos que deseas vincular"
+              >
                 <RolePermissionsGrid
                   rows={editor.filteredRows}
                   selectedRowIds={editor.selectedIds}
@@ -137,7 +173,7 @@ export function RolePermissionsPage() {
                     />
                   }
                 />
-              </section>
+              </SectionCard>
 
               <div className="ecu-companies-form__actions">
                 <Button
@@ -147,7 +183,7 @@ export function RolePermissionsPage() {
                   disabled={editor.busy || !editor.dirty}
                   onClick={() => void editor.onSave()}
                 >
-                  Guardar
+                  Guardar Permisos
                 </Button>
                 <Button
                   type="button"
@@ -155,7 +191,7 @@ export function RolePermissionsPage() {
                   disabled={editor.busy}
                   onClick={() => navigate(detailPath)}
                 >
-                  Atrás
+                  Cancelar
                 </Button>
               </div>
             </>

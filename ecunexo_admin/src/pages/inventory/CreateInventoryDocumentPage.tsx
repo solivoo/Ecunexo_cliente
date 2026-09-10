@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, NumberBox, Select, TextArea, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
-import { Package, Plus, Trash2 } from 'lucide-react'
+import { Button, NumberBox, Select, TextArea, TextBox, useToast } from 'glubox'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
+import { Plus, Trash2 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -235,10 +240,21 @@ export function CreateInventoryDocumentPage() {
   if (!canCreate) {
     return (
       <TenantSessionGate title="Nuevo documento" lead="Recepción, egreso, transferencia o ajuste.">
-        <p className="app-shell__page-lead">Requieres inventory.documents.create.</p>
-        <Button type="button" variant="outline" onClick={goToList}>
-          Volver
-        </Button>
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres inventory.documents.create para generar comprobantes de movimiento."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+          <SectionCard title="Permisos insuficientes">
+            <p className="app-shell__muted" style={{ marginBottom: '1rem' }}>
+              No posees permisos de emisión de documentos de inventario.
+            </p>
+            <Button type="button" variant="outline" onClick={goToList}>
+              Volver al listado
+            </Button>
+          </SectionCard>
+        </div>
       </TenantSessionGate>
     )
   }
@@ -246,28 +262,28 @@ export function CreateInventoryDocumentPage() {
   return (
     <TenantSessionGate
       title="Nuevo documento"
-      lead={
-        isTransfer
-          ? 'Al aprobar, el stock pasa a En tránsito; luego hay que recibir en destino.'
-          : isAdjustment
-            ? 'Indica la cantidad contada por ítem; al aprobar se corrige el delta en el kárdex.'
-            : 'Recepción entra stock; egreso lo descuenta al aprobar.'
-      }
+      lead="Movimiento físico de stock: recepción, egreso, transferencia o ajuste de inventario."
     >
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            {canApprove
-              ? isTransfer
-                ? 'Al guardar se despacha a tránsito; la llegada se confirma en Documentos → Por recibir.'
-                : isAdjustment
-                  ? 'Al guardar se aprueba y el saldo queda igual al conteo.'
-                  : 'Al guardar se aprueba en el mismo paso (kárdex inmediato).'
-              : 'Se guardará como borrador hasta que alguien apruebe.'}
-          </p>
-          <EcuPageActions
-            items={
-              [
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Nuevo Documento de Inventario"
+          subtitle={
+            isTransfer
+              ? 'Transferencia entre bodegas. Al despachar, el stock pasa a «En tránsito» y se confirma al recibir en destino.'
+              : isAdjustment
+                ? 'Ajuste de inventario físico. Al aprobar, se corrige la diferencia positiva o negativa en el kárdex.'
+                : isReceipt
+                  ? 'Recepción de mercadería. Ingresa unidades al stock de la bodega seleccionada.'
+                  : 'Egreso logístico. Disminuye existencias de la bodega de origen.'
+          }
+          badge={
+            <StatusBadge tone="primary" withDot>
+              Alta de Comprobante
+            </StatusBadge>
+          }
+          actions={
+            <EcuPageActions
+              items={[
                 {
                   id: 'list',
                   label: 'Documentos',
@@ -275,36 +291,39 @@ export function CreateInventoryDocumentPage() {
                   route: '/inventario/documentos',
                   disabled: false,
                 },
-              ] satisfies PageActionItem[]
-            }
-            variant="outline"
-            triggerLabel="Acciones"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-          <section className="app-shell__card ecu-companies-form__card">
-            <h2 className="app-shell__section-title">
-              <Package size={18} strokeWidth={1.75} aria-hidden /> Cabecera
-            </h2>
+              ]}
+              variant="outline"
+              triggerLabel="Acciones"
+              renderIcon={renderSidebarIcon}
+              onNavigate={(route: string) => navigate(route)}
+            />
+          }
+        />
+
+        <form onSubmit={(e) => void onSubmit(e)} noValidate>
+          <SectionCard
+            title="Cabecera del Movimiento"
+            subtitle="Define la naturaleza de la transacción, las bodegas involucradas y referencias comerciales"
+          >
+            {error ? (
+              <div className="ecu-form-error-banner" role="alert">
+                <span className="material-symbols-outlined">error</span>
+                <span>{error}</span>
+              </div>
+            ) : null}
+
             <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
               <div className="ecu-companies-form__field">
                 <Select
                   id="inv-type"
-                  label="Tipo"
+                  label="Tipo de comprobante"
                   labelPosition="outlined"
                   variant="outline"
                   options={[
-                    { value: String(InventoryDocumentType.Receipt), label: 'Recepción' },
-                    { value: String(InventoryDocumentType.Issue), label: 'Egreso' },
-                    { value: String(InventoryDocumentType.Transfer), label: 'Transferencia' },
-                    { value: String(InventoryDocumentType.Adjustment), label: 'Ajuste' },
+                    { value: String(InventoryDocumentType.Receipt), label: 'Recepción (entrada)' },
+                    { value: String(InventoryDocumentType.Issue), label: 'Egreso (salida)' },
+                    { value: String(InventoryDocumentType.Transfer), label: 'Transferencia entre bodegas' },
+                    { value: String(InventoryDocumentType.Adjustment), label: 'Ajuste físico (conteo)' },
                   ]}
                   value={documentType}
                   onChange={onDocumentTypeChange}
@@ -350,14 +369,14 @@ export function CreateInventoryDocumentPage() {
                 >
                   <Select
                     id="inv-origin"
-                    label="Origen"
+                    label="Origen de la recepción"
                     labelPosition="outlined"
                     variant="outline"
                     options={[
                       { value: String(InventoryReceiptOrigin.Opening), label: 'Inventario inicial' },
-                      { value: String(InventoryReceiptOrigin.Purchase), label: 'Compra' },
-                      { value: String(InventoryReceiptOrigin.Return), label: 'Devolución' },
-                      { value: String(InventoryReceiptOrigin.Other), label: 'Otro' },
+                      { value: String(InventoryReceiptOrigin.Purchase), label: 'Compra a proveedor' },
+                      { value: String(InventoryReceiptOrigin.Return), label: 'Devolución de cliente' },
+                      { value: String(InventoryReceiptOrigin.Other), label: 'Otro concepto' },
                     ]}
                     value={receiptOrigin}
                     onChange={setReceiptOrigin}
@@ -370,7 +389,7 @@ export function CreateInventoryDocumentPage() {
                 <div className="ecu-companies-form__field">
                   <TextBox
                     id="inv-invoice"
-                    label="Nº factura"
+                    label="Nº factura proveedor"
                     labelPosition="outlined"
                     variant="outline"
                     value={sourceDocumentNumber}
@@ -385,39 +404,33 @@ export function CreateInventoryDocumentPage() {
                 </div>
               ) : null}
             </div>
-            <p className="ecu-companies-form__hint">
-              {isAdjustment
-                ? 'El motivo es obligatorio: queda en el documento y en el kárdex.'
-                : isReceipt
-                  ? isPurchaseReceipt
-                    ? 'Nº factura del proveedor (estab-pto-secuencial). La observación es opcional.'
-                    : 'Andes: usá Inventario inicial. El número de factura solo aparece si el origen es Compra.'
-                  : 'La observación es opcional. Referencia interna. No cambia el stock.'}
-            </p>
-            <div className="ecu-companies-form__field">
+
+            <div className="ecu-companies-form__field" style={{ marginTop: '1rem' }}>
               <TextArea
                 id="inv-notes"
-                label={isAdjustment ? 'Motivo del ajuste' : 'Observación'}
+                label={isAdjustment ? 'Motivo del ajuste (obligatorio)' : 'Observación / Referencia interna'}
                 labelPosition="outlined"
                 variant="outline"
                 value={notes}
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
                 placeholder={
                   isAdjustment
-                    ? 'Ej. Conteo físico de marzo'
-                    : 'Ej. Factura de compra 001-001-0000123'
+                    ? 'Indica la justificación del conteo físico o discrepancia…'
+                    : 'Anotaciones opcionales para control operativo…'
                 }
-                rows={3}
+                rows={2}
                 resize="vertical"
                 required={isAdjustment}
                 disabled={busy}
                 fullWidth
               />
             </div>
-          </section>
+          </SectionCard>
 
-          <section className="app-shell__card ecu-companies-form__card">
-            <h2 className="app-shell__section-title">Líneas</h2>
+          <SectionCard
+            title="Detalle de Artículos"
+            subtitle="Indica los ítems físicos del catálogo y las cantidades correspondientes"
+          >
             <div className="ecu-doc-lines__wrap">
               <table className="ecu-doc-lines">
                 <thead>
@@ -430,7 +443,7 @@ export function CreateInventoryDocumentPage() {
                     </th>
                     <th scope="col">Ítem físico</th>
                     <th scope="col" className="ecu-doc-lines__qty">
-                      {isAdjustment ? 'Contado' : 'Cantidad'}
+                      {isAdjustment ? 'Cantidad contada' : 'Cantidad'}
                     </th>
                     <th scope="col" className="ecu-doc-lines__actions">
                       <span className="visually-hidden">Acciones</span>
@@ -441,7 +454,13 @@ export function CreateInventoryDocumentPage() {
                   {lines.map((line, index) => (
                     <tr key={`line-${index}`}>
                       <td className="ecu-doc-lines__n">{index + 1}</td>
-                      <td className="ecu-doc-lines__sku">{skuOf(line.catalogItemId)}</td>
+                      <td className="ecu-doc-lines__sku">
+                        {line.catalogItemId ? (
+                          <code className="ecu-code">{skuOf(line.catalogItemId)}</code>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td>
                         <Select
                           id={`inv-item-${index}`}
@@ -450,7 +469,7 @@ export function CreateInventoryDocumentPage() {
                           size="sm"
                           options={itemOptions}
                           value={line.catalogItemId}
-                          placeholder="Elegir ítem…"
+                          placeholder="Seleccionar ítem…"
                           onChange={(value: string) =>
                             setLines((prev) =>
                               prev.map((row, i) =>
@@ -499,7 +518,8 @@ export function CreateInventoryDocumentPage() {
                 </tbody>
               </table>
             </div>
-            <div className="ecu-doc-lines__foot">
+
+            <div className="ecu-doc-lines__foot" style={{ marginTop: '0.75rem' }}>
               <Button
                 type="button"
                 variant="ghost"
@@ -511,20 +531,27 @@ export function CreateInventoryDocumentPage() {
                 Agregar línea
               </Button>
             </div>
-          </section>
 
-          <div className="ecu-companies-form__actions">
-            <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-              {canApprove
-                ? isTransfer
-                  ? 'Guardar y despachar'
-                  : 'Guardar y aprobar'
-                : 'Guardar borrador'}
-            </Button>
-            <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
-              Atrás
-            </Button>
-          </div>
+            <div
+              className="ecu-companies-form__actions"
+              style={{
+                marginTop: '1.5rem',
+                paddingTop: '1rem',
+                borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+              }}
+            >
+              <Button type="submit" variant="primary" loading={busy} disabled={busy}>
+                {canApprove
+                  ? isTransfer
+                    ? 'Guardar y Despachar'
+                    : 'Guardar y Aprobar'
+                  : 'Guardar como Borrador'}
+              </Button>
+              <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
+                Cancelar
+              </Button>
+            </div>
+          </SectionCard>
         </form>
       </div>
     </TenantSessionGate>

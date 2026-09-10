@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { Button } from 'glubox'
+import { EmptyState, PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { selectIsSubscriptionHolder, selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 
@@ -11,6 +13,7 @@ type TenantSessionGateProps = {
 
 /** Páginas de Equipo/RBAC que solo aplican dentro de una empresa (sesión operativa). */
 export function TenantSessionGate({ children, title, lead }: TenantSessionGateProps) {
+  const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
   const isSubscriptionHolder = useAppSelector(selectIsSubscriptionHolder)
 
@@ -19,19 +22,35 @@ export function TenantSessionGate({ children, title, lead }: TenantSessionGatePr
   }
 
   return (
-    <>
-      <h1 className="app-shell__page-title">{title}</h1>
-      <p className="app-shell__page-lead">{lead}</p>
-      <div className="app-shell__card">
-        <p className="app-shell__muted app-shell__muted--pad-bottom">
-          {isSubscriptionHolder
-            ? 'Estás en sesión de titular. Entra a una empresa para gestionar usuarios, roles y permisos.'
-            : 'No hay empresa activa en la sesión. Vuelve a iniciar sesión o entra a una empresa.'}
-        </p>
-        <Link to="/organizacion/empresas" className="app-shell__btn app-shell__btn--primary">
-          Ir a Empresas
-        </Link>
-      </div>
-    </>
+    <div className="ecu-dashboard-layout">
+      <PageHeader
+        title={title}
+        subtitle={lead}
+        badge={<StatusBadge tone="warning">Requiere Empresa</StatusBadge>}
+      />
+      <SectionCard
+        title="Selección de Empresa Requerida"
+        subtitle="Esta funcionalidad requiere operar dentro del contexto de una empresa de la suscripción."
+      >
+        <EmptyState
+          icon="building-2"
+          title="No hay empresa activa en la sesión"
+          description={
+            isSubscriptionHolder
+              ? 'Estás en sesión de titular de licencia. Selecciona y entra a una empresa para gestionar usuarios, roles, catálogo y operaciones.'
+              : 'No hay empresa activa en la sesión. Vuelve a iniciar sesión o selecciona una empresa.'
+          }
+          action={
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => navigate('/organizacion/empresas')}
+            >
+              Ir a Empresas
+            </Button>
+          }
+        />
+      </SectionCard>
+    </div>
   )
 }

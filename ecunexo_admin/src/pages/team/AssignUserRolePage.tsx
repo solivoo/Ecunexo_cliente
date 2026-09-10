@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Select, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { Shield } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
@@ -139,21 +144,34 @@ export function AssignUserRolePage() {
 
   return (
     <TenantSessionGate title="Asignar rol" lead="Vincula un rol RBAC al usuario.">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            {user
-              ? `Elige un rol para ${user.name} (${user.email}).`
-              : 'Elige un rol para heredar permisos.'}
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de asignar rol"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Asignar Rol"
+          subtitle={
+            user
+              ? `Vincular un perfil de seguridad a ${user.name} (${user.email}).`
+              : 'Selecciona un rol para heredar permisos.'
+          }
+          badge={
+            <StatusBadge tone="primary" withDot>
+              Permisos RBAC
+            </StatusBadge>
+          }
+          actions={
+            <>
+              <Button type="button" variant="outline" onClick={() => navigate(detailPath)}>
+                Volver a la Ficha
+              </Button>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+              />
+            </>
+          }
+        />
 
         <PageLoadState loading={loading} error={error && !user ? error : null} empty={!user && !loading}>
           {user ? (
@@ -164,23 +182,24 @@ export function AssignUserRolePage() {
                 </p>
               ) : null}
 
-              <section className="app-shell__card ecu-companies-form__card">
-                <h2 className="app-shell__section-title">
-                  <Shield size={18} strokeWidth={1.75} aria-hidden /> Rol a asignar
-                </h2>
-                <p className="ecu-companies-form__hint">
-                  Solo aparecen roles que el usuario aún no tiene.
-                </p>
+              <SectionCard
+                title={
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Shield size={18} strokeWidth={1.75} aria-hidden /> Selección de Rol
+                  </span>
+                }
+                subtitle="Solo aparecen los roles que este usuario aún no tiene vinculados."
+              >
                 {assignableRoles.length === 0 ? (
                   <p className="app-shell__muted">
-                    Este usuario ya tiene todos los roles del catálogo.
+                    Este usuario ya tiene todos los roles del catálogo asignados.
                   </p>
                 ) : (
                   <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                     <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                       <Select
                         id="assign-role"
-                        label="Rol"
+                        label="Rol a asignar"
                         labelPosition="outlined"
                         variant="outline"
                         options={roleOptions}
@@ -193,7 +212,7 @@ export function AssignUserRolePage() {
                     </div>
                   </div>
                 )}
-              </section>
+              </SectionCard>
 
               <div className="ecu-companies-form__actions">
                 <Button
@@ -202,7 +221,7 @@ export function AssignUserRolePage() {
                   loading={busy}
                   disabled={busy || !selectedRoleId || assignableRoles.length === 0}
                 >
-                  Guardar
+                  Asignar Rol
                 </Button>
                 <Button
                   type="button"
@@ -210,7 +229,7 @@ export function AssignUserRolePage() {
                   disabled={busy}
                   onClick={() => navigate(detailPath)}
                 >
-                  Atrás
+                  Cancelar
                 </Button>
               </div>
             </form>

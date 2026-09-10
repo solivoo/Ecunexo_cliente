@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Popup, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
-import { FolderTree } from 'lucide-react'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -112,7 +116,7 @@ export function EditCategoryPage() {
 
         toast.show({
           title: 'Categoría actualizada',
-          message: `«${name.trim()}» guardada.`,
+          message: `«${name.trim()}» guardada correctamente.`,
           variant: 'success',
         })
         void navigate('/catalogo/categorias', { replace: true })
@@ -159,13 +163,20 @@ export function EditCategoryPage() {
   if (!canManage) {
     return (
       <TenantSessionGate title="Editar categoría" lead="Modificar clasificación del catálogo.">
-        <div className="ecu-companies-page">
-          <p className="app-shell__page-lead">
-            Requieres catalog.category.manage para editar categorías.
-          </p>
-          <Button type="button" variant="outline" onClick={goToList}>
-            Volver al listado
-          </Button>
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres el permiso catalog.category.manage para editar categorías en la empresa."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+          <SectionCard title="Permisos insuficientes">
+            <p className="app-shell__muted" style={{ marginBottom: '1rem' }}>
+              No dispones de autorizaciones para editar clasificaciones del catálogo.
+            </p>
+            <Button type="button" variant="outline" onClick={goToList}>
+              Volver al listado
+            </Button>
+          </SectionCard>
         </div>
       </TenantSessionGate>
     )
@@ -173,39 +184,48 @@ export function EditCategoryPage() {
 
   return (
     <TenantSessionGate title="Editar categoría" lead="Modificar clasificación del catálogo.">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Cambia el nombre, la descripción o el molde de atributos.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de editar categoría"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
-
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title={name.trim() ? `Editar: ${name}` : 'Editar Categoría'}
+          subtitle="Modifica la denominación, descripción o el molde de campos dinámicos para los ítems pertenecientes a esta categoría."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              Categoría
+            </StatusBadge>
+          }
+          actions={
+            <EcuPageActions
+              items={actionItems}
+              variant="outline"
+              triggerLabel="Acciones de editar categoría"
+              renderIcon={renderSidebarIcon}
+              onNavigate={(route: string) => navigate(route)}
+            />
+          }
+        />
 
         {loading ? (
-          <p className="app-shell__muted">Cargando…</p>
+          <SectionCard title="Cargando…">
+            <p className="app-shell__muted">Recuperando detalles de la categoría…</p>
+          </SectionCard>
         ) : (
-          <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-            <section className="app-shell__card ecu-companies-form__card">
-              <h2 className="app-shell__section-title">
-                <FolderTree size={18} strokeWidth={1.75} aria-hidden /> Categoría
-              </h2>
+          <form onSubmit={(e) => void onSubmit(e)} noValidate>
+            <SectionCard
+              title="Ficha de la Categoría"
+              subtitle="Parámetros descriptivos y molde de campos dinámicos (atributos personalizados)"
+            >
+              {error ? (
+                <div className="ecu-form-error-banner" role="alert">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{error}</span>
+                </div>
+              ) : null}
+
               <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                   <TextBox
                     id="ec-name"
-                    label="Nombre"
+                    label="Nombre de la categoría"
                     labelPosition="outlined"
                     variant="outline"
                     value={name}
@@ -218,7 +238,7 @@ export function EditCategoryPage() {
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                   <TextBox
                     id="ec-desc"
-                    label="Descripción"
+                    label="Descripción funcional"
                     labelPosition="outlined"
                     variant="outline"
                     value={description}
@@ -229,30 +249,52 @@ export function EditCategoryPage() {
                 </div>
               </div>
 
-              <CategoryAttributeSchemaEditor
-                fields={attributeFields}
-                disabled={busy}
-                onChange={setAttributeFields}
-              />
-            </section>
-
-            <div className="ecu-companies-form__actions">
-              <Button type="submit" variant="primary" loading={busy} disabled={busy || deleting}>
-                Guardar
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                loading={deleting}
-                disabled={busy || deleting}
-                onClick={() => setConfirmDelete(true)}
+              <div
+                style={{
+                  marginTop: '1.5rem',
+                  paddingTop: '1.5rem',
+                  borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+                }}
               >
-                Eliminar
-              </Button>
-              <Button type="button" variant="outline" disabled={busy || deleting} onClick={goToList}>
-                Atrás
-              </Button>
-            </div>
+                <CategoryAttributeSchemaEditor
+                  fields={attributeFields}
+                  disabled={busy}
+                  onChange={setAttributeFields}
+                />
+              </div>
+
+              <div
+                className="ecu-companies-form__actions"
+                style={{
+                  marginTop: '1.5rem',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+                }}
+              >
+                <Button type="submit" variant="primary" loading={busy} disabled={busy || deleting}>
+                  Guardar Cambios
+                </Button>
+                {canManage ? (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    loading={deleting}
+                    disabled={busy || deleting}
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    Eliminar
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy || deleting}
+                  onClick={goToList}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </SectionCard>
           </form>
         )}
       </div>
@@ -283,7 +325,7 @@ export function EditCategoryPage() {
       >
         <p className="app-shell__muted">
           ¿Dar de baja <strong>{name.trim() || 'esta categoría'}</strong>? Solo se permite si no
-          tiene ítems ni subcategorías. Es una baja lógica.
+          tiene ítems ni subcategorías asociadas. Es una baja lógica.
         </p>
       </Popup>
     </TenantSessionGate>

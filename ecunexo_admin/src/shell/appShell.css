@@ -1228,6 +1228,33 @@ html.sf-dark-mode .app-shell__user-menu-trigger {
   opacity: 0.85;
 }
 
+.ecu-about-modal__changelog {
+  padding: 0.85rem;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--shell-surface) 92%, var(--shell-border));
+  border: 1px solid var(--shell-border);
+  font-size: 0.8125rem;
+}
+
+.ecu-about-modal__changelog-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  color: var(--shell-primary);
+  margin-bottom: 0.5rem;
+}
+
+.ecu-about-modal__changelog-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: var(--shell-muted);
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
 .ecu-about-modal__support {
   display: flex;
   flex-direction: column;

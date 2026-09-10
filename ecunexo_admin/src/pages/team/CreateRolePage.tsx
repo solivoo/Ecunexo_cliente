@@ -1,7 +1,12 @@
 import { useCallback, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { Shield } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -97,19 +102,30 @@ export function CreateRolePage() {
 
   return (
     <TenantSessionGate title="Nuevo rol" lead="Alta de un rol RBAC en la empresa.">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Define el rol. Luego podrás otorgarle permisos del catálogo global.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de crear rol"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Nuevo Rol"
+          subtitle="Define un nuevo perfil de seguridad. Luego de crearlo podrás vincular directivas y permisos del catálogo."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              Configuración RBAC
+            </StatusBadge>
+          }
+          actions={
+            <>
+              <Button type="button" variant="outline" onClick={goToList}>
+                Volver a Roles
+              </Button>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+              />
+            </>
+          }
+        />
 
         {error ? (
           <p className="welcome-onboarding__error" role="alert">
@@ -118,18 +134,19 @@ export function CreateRolePage() {
         ) : null}
 
         <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-          <section className="app-shell__card ecu-companies-form__card">
-            <h2 className="app-shell__section-title">
-              <Shield size={18} strokeWidth={1.75} aria-hidden /> Rol
-            </h2>
-            <p className="ecu-companies-form__hint">
-              Nombre obligatorio. La descripción ayuda a distinguir roles similares.
-            </p>
+          <SectionCard
+            title={
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Shield size={18} strokeWidth={1.75} aria-hidden /> Datos del Rol
+              </span>
+            }
+            subtitle="El nombre identifica el rol en las asignaciones de usuarios. La descripción aclara su alcance."
+          >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
               <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                 <TextBox
                   id="cr-name"
-                  label="Nombre"
+                  label="Nombre del rol"
                   labelPosition="outlined"
                   variant="outline"
                   value={name}
@@ -159,18 +176,18 @@ export function CreateRolePage() {
                     disabled={busy}
                     onChange={(e) => setIsSystem(e.target.checked)}
                   />
-                  <span>Rol de sistema</span>
+                  <span>Rol de sistema (protegido contra eliminación)</span>
                 </label>
                 <p className="ecu-companies-form__hint">
-                  Los roles de sistema suelen reservarse para administración de la plataforma.
+                  Los roles de sistema suelen reservarse para administración base de la plataforma.
                 </p>
               </div>
             </div>
-          </section>
+          </SectionCard>
 
           <div className="ecu-companies-form__actions">
             <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-              Guardar
+              Guardar y Configurar Permisos
             </Button>
             <Button
               type="button"
@@ -178,7 +195,7 @@ export function CreateRolePage() {
               disabled={busy}
               onClick={goToList}
             >
-              Atrás
+              Cancelar
             </Button>
           </div>
         </form>

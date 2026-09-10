@@ -3,6 +3,7 @@
  * Dark mode: clase sf-dark-mode + data-mode en <html>.
  */
 @import "./styles/ecu-companies-form.css";
+@import "./components/ui/enterpriseUi.css";
 
 html,
 body,

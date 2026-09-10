@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Popup, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -156,40 +163,68 @@ export function UsersListPage() {
       title="Usuarios"
       lead="Alta de personas en la empresa y asignación de roles."
     >
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Personas de esta empresa. Edita, deshabilita o elimina desde el listado o la ficha.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de usuarios"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-            onActionSelect={handleActionSelect}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Gestión de Usuarios"
+          subtitle="Personas de esta empresa. Edita perfiles, asigna roles o gestiona el estado de acceso de cada cuenta."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              {rows.length} {rows.length === 1 ? 'Usuario' : 'Usuarios'}
+            </StatusBadge>
+          }
+          actions={
+            <>
+              {canCreate && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => navigate('/equipo/usuarios/nueva')}
+                >
+                  + Nuevo Usuario
+                </Button>
+              )}
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de usuarios"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
+          }
+        />
 
-        <div className="ecu-companies-page__metrics" aria-label="Resumen de usuarios">
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Usuarios</p>
-            <p className="ecu-companies-page__metric-value">{rows.length}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Activos</p>
-            <p className="ecu-companies-page__metric-value">{rows.length - disabledCount}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Deshabilitados</p>
-            <p className="ecu-companies-page__metric-value">{disabledCount}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Con acceso reciente</p>
-            <p className="ecu-companies-page__metric-value">
-              {rows.filter((r) => r.lastLoginAt).length}
-            </p>
-          </article>
+        <div className="ecu-stat-grid" aria-label="Resumen de usuarios">
+          <StatCard
+            label="Total Cuentas"
+            value={rows.length}
+            icon="group"
+            toneColor="#4f46e5"
+            footerText="Usuarios en la empresa"
+          />
+          <StatCard
+            label="Usuarios Activos"
+            value={rows.length - disabledCount}
+            icon="how_to_reg"
+            toneColor="#059669"
+            badge={<StatusBadge tone="success">Habilitados</StatusBadge>}
+          />
+          <StatCard
+            label="Deshabilitados"
+            value={disabledCount}
+            icon="person_off"
+            toneColor="#dc2626"
+            badge={disabledCount > 0 ? <StatusBadge tone="danger">Sin acceso</StatusBadge> : undefined}
+            footerText={disabledCount === 0 ? 'Sin bajas registradas' : undefined}
+          />
+          <StatCard
+            label="Con Acceso Reciente"
+            value={rows.filter((r) => r.lastLoginAt).length}
+            icon="history"
+            toneColor="#0284c7"
+            footerText="Sesión registrada"
+          />
         </div>
 
         {error ? (
@@ -198,27 +233,31 @@ export function UsersListPage() {
           </p>
         ) : null}
 
-        <div className="ecu-companies-page__body">
+        <SectionCard
+          title="Directorio del Equipo"
+          subtitle="Listado general con credenciales, roles asignados y acciones de cuenta"
+        >
           {isEmpty ? (
-            <div className="ecu-companies-page__empty">
-              <h2 className="app-shell__section-title">Aún no hay usuarios</h2>
-              <p className="app-shell__muted app-shell__muted--pad-bottom">
-                Crea el primero para asignar roles y operar en la empresa.
-              </p>
-              {canCreate ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/equipo/usuarios/nueva')}
-                >
-                  Nuevo usuario
-                </Button>
-              ) : (
-                <p className="app-shell__muted">
-                  Requieres el permiso identity.users.create para crear usuarios.
-                </p>
-              )}
-            </div>
+            <EmptyState
+              icon="group_add"
+              title="Aún no hay usuarios registrados"
+              description="Crea el primer usuario para asignarle roles y permitirle operar dentro del entorno de esta empresa."
+              action={
+                canCreate ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => navigate('/equipo/usuarios/nueva')}
+                  >
+                    Crear primer usuario
+                  </Button>
+                ) : (
+                  <p className="app-shell__muted">
+                    Requieres el permiso identity.users.create para dar de alta colaboradores.
+                  </p>
+                )
+              }
+            />
           ) : (
             <UsersGrid
               rows={rows}
@@ -232,7 +271,7 @@ export function UsersListPage() {
               onDelete={setConfirmDelete}
             />
           )}
-        </div>
+        </SectionCard>
       </div>
 
       <Popup

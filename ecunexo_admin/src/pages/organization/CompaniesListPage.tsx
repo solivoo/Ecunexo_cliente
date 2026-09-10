@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Popup, useToast, type PageActionItem } from 'glubox'
+import {
+  EmptyState,
+  PageHeader,
+  SectionCard,
+  StatCard,
+  StatusBadge,
+} from '@/components/ui'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { CompaniesGrid } from '@/pages/organization/CompaniesGrid'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -186,46 +193,59 @@ export function CompaniesListPage() {
 
   return (
     <>
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Modo titular: crea, edita o da de baja empresas. Pulsa <strong>Entrar</strong> para operar una
-            (equipo, roles). Luego usa <strong>Mis empresas</strong> en la barra superior para volver
-            aquí.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de empresas"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-            onActionSelect={handleActionSelect}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Empresas de la Licencia"
+          subtitle="Modo titular: gestiona las empresas asociadas a tu suscripción. Pulsa Entrar para operar dentro de una de ellas con su equipo, catálogo y facturación."
+          badge={
+            summary ? (
+              <StatusBadge tone="primary" withDot>
+                {summary.usedCount} / {summary.maxTenants} Cupos Usados
+              </StatusBadge>
+            ) : undefined
+          }
+          actions={
+            <EcuPageActions
+              items={actionItems}
+              variant="outline"
+              triggerLabel="Acciones de empresas"
+              renderIcon={renderSidebarIcon}
+              onNavigate={(route: string) => navigate(route)}
+              onActionSelect={handleActionSelect}
+            />
+          }
+        />
 
         {summary ? (
-          <div className="ecu-companies-page__metrics" aria-label="Cupo de licencia">
-            <article className="ecu-companies-page__metric">
-              <p className="ecu-companies-page__metric-label">Cupo usado</p>
-              <p className="ecu-companies-page__metric-value">
-                {summary.usedCount}
-                <span className="ecu-companies-page__metric-unit"> / {summary.maxTenants}</span>
-              </p>
-            </article>
-            <article className="ecu-companies-page__metric">
-              <p className="ecu-companies-page__metric-label">Cupos restantes</p>
-              <p className="ecu-companies-page__metric-value">{summary.slotsRemaining}</p>
-            </article>
-            <article className="ecu-companies-page__metric">
-              <p className="ecu-companies-page__metric-label">Empresas</p>
-              <p className="ecu-companies-page__metric-value">{summary.companies.length}</p>
-            </article>
-            <article className="ecu-companies-page__metric">
-              <p className="ecu-companies-page__metric-label">Plan</p>
-              <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
-                {singleCompanyPlan ? '1 empresa' : 'Multiempresa'}
-              </p>
-            </article>
+          <div className="ecu-stat-cards-grid">
+            <StatCard
+              label="Cupo Usado"
+              value={`${summary.usedCount} / ${summary.maxTenants}`}
+              icon="domain"
+              toneColor="#4f46e5"
+              footerText={summary.slotsRemaining > 0 ? `${summary.slotsRemaining} cupos disponibles` : 'Sin cupos disponibles'}
+            />
+            <StatCard
+              label="Cupos Restantes"
+              value={summary.slotsRemaining}
+              icon="check_circle"
+              toneColor="#10b981"
+              footerText={summary.canCreateMore ? 'Habilitado para nuevas altas' : 'Límite alcanzado'}
+            />
+            <StatCard
+              label="Empresas Registradas"
+              value={summary.companies.length}
+              icon="layers"
+              toneColor="#0284c7"
+              footerText={`${summary.companies.filter((c) => c.status === 1).length} activas`}
+            />
+            <StatCard
+              label="Tipo de Licencia"
+              value={singleCompanyPlan ? '1 Empresa' : 'Multiempresa'}
+              icon="verified_user"
+              toneColor="#8b5cf6"
+              footerText={singleCompanyPlan ? 'Plan inicial monopuesto' : 'Plan corporativo multitenant'}
+            />
           </div>
         ) : null}
 
@@ -242,29 +262,27 @@ export function CompaniesListPage() {
           </p>
         ) : null}
 
-        <div className="ecu-companies-page__body">
+        <SectionCard
+          title="Directorio de Empresas"
+          subtitle="Catálogo de tenants y organizaciones vinculadas a tu suscripción"
+        >
           {isEmpty && !loading ? (
-            <div className="ecu-companies-page__empty">
-              <h2 className="app-shell__section-title">Aún no hay empresas</h2>
-              <p className="app-shell__muted app-shell__muted--pad-bottom">
-                Crea la primera para definir un administrador y empezar a operar.
-              </p>
-              {canCreate && canCreateMore ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/organizacion/empresas/nueva')}
-                >
-                  Crear primera empresa
-                </Button>
-              ) : canCreate ? (
-                <p className="app-shell__muted">No quedan cupos disponibles en la licencia.</p>
-              ) : (
-                <p className="app-shell__muted">
-                  Requieres el permiso tenancy.tenants.create para crear empresas.
-                </p>
-              )}
-            </div>
+            <EmptyState
+              title="Aún no hay empresas registradas"
+              description="Crea la primera para definir un administrador y empezar a operar con tu licencia."
+              icon="domain"
+              action={
+                canCreate && canCreateMore ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => navigate('/organizacion/empresas/nueva')}
+                  >
+                    Crear primera empresa
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <CompaniesGrid
               rows={summary?.companies ?? []}
@@ -284,7 +302,7 @@ export function CompaniesListPage() {
               onDelete={setConfirmDelete}
             />
           )}
-        </div>
+        </SectionCard>
       </div>
 
       <Popup

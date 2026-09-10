@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, TextBox, useToast, type ColumnDef, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui'
 import { Settings2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -140,6 +147,13 @@ export function StockListPage() {
         disabled: false,
       },
       {
+        id: 'kardex',
+        label: 'Kárdex',
+        icon: 'receipt',
+        route: '/inventario/kardex',
+        disabled: false,
+      },
+      {
         id: 'refresh',
         label: 'Actualizar',
         icon: 'refresh-cw',
@@ -155,46 +169,57 @@ export function StockListPage() {
       {
         key: 'catalogItemName',
         header: 'Ítem',
-        width: 220,
+        width: 240,
         sortable: true,
         renderCell: (_v: Row['catalogItemName'], row: Row) => (
-          <strong>
-            {row.catalogItemName}
+          <div>
+            <strong>{row.catalogItemName}</strong>
             {row.isBelowMinimum ? (
-              <span className="app-shell__muted"> · bajo mínimo</span>
+              <div style={{ marginTop: 2 }}>
+                <StatusBadge tone="danger" withDot>
+                  Bajo mínimo
+                </StatusBadge>
+              </div>
             ) : null}
-          </strong>
+          </div>
         ),
       },
       {
         key: 'sku',
         header: 'SKU',
-        width: 120,
+        width: 130,
         sortable: true,
-        renderCell: (_v: Row['sku'], row: Row) => row.sku ?? '—',
+        renderCell: (_v: Row['sku'], row: Row) =>
+          row.sku ? <code className="ecu-code">{row.sku}</code> : '—',
       },
       {
         key: 'warehouseName',
         header: 'Bodega',
-        width: 150,
+        width: 160,
         sortable: true,
         renderCell: (_v: Row['warehouseName'], row: Row) => row.warehouseName,
       },
       {
         key: 'quantity',
-        header: 'Cantidad',
-        width: 110,
+        header: 'Cantidad actual',
+        width: 130,
         sortable: true,
         renderCell: (_v: Row['quantity'], row: Row) => (
-          <span style={row.isBelowMinimum ? { color: 'var(--color-danger, #b42318)', fontWeight: 600 } : undefined}>
+          <span
+            style={
+              row.isBelowMinimum
+                ? { color: 'var(--color-danger, #ef4444)', fontWeight: 600 }
+                : { fontWeight: 500 }
+            }
+          >
             {row.quantity.toFixed(2)}
           </span>
         ),
       },
       {
         key: 'minimumQuantity',
-        header: 'Mínimo',
-        width: 160,
+        header: 'Umbral mínimo',
+        width: 180,
         sortable: true,
         renderCell: (_v: Row['minimumQuantity'], row: Row) => {
           if (editingId === row.id) {
@@ -222,13 +247,17 @@ export function StockListPage() {
               </div>
             )
           }
-          return row.minimumQuantity == null ? '—' : row.minimumQuantity.toFixed(2)
+          return row.minimumQuantity == null ? (
+            <span className="app-shell__muted">—</span>
+          ) : (
+            <span>{row.minimumQuantity.toFixed(2)}</span>
+          )
         },
       },
       {
         key: 'updatedAt',
-        header: 'Actualizado',
-        width: 150,
+        header: 'Última actualización',
+        width: 170,
         sortable: true,
         renderCell: (_v: Row['updatedAt'], row: Row) =>
           row.updatedAt ? formatDateTime(row.updatedAt) : '—',
@@ -243,7 +272,7 @@ export function StockListPage() {
               sortable: false,
               renderCell: (_v: Row['id'], row: Row) => (
                 <GridIconButton
-                  label="Definir mínimo"
+                  label="Configurar mínimo"
                   icon={Settings2}
                   onClick={() => startEdit(row)}
                 />
@@ -255,77 +284,133 @@ export function StockListPage() {
     [busyId, canManage, editValue, editingId, saveMinimum, startEdit]
   )
 
+  const lowCount = rows.filter((r) => r.isBelowMinimum).length
+  const warehouseCount = new Set(rows.map((r) => r.warehouseId)).size
+
   if (!canRead) {
     return (
       <TenantSessionGate title="Stock" lead="Saldos actuales por ítem y bodega.">
-        <p className="app-shell__page-lead">Requieres inventory.stock.read.</p>
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres inventory.stock.read para visualizar existencias de inventario."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
       </TenantSessionGate>
     )
   }
 
-  const lowCount = rows.filter((r) => r.isBelowMinimum).length
-  const warehouseCount = new Set(rows.map((r) => r.warehouseId)).size
-
   return (
-    <TenantSessionGate title="Stock" lead="Cuánto hay ahora. El histórico está en el kárdex.">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            {belowOnly
-              ? `Mostrando solo alertas (${lowCount}).`
-              : `Define un mínimo por ítem/bodega para ver alertas. ${
-                  lowCount > 0 ? `Ahora hay ${lowCount} bajo mínimo.` : ''
-                }`}
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de stock"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-            onActionSelect={(item: PageActionItem) => {
-              if (item.id === 'refresh') void load()
-              if (item.id === 'toggle-low') {
-                const next = !belowOnly
-                setBelowOnly(next)
-                void load({ silent: true, belowMinimumOnly: next })
-              }
-            }}
+    <TenantSessionGate
+      title="Stock"
+      lead="Control de existencias actuales en tiempo real. Los movimientos históricos residen en el kárdex."
+    >
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Control de Stock y Existencias"
+          subtitle="Saldos físicos actuales por ítem y bodega. Configura umbrales mínimos para detectar alertas de reposición preventiva."
+          badge={
+            <StatusBadge
+              tone={lowCount > 0 ? 'warning' : 'primary'}
+              withDot={lowCount > 0}
+            >
+              {rows.length} {rows.length === 1 ? 'Saldo' : 'Saldos'}
+            </StatusBadge>
+          }
+          actions={
+            <>
+              {canCreateDoc && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => navigate('/inventario/documentos/nuevo?tipo=0')}
+                >
+                  + Nueva Recepción
+                </Button>
+              )}
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de stock"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={(item: PageActionItem) => {
+                  if (item.id === 'refresh') void load()
+                  if (item.id === 'toggle-low') {
+                    const next = !belowOnly
+                    setBelowOnly(next)
+                    void load({ silent: true, belowMinimumOnly: next })
+                  }
+                }}
+              />
+            </>
+          }
+        />
+
+        <div className="ecu-stat-grid" aria-label="Resumen de stock">
+          <StatCard
+            label="Total Saldos"
+            value={rows.length}
+            icon="inventory_2"
+            toneColor="#4f46e5"
+            footerText="Ítems con existencia"
+          />
+          <StatCard
+            label="Bajo Mínimo (Alerta)"
+            value={lowCount}
+            icon="warning"
+            toneColor={lowCount > 0 ? '#ef4444' : '#10b981'}
+            footerText={lowCount > 0 ? 'Requieren reposición' : 'Nivel de stock óptimo'}
+          />
+          <StatCard
+            label="Bodegas Activas"
+            value={warehouseCount}
+            icon="warehouse"
+            toneColor="#0ea5e9"
+            footerText="Puntos con existencias"
+          />
+          <StatCard
+            label="Filtro Activo"
+            value={belowOnly ? 'Solo alertas' : 'Todos'}
+            icon="filter_alt"
+            toneColor="#8b5cf6"
+            footerText={belowOnly ? 'Filtrando bajo mínimo' : 'Vista completa'}
           />
         </div>
 
-        <div className="ecu-companies-page__metrics" aria-label="Resumen de stock">
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Saldos</p>
-            <p className="ecu-companies-page__metric-value">{rows.length}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Bajo mínimo</p>
-            <p className="ecu-companies-page__metric-value">{lowCount}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Bodegas</p>
-            <p className="ecu-companies-page__metric-value">{warehouseCount}</p>
-          </article>
-        </div>
-
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <div className="ecu-companies-page__body">
-          {rows.length === 0 && !loading ? (
-            <div className="ecu-companies-page__empty">
-              <h2 className="app-shell__section-title">
-                {belowOnly ? 'Ningún ítem bajo mínimo' : 'Aún no hay saldos'}
-              </h2>
-              <p className="app-shell__muted">
-                {belowOnly
-                  ? 'Todos los umbrales están cubiertos o no hay mínimos configurados.'
-                  : 'Aprueba una recepción para ver cantidades aquí.'}
-              </p>
+        <SectionCard
+          title="Saldos de Inventario"
+          subtitle="Monitoreo en tiempo real de unidades disponibles y umbrales mínimos de stock"
+        >
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
             </div>
+          ) : null}
+
+          {rows.length === 0 && !loading ? (
+            <EmptyState
+              icon="inventory_2"
+              title={belowOnly ? 'Ningún ítem bajo el umbral mínimo' : 'Aún no hay saldos de stock'}
+              description={
+                belowOnly
+                  ? 'Todos los productos cuentan con existencias superiores al umbral o no se han configurado mínimos.'
+                  : 'Registra y aprueba un documento de recepción para ingresar existencias al almacén.'
+              }
+              action={
+                canCreateDoc && !belowOnly ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => navigate('/inventario/documentos/nuevo?tipo=0')}
+                  >
+                    + Nueva Recepción
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <DataGrid
               className="ecu-companies-grid"
@@ -336,7 +421,7 @@ export function StockListPage() {
               showSearch
               searchPosition="left"
               searchWidth={280}
-              searchPlaceholder="Buscar ítem o bodega…"
+              searchPlaceholder="Buscar ítem, SKU o bodega…"
               searchKeys={['catalogItemName', 'sku', 'warehouseName']}
               paging={paging}
               onPageChange={onPageChange}
@@ -348,7 +433,7 @@ export function StockListPage() {
               messages={messages}
             />
           )}
-        </div>
+        </SectionCard>
       </div>
     </TenantSessionGate>
   )

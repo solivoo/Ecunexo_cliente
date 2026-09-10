@@ -1,5 +1,6 @@
 import { Button } from 'glubox'
 import { useNavigate } from 'react-router-dom'
+import { PageHeader, StatusBadge } from '@/components/ui'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { InvoiceLinesSection } from '@/pages/facturacion/InvoiceLinesSection'
@@ -31,38 +32,43 @@ export function FacturaEmitirPage() {
 
   if (!canCreate) {
     return (
-      <div className="factura-emitir">
-        <h1 className="app-shell__page-title">Emitir factura</h1>
-        <p className="app-shell__page-lead">
-          Sin permiso para emitir facturas (`facturacion.facturas.create`).
-        </p>
+      <div className="ecu-dashboard-layout factura-emitir">
+        <PageHeader
+          title="Emitir Factura"
+          subtitle="Sin permiso para emitir facturas (facturacion.facturas.create)."
+          badge={<StatusBadge tone="danger">Acceso Restringido</StatusBadge>}
+        />
       </div>
     )
   }
 
   return (
-    <div className="factura-emitir">
-      <div className="ecu-page-header">
-        <div>
-          <h1 className="app-shell__page-title">
-            {form.requiresNotaVenta ? 'Nota de venta' : 'Emitir factura'}
-          </h1>
-          <p className="app-shell__page-lead">
-            {form.requiresNotaVenta
-              ? 'Negocio popular: el SRI pide nota de venta, no un recibo. La emisión del talonario llega en la siguiente fase. Si eliges factura electrónica, actívalo en Facturación → Emisor.'
-              : form.companyLabel
-                ? `Comprobante de venta SRI 01 — ${form.companyLabel}`
-                : 'Emisión de factura electrónica'}
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => navigate('/facturacion/comprobantes')}
-        >
-          Volver a comprobantes
-        </Button>
-      </div>
+    <div className="ecu-dashboard-layout factura-emitir">
+      <PageHeader
+        title={form.requiresNotaVenta ? 'Nota de Venta' : 'Emitir Factura Electrónica'}
+        subtitle={
+          form.requiresNotaVenta
+            ? 'Negocio popular: el SRI pide nota de venta. Si tu régimen requiere factura electrónica, verifícalo en Configuración SRI.'
+            : form.companyLabel
+              ? `Comprobante de venta SRI 01 — ${form.companyLabel}`
+              : 'Emisión y firma electrónica autorizada por el SRI.'
+        }
+        badge={
+          <StatusBadge tone={profile.isDevelopment ? 'warning' : 'success'} withDot>
+            {profile.isDevelopment ? 'Ambiente Pruebas' : 'Producción SRI'}
+          </StatusBadge>
+        }
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/facturacion/comprobantes')}
+          >
+            Volver a comprobantes
+          </Button>
+        }
+      />
 
       <PageLoadState
         loading={form.loadingTenant}

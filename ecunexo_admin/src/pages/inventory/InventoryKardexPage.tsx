@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataGrid, useToast, type ColumnDef, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui'
 import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -66,28 +73,35 @@ export function InventoryKardexPage() {
     (): ColumnDef<Row>[] => [
       {
         key: 'occurredAt',
-        header: 'Fecha',
+        header: 'Fecha y hora',
         width: 170,
         sortable: true,
         renderCell: (_v: Row['occurredAt'], row: Row) => formatDateTime(row.occurredAt),
       },
       {
         key: 'direction',
-        header: 'Movimiento',
-        width: 120,
+        header: 'Tipo de flujo',
+        width: 130,
         sortable: true,
-        renderCell: (_v: Row['direction'], row: Row) => inventoryMovementDirectionLabel(row.direction),
+        renderCell: (_v: Row['direction'], row: Row) => (
+          <StatusBadge
+            tone={row.direction === InventoryMovementDirection.In ? 'success' : 'danger'}
+            withDot
+          >
+            {inventoryMovementDirectionLabel(row.direction)}
+          </StatusBadge>
+        ),
       },
       {
         key: 'catalogItemName',
-        header: 'Ítem',
-        width: 220,
+        header: 'Ítem físico',
+        width: 240,
         sortable: true,
         renderCell: (_v: Row['catalogItemName'], row: Row) => <strong>{row.catalogItemName}</strong>,
       },
       {
         key: 'warehouseName',
-        header: 'Bodega',
+        header: 'Bodega afectada',
         width: 180,
         sortable: true,
         renderCell: (_v: Row['warehouseName'], row: Row) => row.warehouseName,
@@ -95,9 +109,22 @@ export function InventoryKardexPage() {
       {
         key: 'quantity',
         header: 'Cantidad',
-        width: 110,
+        width: 130,
         sortable: true,
-        renderCell: (_v: Row['quantity'], row: Row) => row.quantity.toFixed(2),
+        renderCell: (_v: Row['quantity'], row: Row) => (
+          <span
+            style={{
+              fontWeight: 600,
+              color:
+                row.direction === InventoryMovementDirection.In
+                  ? 'var(--color-success, #10b981)'
+                  : 'var(--color-danger, #ef4444)',
+            }}
+          >
+            {row.direction === InventoryMovementDirection.In ? '+' : '-'}
+            {row.quantity.toFixed(2)}
+          </span>
+        ),
       },
     ],
     []
@@ -110,8 +137,14 @@ export function InventoryKardexPage() {
 
   if (!canRead) {
     return (
-      <TenantSessionGate title="Kárdex" lead="Historial append-only de movimientos.">
-        <p className="app-shell__page-lead">Requieres inventory.movement.read.</p>
+      <TenantSessionGate title="Kárdex" lead="Historial de movimientos.">
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres inventory.movement.read para consultar la trazabilidad de kárdex."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
       </TenantSessionGate>
     )
   }
@@ -120,18 +153,34 @@ export function InventoryKardexPage() {
   const outbound = visibleRows.filter((r) => r.direction === InventoryMovementDirection.Out).length
 
   return (
-    <TenantSessionGate title="Kárdex" lead="Solo INSERT: aquí no se edita el pasado.">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">Últimos 500 movimientos del tenant.</p>
-          <EcuPageActions
-            items={
-              [
+    <TenantSessionGate
+      title="Kárdex"
+      lead="Auditoría inmutable de movimientos logísticos de stock."
+    >
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Kárdex de Movimientos"
+          subtitle="Registro inmutable de todas las transacciones físicas de inventario (entradas, salidas y ajustes). Los saldos históricos garantizan trazabilidad total."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              {visibleRows.length} {visibleRows.length === 1 ? 'Movimiento' : 'Movimientos'}
+            </StatusBadge>
+          }
+          actions={
+            <EcuPageActions
+              items={[
                 {
                   id: 'stock',
                   label: 'Stock',
                   icon: 'package',
                   route: '/inventario/stock',
+                  disabled: false,
+                },
+                {
+                  id: 'docs',
+                  label: 'Documentos',
+                  icon: 'file-text',
+                  route: '/inventario/documentos',
                   disabled: false,
                 },
                 {
@@ -141,69 +190,91 @@ export function InventoryKardexPage() {
                   route: null,
                   disabled: loading,
                 },
-              ] satisfies PageActionItem[]
-            }
-            variant="outline"
-            triggerLabel="Acciones de kárdex"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-            onActionSelect={(item: PageActionItem) => {
-              if (item.id === 'refresh') void load()
-            }}
+              ]}
+              variant="outline"
+              triggerLabel="Acciones de kárdex"
+              renderIcon={renderSidebarIcon}
+              onNavigate={(route: string) => navigate(route)}
+              onActionSelect={(item: PageActionItem) => {
+                if (item.id === 'refresh') void load()
+              }}
+            />
+          }
+        />
+
+        <div className="ecu-stat-grid" aria-label="Resumen de kárdex">
+          <StatCard
+            label="Total Movimientos"
+            value={visibleRows.length}
+            icon="receipt_long"
+            toneColor="#4f46e5"
+            footerText="En el período seleccionado"
+          />
+          <StatCard
+            label="Entradas (Ingresos)"
+            value={inbound}
+            icon="arrow_downward"
+            toneColor="#10b981"
+            footerText="Recepciones y ajustes (+)"
+          />
+          <StatCard
+            label="Salidas (Egresos)"
+            value={outbound}
+            icon="arrow_upward"
+            toneColor="#ef4444"
+            footerText="Despachos y salidas (-)"
           />
         </div>
 
-        <div className="ecu-companies-page__metrics" aria-label="Resumen de kárdex">
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Movimientos</p>
-            <p className="ecu-companies-page__metric-value">{visibleRows.length}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Entradas</p>
-            <p className="ecu-companies-page__metric-value">{inbound}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Salidas</p>
-            <p className="ecu-companies-page__metric-value">{outbound}</p>
-          </article>
-        </div>
+        <SectionCard
+          title="Trazabilidad Cronológica"
+          subtitle="Auditoría secuencial de movimientos con filtro configurable por rango de fechas"
+        >
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
+            </div>
+          ) : null}
 
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <div className="ecu-companies-page__body">
-          <DataGrid
-            className="ecu-companies-grid"
-            dataSource={visibleRows as Row[]}
-            keyExpr="id"
-            columns={columns}
-            selectionMode="none"
-            showSearch
-            searchPosition="left"
-            searchWidth={280}
-            searchPlaceholder="Buscar ítem o bodega…"
-            searchKeys={['catalogItemName', 'warehouseName']}
-            toolbarRight={
-              <GridDateRangeBox
-                from={from}
-                to={to}
-                lookback={lookback}
-                disabled={loading}
-                onChange={setRange}
-              />
-            }
-            paging={paging}
-            onPageChange={onPageChange}
-            onPageSizeChange={onPageSizeChange}
-            paginationMode="client"
-            pageSizeOptions={pageSizeOptions}
-            layout="auto"
-            loading={loading}
-            messages={messages}
-          />
-        </div>
+          {visibleRows.length === 0 && !loading ? (
+            <EmptyState
+              icon="receipt_long"
+              title="Sin movimientos registrados en este período"
+              description="Ajusta el rango de fechas en la barra superior o registra nuevos movimientos para visualizar transacciones en el kárdex."
+            />
+          ) : (
+            <DataGrid
+              className="ecu-companies-grid"
+              dataSource={visibleRows as Row[]}
+              keyExpr="id"
+              columns={columns}
+              selectionMode="none"
+              showSearch
+              searchPosition="left"
+              searchWidth={280}
+              searchPlaceholder="Buscar ítem o bodega…"
+              searchKeys={['catalogItemName', 'warehouseName']}
+              toolbarRight={
+                <GridDateRangeBox
+                  from={from}
+                  to={to}
+                  lookback={lookback}
+                  disabled={loading}
+                  onChange={setRange}
+                />
+              }
+              paging={paging}
+              onPageChange={onPageChange}
+              onPageSizeChange={onPageSizeChange}
+              paginationMode="client"
+              pageSizeOptions={pageSizeOptions}
+              layout="auto"
+              loading={loading}
+              messages={messages}
+            />
+          )}
+        </SectionCard>
       </div>
     </TenantSessionGate>
   )

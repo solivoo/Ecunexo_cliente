@@ -1,5 +1,5 @@
 import { Select } from 'glubox'
-import { List } from 'lucide-react'
+import { SectionCard } from '@/components/ui'
 import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import { MAX_RECORD_OPTIONS, type MaxRecords } from '@/lib/appPreferences'
 import { GRID_LOOKBACK_OPTIONS, type GridLookback } from '@/lib/gridLookback'
@@ -30,14 +30,10 @@ export function AppSettingsListsSection({
   const size = useGluComponentSize()
 
   return (
-    <section className="app-shell__card ecu-companies-form__card">
-      <h2 className="app-shell__section-title">
-        <List size={18} strokeWidth={1.75} aria-hidden /> Listados
-      </h2>
-      <p className="ecu-companies-form__hint">
-        Filas por página en todas las tablas, y ventana de fechas al abrir listados masivos
-        (comprobantes, compras, SRI). En el grid puedes acotar o ampliar el rango.
-      </p>
+    <SectionCard
+      title="Configuración de Listados"
+      subtitle="Filas por página en todas las tablas y ventana de fechas al abrir listados masivos (comprobantes, compras, SRI)."
+    >
       <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
         <div className="ecu-companies-form__field">
           <Select
@@ -68,6 +64,6 @@ export function AppSettingsListsSection({
           />
         </div>
       </div>
-    </section>
+    </SectionCard>
   )
 }

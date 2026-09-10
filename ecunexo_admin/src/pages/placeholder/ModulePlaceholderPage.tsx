@@ -1,4 +1,5 @@
 import { useMatches } from 'react-router-dom'
+import { EmptyState, PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 
 export function ModulePlaceholderPage() {
   const matches = useMatches()
@@ -9,16 +10,22 @@ export function ModulePlaceholderPage() {
       : 'Próximamente'
 
   return (
-    <>
-      <h1 className="app-shell__page-title">{title}</h1>
-      <p className="app-shell__page-lead">
-        Módulo en hoja de ruta. La pantalla definitiva se conectará cuando exista la API.
-      </p>
-      <div className="app-shell__card">
-        <p className="app-shell__muted">
-          Cuando exista API de {title.toLowerCase()}, esta ruta mostrará la UI real.
-        </p>
-      </div>
-    </>
+    <div className="ecu-dashboard-layout">
+      <PageHeader
+        title={title}
+        subtitle="Módulo planificado en la hoja de ruta de la plataforma."
+        badge={<StatusBadge tone="neutral">En Desarrollo</StatusBadge>}
+      />
+      <SectionCard
+        title={`Módulo: ${title}`}
+        subtitle="Integración de funcionalidades y servicios"
+      >
+        <EmptyState
+          icon="layers"
+          title={`Funcionalidad de ${title}`}
+          description={`Este módulo se encuentra actualmente en la hoja de ruta técnica. La pantalla operativa definitiva se habilitará automáticamente una vez que la API de ${title.toLowerCase()} esté desplegada.`}
+        />
+      </SectionCard>
+    </div>
   )
 }

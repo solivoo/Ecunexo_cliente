@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataGrid, type ColumnDef } from 'glubox'
 import { Pencil, Trash2 } from 'lucide-react'
+import { StatusBadge } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { formatDateTime } from '@/lib/formatDate'
@@ -46,11 +47,15 @@ export function CategoriesGrid({
       },
       {
         key: 'parentId',
-        header: 'Padre',
-        width: 200,
+        header: 'Jerarquía',
+        width: 180,
         sortable: true,
         renderCell: (_value: CategoryGridRow['parentId'], row: CategoryGridRow) =>
-          row.parentId ? (byId.get(row.parentId) ?? '—') : '—',
+          row.parentId ? (
+            <span>{byId.get(row.parentId) ?? 'Subcategoría'}</span>
+          ) : (
+            <StatusBadge tone="neutral">Categoría Raíz</StatusBadge>
+          ),
       },
       {
         key: 'description',

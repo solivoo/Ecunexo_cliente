@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { ColorSwatch } from '@/features/organization/components/ColorSwatch'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { resolveAssetUrl } from '@/features/organization/resolveTenantMark'
@@ -48,18 +49,28 @@ export function OrganizationProfilePage() {
   }, [load])
 
   return (
-    <>
-      <h1 className="app-shell__page-title">Perfil y branding</h1>
-      <p className="app-shell__page-lead">
-        Identidad de la organización y datos de tu cuenta.{' '}
-        <Link to="/organizacion/facturacion-electronica">Facturación electrónica</Link>
-      </p>
+    <div className="ecu-dashboard-layout">
+      <PageHeader
+        title="Perfil y Branding"
+        subtitle="Identidad de la organización activa y datos de tu cuenta de usuario."
+        badge={<StatusBadge tone="primary">Organización</StatusBadge>}
+        actions={
+          <Link
+            to="/organizacion/facturacion-electronica"
+            className="sf-button sf-button--outline sf-button--sm"
+          >
+            Facturación electrónica
+          </Link>
+        }
+      />
 
       <PageLoadState loading={loading} error={error} empty={!tenant || !user}>
         {tenant && user ? (
           <>
-            <h2 className="app-shell__section-title">Organización</h2>
-            <div className="app-shell__card">
+            <SectionCard
+              title="Identidad de la Organización"
+              subtitle="Parámetros corporativos, zona horaria y branding visual"
+            >
               <dl className="ecu-dl">
                 <dt>Nombre de la empresa</dt>
                 <dd>{tenant.name}</dd>
@@ -94,10 +105,12 @@ export function OrganizationProfilePage() {
                 <dt>Actualizado</dt>
                 <dd>{formatDateTime(tenant.updatedAt)}</dd>
               </dl>
-            </div>
+            </SectionCard>
 
-            <h2 className="app-shell__section-title">Tu cuenta</h2>
-            <div className="app-shell__card">
+            <SectionCard
+              title="Tu Cuenta de Usuario"
+              subtitle="Credenciales, contacto y roles asignados a tu sesión activa"
+            >
               <dl className="ecu-dl">
                 <dt>Nombre</dt>
                 <dd>{user.name}</dd>
@@ -114,7 +127,7 @@ export function OrganizationProfilePage() {
                 <dt>Roles asignados</dt>
                 <dd>{user.roleIds.length > 0 ? user.roleIds.length : '—'}</dd>
               </dl>
-            </div>
+            </SectionCard>
           </>
         ) : null}
       </PageLoadState>
@@ -122,6 +135,6 @@ export function OrganizationProfilePage() {
       <p className="app-shell__muted">
         La edición de estos campos estará disponible cuando la Api exponga comandos de actualización.
       </p>
-    </>
+    </div>
   )
 }

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { Shield, UserRound } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -212,19 +217,35 @@ export function CreateUserPage() {
 
   return (
     <TenantSessionGate title="Nuevo usuario" lead="Alta de una persona en la empresa.">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Completa la ficha, departamento y —si tienes permiso— el rol inicial.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de crear usuario"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Nuevo Usuario"
+          subtitle="Completa la ficha de contacto, área organizacional y —si tienes permisos— asigna el rol inicial del colaborador."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              Alta de Cuenta
+            </StatusBadge>
+          }
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={goToList}
+              >
+                Volver a Usuarios
+              </Button>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+              />
+            </>
+          }
+        />
 
         {error ? (
           <p className="welcome-onboarding__error" role="alert">
@@ -233,14 +254,14 @@ export function CreateUserPage() {
         ) : null}
 
         <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-          <section className="app-shell__card ecu-companies-form__card">
-            <h2 className="app-shell__section-title">
-              <UserRound size={18} strokeWidth={1.75} aria-hidden /> Usuario
-            </h2>
-            <p className="ecu-companies-form__hint">
-              Correo, nombre y contraseña (mín. 8) son obligatorios. Comunica la contraseña al usuario
-              de forma segura; aún no hay recuperación por correo.
-            </p>
+          <SectionCard
+            title={
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                <UserRound size={18} strokeWidth={1.75} aria-hidden /> Credenciales y Datos Personales
+              </span>
+            }
+            subtitle="Correo, nombre y contraseña inicial (mínimo 8 caracteres) requeridos para iniciar sesión."
+          >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
               <div className="ecu-companies-form__field">
                 <TextBox
@@ -331,9 +352,7 @@ export function CreateUserPage() {
                     )}
                   </>
                 ) : (
-                  <p className="app-shell__muted">
-                    Requieres identity.departments.read para asignar departamento.
-                  </p>
+                  <p className="app-shell__muted">Sin permiso para listar departamentos.</p>
                 )}
               </div>
               <div className="ecu-companies-form__field">
@@ -361,16 +380,17 @@ export function CreateUserPage() {
                 />
               </div>
             </div>
-          </section>
+          </SectionCard>
 
           {canAssignRole ? (
-            <section className="app-shell__card ecu-companies-form__card">
-              <h2 className="app-shell__section-title">
-                <Shield size={18} strokeWidth={1.75} aria-hidden /> Rol
-              </h2>
-              <p className="ecu-companies-form__hint">
-                Opcional. Si eliges un rol, se asigna al guardar el usuario.
-              </p>
+            <SectionCard
+              title={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Shield size={18} strokeWidth={1.75} aria-hidden /> Asignación de Rol Inicial
+                </span>
+              }
+              subtitle="Opcional. Si seleccionas un rol, se vinculará de inmediato al crear el usuario."
+            >
               {rolesError ? (
                 <p className="welcome-onboarding__error" role="alert">
                   {rolesError}
@@ -398,12 +418,12 @@ export function CreateUserPage() {
                   </div>
                 </div>
               )}
-            </section>
+            </SectionCard>
           ) : null}
 
           <div className="ecu-companies-form__actions">
             <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-              Guardar
+              Crear Usuario
             </Button>
             <Button
               type="button"
@@ -411,7 +431,7 @@ export function CreateUserPage() {
               disabled={busy}
               onClick={goToList}
             >
-              Atrás
+              Cancelar
             </Button>
           </div>
         </form>

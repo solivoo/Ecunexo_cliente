@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Popup, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -10,7 +17,11 @@ import { CatalogItemsGrid } from '@/pages/catalog/CatalogItemsGrid'
 import { listCatalogItems, softDeleteCatalogItem } from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import type { CatalogItemListItemDto } from '@/types/catalogApi'
+import {
+  CatalogItemKind,
+  CatalogItemStatus,
+  type CatalogItemListItemDto,
+} from '@/types/catalogApi'
 
 export function CatalogItemsListPage() {
   const toast = useToast()
@@ -125,72 +136,129 @@ export function CatalogItemsListPage() {
   }, [canDelete, confirmDelete, load, tenantId, toast])
 
   const isEmpty = !loading && rows.length === 0 && !error
+  const physicalCount = useMemo(
+    () => rows.filter((r) => r.kind === CatalogItemKind.Physical).length,
+    [rows]
+  )
+  const serviceCount = useMemo(
+    () => rows.filter((r) => r.kind === CatalogItemKind.Service).length,
+    [rows]
+  )
+  const activeCount = useMemo(
+    () => rows.filter((r) => r.status === CatalogItemStatus.Active).length,
+    [rows]
+  )
 
   if (!canRead) {
     return (
-      <TenantSessionGate title="Catálogo" lead="Maestro de qué se vende o se usa, sin cantidades.">
-        <p className="app-shell__page-lead">Requieres catalog.item.read para ver el catálogo.</p>
+      <TenantSessionGate title="Catálogo" lead="Maestro de productos y servicios sin existencias físicas.">
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres el permiso catalog.item.read para visualizar el catálogo de la empresa."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
       </TenantSessionGate>
     )
   }
 
   return (
-    <TenantSessionGate title="Ítems" lead="Maestro de productos y servicios. El stock vive en inventario.">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Los servicios no llevan SKU. Los físicos sí: un ítem, un código (ADR-010).
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de catálogo"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-            onActionSelect={handleActionSelect}
-          />
-        </div>
-
-        <div className="ecu-companies-page__metrics" aria-label="Resumen de catálogo">
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Ítems</p>
-            <p className="ecu-companies-page__metric-value">{rows.length}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Servicios</p>
-            <p className="ecu-companies-page__metric-value">
-              {rows.filter((r) => r.kind === 1).length}
-            </p>
-          </article>
-        </div>
-
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="ecu-companies-page__body">
-          {isEmpty ? (
-            <div className="ecu-companies-page__empty">
-              <h2 className="app-shell__section-title">Aún no hay ítems</h2>
-              <p className="app-shell__muted app-shell__muted--pad-bottom">
-                Empieza por un servicio (consultoría, instalación) o un producto físico con SKU.
-              </p>
-              {canCreate ? (
+    <TenantSessionGate
+      title="Ítems"
+      lead="Maestro de productos y servicios. Las existencias físicas se gestionan en inventario."
+    >
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Ítems del Catálogo"
+          subtitle="Maestro unificado de productos físicos y servicios. Los productos físicos requieren SKU para trazabilidad en inventario; los servicios se facturan sin control de existencias."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              {rows.length} {rows.length === 1 ? 'Ítem' : 'Ítems'}
+            </StatusBadge>
+          }
+          actions={
+            <>
+              {canCreate && (
                 <Button
                   type="button"
                   variant="primary"
                   onClick={() => navigate('/catalogo/items/nuevo')}
                 >
-                  Nuevo ítem
+                  + Nuevo Ítem
                 </Button>
-              ) : (
-                <p className="app-shell__muted">
-                  Requieres catalog.item.create para dar de alta ítems.
-                </p>
               )}
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de catálogo"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
+          }
+        />
+
+        <div className="ecu-stat-grid" aria-label="Resumen de catálogo">
+          <StatCard
+            label="Total Ítems"
+            value={rows.length}
+            icon="inventory_2"
+            toneColor="#4f46e5"
+            footerText="Catálogo registrado"
+          />
+          <StatCard
+            label="Productos Físicos"
+            value={physicalCount}
+            icon="qr_code_2"
+            toneColor="#0ea5e9"
+            footerText="Con SKU e inventario"
+          />
+          <StatCard
+            label="Servicios"
+            value={serviceCount}
+            icon="design_services"
+            toneColor="#10b981"
+            footerText="Sin control de existencias"
+          />
+          <StatCard
+            label="Ítems Activos"
+            value={activeCount}
+            icon="verified"
+            toneColor="#8b5cf6"
+            footerText="Habilitados comercialmente"
+          />
+        </div>
+
+        <SectionCard
+          title="Inventario de Productos y Servicios"
+          subtitle="Listado maestro de prestaciones comerciales y trazabilidad de códigos"
+        >
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
             </div>
+          ) : null}
+
+          {isEmpty ? (
+            <EmptyState
+              icon="inventory_2"
+              title="Aún no hay ítems registrados"
+              description="Empieza creando un servicio (intangible) o un producto físico con su respectivo código SKU para control de almacén."
+              action={
+                canCreate ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => navigate('/catalogo/items/nuevo')}
+                  >
+                    + Nuevo Ítem
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <CatalogItemsGrid
               rows={rows}
@@ -201,7 +269,7 @@ export function CatalogItemsListPage() {
               onDelete={setConfirmDelete}
             />
           )}
-        </div>
+        </SectionCard>
       </div>
 
       <Popup

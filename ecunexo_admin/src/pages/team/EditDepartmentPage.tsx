@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Popup, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { Building2 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
@@ -163,19 +168,35 @@ export function EditDepartmentPage() {
       title="Editar departamento"
       lead="Corrige el nombre o la descripción. El identificador no cambia."
     >
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Puedes poner la tilde que faltó. El nombre sigue siendo único en la empresa.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de editar departamento"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title={name ? `Editar Área: ${name}` : 'Editar Departamento'}
+          subtitle="Modifica el nombre o descripción del departamento. Los usuarios asignados conservarán su vinculación."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              Unidad Organizacional
+            </StatusBadge>
+          }
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={goToList}
+                disabled={busy || deleteBusy}
+              >
+                Volver a Departamentos
+              </Button>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+              />
+            </>
+          }
+        />
 
         <PageLoadState
           loading={loading}
@@ -188,15 +209,19 @@ export function EditDepartmentPage() {
             </p>
           ) : null}
           <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-            <section className="app-shell__card ecu-companies-form__card">
-              <h2 className="app-shell__section-title">
-                <Building2 size={18} strokeWidth={1.75} aria-hidden /> Departamento
-              </h2>
+            <SectionCard
+              title={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Building2 size={18} strokeWidth={1.75} aria-hidden /> Propiedades del Departamento
+                </span>
+              }
+              subtitle="El nombre es único en esta empresa. Puedes corregir ortografía y tildes libremente."
+            >
               <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                   <TextBox
                     id="ed-name"
-                    label="Nombre"
+                    label="Nombre del departamento"
                     labelPosition="outlined"
                     variant="outline"
                     value={name}
@@ -219,7 +244,7 @@ export function EditDepartmentPage() {
                   />
                 </div>
               </div>
-            </section>
+            </SectionCard>
 
             <div className="ecu-companies-form__actions">
               <Button
@@ -228,7 +253,7 @@ export function EditDepartmentPage() {
                 loading={busy}
                 disabled={busy || loading || deleteBusy}
               >
-                Guardar
+                Guardar Cambios
               </Button>
               <Button
                 type="button"
@@ -236,16 +261,17 @@ export function EditDepartmentPage() {
                 disabled={busy || deleteBusy}
                 onClick={goToList}
               >
-                Atrás
+                Cancelar
               </Button>
               {!isAdministration ? (
                 <Button
                   type="button"
-                  variant="danger"
+                  variant="outline"
                   disabled={busy || loading || deleteBusy}
                   onClick={() => setConfirmDelete(true)}
+                  style={{ marginLeft: 'auto', color: 'var(--glb-danger, #dc2626)' }}
                 >
-                  Eliminar departamento
+                  Eliminar Departamento
                 </Button>
               ) : null}
             </div>

@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Button, useToast } from 'glubox'
-import { Check, Copy, ExternalLink, GitBranch, GitCommit, Info, Server } from 'lucide-react'
+import { Check, Copy, ExternalLink, GitBranch, GitCommit, Server } from 'lucide-react'
+import { SectionCard } from '@/components/ui'
 import { APP_VERSION_INFO, formatBuildDate, buildSupportDiagnostics } from '@/config/appVersion'
 import { selectTenantId, selectUserEmail, selectUserId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
@@ -33,16 +34,10 @@ export function AppSettingsSystemSection() {
   }, [tenantId, toast, userEmail, userId])
 
   return (
-    <section className="app-shell__card ecu-companies-form__card">
-      <div className="ecu-page-header">
-        <div>
-          <h2 className="app-shell__section-title">
-            <Info size={18} strokeWidth={1.75} aria-hidden /> Sistema y Versión
-          </h2>
-          <p className="ecu-companies-form__hint">
-            Trazabilidad técnica y estado de la versión en ejecución sincronizada con el repositorio.
-          </p>
-        </div>
+    <SectionCard
+      title="Sistema y Versión"
+      subtitle="Trazabilidad técnica y estado de la versión en ejecución sincronizada con el repositorio."
+      action={
         <Button
           type="button"
           variant="outline"
@@ -52,8 +47,8 @@ export function AppSettingsSystemSection() {
           {copied ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
           <span>{copied ? '¡Copiado!' : 'Copiar diagnóstico'}</span>
         </Button>
-      </div>
-
+      }
+    >
       <div className="ecu-system-specs-grid">
         <article className="ecu-system-spec-card">
           <span className="ecu-system-spec-card__label">Versión</span>
@@ -100,6 +95,6 @@ export function AppSettingsSystemSection() {
           </span>
         </article>
       </div>
-    </section>
+    </SectionCard>
   )
 }

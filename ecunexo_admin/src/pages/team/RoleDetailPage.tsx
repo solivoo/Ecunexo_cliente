@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { Shield } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
@@ -131,89 +137,117 @@ export function RoleDetailPage() {
 
   return (
     <TenantSessionGate title="Rol" lead="Ficha del rol y permisos vinculados.">
-      <div className="ecu-companies-page">
+      <div className="ecu-dashboard-layout">
         <PageLoadState loading={loading && !role} error={error} empty={!role && !loading}>
           {role ? (
             <>
-              <div className="ecu-page-header">
-                <div>
-                  <p className="app-shell__page-lead">
-                    <strong>{role.name}</strong>
-                    {role.description ? ` · ${role.description}` : ''}
-                  </p>
-                  <p className="ecu-companies-form__hint">
-                    Las políticas se definen en el permiso, no en el rol. El rol solo elige qué
-                    permisos hereda.
-                  </p>
-                </div>
-                <EcuPageActions
-                  items={actionItems}
-                  variant="outline"
-                  triggerLabel="Acciones de rol"
-                  renderIcon={renderSidebarIcon}
-                  onNavigate={(route: string) => navigate(route)}
-                  onActionSelect={(item) => {
-                    if (item.id === 'refresh') void load()
-                  }}
+              <PageHeader
+                title={role.name}
+                subtitle={role.description || 'Perfil de seguridad y directivas asignables.'}
+                badge={
+                  <StatusBadge
+                    tone={role.isSystem ? 'success' : 'info'}
+                    withDot
+                  >
+                    {role.isSystem ? 'Rol de Sistema' : 'Personalizado'}
+                  </StatusBadge>
+                }
+                actions={
+                  <>
+                    {canManage && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => navigate(`/equipo/roles/${roleId}/editar`)}
+                        >
+                          Editar Rol
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          onClick={() => navigate(`/equipo/roles/${roleId}/permisos`)}
+                        >
+                          Gestionar Permisos
+                        </Button>
+                      </>
+                    )}
+                    <EcuPageActions
+                      items={actionItems}
+                      variant="outline"
+                      triggerLabel="Acciones"
+                      renderIcon={renderSidebarIcon}
+                      onNavigate={(route: string) => navigate(route)}
+                      onActionSelect={(item) => {
+                        if (item.id === 'refresh') void load()
+                      }}
+                    />
+                  </>
+                }
+              />
+
+              <div className="ecu-stat-grid" aria-label="Resumen del rol">
+                <StatCard
+                  label="Permisos Vinculados"
+                  value={role.permissionIds.length}
+                  icon="key"
+                  toneColor="#4f46e5"
+                  footerText="Directivas activas en el rol"
+                />
+                <StatCard
+                  label="Naturaleza del Rol"
+                  value={role.isSystem ? 'Sistema' : 'Personalizado'}
+                  icon={role.isSystem ? 'verified_user' : 'tune'}
+                  toneColor={role.isSystem ? '#059669' : '#0284c7'}
+                  badge={
+                    <StatusBadge tone={role.isSystem ? 'success' : 'info'}>
+                      {role.isSystem ? 'Protegido' : 'Editable'}
+                    </StatusBadge>
+                  }
+                  footerText={role.isSystem ? 'No puede eliminarse' : 'Definido por la empresa'}
+                />
+                <StatCard
+                  label="Última Actualización"
+                  value={formatDateTime(role.updatedAt) || 'Sin cambios'}
+                  icon="update"
+                  toneColor="#7c3aed"
+                  footerText="Sincronización con catálogo"
                 />
               </div>
 
-              <div className="ecu-companies-page__metrics" aria-label="Resumen del rol">
-                <article className="ecu-companies-page__metric">
-                  <p className="ecu-companies-page__metric-label">Permisos</p>
-                  <p className="ecu-companies-page__metric-value">{role.permissionIds.length}</p>
-                </article>
-                <article className="ecu-companies-page__metric">
-                  <p className="ecu-companies-page__metric-label">Tipo</p>
-                  <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
-                    {role.isSystem ? 'Sistema' : 'Personalizado'}
-                  </p>
-                </article>
-                <article className="ecu-companies-page__metric">
-                  <p className="ecu-companies-page__metric-label">Actualizado</p>
-                  <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
-                    {formatDateTime(role.updatedAt)}
-                  </p>
-                </article>
-              </div>
+              <SectionCard
+                title={
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Shield size={18} strokeWidth={1.75} aria-hidden /> Definición del Rol
+                  </span>
+                }
+                subtitle="Alcance y responsabilidades asignadas a este perfil"
+              >
+                <p className="app-shell__text" style={{ margin: 0 }}>
+                  {role.description ?? 'Sin descripción configurada para este rol.'}
+                </p>
+              </SectionCard>
 
-              <section className="app-shell__card ecu-companies-form__card">
-                <div className="ecu-page-header">
-                  <h2 className="app-shell__section-title">
-                    <Shield size={18} strokeWidth={1.75} aria-hidden /> Perfil del rol
-                  </h2>
-                  {canManage ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/equipo/roles/${roleId}/editar`)}
-                    >
-                      Editar rol
-                    </Button>
-                  ) : null}
-                </div>
-                <p className="ecu-companies-form__hint">{role.description ?? 'Sin descripción.'}</p>
-              </section>
-
-              <section className="app-shell__card ecu-companies-form__card">
-                <div className="ecu-page-header">
-                  <h2 className="app-shell__section-title">Permisos del rol</h2>
-                  {canManage ? (
+              <SectionCard
+                title="Permisos Vinculados al Rol"
+                subtitle="Directivas habilitadas para cualquier usuario que tenga este rol asignado"
+                action={
+                  canManage ? (
                     <Button
                       type="button"
                       variant="primary"
                       onClick={() => navigate(`/equipo/roles/${roleId}/permisos`)}
                     >
-                      Gestionar permisos
+                      + Modificar Permisos
                     </Button>
-                  ) : null}
-                </div>
+                  ) : null
+                }
+              >
                 {permissionRows.length === 0 ? (
                   <p className="app-shell__muted">
                     Sin permisos en este rol.
                     {canManage
-                      ? ' Usa «Gestionar permisos» para marcar los del catálogo por módulo.'
+                      ? ' Pulsa «Modificar Permisos» para marcar las directivas del catálogo por módulo.'
                       : ''}
                   </p>
                 ) : (
@@ -225,7 +259,7 @@ export function RoleDetailPage() {
                     onRevoke={(row) => void handleRevoke(row)}
                   />
                 )}
-              </section>
+              </SectionCard>
             </>
           ) : null}
         </PageLoadState>

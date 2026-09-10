@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Popup, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -130,7 +137,13 @@ export function CategoriesListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Categorías" lead="Moldes de atributos para los ítems del catálogo.">
-        <p className="app-shell__page-lead">Requieres catalog.item.read para ver categorías.</p>
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres catalog.item.read para visualizar las categorías de la empresa."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
       </TenantSessionGate>
     )
   }
@@ -138,65 +151,92 @@ export function CategoriesListPage() {
   return (
     <TenantSessionGate
       title="Categorías"
-      lead="Clasifican ítems y pueden definir un molde de atributos (jsonb)."
+      lead="Clasifican ítems y pueden definir un molde de atributos dinámicos."
     >
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            El molde se aplica al alta del ítem: talla, duración, material, etc.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de categorías"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-            onActionSelect={handleActionSelect}
-          />
-        </div>
-
-        <div className="ecu-companies-page__metrics" aria-label="Resumen de categorías">
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Categorías</p>
-            <p className="ecu-companies-page__metric-value">{rows.length}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Con molde</p>
-            <p className="ecu-companies-page__metric-value">{withSchema}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Raíz</p>
-            <p className="ecu-companies-page__metric-value">{roots}</p>
-          </article>
-        </div>
-
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="ecu-companies-page__body">
-          {isEmpty ? (
-            <div className="ecu-companies-page__empty">
-              <h2 className="app-shell__section-title">Aún no hay categorías</h2>
-              <p className="app-shell__muted app-shell__muted--pad-bottom">
-                Son opcionales. Úsalas cuando un rubro necesite campos extra.
-              </p>
-              {canManage ? (
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Categorías del Catálogo"
+          subtitle="Clasificación taxonómica de productos y servicios. Permiten estructurar jerarquías y definir atributos personalizados dinámicos para los ítems."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              {rows.length} {rows.length === 1 ? 'Categoría' : 'Categorías'}
+            </StatusBadge>
+          }
+          actions={
+            <>
+              {canManage && (
                 <Button
                   type="button"
                   variant="primary"
                   onClick={() => navigate('/catalogo/categorias/nueva')}
                 >
-                  Nueva categoría
+                  + Nueva Categoría
                 </Button>
-              ) : (
-                <p className="app-shell__muted">
-                  Requieres catalog.category.manage para crear categorías.
-                </p>
               )}
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de categorías"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
+          }
+        />
+
+        <div className="ecu-stat-grid" aria-label="Resumen de categorías">
+          <StatCard
+            label="Total Categorías"
+            value={rows.length}
+            icon="category"
+            toneColor="#4f46e5"
+            footerText="Familias registradas"
+          />
+          <StatCard
+            label="Con Atributos Extra"
+            value={withSchema}
+            icon="schema"
+            toneColor="#0ea5e9"
+            footerText="Moldes dinámicos definidos"
+          />
+          <StatCard
+            label="Categorías Raíz"
+            value={roots}
+            icon="account_tree"
+            toneColor="#10b981"
+            footerText="Nivel superior en árbol"
+          />
+        </div>
+
+        <SectionCard
+          title="Estructura de Categorías"
+          subtitle="Árbol de familias y configuración de moldes adicionales para ítems"
+        >
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
             </div>
+          ) : null}
+
+          {isEmpty ? (
+            <EmptyState
+              icon="folder_tree"
+              title="Aún no hay categorías registradas"
+              description="Las categorías te permiten organizar el catálogo y solicitar campos específicos como talla, color o material al registrar productos."
+              action={
+                canManage ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => navigate('/catalogo/categorias/nueva')}
+                  >
+                    + Nueva Categoría
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <CategoriesGrid
               rows={rows}
@@ -207,7 +247,7 @@ export function CategoriesListPage() {
               onDelete={setConfirmDelete}
             />
           )}
-        </div>
+        </SectionCard>
       </div>
 
       <Popup
@@ -237,7 +277,7 @@ export function CategoriesListPage() {
         {confirmDelete ? (
           <p className="app-shell__muted">
             ¿Dar de baja <strong>{confirmDelete.name}</strong>? Solo se permite si no tiene ítems ni
-            subcategorías. Es una baja lógica.
+            subcategorías asociadas. Es una baja lógica.
           </p>
         ) : null}
       </Popup>

@@ -1,8 +1,12 @@
 import { useCallback, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
-import { Key } from 'lucide-react'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
@@ -63,7 +67,7 @@ export function CreatePermissionPage() {
 
         toast.show({
           title: 'Permiso creado',
-          message: `«${code.trim()}» quedó en el catálogo global.`,
+          message: `«${code.trim()}» quedó registrado en el catálogo global.`,
           variant: 'success',
         })
         void navigate(`/seguridad/permisos/${res.permissionId}`, { replace: true })
@@ -81,53 +85,62 @@ export function CreatePermissionPage() {
 
   if (!canManage) {
     return (
-      <div className="ecu-companies-page">
-        <p className="app-shell__page-lead">
-          Requieres identity.permissions.manage para crear permisos.
-        </p>
-        <Button type="button" variant="outline" onClick={goToList}>
-          Volver al catálogo
-        </Button>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Acceso Restringido"
+          subtitle="Requieres el permiso identity.permissions.manage para dar de alta directivas de autorización."
+          badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+        />
+        <SectionCard title="Permisos insuficientes">
+          <p className="app-shell__muted" style={{ marginBottom: '1rem' }}>
+            No dispones de privilegios de gestión sobre el catálogo global de permisos.
+          </p>
+          <Button type="button" variant="outline" onClick={goToList}>
+            Volver al catálogo
+          </Button>
+        </SectionCard>
       </div>
     )
   }
 
   return (
-    <div className="ecu-companies-page">
-      <div className="ecu-page-header">
-        <p className="app-shell__page-lead">
-          Alta de un permiso global reutilizable entre empresas.
-        </p>
-        <EcuPageActions
-          items={actionItems}
-          variant="outline"
-          triggerLabel="Acciones de nuevo permiso"
-          renderIcon={renderSidebarIcon}
-          onNavigate={(route: string) => navigate(route)}
-        />
-      </div>
+    <div className="ecu-dashboard-layout">
+      <PageHeader
+        title="Nuevo Permiso"
+        subtitle="Registra una nueva directiva en el catálogo global de permisos reutilizable por todas las entidades."
+        badge={
+          <StatusBadge tone="primary" withDot>
+            Catálogo Global
+          </StatusBadge>
+        }
+        actions={
+          <EcuPageActions
+            items={actionItems}
+            variant="outline"
+            triggerLabel="Acciones de nuevo permiso"
+            renderIcon={renderSidebarIcon}
+            onNavigate={(route: string) => navigate(route)}
+          />
+        }
+      />
 
-      <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
+      <form onSubmit={(e) => void onSubmit(e)} noValidate>
+        <SectionCard
+          title="Definición de la Directiva"
+          subtitle="El código jerárquico identifica la capacidad en RBAC. El módulo se guarda en minúsculas. Las políticas condicionales ABAC se pueden añadir posteriormente en la ficha."
+        >
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
+            </div>
+          ) : null}
 
-        <section className="app-shell__card ecu-companies-form__card">
-          <h2 className="app-shell__section-title">
-            <Key size={18} strokeWidth={1.75} aria-hidden /> Permiso
-          </h2>
-          <p className="ecu-companies-form__hint">
-            El código identifica la acción en RBAC (ej. identity.users.read). El módulo se guarda
-            en minúsculas (identity, catalog, facturacion). Las políticas ABAC se definen después
-            en la ficha.
-          </p>
           <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
             <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
               <TextBox
                 id="perm-code"
-                label="Código"
+                label="Código de la directiva"
                 labelPosition="outlined"
                 variant="outline"
                 value={code}
@@ -145,6 +158,7 @@ export function CreatePermissionPage() {
                 variant="outline"
                 value={displayName}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setDisplayName(e.target.value)}
+                placeholder="Ej. Crear usuarios"
                 disabled={busy}
                 fullWidth
               />
@@ -167,31 +181,39 @@ export function CreatePermissionPage() {
             <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
               <TextBox
                 id="perm-desc"
-                label="Descripción"
+                label="Descripción funcional"
                 labelPosition="outlined"
                 variant="outline"
                 value={description}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+                placeholder="Describe el alcance y límites de esta directiva…"
                 disabled={busy}
                 fullWidth
               />
             </div>
           </div>
-        </section>
 
-        <div className="ecu-companies-form__actions">
-          <Button
-            type="submit"
-            variant="primary"
-            loading={busy}
-            disabled={busy || !code.trim()}
+          <div
+            className="ecu-companies-form__actions"
+            style={{
+              marginTop: '1.5rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+            }}
           >
-            Crear
-          </Button>
-          <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
-            Cancelar
-          </Button>
-        </div>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={busy}
+              disabled={busy || !code.trim()}
+            >
+              Crear Permiso
+            </Button>
+            <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
+              Cancelar
+            </Button>
+          </div>
+        </SectionCard>
       </form>
     </div>
   )

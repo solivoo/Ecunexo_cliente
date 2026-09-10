@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Popup, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import { Button, Popup, useToast, type PageActionItem } from 'glubox'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { UserRound } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
@@ -259,56 +265,97 @@ export function UserDetailPage() {
 
   return (
     <TenantSessionGate title="Usuario" lead="Ficha, roles y permisos efectivos.">
-      <div className="ecu-companies-page">
+      <div className="ecu-dashboard-layout">
         <PageLoadState loading={loading && !user} error={error} empty={!user && !loading}>
           {user ? (
             <>
-              <div className="ecu-page-header">
-                <div>
-                  <p className="app-shell__page-lead">
-                    <strong>{user.name}</strong> · {user.email}
-                  </p>
-                </div>
-                <EcuPageActions
-                  items={actionItems}
-                  variant="outline"
-                  triggerLabel="Acciones de usuario"
-                  renderIcon={renderSidebarIcon}
-                  onNavigate={(route: string) => navigate(route)}
-                  onActionSelect={handleActionSelect}
+              <PageHeader
+                title={user.name}
+                subtitle={`${user.email}${user.jobTitle ? ` · ${user.jobTitle}` : ''}${user.department ? ` (${user.department})` : ''}`}
+                badge={
+                  <StatusBadge
+                    tone={user.isDisabled ? 'danger' : 'success'}
+                    withDot
+                  >
+                    {user.isDisabled ? 'Deshabilitado' : 'Activo'}
+                  </StatusBadge>
+                }
+                actions={
+                  <>
+                    {canUpdate && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => navigate(`/equipo/usuarios/${userId}/editar`)}
+                      >
+                        Editar Ficha
+                      </Button>
+                    )}
+                    {canAssignRole && !user.isCompanyOwner && assignableCount > 0 && (
+                      <Button
+                        type="button"
+                        variant="primary"
+                        onClick={() => navigate(`/equipo/usuarios/${userId}/roles/asignar`)}
+                      >
+                        + Asignar Rol
+                      </Button>
+                    )}
+                    <EcuPageActions
+                      items={actionItems}
+                      variant="outline"
+                      triggerLabel="Acciones"
+                      renderIcon={renderSidebarIcon}
+                      onNavigate={(route: string) => navigate(route)}
+                      onActionSelect={handleActionSelect}
+                    />
+                  </>
+                }
+              />
+
+              <div className="ecu-stat-grid" aria-label="Resumen del usuario">
+                <StatCard
+                  label="Estado de Cuenta"
+                  value={user.isDisabled ? 'Deshabilitado' : 'Activo'}
+                  icon={user.isDisabled ? 'person_off' : 'how_to_reg'}
+                  toneColor={user.isDisabled ? '#dc2626' : '#059669'}
+                  badge={
+                    <StatusBadge tone={user.isDisabled ? 'danger' : 'success'}>
+                      {user.isDisabled ? 'Sin acceso' : 'Habilitado'}
+                    </StatusBadge>
+                  }
+                  footerText={user.isCompanyOwner ? 'Administrador principal' : 'Cuenta de usuario'}
+                />
+                <StatCard
+                  label="Roles Asignados"
+                  value={user.roleIds.length}
+                  icon="shield"
+                  toneColor="#4f46e5"
+                  footerText="Perfiles asociados"
+                />
+                <StatCard
+                  label="Permisos Efectivos"
+                  value={user.effectivePermissionCodes.length}
+                  icon="key"
+                  toneColor="#0284c7"
+                  footerText="Directivas en runtime"
+                />
+                <StatCard
+                  label="Último Acceso"
+                  value={user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Sin registro'}
+                  icon="history"
+                  toneColor="#7c3aed"
+                  footerText="Historial de ingreso"
                 />
               </div>
 
-              <div className="ecu-companies-page__metrics" aria-label="Resumen del usuario">
-                <article className="ecu-companies-page__metric">
-                  <p className="ecu-companies-page__metric-label">Estado</p>
-                  <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
-                    {user.isDisabled ? 'Deshabilitado' : 'Activo'}
-                  </p>
-                </article>
-                <article className="ecu-companies-page__metric">
-                  <p className="ecu-companies-page__metric-label">Roles</p>
-                  <p className="ecu-companies-page__metric-value">{user.roleIds.length}</p>
-                </article>
-                <article className="ecu-companies-page__metric">
-                  <p className="ecu-companies-page__metric-label">Permisos</p>
-                  <p className="ecu-companies-page__metric-value">
-                    {user.effectivePermissionCodes.length}
-                  </p>
-                </article>
-                <article className="ecu-companies-page__metric">
-                  <p className="ecu-companies-page__metric-label">Último acceso</p>
-                  <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
-                    {formatDateTime(user.lastLoginAt)}
-                  </p>
-                </article>
-              </div>
-
-              <section className="app-shell__card ecu-companies-form__card">
-                <h2 className="app-shell__section-title">
-                  <UserRound size={18} strokeWidth={1.75} aria-hidden /> Perfil
-                </h2>
-                <p className="ecu-companies-form__hint">Datos de contacto en esta empresa.</p>
+              <SectionCard
+                title={
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <UserRound size={18} strokeWidth={1.75} aria-hidden /> Datos de Perfil y Contacto
+                  </span>
+                }
+                subtitle="Información de identidad y departamento en esta empresa"
+              >
                 <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                   <div className="ecu-companies-form__field">
                     <p className="ecu-companies-page__metric-label">Departamento</p>
@@ -323,27 +370,26 @@ export function UserDetailPage() {
                     </p>
                   </div>
                   <div className="ecu-companies-form__field">
-                    <p className="ecu-companies-page__metric-label">Puesto</p>
+                    <p className="ecu-companies-page__metric-label">Puesto o Cargo</p>
                     <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
                       {user.jobTitle ?? '—'}
                     </p>
                   </div>
                   <div className="ecu-companies-form__field">
-                    <p className="ecu-companies-page__metric-label">Correo</p>
+                    <p className="ecu-companies-page__metric-label">Correo Electrónico</p>
                     <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
                       {user.email}
                     </p>
                   </div>
                 </div>
-              </section>
+              </SectionCard>
 
-              <section className="app-shell__card ecu-companies-form__card">
-                <h2 className="app-shell__section-title">Roles</h2>
-                <p className="ecu-companies-form__hint">
-                  Asigna roles para heredar permisos. Usa el menú de acciones para agregar otro.
-                </p>
+              <SectionCard
+                title="Roles de Seguridad"
+                subtitle="Herencia de directivas y privilegios. Agrega más roles desde las acciones de página."
+              >
                 {user.roleIds.length === 0 ? (
-                  <p className="app-shell__muted">Sin roles asignados.</p>
+                  <p className="app-shell__muted">Sin roles asignados actualmente.</p>
                 ) : (
                   <ul className="ecu-plan-page__chips" aria-label="Roles asignados">
                     {user.roleIds.map((rid) => (
@@ -355,19 +401,18 @@ export function UserDetailPage() {
                     ))}
                   </ul>
                 )}
-              </section>
+              </SectionCard>
 
-              <section className="app-shell__card ecu-companies-form__card">
-                <h2 className="app-shell__section-title">Permisos efectivos</h2>
-                <p className="ecu-companies-form__hint">
-                  Unión de permisos de todos los roles (ABAC se evalúa en runtime).
-                </p>
+              <SectionCard
+                title="Matriz de Permisos Efectivos"
+                subtitle="Unión consolidada de capacidades calculadas en tiempo de ejecución para este usuario"
+              >
                 {permissionRows.length === 0 ? (
-                  <p className="app-shell__muted">Ninguno.</p>
+                  <p className="app-shell__muted">No cuenta con directivas asignadas.</p>
                 ) : (
                   <EffectivePermissionsGrid rows={permissionRows} loading={loading} />
                 )}
-              </section>
+              </SectionCard>
             </>
           ) : null}
         </PageLoadState>

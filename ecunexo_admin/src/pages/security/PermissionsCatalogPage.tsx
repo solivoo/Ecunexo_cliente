@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Select, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -125,68 +131,87 @@ export function PermissionsCatalogPage() {
   )
 
   return (
-    <div className="ecu-companies-page">
-      <div className="ecu-page-header">
-        <div>
-          <p className="app-shell__page-lead">
-            Catálogo global. Las políticas ABAC van en la ficha de cada permiso; el rol solo hereda
-            permisos.
-          </p>
-        </div>
-        <EcuPageActions
-          items={actionItems}
-          variant="outline"
-          triggerLabel="Acciones de permisos"
-          renderIcon={renderSidebarIcon}
-          onNavigate={(route: string) => navigate(route)}
-          onActionSelect={handleActionSelect}
-        />
-      </div>
-
-      <div className="ecu-companies-page__metrics" aria-label="Resumen de permisos">
-        <article className="ecu-companies-page__metric">
-          <p className="ecu-companies-page__metric-label">Permisos</p>
-          <p className="ecu-companies-page__metric-value">{rows.length}</p>
-        </article>
-        <article className="ecu-companies-page__metric">
-          <p className="ecu-companies-page__metric-label">Activos</p>
-          <p className="ecu-companies-page__metric-value">{activeCount}</p>
-        </article>
-        <article className="ecu-companies-page__metric">
-          <p className="ecu-companies-page__metric-label">Visibles</p>
-          <p className="ecu-companies-page__metric-value">{filteredRows.length}</p>
-        </article>
-        <article className="ecu-companies-page__metric">
-          <p className="ecu-companies-page__metric-label">Modelo</p>
-          <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
+    <div className="ecu-dashboard-layout">
+      <PageHeader
+        title="Catálogo de Permisos"
+        subtitle="Directivas de autorización del sistema. Las políticas contextuales (ABAC) se definen en cada permiso; los roles agrupan y asignan estos permisos a los usuarios."
+        badge={
+          <StatusBadge tone="primary" withDot>
             RBAC + ABAC
-          </p>
-        </article>
-      </div>
-
-      {error ? (
-        <p className="welcome-onboarding__error" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <PermissionsGrid
-        rows={filteredRows}
-        loading={loading}
-        toolbarRight={
-          <Select
-            id="perms-module"
-            aria-label="Módulo"
+          </StatusBadge>
+        }
+        actions={
+          <EcuPageActions
+            items={actionItems}
             variant="outline"
-            options={moduleOptions}
-            value={moduleFilter}
-            onChange={setModuleFilter}
-            placeholder="Módulo"
-            width="15rem"
-            size={size}
+            triggerLabel="Acciones de permisos"
+            renderIcon={renderSidebarIcon}
+            onNavigate={(route: string) => navigate(route)}
+            onActionSelect={handleActionSelect}
           />
         }
       />
+
+      <div className="ecu-stat-grid" aria-label="Resumen de permisos">
+        <StatCard
+          label="Total Permisos"
+          value={rows.length}
+          icon="key"
+          toneColor="#4f46e5"
+          footerText="Capacidades en el catálogo"
+        />
+        <StatCard
+          label="Permisos Activos"
+          value={activeCount}
+          icon="verified_user"
+          toneColor="#10b981"
+          footerText="Habilitados para roles"
+        />
+        <StatCard
+          label="Visibles"
+          value={filteredRows.length}
+          icon="filter_list"
+          toneColor="#0ea5e9"
+          footerText={moduleFilter ? `Módulo: ${moduleFilter}` : 'Todos los módulos'}
+        />
+        <StatCard
+          label="Modelo de Acceso"
+          value="RBAC + ABAC"
+          icon="admin_panel_settings"
+          toneColor="#8b5cf6"
+          footerText="Rol hereda + Regla evalúa"
+        />
+      </div>
+
+      <SectionCard
+        title="Directivas de Autorización"
+        subtitle="Catálogo maestro de permisos y capacidades granulares de la plataforma"
+      >
+        {error ? (
+          <div className="ecu-form-error-banner" role="alert">
+            <span className="material-symbols-outlined">error</span>
+            <span>{error}</span>
+          </div>
+        ) : null}
+
+        <PermissionsGrid
+          rows={filteredRows}
+          loading={loading}
+          toolbarRight={
+            <Select
+              id="perms-module"
+              aria-label="Módulo"
+              variant="outline"
+              options={moduleOptions}
+              value={moduleFilter}
+              onChange={setModuleFilter}
+              placeholder="Filtrar por módulo"
+              width="15rem"
+              size={size}
+            />
+          }
+        />
+      </SectionCard>
     </div>
   )
 }

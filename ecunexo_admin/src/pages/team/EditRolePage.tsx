@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Popup, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { Shield } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
@@ -168,19 +173,35 @@ export function EditRolePage() {
       title="Editar rol"
       lead="Corrige el nombre o la descripción. El identificador y permisos vinculados no cambian."
     >
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Modifica los detalles del rol en la empresa.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de editar rol"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title={name ? `Editar Rol: ${name}` : 'Editar Rol'}
+          subtitle="Modifica el nombre y descripción del rol. Los permisos vinculados se mantienen intactos."
+          badge={
+            <StatusBadge tone={role?.isSystem ? 'success' : 'primary'} withDot>
+              {role?.isSystem ? 'Rol de Sistema' : 'Edición de Rol'}
+            </StatusBadge>
+          }
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={goToList}
+                disabled={busy || deleteBusy}
+              >
+                Volver a Roles
+              </Button>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+              />
+            </>
+          }
+        />
 
         <PageLoadState
           loading={loading}
@@ -193,26 +214,29 @@ export function EditRolePage() {
             </p>
           ) : null}
           <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-            <section className="app-shell__card ecu-companies-form__card">
-              <h2 className="app-shell__section-title">
-                <Shield size={18} strokeWidth={1.75} aria-hidden /> Rol
-              </h2>
-              {role?.isSystem ? (
-                <p className="ecu-companies-form__hint">
-                  Este es un rol de sistema. Puedes actualizar su descripción para tu organización.
-                </p>
-              ) : null}
+            <SectionCard
+              title={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Shield size={18} strokeWidth={1.75} aria-hidden /> Propiedades del Rol
+                </span>
+              }
+              subtitle={
+                role?.isSystem
+                  ? 'Este es un rol protegido de sistema. Puedes actualizar su descripción para tu organización.'
+                  : 'Modifica el nombre y la descripción descriptiva del perfil.'
+              }
+            >
               <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                   <TextBox
                     id="er-name"
-                    label="Nombre"
+                    label="Nombre del rol"
                     labelPosition="outlined"
                     variant="outline"
                     value={name}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                     required
-                    disabled={busy}
+                    disabled={busy || role?.isSystem}
                     fullWidth
                   />
                 </div>
@@ -229,7 +253,7 @@ export function EditRolePage() {
                   />
                 </div>
               </div>
-            </section>
+            </SectionCard>
 
             <div className="ecu-companies-form__actions">
               <Button
@@ -238,7 +262,7 @@ export function EditRolePage() {
                 loading={busy}
                 disabled={busy || loading || deleteBusy}
               >
-                Guardar
+                Guardar Cambios
               </Button>
               <Button
                 type="button"
@@ -246,16 +270,17 @@ export function EditRolePage() {
                 disabled={busy || deleteBusy}
                 onClick={goToList}
               >
-                Atrás
+                Cancelar
               </Button>
               {!role?.isSystem ? (
                 <Button
                   type="button"
-                  variant="danger"
-                  disabled={busy || loading || deleteBusy}
+                  variant="outline"
+                  disabled={busy || deleteBusy}
                   onClick={() => setConfirmDelete(true)}
+                  style={{ marginLeft: 'auto', color: 'var(--glb-danger, #dc2626)' }}
                 >
-                  Eliminar rol
+                  Eliminar Rol
                 </Button>
               ) : null}
             </div>

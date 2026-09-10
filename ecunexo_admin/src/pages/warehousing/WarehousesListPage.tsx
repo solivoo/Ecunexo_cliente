@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, useToast, type ColumnDef, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui'
 import { Pencil } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -91,24 +98,38 @@ export function WarehousesListPage() {
       {
         key: 'code',
         header: 'Código',
-        width: 120,
+        width: 130,
         sortable: true,
-        renderCell: (_v: Row['code'], row: Row) => row.code ?? '—',
+        renderCell: (_v: Row['code'], row: Row) =>
+          row.code ? <code className="ecu-code">{row.code}</code> : '—',
       },
       {
         key: 'isMain',
         header: 'Principal',
-        width: 110,
+        width: 130,
         sortable: true,
-        renderCell: (_v: Row['isMain'], row: Row) => (row.isMain ? 'Sí' : '—'),
+        renderCell: (_v: Row['isMain'], row: Row) =>
+          row.isMain ? (
+            <StatusBadge tone="success" withDot>
+              Principal
+            </StatusBadge>
+          ) : (
+            '—'
+          ),
       },
       {
         key: 'isSystem',
-        header: 'Sistema',
+        header: 'Tipo / Rol',
         width: 140,
         sortable: true,
         renderCell: (_v: Row['isSystem'], row: Row) =>
-          row.systemRole === 1 ? 'En tránsito' : row.isSystem ? 'Sí' : '—',
+          row.systemRole === 1 ? (
+            <StatusBadge tone="warning">En tránsito</StatusBadge>
+          ) : row.isSystem ? (
+            <StatusBadge tone="neutral">Sistema</StatusBadge>
+          ) : (
+            <StatusBadge tone="info">Operativa</StatusBadge>
+          ),
       },
       {
         key: 'createdAt',
@@ -147,7 +168,13 @@ export function WarehousesListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Bodegas" lead="Ubicaciones de stock.">
-        <p className="app-shell__page-lead">Requieres warehousing.read para ver bodegas.</p>
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres warehousing.read para visualizar las bodegas de la empresa."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
       </TenantSessionGate>
     )
   }
@@ -157,59 +184,103 @@ export function WarehousesListPage() {
   const operationalCount = rows.filter((r) => !r.isSystem).length
 
   return (
-    <TenantSessionGate title="Bodegas" lead="Dónde se guarda el stock. La de tránsito es de sistema (ADR-010).">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Si el plan permite más de una bodega, al entrar se crean «Principal» y
-            «En tránsito». Con cupo de una, creás vos la única ubicación.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de bodegas"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-            onActionSelect={(item: PageActionItem) => {
-              if (item.id === 'refresh') void load()
-            }}
+    <TenantSessionGate
+      title="Bodegas"
+      lead="Ubicaciones de stock físico. Las transferencias usan la bodega de tránsito de sistema."
+    >
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Bodegas y Almacenes"
+          subtitle="Centros logísticos y ubicaciones operativas de almacenamiento. Permite controlar las existencias físicas y transferencias entre sucursales."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              {rows.length} {rows.length === 1 ? 'Bodega' : 'Bodegas'}
+            </StatusBadge>
+          }
+          actions={
+            <>
+              {canManage && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => navigate('/bodegas/nueva')}
+                >
+                  + Nueva Bodega
+                </Button>
+              )}
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de bodegas"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={(item: PageActionItem) => {
+                  if (item.id === 'refresh') void load()
+                }}
+              />
+            </>
+          }
+        />
+
+        <div className="ecu-stat-grid" aria-label="Resumen de bodegas">
+          <StatCard
+            label="Total Bodegas"
+            value={rows.length}
+            icon="warehouse"
+            toneColor="#4f46e5"
+            footerText="Ubicaciones en plataforma"
+          />
+          <StatCard
+            label="Bodega Principal"
+            value={mainCount}
+            icon="home_work"
+            toneColor="#10b981"
+            footerText="Punto predeterminado"
+          />
+          <StatCard
+            label="Operativas"
+            value={operationalCount}
+            icon="store"
+            toneColor="#0ea5e9"
+            footerText="Almacenamiento y despacho"
+          />
+          <StatCard
+            label="En Tránsito"
+            value={transitCount}
+            icon="local_shipping"
+            toneColor="#8b5cf6"
+            footerText="Movimientos entre sedes"
           />
         </div>
 
-        <div className="ecu-companies-page__metrics" aria-label="Resumen de bodegas">
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Bodegas</p>
-            <p className="ecu-companies-page__metric-value">{rows.length}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Principal</p>
-            <p className="ecu-companies-page__metric-value">{mainCount}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">En tránsito</p>
-            <p className="ecu-companies-page__metric-value">{transitCount}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Operativas</p>
-            <p className="ecu-companies-page__metric-value">{operationalCount}</p>
-          </article>
-        </div>
-
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <div className="ecu-companies-page__body">
-          {rows.length === 0 && !loading ? (
-            <div className="ecu-companies-page__empty">
-              <h2 className="app-shell__section-title">Sin bodegas</h2>
-              {canManage ? (
-                <Button type="button" variant="primary" onClick={() => navigate('/bodegas/nueva')}>
-                  Nueva bodega
-                </Button>
-              ) : null}
+        <SectionCard
+          title="Ubicaciones de Inventario"
+          subtitle="Puntos de control físico donde reside el stock de productos"
+        >
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
             </div>
+          ) : null}
+
+          {rows.length === 0 && !loading ? (
+            <EmptyState
+              icon="warehouse"
+              title="Aún no hay bodegas registradas"
+              description="Crea tu primera bodega operativa para comenzar a registrar entradas, salidas y movimientos de inventario."
+              action={
+                canManage ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => navigate('/bodegas/nueva')}
+                  >
+                    + Nueva Bodega
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <DataGrid
               className="ecu-companies-grid"
@@ -220,7 +291,7 @@ export function WarehousesListPage() {
               showSearch
               searchPosition="left"
               searchWidth={280}
-              searchPlaceholder="Buscar bodega…"
+              searchPlaceholder="Buscar bodega o código…"
               searchKeys={['name', 'code']}
               paging={paging}
               onPageChange={onPageChange}
@@ -232,7 +303,7 @@ export function WarehousesListPage() {
               messages={messages}
             />
           )}
-        </div>
+        </SectionCard>
       </div>
     </TenantSessionGate>
   )

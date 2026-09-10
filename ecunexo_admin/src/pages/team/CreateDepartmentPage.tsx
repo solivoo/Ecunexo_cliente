@@ -1,7 +1,12 @@
 import { useCallback, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { Building2 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -103,19 +108,30 @@ export function CreateDepartmentPage() {
       title="Nuevo departamento"
       lead="Alta de una unidad organizacional en la empresa."
     >
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            El nombre debe ser único en la empresa. Luego podrás asignarlo a usuarios.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de crear departamento"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Nuevo Departamento"
+          subtitle="Registra una nueva unidad funcional o departamento dentro de la empresa para clasificar a los colaboradores."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              Estructura Organizacional
+            </StatusBadge>
+          }
+          actions={
+            <>
+              <Button type="button" variant="outline" onClick={goToList}>
+                Volver a Departamentos
+              </Button>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+              />
+            </>
+          }
+        />
 
         {error ? (
           <p className="welcome-onboarding__error" role="alert">
@@ -124,15 +140,19 @@ export function CreateDepartmentPage() {
         ) : null}
 
         <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-          <section className="app-shell__card ecu-companies-form__card">
-            <h2 className="app-shell__section-title">
-              <Building2 size={18} strokeWidth={1.75} aria-hidden /> Departamento
-            </h2>
+          <SectionCard
+            title={
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Building2 size={18} strokeWidth={1.75} aria-hidden /> Datos del Departamento
+              </span>
+            }
+            subtitle="El nombre debe ser único dentro de la empresa. La descripción proporciona contexto sobre su función."
+          >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
               <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                 <TextBox
                   id="cd-name"
-                  label="Nombre"
+                  label="Nombre del departamento"
                   labelPosition="outlined"
                   variant="outline"
                   value={name}
@@ -155,11 +175,11 @@ export function CreateDepartmentPage() {
                 />
               </div>
             </div>
-          </section>
+          </SectionCard>
 
           <div className="ecu-companies-form__actions">
             <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-              Guardar
+              Crear Departamento
             </Button>
             <Button
               type="button"
@@ -167,7 +187,7 @@ export function CreateDepartmentPage() {
               disabled={busy}
               onClick={goToList}
             >
-              Atrás
+              Cancelar
             </Button>
           </div>
         </form>

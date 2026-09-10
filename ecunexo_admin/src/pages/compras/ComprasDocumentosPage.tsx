@@ -1,7 +1,14 @@
 import { useCallback, useMemo } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -75,52 +82,109 @@ export function ComprasDocumentosPage() {
     [navigate, params]
   )
 
+  if (!canRead) {
+    return (
+      <TenantSessionGate title="Compras" lead="Entra a una empresa para ver compras y retenciones.">
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres permisos de facturación/compras para consultar los comprobantes de adquisición."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
+      </TenantSessionGate>
+    )
+  }
+
   return (
     <TenantSessionGate
       title="Compras"
-      lead="Entra a una empresa para ver compras y retenciones."
+      lead="Adquisiciones a proveedores, retenciones en la fuente y liquidaciones de compra autorizadas ante el SRI."
     >
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <div>
-            <h1 className="app-shell__page-title">Compras</h1>
-            <p className="app-shell__page-lead">
-              No es lo que vendes. Aquí entra lo que compras y lo que retienes al proveedor.
-            </p>
-          </div>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Nuevo"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-            onActionSelect={handleActionSelect}
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Compras y Retenciones"
+          subtitle="No es lo que vendes. Aquí entra lo que compras a proveedores, las retenciones tributarias que emites (07) y liquidaciones de compra (03)."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              Gestión de Compras
+            </StatusBadge>
+          }
+          actions={
+            <EcuPageActions
+              items={actionItems}
+              variant="outline"
+              triggerLabel="Nuevo comprobante"
+              renderIcon={renderSidebarIcon}
+              onNavigate={(route: string) => navigate(route)}
+              onActionSelect={handleActionSelect}
+            />
+          }
+        />
+
+        <div className="ecu-stat-grid" aria-label="Resumen de compras">
+          <StatCard
+            label="Total Comprobantes"
+            value="0"
+            icon="shopping_bag"
+            toneColor="#4f46e5"
+            footerText="En el período seleccionado"
+          />
+          <StatCard
+            label="Retenciones Emitidas"
+            value="0"
+            icon="receipt_long"
+            toneColor="#10b981"
+            footerText="Comprobantes tipo 07"
+          />
+          <StatCard
+            label="Liquidaciones"
+            value="0"
+            icon="description"
+            toneColor="#0ea5e9"
+            footerText="Liquidaciones tipo 03"
+          />
+          <StatCard
+            label="Facturas de Proveedor"
+            value="0"
+            icon="inventory_2"
+            toneColor="#8b5cf6"
+            footerText="Adquisición de bienes/servicios"
           />
         </div>
 
-        {!canRead ? (
-          <p>Sin permiso para ver compras.</p>
-        ) : (
-          <ComprasGrid
-              rows={[]}
-              toolbarRight={
-                <div className="ecu-comprobantes-filters">
-                  <GridDateRangeBox
-                    from={from}
-                    to={to}
-                    lookback={lookback}
-                    onChange={setRange}
-                  />
-                  <ComprobantesTypeFilters
-                    value={typeCode}
-                    options={sriTypeFilterOptions(PURCHASE_DOCUMENT_TYPES)}
-                    ariaLabel="Tipo de documento de compra"
-                    onChange={onTypeChange}
-                  />
-                </div>
-              }
-            />
-        )}
+        <SectionCard
+          title="Comprobantes de Adquisición"
+          subtitle="Documentos recibidos y emitidos ante el SRI en concepto de compras"
+          action={
+            <div
+              className="ecu-comprobantes-filters"
+              style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}
+            >
+              <GridDateRangeBox
+                from={from}
+                to={to}
+                lookback={lookback}
+                onChange={setRange}
+              />
+              <ComprobantesTypeFilters
+                value={typeCode}
+                options={sriTypeFilterOptions(PURCHASE_DOCUMENT_TYPES)}
+                ariaLabel="Tipo de documento de compra"
+                onChange={onTypeChange}
+              />
+            </div>
+          }
+        >
+          <EmptyState
+            icon="shopping_bag"
+            title="Sin comprobantes de compra en este rango de fechas"
+            description="Ajusta el selector de fechas superior o utiliza la opción de emisión cuando tus proveedores entreguen sus comprobantes."
+          />
+          <div style={{ display: 'none' }}>
+            <ComprasGrid rows={[]} />
+          </div>
+        </SectionCard>
       </div>
     </TenantSessionGate>
   )

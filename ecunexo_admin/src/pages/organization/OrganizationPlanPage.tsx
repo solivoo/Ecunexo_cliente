@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast, type PageActionItem } from 'glubox'
+import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { ApplyLicenseSection } from '@/features/organization/components/ApplyLicenseSection'
 import {
@@ -86,22 +87,31 @@ export function OrganizationPlanPage() {
   const tenantModules = tenant?.enabledModules ?? []
 
   return (
-    <div className="ecu-companies-page ecu-plan-page">
-      <div className="ecu-page-header">
-        <p className="app-shell__page-lead">
-          Límites del plan de servicio
-          {isSubscriptionHolder ? ' de la suscripción' : ' y consumo actual'}.
-        </p>
-        {isSubscriptionHolder ? (
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de plan"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        ) : null}
-      </div>
+    <div className="ecu-dashboard-layout ecu-plan-page">
+      <PageHeader
+        title="Plan de Servicio y Licencia"
+        subtitle={
+          isSubscriptionHolder
+            ? 'Límites del plan de servicio de la suscripción y entitlements de módulos.'
+            : 'Capacidad contratada y consumo actual del tenant activo.'
+        }
+        badge={
+          <StatusBadge tone="info" withDot>
+            {subscription?.servicePlanName ?? tenant?.servicePlanName ?? 'Plan de Servicio'}
+          </StatusBadge>
+        }
+        actions={
+          isSubscriptionHolder ? (
+            <EcuPageActions
+              items={actionItems}
+              variant="outline"
+              triggerLabel="Acciones de plan"
+              renderIcon={renderSidebarIcon}
+              onNavigate={(route: string) => navigate(route)}
+            />
+          ) : undefined
+        }
+      />
 
       {isSubscriptionHolder && subscription ? (
         <>
@@ -112,21 +122,19 @@ export function OrganizationPlanPage() {
             maxTenants={subscription.subscriptionMaxTenants}
           />
 
-          <section className="app-shell__card ecu-companies-form__card">
-            <h2 className="app-shell__section-title">Módulos habilitados</h2>
-            <p className="ecu-companies-form__hint">
-              Capacidad incluida en la licencia. Entra a una empresa para operar con roles y menú.
-            </p>
+          <SectionCard
+            title="Módulos Habilitados"
+            subtitle="Capacidad incluida en la licencia. Entra a una empresa para operar con roles y menú."
+          >
             <ModuleChips modules={holderModules} />
-          </section>
+          </SectionCard>
 
-          <section className="app-shell__card ecu-companies-form__card">
-            <h2 className="app-shell__section-title">Capacidad por módulo</h2>
-            <p className="ecu-companies-form__hint">
-              Tier y límites efectivos de cada módulo.
-            </p>
+          <SectionCard
+            title="Capacidad por Módulo"
+            subtitle="Tier y límites efectivos asignados a cada módulo del sistema."
+          >
             <EntitlementCards entitlements={holderEntitlements} />
-          </section>
+          </SectionCard>
 
           <ApplyLicenseSection
             onApplied={async () => {
@@ -160,10 +168,12 @@ export function OrganizationPlanPage() {
                 </div>
               ) : null}
 
-              <section className="app-shell__card ecu-companies-form__card">
-                <h2 className="app-shell__section-title">Módulos habilitados</h2>
+              <SectionCard
+                title="Módulos Habilitados"
+                subtitle="Módulos autorizados para esta empresa."
+              >
                 <ModuleChips modules={tenantModules} />
-              </section>
+              </SectionCard>
             </>
           ) : null}
         </PageLoadState>

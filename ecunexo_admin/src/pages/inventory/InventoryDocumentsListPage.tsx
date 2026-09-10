@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, DataGrid, OptionGroup, useToast, type ColumnDef, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui'
 import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { Eye, PackageCheck } from 'lucide-react'
@@ -40,6 +47,19 @@ function isPendingReceipt(row: InventoryDocumentListItemDto): boolean {
     row.documentType === InventoryDocumentType.Transfer &&
     row.status === InventoryDocumentStatus.InTransit
   )
+}
+
+function getDocStatusBadgeTone(status: InventoryDocumentStatus) {
+  switch (status) {
+    case InventoryDocumentStatus.Approved:
+      return 'success'
+    case InventoryDocumentStatus.InTransit:
+      return 'warning'
+    case InventoryDocumentStatus.Cancelled:
+      return 'danger'
+    default:
+      return 'neutral'
+  }
 }
 
 export function InventoryDocumentsListPage() {
@@ -157,13 +177,29 @@ export function InventoryDocumentsListPage() {
         disabled: false,
       })
     }
-    items.push({
-      id: 'refresh',
-      label: 'Actualizar',
-      route: null,
-      icon: 'refresh-cw',
-      disabled: loading,
-    })
+    items.push(
+      {
+        id: 'stock',
+        label: 'Stock',
+        icon: 'package',
+        route: '/inventario/stock',
+        disabled: false,
+      },
+      {
+        id: 'kardex',
+        label: 'Kárdex',
+        icon: 'receipt',
+        route: '/inventario/kardex',
+        disabled: false,
+      },
+      {
+        id: 'refresh',
+        label: 'Actualizar',
+        route: null,
+        icon: 'refresh-cw',
+        disabled: loading,
+      }
+    )
     return items
   }, [canCreate, loading])
 
@@ -172,39 +208,54 @@ export function InventoryDocumentsListPage() {
       {
         key: 'documentType',
         header: 'Tipo',
-        width: 130,
+        width: 140,
         sortable: true,
         renderCell: (_v: Row['documentType'], row: Row) => (
-          <strong>{inventoryDocumentTypeLabel(row.documentType)}</strong>
+          <StatusBadge tone="neutral">
+            {inventoryDocumentTypeLabel(row.documentType)}
+          </StatusBadge>
         ),
       },
       {
         key: 'status',
         header: 'Estado',
-        width: 120,
+        width: 130,
         sortable: true,
-        renderCell: (_v: Row['status'], row: Row) => inventoryDocumentStatusLabel(row.status),
+        renderCell: (_v: Row['status'], row: Row) => (
+          <StatusBadge
+            tone={getDocStatusBadgeTone(row.status)}
+            withDot={row.status === InventoryDocumentStatus.Approved}
+          >
+            {inventoryDocumentStatusLabel(row.status)}
+          </StatusBadge>
+        ),
       },
       {
         key: 'warehouseName',
-        header: 'Bodega',
-        width: 220,
+        header: 'Ubicación / Ruta',
+        width: 240,
         sortable: true,
         renderCell: (_v: Row['warehouseName'], row: Row) =>
-          row.destinationWarehouseName
-            ? `${row.warehouseName} → ${row.destinationWarehouseName}`
-            : row.warehouseName,
+          row.destinationWarehouseName ? (
+            <span>
+              {row.warehouseName} <span style={{ color: 'var(--shell-primary, #6366f1)' }}>→</span>{' '}
+              {row.destinationWarehouseName}
+            </span>
+          ) : (
+            <span>{row.warehouseName}</span>
+          ),
       },
       {
         key: 'lineCount',
         header: 'Líneas',
         width: 90,
         sortable: true,
-        renderCell: (_v: Row['lineCount'], row: Row) => String(row.lineCount),
+        align: 'center',
+        renderCell: (_v: Row['lineCount'], row: Row) => <span>{row.lineCount}</span>,
       },
       {
         key: 'createdAt',
-        header: 'Creado',
+        header: 'Fecha de emisión',
         width: 170,
         sortable: true,
         renderCell: (_v: Row['createdAt'], row: Row) => formatDateTime(row.createdAt),
@@ -227,7 +278,7 @@ export function InventoryDocumentsListPage() {
               />
             ) : null}
             <GridIconButton
-              label="Abrir"
+              label="Abrir detalle"
               icon={Eye}
               onClick={() => navigate(`/inventario/documentos/${row.id}`)}
             />
@@ -241,7 +292,13 @@ export function InventoryDocumentsListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Documentos" lead="Recepciones y egresos logísticos.">
-        <p className="app-shell__page-lead">Requieres permisos de inventario.</p>
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres permisos de inventario para visualizar los documentos logísticos."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
       </TenantSessionGate>
     )
   }
@@ -251,94 +308,136 @@ export function InventoryDocumentsListPage() {
   return (
     <TenantSessionGate
       title="Documentos"
-      lead={
-        queue === 'recibir'
-          ? 'Cola de transferencias despachadas. Confirma la llegada en destino.'
-          : 'Recepción, egreso y transferencia. El stock solo cambia al aprobar o recibir.'
-      }
+      lead="Recepciones, egresos y transferencias entre bodegas. El stock solo se modifica al aprobar o recibir."
     >
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Despachar saca del origen. Recibir entra al destino. Son dos momentos distintos.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de documentos"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-            onActionSelect={(item: PageActionItem) => {
-              if (item.id === 'refresh') void load()
-            }}
-          />
-        </div>
-
-        <div className="ecu-comprobantes-filters" role="group" aria-label="Cola de documentos">
-          <OptionGroup
-            id="inv-docs-queue"
-            name="inv-docs-queue"
-            options={[
-              { value: 'todas', label: 'Todas' },
-              { value: 'recibir', label: `Por recibir${pendingReceipts.length ? ` (${pendingReceipts.length})` : ''}` },
-              { value: 'borradores', label: `Borradores${drafts.length ? ` (${drafts.length})` : ''}` },
-            ]}
-            value={queue}
-            onChange={setQueue}
-            layout="segmented"
-            variant="outline"
-            size={size}
-          />
-        </div>
-
-        <div className="ecu-companies-page__metrics" aria-label="Resumen de documentos">
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Documentos</p>
-            <p className="ecu-companies-page__metric-value">{rows.length}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Por recibir</p>
-            <p className="ecu-companies-page__metric-value">{pendingReceipts.length}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Recepciones</p>
-            <p className="ecu-companies-page__metric-value">{receipts}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Borradores</p>
-            <p className="ecu-companies-page__metric-value">{drafts.length}</p>
-          </article>
-        </div>
-
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <div className="ecu-companies-page__body">
-          {queuedRows.length === 0 && !loading ? (
-            <div className="ecu-companies-page__empty">
-              <h2 className="app-shell__section-title">
-                {queue === 'recibir'
-                  ? 'Nada por recibir'
-                  : queue === 'borradores'
-                    ? 'Sin borradores'
-                    : 'Sin documentos'}
-              </h2>
-              {queue === 'recibir' ? (
-                <p className="app-shell__muted">
-                  Cuando despaches una transferencia, aparece aquí para confirmarla en destino.
-                </p>
-              ) : canCreate ? (
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Documentos de Inventario"
+          subtitle="Comprobantes de movimiento logístico. Despachar saca existencias del origen; recibir ingresa al destino. El stock formal solo cambia al aprobar."
+          badge={
+            <StatusBadge
+              tone={pendingReceipts.length > 0 ? 'warning' : 'primary'}
+              withDot={pendingReceipts.length > 0}
+            >
+              {rows.length} {rows.length === 1 ? 'Documento' : 'Documentos'}
+            </StatusBadge>
+          }
+          actions={
+            <>
+              {canCreate && (
                 <Button
                   type="button"
                   variant="primary"
                   onClick={() => navigate('/inventario/documentos/nuevo')}
                 >
-                  Nueva recepción
+                  + Nuevo Documento
                 </Button>
-              ) : null}
+              )}
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de documentos"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={(item: PageActionItem) => {
+                  if (item.id === 'refresh') void load()
+                }}
+              />
+            </>
+          }
+        />
+
+        <div className="ecu-stat-grid" aria-label="Resumen de documentos">
+          <StatCard
+            label="Total Documentos"
+            value={rows.length}
+            icon="file_copy"
+            toneColor="#4f46e5"
+            footerText="Registros globales"
+          />
+          <StatCard
+            label="Por Recibir"
+            value={pendingReceipts.length}
+            icon="local_shipping"
+            toneColor="#f59e0b"
+            footerText="Transferencias en camino"
+          />
+          <StatCard
+            label="Recepciones"
+            value={receipts}
+            icon="input"
+            toneColor="#10b981"
+            footerText="Entradas al almacén"
+          />
+          <StatCard
+            label="Borradores"
+            value={drafts.length}
+            icon="edit_note"
+            toneColor="#6b7280"
+            footerText="Pendientes de aprobación"
+          />
+        </div>
+
+        <SectionCard
+          title="Historial de Documentos Logísticos"
+          subtitle="Comprobantes de movimiento de existencias, transferencias y ajustes físicos"
+          action={
+            <OptionGroup
+              id="inv-docs-queue"
+              name="inv-docs-queue"
+              options={[
+                { value: 'todas', label: 'Todas' },
+                {
+                  value: 'recibir',
+                  label: `Por recibir${pendingReceipts.length ? ` (${pendingReceipts.length})` : ''}`,
+                },
+                {
+                  value: 'borradores',
+                  label: `Borradores${drafts.length ? ` (${drafts.length})` : ''}`,
+                },
+              ]}
+              value={queue}
+              onChange={setQueue}
+              layout="segmented"
+              variant="outline"
+              size={size}
+            />
+          }
+        >
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
             </div>
+          ) : null}
+
+          {queuedRows.length === 0 && !loading ? (
+            <EmptyState
+              icon="description"
+              title={
+                queue === 'recibir'
+                  ? 'Sin transferencias por recibir'
+                  : queue === 'borradores'
+                    ? 'Sin documentos en borrador'
+                    : 'Aún no hay documentos registrados'
+              }
+              description={
+                queue === 'recibir'
+                  ? 'Cuando despaches una transferencia entre bodegas, aparecerá aquí para confirmar su llegada en destino.'
+                  : 'Crea un documento de recepción para ingresar stock inicial o registrar compras a proveedores.'
+              }
+              action={
+                canCreate && queue !== 'recibir' ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => navigate('/inventario/documentos/nuevo')}
+                  >
+                    + Nuevo Documento
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <DataGrid
               className="ecu-companies-grid"
@@ -349,7 +448,7 @@ export function InventoryDocumentsListPage() {
               showSearch
               searchPosition="left"
               searchWidth={280}
-              searchPlaceholder="Buscar bodega…"
+              searchPlaceholder="Buscar bodega o nota…"
               searchKeys={['warehouseName', 'destinationWarehouseName', 'notes']}
               toolbarRight={
                 <GridDateRangeBox
@@ -370,7 +469,7 @@ export function InventoryDocumentsListPage() {
               messages={messages}
             />
           )}
-        </div>
+        </SectionCard>
       </div>
     </TenantSessionGate>
   )

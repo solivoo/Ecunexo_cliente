@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Popup, Select, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
-import { Package } from 'lucide-react'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -100,6 +104,13 @@ export function EditCatalogItemPage() {
         label: 'Listado de ítems',
         icon: 'package',
         route: '/catalogo/items',
+        disabled: false,
+      },
+      {
+        id: 'categories',
+        label: 'Categorías',
+        icon: 'folder-tree',
+        route: '/catalogo/categorias',
         disabled: false,
       },
     ],
@@ -212,11 +223,20 @@ export function EditCatalogItemPage() {
   if (!canEdit) {
     return (
       <TenantSessionGate title="Editar ítem" lead="Cambios en el maestro de catálogo.">
-        <div className="ecu-companies-page">
-          <p className="app-shell__page-lead">Requieres catalog.item.update para editar ítems.</p>
-          <Button type="button" variant="outline" onClick={goToList}>
-            Volver al listado
-          </Button>
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres catalog.item.update para modificar ítems del catálogo."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+          <SectionCard title="Permisos insuficientes">
+            <p className="app-shell__muted" style={{ marginBottom: '1rem' }}>
+              No posees permisos de edición sobre los ítems de catálogo de esta empresa.
+            </p>
+            <Button type="button" variant="outline" onClick={goToList}>
+              Volver al listado
+            </Button>
+          </SectionCard>
         </div>
       </TenantSessionGate>
     )
@@ -224,48 +244,62 @@ export function EditCatalogItemPage() {
 
   return (
     <TenantSessionGate title="Editar ítem" lead="Cambios en el maestro de catálogo.">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            {item
-              ? item.kind === CatalogItemKind.Service
-                ? 'Este ítem es un servicio. Cámbialo a físico e indica SKU para usarlo en inventario.'
-                : 'Este ítem es físico. Podés pasarlo a servicio solo si aún no tiene stock ni kárdex.'
-              : 'Cargando…'}
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de editar ítem"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title={item ? item.name : 'Editar Ítem'}
+          subtitle={
+            item
+              ? `${item.kind === CatalogItemKind.Physical ? 'Producto Físico con SKU' : 'Servicio Intangible'} · ${item.sku ? `SKU: ${item.sku}` : 'Sin código SKU'} · ${item.categoryName ? `Categoría: ${item.categoryName}` : 'Sin categoría'}`
+              : 'Cargando información del ítem…'
+          }
+          badge={
+            item ? (
+              <StatusBadge
+                tone={Number(status) === CatalogItemStatus.Active ? 'success' : 'neutral'}
+                withDot={Number(status) === CatalogItemStatus.Active}
+              >
+                {Number(status) === CatalogItemStatus.Active ? 'Activo' : 'Inactivo'}
+              </StatusBadge>
+            ) : undefined
+          }
+          actions={
+            <EcuPageActions
+              items={actionItems}
+              variant="outline"
+              triggerLabel="Acciones de ítem"
+              renderIcon={renderSidebarIcon}
+              onNavigate={(route: string) => navigate(route)}
+            />
+          }
+        />
 
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        {loading || !item ? (
-          <p className="app-shell__muted">Cargando ítem…</p>
+        {loading && !item ? (
+          <SectionCard title="Cargando…">
+            <p className="app-shell__muted">Recuperando datos del ítem de catálogo…</p>
+          </SectionCard>
         ) : (
-          <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-            <section className="app-shell__card ecu-companies-form__card">
-              <h2 className="app-shell__section-title">
-                <Package size={18} strokeWidth={1.75} aria-hidden /> Ítem
-              </h2>
+          <form onSubmit={(e) => void onSubmit(e)} noValidate>
+            <SectionCard
+              title="Ficha del Ítem"
+              subtitle="Parámetros comerciales, asignación taxonómica y atributos dinámicos"
+            >
+              {error ? (
+                <div className="ecu-form-error-banner" role="alert">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{error}</span>
+                </div>
+              ) : null}
+
               <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                 <div className="ecu-companies-form__field">
                   <Select
                     id="ei-kind"
-                    label="Tipo"
+                    label="Tipo de ítem"
                     labelPosition="outlined"
                     variant="outline"
                     options={[
-                      { value: String(CatalogItemKind.Service), label: 'Servicio' },
-                      { value: String(CatalogItemKind.Physical), label: 'Físico' },
+                      { value: String(CatalogItemKind.Service), label: 'Servicio (intangible)' },
+                      { value: String(CatalogItemKind.Physical), label: 'Físico (con inventario)' },
                     ]}
                     value={kind}
                     onChange={setKind}
@@ -318,7 +352,7 @@ export function EditCatalogItemPage() {
                 <div className="ecu-companies-form__field">
                   <TextBox
                     id="ei-sku"
-                    label="SKU"
+                    label={Number(kind) === CatalogItemKind.Physical ? 'Código SKU (obligatorio)' : 'Código SKU (opcional)'}
                     labelPosition="outlined"
                     variant="outline"
                     value={sku}
@@ -342,10 +376,10 @@ export function EditCatalogItemPage() {
                     fullWidth
                   />
                 </div>
-                <div className="ecu-companies-form__field">
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                   <TextBox
                     id="ei-desc"
-                    label="Descripción"
+                    label="Descripción comercial"
                     labelPosition="outlined"
                     variant="outline"
                     value={description}
@@ -362,27 +396,39 @@ export function EditCatalogItemPage() {
                   onChange={(key, next) => setAttrValues((prev) => ({ ...prev, [key]: next }))}
                 />
               </div>
-            </section>
 
-            <div className="ecu-companies-form__actions">
-              <Button type="submit" variant="primary" loading={busy} disabled={busy || deleting}>
-                Guardar
-              </Button>
-              {canDelete ? (
+              <div
+                className="ecu-companies-form__actions"
+                style={{
+                  marginTop: '1.5rem',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+                }}
+              >
+                <Button type="submit" variant="primary" loading={busy} disabled={busy || deleting}>
+                  Guardar Cambios
+                </Button>
+                {canDelete ? (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    loading={deleting}
+                    disabled={busy || deleting}
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    Eliminar
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
-                  variant="danger"
-                  loading={deleting}
+                  variant="outline"
                   disabled={busy || deleting}
-                  onClick={() => setConfirmDelete(true)}
+                  onClick={goToList}
                 >
-                  Eliminar
+                  Cancelar
                 </Button>
-              ) : null}
-              <Button type="button" variant="outline" disabled={busy || deleting} onClick={goToList}>
-                Atrás
-              </Button>
-            </div>
+              </div>
+            </SectionCard>
           </form>
         )}
       </div>

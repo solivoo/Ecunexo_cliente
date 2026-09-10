@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { Button, Popup, useToast } from 'glubox'
-import { Check, Copy, ExternalLink, GitBranch, GitCommit, Clock } from 'lucide-react'
+import { Check, Clock, Copy, ExternalLink, GitBranch, GitCommit, Sparkles } from 'lucide-react'
 import { APP_VERSION_INFO, formatBuildDate, buildSupportDiagnostics } from '@/config/appVersion'
 import { selectTenantId, selectUserEmail, selectUserId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
@@ -105,6 +105,20 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
               <span>{formatBuildDate(APP_VERSION_INFO.buildTime)}</span>
             </span>
           </div>
+        </div>
+
+        <div className="ecu-about-modal__changelog">
+          <div className="ecu-about-modal__changelog-header">
+            <Sparkles size={15} aria-hidden />
+            <span>Novedades v{APP_VERSION_INFO.version} — Enterprise UI Redesign</span>
+          </div>
+          <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Google Material Design 3:</strong> Superficies tonales, tarjetas elevadas y soporte dark mode transparente.</li>
+            <li><strong>PageHeader Unificado:</strong> Títulos, subtítulos contextuales, badges de estado y menús de acciones rápidas.</li>
+            <li><strong>Métricas KPI (StatCards):</strong> Cuadrícula analítica en Dashboard, Catálogo, Bodegas, Inventario, Facturación y Seguridad.</li>
+            <li><strong>SectionCards:</strong> Encapsulación de formularios y tablas en tarjetas modulares con micro-interacciones.</li>
+            <li><strong>Estados Vacíos (EmptyState):</strong> Guías visuales con botón de acción directa cuando no existen registros.</li>
+          </ul>
         </div>
 
         <div className="ecu-about-modal__support">

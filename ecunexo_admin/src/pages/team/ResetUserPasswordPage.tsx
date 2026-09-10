@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { KeyRound } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
@@ -130,21 +135,34 @@ export function ResetUserPasswordPage() {
       title="Restablecer contraseña"
       lead="Define una nueva contraseña para el usuario."
     >
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            {user
-              ? `Nueva contraseña para ${user.name} (${user.email}).`
-              : 'Nueva contraseña de acceso.'}
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de contraseña"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Restablecer Contraseña"
+          subtitle={
+            user
+              ? `Actualizar credenciales de acceso para ${user.name} (${user.email}).`
+              : 'Asignar nueva contraseña de acceso.'
+          }
+          badge={
+            <StatusBadge tone="warning" withDot>
+              Seguridad
+            </StatusBadge>
+          }
+          actions={
+            <>
+              <Button type="button" variant="outline" onClick={() => navigate(detailPath)}>
+                Volver a la Ficha
+              </Button>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+              />
+            </>
+          }
+        />
 
         <PageLoadState loading={loading} error={error && !user ? error : null} empty={!user && !loading}>
           {user ? (
@@ -155,14 +173,14 @@ export function ResetUserPasswordPage() {
                 </p>
               ) : null}
 
-              <section className="app-shell__card ecu-companies-form__card">
-                <h2 className="app-shell__section-title">
-                  <KeyRound size={18} strokeWidth={1.75} aria-hidden /> Contraseña
-                </h2>
-                <p className="ecu-companies-form__hint">
-                  Mínimo 8 caracteres. Comunícasela al usuario de forma segura; no hay envío por
-                  correo todavía.
-                </p>
+              <SectionCard
+                title={
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <KeyRound size={18} strokeWidth={1.75} aria-hidden /> Nueva Clave de Acceso
+                  </span>
+                }
+                subtitle="Mínimo 8 caracteres requeridos. Comunícasela al colaborador de forma segura."
+              >
                 <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                   <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                     <TextBox
@@ -202,11 +220,11 @@ export function ResetUserPasswordPage() {
                   </div>
                 </div>
                 {user.isDisabled ? (
-                  <p className="welcome-onboarding__error" role="status">
+                  <p className="welcome-onboarding__error" role="status" style={{ marginTop: '1rem' }}>
                     El usuario está deshabilitado. Habilítalo antes de cambiar la contraseña.
                   </p>
                 ) : null}
-              </section>
+              </SectionCard>
 
               <div className="ecu-companies-form__actions">
                 <Button
@@ -215,7 +233,7 @@ export function ResetUserPasswordPage() {
                   loading={busy}
                   disabled={busy || user.isDisabled}
                 >
-                  Guardar contraseña
+                  Guardar Contraseña
                 </Button>
                 <Button
                   type="button"
@@ -223,7 +241,7 @@ export function ResetUserPasswordPage() {
                   disabled={busy}
                   onClick={() => navigate(detailPath)}
                 >
-                  Atrás
+                  Cancelar
                 </Button>
               </div>
             </form>

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Popup, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+  EmptyState,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -129,32 +136,62 @@ export function DepartmentsListPage() {
       title="Departamentos"
       lead="Catálogo organizacional para asignar a usuarios."
     >
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Crea departamentos, corrige el nombre (tilde incluida) y asígnalos a usuarios.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de departamentos"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-            onActionSelect={handleActionSelect}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Departamentos y Áreas"
+          subtitle="Crea departamentos y asígnalos a los usuarios para estructurar las áreas de la empresa."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              {rows.length} {rows.length === 1 ? 'Área' : 'Áreas'}
+            </StatusBadge>
+          }
+          actions={
+            <>
+              {canManage && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => navigate('/equipo/departamentos/nuevo')}
+                >
+                  + Nuevo Departamento
+                </Button>
+              )}
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de departamentos"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
+          }
+        />
 
-        <div className="ecu-companies-page__metrics" aria-label="Resumen de departamentos">
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Departamentos</p>
-            <p className="ecu-companies-page__metric-value">{rows.length}</p>
-          </article>
-          <article className="ecu-companies-page__metric">
-            <p className="ecu-companies-page__metric-label">Uso</p>
-            <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
-              Usuarios
-            </p>
-          </article>
+        <div className="ecu-stat-grid" aria-label="Resumen de departamentos">
+          <StatCard
+            label="Total Áreas"
+            value={rows.length}
+            icon="corporate_fare"
+            toneColor="#4f46e5"
+            footerText="Departamentos registrados"
+          />
+          <StatCard
+            label="Clasificación"
+            value="Organizacional"
+            icon="hub"
+            toneColor="#059669"
+            badge={<StatusBadge tone="success">Activa</StatusBadge>}
+            footerText="Vinculación a colaboradores"
+          />
+          <StatCard
+            label="Alcance"
+            value="Empresa"
+            icon="domain"
+            toneColor="#0284c7"
+            badge={<StatusBadge tone="info">Sede</StatusBadge>}
+            footerText="Áreas de este entorno"
+          />
         </div>
 
         {error ? (
@@ -163,27 +200,31 @@ export function DepartmentsListPage() {
           </p>
         ) : null}
 
-        <div className="ecu-companies-page__body">
+        <SectionCard
+          title="Catálogo de Departamentos"
+          subtitle="Unidades operativas y divisiones organizacionales de la empresa"
+        >
           {isEmpty ? (
-            <div className="ecu-companies-page__empty">
-              <h2 className="app-shell__section-title">Aún no hay departamentos</h2>
-              <p className="app-shell__muted app-shell__muted--pad-bottom">
-                Crea el primero para poder asignarlo a los usuarios del equipo.
-              </p>
-              {canManage ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/equipo/departamentos/nuevo')}
-                >
-                  Nuevo departamento
-                </Button>
-              ) : (
-                <p className="app-shell__muted">
-                  Requieres identity.departments.manage para crear departamentos.
-                </p>
-              )}
-            </div>
+            <EmptyState
+              icon="corporate_fare"
+              title="Aún no hay departamentos registrados"
+              description="Crea el primer departamento para organizar a los usuarios y asignarles su área de pertenencia."
+              action={
+                canManage ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => navigate('/equipo/departamentos/nuevo')}
+                  >
+                    Crear departamento
+                  </Button>
+                ) : (
+                  <p className="app-shell__muted">
+                    Requieres el permiso identity.departments.manage para crear departamentos.
+                  </p>
+                )
+              }
+            />
           ) : (
             <DepartmentsGrid
               rows={rows}
@@ -193,7 +234,7 @@ export function DepartmentsListPage() {
               onDelete={setConfirmDelete}
             />
           )}
-        </div>
+        </SectionCard>
       </div>
 
       <Popup

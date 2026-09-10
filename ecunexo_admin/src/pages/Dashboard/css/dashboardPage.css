@@ -1,0 +1,125 @@
+/* ==========================================================================
+   Dashboard Page — Enterprise Layout Styles
+   ========================================================================== */
+
+.ecu-dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-bottom: 2rem;
+}
+
+.ecu-dashboard-columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .ecu-dashboard-columns {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+}
+
+.ecu-dashboard-welcome-banner {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--shell-primary) 12%, var(--shell-surface)),
+    var(--shell-surface)
+  );
+  border: 1px solid color-mix(in srgb, var(--shell-primary) 20%, var(--shell-border));
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .ecu-dashboard-welcome-banner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.ecu-dashboard-welcome-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ecu-dashboard-welcome-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--shell-text);
+  letter-spacing: -0.02em;
+}
+
+.ecu-dashboard-welcome-desc {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--shell-muted);
+  line-height: 1.45;
+}
+
+.ecu-dashboard-guide-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ecu-dashboard-guide-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--shell-muted) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--shell-border) 60%, transparent);
+  transition: all 0.2s ease;
+}
+
+.ecu-dashboard-guide-item:hover {
+  background: color-mix(in srgb, var(--shell-primary) 6%, transparent);
+  border-color: color-mix(in srgb, var(--shell-primary) 30%, transparent);
+}
+
+.ecu-dashboard-guide-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 50%;
+  background: var(--shell-primary);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px -1px color-mix(in srgb, var(--shell-primary) 40%, transparent);
+}
+
+.ecu-dashboard-guide-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.ecu-dashboard-guide-content strong {
+  color: var(--shell-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ecu-dashboard-guide-content span {
+  color: var(--shell-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}

@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Button, Select, TextBox, useToast } from 'glubox'
+import { EmptyState } from '@/components/ui'
 import { readApiError } from '@/lib/readApiError'
 import { PoliciesGrid } from '@/pages/security/PoliciesGrid'
 import { createPermissionPolicy } from '@/services/identityApi'
@@ -60,14 +61,6 @@ export function PermissionPoliciesSection({
     [condition, effect, onCreated, permissionId, toast]
   )
 
-  const emptyHint = useMemo(
-    () =>
-      policies.length === 0
-        ? 'Sin políticas. Sin reglas ABAC, el permiso se evalúa solo por RBAC.'
-        : null,
-    [policies.length]
-  )
-
   if (!canManage) {
     return (
       <p className="app-shell__muted">
@@ -77,25 +70,53 @@ export function PermissionPoliciesSection({
   }
 
   return (
-    <>
-      {emptyHint ? (
-        <p className="app-shell__muted app-shell__muted--pad-bottom">{emptyHint}</p>
+    <div>
+      {policies.length === 0 ? (
+        <EmptyState
+          icon="policy"
+          title="Sin políticas condicionales ABAC"
+          description="Este permiso opera bajo autorización RBAC tradicional. Agrega una regla condicional abajo para evaluar atributos de contexto en tiempo de ejecución (ej. ctx.Department == 'Ventas')."
+        />
       ) : (
         <PoliciesGrid rows={policies} loading={loading} />
       )}
 
       <form
         className="ecu-companies-form"
-        style={{ marginTop: '1rem' }}
+        style={{
+          marginTop: '1.5rem',
+          paddingTop: '1.5rem',
+          borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+        }}
         onSubmit={(e) => void handleCreate(e)}
         noValidate
       >
-        <h3 className="app-shell__section-title">Nueva política</h3>
-        {formError ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {formError}
+        <div>
+          <h3
+            style={{
+              fontSize: '1rem',
+              fontWeight: 600,
+              color: 'var(--glb-text)',
+              marginBottom: '0.25rem',
+            }}
+          >
+            Nueva política ABAC
+          </h3>
+          <p
+            className="app-shell__muted"
+            style={{ marginBottom: '1rem', fontSize: '0.85rem' }}
+          >
+            Allow = conceder si la condición es verdadera. Deny = rechazar si es verdadera. Condición vacía = regla fija. Variable disponible: <code>ctx</code>.
           </p>
+        </div>
+
+        {formError ? (
+          <div className="ecu-form-error-banner" role="alert">
+            <span className="material-symbols-outlined">error</span>
+            <span>{formError}</span>
+          </div>
         ) : null}
+
         <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
           <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
             <Select
@@ -124,12 +145,13 @@ export function PermissionPoliciesSection({
             />
           </div>
         </div>
-        <div className="ecu-companies-form__actions">
+
+        <div className="ecu-companies-form__actions" style={{ marginTop: '1rem' }}>
           <Button type="submit" variant="primary" loading={saving} disabled={saving}>
             Guardar política
           </Button>
         </div>
       </form>
-    </>
+    </div>
   )
 }

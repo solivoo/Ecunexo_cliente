@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { DataGrid, type ColumnDef } from 'glubox'
+import { StatusBadge } from '@/components/ui'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { formatDateTime } from '@/lib/formatDate'
@@ -34,10 +35,12 @@ export function PoliciesGrid({ rows, loading = false }: PoliciesGridProps) {
       {
         key: 'effectLabel',
         header: 'Efecto',
-        width: 120,
+        width: 140,
         sortable: true,
         renderCell: (_value: PolicyGridRow['effectLabel'], row: PolicyGridRow) => (
-          <strong>{row.effectLabel}</strong>
+          <StatusBadge tone={row.effect === 0 ? 'success' : 'danger'} withDot>
+            {row.effectLabel}
+          </StatusBadge>
         ),
       },
       {

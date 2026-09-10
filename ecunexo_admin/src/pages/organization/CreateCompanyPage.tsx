@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, TextBox, useToast, type PageActionItem } from 'glubox'
+import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
-import { UserRound } from 'lucide-react'
 import { CompanyBrandingFields } from '@/features/organization/components/CompanyBrandingFields'
 import { isAccentColorValid } from '@/features/organization/companyFormOptions'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -154,10 +154,12 @@ export function CreateCompanyPage() {
 
   if (!canCreate) {
     return (
-      <div className="ecu-companies-page">
-        <p className="app-shell__page-lead">
-          Requieres el permiso tenancy.tenants.create para crear empresas.
-        </p>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Nueva Empresa"
+          subtitle="Requieres el permiso tenancy.tenants.create para crear empresas."
+          badge={<StatusBadge tone="danger">Acceso Restringido</StatusBadge>}
+        />
         <Button type="button" variant="outline" onClick={goToList}>
           Volver al listado
         </Button>
@@ -166,26 +168,24 @@ export function CreateCompanyPage() {
   }
 
   return (
-    <div className="ecu-companies-page">
-      <div className="ecu-page-header">
-        <div>
-          {quotaHint ? (
-            <p className="app-shell__page-lead">{quotaHint}</p>
-          ) : (
-            <p className="app-shell__page-lead">
-              Alta de una empresa bajo la organización de la licencia. Sin empresas aún, el titular
-              solo gestiona el cupo.
-            </p>
-          )}
-        </div>
-        <EcuPageActions
-          items={actionItems}
-          variant="outline"
-          triggerLabel="Acciones de crear empresa"
-          renderIcon={renderSidebarIcon}
-          onNavigate={(route: string) => navigate(route)}
-        />
-      </div>
+    <div className="ecu-dashboard-layout">
+      <PageHeader
+        title="Crear Empresa"
+        subtitle={
+          quotaHint ||
+          'Alta de una empresa bajo la organización de la licencia. Sin empresas aún, el titular solo gestiona el cupo.'
+        }
+        badge={<StatusBadge tone="primary">Alta de Empresa</StatusBadge>}
+        actions={
+          <EcuPageActions
+            items={actionItems}
+            variant="outline"
+            triggerLabel="Acciones de crear empresa"
+            renderIcon={renderSidebarIcon}
+            onNavigate={(route: string) => navigate(route)}
+          />
+        }
+      />
 
       {error ? (
         <p className="welcome-onboarding__error" role="alert">
@@ -215,14 +215,10 @@ export function CreateCompanyPage() {
           }}
         />
 
-        <section className="app-shell__card ecu-companies-form__card">
-          <h2 className="app-shell__section-title">
-            <UserRound size={18} strokeWidth={1.75} aria-hidden /> Administrador (titular)
-          </h2>
-          <p className="ecu-companies-form__hint">
-            El correo queda fijado al del titular. Define la contraseña inicial del usuario en esta
-            empresa.
-          </p>
+        <SectionCard
+          title="Administrador (Titular)"
+          subtitle="El correo queda fijado al del titular. Define la contraseña inicial del usuario en esta empresa."
+        >
           <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
             <div className="ecu-companies-form__field">
               <TextBox
@@ -302,7 +298,7 @@ export function CreateCompanyPage() {
               />
             </div>
           </div>
-        </section>
+        </SectionCard>
 
         <div className="ecu-companies-form__actions">
           <Button

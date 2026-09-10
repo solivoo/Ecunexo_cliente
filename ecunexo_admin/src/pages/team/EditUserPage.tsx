@@ -1,5 +1,9 @@
 import { Button } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
+import {
+  EcuPageActions,
+  PageHeader,
+  StatusBadge,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { EditUserPasswordSection } from '@/features/identity/EditUserPasswordSection'
 import { EditUserProfileSection } from '@/features/identity/EditUserProfileSection'
@@ -13,7 +17,7 @@ export function EditUserPage() {
   if (!page.canUpdate) {
     return (
       <TenantSessionGate title="Editar usuario" lead="Actualiza la ficha de la persona.">
-        <div className="ecu-companies-page">
+        <div className="ecu-dashboard-layout">
           <p className="app-shell__page-lead">
             Requieres identity.users.update para editar usuarios.
           </p>
@@ -27,21 +31,38 @@ export function EditUserPage() {
 
   return (
     <TenantSessionGate title="Editar usuario" lead="Actualiza la ficha de la persona.">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            {page.user
-              ? `Editar a ${page.user.name} (${page.user.email}).`
-              : 'Editar datos de perfil.'}
-          </p>
-          <EcuPageActions
-            items={page.actionItems}
-            variant="outline"
-            triggerLabel="Acciones de editar usuario"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => page.navigate(route)}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title={page.user ? `Editar a ${page.user.name}` : 'Editar Usuario'}
+          subtitle={
+            page.user
+              ? `${page.user.email} · Modifica datos de contacto, departamento, rol o contraseña.`
+              : 'Actualiza los datos de la cuenta en esta empresa.'
+          }
+          badge={
+            <StatusBadge tone="primary" withDot>
+              Edición de Cuenta
+            </StatusBadge>
+          }
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => page.navigate(page.detailPath)}
+              >
+                Volver a la Ficha
+              </Button>
+              <EcuPageActions
+                items={page.actionItems}
+                variant="outline"
+                triggerLabel="Acciones"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => page.navigate(route)}
+              />
+            </>
+          }
+        />
 
         <PageLoadState
           loading={page.loading}

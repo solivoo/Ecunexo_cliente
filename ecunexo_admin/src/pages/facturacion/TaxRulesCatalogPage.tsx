@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useToast } from 'glubox'
+import {
+  PageHeader,
+  StatCard,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -78,30 +84,72 @@ export function TaxRulesCatalogPage() {
     [load, toast]
   )
 
+  if (!canRead) {
+    return (
+      <TenantSessionGate
+        title="Reglas SRI"
+        lead="Entra a una empresa para ver el catálogo de políticas tributarias."
+      >
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres facturacion.catalogos.read para consultar las reglas tributarias del SRI."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
+      </TenantSessionGate>
+    )
+  }
+
   return (
     <TenantSessionGate
       title="Reglas SRI"
-      lead="Entra a una empresa para ver el catálogo de políticas tributarias."
+      lead="Catálogo unificado de políticas tributarias y vigencias normativas del SRI."
     >
-      <div className="ecu-companies-page tax-rules-catalog">
-        <div className="ecu-page-header">
-          <div>
-            <h1 className="app-shell__page-title">Reglas SRI</h1>
-            <p className="app-shell__page-lead">
-              Cada tarjeta es un tipo de política. Si el SRI publica otra (plazos, retenciones,
-              etc.), aparece como una tarjeta más: no se mezclan en una sola tabla.
-            </p>
-          </div>
+      <div className="ecu-dashboard-layout tax-rules-catalog">
+        <PageHeader
+          title="Reglas y Catálogos SRI"
+          subtitle="Políticas tributarias y vigencias normativas dictadas por el SRI (plazos de transmisión, retenciones, tarifas). Cada grupo se administra de forma histórica."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              {kinds.length} {kinds.length === 1 ? 'Grupo' : 'Grupos'}
+            </StatusBadge>
+          }
+        />
+
+        <div className="ecu-stat-grid" aria-label="Resumen de reglas">
+          <StatCard
+            label="Grupos Normativos"
+            value={kinds.length}
+            icon="policy"
+            toneColor="#4f46e5"
+            footerText="Tipos de políticas fiscales"
+          />
+          <StatCard
+            label="Vigencias Registradas"
+            value={rows.length}
+            icon="rule"
+            toneColor="#10b981"
+            footerText="Reglas activas e históricas"
+          />
+          <StatCard
+            label="Servicio de Facturación"
+            value="Billing API"
+            icon="cloud_done"
+            toneColor="#0ea5e9"
+            footerText="Motor tributario conectado"
+          />
         </div>
 
-        {!canRead ? (
-          <p>Sin permiso para ver catálogos de facturación.</p>
-        ) : (
+        <SectionCard
+          title="Políticas Tributarias Vigentes"
+          subtitle="Esquemas de validación normativa y vigencias aplicadas en la emisión de comprobantes"
+        >
           <PageLoadState
             loading={loading}
             error={error}
             empty={kinds.length === 0}
-            emptyMessage="Aún no hay reglas en Billing.Api (:5203)."
+            emptyMessage="Aún no hay reglas configuradas en el motor tributario."
           >
             <div className="tax-rules-catalog__kinds sri-config-page">
               {kinds.map((kind) => (
@@ -115,7 +163,7 @@ export function TaxRulesCatalogPage() {
               ))}
             </div>
           </PageLoadState>
-        )}
+        </SectionCard>
       </div>
     </TenantSessionGate>
   )

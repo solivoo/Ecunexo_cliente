@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { formatDateTime } from '@/lib/formatDate'
 import {
@@ -49,17 +50,20 @@ export function OrganizationSettingsPage() {
   }, [settings])
 
   return (
-    <>
-      <h1 className="app-shell__page-title">Configuración</h1>
-      <p className="app-shell__page-lead">
-        Metadatos de la organización y preferencias resueltas por la plataforma.
-      </p>
+    <div className="ecu-dashboard-layout">
+      <PageHeader
+        title="Configuración de la Organización"
+        subtitle="Metadatos de la organización y preferencias resueltas por la plataforma."
+        badge={<StatusBadge tone="neutral">Sistema</StatusBadge>}
+      />
 
       <PageLoadState loading={loading} error={error} empty={!tenant}>
         {tenant ? (
           <>
-            <h2 className="app-shell__section-title">Organización</h2>
-            <div className="app-shell__card">
+            <SectionCard
+              title="Metadatos de la Organización"
+              subtitle="Identificador único y marcas de tiempo del tenant"
+            >
               <dl className="ecu-dl">
                 <dt>Identificador</dt>
                 <dd>
@@ -72,10 +76,12 @@ export function OrganizationSettingsPage() {
                 <dt>Actualizado</dt>
                 <dd>{formatDateTime(tenant.updatedAt)}</dd>
               </dl>
-            </div>
+            </SectionCard>
 
-            <h2 className="app-shell__section-title">Preferencias</h2>
-            <div className="app-shell__card">
+            <SectionCard
+              title="Preferencias Resueltas"
+              subtitle="Parámetros efectivos activos para la sesión actual"
+            >
               {settingEntries.length > 0 ? (
                 <dl className="ecu-dl">
                   {settingEntries.map(([code, value]) => (
@@ -87,7 +93,7 @@ export function OrganizationSettingsPage() {
                   No hay ajustes resueltos para esta sesión.
                 </p>
               )}
-            </div>
+            </SectionCard>
           </>
         ) : null}
       </PageLoadState>
@@ -96,7 +102,7 @@ export function OrganizationSettingsPage() {
         Integraciones, notificaciones por correo y parámetros avanzados se habilitarán cuando existan
         endpoints de administración en la Api.
       </p>
-    </>
+    </div>
   )
 }
 

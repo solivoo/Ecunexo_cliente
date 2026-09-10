@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
-import { Package } from 'lucide-react'
+import {
+  EcuPageActions,
+  PageHeader,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -160,11 +164,20 @@ export function CreateCatalogItemPage() {
   if (!canCreate) {
     return (
       <TenantSessionGate title="Nuevo ítem" lead="Alta en el maestro de catálogo.">
-        <div className="ecu-companies-page">
-          <p className="app-shell__page-lead">Requieres catalog.item.create para crear ítems.</p>
-          <Button type="button" variant="outline" onClick={goToList}>
-            Volver al listado
-          </Button>
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres catalog.item.create para dar de alta nuevos productos o servicios."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+          <SectionCard title="Permisos insuficientes">
+            <p className="app-shell__muted" style={{ marginBottom: '1rem' }}>
+              No posees las credenciales requeridas para registrar ítems en el catálogo de esta empresa.
+            </p>
+            <Button type="button" variant="outline" onClick={goToList}>
+              Volver al listado
+            </Button>
+          </SectionCard>
         </div>
       </TenantSessionGate>
     )
@@ -172,41 +185,48 @@ export function CreateCatalogItemPage() {
 
   return (
     <TenantSessionGate title="Nuevo ítem" lead="Alta en el maestro de catálogo (sin stock).">
-      <div className="ecu-companies-page">
-        <div className="ecu-page-header">
-          <p className="app-shell__page-lead">
-            Elige servicio para captar clientes sin inventario, o físico si ya manejas SKU.
-          </p>
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de crear ítem"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-          />
-        </div>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Nuevo Ítem"
+          subtitle="Registra un producto físico o servicio intangible. Los productos físicos requieren código SKU para su control en inventario."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              Alta de Ítem
+            </StatusBadge>
+          }
+          actions={
+            <EcuPageActions
+              items={actionItems}
+              variant="outline"
+              triggerLabel="Acciones de nuevo ítem"
+              renderIcon={renderSidebarIcon}
+              onNavigate={(route: string) => navigate(route)}
+            />
+          }
+        />
 
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
+        <form onSubmit={(e) => void onSubmit(e)} noValidate>
+          <SectionCard
+            title="Información Comercial del Ítem"
+            subtitle="Configura la clasificación comercial, identificación técnica y atributos de molde de categoría"
+          >
+            {error ? (
+              <div className="ecu-form-error-banner" role="alert">
+                <span className="material-symbols-outlined">error</span>
+                <span>{error}</span>
+              </div>
+            ) : null}
 
-        <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-          <section className="app-shell__card ecu-companies-form__card">
-            <h2 className="app-shell__section-title">
-              <Package size={18} strokeWidth={1.75} aria-hidden /> Ítem
-            </h2>
             <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
               <div className="ecu-companies-form__field">
                 <Select
                   id="ci-kind"
-                  label="Tipo"
+                  label="Tipo de ítem"
                   labelPosition="outlined"
                   variant="outline"
                   options={[
-                    { value: String(CatalogItemKind.Service), label: 'Servicio' },
-                    { value: String(CatalogItemKind.Physical), label: 'Físico' },
+                    { value: String(CatalogItemKind.Service), label: 'Servicio (intangible)' },
+                    { value: String(CatalogItemKind.Physical), label: 'Físico (con inventario)' },
                   ]}
                   value={kind}
                   onChange={setKind}
@@ -230,11 +250,12 @@ export function CreateCatalogItemPage() {
               <div className="ecu-companies-form__field">
                 <TextBox
                   id="ci-name"
-                  label="Nombre"
+                  label="Nombre del producto o servicio"
                   labelPosition="outlined"
                   variant="outline"
                   value={name}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                  placeholder="Ej. Soporte Técnico Mensual"
                   required
                   disabled={busy}
                   fullWidth
@@ -243,13 +264,14 @@ export function CreateCatalogItemPage() {
               <div className="ecu-companies-form__field">
                 <TextBox
                   id="ci-sku"
-                  label={kind === String(CatalogItemKind.Physical) ? 'SKU' : 'SKU (opcional)'}
+                  label={kind === String(CatalogItemKind.Physical) ? 'Código SKU (obligatorio)' : 'Código SKU (opcional)'}
                   labelPosition="outlined"
                   variant="outline"
                   value={sku}
                   onChange={(e: ChangeEvent<HTMLInputElement>) =>
                     setSku(e.target.value.toUpperCase())
                   }
+                  placeholder="PROD-001"
                   required={kind === String(CatalogItemKind.Physical)}
                   disabled={busy}
                   fullWidth
@@ -258,23 +280,25 @@ export function CreateCatalogItemPage() {
               <div className="ecu-companies-form__field">
                 <TextBox
                   id="ci-price"
-                  label="Precio base"
+                  label="Precio base de venta"
                   labelPosition="outlined"
                   variant="outline"
                   value={basePrice}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
+                  placeholder="0.00"
                   disabled={busy}
                   fullWidth
                 />
               </div>
-              <div className="ecu-companies-form__field">
+              <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
                 <TextBox
                   id="ci-desc"
-                  label="Descripción"
+                  label="Descripción comercial o especificaciones"
                   labelPosition="outlined"
                   variant="outline"
                   value={description}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+                  placeholder="Detalles y características para facturación y reportes…"
                   disabled={busy}
                   fullWidth
                 />
@@ -287,16 +311,23 @@ export function CreateCatalogItemPage() {
                 onChange={(key, next) => setAttrValues((prev) => ({ ...prev, [key]: next }))}
               />
             </div>
-          </section>
 
-          <div className="ecu-companies-form__actions">
-            <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-              Guardar
-            </Button>
-            <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
-              Atrás
-            </Button>
-          </div>
+            <div
+              className="ecu-companies-form__actions"
+              style={{
+                marginTop: '1.5rem',
+                paddingTop: '1rem',
+                borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+              }}
+            >
+              <Button type="submit" variant="primary" loading={busy} disabled={busy}>
+                Guardar Ítem
+              </Button>
+              <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
+                Cancelar
+              </Button>
+            </div>
+          </SectionCard>
         </form>
       </div>
     </TenantSessionGate>

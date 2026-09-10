@@ -1,4 +1,5 @@
 import { useAppPreferences } from '@/features/settings/AppPreferencesProvider'
+import { PageHeader, StatusBadge } from '@/components/ui'
 import { AppSettingsAppearanceSection } from '@/pages/settings/AppSettingsAppearanceSection'
 import { AppSettingsListsSection } from '@/pages/settings/AppSettingsListsSection'
 import { AppSettingsSystemSection } from '@/pages/settings/AppSettingsSystemSection'
@@ -13,21 +14,23 @@ export function AppSettingsPage() {
 
   if (!canRead) {
     return (
-      <div className="ecu-companies-page">
-        <h1 className="app-shell__page-title">Preferencias</h1>
-        <p className="app-shell__page-lead">
-          No tienes permiso para ver las preferencias de la aplicación.
-        </p>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Preferencias"
+          subtitle="No tienes permiso para ver las preferencias de la aplicación."
+          badge={<StatusBadge tone="danger">Acceso Restringido</StatusBadge>}
+        />
       </div>
     )
   }
 
   return (
-    <div className="ecu-companies-page">
-      <h1 className="app-shell__page-title">Preferencias</h1>
-      <p className="app-shell__page-lead">
-        Preferencias de tu usuario y apariencia. Se guardan y se aplican al instante.
-      </p>
+    <div className="ecu-dashboard-layout">
+      <PageHeader
+        title="Preferencias del Sistema"
+        subtitle="Personaliza la apariencia, densidad, tema de interfaz, notificaciones y comportamiento de listados."
+        badge={<StatusBadge tone="primary">Ajustes</StatusBadge>}
+      />
       {persistError ? <p className="ecu-companies-form__hint" role="alert">{persistError}</p> : null}
       {!canUpdate ? (
         <p className="ecu-companies-form__hint">

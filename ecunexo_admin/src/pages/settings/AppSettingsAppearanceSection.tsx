@@ -1,5 +1,5 @@
 import { Button, CheckButton, Select, useToast } from 'glubox'
-import { Palette } from 'lucide-react'
+import { SectionCard } from '@/components/ui'
 import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import {
   TOAST_POSITION_OPTIONS,
@@ -53,13 +53,10 @@ export function AppSettingsAppearanceSection({
   }
 
   return (
-    <section className="app-shell__card ecu-companies-form__card">
-      <h2 className="app-shell__section-title">
-        <Palette size={18} strokeWidth={1.75} aria-hidden /> Aspecto
-      </h2>
-      <p className="ecu-companies-form__hint">
-        Paleta gluBox (componentes y chrome de la app), tamaño de controles, modo al abrir y ubicación de avisos emergentes.
-      </p>
+    <SectionCard
+      title="Aspecto y Experiencia Visual"
+      subtitle="Paleta gluBox (componentes y chrome de la app), tamaño de controles, modo al abrir y ubicación de avisos emergentes."
+    >
       <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
         <div className="ecu-companies-form__field">
           <Select
@@ -126,6 +123,6 @@ export function AppSettingsAppearanceSection({
           </Button>
         </div>
       </div>
-    </section>
+    </SectionCard>
   )
 }

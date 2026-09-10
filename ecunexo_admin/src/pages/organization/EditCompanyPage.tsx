@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, useToast, type PageActionItem } from 'glubox'
+import { PageHeader, StatusBadge } from '@/components/ui'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { CompanyBrandingFields } from '@/features/organization/components/CompanyBrandingFields'
 import { CompanyLegalFields } from '@/features/organization/components/CompanyLegalFields'
@@ -90,10 +91,12 @@ export function EditCompanyPage() {
 
   if (!canUpdate) {
     return (
-      <div className="ecu-companies-page">
-        <p className="app-shell__page-lead">
-          Requieres el permiso tenancy.tenants.update para editar empresas.
-        </p>
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Editar Empresa"
+          subtitle="Requieres el permiso tenancy.tenants.update para editar empresas."
+          badge={<StatusBadge tone="danger">Acceso Restringido</StatusBadge>}
+        />
         <Button type="button" variant="outline" onClick={() => navigate(LIST_PATH)}>
           Volver al listado
         </Button>
@@ -102,20 +105,21 @@ export function EditCompanyPage() {
   }
 
   return (
-    <div className="ecu-companies-page">
-      <div className="ecu-page-header">
-        <p className="app-shell__page-lead">
-          Edita el nombre, branding e identidad legal. Puntos de emisión, secuencial y modo SRI
-          están en Facturación electrónica (entra a la empresa primero).
-        </p>
-        <EcuPageActions
-          items={actionItems}
-          variant="outline"
-          triggerLabel="Acciones de editar empresa"
-          renderIcon={renderSidebarIcon}
-          onNavigate={(route: string) => navigate(route)}
-        />
-      </div>
+    <div className="ecu-dashboard-layout">
+      <PageHeader
+        title="Editar Empresa"
+        subtitle="Edita el nombre comercial, branding corporativo e identidad legal. Puntos de emisión, secuencial y modo SRI están en Facturación electrónica."
+        badge={<StatusBadge tone="primary">Modo Edición</StatusBadge>}
+        actions={
+          <EcuPageActions
+            items={actionItems}
+            variant="outline"
+            triggerLabel="Acciones de editar empresa"
+            renderIcon={renderSidebarIcon}
+            onNavigate={(route: string) => navigate(route)}
+          />
+        }
+      />
 
       <PageLoadState
         loading={loading}
