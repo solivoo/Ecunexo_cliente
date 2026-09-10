@@ -5,7 +5,17 @@ Una carpeta por plan. Lo que no depende del plan vive en `comun/`.
 ```
 tests-ui/
   helpers/                 credenciales, matriz, sesión, ciclo de licencia
-  comun/                   login, equipo, listados, toolbars
+  comun/                   pruebas de UI ordenadas por módulo y diseño M3:
+    login.spec.ts          formulario de acceso y validaciones
+    enterprise-shell-ui    barra superior, modo oscuro/claro y modal Acerca de
+    command-palette.spec   buscador global (Ctrl + K), atajos y navegación
+    dashboard-ui.spec      panel central M3, StatCards (KPIs) y SectionCards
+    identity-equipo.spec   usuarios, roles, departamentos y seguridad
+    catalogo-ui.spec       catálogo de items, categorías y tiras de métricas
+    bodegas-inventario-ui  bodegas, stock, documentos y kardex físico
+    organizacion-ui.spec   empresas multi-tenant, perfil, plan y facturación SRI
+    configuracion.spec     preferencias del sistema y listados
+    grids-toolbar.spec     toolbars masivos de comprobantes, compras y SRI
   planes/
     independiente/         Loma Soft — servicio + factura, sin stock
     local/                 Ferretería El Perno — 1 bodega, recepción, factura (sin SRI)

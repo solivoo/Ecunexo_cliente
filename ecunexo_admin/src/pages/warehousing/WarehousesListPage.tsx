@@ -31,9 +31,11 @@ export function WarehousesListPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
-  const canRead = useHasPermission('warehousing.read') || useHasPermission('warehousing.locations.manage')
-  const canManage =
-    useHasPermission('warehousing.locations.manage') || useHasPermission('warehousing.warehouse.manage')
+  const canReadWarehousing = useHasPermission('warehousing.read')
+  const canManageLocations = useHasPermission('warehousing.locations.manage')
+  const canManageWarehouse = useHasPermission('warehousing.warehouse.manage')
+  const canRead = canReadWarehousing || canManageLocations
+  const canManage = canManageLocations || canManageWarehouse
   const [rows, setRows] = useState<WarehouseListItemDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

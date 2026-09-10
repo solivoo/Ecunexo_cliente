@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ThemeToggleButton } from '@/components/ui/ThemeToggleButton'
 import { SessionBootstrap } from '@/features/auth/SessionBootstrap'
@@ -9,6 +9,11 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { AppSidebar } from '@/shell/AppSidebar'
 import { AppShellUserMenu } from '@/shell/components/AppShellUserMenu'
 import { AboutAppModal } from '@/components/about/AboutAppModal'
+import {
+  CommandPaletteModal,
+  CommandPaletteTrigger,
+  useCommandPaletteItems,
+} from '@/components/command-palette'
 import { APP_VERSION_INFO } from '@/config/appVersion'
 import './appShell.css'
 
@@ -20,6 +25,7 @@ export function DashboardLayout() {
   const permissions = useAppSelector(selectPermissions)
   const [collapsed, setCollapsed] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [commandOpen, setCommandOpen] = useState(false)
   const menu = useMemo(() => navigationToMenuConfig(navigation, permissions), [navigation, permissions])
   const pageTitle = getPageTitle(pathname, menu, 'EcuNexo', search)
 
@@ -27,6 +33,24 @@ export function DashboardLayout() {
     dispatch(clearCredentials())
     void navigate('/', { replace: true })
   }, [dispatch, navigate])
+
+  const commandItems = useCommandPaletteItems({
+    onOpenAbout: () => setAboutOpen(true),
+    onLogout: logout,
+  })
+
+  // Listener global para Ctrl + K / Cmd + K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setCommandOpen((prev) => !prev)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   return (
     <div className={`app-shell${collapsed ? ' app-shell--collapsed' : ''}`}>
@@ -60,6 +84,9 @@ export function DashboardLayout() {
           <div className="app-shell__header-start">
             <span className="app-shell__header-title">{pageTitle}</span>
           </div>
+          <div className="app-shell__header-center">
+            <CommandPaletteTrigger onClick={() => setCommandOpen(true)} />
+          </div>
           <div className="app-shell__header-end">
             <ThemeToggleButton variant="icon" />
             <AppShellUserMenu onLogout={logout} onOpenAbout={() => setAboutOpen(true)} />
@@ -71,6 +98,11 @@ export function DashboardLayout() {
       </div>
 
       <AboutAppModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <CommandPaletteModal
+        open={commandOpen}
+        onClose={() => setCommandOpen(false)}
+        items={commandItems}
+      />
     </div>
   )
 }

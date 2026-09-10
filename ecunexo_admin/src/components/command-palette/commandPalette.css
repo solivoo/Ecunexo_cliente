@@ -1,0 +1,496 @@
+/* ==========================================================================
+   ECUNEXO GLOBAL SEARCH & COMMAND PALETTE (CTRL + K)
+   Google Material Design 3 + Enterprise SaaS Pattern
+   ========================================================================== */
+
+/* ── Top Bar Search Trigger Button ─────────────────────────────────────── */
+.ecu-cmd-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  width: 100%;
+  max-width: 380px;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--shell-border);
+  background: color-mix(in srgb, var(--shell-bg) 50%, var(--shell-surface));
+  color: var(--shell-muted);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.ecu-cmd-trigger:hover {
+  background: var(--shell-surface);
+  border-color: color-mix(in srgb, var(--shell-primary) 45%, transparent);
+  color: var(--shell-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.ecu-cmd-trigger:focus-visible {
+  border-color: var(--shell-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--shell-primary) 15%, transparent);
+}
+
+.ecu-cmd-trigger__start {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ecu-cmd-trigger__icon {
+  font-size: 1.125rem;
+  color: var(--shell-muted);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.ecu-cmd-trigger:hover .ecu-cmd-trigger__icon {
+  color: var(--shell-primary);
+}
+
+.ecu-cmd-trigger__text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.ecu-cmd-trigger__kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.125rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--shell-border) 80%, transparent);
+  background: color-mix(in srgb, var(--shell-surface) 90%, var(--shell-border));
+  color: var(--shell-muted);
+  line-height: 1.2;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* ── Modal Backdrop & Layout ───────────────────────────────────────────── */
+.ecu-cmd-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: clamp(2rem, 10vh, 5.5rem) 1rem 1.5rem;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: ecuCmdFadeIn 0.15s ease-out;
+}
+
+html.sf-dark-mode .ecu-cmd-backdrop {
+  background: rgba(0, 0, 0, 0.68);
+}
+
+@keyframes ecuCmdFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ecu-cmd-modal {
+  width: 100%;
+  max-width: 620px;
+  max-height: min(85vh, 640px);
+  background: var(--shell-surface);
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--shell-border) 85%, transparent);
+  box-shadow:
+    0 24px 48px -12px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ecuCmdSlideDown 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ecuCmdSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Modal Header & Search Input ───────────────────────────────────────── */
+.ecu-cmd-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid var(--shell-border);
+  background: var(--shell-surface);
+}
+
+.ecu-cmd-modal__search-icon {
+  font-size: 1.35rem;
+  color: var(--shell-primary);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.ecu-cmd-modal__input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 1.025rem;
+  font-weight: 500;
+  color: var(--shell-text);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  min-width: 0;
+}
+
+.ecu-cmd-modal__input::placeholder {
+  color: var(--shell-muted);
+  opacity: 0.75;
+}
+
+.ecu-cmd-modal__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: none;
+  background: color-mix(in srgb, var(--shell-border) 60%, transparent);
+  color: var(--shell-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+  transition: all 0.12s ease;
+}
+
+.ecu-cmd-modal__clear:hover {
+  background: color-mix(in srgb, var(--shell-border) 90%, transparent);
+  color: var(--shell-text);
+}
+
+.ecu-cmd-modal__esc-badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 5px;
+  border: 1px solid var(--shell-border);
+  background: color-mix(in srgb, var(--shell-bg) 60%, var(--shell-surface));
+  color: var(--shell-muted);
+}
+
+/* ── Modal Results List ────────────────────────────────────────────────── */
+.ecu-cmd-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.65rem 0.5rem;
+  max-height: clamp(260px, 48vh, 420px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--shell-border) transparent;
+}
+
+.ecu-cmd-modal__body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ecu-cmd-modal__body::-webkit-scrollbar-thumb {
+  background: var(--shell-border);
+  border-radius: 4px;
+}
+
+.ecu-cmd-group {
+  margin-bottom: 0.75rem;
+}
+
+.ecu-cmd-group:last-child {
+  margin-bottom: 0.25rem;
+}
+
+.ecu-cmd-group__title {
+  padding: 0.35rem 0.75rem 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--shell-muted);
+}
+
+.ecu-cmd-group__items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── Individual Result Item ────────────────────────────────────────────── */
+.ecu-cmd-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.ecu-cmd-item:hover,
+.ecu-cmd-item--active {
+  background: color-mix(in srgb, var(--shell-primary) 8%, var(--shell-surface));
+  border-color: color-mix(in srgb, var(--shell-primary) 20%, transparent);
+}
+
+html.sf-dark-mode .ecu-cmd-item:hover,
+html.sf-dark-mode .ecu-cmd-item--active {
+  background: color-mix(in srgb, var(--shell-primary) 18%, var(--shell-surface));
+  border-color: color-mix(in srgb, var(--shell-primary) 35%, transparent);
+}
+
+.ecu-cmd-item__start {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ecu-cmd-item__icon-wrap {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--shell-primary) 10%, transparent);
+  color: var(--shell-primary);
+  transition: all 0.12s ease;
+  overflow: hidden;
+}
+
+.ecu-cmd-item--active .ecu-cmd-item__icon-wrap {
+  background: var(--shell-primary);
+  color: #ffffff;
+}
+
+.ecu-cmd-item__icon {
+  font-size: 1.15rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  line-height: 1;
+}
+
+.ecu-cmd-item__content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ecu-cmd-item__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--shell-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.ecu-cmd-item--active .ecu-cmd-item__title {
+  color: var(--shell-primary);
+}
+
+html.sf-dark-mode .ecu-cmd-item--active .ecu-cmd-item__title {
+  color: #ffffff;
+}
+
+.ecu-cmd-item__subtitle {
+  font-size: 0.75rem;
+  color: var(--shell-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.ecu-cmd-item__end {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.ecu-cmd-item__badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--shell-border) 65%, transparent);
+  color: var(--shell-muted);
+  white-space: nowrap;
+}
+
+.ecu-cmd-item__enter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--shell-primary) 12%, transparent);
+  color: var(--shell-primary);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.12s ease;
+}
+
+.ecu-cmd-item--active .ecu-cmd-item__enter {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ── Empty State ───────────────────────────────────────────────────────── */
+.ecu-cmd-modal__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--shell-muted);
+}
+
+.ecu-cmd-modal__empty-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--shell-border) 40%, transparent);
+  color: var(--shell-muted);
+  margin-bottom: 1rem;
+}
+
+.ecu-cmd-modal__empty-icon .material-symbols-outlined {
+  font-size: 1.85rem;
+}
+
+.ecu-cmd-modal__empty-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--shell-text);
+  margin-bottom: 0.35rem;
+}
+
+.ecu-cmd-modal__empty-desc {
+  font-size: 0.8125rem;
+  max-width: 360px;
+  line-height: 1.4;
+  color: var(--shell-muted);
+}
+
+/* ── Modal Footer with Keyboard Navigation Shortcuts ───────────────────── */
+.ecu-cmd-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 1.15rem;
+  background: color-mix(in srgb, var(--shell-bg) 45%, var(--shell-surface));
+  border-top: 1px solid var(--shell-border);
+  font-size: 0.75rem;
+  color: var(--shell-muted);
+}
+
+.ecu-cmd-modal__shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.ecu-cmd-modal__shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ecu-cmd-modal__shortcut kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--shell-border) 80%, transparent);
+  background: var(--shell-surface);
+  color: var(--shell-text);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.ecu-cmd-modal__brand {
+  font-weight: 600;
+  font-size: 0.725rem;
+  color: var(--shell-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* ── Responsive Adaptations ────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .ecu-cmd-trigger {
+    max-width: 180px;
+    padding: 0 0.5rem;
+  }
+
+  .ecu-cmd-trigger__text {
+    font-size: 0.75rem;
+  }
+
+  .ecu-cmd-trigger__kbd {
+    display: none;
+  }
+
+  .ecu-cmd-backdrop {
+    padding: 1rem 0.5rem;
+  }
+
+  .ecu-cmd-modal {
+    max-height: 90vh;
+    border-radius: 12px;
+  }
+
+  .ecu-cmd-modal__footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+}

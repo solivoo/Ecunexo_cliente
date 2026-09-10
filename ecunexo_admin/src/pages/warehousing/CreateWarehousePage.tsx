@@ -19,8 +19,9 @@ export function CreateWarehousePage() {
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
-  const canManage =
-    useHasPermission('warehousing.locations.manage') || useHasPermission('warehousing.warehouse.manage')
+  const canManageLocations = useHasPermission('warehousing.locations.manage')
+  const canManageWarehouse = useHasPermission('warehousing.warehouse.manage')
+  const canManage = canManageLocations || canManageWarehouse
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')

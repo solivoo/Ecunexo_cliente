@@ -38,8 +38,9 @@ export function EditWarehousePage() {
   const navigate = useNavigate()
   const { warehouseId } = useParams<{ warehouseId: string }>()
   const tenantId = useAppSelector(selectTenantId)
-  const canManage =
-    useHasPermission('warehousing.locations.manage') || useHasPermission('warehousing.warehouse.manage')
+  const canManageLocations = useHasPermission('warehousing.locations.manage')
+  const canManageWarehouse = useHasPermission('warehousing.warehouse.manage')
+  const canManage = canManageLocations || canManageWarehouse
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

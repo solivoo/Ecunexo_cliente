@@ -95,6 +95,15 @@ Las tablas `glubox` deben estar acompañadas de una barra superior consistente:
 - Filtros por estado o categoría (`Select` o Chips).
 - Acciones rápidas (Refrescar, Exportar CSV/PDF, Acciones en lote).
 
+### 3.6. Command Palette & Top Bar Global Search (`Ctrl + K` / `Cmd + K`)
+Acceso rápido universal montado en el header del layout principal:
+- Disparador visual en header con atajo `<kbd>Ctrl K</kbd>` (o `<kbd>⌘K</kbd>` en macOS).
+- Modal flotante con fondo difuminado (`backdrop-filter: blur(8px)`).
+- Búsqueda en tiempo real con normalización de acentos y sinónimos.
+- Agrupamiento semántico: *Acciones Rápidas*, *Navegación* y *Sistema y Preferencias*.
+- Navegación completa por teclado (`↑` / `↓` para mover selección, `↵` para ejecutar, `Esc` para salir).
+- Filtrado dinámico por permisos activos de sesión (`selectVisibleNavigation` y `selectPermissions`).
+
 ---
 
 ## 4. Estándares de Color y Modo Oscuro
@@ -115,6 +124,19 @@ Las tablas `glubox` deben estar acompañadas de una barra superior consistente:
 
 ## 5. Historial de Versiones & Features
 
+### v0.3.0 — Global Command Palette & Comprehensive UI Test Suite
+- **Buscador Global & Command Palette (`Ctrl + K` / `Cmd + K`)**:
+  - `CommandPaletteTrigger`: Disparador responsivo en la barra superior con detección inteligente de atajo (`⌘K` en macOS, `Ctrl K` en Linux/Windows).
+  - `CommandPaletteModal`: Modal flotante con desenfoque de fondo (`backdrop-filter: blur(8px)`), auto-enfoque al abrir y navegación total por teclado (`↑↓↵ Esc`).
+  - Motor de búsqueda en memoria con normalización de acentos y sinónimos para acciones rápidas, rutas autorizadas del inquilino y ajustes de apariencia.
+  - Sincronización instantánea de modo claro/oscuro y copia de diagnóstico técnico para soporte.
+- **Iconografía SVG Nativa (Lucide Integration)**:
+  - Registro de glifos SVG nativos (`Sparkles`, `Copy`, `Info`, `LogOut`, `Sun`, `Moon`, `Check`, `FolderTree`) para evitar fallos tipográficos en ligaduras de fuentes.
+  - Contención CSS con `overflow: hidden` y dimensionado estricto `width/height: 1.15rem`.
+- **Suite de Pruebas Automatizadas de UI (`tests-ui/comun/`)**:
+  - 71 pruebas automatizadas estructuradas en 25 archivos Playwright.
+  - Cobertura completa de Enterprise Shell, Command Palette, Dashboard M3, Catálogo, Bodegas e Inventario, y Organización multi-tenant.
+
 ### v0.2.0 — Modern Enterprise SaaS & Google Material Design 3
 - **Capa de Primitivos Empresariales (`src/components/ui/`)**:
   - `PageHeader`: Cabecera estandarizada con jerarquía tipográfica, badge contextual y ranura de acciones alineadas.
@@ -132,6 +154,8 @@ Las tablas `glubox` deben estar acompañadas de una barra superior consistente:
   - **Compras & Facturación SRI**: Emisión de facturas, monitor SRI, comprobantes electrónicos y retenciones.
   - **Organización & Licenciamiento**: Cupos multi-tenant, alta/baja de empresas y suscripción.
   - **Ajustes & Preferencias**: Personalización de densidad, temas de interfaz y diagnóstico técnico.
+- **Navegación & Productividad Global**:
+  - **Command Palette (`Ctrl + K` / `Cmd + K`)**: Buscador modal omnipresente en el header con auto-enfoque, navegación por teclado (`↑↓↵`), ejecución instantánea de acciones directas (`+ Factura`, `+ Usuario`, `+ Bodega`), alternancia de tema claro/oscuro y salto entre rutas autorizadas.
 - **Compatibilidad**:
   - Soporte total para modo oscuro (`html.sf-dark-mode`) con contraste elevado y bordes sutiles.
   - Sincronización completa con la suite de pruebas automatizadas Playwright E2E (`tests-ui/`).
