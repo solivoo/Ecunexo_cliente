@@ -6,6 +6,7 @@ import type {
   CancelBatchResponse,
   ConfirmPhotoUploadBody,
   CreateCustomerBody,
+  UpdateCustomerBody,
   CreateRepairDispatchBody,
   ImportBatchResponseDto,
   PresignedUploadResponse,
@@ -124,6 +125,30 @@ export async function createRepairCustomer(
   const { data } = await api.post<RepairCustomerDto>(
     `/api/v1/tenants/${tenantId}/repairs/customers`,
     body
+  )
+  return data
+}
+
+export async function updateRepairCustomer(
+  tenantId: string,
+  customerId: string,
+  body: UpdateCustomerBody
+): Promise<RepairCustomerDto> {
+  const { data } = await api.put<RepairCustomerDto>(
+    `/api/v1/tenants/${tenantId}/repairs/customers/${customerId}`,
+    body
+  )
+  return data
+}
+
+export async function toggleRepairCustomerStatus(
+  tenantId: string,
+  customerId: string,
+  isActive: boolean
+): Promise<RepairCustomerDto> {
+  const { data } = await api.patch<RepairCustomerDto>(
+    `/api/v1/tenants/${tenantId}/repairs/customers/${customerId}/status`,
+    { isActive }
   )
   return data
 }

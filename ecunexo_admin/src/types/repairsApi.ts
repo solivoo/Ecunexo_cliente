@@ -73,6 +73,17 @@ export type CreateCustomerBody = {
   notes?: string | null
 }
 
+export type UpdateCustomerBody = {
+  name: string
+  taxId?: string | null
+  contactEmail?: string | null
+  contactPhone?: string | null
+  address?: string | null
+  contactPerson?: string | null
+  notes?: string | null
+  isActive?: boolean
+}
+
 export type BatchListItemDto = {
   id: string
   batchNumber: string

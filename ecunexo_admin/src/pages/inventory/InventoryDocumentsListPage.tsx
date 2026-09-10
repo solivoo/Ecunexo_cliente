@@ -169,13 +169,6 @@ export function InventoryDocumentsListPage() {
         route: '/inventario/documentos/nuevo?tipo=2',
         disabled: false,
       })
-      items.push({
-        id: 'create',
-        label: 'Nuevo documento',
-        icon: 'file-text',
-        route: '/inventario/documentos/nuevo',
-        disabled: false,
-      })
     }
     items.push(
       {

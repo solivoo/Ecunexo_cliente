@@ -124,31 +124,20 @@ export function CorporatePortalPage() {
         disabled: false,
       })
     }
-    items.push(
-      {
-        id: 'report',
-        label: 'Descargar informe Excel',
-        icon: 'download',
-        route: null,
-        disabled: downloadingReport,
-      },
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        route: null,
-        disabled: loading,
-      }
-    )
+    items.push({
+      id: 'refresh',
+      label: 'Actualizar',
+      icon: 'refresh-cw',
+      route: null,
+      disabled: loading,
+    })
     return items
-  }, [canReadBatches, canReadDispatches, downloadingReport, loading])
+  }, [canReadBatches, canReadDispatches, loading])
 
   const handleActionSelect = useCallback(
     (item: PageActionItem) => {
       if (item.id === 'refresh') {
         void load()
-      } else if (item.id === 'report') {
-        void handleDownloadReport()
       }
     },
     [load]

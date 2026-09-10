@@ -126,6 +126,7 @@ internal static class MenuCatalogSeedData
         Item("repairs-batches", "repairs", "Lotes de Equipos", "layers", "taller/lotes", 1, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
         Item("repairs-dispatches", "repairs", "Actas y Despachos", "truck", "taller/despachos", 2, MenuContextKind.Operational, "repairs", ["repairs.dispatches.create", "repairs.batches.read"]),
         Item("repairs-portal", "repairs", "Portal Corporativo", "eye", "taller/portal", 3, MenuContextKind.Operational, "repairs", ["repairs.b2b.portal.view"]),
+        Item("repairs-customers", "repairs", "Directorio de Clientes", "users", "taller/clientes", 4, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Comprobantes", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),

@@ -62,15 +62,6 @@ export function DepartmentsListPage() {
 
   const actionItems = useMemo<PageActionItem[]>(() => {
     const items: PageActionItem[] = []
-    if (canManage) {
-      items.push({
-        id: 'create',
-        label: 'Nuevo departamento',
-        icon: 'plus',
-        route: '/equipo/departamentos/nuevo',
-        disabled: false,
-      })
-    }
     items.push(
       {
         id: 'users',

@@ -77,6 +77,7 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
                   { id: 'batches', label: 'Lotes B2B', route: '/taller/lotes', children: [] },
                   { id: 'dispatches', label: 'Despachos', route: '/taller/despachos', children: [] },
                   { id: 'portal', label: 'Portal Corporativo', route: '/taller/portal', children: [] },
+                  { id: 'customers', label: 'Directorio de Clientes', route: '/taller/clientes', children: [] },
                 ],
               },
             ],
@@ -123,19 +124,85 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
         })
       })
 
+      const mockCustomers = [
+        {
+          id: 'cust-001',
+          name: 'Whirlpool del Ecuador S.A.',
+          taxId: '1790012345001',
+          contactEmail: 'servicio@whirlpool.ec',
+          contactPhone: '042999888',
+          contactPerson: 'Ing. Carlos Mendoza',
+          address: 'Av. Juan Tanca Marengo Km 4.5',
+          notes: 'Contrato corporativo oficial',
+          isActive: true,
+          active: true,
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ]
+
+      await page.route('**/api/v1/tenants/*/repairs/customers/**', async (route) => {
+        const url = route.request().url()
+        if (url.includes('/status') && route.request().method() === 'PATCH') {
+          const body = route.request().postDataJSON()
+          const cust = mockCustomers.find((c) => url.includes(c.id))
+          if (cust) {
+            cust.isActive = body.isActive
+            cust.active = body.isActive
+          }
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(cust || {}),
+          })
+          return
+        }
+
+        if (route.request().method() === 'PUT') {
+          const body = route.request().postDataJSON()
+          const cust = mockCustomers.find((c) => url.includes(c.id))
+          if (cust) {
+            Object.assign(cust, body)
+          }
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(cust || {}),
+          })
+          return
+        }
+
+        await route.continue()
+      })
+
       await page.route('**/api/v1/tenants/*/repairs/customers', async (route) => {
+        if (route.request().method() === 'POST') {
+          const body = route.request().postDataJSON()
+          const created = {
+            id: `cust-${Date.now()}`,
+            name: body.name,
+            taxId: body.taxId || null,
+            contactPerson: body.contactPerson || null,
+            contactEmail: body.contactEmail || null,
+            contactPhone: body.contactPhone || null,
+            address: body.address || null,
+            notes: body.notes || null,
+            isActive: true,
+            active: true,
+            createdAt: new Date().toISOString(),
+          }
+          mockCustomers.push(created)
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(created),
+          })
+          return
+        }
+
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify([
-            {
-              id: 'cust-001',
-              name: 'Whirlpool del Ecuador S.A.',
-              taxId: '1790012345001',
-              contactEmail: 'servicio@whirlpool.ec',
-              active: true,
-            },
-          ]),
+          body: JSON.stringify(mockCustomers),
         })
       })
 
@@ -534,6 +601,55 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
       // El banner de aviso de auditoría de lote anulado debe estar visible
       await expect(page.getByRole('heading', { name: /Lote Anulado para Auditoría/i })).toBeVisible({ timeout: 10_000 })
       await expect(page.getByText('Error de digitación en contrato')).toBeVisible()
+    })
+
+    test('Directorio de Clientes: listado, validaciones en tiempo real de RUC/Cédula y registro corporativo', async ({ page }) => {
+      await page.getByRole('button', { name: /Reparaciones/i }).click()
+      await page.getByRole('button', { name: /Directorio de Clientes/i }).click()
+
+      // Validar PageHeader y métricas KPI
+      await expect(page.getByRole('heading', { name: /Directorio de Clientes/i })).toBeVisible({ timeout: 15_000 })
+      await expect(page.getByText(/Total Clientes/i)).toBeVisible()
+      await expect(page.getByText(/Clientes Activos/i)).toBeVisible()
+
+      // Verificar que el cliente inicial esté en la tabla
+      await expect(page.getByText('Whirlpool del Ecuador S.A.').first()).toBeVisible()
+      await expect(page.getByText('1790012345001').first()).toBeVisible()
+
+      // Abrir modal de nuevo cliente
+      await page.getByRole('button', { name: /Nuevo Cliente/i }).click()
+      await expect(page.getByRole('heading', { name: /Registrar Nuevo Cliente/i })).toBeVisible()
+
+      // El botón de registrar debe estar deshabilitado mientras no haya nombre
+      const saveBtn = page.getByRole('button', { name: /Registrar Cliente/i })
+      await expect(saveBtn).toBeDisabled()
+
+      // Ingresar identificación inválida
+      await page.locator('#customer-tax-id').fill('12345')
+      await expect(page.getByText(/La identificación debe ser Cédula/i)).toBeVisible()
+
+      // Ingresar RUC válido de sociedad privada ecuatoriana (1790010937001)
+      await page.locator('#customer-tax-id').fill('1790010937001')
+      await expect(page.getByText(/RUC Sociedad Privada \(Válido\)/i)).toBeVisible()
+
+      // Ingresar correo inválido
+      await page.locator('#customer-email').fill('email-invalido')
+      await expect(page.getByText(/Formato de correo electrónico inválido/i)).toBeVisible()
+
+      // Corregir correo
+      await page.locator('#customer-email').fill('garantias@mabe.com.ec')
+
+      // Ingresar teléfono y nombre
+      await page.locator('#customer-phone').fill('0998765432')
+      await page.locator('#customer-name').fill('Mabe del Ecuador S.A.')
+      await page.locator('#customer-person').fill('Ing. Sofia Delgado')
+
+      // Ahora el botón debe estar habilitado
+      await expect(saveBtn).toBeEnabled()
+      await saveBtn.click()
+
+      // Modal se cierra y el nuevo cliente aparece en la tabla
+      await expect(page.getByText('Mabe del Ecuador S.A.').first()).toBeVisible({ timeout: 10_000 })
     })
   })
 })

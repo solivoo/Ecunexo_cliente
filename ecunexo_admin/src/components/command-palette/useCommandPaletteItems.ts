@@ -178,6 +178,20 @@ export function useCommandPaletteItems({
       })
     }
 
+    // Nuevo Cliente Corporativo / Comercial
+    if (hasPerm('repairs.batches.import') || hasPerm('repairs.batches.read')) {
+      items.push({
+        id: 'action-new-customer',
+        title: 'Registrar Cliente / Aliado',
+        subtitle: 'Alta de cliente corporativo con validación de cédula y RUC',
+        category: 'Acciones Rápidas',
+        icon: 'users',
+        badge: 'Clientes',
+        keywords: ['cliente', 'aliado', 'empresa', 'ruc', 'cedula', 'registro', 'nuevo', 'taller'],
+        onSelect: () => navigate('/taller/clientes?nuevo=1'),
+      })
+    }
+
     // ── 2. NAVEGACIÓN Y VISTAS ───────────────────────────────────────
     // Dashboard principal
     seenPaths.add('/inicio')

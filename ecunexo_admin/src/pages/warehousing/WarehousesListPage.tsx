@@ -69,15 +69,6 @@ export function WarehousesListPage() {
 
   const actionItems = useMemo<PageActionItem[]>(() => {
     const items: PageActionItem[] = []
-    if (canManage) {
-      items.push({
-        id: 'create',
-        label: 'Nueva bodega',
-        icon: 'plus',
-        route: '/bodegas/nueva',
-        disabled: false,
-      })
-    }
     items.push({
       id: 'refresh',
       label: 'Actualizar',

@@ -56,6 +56,7 @@ import { CreateRepairBatchPage } from '@/pages/repairs/CreateRepairBatchPage'
 import { RepairBatchDetailPage } from '@/pages/repairs/RepairBatchDetailPage'
 import { RepairDispatchesListPage } from '@/pages/repairs/RepairDispatchesListPage'
 import { WhirlpoolPortalPage } from '@/pages/repairs/WhirlpoolPortalPage'
+import RepairCustomersListPage from '@/pages/repairs/RepairCustomersListPage'
 import { PublicDispatchVerificationPage } from '@/pages/repairs/PublicDispatchVerificationPage'
 import { DashboardLayout } from '@/shell/DashboardLayout'
 
@@ -129,6 +130,8 @@ export const routes: RouteObject[] = [
           { path: 'taller/lotes/:batchId', element: <RepairBatchDetailPage /> },
           { path: 'taller/despachos', element: <RepairDispatchesListPage /> },
           { path: 'taller/portal', element: <WhirlpoolPortalPage /> },
+          { path: 'taller/clientes', element: <RepairCustomersListPage /> },
+          { path: 'clientes', element: <Navigate to="/taller/clientes" replace /> },
           { path: 'compras/documentos', element: <ComprasDocumentosPage /> },
           { path: 'compras/retenciones', element: <ComprasDocumentosPage /> },
           { path: 'compras/liquidaciones', element: <ComprasDocumentosPage /> },

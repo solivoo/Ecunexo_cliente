@@ -63,7 +63,6 @@ export function RepairBatchDetailPage() {
   const tenantId = useAppSelector(selectTenantId)
 
   const canRead = useHasPermission('repairs.batches.read')
-  const canImport = useHasPermission('repairs.batches.import')
   const canCancel = useHasPermission('repairs.batches.cancel')
   const canUpdateStatus = useHasPermission('repairs.equipments.update.status')
   const canUploadPhoto = useHasPermission('repairs.equipments.upload.photo')
@@ -163,14 +162,6 @@ export function RepairBatchDetailPage() {
         disabled: false,
       })
     }
-    if (canCancelBatch && canImport) {
-      items.push({
-        id: 'cancel-batch',
-        label: 'Anular Lote',
-        icon: 'block',
-        route: null,
-      })
-    }
     items.push({
       id: 'refresh',
       label: 'Actualizar',
@@ -179,16 +170,12 @@ export function RepairBatchDetailPage() {
       disabled: loading,
     })
     return items
-  }, [canCancelBatch, canImport, canReadDispatches, loading])
+  }, [canReadDispatches, loading])
 
   const handleActionSelect = useCallback(
     (item: PageActionItem) => {
       if (item.id === 'refresh') {
         void load()
-      } else if (item.id === 'cancel-batch') {
-        setCancelError(null)
-        setCancelReason('')
-        setCancelModalOpen(true)
       }
     },
     [load]
@@ -602,6 +589,7 @@ export function RepairBatchDetailPage() {
               <Select
                 id="filter-equipment-status"
                 label="Filtrar por fase"
+                width="230px"
                 labelPosition="outlined"
                 variant="outline"
                 options={[

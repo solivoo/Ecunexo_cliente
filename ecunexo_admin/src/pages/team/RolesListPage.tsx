@@ -64,15 +64,6 @@ export function RolesListPage() {
 
   const actionItems = useMemo<PageActionItem[]>(() => {
     const items: PageActionItem[] = []
-    if (canManage) {
-      items.push({
-        id: 'create',
-        label: 'Nuevo rol',
-        icon: 'shield',
-        route: '/equipo/roles/nuevo',
-        disabled: false,
-      })
-    }
     items.push(
       {
         id: 'users',

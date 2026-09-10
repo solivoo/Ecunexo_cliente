@@ -41,5 +41,17 @@ public sealed record CreateCustomerRequest(
     string? ContactPerson = null,
     string? Notes = null);
 
+public sealed record UpdateCustomerRequest(
+    string Name,
+    string? TaxId = null,
+    string? ContactEmail = null,
+    string? ContactPhone = null,
+    string? Address = null,
+    string? ContactPerson = null,
+    string? Notes = null,
+    bool? IsActive = null);
+
+public sealed record ToggleCustomerStatusRequest(bool IsActive);
+
 public sealed record CancelBatchRequest(string Reason);
 

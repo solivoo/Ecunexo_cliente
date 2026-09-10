@@ -72,15 +72,6 @@ export function CatalogItemsListPage() {
 
   const actionItems = useMemo<PageActionItem[]>(() => {
     const items: PageActionItem[] = []
-    if (canCreate) {
-      items.push({
-        id: 'create',
-        label: 'Nuevo ítem',
-        icon: 'plus',
-        route: '/catalogo/items/nuevo',
-        disabled: false,
-      })
-    }
     items.push(
       {
         id: 'categories',

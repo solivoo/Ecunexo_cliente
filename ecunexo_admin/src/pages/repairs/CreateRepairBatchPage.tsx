@@ -7,6 +7,7 @@ import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
+import { validateEcuadorTaxId, validateEmail, validatePhone } from '@/lib/ecuadorTaxIdValidator'
 import {
   createRepairCustomer,
   downloadRepairTemplate,
@@ -137,6 +138,30 @@ export function CreateRepairBatchPage() {
     if (!newCustName.trim()) {
       setNewCustError('La razón social o nombre comercial del cliente es obligatorio.')
       return
+    }
+
+    if (newCustTaxId.trim()) {
+      const taxValidation = validateEcuadorTaxId(newCustTaxId)
+      if (!taxValidation.isValid) {
+        setNewCustError(taxValidation.error || 'Identificación fiscal o RUC no válido.')
+        return
+      }
+    }
+
+    if (newCustEmail.trim()) {
+      const emailVal = validateEmail(newCustEmail)
+      if (!emailVal.isValid) {
+        setNewCustError(emailVal.error || 'Correo electrónico no válido.')
+        return
+      }
+    }
+
+    if (newCustPhone.trim()) {
+      const phoneVal = validatePhone(newCustPhone)
+      if (!phoneVal.isValid) {
+        setNewCustError(phoneVal.error || 'Teléfono no válido.')
+        return
+      }
     }
 
     setSavingCust(true)
@@ -396,29 +421,40 @@ export function CreateRepairBatchPage() {
                     onChange={(val: string) => setSelectedCustomerId(val)}
                     fullWidth
                   />
-                  {customers.length === 0 && (
-                    <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--shell-muted)' }}>
-                      No hay clientes corporativos registrados aún.{' '}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewCustError(null)
-                          setNewCustomerOpen(true)
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--shell-primary)',
-                          cursor: 'pointer',
-                          padding: 0,
-                          textDecoration: 'underline',
-                          fontWeight: 600,
-                        }}
-                      >
-                        + Registrar primer cliente
-                      </button>
-                    </div>
-                  )}
+                  <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--shell-muted)' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewCustError(null)
+                        setNewCustomerOpen(true)
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--shell-primary)',
+                        cursor: 'pointer',
+                        padding: 0,
+                        textDecoration: 'underline',
+                        fontWeight: 600,
+                      }}
+                    >
+                      + Registrar nuevo cliente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/taller/clientes')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--shell-primary)',
+                        cursor: 'pointer',
+                        padding: 0,
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      Ir al Directorio de Clientes &rarr;
+                    </button>
+                  </div>
                 </div>
 
                 <div>

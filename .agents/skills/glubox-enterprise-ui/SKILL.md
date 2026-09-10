@@ -104,6 +104,13 @@ Acceso rápido universal montado en el header del layout principal:
 - Navegación completa por teclado (`↑` / `↓` para mover selección, `↵` para ejecutar, `Esc` para salir).
 - Filtrado dinámico por permisos activos de sesión (`selectVisibleNavigation` y `selectPermissions`).
 
+### 3.7. Regla Estricta Anti-Duplicidad de Botones en PageHeader y EcuPageActions
+- **Problema de diseño**: En pantallas de escritorio, `<EcuPageActions items={actionItems} />` renderiza sus ítems como botones visibles en un toolbar horizontal (`.ecu-page-actions__desktop`). Si un componente define un botón primario o destacado directamente en `PageHeader.actions` (por ejemplo: `<Button variant="primary">+ Nuevo...</Button>`, `<Button variant="outline"><Ban /> Anular Lote</Button>`, o `<Button><Download /> Descargar Informe</Button>`) y **al mismo tiempo** incluye esa misma acción dentro de `actionItems` (ej. `{ id: 'create', label: 'Nuevo...' }`, `{ id: 'cancel-batch', label: 'Anular Lote' }`), en escritorio aparecerán **dos botones repetidos e idénticos** uno al lado del otro.
+- **Regla Obligatoria**:
+  1. **Acción Principal o Destacada**: Renderizar como un `<Button>` independiente directamente en `PageHeader.actions` (ej. `+ Nuevo Ítem`, `Importar Lote`, `Anular Lote`, `Descargar Informe`).
+  2. **`actionItems` de `EcuPageActions`**: **NUNCA** debe contener una acción que ya fue renderizada como botón directo. Solo debe incluir acciones complementarias o secundarias (ej. `Actualizar`, `Plantilla Excel`, o accesos a otros submódulos) que no cuenten con botón visible propio.
+  3. Antes de agregar cualquier entrada a `actionItems`, auditar que no duplique ningún botón adyacente en el header.
+
 ---
 
 ## 4. Estándares de Color y Modo Oscuro

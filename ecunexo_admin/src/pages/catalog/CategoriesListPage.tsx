@@ -68,15 +68,6 @@ export function CategoriesListPage() {
 
   const actionItems = useMemo<PageActionItem[]>(() => {
     const items: PageActionItem[] = []
-    if (canManage) {
-      items.push({
-        id: 'create',
-        label: 'Nueva categoría',
-        icon: 'plus',
-        route: '/catalogo/categorias/nueva',
-        disabled: false,
-      })
-    }
     items.push(
       {
         id: 'items',

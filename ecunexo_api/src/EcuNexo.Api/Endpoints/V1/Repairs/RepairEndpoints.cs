@@ -37,8 +37,17 @@ public static class RepairEndpoints
         repairsGroup.MapGet("/customers", ListCustomersAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b.portal.view"));
 
+        repairsGroup.MapGet("/customers/{customerId:guid}", GetCustomerByIdAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b.portal.view"));
+
         repairsGroup.MapPost("/customers", CreateCustomerAsync)
-            .AddEndpointFilter(PermissionFilters.Require("repairs.batches.import"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.import", "repairs.batches.read"));
+
+        repairsGroup.MapPut("/customers/{customerId:guid}", UpdateCustomerAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.import", "repairs.batches.read"));
+
+        repairsGroup.MapPatch("/customers/{customerId:guid}/status", ToggleCustomerStatusAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.import", "repairs.batches.read"));
 
         // 1. Lotes (Batches)
         repairsGroup.MapGet("/batches", ListBatchesAsync)
@@ -456,6 +465,21 @@ public static class RepairEndpoints
         return Results.Ok(customers);
     }
 
+    private static async Task<IResult> GetCustomerByIdAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid customerId,
+        [FromServices] ICustomerRepository customerRepo,
+        CancellationToken ct)
+    {
+        var customer = await customerRepo.GetByIdAsync(tenantId, customerId, ct).ConfigureAwait(false);
+        if (customer == null)
+        {
+            return Results.NotFound(new { message = "Cliente corporativo no encontrado." });
+        }
+
+        return Results.Ok(customer);
+    }
+
     private static async Task<IResult> CreateCustomerAsync(
         [FromRoute] Guid tenantId,
         [FromBody] CreateCustomerRequest request,
@@ -464,11 +488,29 @@ public static class RepairEndpoints
         [FromServices] ICallerContext caller,
         CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return Results.BadRequest(new { error = "El nombre o razón social del cliente es obligatorio." });
+        }
+
+        var trimmedName = request.Name.Trim();
+        var trimmedTaxId = string.IsNullOrWhiteSpace(request.TaxId) ? null : request.TaxId.Trim();
+
+        if (await customerRepo.ExistsByNameAsync(tenantId, trimmedName, null, ct).ConfigureAwait(false))
+        {
+            return Results.Conflict(new { error = "Ya existe un cliente registrado con esta razón social." });
+        }
+
+        if (trimmedTaxId != null && await customerRepo.ExistsByTaxIdAsync(tenantId, trimmedTaxId, null, ct).ConfigureAwait(false))
+        {
+            return Results.Conflict(new { error = "Ya existe un cliente registrado con esta identificación fiscal o RUC." });
+        }
+
         var customerResult = Customer.Create(
             Guid.NewGuid(),
             tenantId,
-            request.Name,
-            request.TaxId,
+            trimmedName,
+            trimmedTaxId,
             request.ContactEmail,
             request.ContactPhone,
             request.Address,
@@ -484,6 +526,96 @@ public static class RepairEndpoints
         await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return Results.Ok(customerResult.Value);
+    }
+
+    private static async Task<IResult> UpdateCustomerAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid customerId,
+        [FromBody] UpdateCustomerRequest request,
+        [FromServices] ICustomerRepository customerRepo,
+        [FromServices] IUnitOfWork unitOfWork,
+        [FromServices] ICallerContext caller,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return Results.BadRequest(new { error = "El nombre o razón social del cliente es obligatorio." });
+        }
+
+        var customer = await customerRepo.GetTrackedByIdAsync(tenantId, customerId, ct).ConfigureAwait(false);
+        if (customer == null)
+        {
+            return Results.NotFound(new { message = "Cliente corporativo no encontrado." });
+        }
+
+        var trimmedName = request.Name.Trim();
+        var trimmedTaxId = string.IsNullOrWhiteSpace(request.TaxId) ? null : request.TaxId.Trim();
+
+        if (await customerRepo.ExistsByNameAsync(tenantId, trimmedName, customerId, ct).ConfigureAwait(false))
+        {
+            return Results.Conflict(new { error = "Ya existe otro cliente registrado con esta razón social." });
+        }
+
+        if (trimmedTaxId != null && await customerRepo.ExistsByTaxIdAsync(tenantId, trimmedTaxId, customerId, ct).ConfigureAwait(false))
+        {
+            return Results.Conflict(new { error = "Ya existe otro cliente registrado con esta identificación fiscal o RUC." });
+        }
+
+        var updateResult = customer.Update(
+            trimmedName,
+            trimmedTaxId,
+            request.ContactEmail,
+            request.ContactPhone,
+            request.Address,
+            request.ContactPerson,
+            request.Notes);
+
+        if (updateResult.IsFailure)
+        {
+            return updateResult.ToHttpResult();
+        }
+
+        if (request.IsActive.HasValue)
+        {
+            if (request.IsActive.Value)
+            {
+                customer.Activate();
+            }
+            else
+            {
+                customer.Deactivate();
+            }
+        }
+
+        await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+        return Results.Ok(customer);
+    }
+
+    private static async Task<IResult> ToggleCustomerStatusAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid customerId,
+        [FromBody] ToggleCustomerStatusRequest request,
+        [FromServices] ICustomerRepository customerRepo,
+        [FromServices] IUnitOfWork unitOfWork,
+        CancellationToken ct)
+    {
+        var customer = await customerRepo.GetTrackedByIdAsync(tenantId, customerId, ct).ConfigureAwait(false);
+        if (customer == null)
+        {
+            return Results.NotFound(new { message = "Cliente corporativo no encontrado." });
+        }
+
+        if (request.IsActive)
+        {
+            customer.Activate();
+        }
+        else
+        {
+            customer.Deactivate();
+        }
+
+        await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+        return Results.Ok(customer);
     }
 
     private static async Task<IResult> GetBatchByIdAsync(

@@ -119,15 +119,6 @@ export function UsersListPage() {
 
   const actionItems = useMemo<PageActionItem[]>(() => {
     const items: PageActionItem[] = []
-    if (canCreate) {
-      items.push({
-        id: 'create',
-        label: 'Nuevo usuario',
-        icon: 'user-plus',
-        route: '/equipo/usuarios/nueva',
-        disabled: false,
-      })
-    }
     items.push(
       {
         id: 'roles',
