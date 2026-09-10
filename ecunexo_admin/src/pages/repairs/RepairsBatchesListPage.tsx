@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, DataGrid, useToast, type ColumnDef } from 'glubox'
+import { Button, DataGrid, useToast, type ColumnDef, type PageActionItem } from 'glubox'
 import {
+  EcuPageActions,
   EmptyState,
   PageHeader,
   SectionCard,
@@ -9,9 +10,11 @@ import {
   StatusBadge,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
-import { Download, Eye, Layers, Plus, Truck, Wrench } from 'lucide-react'
+import { Download, Eye, Plus } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
+import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { useHasPermission } from '@/hooks/useHasPermission'
 import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
@@ -32,6 +35,11 @@ export function RepairsBatchesListPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
+
+  const canRead = useHasPermission('repairs.batches.read')
+  const canImport = useHasPermission('repairs.batches.import')
+  const canReadDispatches = useHasPermission('repairs.dispatches.read')
+  const canViewPortal = useHasPermission('repairs.b2b.portal.view')
 
   const [rows, setRows] = useState<BatchListItemDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -226,18 +234,108 @@ export function RepairsBatchesListPage() {
     [navigate]
   )
 
+  const actionItems = useMemo<PageActionItem[]>(() => {
+    const items: PageActionItem[] = []
+    if (canImport) {
+      items.push({
+        id: 'import',
+        label: 'Importar lote',
+        icon: 'plus',
+        route: '/taller/lotes/nuevo',
+        disabled: false,
+      })
+    }
+    items.push(
+      {
+        id: 'template',
+        label: 'Plantilla Excel',
+        icon: 'download',
+        route: null,
+        disabled: downloadingTemplate,
+      },
+      {
+        id: 'refresh',
+        label: 'Actualizar',
+        icon: 'refresh-cw',
+        route: null,
+        disabled: loading,
+      }
+    )
+    if (canReadDispatches) {
+      items.push({
+        id: 'dispatches',
+        label: 'Actas de despacho',
+        icon: 'truck',
+        route: '/taller/despachos',
+        disabled: false,
+      })
+    }
+    if (canViewPortal) {
+      items.push({
+        id: 'portal',
+        label: 'Portal Whirlpool',
+        icon: 'shield-check',
+        route: '/taller/portal',
+        disabled: false,
+      })
+    }
+    return items
+  }, [canImport, canReadDispatches, canViewPortal, downloadingTemplate, loading])
+
+  const handleActionSelect = useCallback(
+    (item: PageActionItem) => {
+      if (item.id === 'refresh') {
+        void load()
+      } else if (item.id === 'template') {
+        void handleDownloadTemplate()
+      }
+    },
+    [load, tenantId]
+  )
+
+  if (!canRead) {
+    return (
+      <TenantSessionGate
+        title="Reparaciones"
+        lead="Recepción masiva de electrodomésticos y servicio técnico autorizado."
+      >
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres el permiso repairs.batches.read para visualizar los lotes de reparación."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
+      </TenantSessionGate>
+    )
+  }
+
   return (
     <TenantSessionGate
-      title="Lotes de Taller B2B"
+      title="Lotes de Reparación"
       lead="Control masivo de electrodomésticos en reacondicionamiento y contratos aliados."
     >
-      <div className="ecu-page-container">
+      <div className="ecu-dashboard-layout">
         <PageHeader
           title="Lotes de Reparación B2B"
-          subtitle="Recepción masiva de electrodomésticos golpeados, control de avance y actas de despacho para fabricantes aliados."
-          badge={<StatusBadge tone="primary">Taller & Garantías</StatusBadge>}
+          subtitle="Recepción masiva de electrodomésticos, control de avance por fases técnicas y actas de despacho para fabricantes aliados."
+          badge={
+            <StatusBadge tone="primary" withDot>
+              {rows.length} {rows.length === 1 ? 'Lote activo' : 'Lotes activos'}
+            </StatusBadge>
+          }
           actions={
-            <div className="flex items-center gap-2">
+            <>
+              {canImport && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => navigate('/taller/lotes/nuevo')}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Importar Lote
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -247,46 +345,46 @@ export function RepairsBatchesListPage() {
                 <Download className="w-4 h-4 mr-2" />
                 {downloadingTemplate ? 'Descargando...' : 'Plantilla Excel'}
               </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={() => navigate('/taller/lotes/nuevo')}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Importar Lote
-              </Button>
-            </div>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de lotes"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
           }
         />
 
-        <div className="ecu-stat-grid">
+        <div className="ecu-stat-grid" aria-label="Resumen operativo del taller">
           <StatCard
             label="Total Equipos"
             value={totals.totalEquipments}
-            icon={<Layers className="w-5 h-5 text-indigo-500" />}
-            toneColor="#6366f1"
-            footerText="Custodiados en el taller"
+            icon="inventory_2"
+            toneColor="#4f46e5"
+            footerText={`En ${rows.length} ${rows.length === 1 ? 'lote recibido' : 'lotes recibidos'}`}
           />
           <StatCard
-            label="En Diagnóstico / Reparación"
+            label="En Diagnóstico / Proceso"
             value={totals.inRepair}
-            icon={<Wrench className="w-5 h-5 text-amber-500" />}
+            icon="build"
             toneColor="#f59e0b"
-            footerText="En mesas de trabajo"
+            footerText="En mesas de trabajo técnicas"
           />
           <StatCard
             label="Listos para Retiro"
             value={totals.ready}
-            icon={<Truck className="w-5 h-5 text-emerald-500" />}
+            icon="verified"
             toneColor="#10b981"
             footerText="Control de calidad superado"
           />
           <StatCard
             label="Despachados"
             value={totals.dispatched}
-            icon="task_alt"
+            icon="local_shipping"
             toneColor="#3b82f6"
-            footerText="Con acta y código QR"
+            footerText="Con acta oficial y código QR"
           />
         </div>
 
@@ -307,19 +405,21 @@ export function RepairsBatchesListPage() {
               title="Aún no hay lotes registrados"
               description="Descarga la plantilla de Excel oficial para preparar los números de serie o importa directamente el archivo entregado por Whirlpool."
               action={
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/taller/lotes/nuevo')}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Importar Primer Lote
-                </Button>
+                canImport ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => navigate('/taller/lotes/nuevo')}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Importar Primer Lote
+                  </Button>
+                ) : undefined
               }
             />
           ) : (
             <DataGrid
-              className="ecu-companies-grid"
+              className="ecu-repairs-grid"
               dataSource={rows as Row[]}
               keyExpr="id"
               columns={columns}

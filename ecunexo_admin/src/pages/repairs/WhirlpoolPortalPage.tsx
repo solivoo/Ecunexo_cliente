@@ -1,24 +1,23 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, DataGrid, TextBox, useToast, type ColumnDef } from 'glubox'
+import { Button, DataGrid, TextBox, useToast, type ColumnDef, type PageActionItem } from 'glubox'
 import {
+  EcuPageActions,
   EmptyState,
+  PageHeader,
   SectionCard,
   StatCard,
   StatusBadge,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import {
-  CheckCircle2,
   Download,
   Eye,
-  Layers,
-  ShieldCheck,
-  Truck,
-  Wrench,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
+import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { useHasPermission } from '@/hooks/useHasPermission'
 import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
@@ -50,6 +49,10 @@ export function WhirlpoolPortalPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
+
+  const canViewPortal = useHasPermission('repairs.b2b.portal.view')
+  const canReadBatches = useHasPermission('repairs.batches.read')
+  const canReadDispatches = useHasPermission('repairs.dispatches.read')
 
   const [batches, setBatches] = useState<BatchListItemDto[]>([])
   const [allEquipments, setAllEquipments] = useState<EquipmentRow[]>([])
@@ -93,6 +96,56 @@ export function WhirlpoolPortalPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const actionItems = useMemo<PageActionItem[]>(() => {
+    const items: PageActionItem[] = []
+    if (canReadBatches) {
+      items.push({
+        id: 'batches',
+        label: 'Lotes de taller',
+        icon: 'layers',
+        route: '/taller/lotes',
+        disabled: false,
+      })
+    }
+    if (canReadDispatches) {
+      items.push({
+        id: 'dispatches',
+        label: 'Actas de despacho',
+        icon: 'truck',
+        route: '/taller/despachos',
+        disabled: false,
+      })
+    }
+    items.push(
+      {
+        id: 'report',
+        label: 'Descargar informe Excel',
+        icon: 'download',
+        route: null,
+        disabled: downloadingReport,
+      },
+      {
+        id: 'refresh',
+        label: 'Actualizar',
+        icon: 'refresh-cw',
+        route: null,
+        disabled: loading,
+      }
+    )
+    return items
+  }, [canReadBatches, canReadDispatches, downloadingReport, loading])
+
+  const handleActionSelect = useCallback(
+    (item: PageActionItem) => {
+      if (item.id === 'refresh') {
+        void load()
+      } else if (item.id === 'report') {
+        void handleDownloadReport()
+      }
+    },
+    [load]
+  )
 
   // KPIs
   const totals = useMemo(() => {
@@ -242,74 +295,86 @@ export function WhirlpoolPortalPage() {
     [navigate]
   )
 
+  if (!canViewPortal) {
+    return (
+      <TenantSessionGate
+        title="Portal Whirlpool"
+        lead="Auditoría y trazabilidad para clientes corporativos aliados."
+      >
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres el permiso repairs.b2b.portal.view para acceder al portal corporativo."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
+      </TenantSessionGate>
+    )
+  }
+
   return (
     <TenantSessionGate
       title="Portal Corporativo Whirlpool"
       lead="Supervisión en tiempo real de equipos en garantía y órdenes de reacondicionamiento."
     >
-      <div className="ecu-page-container">
-        {/* Banner Ejecutivo con Branding Whirlpool */}
-        <div className="p-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl text-white shadow-md mb-6 border border-indigo-900/40">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/30 text-indigo-300 border border-indigo-400/30 tracking-wide uppercase">
-                  Portal Exclusivo B2B
-                </span>
-                <span className="text-xs text-slate-300 flex items-center gap-1">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" /> Auditoría Certificada
-                </span>
-              </div>
-              <h1 className="text-2xl font-black tracking-tight flex items-center gap-3">
-                Whirlpool del Ecuador S.A.
-              </h1>
-              <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-                Monitoreo en tiempo real de lotes en reacondicionamiento, disponibilidad inmediata
-                para coordinación logística de transporte y verificación de series con fotos en S3.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
+      <div className="ecu-dashboard-layout">
+        <PageHeader
+          title="Portal Corporativo Whirlpool"
+          subtitle="Monitoreo en tiempo real de lotes en reacondicionamiento, disponibilidad inmediata para coordinación logística de transporte y verificación de series auditada."
+          badge={
+            <StatusBadge tone="info" withDot>
+              Auditoría B2B Certificada
+            </StatusBadge>
+          }
+          actions={
+            <>
               <Button
                 type="button"
                 variant="outline"
-                className="bg-white/10 text-white hover:bg-white/20 border-white/20"
                 onClick={handleDownloadReport}
                 disabled={downloadingReport}
               >
                 <Download className="w-4 h-4 mr-2" />
                 {downloadingReport ? 'Generando...' : 'Descargar Informe Excel'}
               </Button>
-            </div>
-          </div>
-        </div>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de portal"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
+          }
+        />
 
-        {/* KPIs Corporativos */}
-        <div className="ecu-stat-grid">
+        <div className="ecu-stat-grid" aria-label="Métricas corporativas Whirlpool">
           <StatCard
             label="Total Equipos Entregados"
             value={totals.total}
-            icon={<Layers className="w-5 h-5 text-indigo-500" />}
-            toneColor="#6366f1"
+            icon="inventory_2"
+            toneColor="#4f46e5"
             footerText="En custodia del taller"
           />
           <StatCard
             label="En Mesa de Trabajo"
             value={totals.inRepair}
-            icon={<Wrench className="w-5 h-5 text-amber-500" />}
+            icon="build"
             toneColor="#f59e0b"
             footerText="En fase de diagnóstico o chapa"
           />
           <StatCard
             label="Listos para Retiro Inmediato"
             value={totals.ready}
-            icon={<Truck className="w-5 h-5 text-emerald-500" />}
+            icon="verified"
             toneColor="#10b981"
             footerText="Coordinar transporte de retiro"
           />
           <StatCard
             label="Nivel de Cumplimiento"
             value={`${totals.efficiency}%`}
-            icon={<CheckCircle2 className="w-5 h-5 text-blue-500" />}
+            icon="task_alt"
             toneColor="#3b82f6"
             footerText="Tasa de equipos recuperados"
           />
@@ -409,7 +474,7 @@ export function WhirlpoolPortalPage() {
             />
           ) : (
             <DataGrid
-              className="ecu-companies-grid"
+              className="ecu-repairs-grid"
               dataSource={batches as BatchRow[]}
               keyExpr="id"
               columns={batchColumns}

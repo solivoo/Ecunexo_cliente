@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Button, DataGrid, Select, TextBox, useToast, type ColumnDef } from 'glubox'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef, type PageActionItem } from 'glubox'
 import {
-  EcuModal,
+  EcuPageActions,
   EmptyState,
   PageHeader,
   SectionCard,
@@ -11,16 +11,13 @@ import {
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import {
-  Copy,
-  ExternalLink,
-  FileCheck2,
   Plus,
   QrCode,
-  ShieldCheck,
-  Truck,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
+import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { useHasPermission } from '@/hooks/useHasPermission'
 import { formatDateTime } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
@@ -45,9 +42,15 @@ const messages = createSpanishDataGridMessages('despacho', 'despachos')
 
 export function RepairDispatchesListPage() {
   const toast = useToast()
+  const navigate = useNavigate()
   const [params] = useSearchParams()
   const tenantId = useAppSelector(selectTenantId)
   const initialBatchId = params.get('batchId')
+
+  const canRead = useHasPermission('repairs.dispatches.read')
+  const canCreate = useHasPermission('repairs.dispatches.create')
+  const canReadBatches = useHasPermission('repairs.batches.read')
+  const canViewPortal = useHasPermission('repairs.b2b.portal.view')
 
   const [dispatches, setDispatches] = useState<RepairDispatchDto[]>([])
   const [batches, setBatches] = useState<BatchListItemDto[]>([])
@@ -101,6 +104,45 @@ export function RepairDispatchesListPage() {
   useEffect(() => {
     void load({ silent: true })
   }, [load])
+
+  const actionItems = useMemo<PageActionItem[]>(() => {
+    const items: PageActionItem[] = []
+    if (canReadBatches) {
+      items.push({
+        id: 'batches',
+        label: 'Lotes de taller',
+        icon: 'layers',
+        route: '/taller/lotes',
+        disabled: false,
+      })
+    }
+    if (canViewPortal) {
+      items.push({
+        id: 'portal',
+        label: 'Portal Whirlpool',
+        icon: 'shield-check',
+        route: '/taller/portal',
+        disabled: false,
+      })
+    }
+    items.push({
+      id: 'refresh',
+      label: 'Actualizar',
+      icon: 'refresh-cw',
+      route: null,
+      disabled: loading,
+    })
+    return items
+  }, [canReadBatches, canViewPortal, loading])
+
+  const handleActionSelect = useCallback(
+    (item: PageActionItem) => {
+      if (item.id === 'refresh') {
+        void load()
+      }
+    },
+    [load]
+  )
 
   // Cargar equipos listos cuando cambia el lote en el modal
   useEffect(() => {
@@ -313,45 +355,74 @@ export function RepairDispatchesListPage() {
     return dispatches.reduce((acc, d) => acc + (d.items?.length ?? 0), 0)
   }, [dispatches])
 
+  if (!canRead) {
+    return (
+      <TenantSessionGate
+        title="Despachos"
+        lead="Entrega certificada de electrodomésticos reparados con código QR."
+      >
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres el permiso repairs.dispatches.read para visualizar las actas de despacho."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
+      </TenantSessionGate>
+    )
+  }
+
   return (
     <TenantSessionGate
       title="Actas y Despachos de Reparación"
       lead="Entrega certificada de electrodomésticos reparados con código QR de verificación móvil."
     >
-      <div className="ecu-page-container">
+      <div className="ecu-dashboard-layout">
         <PageHeader
           title="Actas y Despachos de Salida"
           subtitle="Entrega certificada de electrodomésticos reparados con código QR de verificación móvil y preparación para facturación SRI."
-          badge={<StatusBadge tone="success">Trazabilidad QR</StatusBadge>}
+          badge={<StatusBadge tone="success" withDot>Trazabilidad QR</StatusBadge>}
           actions={
-            <Button type="button" variant="primary" onClick={openCreateModal}>
-              <Plus className="w-4 h-4 mr-2" />
-              Emitir Despacho
-            </Button>
+            <>
+              {canCreate && (
+                <Button type="button" variant="primary" onClick={openCreateModal}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Emitir Despacho
+                </Button>
+              )}
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de despachos"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
           }
         />
 
-        <div className="ecu-stat-grid">
+        <div className="ecu-stat-grid" aria-label="Métricas de despachos">
           <StatCard
             label="Total Despachos"
             value={dispatches.length}
-            icon={<FileCheck2 className="w-5 h-5 text-indigo-500" />}
-            toneColor="#6366f1"
-            footerText="Actas emitidas con firma"
+            icon="local_shipping"
+            toneColor="#4f46e5"
+            footerText="Actas emitidas con firma digital"
           />
           <StatCard
             label="Equipos Retirados"
             value={totalDispatchedEquipments}
-            icon={<Truck className="w-5 h-5 text-emerald-500" />}
+            icon="task_alt"
             toneColor="#10b981"
-            footerText="Reincorporados a Whirlpool"
+            footerText="Reincorporados a clientes aliados"
           />
           <StatCard
             label="Certificación Digital"
             value="100% QR"
-            icon={<ShieldCheck className="w-5 h-5 text-blue-500" />}
+            icon="verified"
             toneColor="#3b82f6"
-            footerText="Auditables sin login"
+            footerText="Auditables sin login en terreno"
           />
         </div>
 
@@ -372,15 +443,17 @@ export function RepairDispatchesListPage() {
               title="Aún no se han emitido despachos"
               description="Cuando tus equipos superen el control de calidad y pasen al estado 'Listo para Retiro', podrás emitir el acta con código QR aquí."
               action={
-                <Button type="button" variant="primary" onClick={openCreateModal}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Emitir Primer Despacho
-                </Button>
+                canCreate ? (
+                  <Button type="button" variant="primary" onClick={openCreateModal}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Emitir Primer Despacho
+                  </Button>
+                ) : undefined
               }
             />
           ) : (
             <DataGrid
-              className="ecu-companies-grid"
+              className="ecu-repairs-grid"
               dataSource={dispatches as Row[]}
               keyExpr="id"
               columns={columns}
@@ -399,35 +472,33 @@ export function RepairDispatchesListPage() {
           )}
         </SectionCard>
 
-        {/* Modal de Crear Despacho */}
-        <EcuModal
+        {/* Modal Popup de Crear Despacho */}
+        <Popup
           open={createModalOpen}
-          title="Generar Acta de Despacho y Salida de Equipos"
+          title="Generar Acta de Despacho y Salida"
           onClose={() => setCreateModalOpen(false)}
-          footer={
-            <div className="flex justify-end gap-2 w-full">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCreateModalOpen(false)}
-                disabled={savingDispatch}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleCreateDispatch}
-                disabled={savingDispatch || selectedEquipmentIds.size === 0}
-              >
-                {savingDispatch
-                  ? 'Generando Acta...'
-                  : `Emitir Despacho (${selectedEquipmentIds.size} Equipos)`}
-              </Button>
-            </div>
-          }
+          width="min(94vw, 42rem)"
+          actions={[
+            {
+              id: 'cancel',
+              label: 'Cancelar',
+              variant: 'ghost',
+              onClick: () => setCreateModalOpen(false),
+              disabled: savingDispatch,
+            },
+            {
+              id: 'submit',
+              label: savingDispatch
+                ? 'Generando Acta...'
+                : `Emitir Despacho (${selectedEquipmentIds.size} Equipos)`,
+              variant: 'primary',
+              onClick: () => void handleCreateDispatch(),
+              disabled: savingDispatch || selectedEquipmentIds.size === 0,
+              loading: savingDispatch,
+            },
+          ]}
         >
-          <div className="space-y-4">
+          <div className="space-y-4" style={{ paddingTop: '0.5rem' }}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <Select
@@ -562,31 +633,28 @@ export function RepairDispatchesListPage() {
               )}
             </div>
           </div>
-        </EcuModal>
+        </Popup>
 
-        {/* Modal de Ver QR y Certificación Oficial */}
-        <EcuModal
+        {/* Modal Popup de Ver QR y Certificación Oficial */}
+        <Popup
           open={qrModalOpen}
           title={`Acta de Despacho Oficial — ${activeDispatch?.dispatchNumber ?? ''}`}
           onClose={() => setQrModalOpen(false)}
-          footer={
-            <div className="flex justify-between items-center w-full">
-              <Button type="button" variant="outline" onClick={copyVerifyUrl}>
-                <Copy className="w-4 h-4 mr-2" />
-                Copiar Enlace de Validación
-              </Button>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => window.open(publicVerifyUrl, '_blank')}
-                >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Abrir Pantalla Móvil QR
-                </Button>
-              </div>
-            </div>
-          }
+          width="min(92vw, 34rem)"
+          actions={[
+            {
+              id: 'copy',
+              label: 'Copiar Enlace',
+              variant: 'outline',
+              onClick: () => void copyVerifyUrl(),
+            },
+            {
+              id: 'open',
+              label: 'Abrir Pantalla Móvil QR',
+              variant: 'primary',
+              onClick: () => window.open(publicVerifyUrl, '_blank'),
+            },
+          ]}
         >
           {activeDispatch && (
             <div className="text-center space-y-4 py-2">
@@ -636,7 +704,7 @@ export function RepairDispatchesListPage() {
               </div>
             </div>
           )}
-        </EcuModal>
+        </Popup>
       </div>
     </TenantSessionGate>
   )

@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Select, TextBox, useToast } from 'glubox'
-import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
+import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
+import { EcuPageActions, PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { ArrowLeft, Download, FileSpreadsheet, Info, UploadCloud } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
+import { renderSidebarIcon } from '@/config/sidebarIcons'
+import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
 import {
   downloadRepairTemplate,
@@ -20,6 +22,8 @@ export function CreateRepairBatchPage() {
   const tenantId = useAppSelector(selectTenantId)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
+  const canImport = useHasPermission('repairs.batches.import')
+
   const [customers, setCustomers] = useState<RepairCustomerDto[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [batchNumber, setBatchNumber] = useState('')
@@ -32,6 +36,29 @@ export function CreateRepairBatchPage() {
   const [busy, setBusy] = useState(false)
   const [downloadingTemplate, setDownloadingTemplate] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const actionItems = useMemo<PageActionItem[]>(() => [
+    {
+      id: 'batches',
+      label: 'Listado de lotes',
+      icon: 'layers',
+      route: '/taller/lotes',
+      disabled: false,
+    },
+    {
+      id: 'template',
+      label: 'Descargar plantilla Excel',
+      icon: 'download',
+      route: null,
+      disabled: downloadingTemplate,
+    },
+  ], [downloadingTemplate])
+
+  const handleActionSelect = useCallback((item: PageActionItem) => {
+    if (item.id === 'template') {
+      void handleDownloadTemplate()
+    }
+  }, [tenantId])
 
   useEffect(() => {
     if (!tenantId) return
@@ -173,36 +200,73 @@ export function CreateRepairBatchPage() {
     }
   }
 
+  if (!canImport) {
+    return (
+      <TenantSessionGate
+        title="Importar Lote"
+        lead="Recepción masiva de equipos mediante plantilla Excel."
+      >
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres el permiso repairs.batches.import para importar lotes de equipos."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+          <SectionCard title="Permisos insuficientes">
+            <p className="app-shell__muted" style={{ marginBottom: '1rem' }}>
+              No posees los privilegios requeridos para realizar la importación masiva de lotes de electrodomésticos en esta empresa.
+            </p>
+            <Button type="button" variant="outline" onClick={() => navigate('/taller/lotes')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver a Lotes
+            </Button>
+          </SectionCard>
+        </div>
+      </TenantSessionGate>
+    )
+  }
+
   return (
     <TenantSessionGate
       title="Importar Lote de Reparación"
       lead="Recepción masiva de equipos mediante plantilla Excel con mapeo dinámico de atributos y tarifas por nivel de daño."
     >
-      <div className="ecu-page-container max-w-4xl mx-auto">
+      <div className="ecu-dashboard-layout">
         <PageHeader
           title="Importar Lote de Reparación"
           subtitle="Recepción masiva de equipos mediante plantilla Excel con mapeo dinámico de atributos y tarifas por nivel de daño."
-          badge={<StatusBadge tone="primary">Asistente de Ingreso</StatusBadge>}
+          badge={<StatusBadge tone="primary" withDot>Asistente de Ingreso</StatusBadge>}
           actions={
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate('/taller/lotes')}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Volver a Lotes
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/taller/lotes')}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Volver a Lotes
+              </Button>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de importación"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
           }
         />
 
-        {error && (
-          <div className="ecu-form-error-banner mb-6" role="alert">
-            <span className="material-symbols-outlined">error</span>
-            <span>{error}</span>
-          </div>
-        )}
+        <div style={{ maxWidth: '56rem', margin: '0 auto', width: '100%' }}>
+          {error && (
+            <div className="ecu-form-error-banner mb-6" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
           <SectionCard
             title="Datos del Contrato y Cliente"
             subtitle="Identificación del fabricante y número de control interno del lote"
@@ -417,6 +481,7 @@ export function CreateRepairBatchPage() {
             </Button>
           </div>
         </form>
+        </div>
       </div>
     </TenantSessionGate>
   )

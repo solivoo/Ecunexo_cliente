@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { Button } from 'glubox'
+import { StatusBadge } from '@/components/ui'
 import { CheckCircle2, FileCheck2, Printer, ShieldCheck, XCircle } from 'lucide-react'
 import { formatDateTime } from '@/lib/formatDate'
 import { readApiError } from '@/lib/readApiError'
@@ -45,7 +47,7 @@ export function PublicDispatchVerificationPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 p-4 sm:p-6 flex flex-col items-center justify-center font-sans text-slate-900 dark:text-slate-100">
-      <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden print:shadow-none print:border-none print:max-w-full">
         {/* Cabecera de Verificación */}
         <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 text-white text-center">
           <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-3 border border-white/30 shadow-inner">
@@ -154,30 +156,30 @@ export function PublicDispatchVerificationPage() {
                           {eq.brand} {eq.model}
                         </span>
                       </div>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                      <StatusBadge tone="neutral">
                         {eq.damageLevel}
-                      </span>
+                      </StatusBadge>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Acciones */}
-              <div className="pt-2 flex justify-center">
-                <button
+              <div className="pt-2 flex justify-center print:hidden">
+                <Button
                   type="button"
+                  variant="primary"
                   onClick={handlePrint}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow hover:opacity-90 transition-opacity cursor-pointer border-none"
                 >
-                  <Printer className="w-4 h-4" />
+                  <Printer className="w-4 h-4 mr-2" />
                   Imprimir Comprobante de Entrega
-                </button>
+                </Button>
               </div>
             </div>
           ) : null}
         </div>
 
-        <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 text-center text-[11px] text-slate-400">
+        <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 text-center text-[11px] text-slate-400 print:hidden">
           EcuNexo Cloud Platform · Sistema de Reacondicionamiento de Lotes Taller B2B
         </div>
       </div>

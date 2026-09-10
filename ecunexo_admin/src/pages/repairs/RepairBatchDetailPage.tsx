@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, DataGrid, Select, TextBox, useToast, type ColumnDef } from 'glubox'
+import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef, type PageActionItem } from 'glubox'
 import {
-  EcuModal,
+  EcuPageActions,
   EmptyState,
   PageHeader,
   SectionCard,
@@ -13,15 +13,15 @@ import { GridIconButton } from '@/components/ui/GridIconButton'
 import {
   ArrowLeft,
   Camera,
-  CheckCircle2,
   Image as ImageIcon,
-  Layers,
   Truck,
   Upload,
   Wrench,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
+import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { useHasPermission } from '@/hooks/useHasPermission'
 import { formatDate, formatDateTime } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
@@ -59,29 +59,18 @@ export function RepairBatchDetailPage() {
   const { batchId } = useParams<{ batchId: string }>()
   const tenantId = useAppSelector(selectTenantId)
 
+  const canRead = useHasPermission('repairs.batches.read')
+  const canUpdateStatus = useHasPermission('repairs.equipments.update.status')
+  const canUploadPhoto = useHasPermission('repairs.equipments.upload.photo')
+  const canDispatch = useHasPermission('repairs.dispatches.create')
+  const canReadDispatches = useHasPermission('repairs.dispatches.read')
+
   const [batch, setBatch] = useState<BatchDetailDto | null>(null)
   const [equipments, setEquipments] = useState<RepairEquipmentDto[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [error, setError] = useState<string | null>(null)
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
-
-  // Modal Estado
-  const [statusModalOpen, setStatusModalOpen] = useState(false)
-  const [selectedEquipment, setSelectedEquipment] = useState<RepairEquipmentDto | null>(null)
-  const [targetStatus, setTargetStatus] = useState<RepairEquipmentStatus>(RepairEquipmentStatus.InRepair)
-  const [statusNotes, setStatusNotes] = useState('')
-  const [confirmedDamage, setConfirmedDamage] = useState<DamageLevel>(DamageLevel.Level1)
-  const [savingStatus, setSavingStatus] = useState(false)
-
-  // Modal Fotos S3
-  const [photosModalOpen, setPhotosModalOpen] = useState(false)
-  const [photoEquipment, setPhotoEquipment] = useState<RepairEquipmentDto | null>(null)
-  const [photos, setPhotos] = useState<RepairEquipmentPhotoDto[]>([])
-  const [loadingPhotos, setLoadingPhotos] = useState(false)
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const [photoStage, setPhotoStage] = useState<PhotoStage>(PhotoStage.DamageInitial)
-  const [photoCaption, setPhotoCaption] = useState('')
 
   const load = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -112,6 +101,61 @@ export function RepairBatchDetailPage() {
   useEffect(() => {
     void load({ silent: true })
   }, [load])
+
+  const actionItems = useMemo<PageActionItem[]>(() => {
+    const items: PageActionItem[] = [
+      {
+        id: 'batches',
+        label: 'Volver a lotes',
+        icon: 'arrow-left',
+        route: '/taller/lotes',
+        disabled: false,
+      },
+    ]
+    if (canReadDispatches) {
+      items.push({
+        id: 'dispatches',
+        label: 'Actas de despacho',
+        icon: 'truck',
+        route: '/taller/despachos',
+        disabled: false,
+      })
+    }
+    items.push({
+      id: 'refresh',
+      label: 'Actualizar',
+      icon: 'refresh-cw',
+      route: null,
+      disabled: loading,
+    })
+    return items
+  }, [canReadDispatches, loading])
+
+  const handleActionSelect = useCallback(
+    (item: PageActionItem) => {
+      if (item.id === 'refresh') {
+        void load()
+      }
+    },
+    [load]
+  )
+
+  // Modal Estado
+  const [statusModalOpen, setStatusModalOpen] = useState(false)
+  const [selectedEquipment, setSelectedEquipment] = useState<RepairEquipmentDto | null>(null)
+  const [targetStatus, setTargetStatus] = useState<RepairEquipmentStatus>(RepairEquipmentStatus.InRepair)
+  const [statusNotes, setStatusNotes] = useState('')
+  const [confirmedDamage, setConfirmedDamage] = useState<DamageLevel>(DamageLevel.Level1)
+  const [savingStatus, setSavingStatus] = useState(false)
+
+  // Modal Fotos S3
+  const [photosModalOpen, setPhotosModalOpen] = useState(false)
+  const [photoEquipment, setPhotoEquipment] = useState<RepairEquipmentDto | null>(null)
+  const [photos, setPhotos] = useState<RepairEquipmentPhotoDto[]>([])
+  const [loadingPhotos, setLoadingPhotos] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [photoStage, setPhotoStage] = useState<PhotoStage>(PhotoStage.DamageInitial)
+  const [photoCaption, setPhotoCaption] = useState('')
 
   // Filtrado de equipos
   const filteredEquipments = useMemo(() => {
@@ -322,29 +366,50 @@ export function RepairBatchDetailPage() {
         align: 'center',
         renderCell: (_v: unknown, row: Row) => (
           <div className="flex items-center justify-center gap-1">
-            <GridIconButton
-              icon={Wrench}
-              label="Cambiar estado / Fase técnica"
-              onClick={() => handleOpenStatusModal(row)}
-            />
-            <GridIconButton
-              icon={Camera}
-              label="Fotos de evidencia S3"
-              onClick={() => handleOpenPhotosModal(row)}
-            />
+            {canUpdateStatus && (
+              <GridIconButton
+                icon={Wrench}
+                label="Cambiar estado / Fase técnica"
+                onClick={() => handleOpenStatusModal(row)}
+              />
+            )}
+            {canUploadPhoto && (
+              <GridIconButton
+                icon={Camera}
+                label="Fotos de evidencia S3"
+                onClick={() => void handleOpenPhotosModal(row)}
+              />
+            )}
           </div>
         ),
       },
     ],
-    []
+    [canUpdateStatus, canUploadPhoto]
   )
+
+  if (!canRead) {
+    return (
+      <TenantSessionGate
+        title="Detalle de Lote"
+        lead="Trazabilidad por serie, fases operativas y evidencia fotográfica en Amazon S3."
+      >
+        <div className="ecu-dashboard-layout">
+          <PageHeader
+            title="Acceso Restringido"
+            subtitle="Requieres el permiso repairs.batches.read para visualizar el detalle de los lotes de reparación."
+            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
+          />
+        </div>
+      </TenantSessionGate>
+    )
+  }
 
   return (
     <TenantSessionGate
       title={batch ? `Lote ${batch.batchNumber}` : 'Detalle de Lote'}
       lead="Trazabilidad por serie, fases operativas y evidencia fotográfica en Amazon S3."
     >
-      <div className="ecu-page-container">
+      <div className="ecu-dashboard-layout">
         <PageHeader
           title={batch ? `Lote ${batch.batchNumber}` : 'Cargando Lote...'}
           subtitle={
@@ -359,13 +424,13 @@ export function RepairBatchDetailPage() {
           }
           badge={
             batch ? (
-              <StatusBadge tone="primary">
+              <StatusBadge tone="primary" withDot>
                 Avance {batch.progressPercentage}%
               </StatusBadge>
             ) : undefined
           }
           actions={
-            <div className="flex items-center gap-2">
+            <>
               <Button
                 type="button"
                 variant="outline"
@@ -374,7 +439,7 @@ export function RepairBatchDetailPage() {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Lotes
               </Button>
-              {readyEquipmentsCount > 0 && (
+              {readyEquipmentsCount > 0 && canDispatch && (
                 <Button
                   type="button"
                   variant="primary"
@@ -384,39 +449,47 @@ export function RepairBatchDetailPage() {
                   Despachar Listos ({readyEquipmentsCount})
                 </Button>
               )}
-            </div>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones del lote"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handleActionSelect}
+              />
+            </>
           }
         />
 
         {batch && (
-          <div className="ecu-stat-grid">
+          <div className="ecu-stat-grid" aria-label="Métricas del lote">
             <StatCard
               label="Total en Lote"
               value={batch.totalCount}
-              icon={<Layers className="w-5 h-5 text-indigo-500" />}
-              toneColor="#6366f1"
+              icon="inventory_2"
+              toneColor="#4f46e5"
               footerText="Equipos importados"
             />
             <StatCard
-              label="En Reparación / Proceso"
+              label="En Proceso / Taller"
               value={batch.inRepairCount + batch.receivedCount}
-              icon={<Wrench className="w-5 h-5 text-amber-500" />}
+              icon="build"
               toneColor="#f59e0b"
-              footerText="En diagnóstico o taller"
+              footerText="En diagnóstico o reparación"
             />
             <StatCard
               label="Listos para Retiro"
               value={batch.readyCount}
-              icon={<CheckCircle2 className="w-5 h-5 text-emerald-500" />}
+              icon="verified"
               toneColor="#10b981"
-              footerText="Conforme control calidad"
+              footerText="Control de calidad superado"
             />
             <StatCard
               label="Despachados"
               value={batch.dispatchedCount}
-              icon={<Truck className="w-5 h-5 text-blue-500" />}
+              icon="local_shipping"
               toneColor="#3b82f6"
-              footerText="Entregados a Whirlpool"
+              footerText="Con acta oficial entregada"
             />
           </div>
         )}
@@ -461,7 +534,7 @@ export function RepairBatchDetailPage() {
             />
           ) : (
             <DataGrid
-              className="ecu-companies-grid"
+              className="ecu-repairs-grid"
               dataSource={filteredEquipments as Row[]}
               keyExpr="id"
               columns={columns}
@@ -480,33 +553,31 @@ export function RepairBatchDetailPage() {
           )}
         </SectionCard>
 
-        {/* Modal de Actualización de Fase / Estado */}
-        <EcuModal
+        {/* Modal Popup de Actualización de Fase / Estado */}
+        <Popup
           open={statusModalOpen}
           title={`Fase Técnica — Serie ${selectedEquipment?.serialNumber ?? ''}`}
           onClose={() => setStatusModalOpen(false)}
-          footer={
-            <div className="flex justify-end gap-2 w-full">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setStatusModalOpen(false)}
-                disabled={savingStatus}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleSaveStatus}
-                disabled={savingStatus}
-              >
-                {savingStatus ? 'Guardando...' : 'Confirmar Cambio de Estado'}
-              </Button>
-            </div>
-          }
+          width="min(92vw, 32rem)"
+          actions={[
+            {
+              id: 'cancel',
+              label: 'Cancelar',
+              variant: 'ghost',
+              onClick: () => setStatusModalOpen(false),
+              disabled: savingStatus,
+            },
+            {
+              id: 'save',
+              label: savingStatus ? 'Guardando...' : 'Confirmar Cambio de Estado',
+              variant: 'primary',
+              onClick: () => void handleSaveStatus(),
+              disabled: savingStatus,
+              loading: savingStatus,
+            },
+          ]}
         >
-          <div className="space-y-4">
+          <div className="space-y-4" style={{ paddingTop: '0.5rem' }}>
             <div>
               <Select
                 id="modal-target-status"
@@ -557,91 +628,88 @@ export function RepairBatchDetailPage() {
               />
             </div>
           </div>
-        </EcuModal>
+        </Popup>
 
-        {/* Modal Fotos S3 (Cero-Blob) */}
-        <EcuModal
+        {/* Modal Popup Fotos S3 (Cero-Blob) */}
+        <Popup
           open={photosModalOpen}
           title={`Evidencia Fotográfica en S3 — Serie ${photoEquipment?.serialNumber ?? ''}`}
           onClose={() => setPhotosModalOpen(false)}
-          footer={
-            <div className="flex justify-between items-center w-full">
-              <span className="text-xs text-slate-500">
-                Almacenamiento directo en Amazon S3 (Principio Cero-Blob)
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setPhotosModalOpen(false)}
-              >
-                Cerrar
-              </Button>
-            </div>
-          }
+          width="min(96vw, 44rem)"
+          actions={[
+            {
+              id: 'close',
+              label: 'Cerrar',
+              variant: 'outline',
+              onClick: () => setPhotosModalOpen(false),
+            },
+          ]}
         >
-          <div className="space-y-6">
+          <div className="space-y-6" style={{ paddingTop: '0.5rem' }}>
             {/* Formulario de carga rápida a S3 */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
-              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Upload className="w-4 h-4 text-indigo-500" />
-                Subir Nueva Fotografía
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                <div>
-                  <Select
-                    id="photo-stage-select"
-                    label="Etapa / Momento *"
-                    labelPosition="outlined"
-                    variant="outline"
-                    options={[
-                      { value: String(PhotoStage.DamageInitial), label: 'Daño Inicial / Recepción' },
-                      { value: String(PhotoStage.InRepair), label: 'En Proceso de Reparación' },
-                      { value: String(PhotoStage.QualityFinal), label: 'Control de Calidad Final' },
-                    ]}
-                    value={String(photoStage)}
-                    onChange={(val: string) => setPhotoStage(Number(val) as PhotoStage)}
-                    fullWidth
-                  />
+            {canUploadPhoto && (
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Upload className="w-4 h-4 text-indigo-500" />
+                  Subir Nueva Fotografía
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <Select
+                      id="photo-stage-select"
+                      label="Etapa / Momento *"
+                      labelPosition="outlined"
+                      variant="outline"
+                      options={[
+                        { value: String(PhotoStage.DamageInitial), label: 'Daño Inicial / Recepción' },
+                        { value: String(PhotoStage.InRepair), label: 'En Proceso de Reparación' },
+                        { value: String(PhotoStage.QualityFinal), label: 'Control de Calidad Final' },
+                      ]}
+                      value={String(photoStage)}
+                      onChange={(val: string) => setPhotoStage(Number(val) as PhotoStage)}
+                      fullWidth
+                    />
+                  </div>
+                  <div>
+                    <TextBox
+                      id="photo-caption-input"
+                      label="Descripción / Nota de la foto"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={photoCaption}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setPhotoCaption(e.target.value)}
+                      placeholder="ej. Abolladura lateral derecha..."
+                      fullWidth
+                    />
+                  </div>
                 </div>
-                <div>
-                  <TextBox
-                    id="photo-caption-input"
-                    label="Descripción / Nota de la foto"
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={photoCaption}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setPhotoCaption(e.target.value)}
-                    placeholder="ej. Abolladura lateral derecha..."
-                    fullWidth
-                  />
-                </div>
-              </div>
 
-              <div className="flex items-center justify-between">
-                <input
-                  type="file"
-                  accept="image/*"
-                  id="photo-upload-input"
-                  className="hidden"
-                  onChange={handlePhotoUpload}
-                  disabled={uploadingPhoto}
-                />
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => document.getElementById('photo-upload-input')?.click()}
-                  disabled={uploadingPhoto}
-                >
-                  <Camera className="w-4 h-4 mr-2" />
-                  {uploadingPhoto ? 'Subiendo a S3...' : 'Seleccionar Foto'}
-                </Button>
-                {uploadingPhoto && (
-                  <span className="text-xs text-indigo-600 animate-pulse font-medium">
-                    Transmitiendo al bucket Amazon S3...
-                  </span>
-                )}
+                <div className="flex items-center justify-between">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    id="photo-upload-input"
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                    disabled={uploadingPhoto}
+                  />
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => document.getElementById('photo-upload-input')?.click()}
+                    disabled={uploadingPhoto}
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    {uploadingPhoto ? 'Subiendo a S3...' : 'Seleccionar Foto'}
+                  </Button>
+                  {uploadingPhoto && (
+                    <span className="text-xs text-indigo-600 animate-pulse font-medium">
+                      Transmitiendo al bucket Amazon S3...
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Galería de fotos */}
             <div>
@@ -688,7 +756,7 @@ export function RepairBatchDetailPage() {
               )}
             </div>
           </div>
-        </EcuModal>
+        </Popup>
       </div>
     </TenantSessionGate>
   )
