@@ -575,7 +575,7 @@ El usuario que Whirlpool recibe no ve el sistema completo de EcuNexo. Entra a un
 **Página Principal del Portal:**
 ```
 ╔══════════════════════════════════════════════════════════════════╗
-║  Whirlpool del Ecuador — Portal de Reparaciones           v0.5.0 ║
+║  Whirlpool del Ecuador — Portal de Reparaciones           v0.6.0 ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
 ║  📦 Lotes Activos         🔧 Equipos en Proceso   ✅ Listos hoy  ║

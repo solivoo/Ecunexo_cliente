@@ -68,7 +68,7 @@ test.describe('Enterprise Shell UI — Header, Tema y Modal Acerca de', () => {
     await expect(modal).toBeVisible()
 
     // Información de release
-    await expect(modal.locator('.ecu-about-modal__badge')).toContainText('v0.5.0')
+    await expect(modal.locator('.ecu-about-modal__badge')).toContainText('v0.6.0')
     await expect(modal.locator('.ecu-about-modal__changelog')).toBeVisible()
     await expect(modal).toContainText('Taller y Lotes B2B')
     await expect(modal).toContainText('Actas de Despacho Criptográficas con QR')
