@@ -30,11 +30,13 @@ import {
   DEFAULT_PAYMENT_FORM_CODE,
   isConsumidorFinalType,
   normalizeCounterpartyForEmit,
+  normalizeLineIvaRate,
   validateCounterpartyForEmit,
   type InvoiceCounterpartyValues,
   type InvoiceHeaderValues,
   type InvoiceLineDraft,
 } from '@/pages/facturacion/invoiceFormTypes'
+import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
 import type { TenantBranding } from '@/types/tenantBranding'
 import { readApiError } from '@/lib/readApiError'
 
@@ -263,6 +265,38 @@ export function useInvoiceEmitForm({
   const patchLine = useCallback((lineId: string, patch: Partial<InvoiceLineDraft>) => {
     setLines((prev) => prev.map((l) => (l.id === lineId ? { ...l, ...patch } : l)))
   }, [])
+
+  const addProductLine = useCallback(
+    (item: CatalogItemListItemDto, quantity = 1, targetLineId?: string | null) => {
+      setLines((prev) => {
+        const linePatch: Partial<InvoiceLineDraft> = {
+          productId: item.id,
+          catalogItemId: item.id,
+          itemKind: item.kind === CatalogItemKind.Physical ? 'physical' : 'service',
+          sku: (item.sku ?? '').trim().slice(0, 25),
+          description: item.name,
+          unitPrice: item.basePrice ?? 0,
+          quantity: Math.max(1, quantity),
+          ivaRate: normalizeLineIvaRate(15),
+        }
+
+        if (targetLineId) {
+          return prev.map((l) => (l.id === targetLineId ? { ...l, ...linePatch } : l))
+        }
+
+        if (prev.length === 1 && !prev[0].productId && !prev[0].description.trim()) {
+          return [{ ...prev[0], ...linePatch }]
+        }
+
+        const newLine: InvoiceLineDraft = {
+          ...createEmptyLine(newLineId()),
+          ...linePatch,
+        }
+        return [...prev, newLine]
+      })
+    },
+    []
+  )
 
   /** Limpia cliente/líneas/notas tras crear comprobante; conserva emisor y punto de emisión. */
   const resetFormAfterSuccessfulEmit = useCallback(() => {
@@ -515,6 +549,7 @@ export function useInvoiceEmitForm({
     addLine,
     removeLine,
     patchLine,
+    addProductLine,
     onSubmit,
   }
 }

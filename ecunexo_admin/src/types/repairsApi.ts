@@ -28,9 +28,20 @@ export const RepairEquipmentStatus = {
   Invoiced: 6,
   Irreparable: 7,
   Cancelled: 8,
+  ReturnedUnrepaired: 9,
+  ReturnedClient: 10,
 } as const
 
 export type RepairEquipmentStatus = (typeof RepairEquipmentStatus)[keyof typeof RepairEquipmentStatus]
+
+export const DispatchExitType = {
+  Repaired: 0,
+  Irreparable: 1,
+  ClientRequest: 2,
+  TechRefusal: 3,
+} as const
+
+export type DispatchExitType = (typeof DispatchExitType)[keyof typeof DispatchExitType]
 
 export const PhotoStage = {
   DamageInitial: 1,
@@ -204,8 +215,11 @@ export type RepairDispatchDto = {
   id: string
   tenantId: string
   batchId: string
+  batchNumber?: string | null
+  customerName?: string | null
   dispatchNumber: string
   status: RepairDispatchStatus
+  exitType: DispatchExitType
   carrierName: string | null
   carrierDocument: string | null
   carrierVehiclePlate: string | null
@@ -222,10 +236,59 @@ export type CreateRepairDispatchBody = {
   batchId: string
   dispatchNumber: string
   equipmentIds: string[]
+  exitType?: DispatchExitType
   carrierName?: string | null
   carrierDocument?: string | null
   carrierVehiclePlate?: string | null
   notes?: string | null
+  returnReason?: string | null
+}
+
+export type DispatchInvoicePreviewLineDto = {
+  damageLevel: number
+  description: string
+  quantity: number
+  unitPrice: number
+  lineSubtotal: number
+  mainCode?: string | null
+  catalogItemId?: string | null
+}
+
+export type DispatchInvoiceCounterpartyDto = {
+  identificationType: string
+  identification: string
+  businessName: string
+  address?: string | null
+  email?: string | null
+  phone?: string | null
+}
+
+export type DispatchInvoicePreviewDto = {
+  dispatchId: string
+  dispatchNumber: string
+  batchId: string
+  batchNumber: string
+  canInvoice: boolean
+  blockingReason?: string | null
+  additionalNote: string
+  subtotal: number
+  taxTotal: number
+  grandTotal: number
+  taxRate: number
+  counterparty: DispatchInvoiceCounterpartyDto
+  lines: DispatchInvoicePreviewLineDto[]
+  serialNumbers: string[]
+}
+
+export type LinkDispatchInvoiceBody = {
+  invoiceId: string
+}
+
+export type LinkDispatchInvoiceResponse = {
+  dispatchId: string
+  invoiceId: string
+  status: RepairDispatchStatus
+  invoicedEquipmentCount: number
 }
 
 export type PublicDispatchEquipmentItemDto = {
@@ -346,6 +409,10 @@ export function repairEquipmentStatusLabel(status: RepairEquipmentStatus): strin
       return 'Irreparable'
     case RepairEquipmentStatus.Cancelled:
       return 'Sin Procesar (Lote Anulado)'
+    case RepairEquipmentStatus.ReturnedUnrepaired:
+      return 'Devuelto sin Reparar'
+    case RepairEquipmentStatus.ReturnedClient:
+      return 'Retirado por Cliente'
     default:
       return `Estado ${status}`
   }
@@ -373,6 +440,42 @@ export function repairEquipmentStatusBadgeTone(
       return 'danger'
     case RepairEquipmentStatus.Cancelled:
       return 'neutral'
+    case RepairEquipmentStatus.ReturnedUnrepaired:
+      return 'danger'
+    case RepairEquipmentStatus.ReturnedClient:
+      return 'warning'
+    default:
+      return 'neutral'
+  }
+}
+
+export function dispatchExitTypeLabel(exitType: DispatchExitType): string {
+  switch (exitType) {
+    case DispatchExitType.Repaired:
+      return 'Reparado'
+    case DispatchExitType.Irreparable:
+      return 'Devolución Irreparable'
+    case DispatchExitType.ClientRequest:
+      return 'Retiro por Cliente'
+    case DispatchExitType.TechRefusal:
+      return 'Rechazo Técnico'
+    default:
+      return 'Salida'
+  }
+}
+
+export function dispatchExitTypeBadgeTone(
+  exitType: DispatchExitType
+): 'neutral' | 'info' | 'warning' | 'success' | 'danger' {
+  switch (exitType) {
+    case DispatchExitType.Repaired:
+      return 'success'
+    case DispatchExitType.Irreparable:
+      return 'danger'
+    case DispatchExitType.ClientRequest:
+      return 'warning'
+    case DispatchExitType.TechRefusal:
+      return 'warning'
     default:
       return 'neutral'
   }

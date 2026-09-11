@@ -13,6 +13,7 @@ import { GridIconButton } from '@/components/ui/GridIconButton'
 import {
   Download,
   Eye,
+  Search,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -40,9 +41,13 @@ import {
   type CustomerDto,
   type RepairEquipmentDto,
 } from '@/types/repairsApi'
+import './portal-track.css'
 
 type BatchRow = BatchListItemDto & Record<string, unknown>
-type EquipmentRow = RepairEquipmentDto & { batchNumber?: string } & Record<string, unknown>
+type EquipmentRow = RepairEquipmentDto & {
+  batchNumber?: string
+  batchStatus?: BatchListItemDto['status']
+} & Record<string, unknown>
 
 const messages = createSpanishDataGridMessages('lote', 'lotes')
 
@@ -82,7 +87,11 @@ export function CorporatePortalPage() {
       // Cargar equipos de los primeros lotes para el buscador instantáneo
       const equipmentPromises = bList.slice(0, 5).map(async (b) => {
         const eqs = await listBatchEquipments(tenantId, b.id)
-        return eqs.map((e) => ({ ...e, batchNumber: b.batchNumber }))
+        return eqs.map((e) => ({
+          ...e,
+          batchNumber: b.batchNumber,
+          batchStatus: b.status,
+        }))
       })
 
       const nested = await Promise.all(equipmentPromises)
@@ -392,78 +401,120 @@ export function CorporatePortalPage() {
           />
         </div>
 
-        {/* Buscador Instantáneo por Número de Serie */}
         <SectionCard
           title="Rastreo Instantáneo por Número de Serie"
           subtitle="Consulta el estado exacto de cualquier electrodoméstico o equipo registrado en los lotes"
         >
-          <div className="relative mb-4">
-            <TextBox
-              id="search-serial-input"
-              label="Buscar por número de serie"
-              labelPosition="outlined"
-              variant="outline"
-              value={searchSerial}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchSerial(e.target.value)}
-              placeholder="Escribe el número de serie para buscar en todos los lotes (ej. SN123456789)..."
-              fullWidth
-            />
+          <div className="ecu-portal-track__toolbar">
+            <div className="ecu-portal-track__search">
+              <TextBox
+                id="search-serial-input"
+                label="Buscar por número de serie"
+                labelPosition="outlined"
+                variant="outline"
+                value={searchSerial}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchSerial(e.target.value)}
+                placeholder="Ej. SN123456789"
+                fullWidth
+              />
+            </div>
+            {searchSerial.trim() ? (
+              <Button type="button" variant="ghost" onClick={() => setSearchSerial('')}>
+                Limpiar
+              </Button>
+            ) : (
+              <p className="ecu-portal-track__hint">
+                <Search
+                  size={14}
+                  strokeWidth={2}
+                  aria-hidden
+                  style={{ display: 'inline', verticalAlign: '-2px', marginRight: 6 }}
+                />
+                Escribe serie, marca o modelo para filtrar entre los lotes cargados.
+              </p>
+            )}
           </div>
 
-          {searchSerial.trim() && (
-            <div className="mt-4">
-              <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                Resultados encontrados ({searchResults.length})
-              </h3>
-              {searchResults.length === 0 ? (
-                <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-                  No se encontró ningún equipo con la serie "{searchSerial}".
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {searchResults.map((eq) => (
-                    <div
-                      key={eq.id}
-                      className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between shadow-sm hover:border-primary/50 transition-colors"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-slate-900 dark:text-white">
-                            {eq.serialNumber}
-                          </span>
-                          <StatusBadge tone={damageLevelBadgeTone(eq.damageLevel)}>
-                            {damageLevelLabel(eq.damageLevel)}
-                          </StatusBadge>
-                          {eq.batchNumber && (
-                            <span className="text-xs text-slate-500">
-                              Lote: <strong>{eq.batchNumber}</strong>
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                          {eq.brand} {eq.model}
-                          {eq.diagnosticNotes ? ` — Diagnóstico: ${eq.diagnosticNotes}` : ''}
-                        </p>
-                      </div>
+          {searchSerial.trim() ? (
+            <>
+              <div className="ecu-portal-track__results-head">
+                <h3 className="ecu-portal-track__results-title">Resultados</h3>
+                <StatusBadge tone={searchResults.length > 0 ? 'primary' : 'neutral'} withDot>
+                  {searchResults.length} {searchResults.length === 1 ? 'equipo' : 'equipos'}
+                </StatusBadge>
+              </div>
 
-                      <div className="flex items-center gap-3">
-                        <StatusBadge tone={repairEquipmentStatusBadgeTone(eq.status)} withDot>
-                          {repairEquipmentStatusLabel(eq.status)}
-                        </StatusBadge>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => navigate(`/taller/lotes/${eq.batchId}`)}
-                        >
-                          Ver Lote
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              {searchResults.length === 0 ? (
+                <EmptyState
+                  icon="search"
+                  title="Sin coincidencias para esta serie"
+                  description={`No hay equipos que coincidan con «${searchSerial.trim()}» en los lotes visibles del portal. Prueba con otra serie o actualiza el listado.`}
+                />
+              ) : (
+                <ul className="ecu-portal-track__list" aria-label="Equipos encontrados por serie">
+                  {searchResults.map((eq) => {
+                    const notes = eq.diagnosticNotes?.trim()
+                    const notesAreAlert = Boolean(notes && /anulado|cancelad/i.test(notes))
+                    return (
+                      <li key={eq.id} className="ecu-portal-track__card">
+                        <div className="ecu-portal-track__card-main">
+                          <div className="ecu-portal-track__serial-row">
+                            <span className="ecu-portal-track__serial">{eq.serialNumber}</span>
+                            <StatusBadge tone={damageLevelBadgeTone(eq.damageLevel)}>
+                              {damageLevelLabel(eq.damageLevel)}
+                            </StatusBadge>
+                          </div>
+
+                          <p className="ecu-portal-track__product">
+                            {eq.brand} {eq.model}
+                          </p>
+
+                          <ul className="ecu-portal-track__meta">
+                            {eq.batchNumber ? (
+                              <li className="ecu-portal-track__meta-item">
+                                <span className="ecu-portal-track__meta-label">Lote</span>
+                                <span className="ecu-portal-track__meta-value">{eq.batchNumber}</span>
+                              </li>
+                            ) : null}
+                            {eq.batchStatus !== undefined ? (
+                              <li className="ecu-portal-track__meta-item">
+                                <span className="ecu-portal-track__meta-label">Estado del lote</span>
+                                <StatusBadge tone={repairBatchStatusBadgeTone(eq.batchStatus)} withDot>
+                                  {repairBatchStatusLabel(eq.batchStatus)}
+                                </StatusBadge>
+                              </li>
+                            ) : null}
+                          </ul>
+
+                          {notes ? (
+                            <p
+                              className={`ecu-portal-track__notes${notesAreAlert ? ' ecu-portal-track__notes--alert' : ''}`}
+                            >
+                              <strong>Diagnóstico:</strong> {notes}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="ecu-portal-track__aside">
+                          <StatusBadge tone={repairEquipmentStatusBadgeTone(eq.status)} withDot>
+                            {repairEquipmentStatusLabel(eq.status)}
+                          </StatusBadge>
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            onClick={() => navigate(`/taller/lotes/${eq.batchId}`)}
+                          >
+                            Ver lote
+                          </Button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
               )}
-            </div>
-          )}
+            </>
+          ) : null}
         </SectionCard>
 
         {/* Lotes Activos Corporativos */}

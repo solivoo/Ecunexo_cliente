@@ -53,8 +53,10 @@ import { TaxRulesCatalogPage } from '@/pages/facturacion/TaxRulesCatalogPage'
 import { ComprasDocumentosPage } from '@/pages/compras/ComprasDocumentosPage'
 import { RepairsBatchesListPage } from '@/pages/repairs/RepairsBatchesListPage'
 import { CreateRepairBatchPage } from '@/pages/repairs/CreateRepairBatchPage'
+import { CreateRepairDispatchPage } from '@/pages/repairs/CreateRepairDispatchPage'
 import { RepairBatchDetailPage } from '@/pages/repairs/RepairBatchDetailPage'
 import { RepairDispatchesListPage } from '@/pages/repairs/RepairDispatchesListPage'
+import { RepairDispatchDetailPage } from '@/pages/repairs/RepairDispatchDetailPage'
 import { WhirlpoolPortalPage } from '@/pages/repairs/WhirlpoolPortalPage'
 import RepairCustomersListPage from '@/pages/repairs/RepairCustomersListPage'
 import CustomerTypesListPage from '@/pages/customers/CustomerTypesListPage'
@@ -130,6 +132,8 @@ export const routes: RouteObject[] = [
           { path: 'taller/lotes/nuevo', element: <CreateRepairBatchPage /> },
           { path: 'taller/lotes/:batchId', element: <RepairBatchDetailPage /> },
           { path: 'taller/despachos', element: <RepairDispatchesListPage /> },
+          { path: 'taller/despachos/nuevo', element: <CreateRepairDispatchPage /> },
+          { path: 'taller/despachos/:dispatchId', element: <RepairDispatchDetailPage /> },
           { path: 'taller/portal', element: <WhirlpoolPortalPage /> },
           { path: 'taller/clientes', element: <Navigate to="/clientes" replace /> },
           { path: 'clientes', element: <RepairCustomersListPage /> },

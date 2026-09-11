@@ -73,6 +73,12 @@ public enum RepairEquipmentStatus
 
     /// <summary>Equipo anulado debido a la cancelación o anulación del lote de origen.</summary>
     Cancelled = 8,
+
+    /// <summary>Devuelto al cliente sin reparar (irreparable despachado o retiro por decisión técnica/cliente).</summary>
+    ReturnedUnrepaired = 9,
+
+    /// <summary>Retirado por el cliente antes de finalizar el proceso de reparación (retiro anticipado).</summary>
+    ReturnedClient = 10,
 }
 
 /// <summary>
@@ -103,4 +109,23 @@ public enum RepairDispatchStatus
 
     /// <summary>Facturado: liquidación convertida en factura electrónica SRI de servicios.</summary>
     Invoiced = 2,
+}
+
+/// <summary>
+/// Motivo o tipo de egreso del acta de salida del taller.
+/// Determina qué estados de equipos son elegibles y el encabezado del acta PDF.
+/// </summary>
+public enum DispatchExitType
+{
+    /// <summary>Salida de equipos reparados y aprobados en control de calidad. Estado requerido: ReadyToDispatch.</summary>
+    Repaired = 0,
+
+    /// <summary>Devolución de equipos declarados irreparables tras diagnóstico técnico. Estado requerido: Irreparable.</summary>
+    Irreparable = 1,
+
+    /// <summary>Retiro anticipado por solicitud del cliente antes de concluir la reparación. Estado requerido: Received/Diagnosing/InRepair/QualityCheck.</summary>
+    ClientRequest = 2,
+
+    /// <summary>Rechazo técnico: el taller rechaza el equipo por estar fuera de alcance del servicio. Estado requerido: cualquiera pre-despacho.</summary>
+    TechRefusal = 3,
 }

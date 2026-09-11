@@ -53,6 +53,18 @@ public static class CustomerEndpoints
         group.MapPatch("/{customerId:guid}/status", ToggleCustomerStatusAsync)
             .AddEndpointFilter(PermissionFilters.Require("customers.manage"));
 
+        group.MapGet("/{customerId:guid}/repair-rates", GetRepairRatesAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "customers.read",
+                "customers.manage",
+                "repairs.batches.read",
+                "repairs.batches.import"));
+
+        group.MapPut("/{customerId:guid}/repair-rates", UpsertRepairRatesAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "customers.manage",
+                "repairs.batches.import"));
+
         return app;
     }
 
@@ -242,6 +254,106 @@ public static class CustomerEndpoints
         await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
         return Results.Ok(customer);
     }
+
+    private static async Task<IResult> GetRepairRatesAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid customerId,
+        [FromServices] ICustomerRepository customerRepo,
+        [FromServices] ICustomerRepairRateCardRepository rateCardRepo,
+        CancellationToken ct)
+    {
+        var customer = await customerRepo.GetByIdAsync(tenantId, customerId, ct).ConfigureAwait(false);
+        if (customer is null)
+        {
+            return Results.NotFound(new { message = "Cliente no encontrado." });
+        }
+
+        var card = await rateCardRepo.GetByCustomerAsync(tenantId, customerId, ct).ConfigureAwait(false);
+        if (card is null)
+        {
+            return Results.Ok(new CustomerRepairRateCardDto(
+                Guid.Empty,
+                customerId,
+                null,
+                null,
+                null,
+                null,
+                null,
+                default,
+                null));
+        }
+
+        return Results.Ok(ToRateCardDto(card));
+    }
+
+    private static async Task<IResult> UpsertRepairRatesAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid customerId,
+        [FromBody] UpsertCustomerRepairRateCardRequest request,
+        [FromServices] ICustomerRepository customerRepo,
+        [FromServices] ICustomerRepairRateCardRepository rateCardRepo,
+        [FromServices] IUnitOfWork unitOfWork,
+        [FromServices] ICallerContext caller,
+        CancellationToken ct)
+    {
+        var customer = await customerRepo.GetByIdAsync(tenantId, customerId, ct).ConfigureAwait(false);
+        if (customer is null)
+        {
+            return Results.NotFound(new { message = "Cliente no encontrado." });
+        }
+
+        var existing = await rateCardRepo.GetTrackedByCustomerAsync(tenantId, customerId, ct).ConfigureAwait(false);
+        if (existing is null)
+        {
+            var created = CustomerRepairRateCard.Create(
+                Guid.NewGuid(),
+                tenantId,
+                customerId,
+                request.RateN1,
+                request.RateN2,
+                request.RateN3,
+                request.ContractReference,
+                request.ValidFrom,
+                caller.UserId);
+
+            if (created.IsFailure)
+            {
+                return created.ToHttpResult();
+            }
+
+            await rateCardRepo.AddAsync(created.Value!, ct).ConfigureAwait(false);
+            await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+            return Results.Ok(ToRateCardDto(created.Value!));
+        }
+
+        var updated = existing.UpdateRates(
+            request.RateN1,
+            request.RateN2,
+            request.RateN3,
+            request.ContractReference,
+            request.ValidFrom,
+            caller.UserId);
+
+        if (updated.IsFailure)
+        {
+            return updated.ToHttpResult();
+        }
+
+        await unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+        return Results.Ok(ToRateCardDto(existing));
+    }
+
+    private static CustomerRepairRateCardDto ToRateCardDto(CustomerRepairRateCard card) =>
+        new(
+            card.Id,
+            card.CustomerId,
+            card.RateN1,
+            card.RateN2,
+            card.RateN3,
+            card.ContractReference,
+            card.ValidFrom,
+            card.CreatedAt,
+            card.UpdatedAt);
 
     private static async Task<IResult?> EnsureActiveCustomerTypeAsync(
         Guid tenantId,

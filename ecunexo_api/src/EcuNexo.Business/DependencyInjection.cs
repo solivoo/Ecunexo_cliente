@@ -20,12 +20,15 @@ using EcuNexo.Business.Inventory.Queries.ListInventoryDocuments;
 using EcuNexo.Business.Inventory.Queries.ListInventoryMovements;
 using EcuNexo.Business.Inventory.Queries.ListStock;
 using EcuNexo.Business.Repairs.Commands.CreateRepairDispatch;
+using EcuNexo.Business.Repairs.Commands.LinkDispatchInvoice;
 using EcuNexo.Business.Repairs.Commands.ImportRepairBatch;
 using EcuNexo.Business.Repairs.Commands.UpdateEquipmentStatus;
 using EcuNexo.Business.Repairs.Excel;
+using EcuNexo.Business.Repairs.Queries.GetDispatchInvoicePreview;
 using EcuNexo.Business.Repairs.Queries.ListBatches;
 using EcuNexo.Business.Repairs.Queries.VerifyDispatchPublic;
 using EcuNexo.Business.Repairs.Storage;
+using EcuNexo.Business.Repairs;
 using EcuNexo.Business.Identity.Authorization;
 using EcuNexo.Business.Identity.Commands;
 using EcuNexo.Business.Identity.Commands.Login;
@@ -181,8 +184,11 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<ImportRepairBatchCommand, ImportRepairBatchResponse>, ImportRepairBatchHandler>();
         services.AddScoped<ICommandHandler<UpdateEquipmentStatusCommand, UpdateEquipmentStatusResponse>, UpdateEquipmentStatusHandler>();
         services.AddScoped<ICommandHandler<CreateRepairDispatchCommand, CreateRepairDispatchResponse>, CreateRepairDispatchHandler>();
+        services.AddScoped<ICommandHandler<LinkDispatchInvoiceCommand, LinkDispatchInvoiceResponse>, LinkDispatchInvoiceHandler>();
         services.AddScoped<IQueryHandler<ListBatchesQuery, IReadOnlyList<BatchListItemResponse>>, ListBatchesHandler>();
         services.AddScoped<IQueryHandler<VerifyDispatchPublicQuery, PublicDispatchVerificationResponse>, VerifyDispatchPublicHandler>();
+        services.AddScoped<IQueryHandler<GetDispatchInvoicePreviewQuery, DispatchInvoicePreviewResponse>, GetDispatchInvoicePreviewHandler>();
+        services.AddScoped<RepairCatalogServiceEnsurer>();
 
         return services;
     }

@@ -65,3 +65,21 @@ public sealed record UpdateCustomerTypeApiRequest(
     string? Tone = null,
     int? SortOrder = null,
     bool? IsActive = null);
+
+public sealed record CustomerRepairRateCardDto(
+    Guid Id,
+    Guid CustomerId,
+    decimal? RateN1,
+    decimal? RateN2,
+    decimal? RateN3,
+    string? ContractReference,
+    DateTimeOffset? ValidFrom,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? UpdatedAt);
+
+public sealed record UpsertCustomerRepairRateCardRequest(
+    decimal? RateN1 = null,
+    decimal? RateN2 = null,
+    decimal? RateN3 = null,
+    string? ContractReference = null,
+    DateTimeOffset? ValidFrom = null);

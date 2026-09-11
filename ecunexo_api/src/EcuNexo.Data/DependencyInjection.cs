@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IInvoiceStockEgressRepository, InvoiceStockEgressRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<ICustomerTypeDefinitionRepository, CustomerTypeDefinitionRepository>();
+        services.AddScoped<ICustomerRepairRateCardRepository, CustomerRepairRateCardRepository>();
         services.AddScoped<IRepairBatchTemplateRepository, RepairBatchTemplateRepository>();
         services.AddScoped<IRepairBatchRepository, RepairBatchRepository>();
         services.AddScoped<IRepairEquipmentRepository, RepairEquipmentRepository>();

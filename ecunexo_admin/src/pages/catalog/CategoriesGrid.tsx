@@ -79,6 +79,7 @@ export function CategoriesGrid({
       cols.push({
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: canDelete ? 112 : 72,
         align: 'center',
         sortable: false,

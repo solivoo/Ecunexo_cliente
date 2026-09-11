@@ -1,7 +1,7 @@
 {
   "name": "admin_ecunexo",
   "private": true,
-  "version": "0.11.0",
+  "version": "0.13.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -32,7 +32,7 @@
     "@react-pdf/renderer": "^4.5.1",
     "@reduxjs/toolkit": "^2.11.2",
     "axios": "^1.16.0",
-    "glubox": "^0.1.21",
+    "glubox": "^0.1.22",
     "jsbarcode": "^3.12.3",
     "lognerd": "^1.1.0",
     "lucide-react": "^1.17.0",

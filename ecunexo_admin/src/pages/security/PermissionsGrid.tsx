@@ -70,6 +70,7 @@ export function PermissionsGrid({ rows, loading = false, toolbarRight }: Permiss
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: 72,
         align: 'center',
         sortable: false,

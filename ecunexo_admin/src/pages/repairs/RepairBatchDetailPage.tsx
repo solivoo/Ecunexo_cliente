@@ -51,6 +51,7 @@ import {
   type RepairEquipmentDto,
   type RepairEquipmentPhotoDto,
 } from '@/types/repairsApi'
+import './ecu-customer-form.css'
 
 type Row = RepairEquipmentDto & Record<string, unknown>
 
@@ -406,6 +407,7 @@ export function RepairBatchDetailPage() {
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: 130,
         align: 'center',
         renderCell: (_v: unknown, row: Row) => {
@@ -517,7 +519,7 @@ export function RepairBatchDetailPage() {
                 <Button
                   type="button"
                   variant="primary"
-                  onClick={() => navigate(`/taller/despachos?batchId=${batchId}`)}
+                  onClick={() => navigate(`/taller/despachos/nuevo?batchId=${batchId}`)}
                 >
                   <Truck size={16} strokeWidth={2} aria-hidden />
                   Despachar Listos ({readyEquipmentsCount})
@@ -672,8 +674,8 @@ export function RepairBatchDetailPage() {
             },
           ]}
         >
-          <div className="space-y-4" style={{ paddingTop: '0.5rem' }}>
-            <div>
+          <div className="ecu-modal-form">
+            <div className="ecu-modal-form__field">
               <Select
                 id="modal-target-status"
                 label="Siguiente Estado / Fase Operativa *"
@@ -692,7 +694,7 @@ export function RepairBatchDetailPage() {
               />
             </div>
 
-            <div>
+            <div className="ecu-modal-form__field">
               <Select
                 id="modal-confirmed-damage"
                 label="Nivel de Daño Confirmado *"
@@ -710,7 +712,7 @@ export function RepairBatchDetailPage() {
               />
             </div>
 
-            <div>
+            <div className="ecu-modal-form__field">
               <TextBox
                 id="modal-status-notes"
                 label="Notas Técnicas / Diagnóstico"
@@ -740,16 +742,16 @@ export function RepairBatchDetailPage() {
             },
           ]}
         >
-          <div className="space-y-6" style={{ paddingTop: '0.5rem' }}>
+          <div className="ecu-modal-form">
             {/* Formulario de carga rápida a S3 */}
             {canUploadPhoto && (
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
-                <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Upload size={16} strokeWidth={2} style={{ color: 'var(--shell-primary)' }} />
-                  Subir Nueva Fotografía
+              <div className="ecu-modal-panel">
+                <h3 className="ecu-modal-section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Upload size={14} strokeWidth={2} style={{ color: 'var(--shell-primary)' }} aria-hidden />
+                  Subir nueva fotografía
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                  <div>
+                <div className="ecu-modal-form__grid">
+                  <div className="ecu-modal-form__field">
                     <Select
                       id="photo-stage-select"
                       label="Etapa / Momento *"
@@ -765,7 +767,7 @@ export function RepairBatchDetailPage() {
                       fullWidth
                     />
                   </div>
-                  <div>
+                  <div className="ecu-modal-form__field">
                     <TextBox
                       id="photo-caption-input"
                       label="Descripción / Nota de la foto"
@@ -779,7 +781,7 @@ export function RepairBatchDetailPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <input
                     type="file"
                     accept="image/*"
@@ -798,7 +800,7 @@ export function RepairBatchDetailPage() {
                     {uploadingPhoto ? 'Subiendo a S3...' : 'Seleccionar Foto'}
                   </Button>
                   {uploadingPhoto && (
-                    <span className="text-xs text-indigo-600 animate-pulse font-medium">
+                    <span className="ecu-modal-section-lead" style={{ color: 'var(--shell-primary)' }}>
                       Transmitiendo al bucket Amazon S3...
                     </span>
                   )}
@@ -807,41 +809,48 @@ export function RepairBatchDetailPage() {
             )}
 
             {/* Galería de fotos */}
-            <div>
-              <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">
-                Fotos Registradas ({photos.length})
+            <div className="ecu-modal-panel">
+              <h3 className="ecu-modal-section-title">
+                Fotos registradas ({photos.length})
               </h3>
               {loadingPhotos ? (
-                <p className="text-xs text-slate-500 py-4 text-center">Cargando fotos de S3...</p>
+                <p className="ecu-modal-section-lead" style={{ textAlign: 'center', padding: '1rem 0' }}>
+                  Cargando fotos de S3...
+                </p>
               ) : photos.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-                  <ImageIcon className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                  <p className="text-xs text-slate-500">
-                    Aún no hay fotos registradas para este equipo.
-                  </p>
-                </div>
+                <EmptyState
+                  className="ecu-empty-state--compact ecu-empty-state--in-panel"
+                  icon={<ImageIcon size={22} strokeWidth={1.75} aria-hidden />}
+                  title="Sin evidencia fotográfica"
+                  description="Aún no hay fotos registradas para este equipo."
+                />
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(9.5rem, 1fr))', gap: '0.85rem' }}>
                   {photos.map((p) => (
                     <div
                       key={p.id}
-                      className="group relative rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-950 flex flex-col"
+                      style={{
+                        borderRadius: '0.75rem',
+                        border: '1px solid var(--shell-border)',
+                        overflow: 'hidden',
+                        background: 'var(--glb-surface)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
                     >
                       <img
                         src={p.downloadUrl}
                         alt={p.caption ?? p.fileName}
-                        className="w-full h-32 object-cover transition-transform group-hover:scale-105"
+                        style={{ width: '100%', height: '8rem', objectFit: 'cover' }}
                       />
-                      <div className="p-2 bg-white dark:bg-slate-800 text-xs flex-1 flex flex-col justify-between">
-                        <div>
-                          <StatusBadge tone="info">{photoStageLabel(p.stage)}</StatusBadge>
-                          {p.caption && (
-                            <p className="text-[11px] text-slate-700 dark:text-slate-300 mt-1 font-medium">
-                              {p.caption}
-                            </p>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-slate-400 mt-1 block">
+                      <div style={{ padding: '0.65rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1 }}>
+                        <StatusBadge tone="info">{photoStageLabel(p.stage)}</StatusBadge>
+                        {p.caption && (
+                          <p className="ecu-modal-section-lead" style={{ fontWeight: 500, color: 'var(--shell-text)' }}>
+                            {p.caption}
+                          </p>
+                        )}
+                        <span className="ecu-modal-section-lead" style={{ fontSize: '0.6875rem' }}>
                           {formatDateTime(p.capturedAt)}
                         </span>
                       </div>
@@ -877,7 +886,7 @@ export function RepairBatchDetailPage() {
             },
           ]}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '0.5rem' }}>
+          <div className="ecu-modal-form">
             <div className="ecu-alert-box ecu-alert-box--warning" style={{ margin: 0 }}>
               <Ban size={18} strokeWidth={2} style={{ flexShrink: 0, marginTop: '2px' }} />
               <div style={{ fontSize: '0.8125rem' }}>
@@ -895,17 +904,19 @@ export function RepairBatchDetailPage() {
               </div>
             )}
 
-            <TextBox
-              id="cancel-batch-reason"
-              label="Motivo de Anulación *"
-              labelPosition="outlined"
-              variant="outline"
-              value={cancelReason}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setCancelReason(e.target.value)}
-              placeholder="ej. Error en archivo original, lote duplicado o cancelado por cliente"
-              required
-              fullWidth
-            />
+            <div className="ecu-modal-form__field">
+              <TextBox
+                id="cancel-batch-reason"
+                label="Motivo de Anulación *"
+                labelPosition="outlined"
+                variant="outline"
+                value={cancelReason}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setCancelReason(e.target.value)}
+                placeholder="ej. Error en archivo original, lote duplicado o cancelado por cliente"
+                required
+                fullWidth
+              />
+            </div>
           </div>
         </Popup>
       </div>

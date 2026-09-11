@@ -68,6 +68,7 @@ export function RolesGrid({
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: canManage ? 168 : 72,
         align: 'center',
         sortable: false,

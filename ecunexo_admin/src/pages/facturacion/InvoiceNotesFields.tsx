@@ -29,25 +29,8 @@ export function InvoiceNotesFields({
           Nota comercial de este comprobante. El campo SRI «RUC Proveedor» se añade solo.
         </p>
       </header>
-      <div className="factura-emitir__meta-grid factura-emitir__meta-grid--client">
-        <div className="factura-emitir__cell factura-emitir__cell--addr">
-          <TextArea
-            id="inv-additional-note"
-            label="Descripción (RIDE)"
-            labelPosition="outlined"
-            variant="outline"
-            value={header.additionalNote}
-            onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-              emit('additionalNote', e.target.value)
-            }
-            placeholder="Promoción, observaciones o detalle para el cliente"
-            rows={3}
-            resize="vertical"
-            disabled={disabled}
-            fullWidth
-          />
-        </div>
-        <div className="factura-emitir__cell factura-emitir__cell--payment">
+      <div className="factura-emitir__meta-grid factura-emitir__meta-grid--notes">
+        <div className="factura-emitir__cell factura-emitir__cell--payment-term">
           <NumberBox
             id="inv-payment-term"
             label="Plazo (días)"
@@ -68,6 +51,23 @@ export function InvoiceNotesFields({
               emit('paymentTermDays', Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : 0)
             }}
             placeholder="0"
+            disabled={disabled}
+            fullWidth
+          />
+        </div>
+        <div className="factura-emitir__cell factura-emitir__cell--note-full">
+          <TextArea
+            id="inv-additional-note"
+            label="Descripción (RIDE)"
+            labelPosition="outlined"
+            variant="outline"
+            value={header.additionalNote}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+              emit('additionalNote', e.target.value)
+            }
+            placeholder="Promoción, observaciones o detalle para el cliente"
+            rows={3}
+            resize="vertical"
             disabled={disabled}
             fullWidth
           />

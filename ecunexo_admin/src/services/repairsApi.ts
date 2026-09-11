@@ -8,7 +8,10 @@ import type {
   CreateCustomerBody,
   UpdateCustomerBody,
   CreateRepairDispatchBody,
+  DispatchInvoicePreviewDto,
   ImportBatchResponseDto,
+  LinkDispatchInvoiceBody,
+  LinkDispatchInvoiceResponse,
   PresignedUploadResponse,
   PublicDispatchVerificationDto,
   RepairCustomerDto,
@@ -233,6 +236,29 @@ export async function getRepairDispatch(
 ): Promise<RepairDispatchDto> {
   const { data } = await api.get<RepairDispatchDto>(
     `/api/v1/tenants/${tenantId}/repairs/dispatches/${dispatchId}`
+  )
+  return data
+}
+
+export async function getDispatchInvoicePreview(
+  tenantId: string,
+  dispatchId: string
+): Promise<DispatchInvoicePreviewDto> {
+  const { data } = await api.get<DispatchInvoicePreviewDto>(
+    `/api/v1/tenants/${tenantId}/repairs/dispatches/${dispatchId}/invoice-preview`
+  )
+  return data
+}
+
+export async function linkDispatchInvoice(
+  tenantId: string,
+  dispatchId: string,
+  invoiceId: string
+): Promise<LinkDispatchInvoiceResponse> {
+  const body: LinkDispatchInvoiceBody = { invoiceId }
+  const { data } = await api.post<LinkDispatchInvoiceResponse>(
+    `/api/v1/tenants/${tenantId}/repairs/dispatches/${dispatchId}/invoice`,
+    body
   )
   return data
 }

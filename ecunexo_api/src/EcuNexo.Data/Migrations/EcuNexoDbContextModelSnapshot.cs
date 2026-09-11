@@ -195,6 +195,176 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("categories", "catalog");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Customers.Customer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("contact_email");
+
+                    b.Property<string>("ContactPerson")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("contact_person");
+
+                    b.Property<string>("ContactPhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("contact_phone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("CustomerType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("customer_type");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<int>("IdentificationType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("identification_type");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tax_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customers");
+
+                    b.HasIndex("TenantId", "CustomerType")
+                        .HasDatabaseName("ix_customers_tenant_id_customer_type")
+                        .HasFilter("\"deleted_at\" IS NULL");
+
+                    b.HasIndex("TenantId", "Name")
+                        .HasDatabaseName("ix_customers_tenant_id_name")
+                        .HasFilter("\"deleted_at\" IS NULL");
+
+                    b.HasIndex("TenantId", "TaxId")
+                        .HasDatabaseName("ix_customers_tenant_id_tax_id")
+                        .HasFilter("\"deleted_at\" IS NULL");
+
+                    b.ToTable("customers", "repairs");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Customers.CustomerRepairRateCard", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContractReference")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("contract_reference");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<decimal?>("RateN1")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("rate_n1");
+
+                    b.Property<decimal?>("RateN2")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("rate_n2");
+
+                    b.Property<decimal?>("RateN3")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("rate_n3");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<DateTimeOffset?>("ValidFrom")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("valid_from");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_repair_rate_cards");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_customer_repair_rate_cards_customer_id");
+
+                    b.HasIndex("TenantId", "CustomerId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_repair_rate_cards_tenant_id_customer_id");
+
+                    b.ToTable("customer_repair_rate_cards", "repairs");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Customers.CustomerTypeDefinition", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1154,112 +1324,6 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("sys_settings", "platform");
                 });
 
-            modelBuilder.Entity("EcuNexo.Core.Customers.Customer", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Address")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)")
-                        .HasColumnName("address");
-
-                    b.Property<string>("ContactEmail")
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("contact_email");
-
-                    b.Property<string>("ContactPerson")
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("contact_person");
-
-                    b.Property<string>("ContactPhone")
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("contact_phone");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<int>("CustomerType")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1)
-                        .HasColumnName("customer_type");
-
-                    b.Property<DateTimeOffset?>("DeletedAt")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<int>("IdentificationType")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1)
-                        .HasColumnName("identification_type");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true)
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("notes");
-
-                    b.Property<string>("TaxId")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("tax_id");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id")
-                        .HasName("pk_customers");
-
-                    b.HasIndex("TenantId", "CustomerType")
-                        .HasDatabaseName("ix_customers_tenant_id_customer_type")
-                        .HasFilter("\"deleted_at\" IS NULL");
-
-                    b.HasIndex("TenantId", "Name")
-                        .HasDatabaseName("ix_customers_tenant_id_name")
-                        .HasFilter("\"deleted_at\" IS NULL");
-
-                    b.HasIndex("TenantId", "TaxId")
-                        .HasDatabaseName("ix_customers_tenant_id_tax_id")
-                        .HasFilter("\"deleted_at\" IS NULL");
-
-                    b.ToTable("customers", "repairs");
-                });
-
             modelBuilder.Entity("EcuNexo.Core.Repairs.RepairBatch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1487,6 +1551,12 @@ namespace EcuNexo.Data.Migrations
                     b.Property<DateTimeOffset?>("DispatchedAt")
                         .HasColumnType("timestamptz")
                         .HasColumnName("dispatched_at");
+
+                    b.Property<int>("ExitType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("exit_type");
 
                     b.Property<Guid?>("InvoiceId")
                         .HasColumnType("uuid")
@@ -2470,6 +2540,18 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Parent");
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Customers.CustomerRepairRateCard", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Customers.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_repair_rate_cards_customers_customer_id");
+
+                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Identity.Department", b =>

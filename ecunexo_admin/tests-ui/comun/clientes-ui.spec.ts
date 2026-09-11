@@ -223,9 +223,77 @@ async function mockCustomerSession(
     await route.fulfill({ status: 405, body: '' })
   })
 
-  await page.route(/\/api\/v1\/tenants\/[^/]+\/customers\/(?!types)[^/?]+/, async (route) => {
+  const ratesByCustomerId: Record<
+    string,
+    {
+      customerId: string
+      rateN1: number | null
+      rateN2: number | null
+      rateN3: number | null
+      contractReference: string | null
+    }
+  > = {}
+
+  await page.route(/\/api\/v1\/tenants\/[^/]+\/customers\/[^/]+\/repair-rates(\?.*)?$/, async (route) => {
     const url = route.request().url()
     const method = route.request().method()
+    const cust = customers.find((c) => url.includes(`/${c.id}/repair-rates`))
+
+    if (!cust) {
+      await route.fulfill({ status: 404, contentType: 'application/json', body: '{"message":"Not found"}' })
+      return
+    }
+
+    if (method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          ratesByCustomerId[cust.id] ?? {
+            customerId: cust.id,
+            rateN1: null,
+            rateN2: null,
+            rateN3: null,
+            contractReference: null,
+          }
+        ),
+      })
+      return
+    }
+
+    if (method === 'PUT') {
+      if (!opts.canManage) {
+        await route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"Forbidden"}' })
+        return
+      }
+      const body = route.request().postDataJSON()
+      const saved = {
+        customerId: cust.id,
+        rateN1: body.rateN1 ?? null,
+        rateN2: body.rateN2 ?? null,
+        rateN3: body.rateN3 ?? null,
+        contractReference: body.contractReference ?? null,
+      }
+      ratesByCustomerId[cust.id] = saved
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(saved),
+      })
+      return
+    }
+
+    await route.fulfill({ status: 405, body: '' })
+  })
+
+  await page.route(/\/api\/v1\/tenants\/[^/]+\/customers\/(?!types)[^/]+(\/status)?(\?.*)?$/, async (route) => {
+    const url = route.request().url()
+    const method = route.request().method()
+
+    if (url.includes('/repair-rates')) {
+      await route.fallback()
+      return
+    }
 
     if (!opts.canManage && (method === 'PUT' || method === 'PATCH' || method === 'POST')) {
       await route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"Forbidden"}' })
@@ -377,6 +445,35 @@ test.describe('Módulo Clientes UI', () => {
       await expect(page.getByText('Lic. Ana Torres').first()).toBeVisible()
     })
 
+    test('Directorio: editar tarifario desde acción dedicada', async ({ page }) => {
+      test.setTimeout(60_000)
+      await openDirectory(page)
+      await expect(page.getByText('Whirlpool del Ecuador S.A.').first()).toBeVisible({
+        timeout: 10_000,
+      })
+
+      await page.getByRole('button', { name: /Tarifario de reacondicionamiento/i }).first().click()
+      await expect(page.getByRole('heading', { name: /Tarifario — Whirlpool/i })).toBeVisible()
+      await expect(page.locator('#customer-rate-n1')).toBeVisible()
+      await expect(page.getByText(/REP-N1/i)).toBeVisible()
+
+      await page.locator('#customer-rate-n1').fill('45.50')
+      await page.locator('#customer-rate-n2').fill('78')
+      await page.locator('#customer-rate-n3').fill('120.25')
+      await page.locator('#customer-rate-contract').fill('OM-2026-01')
+
+      await page.getByRole('button', { name: /Guardar tarifario/i }).click()
+      await expect(page.getByRole('heading', { name: /Tarifario — Whirlpool/i })).toHaveCount(0, {
+        timeout: 10_000,
+      })
+
+      await page.getByRole('button', { name: /Tarifario de reacondicionamiento/i }).first().click()
+      await expect(page.locator('#customer-rate-n1')).toHaveValue('45.5')
+      await expect(page.locator('#customer-rate-n2')).toHaveValue('78')
+      await expect(page.locator('#customer-rate-n3')).toHaveValue('120.25')
+      await expect(page.locator('#customer-rate-contract')).toHaveValue('OM-2026-01')
+    })
+
     test('Tipos: listar, crear tipo personalizado y reflejarlo en el directorio', async ({ page }) => {
       await openCustomerTypes(page)
       await expect(page.getByLabel('Resumen de tipos de cliente')).toBeVisible()
@@ -417,6 +514,7 @@ test.describe('Módulo Clientes UI', () => {
       })
       await expect(page.getByRole('button', { name: /Nuevo Cliente/i })).toHaveCount(0)
       await expect(page.getByRole('button', { name: /Editar cliente/i })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: /Tarifario de reacondicionamiento/i })).toHaveCount(0)
       await expect(page.getByRole('button', { name: /Desactivar cliente|Activar cliente/i })).toHaveCount(0)
     })
 

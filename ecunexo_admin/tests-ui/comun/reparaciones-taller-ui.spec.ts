@@ -68,6 +68,7 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
               'repairs.equipments.upload.photo',
               'repairs.dispatches.read',
               'repairs.dispatches.create',
+              'repairs.invoices.generate',
               'repairs.b2b.portal.view',
             ],
             navigation: [
@@ -569,17 +570,14 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
 
       // Secciones
       await expect(page.getByText(/Datos del Contrato y Cliente/i)).toBeVisible()
-      await expect(page.getByText(/Tarifario Acordado de Servicio/i)).toBeVisible()
       await expect(page.getByText(/Planilla de Equipos \(Excel\)/i)).toBeVisible()
-
-      // Tarifas N1, N2, N3
-      await expect(page.getByText(/Nivel 1 \(Leve \/ Estético\)/i)).toBeVisible()
-      await expect(page.getByText(/Nivel 2 \(Medio \/ Chapa\)/i)).toBeVisible()
-      await expect(page.getByText(/Nivel 3 \(Grave \/ Estructural\)/i)).toBeVisible()
+      await expect(
+        page.getByText(/Las tarifas N1\/N2\/N3 se toman del tarifario del cliente/i)
+      ).toBeVisible()
 
       // Verificar que los campos iniciales estén limpios (sin datos sucios quemados)
       await expect(page.locator('#repair-batch-num')).toHaveValue('')
-      await expect(page.locator('#repair-rate-n1')).toHaveValue('')
+      await expect(page.locator('#repair-rate-n1')).toHaveCount(0)
 
       // El input nativo de tipo file debe estar oculto con display: none
       const fileInput = page.locator('input[type="file"][accept=".xlsx,.xls"]')
@@ -609,16 +607,24 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
       ).not.toBeVisible()
     })
 
-    test('Actas y Despachos: carga historial y métricas de salida', async ({ page }) => {
+    test('Actas y Despachos: lista y vista de nueva acta parcial', async ({ page }) => {
       await page.getByRole('button', { name: /Reparaciones/i }).click()
       await page.getByRole('button', { name: /Despachos/i }).click()
       await expect(page.locator('.app-shell')).toBeVisible({ timeout: 20_000 })
 
       await expect(
-        page.getByRole('heading', { name: /Actas y Despachos de Salida/i })
+        page.getByRole('heading', { name: /Actas y Despachos/i })
       ).toBeVisible({ timeout: 20_000 })
 
-      await expect(page.getByRole('button', { name: /Emitir Despacho/i })).toBeVisible()
+      await expect(page.getByRole('button', { name: /Nueva Acta/i }).first()).toBeVisible()
+      await page.getByRole('button', { name: /Nueva Acta/i }).first().click()
+
+      await expect(
+        page.getByRole('heading', { name: /Generar Acta de Despacho/i })
+      ).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByText(/Datos del transportista/i)).toBeVisible()
+      await expect(page.getByText(/Equipos listos para despacho/i)).toBeVisible()
+      await expect(page.getByRole('button', { name: /Emitir acta/i })).toBeVisible()
     })
 
     test('Portal Corporativo B2B: carga branding ejecutivo y buscador de serie', async ({ page }) => {
@@ -636,6 +642,11 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
       await expect(
         page.getByText(/Rastreo Instantáneo por Número de Serie/i)
       ).toBeVisible()
+      await expect(page.locator('#search-serial-input')).toBeVisible()
+      await page.locator('#search-serial-input').fill('SN-NO-EXISTE')
+      await expect(page.getByText(/Sin coincidencias para esta serie/i)).toBeVisible({
+        timeout: 10_000,
+      })
     })
 
     test('Detalle de Lote: abre modal Popup de cambio de fase técnica y evidencia', async ({ page }) => {
@@ -675,7 +686,7 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
       await photosBtn.click()
 
       // Verificar que el Popup de evidencia fotográfica abrió
-      await expect(page.getByRole('heading', { name: /Evidencia Fotográfica/i })).toBeVisible()
+      await expect(page.getByRole('heading', { name: /Evidencia Fotográfica en S3/i })).toBeVisible()
     })
 
     test('Previsualización de Lote: valida archivo Excel antes de permitir el guardado', async ({ page }) => {
@@ -713,6 +724,141 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
       // Con previsualización válida y campos completos, el botón de importar se transforma y se habilita
       const confirmBtn = page.getByRole('button', { name: /Confirmar e Importar Lote/i })
       await expect(confirmBtn).toBeEnabled()
+    })
+
+    test('Previsualización de Lote: despliega modal Popup detallando errores cuando el archivo Excel es inválido', async ({ page }) => {
+      // Mock de previsualización con errores de estructura/filas
+      await page.route('**/api/v1/tenants/*/repairs/batches/preview', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            totalRows: 0,
+            level1Count: 0,
+            level2Count: 0,
+            level3Count: 0,
+            isValid: false,
+            errors: [
+              'Fila 4: El número de serie es obligatorio.',
+              'Fila 8: Nivel de daño inválido (debe ser 1, 2 o 3).',
+            ],
+            warnings: [],
+            items: [],
+          }),
+        })
+      })
+
+      await page.getByRole('button', { name: /Reparaciones/i }).click()
+      await page.getByRole('button', { name: /Lotes B2B/i }).click()
+      await page.getByRole('button', { name: /Importar Lote/i }).click()
+
+      await expect(
+        page.getByRole('heading', { name: /Importar Lote de Reparación/i })
+      ).toBeVisible({ timeout: 20_000 })
+
+      // Simular selección de archivo con errores
+      const fileInput = page.locator('input[type="file"][accept=".xlsx,.xls"]')
+      await fileInput.setInputFiles({
+        name: 'plantilla_con_errores.xlsx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        buffer: Buffer.from('corrupt content'),
+      })
+
+      // El modal Popup debe abrirse automáticamente detallando las inconsistencias
+      await expect(
+        page.getByRole('heading', { name: /Inconsistencias en la Plantilla Excel/i })
+      ).toBeVisible()
+      await expect(page.getByText('Fila 4: El número de serie es obligatorio.')).toBeVisible()
+      await expect(page.getByText('Fila 8: Nivel de daño inválido (debe ser 1, 2 o 3).')).toBeVisible()
+
+      // Cerrar el modal mediante el botón primario
+      await page.getByRole('button', { name: /Cerrar y Corregir/i }).click()
+      await expect(
+        page.getByRole('heading', { name: /Inconsistencias en la Plantilla Excel/i })
+      ).not.toBeVisible()
+
+      // En la cabecera del grid se muestra el botón de alerta para reabrir el detalle
+      const errorDetailBtn = page.getByRole('button', { name: /2 Errores — Ver Detalle/i })
+      await expect(errorDetailBtn).toBeVisible()
+      await errorDetailBtn.click()
+
+      // Vuelve a abrir el modal
+      await expect(
+        page.getByRole('heading', { name: /Inconsistencias en la Plantilla Excel/i })
+      ).toBeVisible()
+    })
+
+    test('Previsualización de Lote: permite desmarcar equipos mediante checkbox para excluirlos', async ({ page }) => {
+      await page.route('**/api/v1/tenants/*/repairs/batches/preview', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            totalRows: 2,
+            level1Count: 1,
+            level2Count: 1,
+            level3Count: 0,
+            isValid: true,
+            errors: [],
+            warnings: [],
+            items: [
+              {
+                rowNumber: 2,
+                serialNumber: 'TEST-CHECK-001',
+                brand: 'Whirlpool',
+                model: 'LAVADORA MODEL A',
+                damageLevel: 1,
+                damageLevelName: 'Nivel 1 (Leve)',
+              },
+              {
+                rowNumber: 3,
+                serialNumber: 'TEST-CHECK-002',
+                brand: 'Whirlpool',
+                model: 'SECADORA MODEL B',
+                damageLevel: 2,
+                damageLevelName: 'Nivel 2 (Medio)',
+              },
+            ],
+          }),
+        })
+      })
+
+      await page.getByRole('button', { name: /Reparaciones/i }).click()
+      await page.getByRole('button', { name: /Lotes B2B/i }).click()
+      await page.getByRole('button', { name: /Importar Lote/i }).click()
+
+      // Cargar archivo
+      const fileInput = page.locator('input[type="file"][accept=".xlsx,.xls"]')
+      await fileInput.setInputFiles({
+        name: 'test_selection.xlsx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        buffer: Buffer.from('mock content'),
+      })
+
+      // Llenar datos requeridos
+      await page.locator('#repair-batch-num').fill('LOTE-CHECK-TEST')
+      await page.locator('#repair-customer').click()
+      await page.getByRole('option', { name: /Whirlpool/i }).click()
+
+      // Verificar que ambos ítems aparecen en la tabla
+      await expect(page.getByText('TEST-CHECK-001')).toBeVisible()
+      await expect(page.getByText('TEST-CHECK-002')).toBeVisible()
+
+      // Inicialmente ambos están seleccionados (2 Equipos)
+      const confirmBtn = page.getByRole('button', { name: /Confirmar e Importar Lote \(2 Equipos\)/i })
+      await expect(confirmBtn).toBeEnabled()
+
+      // Deseleccionar una fila mediante su checkbox en la grilla
+      const rowCheckboxes = page.locator('.ecu-repairs-grid input[type="checkbox"]')
+      // El primer checkbox en thead es select all, los siguientes son las filas
+      const secondItemCheckbox = rowCheckboxes.nth(2)
+      await secondItemCheckbox.click()
+
+      // Al desmarcar uno, el botón se actualiza indicando (1 de 2 Equipos)
+      await expect(
+        page.getByRole('button', { name: /Confirmar e Importar Lote \(1 de 2 Equipos\)/i })
+      ).toBeVisible()
+      await expect(page.getByText(/1 de 2 seleccionados/i)).toBeVisible()
     })
 
     test('Anulación de Lote: anula lote no intervenido con motivo obligatorio y preservación de auditoría', async ({ page }) => {
@@ -832,6 +978,442 @@ test.describe('Módulo Taller & Reparaciones B2B UI', () => {
 
       // Modal se cierra y el nuevo cliente aparece en la tabla
       await expect(page.getByText('Mabe del Ecuador S.A.').first()).toBeVisible({ timeout: 10_000 })
+    })
+
+    test('Flujo E2E Completo: Ingreso de lote -> Control de estados -> Despacho parcial con PDF -> Facturación SRI', async ({ page }) => {
+      let batchEquipmentStatus = 1 // 1: Recibido, 4: Listo para retiro, 5: Despachado
+      const mockE2eEquipments = [
+        {
+          id: 'eq-e2e-01',
+          batchId: 'batch-e2e-100',
+          serialNumber: 'WP-E2E-001',
+          model: 'LAVADORA XPERT 19KG',
+          brand: 'Whirlpool',
+          damageLevel: 1,
+          status: 1,
+          photosCount: 1,
+          notes: 'Ingreso inicial para reacondicionamiento',
+        },
+        {
+          id: 'eq-e2e-02',
+          batchId: 'batch-e2e-100',
+          serialNumber: 'WP-E2E-002',
+          model: 'SECADORA GAS 20KG',
+          brand: 'Whirlpool',
+          damageLevel: 2,
+          status: 1,
+          photosCount: 0,
+          notes: 'En espera de revisión',
+        },
+      ]
+
+      // 1. Mock de importación de lote y listado de lotes
+      await page.route(/\/api\/v1\/tenants\/[^/]+\/repairs\/batches(\?.*)?$/, async (route) => {
+        if (route.request().method() === 'GET') {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify([
+              {
+                id: 'batch-e2e-100',
+                batchNumber: 'LOTE-E2E-2026-001',
+                customerName: 'Whirlpool del Ecuador S.A.',
+                contractReference: 'CT-WPH-E2E-2026',
+                status: 1,
+                receivedAt: '2026-09-10T10:00:00Z',
+                totalCount: 2,
+                receivedCount: batchEquipmentStatus === 1 ? 2 : 1,
+                inRepairCount: 0,
+                readyCount: batchEquipmentStatus === 4 ? 1 : 0,
+                dispatchedCount: batchEquipmentStatus === 5 ? 1 : 0,
+                progressPercentage: batchEquipmentStatus === 4 ? 50 : 0,
+              },
+            ]),
+          })
+          return
+        }
+        await route.continue()
+      })
+
+      await page.route('**/api/v1/tenants/*/repairs/batches/import', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            batchId: 'batch-e2e-100',
+            batchNumber: 'LOTE-E2E-2026-001',
+            totalImported: 2,
+            level1Count: 1,
+            level2Count: 1,
+            level3Count: 0,
+            warnings: [],
+          }),
+        })
+      })
+
+      // 2. Mock de detalle de lote e inventario de equipos del lote
+      await page.route('**/api/v1/tenants/*/repairs/batches/batch-e2e-100', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: 'batch-e2e-100',
+            batchNumber: 'LOTE-E2E-2026-001',
+            customerName: 'Whirlpool del Ecuador S.A.',
+            customerTaxId: '1790012345001',
+            contractReference: 'CT-WPH-E2E-2026',
+            status: 1,
+            receivedAt: '2026-09-10T10:00:00Z',
+            totalCount: 2,
+            receivedCount: batchEquipmentStatus === 1 ? 2 : 1,
+            inRepairCount: 0,
+            readyCount: batchEquipmentStatus === 4 ? 1 : 0,
+            dispatchedCount: batchEquipmentStatus === 5 ? 1 : 0,
+            rateN1: 45.0,
+            rateN2: 85.0,
+            rateN3: 150.0,
+          }),
+        })
+      })
+
+      await page.route('**/api/v1/tenants/*/repairs/batches/batch-e2e-100/equipments*', async (route) => {
+        const url = route.request().url()
+        if (url.includes('status=4')) {
+          const ready = mockE2eEquipments.filter((e) => e.status === 4)
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(ready),
+          })
+          return
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockE2eEquipments),
+        })
+      })
+
+      // 3. Mock de actualización de fase técnica (control de estado del equipo)
+      await page.route('**/api/v1/tenants/*/repairs/equipments/eq-e2e-01/status', async (route) => {
+        batchEquipmentStatus = 4 // Pasa a Listo para Despacho
+        mockE2eEquipments[0].status = 4
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            equipmentId: 'eq-e2e-01',
+            previousStatus: 1,
+            newStatus: 4,
+            eventId: 'evt-001',
+            occurredAt: new Date().toISOString(),
+          }),
+        })
+      })
+
+      // 4. Mock de Despachos (Creación, Detalle y Previsualización de Factura)
+      await page.route('**/api/v1/tenants/*/repairs/dispatches', async (route) => {
+        if (route.request().method() === 'POST') {
+          batchEquipmentStatus = 5
+          mockE2eEquipments[0].status = 5
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              dispatchId: 'dsp-e2e-001',
+              dispatchNumber: 'DSP-2026-E2E-001',
+              dispatchedCount: 1,
+              verificationHash: 'hash-e2e-cert-9988',
+            }),
+          })
+          return
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([]),
+        })
+      })
+
+      await page.route('**/api/v1/tenants/*/repairs/dispatches/dsp-e2e-001', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: 'dsp-e2e-001',
+            tenantId: 'tnt-e2e-1',
+            batchId: 'batch-e2e-100',
+            dispatchNumber: 'DSP-2026-E2E-001',
+            status: 1, // Confirmed
+            carrierName: 'Carlos Guamán',
+            carrierDocument: '0923456789',
+            carrierVehiclePlate: 'GBA-4589',
+            verificationHash: 'hash-e2e-cert-9988',
+            qrCodeUrl: null,
+            notes: 'Despacho parcial de prueba E2E',
+            invoiceId: null,
+            dispatchedAt: '2026-09-10T11:00:00Z',
+            items: [
+              {
+                id: 'item-01',
+                dispatchId: 'dsp-e2e-001',
+                equipmentId: 'eq-e2e-01',
+                equipment: mockE2eEquipments[0],
+              },
+            ],
+          }),
+        })
+      })
+
+      await page.route('**/api/v1/tenants/*/repairs/dispatches/dsp-e2e-001/invoice-preview', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            dispatchId: 'dsp-e2e-001',
+            dispatchNumber: 'DSP-2026-E2E-001',
+            customerName: 'Whirlpool del Ecuador S.A.',
+            customerTaxId: '1790012345001',
+            lines: [
+              {
+                damageLevel: 1,
+                description: 'Servicio Reacondicionamiento Nivel 1 (Estético) - 1 equipo(s)',
+                quantity: 1,
+                unitPrice: 45.0,
+                lineSubtotal: 45.0,
+                mainCode: 'REP-N1',
+                catalogItemId: null,
+              },
+            ],
+            subtotal: 45.0,
+            taxTotal: 6.75,
+            grandTotal: 51.75,
+            canInvoice: true,
+            blockingReason: null,
+            counterparty: {
+              identificationType: '04',
+              identification: '1790012345001',
+              businessName: 'Whirlpool del Ecuador S.A.',
+              address: 'Av. Juan Tanca Marengo Km 4.5',
+              email: 'facturacion@whirlpool.ec',
+              phone: '042999888',
+            },
+            additionalNote: 'Ref. Despacho DSP-2026-E2E-001 / Lote LOTE-E2E-2026-001',
+          }),
+        })
+      })
+
+      // 5. Mock de Facturación SRI
+      await page.route('**/api/v1/tenants/tnt-e2e-1', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: 'tnt-e2e-1',
+            name: 'Taller Central E2E',
+            legalName: 'Taller Central S.A.',
+            taxId: '1790010937001',
+            establishmentCode: '001',
+            address: 'Guayaquil, Ecuador',
+            isRimpe: false,
+            preferElectronicInvoice: true,
+            salesDocumentKind: 'factura-electronica',
+          }),
+        })
+      })
+
+      await page.route('**/api/v1/emitters', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            emitterId: 'em-e2e-1',
+            ruc: '1790010937001',
+            businessName: 'Taller Central S.A.',
+          }),
+        })
+      })
+
+      await page.route('**/api/v1/emitters/*/invoices', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            invoiceId: 'inv-e2e-draft-1',
+            sequential: '001-001-000000042',
+            state: 'Draft',
+            grandTotal: 51.75,
+            message: 'Borrador creado',
+          }),
+        })
+      })
+
+      await page.route('**/api/v1/emitters/*/invoices/*/preview-xml', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            isValid: true,
+            errors: [],
+          }),
+        })
+      })
+
+      await page.route('**/api/v1/tenants/*/invoices', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: 'inv-e2e-draft-1',
+            sequential: '001-001-000000042',
+            status: 0,
+            message: 'Borrador de factura guardado',
+          }),
+        })
+      })
+
+      await page.route('**/api/v1/tenants/*/repairs/dispatches/dsp-e2e-001/invoice', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            dispatchId: 'dsp-e2e-001',
+            invoiceId: 'inv-e2e-draft-1',
+          }),
+        })
+      })
+
+      // 6. Mock público de validación QR para comprobante y PDF
+      await page.route('**/api/v1/public/repairs/verify-dispatch/hash-e2e-cert-9988', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            dispatchNumber: 'DSP-2026-E2E-001',
+            customerName: 'Whirlpool del Ecuador S.A.',
+            carrierName: 'Carlos Guamán',
+            carrierVehiclePlate: 'GBA-4589',
+            dispatchedAt: '2026-09-10T11:00:00Z',
+            totalEquipments: 1,
+            equipments: [
+              {
+                serialNumber: 'WP-E2E-001',
+                brand: 'Whirlpool',
+                model: 'LAVADORA XPERT 19KG',
+                damageLevel: 'Nivel 1 (Leve)',
+              },
+            ],
+          }),
+        })
+      })
+
+      // ==========================================
+      // PASO 1: Ingresar Lote mediante carga Excel
+      // ==========================================
+      await page.getByRole('button', { name: /Reparaciones/i }).click()
+      await page.getByRole('button', { name: /Lotes B2B/i }).click()
+      await page.getByRole('button', { name: /Importar Lote/i }).click()
+      await expect(page.getByRole('heading', { name: /Importar Lote de Reparación/i })).toBeVisible({ timeout: 15_000 })
+
+      // Seleccionar cliente y número de lote
+      await page.locator('#repair-customer').click()
+      await page.getByRole('option', { name: /Whirlpool/i }).click()
+      await page.locator('#repair-batch-num').fill('LOTE-E2E-2026-001')
+
+      // Cargar archivo Excel y previsualizar
+      const fileInput = page.locator('input[type="file"][accept=".xlsx,.xls"]')
+      await fileInput.setInputFiles({
+        name: 'lote_ingreso.xlsx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        buffer: Buffer.from('mock excel content'),
+      })
+
+      await expect(page.getByRole('heading', { name: /Previsualización del Lote/i })).toBeVisible()
+      const confirmImportBtn = page.getByRole('button', { name: /Confirmar e Importar Lote/i })
+      await expect(confirmImportBtn).toBeEnabled()
+      await confirmImportBtn.click()
+
+      // ===================================================
+      // PASO 2: Control de estado del elemento en el lote
+      // ===================================================
+      await expect(page.getByRole('heading', { name: /Lote LOTE-E2E-2026-001/i })).toBeVisible({ timeout: 15_000 })
+      await expect(page.getByText('WP-E2E-001')).toBeVisible()
+
+      // Abrir cambio de fase técnica
+      const changeStatusBtn = page.getByRole('button', { name: /Cambiar estado \/ Fase técnica/i }).first()
+      await expect(changeStatusBtn).toBeVisible()
+      await changeStatusBtn.click()
+
+      await expect(page.getByRole('heading', { name: /Fase Técnica — Serie WP-E2E-001/i })).toBeVisible()
+
+      // Cambiar estado a "Listo para Retiro (Aprobado)"
+      const targetStatusSelect = page.locator('#modal-target-status')
+      await targetStatusSelect.click()
+      await page.getByRole('option', { name: /4. Listo para Retiro/i }).click()
+
+      const saveStatusBtn = page.getByRole('button', { name: /Confirmar Cambio de Estado/i })
+      await saveStatusBtn.click()
+
+      await expect(page.getByRole('heading', { name: /Fase Técnica — Serie WP-E2E-001/i })).not.toBeVisible()
+
+      // ===============================================================
+      // PASO 3: Despacho parcial con documento PDF y verificación QR
+      // ===============================================================
+      await page.getByRole('button', { name: /Reparaciones/i }).click()
+      await page.getByRole('button', { name: /Despachos/i }).click()
+      await page.getByRole('button', { name: /Nueva Acta/i }).first().click()
+
+      await expect(page.getByRole('heading', { name: /Generar Acta de Despacho/i })).toBeVisible({ timeout: 15_000 })
+
+      // Seleccionar el lote
+      const batchSelect = page.locator('#create-dispatch-batch')
+      await batchSelect.click()
+      await page.getByRole('option', { name: /LOTE-E2E-2026-001/i }).click()
+
+      // Verificar que el equipo listo aparece en la tabla
+      await expect(page.getByText('WP-E2E-001', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
+
+      // Llenar datos de transportista y vehículo
+      await page.locator('#create-carrier-name').fill('Carlos Guamán')
+      await page.locator('#create-carrier-doc').fill('0923456789')
+      await page.locator('#create-carrier-plate').fill('GBA-4589')
+
+      // Emitir acta de despacho
+      const emitDispatchBtn = page.getByRole('button', { name: /Emitir acta/i })
+      await expect(emitDispatchBtn).toBeEnabled()
+      await emitDispatchBtn.click()
+
+      // Vista de detalle del acta de despacho emitida
+      await expect(page.getByRole('heading', { name: /Acta DSP-2026-E2E-001/i })).toBeVisible({ timeout: 15_000 })
+      await expect(page.getByText('Carlos Guamán').first()).toBeVisible()
+      await expect(page.getByText('GBA-4589').first()).toBeVisible()
+      await expect(page.getByText('hash-e2e-cert-9988')).toBeVisible()
+      await expect(page.getByRole('button', { name: /(Descargar|Imprimir) Acta \(PDF\)/i })).toBeVisible()
+
+      // Validar vista pública imprimible de la entrega (PDF con QR)
+      await page.goto('/verificar/despacho/hash-e2e-cert-9988')
+      await expect(page.getByRole('heading', { name: /Acta de Despacho Certificada/i })).toBeVisible({ timeout: 15_000 })
+      await expect(page.getByText('WP-E2E-001', { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('button', { name: /Imprimir Comprobante de Entrega/i })).toBeVisible()
+
+      // ========================================================
+      // PASO 4: Facturación de la reparación / despacho SRI
+      // ========================================================
+      await page.goto('/taller/despachos/dsp-e2e-001')
+      await expect(page.getByRole('heading', { name: /Acta DSP-2026-E2E-001/i })).toBeVisible({ timeout: 15_000 })
+
+      // Validar vista previa con tarifario N1 ($45.00) e IVA 15% ($6.75)
+      await expect(page.getByText(/Vista previa de factura/i)).toBeVisible()
+      await expect(page.getByText(/\$45\.00/i).first()).toBeVisible()
+      await expect(page.getByText(/\$51\.75/i).first()).toBeVisible()
+
+      // Facturar despacho
+      const invoiceDispatchBtn = page.getByRole('button', { name: /Facturar despacho/i })
+      await expect(invoiceDispatchBtn).toBeVisible()
+      await invoiceDispatchBtn.click()
+
+      // Redirección hacia facturación de comprobantes
+      await expect(page).toHaveURL(/\/facturacion\/comprobantes/, { timeout: 15_000 })
     })
   })
 })

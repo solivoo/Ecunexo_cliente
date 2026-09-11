@@ -10,6 +10,7 @@ namespace EcuNexo.Business.Repairs.Commands.ImportRepairBatch;
 public sealed class ImportRepairBatchHandler : ICommandHandler<ImportRepairBatchCommand, ImportRepairBatchResponse>
 {
     private readonly ICustomerRepository _customerRepository;
+    private readonly ICustomerRepairRateCardRepository _rateCardRepository;
     private readonly IRepairBatchTemplateRepository _templateRepository;
     private readonly IRepairBatchRepository _batchRepository;
     private readonly IRepairEquipmentRepository _equipmentRepository;
@@ -18,6 +19,7 @@ public sealed class ImportRepairBatchHandler : ICommandHandler<ImportRepairBatch
 
     public ImportRepairBatchHandler(
         ICustomerRepository customerRepository,
+        ICustomerRepairRateCardRepository rateCardRepository,
         IRepairBatchTemplateRepository templateRepository,
         IRepairBatchRepository batchRepository,
         IRepairEquipmentRepository equipmentRepository,
@@ -25,6 +27,7 @@ public sealed class ImportRepairBatchHandler : ICommandHandler<ImportRepairBatch
         IUnitOfWork unitOfWork)
     {
         _customerRepository = customerRepository;
+        _rateCardRepository = rateCardRepository;
         _templateRepository = templateRepository;
         _batchRepository = batchRepository;
         _equipmentRepository = equipmentRepository;
@@ -45,6 +48,17 @@ public sealed class ImportRepairBatchHandler : ICommandHandler<ImportRepairBatch
         {
             return Result.Failure<ImportRepairBatchResponse>(new Error("repairs.batch.duplicate_number", $"Ya existe un lote con el número '{command.BatchNumber}'.", ErrorType.Validation));
         }
+
+        var rateCard = await _rateCardRepository
+            .GetByCustomerAsync(command.TenantId, command.CustomerId, ct)
+            .ConfigureAwait(false);
+
+        var agreedRateN1 = command.AgreedRateN1 ?? rateCard?.RateN1;
+        var agreedRateN2 = command.AgreedRateN2 ?? rateCard?.RateN2;
+        var agreedRateN3 = command.AgreedRateN3 ?? rateCard?.RateN3;
+        var contractReference = string.IsNullOrWhiteSpace(command.ContractReference)
+            ? rateCard?.ContractReference
+            : command.ContractReference;
 
         RepairBatchTemplate? template = null;
         if (command.TemplateId.HasValue)
@@ -81,10 +95,10 @@ public sealed class ImportRepairBatchHandler : ICommandHandler<ImportRepairBatch
             command.CustomerId,
             command.BatchNumber,
             command.TemplateId,
-            command.AgreedRateN1,
-            command.AgreedRateN2,
-            command.AgreedRateN3,
-            command.ContractReference,
+            agreedRateN1,
+            agreedRateN2,
+            agreedRateN3,
+            contractReference,
             command.ExpectedCompletionAt,
             DateTimeOffset.UtcNow);
 
@@ -101,6 +115,16 @@ public sealed class ImportRepairBatchHandler : ICommandHandler<ImportRepairBatch
 
         foreach (var item in parseResult.Items)
         {
+            if (command.ExcludedRowNumbers != null && command.ExcludedRowNumbers.Contains(item.RowNumber))
+            {
+                continue;
+            }
+
+            if (command.ExcludedSerialNumbers != null && command.ExcludedSerialNumbers.Contains(item.SerialNumber, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var eqResult = RepairEquipment.Create(
                 Guid.NewGuid(),
                 command.TenantId,
@@ -125,6 +149,12 @@ public sealed class ImportRepairBatchHandler : ICommandHandler<ImportRepairBatch
                 case DamageLevel.Level2: n2++; break;
                 case DamageLevel.Level3: n3++; break;
             }
+        }
+
+        if (equipments.Count == 0)
+        {
+            return Result.Failure<ImportRepairBatchResponse>(
+                new Error("repairs.import.no_equipments_selected", "Debes seleccionar al menos un equipo para importar el lote.", ErrorType.Validation));
         }
 
         batch.RecalculateCounters(

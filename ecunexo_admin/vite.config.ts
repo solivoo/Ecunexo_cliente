@@ -48,6 +48,12 @@ export default defineConfig({
     // Playwright E2E apunta aquí. strictPort evita caer en otra SPA si 5173 está ocupado.
     port: 5173,
     strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5088',
+        changeOrigin: true,
+      },
+    },
     watch: {
       usePolling: process.env.VITE_USE_POLLING === 'true',
       ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**'],

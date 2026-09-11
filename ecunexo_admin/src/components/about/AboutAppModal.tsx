@@ -110,13 +110,22 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Tipos de Cliente y Permisos</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Tarifario dedicado</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Tarifario fuera de la ficha:</strong> En Clientes, el icono de tarifas abre un modal solo para N1/N2/N3; la ficha queda para datos comerciales.</li>
+            <li><strong>Tarifario solo en Clientes:</strong> El asistente de importar lote ya no edita N1/N2/N3; usa el maestro del cliente y guarda snapshot en el lote.</li>
+            <li><strong>Tarifario por cliente:</strong> Maestro N1/N2/N3 en el directorio; al importar el lote se precarga y se guarda snapshot. Factura usa servicios de catálogo REP-N1/N2/N3.</li>
+            <li><strong>Directorio de clientes más limpio:</strong> El grid muestra texto y badges sin iconos decorativos ni etiqueta SRI bajo la identificación.</li>
+            <li><strong>Vista de despacho parcial:</strong> Genera actas desde una pantalla completa con DataGrid multi-select; el lote puede salir en varias salidas.</li>
+            <li><strong>Detalle de acta + facturar:</strong> QR, series y borrador de factura SRI agrupado por tarifas N1/N2/N3, vinculado al acta.</li>
+            <li><strong>Modales enterprise del taller:</strong> Acta de despacho, QR, evidencia fotográfica y formularios rápidos usan paneles M3, gap consistente y EmptyState compacto.</li>
+            <li><strong>Importar lote a ancho completo:</strong> El asistente de ingreso usa el layout fluido para aprovechar el viewport y visualizar mejor la previsualización Excel.</li>
+            <li><strong>Modales de taller con ritmo vertical:</strong> Fase técnica y evidencia fotográfica usan el mismo stack de formularios con gap consistente para labels outlined.</li>
+            <li><strong>Rastreo por serie rediseñado:</strong> Resultados del portal corporativo en tarjetas enterprise con jerarquía clara, diagnóstico destacado y acción primaria «Ver lote».</li>
             <li><strong>Tipos de cliente editables:</strong> Crea, edita y desactiva clasificaciones personalizadas en Clientes → Tipos; el directorio usa esos tipos al registrar o editar fichas.</li>
             <li><strong>Permiso customers.manage:</strong> Alta, edición y estado de clientes (y tipos) quedan acotados a este permiso; la lectura del directorio sigue con customers.read.</li>
             <li><strong>Clientes unificados:</strong> El directorio vive bajo Clientes; Reparaciones y Facturación seleccionan los mismos clientes habilitados al crear lotes o emitir facturas.</li>
-            <li><strong>Directorio de Clientes estabilizado:</strong> Migración de clasificación comercial (tipo e identificación) y UI alineada al patrón enterprise (PageHeader, KPIs, filtros en SectionCard/DataGrid).</li>
             <li><strong>Validación SRI & Rangos de Fecha en DataGrid:</strong> Validación algorítmica SRI (Cédula Módulo 10, RUC Módulo 11) e integración de componentes glubox (RangeDateBox, Select) en cabeceras de datos.</li>
             <li><strong>Taller y Lotes B2B:</strong> Gestión integral de lotes de reacondicionamiento masivo con tarifas parametrizadas por severidad de daño (N1, N2, N3).</li>
             <li><strong>Importación Excel Inteligente:</strong> Carga masiva mediante plantillas dinámicas ClosedXML y validación estricta de series duplicadas en muelle.</li>

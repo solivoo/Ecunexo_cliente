@@ -267,6 +267,7 @@ export function StockListPage() {
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: canManage ? 96 : 56,
         align: 'center' as const,
         sortable: false,

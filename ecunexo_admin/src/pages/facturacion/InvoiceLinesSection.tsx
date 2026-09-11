@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from 'glubox'
-import { Package, Plus } from 'lucide-react'
+import { Boxes, Package, Plus } from 'lucide-react'
+import { SectionCard } from '@/components/ui'
 import { InvoiceLineRow } from '@/pages/facturacion/InvoiceLineRow'
+import { InvoiceStockCatalogModal } from '@/pages/facturacion/InvoiceStockCatalogModal'
 import { InvoiceSummaryBox } from '@/pages/facturacion/InvoiceSummaryBox'
 import {
   computeTotals,
@@ -12,7 +14,7 @@ import {
 import { listCatalogItems } from '@/services/catalogApi'
 import { selectEnabledModules } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import { CatalogItemKind, CatalogItemStatus, type CatalogItemListItemDto } from '@/types/catalogApi'
+import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
 
 export type InvoiceLinesSectionProps = {
   readonly tenantId: string | null
@@ -23,6 +25,11 @@ export type InvoiceLinesSectionProps = {
   readonly onAdd: () => void
   readonly onRemove: (lineId: string) => void
   readonly onChange: (lineId: string, patch: Partial<InvoiceLineDraft>) => void
+  readonly onAddProduct?: (
+    product: CatalogItemListItemDto,
+    quantity: number,
+    targetLineId?: string | null
+  ) => void
 }
 
 function kindToSnapshot(kind: CatalogItemKind): InvoiceLineItemKind {
@@ -37,6 +44,7 @@ export function InvoiceLinesSection({
   onAdd,
   onRemove,
   onChange,
+  onAddProduct,
 }: InvoiceLinesSectionProps) {
   const totals = computeTotals(lines)
   const enabledModules = useAppSelector(selectEnabledModules)
@@ -47,11 +55,41 @@ export function InvoiceLinesSection({
 
   const [catalogItems, setCatalogItems] = useState<CatalogItemListItemDto[]>([])
   const [catalogError, setCatalogError] = useState<string | null>(null)
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false)
+  const [activeLineForModal, setActiveLineForModal] = useState<string | null>(null)
+
+  const handleOpenStockModal = (lineId: string | null) => {
+    setActiveLineForModal(lineId)
+    setIsStockModalOpen(true)
+  }
+
+  const handleSelectProductFromModal = (
+    item: CatalogItemListItemDto,
+    quantity: number,
+    targetLineId?: string | null
+  ) => {
+    if (onAddProduct) {
+      onAddProduct(item, quantity, targetLineId)
+      return
+    }
+
+    if (targetLineId) {
+      applyProduct(targetLineId, item.id)
+      onChange(targetLineId, { quantity: Math.max(1, quantity) })
+      return
+    }
+
+    const emptyLine = lines.find((l) => !l.productId && !l.description.trim())
+    if (emptyLine) {
+      applyProduct(emptyLine.id, item.id)
+      onChange(emptyLine.id, { quantity: Math.max(1, quantity) })
+    } else {
+      onAdd()
+    }
+  }
 
   useEffect(() => {
     if (!tenantId || !hasCatalog) {
-      setCatalogItems([])
-      setCatalogError(null)
       return
     }
 
@@ -75,24 +113,6 @@ export function InvoiceLinesSection({
       cancelled = true
     }
   }, [tenantId, hasCatalog])
-
-  const productOptions = useMemo(() => {
-    const selectedIds = new Set(
-      lines
-        .map((l) => l.catalogItemId || l.productId)
-        .filter((id): id is string => Boolean(id))
-    )
-    return catalogItems
-      .filter((item) => item.status === CatalogItemStatus.Active || selectedIds.has(item.id))
-      .map((item) => {
-        const prefix = item.sku?.trim() ? `${item.sku} — ` : ''
-        const baseLabel = `${prefix}${item.name}`
-        return {
-          value: item.id,
-          label: item.status === CatalogItemStatus.Inactive ? `${baseLabel} (Inactivo)` : baseLabel,
-        }
-      })
-  }, [catalogItems, lines])
 
   const applyProduct = (lineId: string, productId: string) => {
     if (!productId) {
@@ -127,18 +147,8 @@ export function InvoiceLinesSection({
     })
   }
 
-  const body = (
-    <>
-      {!embedded ? (
-        <div className="factura-emitir__section-head">
-          <h2 className="app-shell__section-title">
-            <Package size={18} strokeWidth={1.75} aria-hidden /> Detalle de productos
-          </h2>
-        </div>
-      ) : (
-        <p className="factura-emitir__meta-label">Detalle</p>
-      )}
-
+  const content = (
+    <div className="factura-emitir__lines-content">
       {catalogError ? (
         <p className="welcome-onboarding__error" role="alert">
           {catalogError}
@@ -156,7 +166,7 @@ export function InvoiceLinesSection({
           <thead>
             <tr>
               <th scope="col" className="factura-emitir__col-sku">
-                Ítem
+                Ítem / SKU
               </th>
               <th scope="col">Descripción</th>
               <th scope="col" className="factura-emitir__col-qty">
@@ -183,7 +193,7 @@ export function InvoiceLinesSection({
             {lines.length === 0 ? (
               <tr>
                 <td colSpan={8} className="factura-emitir__table-empty">
-                  Agregar productos con el botón inferior.
+                  No hay ítems agregados. Usa el catálogo con stock o agrega una línea manual.
                 </td>
               </tr>
             ) : (
@@ -194,10 +204,9 @@ export function InvoiceLinesSection({
                   index={index}
                   disabled={disabled}
                   canRemove={lines.length > 1}
-                  productOptions={productOptions}
                   onChange={onChange}
                   onRemove={onRemove}
-                  onProductChange={applyProduct}
+                  onOpenStockCatalog={handleOpenStockModal}
                 />
               ))
             )}
@@ -206,19 +215,54 @@ export function InvoiceLinesSection({
       </div>
 
       <div className="factura-emitir__detail-foot">
-        <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onAdd}>
+        <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={onAdd}>
           <Plus size={15} strokeWidth={2} aria-hidden />
           Agregar línea
         </Button>
 
         <InvoiceSummaryBox totals={totals} />
       </div>
-    </>
+
+      <InvoiceStockCatalogModal
+        open={isStockModalOpen}
+        onClose={() => {
+          setIsStockModalOpen(false)
+          setActiveLineForModal(null)
+        }}
+        tenantId={tenantId}
+        targetLineId={activeLineForModal}
+        onSelectProduct={handleSelectProductFromModal}
+      />
+    </div>
   )
 
   if (embedded) {
-    return <div className="factura-emitir__lines">{body}</div>
+    return <div className="factura-emitir__lines">{content}</div>
   }
 
-  return <section className="app-shell__card ecu-companies-form__card">{body}</section>
+  return (
+    <SectionCard
+      title={
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Package size={18} strokeWidth={1.75} aria-hidden />
+          <span>Detalle de productos y servicios</span>
+        </span>
+      }
+      subtitle="Ítems facturados, inventario, precios e impuestos"
+      action={
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          onClick={() => handleOpenStockModal(null)}
+        >
+          <Boxes size={15} strokeWidth={1.75} aria-hidden />
+          Ver catálogo y stock
+        </Button>
+      }
+    >
+      {content}
+    </SectionCard>
+  )
 }

@@ -1,6 +1,6 @@
 import { Button } from 'glubox'
 import { useNavigate } from 'react-router-dom'
-import { PageHeader, StatusBadge } from '@/components/ui'
+import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { InvoiceLinesSection } from '@/pages/facturacion/InvoiceLinesSection'
@@ -8,6 +8,7 @@ import { InvoiceMetaFields } from '@/pages/facturacion/InvoiceMetaFields'
 import { InvoiceNotesFields } from '@/pages/facturacion/InvoiceNotesFields'
 import { InvoiceRidePreviewPopup } from '@/pages/facturacion/InvoiceRidePreviewPopup'
 import { RidePrintConfirmPopup } from '@/pages/facturacion/RidePrintConfirmPopup'
+import { computeTotals, formatMoney } from '@/pages/facturacion/invoiceFormTypes'
 import { useInvoiceEmitForm } from '@/pages/facturacion/useInvoiceEmitForm'
 import { selectTenantBranding, selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
@@ -20,6 +21,7 @@ export function FacturaEmitirPage() {
   const branding = useAppSelector(selectTenantBranding)
   const form = useInvoiceEmitForm({ tenantId, branding, canCreate })
   const profile = form.emitProfile
+  const totals = computeTotals(form.lines)
 
   const primaryLabel =
     profile.emitMode === 'draft'
@@ -55,7 +57,7 @@ export function FacturaEmitirPage() {
         }
         badge={
           <StatusBadge tone={profile.isDevelopment ? 'warning' : 'success'} withDot>
-            {profile.isDevelopment ? 'Ambiente Pruebas' : 'Producción SRI'}
+            {profile.isDevelopment ? 'SRI Pruebas' : 'SRI Producción'}
           </StatusBadge>
         }
         actions={
@@ -76,104 +78,105 @@ export function FacturaEmitirPage() {
         empty={!tenantId}
         emptyMessage="Entrar a una empresa para emitir facturas."
       >
-        <div
-          className={
-            profile.isDevelopment
-              ? 'factura-emitir__mode-banner factura-emitir__mode-banner--dev'
-              : 'factura-emitir__mode-banner factura-emitir__mode-banner--prod'
-          }
-          role="status"
-        >
-          <p className="factura-emitir__mode-banner-title">
-            {profile.isDevelopment ? 'Modo desarrollo' : 'Modo producción'}
-          </p>
-          <p className="factura-emitir__mode-banner-text">
-            {profile.label}. {profile.description}
-          </p>
-          <p className="factura-emitir__mode-banner-hint">
-            Cambiar en Facturación → Emisor.
-          </p>
-        </div>
-
         <form
-          className="factura-emitir__form ecu-companies-form"
+          className="factura-emitir__form"
           onSubmit={(e) => {
             e.preventDefault()
             void form.onSubmit()
           }}
           noValidate
         >
-          <section className="app-shell__card ecu-companies-form__card factura-emitir__card">
-            <InvoiceMetaFields
-              header={form.header}
-              counterparty={form.counterparty}
-              issuerLocked={form.issuerLocked}
-              disabled={form.formDisabled}
-              onHeaderChange={form.patchHeader}
-              onCounterpartyChange={form.patchCounterparty}
-              onCounterpartyReplace={form.replaceCounterparty}
-            />
-
-            <InvoiceNotesFields
-              header={form.header}
-              disabled={form.formDisabled}
-              onHeaderChange={form.patchHeader}
-            />
+          <div className="factura-emitir__sections">
+            <SectionCard
+              title="Datos de Emisión y Cliente"
+              subtitle="Punto de emisión, fecha y datos fiscales del adquirente"
+            >
+              <InvoiceMetaFields
+                header={form.header}
+                counterparty={form.counterparty}
+                issuerLocked={form.issuerLocked}
+                disabled={form.formDisabled}
+                onHeaderChange={form.patchHeader}
+                onCounterpartyChange={form.patchCounterparty}
+                onCounterpartyReplace={form.replaceCounterparty}
+              />
+            </SectionCard>
 
             <InvoiceLinesSection
               tenantId={tenantId}
               lines={form.lines}
               disabled={form.formDisabled}
-              embedded
+              embedded={false}
               onAdd={form.addLine}
               onRemove={form.removeLine}
               onChange={form.patchLine}
+              onAddProduct={form.addProductLine}
             />
 
-            <footer className="ecu-companies-form__actions factura-emitir__actions">
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
+            <SectionCard
+              title="Condiciones Comerciales y Observaciones"
+              subtitle="Plazo de pago y observaciones impresas en el RIDE"
+            >
+              <InvoiceNotesFields
+                header={form.header}
                 disabled={form.formDisabled}
-                loading={form.previewing}
-                onClick={() => void form.onPreview()}
-              >
-                {form.previewing ? 'Generando…' : 'Previsualizar'}
-              </Button>
-              {profile.emitMode !== 'draft' ? (
+                onHeaderChange={form.patchHeader}
+              />
+            </SectionCard>
+
+            <div className="factura-emitir__footer-bar">
+              <div className="factura-emitir__footer-total">
+                <span className="factura-emitir__footer-total-label">Total comprobante:</span>
+                <span className="factura-emitir__footer-total-value">
+                  {formatMoney(totals.grandTotal)}
+                </span>
+              </div>
+
+              <div className="factura-emitir__footer-actions">
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="lg"
+                  variant="outline"
+                  size="md"
                   disabled={form.formDisabled}
-                  onClick={() => void form.onSubmit('draft')}
+                  loading={form.previewing}
+                  onClick={() => void form.onPreview()}
                 >
-                  Solo validar
+                  {form.previewing ? 'Generando…' : 'Previsualizar RIDE'}
                 </Button>
-              ) : null}
-              {profile.emitMode === 'sri' ? (
+                {profile.emitMode !== 'draft' ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="md"
+                    disabled={form.formDisabled}
+                    onClick={() => void form.onSubmit('draft')}
+                  >
+                    Solo validar
+                  </Button>
+                ) : null}
+                {profile.emitMode === 'sri' ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="md"
+                    disabled={form.formDisabled}
+                    onClick={() => void form.onSubmit('sign')}
+                  >
+                    Solo firmar
+                  </Button>
+                ) : null}
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="lg"
+                  type="submit"
+                  variant="primary"
+                  size="md"
                   disabled={form.formDisabled}
-                  onClick={() => void form.onSubmit('sign')}
+                  loading={form.busy}
                 >
-                  Solo firmar
+                  {form.busy ? 'Procesando…' : primaryLabel}
                 </Button>
-              ) : null}
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                disabled={form.formDisabled}
-                loading={form.busy}
-              >
-                {form.busy ? 'Procesando…' : primaryLabel}
-              </Button>
-            </footer>
-          </section>
+              </div>
+            </div>
+          </div>
         </form>
       </PageLoadState>
 

@@ -43,6 +43,9 @@ public sealed class RepairDispatch : AggregateRoot<Guid>, ITenantEntity, IAudita
 
     public string? Notes { get; private set; }
 
+    /// <summary>Motivo de egreso del acta: reparado, irreparable, retiro cliente, rechazo técnico.</summary>
+    public DispatchExitType ExitType { get; private set; } = DispatchExitType.Repaired;
+
     /// <summary>Id de la factura electrónica SRI emitida en el módulo billing.</summary>
     public Guid? InvoiceId { get; private set; }
 
@@ -63,6 +66,7 @@ public sealed class RepairDispatch : AggregateRoot<Guid>, ITenantEntity, IAudita
         Guid tenantId,
         Guid batchId,
         string dispatchNumber,
+        DispatchExitType exitType = DispatchExitType.Repaired,
         string? carrierName = null,
         string? carrierDocument = null,
         string? carrierVehiclePlate = null,
@@ -104,6 +108,7 @@ public sealed class RepairDispatch : AggregateRoot<Guid>, ITenantEntity, IAudita
             BatchId = batchId,
             DispatchNumber = trimmedNumber,
             Status = RepairDispatchStatus.Draft,
+            ExitType = exitType,
             CarrierName = carrierName?.Trim(),
             CarrierDocument = carrierDocument?.Trim(),
             CarrierVehiclePlate = carrierVehiclePlate?.Trim(),

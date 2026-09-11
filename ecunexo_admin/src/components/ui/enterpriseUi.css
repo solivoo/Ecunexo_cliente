@@ -15,6 +15,19 @@
   box-sizing: border-box;
 }
 
+/* Formularios operativos con tablas/previews anchos (importación de lotes, etc.) */
+.ecu-dashboard-layout--fluid {
+  max-width: min(100%, 1680px);
+}
+
+.ecu-import-batch-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
 .ecu-dashboard-layout > .ecu-page-header {
   margin-bottom: 0;
 }
@@ -522,8 +535,8 @@ button.glb-btn--lg svg.lucide {
 
 .ecu-rates-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
 }
 
 .ecu-rate-card {
@@ -650,23 +663,34 @@ html.sf-dark-mode .ecu-dropzone__icon-wrap--success {
 .ecu-filter-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 1rem;
   flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
+.ecu-filter-toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  flex-shrink: 0;
+}
+
 .ecu-preview-table-container {
-  max-height: 260px;
-  overflow-y: auto;
+  max-height: min(52vh, 420px);
+  overflow: auto;
   border: 1px solid var(--shell-border);
   border-radius: 0.75rem;
   margin-top: 1rem;
   background: var(--glb-surface);
+  width: 100%;
 }
 
 .ecu-preview-table {
   width: 100%;
+  min-width: 52rem;
   border-collapse: collapse;
   font-size: 0.8125rem;
   text-align: left;
@@ -737,4 +761,228 @@ html.sf-dark-mode .ecu-alert-box--success {
   background: rgba(16, 185, 129, 0.15);
 }
 
+/* ==========================================================================
+   Modales Popup (glubox) — composición enterprise / M3
+   ========================================================================== */
+
+.ecu-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-top: 0.85rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.ecu-modal-form__field {
+  min-width: 0;
+  width: 100%;
+  /* Aire para labels outlined que flotan sobre el borde */
+  padding-top: 0.45rem;
+}
+
+.ecu-modal-form__field .glb-textbox,
+.ecu-modal-form__field .glb-select,
+.ecu-modal-form__field .glb-textarea {
+  width: 100%;
+}
+
+.ecu-modal-form__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem 1.15rem;
+  align-items: start;
+}
+
+@media (min-width: 560px) {
+  .ecu-modal-form__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.ecu-modal-form__grid--3 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem 1.15rem;
+  align-items: start;
+}
+
+@media (min-width: 720px) {
+  .ecu-modal-form__grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.ecu-modal-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding: 1.1rem 1.2rem;
+  border-radius: 0.875rem;
+  border: 1px solid var(--shell-border);
+  background: color-mix(in srgb, var(--glb-surface) 94%, var(--shell-primary) 3%);
+  min-width: 0;
+}
+
+.ecu-modal-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ecu-modal-section-title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--shell-text);
+}
+
+.ecu-modal-section-lead {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--shell-muted);
+}
+
+.ecu-modal-equip-list {
+  max-height: min(42vh, 24rem);
+  overflow: auto;
+  border: 1px solid var(--shell-border);
+  border-radius: 0.875rem;
+  background: var(--glb-surface);
+}
+
+.ecu-modal-equip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--shell-border) 55%, transparent);
+  cursor: pointer;
+  transition: background 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ecu-modal-equip-row:last-child {
+  border-bottom: none;
+}
+
+.ecu-modal-equip-row:hover {
+  background: color-mix(in srgb, var(--shell-primary) 5%, transparent);
+}
+
+.ecu-modal-equip-row--selected {
+  background: color-mix(in srgb, var(--shell-primary) 12%, transparent);
+}
+
+.ecu-modal-equip-row__main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ecu-modal-equip-row__serial {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  color: var(--shell-text);
+}
+
+.ecu-modal-equip-row__meta {
+  font-size: 0.75rem;
+  color: var(--shell-muted);
+  margin-left: 0.5rem;
+}
+
+.ecu-modal-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.25rem;
+}
+
+.ecu-modal-qr__frame {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--shell-border) 70%, transparent);
+}
+
+.ecu-modal-qr__frame img {
+  display: block;
+  width: 11rem;
+  height: 11rem;
+}
+
+.ecu-modal-qr__hash {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.6875rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--shell-border) 45%, transparent);
+  color: var(--shell-muted);
+  word-break: break-all;
+}
+
+.ecu-modal-meta-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.95rem 1.1rem;
+  border-radius: 0.875rem;
+  border: 1px solid var(--shell-border);
+  background: var(--glb-surface);
+  text-align: left;
+}
+
+.ecu-modal-meta-list__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.8125rem;
+}
+
+.ecu-modal-meta-list__label {
+  color: var(--shell-muted);
+}
+
+.ecu-modal-meta-list__value {
+  font-weight: 600;
+  color: var(--shell-text);
+  text-align: right;
+}
+
+.ecu-empty-state--compact {
+  padding: 1.5rem 1rem;
+  max-width: none;
+}
+
+.ecu-empty-state--compact .ecu-empty-state__icon-box {
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.ecu-empty-state--compact .ecu-empty-state__title {
+  font-size: 0.9375rem;
+}
+
+.ecu-empty-state--compact .ecu-empty-state__desc {
+  font-size: 0.8125rem;
+  margin-bottom: 0;
+}
+
+.ecu-empty-state--in-panel {
+  border: 1px dashed color-mix(in srgb, var(--shell-border) 80%, transparent);
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, var(--glb-surface) 70%, transparent);
+}
 

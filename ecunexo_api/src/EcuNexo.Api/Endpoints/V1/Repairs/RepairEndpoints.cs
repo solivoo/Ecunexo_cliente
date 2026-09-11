@@ -5,9 +5,11 @@ using EcuNexo.Api.Extensions;
 using EcuNexo.Api.Security;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Repairs.Commands.CreateRepairDispatch;
+using EcuNexo.Business.Repairs.Commands.LinkDispatchInvoice;
 using EcuNexo.Business.Repairs.Commands.ImportRepairBatch;
 using EcuNexo.Business.Repairs.Commands.UpdateEquipmentStatus;
 using EcuNexo.Business.Repairs.Excel;
+using EcuNexo.Business.Repairs.Queries.GetDispatchInvoicePreview;
 using EcuNexo.Business.Repairs.Queries.ListBatches;
 using EcuNexo.Business.Repairs.Queries.VerifyDispatchPublic;
 using EcuNexo.Business.Customers.Repositories;
@@ -106,6 +108,19 @@ public static class RepairEndpoints
         repairsGroup.MapGet("/dispatches/{dispatchId:guid}", GetDispatchByIdAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny("repairs.dispatches.read", "repairs.b2b.portal.view"));
 
+        repairsGroup.MapGet("/dispatches/{dispatchId:guid}/invoice-preview", GetDispatchInvoicePreviewAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "repairs.invoices.generate",
+                "repairs.dispatches.create",
+                "facturacion.facturas.create",
+                "repairs.dispatches.read"));
+
+        repairsGroup.MapPost("/dispatches/{dispatchId:guid}/invoice", LinkDispatchInvoiceAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "repairs.invoices.generate",
+                "repairs.dispatches.create",
+                "facturacion.facturas.create"));
+
         // 6. Validación Pública QR (Sin Autenticación)
         RouteGroupBuilder publicGroup = app
             .MapGroup("/api/v{version:apiVersion}/public/repairs")
@@ -140,6 +155,8 @@ public static class RepairEndpoints
         [FromForm] decimal? rateN2,
         [FromForm] decimal? rateN3,
         [FromForm] string? contractReference,
+        [FromForm] string? excludedRowNumbers,
+        [FromForm] string? excludedSerialNumbers,
         IFormFile? file,
         [FromServices] ISender sender,
         [FromServices] ICallerContext caller,
@@ -150,6 +167,18 @@ public static class RepairEndpoints
             return Result.Failure<ImportRepairBatchResponse>(
                 new Error("repairs.import.file_empty", "Debe adjuntar un archivo Excel válido.", ErrorType.Validation)).ToHttpResult();
         }
+
+        var excludedRows = !string.IsNullOrWhiteSpace(excludedRowNumbers)
+            ? excludedRowNumbers.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => int.TryParse(s, out var n) ? n : -1)
+                .Where(n => n >= 0)
+                .ToList()
+            : null;
+
+        var excludedSerials = !string.IsNullOrWhiteSpace(excludedSerialNumbers)
+            ? excludedSerialNumbers.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList()
+            : null;
 
         await using var stream = file.OpenReadStream();
         var command = new ImportRepairBatchCommand(
@@ -163,6 +192,8 @@ public static class RepairEndpoints
             ContractReference: contractReference,
             ExpectedCompletionAt: null,
             ExcelStream: stream,
+            ExcludedRowNumbers: excludedRows,
+            ExcludedSerialNumbers: excludedSerials,
             CreatedBy: caller.UserId);
 
         var result = await sender.SendAsync<ImportRepairBatchCommand, ImportRepairBatchResponse>(command, ct).ConfigureAwait(false);
@@ -427,10 +458,12 @@ public static class RepairEndpoints
             BatchId: request.BatchId,
             DispatchNumber: request.DispatchNumber,
             EquipmentIds: request.EquipmentIds,
+            ExitType: request.ExitType,
             CarrierName: request.CarrierName,
             CarrierDocument: request.CarrierDocument,
             CarrierVehiclePlate: request.CarrierVehiclePlate,
             Notes: request.Notes,
+            ReturnReason: request.ReturnReason,
             CreatedBy: caller.UserId);
 
         var result = await sender.SendAsync<CreateRepairDispatchCommand, CreateRepairDispatchResponse>(command, ct).ConfigureAwait(false);
@@ -443,7 +476,8 @@ public static class RepairEndpoints
         CancellationToken ct)
     {
         var dispatches = await dispatchRepo.ListByTenantAsync(tenantId, ct).ConfigureAwait(false);
-        return Results.Ok(dispatches);
+        var dtos = dispatches.Select(MapDispatchToDto).ToList();
+        return Results.Ok(dtos);
     }
 
     private static async Task<IResult> VerifyDispatchPublicAsync(
@@ -723,6 +757,81 @@ public static class RepairEndpoints
             return Results.NotFound(new { message = "Despacho no encontrado." });
         }
 
-        return Results.Ok(dispatch);
+        return Results.Ok(MapDispatchToDto(dispatch));
+    }
+
+    private static RepairDispatchDto MapDispatchToDto(RepairDispatch dispatch)
+    {
+        var items = dispatch.Items.Select(i => new RepairDispatchItemDto(
+            Id: i.Id,
+            DispatchId: i.DispatchId,
+            EquipmentId: i.EquipmentId,
+            Equipment: i.Equipment == null ? null : new RepairDispatchEquipmentDto(
+                Id: i.Equipment.Id,
+                BatchId: i.Equipment.BatchId,
+                SerialNumber: i.Equipment.SerialNumber,
+                Model: i.Equipment.Model,
+                Brand: i.Equipment.Brand,
+                DamageLevel: i.Equipment.DamageLevel,
+                Status: i.Equipment.Status,
+                ServiceFeeApplied: i.Equipment.ServiceFeeApplied,
+                DiagnosticNotes: i.Equipment.DiagnosticNotes,
+                RepairNotes: i.Equipment.RepairNotes)
+        )).ToList();
+
+        return new RepairDispatchDto(
+            Id: dispatch.Id,
+            TenantId: dispatch.TenantId,
+            BatchId: dispatch.BatchId,
+            BatchNumber: dispatch.Batch?.BatchNumber,
+            CustomerName: dispatch.Batch?.Customer?.Name ?? "Sin Asignar",
+            DispatchNumber: dispatch.DispatchNumber,
+            Status: dispatch.Status,
+            ExitType: dispatch.ExitType,
+            CarrierName: dispatch.CarrierName,
+            CarrierDocument: dispatch.CarrierDocument,
+            CarrierVehiclePlate: dispatch.CarrierVehiclePlate,
+            VerificationHash: dispatch.VerificationHash,
+            QrCodeUrl: dispatch.QrCodeUrl,
+            Notes: dispatch.Notes,
+            InvoiceId: dispatch.InvoiceId,
+            DispatchedAt: dispatch.DispatchedAt,
+            CreatedAt: dispatch.CreatedAt,
+            Items: items);
+    }
+
+    private static async Task<IResult> GetDispatchInvoicePreviewAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid dispatchId,
+        [FromServices] ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<GetDispatchInvoicePreviewQuery, DispatchInvoicePreviewResponse>(
+                new GetDispatchInvoicePreviewQuery(tenantId, dispatchId), ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> LinkDispatchInvoiceAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid dispatchId,
+        [FromBody] LinkDispatchInvoiceRequest request,
+        [FromServices] ISender sender,
+        [FromServices] ICallerContext caller,
+        CancellationToken ct)
+    {
+        var command = new LinkDispatchInvoiceCommand(
+            TenantId: tenantId,
+            DispatchId: dispatchId,
+            InvoiceId: request.InvoiceId,
+            ModifiedBy: caller.UserId);
+
+        var result = await sender
+            .SendAsync<LinkDispatchInvoiceCommand, LinkDispatchInvoiceResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
     }
 }

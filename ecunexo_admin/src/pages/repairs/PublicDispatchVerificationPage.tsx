@@ -164,6 +164,50 @@ export function PublicDispatchVerificationPage() {
                 </div>
               </div>
 
+              {/* Firmas de Responsabilidad */}
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                  Acreditación de Traspaso de Custodia
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/70 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide block">
+                        Conductor / Solicitante de Retiro
+                      </span>
+                      <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">
+                        {data.carrierName || 'Conductor asignado'}
+                      </p>
+                      {data.carrierVehiclePlate && (
+                        <p className="text-[11px] text-slate-500 font-mono">
+                          Placa: {data.carrierVehiclePlate}
+                        </p>
+                      )}
+                    </div>
+                    <div className="mt-6 pt-2 border-t border-dashed border-slate-300 dark:border-slate-700 text-center text-[10px] text-slate-400">
+                      Firma de Recepción Conforme
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/70 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide block">
+                        Aprobación de Salida / Taller
+                      </span>
+                      <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">
+                        Responsable de Control y Despacho
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {data.dispatchedAt ? formatDateTime(data.dispatchedAt) : 'Salida autorizada'}
+                      </p>
+                    </div>
+                    <div className="mt-6 pt-2 border-t border-dashed border-slate-300 dark:border-slate-700 text-center text-[10px] text-slate-400">
+                      Firma Autorizada y Sello
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Acciones */}
               <div className="pt-2 flex justify-center print:hidden">
                 <Button

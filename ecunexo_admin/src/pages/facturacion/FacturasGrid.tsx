@@ -142,6 +142,7 @@ export function FacturasGrid({
       {
         key: 'invoiceId',
         header: 'Acciones',
+        sticky: 'right',
         width: canOperateInvoice ? 200 : 132,
         align: 'center',
         sortable: false,

@@ -136,6 +136,7 @@ export function WarehousesListPage() {
             {
               key: 'id',
               header: 'Acciones',
+              sticky: 'right',
               width: 72,
               align: 'center' as const,
               sortable: false,

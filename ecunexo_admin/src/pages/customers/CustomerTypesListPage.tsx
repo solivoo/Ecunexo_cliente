@@ -331,6 +331,7 @@ export default function CustomerTypesListPage() {
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: canManage ? 140 : 72,
         sortable: false,
         renderCell: (_v, row: TypeRow) =>

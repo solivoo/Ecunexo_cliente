@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react'
-import { NumberBox, Select, TextBox } from 'glubox'
-import { Trash2 } from 'lucide-react'
+import { Button, NumberBox, Select, TextBox } from 'glubox'
+import { Boxes, Trash2 } from 'lucide-react'
 import {
   IVA_RATE_OPTIONS,
   computeLine,
@@ -9,24 +9,18 @@ import {
   type InvoiceLineDraft,
 } from '@/pages/facturacion/invoiceFormTypes'
 
-export type InvoiceLineProductOption = {
-  readonly value: string
-  readonly label: string
-}
-
 export type InvoiceLineRowProps = {
   readonly line: InvoiceLineDraft
   readonly index: number
   readonly disabled: boolean
   readonly canRemove: boolean
-  readonly productOptions: readonly InvoiceLineProductOption[]
   readonly onChange: (lineId: string, patch: Partial<InvoiceLineDraft>) => void
   readonly onRemove: (lineId: string) => void
-  readonly onProductChange: (lineId: string, productId: string) => void
+  readonly onOpenStockCatalog?: (lineId: string) => void
 }
 
 const IVA_OPTIONS = IVA_RATE_OPTIONS.map((opt) => ({
-  value: opt.value,
+  value: String(opt.value),
   label: opt.label,
 }))
 
@@ -35,10 +29,9 @@ export function InvoiceLineRow({
   index,
   disabled,
   canRemove,
-  productOptions,
   onChange,
   onRemove,
-  onProductChange,
+  onOpenStockCatalog,
 }: InvoiceLineRowProps) {
   const computed = computeLine(line)
 
@@ -57,17 +50,54 @@ export function InvoiceLineRow({
   return (
     <tr>
       <td className="factura-emitir__col-sku">
-        <Select
-          id={`inv-line-sku-${line.id}`}
-          variant="outline"
-          size="sm"
-          options={[...productOptions]}
-          value={line.productId}
-          placeholder="Seleccionar…"
-          disabled={disabled}
-          onChange={(value) => onProductChange(line.id, value)}
-          fullWidth
-        />
+        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', justifyContent: 'center' }}>
+          {line.sku ? (
+            <div
+              id={`inv-line-sku-${line.id}`}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: '0.35rem 0.55rem',
+                borderRadius: '6px',
+                background: 'var(--glb-surface-variant, rgba(255, 255, 255, 0.05))',
+                border: '1px solid var(--shell-border)',
+                fontFamily: 'ui-monospace, monospace',
+                fontWeight: 700,
+                fontSize: '0.8125rem',
+                color: 'var(--shell-primary)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={line.sku}
+            >
+              {line.sku}
+            </div>
+          ) : null}
+
+          <Button
+            id={!line.sku ? `inv-line-sku-${line.id}` : undefined}
+            type="button"
+            variant="outline"
+            size="sm"
+            style={{
+              padding: 0,
+              width: '32px',
+              height: '32px',
+              minWidth: '32px',
+              flexShrink: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            title={line.sku ? 'Cambiar producto desde el catálogo' : 'Buscar producto en el catálogo con stock'}
+            aria-label="Abrir catálogo y stock"
+            disabled={disabled}
+            onClick={() => onOpenStockCatalog?.(line.id)}
+          >
+            <Boxes size={16} strokeWidth={1.75} aria-hidden />
+          </Button>
+        </div>
       </td>
       <td>
         <TextBox
@@ -136,7 +166,7 @@ export function InvoiceLineRow({
           options={IVA_OPTIONS}
           value={String(normalizeLineIvaRate(line.ivaRate))}
           disabled={disabled}
-          onChange={(value) =>
+          onChange={(value: string | number) =>
             onChange(line.id, {
               ivaRate: normalizeLineIvaRate(Number(value)),
             })

@@ -4,7 +4,8 @@ description: >-
   Use this skill whenever designing, building, or refactoring UI components, pages, dashboards,
   forms, or tables in the frontend. Combines Google Material Design 3 surface layering,
   modern enterprise SaaS layout patterns (PageHeader, KPI StatCards, SectionCards, Toolbars),
-  and glubox component integration.
+  glubox component integration, and the canonical DataGrid list pattern (OptionGroup +
+  ecu-companies-grid toolbar like Inventory Documents).
 ---
 
 # Glubox Enterprise UI & UX Design System
@@ -48,9 +49,9 @@ Toda vista principal de la aplicación debe estructurarse siguiendo esta secuenc
 ├────────────────────────────────────────────────────────────────────────┤
 │  MAIN CONTENT / DATA SECTION                                           │
 │  ┌───────────────────────────────────────────────────────────────────┐ │
-│  │ SectionCard con Header (Búsqueda + Filtros rápidos + DataGrid)    │ │
-│  │                                                                   │ │
-│  │  <DataGrid ... />   o   <EmptyState ... />                        │ │
+│  │ SectionCard: título + OptionGroup segmentado (cola/estado)        │ │
+│  │ DataGrid ecu-companies-grid: buscar izq. + fechas/filtros der.    │ │
+│  │ <EmptyState /> si no hay filas                                    │ │
 │  └───────────────────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -88,12 +89,55 @@ Cuando una tabla o lista no contiene registros:
   3. Texto explicativo de qué debe hacer el usuario.
   4. Botón de acción principal (`<Button variant="primary">Crear empresa</Button>`).
 
-### 3.5. DataGrid Toolbar
-Las tablas `glubox` deben estar acompañadas de una barra superior consistente:
-- Campo de búsqueda instantánea (`TextBox` con icono de lupa).
-- Selector de fechas (`RangeDateBox`) si hay registros temporales.
-- Filtros por estado o categoría (`Select` o Chips).
-- Acciones rápidas (Refrescar, Exportar CSV/PDF, Acciones en lote).
+### 3.5. DataGrid / Listas — Patrón Canónico (obligatorio)
+
+Todas las pantallas de listado con `DataGrid` deben verse y estructurarse como **Historial de Documentos Logísticos**.
+
+**Referencia de código:** [`ecunexo_admin/src/pages/inventory/InventoryDocumentsListPage.tsx`](../../ecunexo_admin/src/pages/inventory/InventoryDocumentsListPage.tsx)
+
+**Regla Cursor:** `.cursor/rules/enterprise-datagrid-lists.mdc` (se aplica al editar `*List*` / `*Grid*` pages).
+
+#### Anatomía
+
+```
+┌─ SectionCard ─────────────────────────────────────────────────────────┐
+│  Título + subtítulo                    [ OptionGroup segmentado ]     │
+│  (ej. Activos | Todos | Inactivos)     ← cola / estado PRIMARIO       │
+├───────────────────────────────────────────────────────────────────────┤
+│  DataGrid  className="ecu-companies-grid"                             │
+│  [🔍 Buscar……………]              [ Select tipo? ] [ Rango fechas ]     │
+│  ───────────────────────────────────────────────────────────────────  │
+│  | columnas…                                                    |     │
+│  paginación…                                                          │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+#### Checklist de implementación
+
+1. **`SectionCard.action`**: filtros de cola/estado primario con `<OptionGroup layout="segmented" variant="outline" size={size} />` (`useGluComponentSize`). **No** usar `Select` con `label` / `labelPosition="outlined"` en el header de la card.
+2. **`DataGrid`**: `className="ecu-companies-grid"` (habilita toolbar horizontal en `src/styles/ecu-companies-form.css`).
+3. **Búsqueda**: `showSearch`, `searchPosition="left"`, `searchWidth={280}` (o similar), placeholder corto.
+4. **`toolbarRight`**:
+   - Ideal: solo `<GridDateRangeBox … />`.
+   - Si hay un filtro secundario (tipo, categoría): `Select` **sin** label flotante (`aria-label=…`) + fechas, envueltos en `<div className="ecu-comprobantes-filters">` para mantener **una sola fila**.
+5. **Columna Acciones** (glubox ≥ **0.1.22**): siempre última, con `sticky: 'right'` en el `ColumnDef`. No se esconde al scroll horizontal.
+6. **EmptyState** dentro del mismo `SectionCard` cuando no hay filas; el `OptionGroup` del header permanece visible.
+
+#### Anti-patrones (evitar errores de UI)
+
+| Incorrecto | Por qué falla | Correcto |
+|---|---|---|
+| `Select` “Mostrar” outlined en `SectionCard.action` | Label flotante + desalineado vs tabs | `OptionGroup` segmentado |
+| Filtros en franja aparte encima del grid | Duplica toolbar; se ve “otro módulo” | Todo en header + `toolbarRight` |
+| Varios `Select` apilados en `toolbarRight` sin `ecu-companies-grid` | Slot derecho estrecho → wrap vertical | `ecu-companies-grid` + `ecu-comprobantes-filters` |
+| Clase inventada (`ecu-customers-grid`) sin CSS de toolbar | Pierde el layout canónico | `ecu-companies-grid` |
+| Acciones sin `sticky: 'right'` | Se ocultan al scroll horizontal | `sticky: 'right'` en ColumnDef |
+
+#### CSS de soporte (no reinventar)
+
+- `.ecu-companies-grid .glb-datagrid__toolbar` / `__toolbar-right` — fila alineada, `flex-shrink: 0` a la derecha.
+- `.ecu-comprobantes-filters` — flex fila + wrap controlado para varios filtros.
+- `.ecu-grid-date-range` — ancho fijo del rango de fechas (~23rem).
 
 ### 3.6. Command Palette & Top Bar Global Search (`Ctrl + K` / `Cmd + K`)
 Acceso rápido universal montado en el header del layout principal:

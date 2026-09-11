@@ -16,6 +16,7 @@ namespace EcuNexo.Business.UnitTests.Repairs;
 public sealed class RepairHandlersTests
 {
     private readonly ICustomerRepository _customerRepo = Substitute.For<ICustomerRepository>();
+    private readonly ICustomerRepairRateCardRepository _rateCardRepo = Substitute.For<ICustomerRepairRateCardRepository>();
     private readonly IRepairBatchTemplateRepository _templateRepo = Substitute.For<IRepairBatchTemplateRepository>();
     private readonly IRepairBatchRepository _batchRepo = Substitute.For<IRepairBatchRepository>();
     private readonly IRepairEquipmentRepository _equipmentRepo = Substitute.For<IRepairEquipmentRepository>();
@@ -66,6 +67,7 @@ public sealed class RepairHandlersTests
 
         var handler = new ImportRepairBatchHandler(
             _customerRepo,
+            _rateCardRepo,
             _templateRepo,
             _batchRepo,
             _equipmentRepo,

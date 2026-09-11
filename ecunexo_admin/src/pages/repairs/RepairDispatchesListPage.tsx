@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef, type PageActionItem } from 'glubox'
+import { Button, DataGrid, useToast, type ColumnDef, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   EmptyState,
@@ -10,10 +10,7 @@ import {
   StatusBadge,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
-import {
-  Plus,
-  QrCode,
-} from 'lucide-react'
+import { Eye, FileDown, Plus, QrCode } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
@@ -21,24 +18,33 @@ import { useHasPermission } from '@/hooks/useHasPermission'
 import { formatDateTime } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
-import {
-  createRepairDispatch,
-  listBatchEquipments,
-  listRepairBatches,
-  listRepairDispatches,
-} from '@/services/repairsApi'
+import { downloadDispatchDeliveryNotePdf } from '@/pages/repairs/pdf/dispatchPdfDownloads'
+import { ManageCarriersModal } from '@/pages/repairs/ManageCarriersModal'
+import { getRepairDispatch, listRepairDispatches } from '@/services/repairsApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
-  RepairEquipmentStatus,
-  type BatchListItemDto,
+  RepairDispatchStatus,
+  DispatchExitType,
+  dispatchExitTypeLabel,
+  dispatchExitTypeBadgeTone,
   type RepairDispatchDto,
-  type RepairEquipmentDto,
 } from '@/types/repairsApi'
 
 type Row = RepairDispatchDto & Record<string, unknown>
 
 const messages = createSpanishDataGridMessages('despacho', 'despachos')
+
+function statusBadge(status: RepairDispatchStatus) {
+  switch (status) {
+    case RepairDispatchStatus.Invoiced:
+      return <StatusBadge tone="success" withDot>Facturado</StatusBadge>
+    case RepairDispatchStatus.Confirmed:
+      return <StatusBadge tone="primary" withDot>Confirmado</StatusBadge>
+    default:
+      return <StatusBadge tone="neutral" withDot>Borrador</StatusBadge>
+  }
+}
 
 export function RepairDispatchesListPage() {
   const toast = useToast()
@@ -53,38 +59,24 @@ export function RepairDispatchesListPage() {
   const canViewPortal = useHasPermission('repairs.b2b.portal.view')
 
   const [dispatches, setDispatches] = useState<RepairDispatchDto[]>([])
-  const [batches, setBatches] = useState<BatchListItemDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isCarriersModalOpen, setIsCarriersModalOpen] = useState(false)
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
 
-  // Modal de Crear Despacho
-  const [createModalOpen, setCreateModalOpen] = useState(Boolean(initialBatchId))
-  const [selectedBatchId, setSelectedBatchId] = useState(initialBatchId ?? '')
-  const [readyEquipments, setReadyEquipments] = useState<RepairEquipmentDto[]>([])
-  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<Set<string>>(new Set())
-  const [loadingEquipments, setLoadingEquipments] = useState(false)
-  const [dispatchNumber, setDispatchNumber] = useState('')
-  const [carrierName, setCarrierName] = useState('')
-  const [carrierDocument, setCarrierDocument] = useState('')
-  const [carrierPlate, setCarrierPlate] = useState('')
-  const [savingDispatch, setSavingDispatch] = useState(false)
-
-  // Modal de Ver QR y Acta
-  const [qrModalOpen, setQrModalOpen] = useState(false)
-  const [activeDispatch, setActiveDispatch] = useState<RepairDispatchDto | null>(null)
+  useEffect(() => {
+    if (initialBatchId && canCreate) {
+      navigate(`/taller/despachos/nuevo?batchId=${encodeURIComponent(initialBatchId)}`, { replace: true })
+    }
+  }, [initialBatchId, canCreate, navigate])
 
   const load = useCallback(
     async (opts?: { silent?: boolean }) => {
       if (!tenantId) return
       setLoading(true)
       try {
-        const [dList, bList] = await Promise.all([
-          listRepairDispatches(tenantId),
-          listRepairBatches(tenantId),
-        ])
+        const dList = await listRepairDispatches(tenantId)
         setDispatches(dList)
-        setBatches(bList)
         setError(null)
         if (!opts?.silent) {
           toast.show({ title: 'Actualizado', message: 'Despachos sincronizados.', variant: 'success' })
@@ -104,6 +96,24 @@ export function RepairDispatchesListPage() {
   useEffect(() => {
     void load({ silent: true })
   }, [load])
+
+  const handleDownloadPdfRow = async (row: RepairDispatchDto) => {
+    if (!tenantId) return
+    try {
+      toast.show({ title: 'Generando PDF', message: `Preparando acta ${row.dispatchNumber}...`, variant: 'info' })
+      const fullDispatch = (!row.items || row.items.length === 0)
+        ? await getRepairDispatch(tenantId, row.id)
+        : row
+      const { filename } = await downloadDispatchDeliveryNotePdf(tenantId, fullDispatch)
+      toast.show({ title: 'Descarga completa', message: `Acta guardada: ${filename}`, variant: 'success' })
+    } catch (err: unknown) {
+      toast.show({
+        title: 'Error al generar PDF',
+        message: readApiError(err, 'No se pudo descargar el acta en PDF.'),
+        variant: 'error',
+      })
+    }
+  }
 
   const actionItems = useMemo<PageActionItem[]>(() => {
     const items: PageActionItem[] = []
@@ -126,6 +136,13 @@ export function RepairDispatchesListPage() {
       })
     }
     items.push({
+      id: 'carriers',
+      label: 'Transportistas',
+      icon: 'truck',
+      route: null,
+      disabled: false,
+    })
+    items.push({
       id: 'refresh',
       label: 'Actualizar',
       icon: 'refresh-cw',
@@ -135,159 +152,48 @@ export function RepairDispatchesListPage() {
     return items
   }, [canReadBatches, canViewPortal, loading])
 
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-      }
-    },
-    [load]
-  )
-
-  // Cargar equipos listos cuando cambia el lote en el modal
-  useEffect(() => {
-    if (!tenantId || !selectedBatchId) {
-      setReadyEquipments([])
-      setSelectedEquipmentIds(new Set())
-      return
-    }
-
-    setLoadingEquipments(true)
-    void (async () => {
-      try {
-        const list = await listBatchEquipments(
-          tenantId,
-          selectedBatchId,
-          RepairEquipmentStatus.ReadyToDispatch
-        )
-        setReadyEquipments(list)
-        // Seleccionar todos por defecto
-        setSelectedEquipmentIds(new Set(list.map((e) => e.id)))
-      } catch {
-        setReadyEquipments([])
-        setSelectedEquipmentIds(new Set())
-      } finally {
-        setLoadingEquipments(false)
-      }
-    })()
-  }, [selectedBatchId, tenantId])
-
-  // Autogenerar número de despacho
-  const openCreateModal = () => {
-    const now = new Date()
-    const year = now.getFullYear()
-    const seq = Math.floor(100 + Math.random() * 900)
-    setDispatchNumber(`DSP-${year}-WPH-${seq}`)
-    setCarrierName('Transportes Rápidos Ecuador S.A.')
-    setCarrierPlate('PBH-8942')
-    setCarrierDocument('1719283746')
-    setCreateModalOpen(true)
-  }
-
-  const toggleSelectAll = () => {
-    if (selectedEquipmentIds.size === readyEquipments.length) {
-      setSelectedEquipmentIds(new Set())
-    } else {
-      setSelectedEquipmentIds(new Set(readyEquipments.map((e) => e.id)))
-    }
-  }
-
-  const toggleSelectEquipment = (id: string) => {
-    const next = new Set(selectedEquipmentIds)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    setSelectedEquipmentIds(next)
-  }
-
-  const handleCreateDispatch = async () => {
-    if (!tenantId) return
-    if (!selectedBatchId) {
-      toast.show({ title: 'Atención', message: 'Debes seleccionar un lote.', variant: 'error' })
-      return
-    }
-    if (selectedEquipmentIds.size === 0) {
-      toast.show({ title: 'Atención', message: 'Selecciona al menos un equipo listo.', variant: 'error' })
-      return
-    }
-
-    setSavingDispatch(true)
-    try {
-      const res = await createRepairDispatch(tenantId, {
-        batchId: selectedBatchId,
-        dispatchNumber: dispatchNumber.trim(),
-        equipmentIds: Array.from(selectedEquipmentIds),
-        carrierName: carrierName.trim() || undefined,
-        carrierDocument: carrierDocument.trim() || undefined,
-        carrierVehiclePlate: carrierPlate.trim() || undefined,
-      })
-
-      toast.show({
-        title: '¡Despacho Emitido!',
-        message: `Acta ${res.dispatchNumber} generada con ${res.dispatchedCount} equipos.`,
-        variant: 'success',
-      })
-
-      setCreateModalOpen(false)
-      void load({ silent: true })
-
-      // Abrir QR del nuevo despacho
-      const updatedList = await listRepairDispatches(tenantId)
-      const found = updatedList.find((d) => d.id === res.dispatchId)
-      if (found) {
-        setActiveDispatch(found)
-        setQrModalOpen(true)
-      }
-    } catch (err: unknown) {
-      toast.show({
-        title: 'Error al emitir',
-        message: readApiError(err, 'No se pudo crear el acta de despacho.'),
-        variant: 'error',
-      })
-    } finally {
-      setSavingDispatch(false)
-    }
-  }
-
-  const handleOpenQrModal = (d: RepairDispatchDto) => {
-    setActiveDispatch(d)
-    setQrModalOpen(true)
-  }
-
-  const publicVerifyUrl = useMemo(() => {
-    if (!activeDispatch) return ''
-    return `${window.location.origin}/verificar/despacho/${activeDispatch.verificationHash}`
-  }, [activeDispatch])
-
-  const copyVerifyUrl = async () => {
-    if (!publicVerifyUrl) return
-    await navigator.clipboard.writeText(publicVerifyUrl)
-    toast.show({
-      title: 'Enlace copiado',
-      message: 'Se copió la URL de verificación pública al portapapeles.',
-      variant: 'success',
-    })
-  }
-
-  const batchOptions = useMemo(
-    () =>
-      batches.map((b) => ({
-        value: b.id,
-        label: `${b.batchNumber} (${b.customerName}) — ${b.readyCount} listos`,
-      })),
-    [batches]
-  )
-
   const columns = useMemo(
     (): ColumnDef<Row>[] => [
       {
         key: 'dispatchNumber',
-        header: 'Nº Acta Despacho',
-        width: 180,
+        header: 'Nº Acta',
+        width: 170,
         sortable: true,
-        renderCell: (_v: Row['dispatchNumber'], row: Row) => (
-          <span className="font-mono font-bold text-slate-800 dark:text-slate-100">
+        renderCell: (_v, row) => (
+          <button
+            type="button"
+            className="ecu-link-button"
+            style={{
+              fontFamily: 'ui-monospace, monospace',
+              fontWeight: 700,
+              background: 'none',
+              border: 'none',
+              color: 'var(--shell-primary)',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+            onClick={() => navigate(`/taller/despachos/${row.id}`)}
+          >
             {row.dispatchNumber}
-          </span>
+          </button>
+        ),
+      },
+      {
+        key: 'customerName',
+        header: 'Cliente / Lote',
+        width: 220,
+        sortable: true,
+        renderCell: (_v, row) => (
+          <div>
+            <div style={{ fontWeight: 600, color: 'var(--glb-text)' }}>
+              {row.customerName || 'Cliente Corporativo'}
+            </div>
+            {row.batchNumber && (
+              <span className="app-shell__muted" style={{ fontSize: '0.75rem', fontFamily: 'ui-monospace, monospace' }}>
+                Lote: {row.batchNumber}
+              </span>
+            )}
+          </div>
         ),
       },
       {
@@ -295,13 +201,11 @@ export function RepairDispatchesListPage() {
         header: 'Transportista',
         width: 200,
         sortable: true,
-        renderCell: (_v: Row['carrierName'], row: Row) => (
+        renderCell: (_v, row) => (
           <div>
-            <div className="font-medium text-slate-800 dark:text-slate-200">
-              {row.carrierName || 'No registrado'}
-            </div>
+            <div style={{ fontWeight: 500 }}>{row.carrierName || 'No registrado'}</div>
             {row.carrierVehiclePlate && (
-              <span className="text-xs text-slate-500 font-mono">
+              <span className="app-shell__muted" style={{ fontSize: '0.75rem', fontFamily: 'ui-monospace, monospace' }}>
                 Placa: {row.carrierVehiclePlate}
               </span>
             )}
@@ -309,51 +213,83 @@ export function RepairDispatchesListPage() {
         ),
       },
       {
+        key: 'exitType',
+        header: 'Tipo de salida',
+        width: 170,
+        renderCell: (_v, row) => {
+          const et = (row.exitType ?? DispatchExitType.Repaired) as DispatchExitType
+          return (
+            <StatusBadge tone={dispatchExitTypeBadgeTone(et)} withDot>
+              {dispatchExitTypeLabel(et)}
+            </StatusBadge>
+          )
+        },
+      },
+      {
         key: 'id',
         header: 'Equipos',
-        width: 110,
+        width: 100,
         align: 'center',
-        renderCell: (_v: unknown, row: Row) => (
-          <span className="font-bold text-indigo-600 dark:text-indigo-400">
-            {row.items?.length ?? 0} unidades
-          </span>
+        renderCell: (_v, row) => (
+          <span style={{ fontWeight: 700 }}>{row.items?.length ?? 0}</span>
         ),
       },
       {
         key: 'dispatchedAt',
-        header: 'Fecha Salida',
-        width: 170,
+        header: 'Fecha salida',
+        width: 160,
         sortable: true,
-        renderCell: (_v: Row['dispatchedAt'], row: Row) => (
-          <span>{row.dispatchedAt ? formatDateTime(row.dispatchedAt) : 'En preparación'}</span>
+        renderCell: (_v, row) => (
+          <span>{row.dispatchedAt ? formatDateTime(row.dispatchedAt) : '—'}</span>
         ),
       },
       {
         key: 'status',
         header: 'Estado',
-        width: 130,
-        renderCell: () => <StatusBadge tone="success" withDot>Emitido / Certificado</StatusBadge>,
+        width: 120,
+        renderCell: (_v, row) => statusBadge(row.status),
       },
       {
-        key: 'id',
-        header: 'Acta & QR',
-        width: 100,
+        key: 'verificationHash',
+        header: 'Acciones',
+        sticky: 'right',
+        width: 130,
         align: 'center',
-        renderCell: (_v: unknown, row: Row) => (
-          <GridIconButton
-            icon={QrCode}
-            label="Ver Acta Oficial y Código QR"
-            onClick={() => handleOpenQrModal(row)}
-          />
+        renderCell: (_v, row) => (
+          <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
+            <GridIconButton
+              icon={Eye}
+              label="Ver detalle del acta"
+              onClick={() => navigate(`/taller/despachos/${row.id}`)}
+            />
+            <GridIconButton
+              icon={FileDown}
+              label="Descargar Acta (PDF)"
+              onClick={() => void handleDownloadPdfRow(row)}
+            />
+            <GridIconButton
+              icon={QrCode}
+              label="Abrir verificación QR"
+              onClick={() =>
+                window.open(`${window.location.origin}/verificar/despacho/${row.verificationHash}`, '_blank')
+              }
+            />
+          </div>
         ),
       },
     ],
-    []
+    [navigate]
   )
 
-  const totalDispatchedEquipments = useMemo(() => {
-    return dispatches.reduce((acc, d) => acc + (d.items?.length ?? 0), 0)
-  }, [dispatches])
+  const totalDispatchedEquipments = useMemo(
+    () => dispatches.reduce((acc, d) => acc + (d.items?.length ?? 0), 0),
+    [dispatches]
+  )
+
+  const invoicedCount = useMemo(
+    () => dispatches.filter((d) => d.status === RepairDispatchStatus.Invoiced).length,
+    [dispatches]
+  )
 
   if (!canRead) {
     return (
@@ -363,8 +299,8 @@ export function RepairDispatchesListPage() {
       >
         <div className="ecu-dashboard-layout">
           <PageHeader
-            title="Acceso Restringido"
-            subtitle="Requieres el permiso repairs.dispatches.read para visualizar las actas de despacho."
+            title="Acceso restringido"
+            subtitle="Requieres repairs.dispatches.read para visualizar las actas de despacho."
             badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
           />
         </div>
@@ -374,89 +310,71 @@ export function RepairDispatchesListPage() {
 
   return (
     <TenantSessionGate
-      title="Actas y Despachos de Reparación"
-      lead="Entrega certificada de electrodomésticos reparados con código QR de verificación móvil."
+      title="Actas y Despachos"
+      lead="Despachos parciales o totales con acta QR y facturación por salida."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
         <PageHeader
-          title="Actas y Despachos de Salida"
-          subtitle="Entrega certificada de electrodomésticos reparados con código QR de verificación móvil y preparación para facturación SRI."
-          badge={<StatusBadge tone="success" withDot>Trazabilidad QR</StatusBadge>}
+          title="Actas y Despachos"
+          subtitle="Cada salida puede incluir un subconjunto de equipos listos; luego facturas el servicio del acta."
+          badge={<StatusBadge tone="primary" withDot>Operaciones</StatusBadge>}
           actions={
             <>
               {canCreate && (
-                <Button type="button" variant="primary" onClick={openCreateModal}>
+                <Button type="button" variant="primary" onClick={() => navigate('/taller/despachos/nuevo')}>
                   <Plus size={16} strokeWidth={2} aria-hidden />
-                  Emitir Despacho
+                  Nueva Acta
                 </Button>
               )}
               <EcuPageActions
                 items={actionItems}
                 variant="outline"
-                triggerLabel="Acciones de despachos"
+                triggerLabel="Acciones"
                 renderIcon={renderSidebarIcon}
                 onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
+                onActionSelect={(item) => {
+                  if (item.id === 'refresh') void load()
+                  if (item.id === 'carriers') setIsCarriersModalOpen(true)
+                }}
               />
             </>
           }
         />
 
-        <div className="ecu-stat-grid" aria-label="Métricas de despachos">
-          <StatCard
-            label="Total Despachos"
-            value={dispatches.length}
-            icon="local_shipping"
-            toneColor="#4f46e5"
-            footerText="Actas emitidas con firma digital"
-          />
-          <StatCard
-            label="Equipos Retirados"
-            value={totalDispatchedEquipments}
-            icon="task_alt"
-            toneColor="#10b981"
-            footerText="Reincorporados a clientes aliados"
-          />
-          <StatCard
-            label="Certificación Digital"
-            value="100% QR"
-            icon="verified"
-            toneColor="#3b82f6"
-            footerText="Auditables sin login en terreno"
-          />
+        {error && (
+          <div className="ecu-form-error-banner" role="alert">
+            <span className="material-symbols-outlined">error</span>
+            <span>{error}</span>
+          </div>
+        )}
+
+        <div className="ecu-stat-grid">
+          <StatCard label="Actas emitidas" value={String(dispatches.length)} icon="receipt_long" toneColor="var(--shell-primary)" />
+          <StatCard label="Equipos despachados" value={String(totalDispatchedEquipments)} icon="inventory_2" toneColor="var(--shell-primary)" />
+          <StatCard label="Actas facturadas" value={String(invoicedCount)} icon="payments" toneColor="var(--shell-primary)" />
         </div>
 
-        <SectionCard
-          title="Historial de Despachos"
-          subtitle="Listado cronológico de despachos de lotes y números de control"
-        >
-          {error && (
-            <div className="ecu-form-error-banner mb-4" role="alert">
-              <span className="material-symbols-outlined">error</span>
-              <span>{error}</span>
-            </div>
-          )}
-
-          {dispatches.length === 0 && !loading ? (
+        <SectionCard title="Historial de actas" subtitle="Haz clic en el número de acta para ver detalle, QR y facturación">
+          {!loading && dispatches.length === 0 ? (
             <EmptyState
               icon="local_shipping"
-              title="Aún no se han emitido despachos"
-              description="Cuando tus equipos superen el control de calidad y pasen al estado 'Listo para Retiro', podrás emitir el acta con código QR aquí."
+              title="Aún no hay actas de despacho"
+              description="Genera una acta parcial cuando haya equipos en estado «Listo para Retiro»."
               action={
                 canCreate ? (
-                  <Button type="button" variant="primary" onClick={openCreateModal}>
+                  <Button type="button" variant="primary" onClick={() => navigate('/taller/despachos/nuevo')}>
                     <Plus size={16} strokeWidth={2} aria-hidden />
-                    Emitir Primer Despacho
+                    Nueva Acta
                   </Button>
                 ) : undefined
               }
             />
           ) : (
-            <DataGrid
+            <DataGrid<Row>
               className="ecu-repairs-grid"
+              columns={columns}
               dataSource={dispatches as Row[]}
               keyExpr="id"
-              columns={columns}
               selectionMode="none"
               showSearch
               searchPosition="left"
@@ -468,246 +386,17 @@ export function RepairDispatchesListPage() {
               onPageChange={onPageChange}
               onPageSizeChange={onPageSizeChange}
               messages={messages}
+              fullWidth
             />
           )}
         </SectionCard>
-
-        {/* Modal Popup de Crear Despacho */}
-        <Popup
-          open={createModalOpen}
-          title="Generar Acta de Despacho y Salida"
-          onClose={() => setCreateModalOpen(false)}
-          width="min(94vw, 42rem)"
-          actions={[
-            {
-              id: 'cancel',
-              label: 'Cancelar',
-              variant: 'ghost',
-              onClick: () => setCreateModalOpen(false),
-              disabled: savingDispatch,
-            },
-            {
-              id: 'submit',
-              label: savingDispatch
-                ? 'Generando Acta...'
-                : `Emitir Despacho (${selectedEquipmentIds.size} Equipos)`,
-              variant: 'primary',
-              onClick: () => void handleCreateDispatch(),
-              disabled: savingDispatch || selectedEquipmentIds.size === 0,
-              loading: savingDispatch,
-            },
-          ]}
-        >
-          <div className="space-y-4" style={{ paddingTop: '0.5rem' }}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <Select
-                  id="dispatch-batch-id"
-                  label="Lote Origen *"
-                  labelPosition="outlined"
-                  variant="outline"
-                  options={batchOptions}
-                  value={selectedBatchId}
-                  onChange={(val: string) => setSelectedBatchId(val)}
-                  fullWidth
-                />
-              </div>
-
-              <div>
-                <TextBox
-                  id="dispatch-num-input"
-                  label="Número de Acta *"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={dispatchNumber}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDispatchNumber(e.target.value)}
-                  placeholder="ej. DSP-2026-WPH-001"
-                  required
-                  fullWidth
-                />
-              </div>
-            </div>
-
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <TextBox
-                  id="carrier-name-input"
-                  label="Conductor / Transportista"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={carrierName}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setCarrierName(e.target.value)}
-                  placeholder="Nombre y Apellido"
-                  fullWidth
-                />
-              </div>
-
-              <div>
-                <TextBox
-                  id="carrier-doc-input"
-                  label="Cédula / Documento"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={carrierDocument}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setCarrierDocument(e.target.value)}
-                  placeholder="ej. 1718293847"
-                  fullWidth
-                />
-              </div>
-
-              <div>
-                <TextBox
-                  id="carrier-plate-input"
-                  label="Placa de Vehículo"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={carrierPlate}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setCarrierPlate(e.target.value)}
-                  placeholder="ej. PBH-8942"
-                  fullWidth
-                />
-              </div>
-            </div>
-
-            {/* Selector de equipos listos */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                  Equipos Listos para Despacho ({readyEquipments.length})
-                </span>
-                {readyEquipments.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    style={{ padding: 0, height: 'auto', fontSize: '0.75rem', color: 'var(--shell-primary)' }}
-                    onClick={toggleSelectAll}
-                  >
-                    {selectedEquipmentIds.size === readyEquipments.length
-                      ? 'Deseleccionar todos'
-                      : 'Seleccionar todos'}
-                  </Button>
-                )}
-              </div>
-
-              {loadingEquipments ? (
-                <p className="text-xs text-slate-500 py-4 text-center">Cargando equipos listos...</p>
-              ) : readyEquipments.length === 0 ? (
-                <div className="p-4 text-center bg-amber-50/40 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-900/30 text-xs text-amber-700 dark:text-amber-300">
-                  No hay equipos en estado 'Listo para Retiro' en este lote. Cambia el estado de los
-                  equipos reparados primero.
-                </div>
-              ) : (
-                <div className="max-h-56 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl divide-y divide-slate-100 dark:divide-slate-800">
-                  {readyEquipments.map((eq) => {
-                    const isSelected = selectedEquipmentIds.has(eq.id)
-                    return (
-                      <div
-                        key={eq.id}
-                        className={`flex items-center justify-between p-2.5 text-xs transition-colors cursor-pointer ${
-                          isSelected
-                            ? 'bg-indigo-50/50 dark:bg-indigo-950/20'
-                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'
-                        }`}
-                        onClick={() => toggleSelectEquipment(eq.id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleSelectEquipment(eq.id)}
-                            className="rounded text-primary focus:ring-primary h-4 w-4"
-                          />
-                          <div>
-                            <span className="font-mono font-bold text-slate-800 dark:text-slate-100">
-                              {eq.serialNumber}
-                            </span>
-                            <span className="text-slate-500 ml-2">
-                              {eq.model} ({eq.brand})
-                            </span>
-                          </div>
-                        </div>
-                        <StatusBadge tone="success">Listo Retiro</StatusBadge>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </Popup>
-
-        {/* Modal Popup de Ver QR y Certificación Oficial */}
-        <Popup
-          open={qrModalOpen}
-          title={`Acta de Despacho Oficial — ${activeDispatch?.dispatchNumber ?? ''}`}
-          onClose={() => setQrModalOpen(false)}
-          width="min(92vw, 34rem)"
-          actions={[
-            {
-              id: 'copy',
-              label: 'Copiar Enlace',
-              variant: 'outline',
-              onClick: () => void copyVerifyUrl(),
-            },
-            {
-              id: 'open',
-              label: 'Abrir Pantalla Móvil QR',
-              variant: 'primary',
-              onClick: () => window.open(publicVerifyUrl, '_blank'),
-            },
-          ]}
-        >
-          {activeDispatch && (
-            <div className="text-center space-y-4 py-2">
-              <div className="inline-block p-4 bg-white rounded-2xl shadow-sm border border-slate-200">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-                    publicVerifyUrl
-                  )}`}
-                  alt="Código QR de Verificación"
-                  className="w-44 h-44 mx-auto"
-                />
-              </div>
-
-              <div>
-                <span className="text-xs font-mono px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-300">
-                  Hash: {activeDispatch.verificationHash}
-                </span>
-                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-2">
-                  Acta Digital de Entrega Certificada
-                </h3>
-                <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                  Cualquier transportista o auditor puede escanear este código QR con la cámara de
-                  su teléfono para validar la lista de números de serie autorizados sin necesidad de
-                  iniciar sesión.
-                </p>
-              </div>
-
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl text-left text-xs space-y-1 border border-slate-200 dark:border-slate-700">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Equipos Despachados:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-100">
-                    {activeDispatch.items?.length ?? 0} unidades
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Conductor:</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-100">
-                    {activeDispatch.carrierName ?? 'No registrado'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Placa:</span>
-                  <span className="font-mono font-semibold text-slate-800 dark:text-slate-100">
-                    {activeDispatch.carrierVehiclePlate ?? '—'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-        </Popup>
       </div>
+
+      <ManageCarriersModal
+        isOpen={isCarriersModalOpen}
+        onClose={() => setIsCarriersModalOpen(false)}
+        tenantId={tenantId ?? ''}
+      />
     </TenantSessionGate>
   )
 }

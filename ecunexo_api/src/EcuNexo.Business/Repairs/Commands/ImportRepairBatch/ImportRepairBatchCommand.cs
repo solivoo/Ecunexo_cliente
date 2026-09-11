@@ -13,6 +13,8 @@ public sealed record ImportRepairBatchCommand(
     string? ContractReference,
     DateTimeOffset? ExpectedCompletionAt,
     Stream ExcelStream,
+    IReadOnlyList<int>? ExcludedRowNumbers = null,
+    IReadOnlyList<string>? ExcludedSerialNumbers = null,
     Guid? CreatedBy = null) : ICommand<ImportRepairBatchResponse>;
 
 public sealed record ImportRepairBatchResponse(

@@ -154,6 +154,14 @@ public sealed class RepairBatchExcelService : IRepairBatchExcelService
                 continue;
             }
 
+            // Ignorar fila si es cabecera repetida o texto de ejemplo de plantilla
+            var cleanSerial = item.SerialNumber?.Trim().ToLowerInvariant() ?? string.Empty;
+            if (cleanSerial is "número de serie" or "numero de serie" or "serial number" or "serie" or "nº de serie" or "no de serie" ||
+                (cleanSerial == "sn123456789" && item.Model?.Equals("wwg16ak", StringComparison.OrdinalIgnoreCase) == true))
+            {
+                continue;
+            }
+
             // Validación de serie obligatoria
             if (string.IsNullOrWhiteSpace(item.SerialNumber))
             {

@@ -85,6 +85,7 @@ internal static class MenuCatalogSeedData
         ("repairs.dispatches.read", "Despachos — lectura", "Consultar actas y despachos", "repairs", 124),
         ("repairs.b2b.portal.view", "Portal B2B — auditoría", "Portal de auditoría para clientes corporativos aliados", "repairs", 125),
         ("repairs.batches.cancel", "Lotes — anular", "Anular lotes sin procesar con fines de auditoría", "repairs", 126),
+        ("repairs.invoices.generate", "Despachos — facturar", "Generar borrador de factura SRI desde un acta de despacho", "repairs", 127),
 
         ("customers.read", "Clientes — consultar", "Listar y consultar clientes del directorio", "customers", 130),
         ("customers.manage", "Clientes — administrar", "Crear, editar clientes y gestionar tipos de clasificación", "customers", 131),

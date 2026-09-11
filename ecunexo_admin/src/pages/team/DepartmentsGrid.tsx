@@ -62,6 +62,7 @@ export function DepartmentsGrid({
             {
               key: 'id',
               header: 'Acciones',
+              sticky: 'right',
               width: 104,
               align: 'center' as const,
               sortable: false,

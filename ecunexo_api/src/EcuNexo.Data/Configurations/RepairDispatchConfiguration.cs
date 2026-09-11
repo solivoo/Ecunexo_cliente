@@ -50,6 +50,11 @@ public sealed class RepairDispatchConfiguration : IEntityTypeConfiguration<Repai
 
         builder.Property(d => d.Notes);
 
+        builder.Property(d => d.ExitType)
+            .HasConversion<int>()
+            .HasDefaultValue(EcuNexo.Core.Repairs.DispatchExitType.Repaired)
+            .IsRequired();
+
         builder.Property(d => d.InvoiceId)
             .HasColumnType("uuid");
 

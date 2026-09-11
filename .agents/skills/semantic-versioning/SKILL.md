@@ -1,19 +1,19 @@
 ---
 name: semantic-versioning
 description: >-
-  Use this skill automatically upon completing any modification, feature, bug fix, or refactor
-  in EcuNexo. Automatically evaluates changes, bumps the semantic version (MAJOR.MINOR.PATCH)
-  in package.json, synchronizes the About modal changelog, and verifies tests without requiring
-  the user to manually request a version update.
+  Use this skill ONLY when the user explicitly requests to do a pull, push, release, or version bump.
+  In routine tasks, bug fixes, or refactors, do NOT bump the version in package.json or update AboutAppModal
+  unless specifically requested by the user.
 ---
 
-# Semantic Versioning & Automated Release Lifecycle (EcuNexo)
+# Semantic Versioning & Release Lifecycle (EcuNexo)
 
-Este skill define el procedimiento autónomo y estándar de versionamiento semántico (**SemVer 2.0.0**) para el ecosistema EcuNexo (`ecunexo_admin` y `ecunexo_api`).
+Este skill define el procedimiento estándar de versionamiento semántico (**SemVer 2.0.0**) para el ecosistema EcuNexo (`ecunexo_admin` y `ecunexo_api`).
 
 > [!IMPORTANT]
-> **REGLA DE CERO ESPERA (Zero-Prompt Automation)**:
-> El agente **NUNCA** debe esperar a que el usuario solicite *"actualiza la versión"* ni debe preguntar si debe incrementarla. Todo conjunto de cambios finalizado y listo para commit/push debe tener su versión calculada e incrementada de forma proactiva.
+> **REGLA DE VERSIÓN BAJO DEMANDA (Explicit Request Only)**:
+> El agente **NUNCA** debe incrementar la versión en `package.json` ni actualizar el changelog de `AboutAppModal.tsx` en tareas rutinarias, arreglos puntuales o prompts individuales.
+> **ÚNICAMENTE** se evalúa e incrementa la versión cuando el usuario lo solicite de manera explícita (por ejemplo: *"haz pull"*, *"prepara el release"*, *"incrementa la versión"*, *"sube cambios"*).
 
 ---
 
@@ -45,7 +45,7 @@ En EcuNexo, la versión visualizada en toda la plataforma se alimenta dinámicam
 
 ## 3. Protocolo de Ejecución Paso a Paso
 
-Al concluir cualquier requerimiento o bloque de trabajo:
+Únicamente cuando el usuario solicite explícitamente realizar un pull, push, release o incremento de versión:
 
 ### Paso 1: Determinar el tipo de cambio
 Revisar los archivos modificados con `git status` y clasificar si corresponde a **PATCH**, **MINOR** o **MAJOR**.

@@ -74,6 +74,8 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<CustomerTypeDefinition> CustomerTypeDefinitions => Set<CustomerTypeDefinition>();
 
+    public DbSet<CustomerRepairRateCard> CustomerRepairRateCards => Set<CustomerRepairRateCard>();
+
     public DbSet<RepairBatchTemplate> RepairBatchTemplates => Set<RepairBatchTemplate>();
 
     public DbSet<RepairBatch> RepairBatches => Set<RepairBatch>();

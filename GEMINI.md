@@ -13,11 +13,12 @@ When creating or modifying UI components, views, layouts, or styles in this repo
 3. **Strictly avoid duplicate action buttons in PageHeader & EcuPageActions**:
    - In desktop view, `<EcuPageActions items={actionItems} />` renders its items directly as buttons in the toolbar (`.ecu-page-actions__desktop`).
    - NEVER add an action to `actionItems` if that action is already rendered as a standalone `<Button>` in `PageHeader.actions` (e.g. creating items, canceling batches, downloading reports). This prevents duplicate buttons appearing side by side.
-4. **Automated Semantic Versioning (Zero Manual Request Rule)**:
-   - NEVER wait for the user to ask to update the version.
-   - For every task, analyze the changes and proactively apply Semantic Versioning (`MAJOR.MINOR.PATCH`):
+4. **Semantic Versioning on Demand (Explicit Pull/Release Request Only)**:
+   - NEVER increment `"version"` in `ecunexo_admin/package.json` or update `AboutAppModal.tsx` during routine tasks, bug fixes, UI refactors, or individual prompt turns.
+   - ONLY evaluate and increment the semantic version (`MAJOR.MINOR.PATCH`) when the user explicitly requests to do a pull, push, release, or version bump (e.g. "haz pull", "prepara el release", "incrementa la versión").
+   - When explicitly requested:
      - **PATCH**: Bug fixes, styling adjustments, removing duplicate buttons, minor validations on existing views, copy/text tweaks.
      - **MINOR**: New modules, new pages/views (e.g. Directorio de Clientes), new endpoints, new workflows, major validations.
      - **MAJOR**: Breaking API changes, destructive database schema migrations, architectural shifts.
-   - Proactively increment `"version"` in `ecunexo_admin/package.json` and sync `AboutAppModal.tsx` changelog before committing.
-   - Reference the new version in the git commit message (e.g. `feat(clientes): ... [v0.8.0]`).
+     - Increment `"version"` in `ecunexo_admin/package.json` and sync the `AboutAppModal.tsx` changelog.
+     - Reference the new version in the git commit message (e.g. `feat(clientes): ... [v0.8.0]`).

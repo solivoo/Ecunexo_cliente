@@ -256,6 +256,7 @@ export function InventoryDocumentsListPage() {
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: canReceive ? 104 : 72,
         align: 'center',
         sortable: false,

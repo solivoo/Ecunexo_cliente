@@ -4,6 +4,7 @@ import {
   Button,
   CheckButton,
   DataGrid,
+  OptionGroup,
   Popup,
   Select,
   TextArea,
@@ -24,19 +25,16 @@ import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import {
   AlertCircle,
-  Building2,
+  CircleDollarSign,
   FilePlus,
   Layers,
-  Mail,
-  MapPin,
   Pencil,
-  Phone,
   Plus,
   Power,
-  User,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
+import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useGridDateRange } from '@/hooks/useGridDateRange'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -52,10 +50,12 @@ import {
 } from '@/lib/ecuadorTaxIdValidator'
 import {
   createCustomer,
+  getCustomerRepairRates,
   listCustomerTypes,
   listCustomers,
   toggleCustomerStatus,
   updateCustomer,
+  upsertCustomerRepairRates,
 } from '@/services/customersApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
@@ -75,6 +75,7 @@ export default function RepairCustomersListPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const toast = useToast()
+  const size = useGluComponentSize()
   const tenantId = useAppSelector(selectTenantId)
 
   const canRead =
@@ -115,6 +116,16 @@ export default function RepairCustomersListPage() {
 
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Modal dedicado de tarifario (fuera de la ficha)
+  const [ratesModalCustomer, setRatesModalCustomer] = useState<CustomerDto | null>(null)
+  const [rateN1, setRateN1] = useState('')
+  const [rateN2, setRateN2] = useState('')
+  const [rateN3, setRateN3] = useState('')
+  const [rateContractRef, setRateContractRef] = useState('')
+  const [ratesLoading, setRatesLoading] = useState(false)
+  const [ratesSaving, setRatesSaving] = useState(false)
+  const [ratesError, setRatesError] = useState<string | null>(null)
 
   const loadCustomers = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -271,6 +282,89 @@ export default function RepairCustomersListPage() {
     setModalOpen(false)
     setEditingCustomer(null)
     setFormError(null)
+  }
+
+  const resetRatesForm = () => {
+    setRateN1('')
+    setRateN2('')
+    setRateN3('')
+    setRateContractRef('')
+    setRatesError(null)
+  }
+
+  const handleOpenRates = (customer: CustomerDto) => {
+    setRatesModalCustomer(customer)
+    resetRatesForm()
+    setRatesLoading(true)
+
+    if (!tenantId) {
+      setRatesLoading(false)
+      return
+    }
+
+    void (async () => {
+      try {
+        const rates = await getCustomerRepairRates(tenantId, customer.id)
+        setRateN1(rates.rateN1 != null ? String(rates.rateN1) : '')
+        setRateN2(rates.rateN2 != null ? String(rates.rateN2) : '')
+        setRateN3(rates.rateN3 != null ? String(rates.rateN3) : '')
+        setRateContractRef(rates.contractReference ?? '')
+      } catch {
+        // Sin tarifario aún: campos vacíos
+      } finally {
+        setRatesLoading(false)
+      }
+    })()
+  }
+
+  const handleCloseRatesModal = () => {
+    if (ratesSaving) return
+    setRatesModalCustomer(null)
+    resetRatesForm()
+    setRatesLoading(false)
+  }
+
+  const handleSaveRates = async (e?: FormEvent) => {
+    if (e) e.preventDefault()
+    if (!tenantId || !ratesModalCustomer) return
+
+    const parseOptionalRate = (raw: string): number | null | 'invalid' => {
+      const trimmed = raw.trim()
+      if (!trimmed) return null
+      const value = Number(trimmed)
+      if (!Number.isFinite(value) || value < 0) return 'invalid'
+      return value
+    }
+
+    const n1 = parseOptionalRate(rateN1)
+    const n2 = parseOptionalRate(rateN2)
+    const n3 = parseOptionalRate(rateN3)
+    if (n1 === 'invalid' || n2 === 'invalid' || n3 === 'invalid') {
+      setRatesError('Las tarifas deben ser números válidos mayores o iguales a cero.')
+      return
+    }
+
+    setRatesSaving(true)
+    setRatesError(null)
+    try {
+      await upsertCustomerRepairRates(tenantId, ratesModalCustomer.id, {
+        rateN1: n1,
+        rateN2: n2,
+        rateN3: n3,
+        contractReference: rateContractRef.trim() || null,
+      })
+      toast.show({
+        title: 'Tarifario guardado',
+        message: `Las tarifas de reacondicionamiento de "${ratesModalCustomer.name}" se actualizaron.`,
+        variant: 'success',
+      })
+      setRatesModalCustomer(null)
+      resetRatesForm()
+    } catch (err: unknown) {
+      setRatesError(readApiError(err, 'No fue posible guardar el tarifario del cliente.'))
+    } finally {
+      setRatesSaving(false)
+    }
   }
 
   const handleSaveCustomer = async (e?: FormEvent) => {
@@ -469,16 +563,9 @@ export default function RepairCustomersListPage() {
         sortable: true,
         renderCell: (_v, row: CustomerRow) => (
           <div className="flex flex-col py-1">
-            <div className="flex items-center gap-2">
-              {row.customerType === CustomerType.PersonaNatural ? (
-                <User size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden />
-              ) : (
-                <Building2 size={16} className="text-primary/70 shrink-0" aria-hidden />
-              )}
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{row.name}</span>
-            </div>
+            <span className="font-semibold text-slate-900 dark:text-slate-100">{row.name}</span>
             {row.contactPerson && (
-              <span className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 ml-6">
+              <span className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Contacto: {row.contactPerson}
               </span>
             )}
@@ -509,20 +596,10 @@ export default function RepairCustomersListPage() {
           if (!row.taxId) {
             return <span className="text-xs text-slate-400 italic">No registrado</span>
           }
-          const validation = validateEcuadorTaxId(row.taxId)
-          let tone: 'primary' | 'success' | 'warning' | 'neutral' = 'neutral'
-          if (validation.isValid) {
-            tone = validation.category.startsWith('ruc') ? 'primary' : 'success'
-          }
           return (
-            <div className="flex flex-col gap-1 py-1">
-              <span className="font-mono font-medium text-slate-800 dark:text-slate-200 text-xs">
-                {row.taxId}
-              </span>
-              <StatusBadge tone={tone}>
-                {validation.isValid ? validation.label.split(' ')[0] : 'No Verificado'}
-              </StatusBadge>
-            </div>
+            <span className="font-mono font-medium text-slate-800 dark:text-slate-200 text-xs">
+              {row.taxId}
+            </span>
           )
         },
       },
@@ -532,21 +609,26 @@ export default function RepairCustomersListPage() {
         width: 220,
         sortable: true,
         renderCell: (_v, row: CustomerRow) => (
-          <div className="flex flex-col gap-1 py-1 text-xs">
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.25rem',
+              fontSize: '0.75rem',
+              lineHeight: 1.35,
+              padding: '0.25rem 0',
+            }}
+          >
             {row.contactEmail ? (
-              <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <Mail size={13} className="text-slate-400 shrink-0" aria-hidden />
-                <span className="truncate">{row.contactEmail}</span>
-              </div>
+              <span style={{ display: 'block', wordBreak: 'break-all' }}>{row.contactEmail}</span>
             ) : null}
             {row.contactPhone ? (
-              <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <Phone size={13} className="text-slate-400 shrink-0" aria-hidden />
-                <span>{row.contactPhone}</span>
-              </div>
+              <span style={{ display: 'block', fontVariantNumeric: 'tabular-nums' }}>{row.contactPhone}</span>
             ) : null}
             {!row.contactEmail && !row.contactPhone && (
-              <span className="text-slate-400 italic">Sin canales de contacto</span>
+              <span className="app-shell__muted" style={{ fontStyle: 'italic' }}>
+                Sin canales de contacto
+              </span>
             )}
           </div>
         ),
@@ -557,12 +639,9 @@ export default function RepairCustomersListPage() {
         width: 180,
         sortable: true,
         renderCell: (_v, row: CustomerRow) => (
-          <div className="flex items-start gap-1.5 text-xs text-slate-600 dark:text-slate-300 py-1">
+          <div className="text-xs text-slate-600 dark:text-slate-300 py-1">
             {row.address ? (
-              <>
-                <MapPin size={14} className="text-slate-400 shrink-0 mt-0.5" aria-hidden />
-                <span className="line-clamp-2">{row.address}</span>
-              </>
+              <span className="line-clamp-2">{row.address}</span>
             ) : (
               <span className="text-slate-400 italic">—</span>
             )}
@@ -594,7 +673,14 @@ export default function RepairCustomersListPage() {
       {
         key: 'id',
         header: 'Acciones',
-        width: canReadBatches || canImportBatches ? 170 : 110,
+        sticky: 'right',
+        width: canManage
+          ? canReadBatches || canImportBatches
+            ? 210
+            : 150
+          : canReadBatches || canImportBatches
+            ? 110
+            : 70,
         sortable: false,
         renderCell: (_v, row: CustomerRow) => (
           <div className="flex items-center gap-1.5 py-1">
@@ -604,6 +690,11 @@ export default function RepairCustomersListPage() {
                   label="Editar cliente"
                   icon={Pencil}
                   onClick={() => handleOpenEdit(row)}
+                />
+                <GridIconButton
+                  label="Tarifario de reacondicionamiento"
+                  icon={CircleDollarSign}
+                  onClick={() => handleOpenRates(row)}
                 />
                 <GridIconButton
                   label={row.isActive ? 'Desactivar cliente' : 'Activar cliente'}
@@ -725,22 +816,19 @@ export default function RepairCustomersListPage() {
                 : 'Consulta, segmentación por tipo y mantenimiento de la cartera'
           }
           action={
-            <div className="flex items-center gap-2">
-              <Select
-                id="filter-customers-status"
-                label="Mostrar"
-                width="220px"
-                labelPosition="outlined"
-                variant="outline"
-                options={[
-                  { value: 'active', label: `Activos (${stats.active})` },
-                  { value: 'all', label: `Todos (${stats.total})` },
-                  { value: 'inactive', label: `Inactivos (${stats.inactive})` },
-                ]}
-                value={statusFilter}
-                onChange={(val: string) => setStatusFilter(val as 'all' | 'active' | 'inactive')}
-              />
-            </div>
+            <OptionGroup
+              name="customers-status-queue"
+              options={[
+                { value: 'active', label: `Activos (${stats.active})` },
+                { value: 'all', label: `Todos (${stats.total})` },
+                { value: 'inactive', label: `Inactivos (${stats.inactive})` },
+              ]}
+              value={statusFilter}
+              onChange={(val: string) => setStatusFilter(val as 'all' | 'active' | 'inactive')}
+              layout="segmented"
+              variant="outline"
+              size={size}
+            />
           }
         >
           {error && (
@@ -779,18 +867,18 @@ export default function RepairCustomersListPage() {
             )
           ) : (
             <DataGrid
-              className="ecu-customers-grid"
+              className="ecu-companies-grid"
               dataSource={filteredCustomers as CustomerRow[]}
               keyExpr="id"
               columns={columns}
               selectionMode="none"
               showSearch
               searchPosition="left"
-              searchWidth={300}
-              searchPlaceholder="Buscar por razón social, RUC o contacto..."
+              searchWidth={280}
+              searchPlaceholder="Buscar por razón social, RUC o contacto…"
               toolbarRight={
-                <div className="flex flex-wrap items-center gap-2">
-                  <div style={{ minWidth: 180 }}>
+                <div className="ecu-comprobantes-filters">
+                  <div style={{ minWidth: 170 }}>
                     <Select
                       id="filter-customers-type"
                       aria-label="Filtrar por clasificación de cliente"
@@ -1046,6 +1134,110 @@ export default function RepairCustomersListPage() {
                 Cliente habilitado para operaciones
               </CheckButton>
             </div>
+          </form>
+        </Popup>
+
+        <Popup
+          open={ratesModalCustomer != null}
+          title={
+            ratesModalCustomer
+              ? `Tarifario — ${ratesModalCustomer.name}`
+              : 'Tarifario de reacondicionamiento'
+          }
+          onClose={handleCloseRatesModal}
+          width="min(94vw, 28rem)"
+          actions={[
+            {
+              id: 'rates-cancel',
+              label: 'Cancelar',
+              variant: 'outline',
+              onClick: handleCloseRatesModal,
+              disabled: ratesSaving,
+            },
+            {
+              id: 'rates-save',
+              label: ratesSaving ? 'Guardando...' : 'Guardar tarifario',
+              variant: 'primary',
+              onClick: () => void handleSaveRates(),
+              disabled: ratesSaving || ratesLoading,
+              loading: ratesSaving,
+            },
+          ]}
+        >
+          <form onSubmit={handleSaveRates} className="ecu-customer-form" noValidate>
+            {ratesError && (
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-xl text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2">
+                <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                <span>{ratesError}</span>
+              </div>
+            )}
+
+            <p className="ecu-modal-section-lead" style={{ marginBottom: '0.75rem' }}>
+              Precios USD por nivel; al importar un lote se usan como snapshot. La factura usa los
+              servicios de catálogo REP-N1, REP-N2 y REP-N3.
+            </p>
+
+            {ratesLoading ? (
+              <p className="ecu-modal-section-lead">Cargando tarifario…</p>
+            ) : (
+              <div className="ecu-customer-form__grid">
+                <div className="ecu-customer-form__field">
+                  <TextBox
+                    id="customer-rate-n1"
+                    type="number"
+                    label="Tarifa N1 ($)"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={rateN1}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setRateN1(e.target.value)}
+                    placeholder="0.00"
+                    fullWidth
+                    disabled={ratesSaving}
+                  />
+                </div>
+                <div className="ecu-customer-form__field">
+                  <TextBox
+                    id="customer-rate-n2"
+                    type="number"
+                    label="Tarifa N2 ($)"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={rateN2}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setRateN2(e.target.value)}
+                    placeholder="0.00"
+                    fullWidth
+                    disabled={ratesSaving}
+                  />
+                </div>
+                <div className="ecu-customer-form__field">
+                  <TextBox
+                    id="customer-rate-n3"
+                    type="number"
+                    label="Tarifa N3 ($)"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={rateN3}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setRateN3(e.target.value)}
+                    placeholder="0.00"
+                    fullWidth
+                    disabled={ratesSaving}
+                  />
+                </div>
+                <div className="ecu-customer-form__field ecu-customer-form__field--span">
+                  <TextBox
+                    id="customer-rate-contract"
+                    label="Referencia de contrato / orden marco"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={rateContractRef}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setRateContractRef(e.target.value)}
+                    placeholder="Opcional"
+                    fullWidth
+                    disabled={ratesSaving}
+                  />
+                </div>
+              </div>
+            )}
           </form>
         </Popup>
       </div>

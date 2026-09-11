@@ -85,6 +85,7 @@ export function CompaniesGrid({
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: 132,
         align: 'center',
         sortable: false,

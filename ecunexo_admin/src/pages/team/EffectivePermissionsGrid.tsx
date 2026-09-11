@@ -74,6 +74,7 @@ export function EffectivePermissionsGrid({
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: canRevoke ? 108 : 72,
         align: 'center',
         sortable: false,

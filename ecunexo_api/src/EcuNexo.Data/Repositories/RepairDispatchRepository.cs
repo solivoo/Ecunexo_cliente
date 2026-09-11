@@ -30,6 +30,8 @@ public sealed class RepairDispatchRepository : IRepairDispatchRepository
     public Task<RepairDispatch?> GetTrackedWithItemsAsync(Guid tenantId, Guid dispatchId, CancellationToken ct) =>
         _db.RepairDispatches
             .Include(d => d.Items)
+                .ThenInclude(i => i.Equipment)
+            .Include(d => d.Batch)
             .FirstOrDefaultAsync(d => d.TenantId == tenantId && d.Id == dispatchId, ct);
 
     public Task<RepairDispatch?> GetByVerificationHashAsync(string verificationHash, CancellationToken ct) =>
@@ -43,6 +45,7 @@ public sealed class RepairDispatchRepository : IRepairDispatchRepository
     public async Task<IReadOnlyList<RepairDispatch>> ListByBatchAsync(Guid tenantId, Guid batchId, CancellationToken ct) =>
         await _db.RepairDispatches.AsNoTracking()
             .Include(d => d.Items)
+                .ThenInclude(i => i.Equipment)
             .Where(d => d.TenantId == tenantId && d.BatchId == batchId)
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync(ct)
@@ -53,6 +56,7 @@ public sealed class RepairDispatchRepository : IRepairDispatchRepository
             .Include(d => d.Batch)
                 .ThenInclude(b => b!.Customer)
             .Include(d => d.Items)
+                .ThenInclude(i => i.Equipment)
             .Where(d => d.TenantId == tenantId)
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync(ct)

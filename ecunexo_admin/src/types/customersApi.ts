@@ -150,6 +150,26 @@ export type UpdateCustomerTypePayload = {
   isActive?: boolean
 }
 
+export type CustomerRepairRateCardDto = {
+  id: string
+  customerId: string
+  rateN1: number | null
+  rateN2: number | null
+  rateN3: number | null
+  contractReference: string | null
+  validFrom: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type UpsertCustomerRepairRateCardPayload = {
+  rateN1?: number | null
+  rateN2?: number | null
+  rateN3?: number | null
+  contractReference?: string | null
+  validFrom?: string | null
+}
+
 export function resolveCustomerTypeMeta(
   code: number,
   definitions?: CustomerTypeDefinitionDto[]

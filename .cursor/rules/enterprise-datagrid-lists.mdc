@@ -1,0 +1,36 @@
+---
+description: Patrón obligatorio de DataGrid / listas enterprise (toolbar, tabs, filtros)
+globs: ecunexo_admin/src/pages/**/*{List,Grid}*.tsx
+alwaysApply: false
+---
+
+# DataGrid lists — patrón canónico
+
+Referencia visual y de código: `InventoryDocumentsListPage.tsx` (Historial de Documentos Logísticos).
+
+## Anatomía obligatoria
+
+```
+SectionCard
+  title + subtitle
+  action → OptionGroup layout="segmented" (cola / estado primario)
+  DataGrid className="ecu-companies-grid"
+    search izquierda (showSearch, searchPosition="left")
+    toolbarRight → filtros ligeros en fila (fechas ± Select)
+```
+
+## Reglas
+
+1. **Cola / estado primario** (Activos, Todas, Borradores, etc.): `OptionGroup` segmentado en `SectionCard.action`. Nunca un `Select` con `labelPosition="outlined"` ahí.
+2. **Clase del grid**: siempre `className="ecu-companies-grid"` (toolbar horizontal; estilos en `ecu-companies-form.css`).
+3. **`toolbarRight`**: solo `GridDateRangeBox` y/o `Select` sin label flotante (`aria-label`). Si hay más de un control, envolver en `div.ecu-comprobantes-filters` (flex fila).
+4. **Columna Acciones**: siempre la **última**, con `sticky: 'right'` (glubox ≥ 0.1.22). Así no se esconden al scroll horizontal.
+5. **Prohibido**: franja aparte de filtros encima del grid que duplique la toolbar; apilar selects verticalmente en el slot derecho; poner “Mostrar” + “Tipos” + fechas en columnas distintas del header.
+6. **EmptyState** dentro del `SectionCard` cuando no hay filas; el `OptionGroup` del header sigue visible.
+
+## Anti-patrones
+
+- `Select label="Mostrar" labelPosition="outlined"` en `SectionCard.action`
+- `toolbarRight` con `flex-col` o hijos que fuerzan wrap a “uno encima de otro” en viewport desktop
+- `className="ecu-customers-grid"` u otra clase sin los estilos de toolbar de `ecu-companies-grid`
+- Columna Acciones sin `sticky: 'right'` (se pierde al hacer scroll)

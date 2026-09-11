@@ -144,6 +144,14 @@
   .factura-emitir__meta-grid--client .factura-emitir__cell--addr {
     grid-column: 1 / -1;
   }
+
+  .factura-emitir__meta-grid--notes .factura-emitir__cell--payment-term {
+    grid-column: span 1;
+  }
+
+  .factura-emitir__meta-grid--notes .factura-emitir__cell--note-full {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (min-width: 960px) {
@@ -175,6 +183,14 @@
   .factura-emitir__meta-grid--client .factura-emitir__cell--addr {
     grid-column: span 2;
   }
+
+  .factura-emitir__meta-grid--notes .factura-emitir__cell--payment-term {
+    grid-column: span 1;
+  }
+
+  .factura-emitir__meta-grid--notes .factura-emitir__cell--note-full {
+    grid-column: 1 / -1;
+  }
 }
 
 .factura-emitir__lines {
@@ -202,7 +218,7 @@
   overflow-x: auto;
   border: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
   border-radius: 10px;
-  background: var(--shell-surface, #fff);
+  background: var(--glb-surface, var(--shell-surface, #fff));
 }
 
 .factura-emitir__table {
@@ -222,8 +238,8 @@
   color: var(--shell-muted, var(--glb-muted, #667085));
   background: color-mix(
     in srgb,
-    var(--shell-primary, #2563eb) 10%,
-    var(--shell-surface, #fff)
+    var(--shell-primary, #2563eb) 8%,
+    var(--glb-surface, var(--shell-surface, #fff))
   );
   border-bottom: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
   white-space: nowrap;
@@ -281,8 +297,10 @@
 }
 
 .factura-emitir__col-sku {
-  width: 8rem;
-  min-width: 7rem;
+  width: 5rem;
+  min-width: 4.5rem;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .factura-emitir__col-actions {
@@ -360,15 +378,15 @@
 }
 
 .factura-emitir__summary-box {
-  min-width: min(100%, 16rem);
+  min-width: min(100%, 18rem);
   margin-left: auto;
   padding: 0.85rem 1rem;
   border-radius: 10px;
   border: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
   background: color-mix(
     in srgb,
-    var(--shell-primary, #2563eb) 8%,
-    var(--shell-surface, #fff)
+    var(--shell-primary, #2563eb) 6%,
+    var(--glb-surface, var(--shell-surface, #fff))
   );
 }
 
@@ -412,14 +430,52 @@
   border: 0;
 }
 
-.factura-emitir__actions {
-  margin-top: 0;
-  padding-top: 0.35rem;
-  border-top: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+.factura-emitir__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.factura-emitir__footer-bar {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: 12px;
+  background: var(--glb-surface, var(--shell-surface, #fff));
+  border: 1px solid var(--shell-border, var(--glb-border, #d0d5dd));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.factura-emitir__footer-total {
+  display: flex;
+  align-items: baseline;
   gap: 0.65rem;
-  justify-content: flex-end;
+}
+
+.factura-emitir__footer-total-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--shell-muted, var(--glb-muted, #667085));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.factura-emitir__footer-total-value {
+  font-size: 1.35rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  color: var(--shell-primary, #2563eb);
+}
+
+.factura-emitir__footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-left: auto;
 }
 
 .factura-emitir__mode-banner {

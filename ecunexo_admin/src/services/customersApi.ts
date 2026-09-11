@@ -4,9 +4,11 @@ import type {
   CreateCustomerTypePayload,
   CustomerDto,
   CustomerFilterParams,
+  CustomerRepairRateCardDto,
   CustomerTypeDefinitionDto,
   UpdateCustomerPayload,
   UpdateCustomerTypePayload,
+  UpsertCustomerRepairRateCardPayload,
 } from '@/types/customersApi'
 
 /**
@@ -145,4 +147,32 @@ export async function deleteCustomerType(
   typeId: string
 ): Promise<void> {
   await api.delete(`/api/v1/tenants/${tenantId}/customers/types/${typeId}`)
+}
+
+/**
+ * Obtener tarifario de reacondicionamiento N1/N2/N3 del cliente.
+ */
+export async function getCustomerRepairRates(
+  tenantId: string,
+  customerId: string
+): Promise<CustomerRepairRateCardDto> {
+  const { data } = await api.get<CustomerRepairRateCardDto>(
+    `/api/v1/tenants/${tenantId}/customers/${customerId}/repair-rates`
+  )
+  return data
+}
+
+/**
+ * Crear o actualizar el tarifario de reacondicionamiento del cliente.
+ */
+export async function upsertCustomerRepairRates(
+  tenantId: string,
+  customerId: string,
+  payload: UpsertCustomerRepairRateCardPayload
+): Promise<CustomerRepairRateCardDto> {
+  const { data } = await api.put<CustomerRepairRateCardDto>(
+    `/api/v1/tenants/${tenantId}/customers/${customerId}/repair-rates`,
+    payload
+  )
+  return data
 }

@@ -90,6 +90,7 @@ export function UsersGrid({
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: 168,
         align: 'center',
         sortable: false,

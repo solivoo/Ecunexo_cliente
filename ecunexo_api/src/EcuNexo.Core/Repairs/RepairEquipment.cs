@@ -264,6 +264,69 @@ public sealed class RepairEquipment : AggregateRoot<Guid>, ITenantEntity, IAudit
         return Result.Success();
     }
 
+    /// <summary>
+    /// Marca el equipo como devuelto sin reparar mediante acta de salida (estado Irreparable despachado).
+    /// Válido desde: Irreparable.
+    /// </summary>
+    public Result MarkReturnedUnrepaired(string? notes = null, Guid? modifiedBy = null)
+    {
+        if (Status != RepairEquipmentStatus.Irreparable)
+        {
+            return Result.Failure(new Error(
+                "repairs.equipment.invalid_transition",
+                $"Solo se pueden devolver como 'sin reparar' equipos en estado Irreparable (estado actual: {Status}).",
+                ErrorType.Validation));
+        }
+
+        Status = RepairEquipmentStatus.ReturnedUnrepaired;
+        if (!string.IsNullOrWhiteSpace(notes))
+        {
+            DiagnosticNotes = string.IsNullOrWhiteSpace(DiagnosticNotes)
+                ? $"[DEVUELTO SIN REPARAR]: {notes.Trim()}"
+                : $"{DiagnosticNotes}\n[DEVUELTO SIN REPARAR]: {notes.Trim()}";
+        }
+        UpdatedAt = DateTimeOffset.UtcNow;
+        UpdatedBy = modifiedBy;
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Marca el equipo como retirado por el cliente o rechazado técnicamente antes de finalizar la reparación.
+    /// Válido desde cualquier estado pre-despacho (Received, Diagnosing, InRepair, QualityCheck, Irreparable).
+    /// </summary>
+    public Result MarkReturnedClient(string? reason = null, Guid? modifiedBy = null)
+    {
+        var allowedStatuses = new[]
+        {
+            RepairEquipmentStatus.Received,
+            RepairEquipmentStatus.Diagnosing,
+            RepairEquipmentStatus.InRepair,
+            RepairEquipmentStatus.QualityCheck,
+            RepairEquipmentStatus.Irreparable,
+        };
+
+        if (!allowedStatuses.Contains(Status))
+        {
+            return Result.Failure(new Error(
+                "repairs.equipment.invalid_transition",
+                $"No se puede registrar retiro de cliente desde el estado {Status}.",
+                ErrorType.Validation));
+        }
+
+        Status = RepairEquipmentStatus.ReturnedClient;
+        if (!string.IsNullOrWhiteSpace(reason))
+        {
+            DiagnosticNotes = string.IsNullOrWhiteSpace(DiagnosticNotes)
+                ? $"[RETIRO CLIENTE/RECHAZO]: {reason.Trim()}"
+                : $"{DiagnosticNotes}\n[RETIRO CLIENTE/RECHAZO]: {reason.Trim()}";
+        }
+        UpdatedAt = DateTimeOffset.UtcNow;
+        UpdatedBy = modifiedBy;
+
+        return Result.Success();
+    }
+
     public Result Cancel(string? reason = null, Guid? modifiedBy = null)
     {
         if (Status != RepairEquipmentStatus.Received && Status != RepairEquipmentStatus.Cancelled)
