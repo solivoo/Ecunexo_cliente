@@ -1,13 +1,26 @@
-import { useState, useRef, type ChangeEvent } from 'react'
-import { Button, useToast } from 'glubox'
-import { Star, Trash2, Upload, Image as ImageIcon, ExternalLink } from 'lucide-react'
+import { useState, useRef, useMemo, type ChangeEvent, type DragEvent } from 'react'
+import { Button, Popup, TextBox, useToast } from 'glubox'
+import {
+  ArrowLeft,
+  ArrowRight,
+  ExternalLink,
+  Image as ImageIcon,
+  Sparkles,
+  Star,
+  Tag,
+  Trash2,
+  Upload,
+} from 'lucide-react'
 import {
   deleteCatalogItemImage,
+  reorderCatalogItemImages,
   setCatalogItemMainImage,
+  updateCatalogItemImageAltText,
   uploadCatalogItemImage,
 } from '@/services/catalogApi'
 import { readApiError } from '@/lib/readApiError'
 import type { CatalogItemImageDto } from '@/types/catalogApi'
+import './catalog-item-image-gallery.css'
 
 export type CatalogItemImageGalleryProps = {
   readonly tenantId: string
@@ -16,6 +29,8 @@ export type CatalogItemImageGalleryProps = {
   readonly canEdit: boolean
   readonly onImagesChanged: () => Promise<void>
 }
+
+const MAX_IMAGES = 8
 
 export function CatalogItemImageGallery({
   tenantId,
@@ -26,44 +41,132 @@ export function CatalogItemImageGallery({
 }: CatalogItemImageGalleryProps) {
   const toast = useToast()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  // Estados de carga y progreso
   const [uploading, setUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  // Modales
   const [selectedPreview, setSelectedPreview] = useState<CatalogItemImageDto | null>(null)
+  const [editingAltImg, setEditingAltImg] = useState<CatalogItemImageDto | null>(null)
+  const [altTextValue, setAltTextValue] = useState('')
+  const [savingAlt, setSavingAlt] = useState(false)
 
-  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const sortedImages = useMemo(() => {
+    return [...images].sort((a, b) => a.displayOrder - b.displayOrder)
+  }, [images])
 
-    // Limpiar input para permitir re-selección del mismo archivo
-    e.target.value = ''
+  // Subida múltiple (bulk upload)
+  const uploadFiles = async (filesList: File[]) => {
+    if (!filesList.length || !canEdit) return
 
-    // Validación preliminar en cliente
-    if (file.size > 8 * 1024 * 1024) {
+    const remainingQuota = MAX_IMAGES - sortedImages.length
+    if (remainingQuota <= 0) {
       toast.show({
-        variant: 'error',
-        message: 'El archivo supera el límite máximo de 8 MB.',
+        variant: 'warning',
+        message: `Has alcanzado el límite máximo de ${MAX_IMAGES} imágenes para este producto.`,
       })
       return
     }
 
+    const filesToUpload = filesList.slice(0, remainingQuota)
+    if (filesList.length > remainingQuota) {
+      toast.show({
+        variant: 'info',
+        message: `Solo se procesarán ${remainingQuota} imágenes para no superar el límite de ${MAX_IMAGES}.`,
+      })
+    }
+
+    // Filtrar archivos > 8 MB
+    const validFiles = filesToUpload.filter((f) => {
+      if (f.size > 8 * 1024 * 1024) {
+        toast.show({
+          variant: 'error',
+          message: `El archivo ${f.name} supera el límite de 8 MB y fue descartado.`,
+        })
+        return false
+      }
+      return true
+    })
+
+    if (!validFiles.length) return
+
     setUploading(true)
-    try {
-      await uploadCatalogItemImage(tenantId, itemId, file)
+    let countSuccess = 0
+
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i]
+      setUploadStatus(`Optimizando WebP ${i + 1} de ${validFiles.length}...`)
+      try {
+        await uploadCatalogItemImage(tenantId, itemId, file)
+        countSuccess++
+      } catch (err) {
+        toast.show({
+          variant: 'error',
+          message: readApiError(err, `Error al subir ${file.name}`),
+        })
+      }
+    }
+
+    setUploading(false)
+    setUploadStatus(null)
+
+    if (countSuccess > 0) {
       toast.show({
         variant: 'success',
-        message: 'Imagen procesada y optimizada en WebP correctamente.',
+        message: `${countSuccess} ${countSuccess === 1 ? 'imagen optimizada' : 'imágenes optimizadas'} en WebP correctamente.`,
       })
       await onImagesChanged()
-    } catch (err) {
-      toast.show({
-        variant: 'error',
-        message: readApiError(err, 'No fue posible subir la imagen.'),
-      })
-    } finally {
-      setUploading(false)
     }
   }
 
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (files.length > 0) {
+      await uploadFiles(files)
+    }
+  }
+
+  // Manejadores de Drag & Drop
+  const handleDragOver = (e: DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (canEdit && !uploading) {
+      setIsDragging(true)
+    }
+  }
+
+  const handleDragLeave = (e: DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = async (e: DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    if (!canEdit || uploading) return
+
+    const droppedFiles = Array.from(e.dataTransfer.files ?? []).filter((f) =>
+      f.type.startsWith('image/')
+    )
+
+    if (droppedFiles.length === 0) {
+      toast.show({
+        variant: 'error',
+        message: 'Por favor arrastra archivos de imagen válidos (JPG, PNG, WebP).',
+      })
+      return
+    }
+
+    await uploadFiles(droppedFiles)
+  }
+
+  // Establecer como imagen principal
   const handleSetMain = async (img: CatalogItemImageDto) => {
     if (img.isMain || busyId || !canEdit) return
     setBusyId(img.id)
@@ -71,7 +174,7 @@ export function CatalogItemImageGallery({
       await setCatalogItemMainImage(tenantId, itemId, img.id)
       toast.show({
         variant: 'success',
-        message: 'Imagen establecida como principal del producto.',
+        message: 'Imagen seleccionada como portada principal de la tienda.',
       })
       await onImagesChanged()
     } catch (err) {
@@ -84,6 +187,38 @@ export function CatalogItemImageGallery({
     }
   }
 
+  // Reordenar imagen (Mover izquierda / derecha)
+  const handleMove = async (currentIndex: number, direction: -1 | 1) => {
+    const targetIndex = currentIndex + direction
+    if (targetIndex < 0 || targetIndex >= sortedImages.length || busyId || !canEdit) return
+
+    const currentImg = sortedImages[currentIndex]
+    setBusyId(currentImg.id)
+
+    const reordered = [...sortedImages]
+    const [moved] = reordered.splice(currentIndex, 1)
+    reordered.splice(targetIndex, 0, moved)
+
+    const imageIds = reordered.map((img) => img.id)
+
+    try {
+      await reorderCatalogItemImages(tenantId, itemId, imageIds)
+      toast.show({
+        variant: 'success',
+        message: 'Orden del carrusel e-commerce actualizado.',
+      })
+      await onImagesChanged()
+    } catch (err) {
+      toast.show({
+        variant: 'error',
+        message: readApiError(err, 'No fue posible reordenar las imágenes.'),
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  // Eliminar imagen
   const handleDelete = async (img: CatalogItemImageDto) => {
     if (busyId || !canEdit) return
     setBusyId(img.id)
@@ -107,238 +242,423 @@ export function CatalogItemImageGallery({
     }
   }
 
-  const sortedImages = [...images].sort((a, b) => a.displayOrder - b.displayOrder)
+  // Guardar Alt Text (SEO)
+  const handleSaveAltText = async () => {
+    if (!editingAltImg || !tenantId) return
+    setSavingAlt(true)
+    try {
+      await updateCatalogItemImageAltText(tenantId, itemId, editingAltImg.id, altTextValue.trim())
+      toast.show({
+        variant: 'success',
+        message: 'Texto alternativo SEO actualizado.',
+      })
+      setEditingAltImg(null)
+      await onImagesChanged()
+    } catch (err) {
+      toast.show({
+        variant: 'error',
+        message: readApiError(err, 'No fue posible actualizar el texto alternativo.'),
+      })
+    } finally {
+      setSavingAlt(false)
+    }
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Encabezado con métricas y botón de subida */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-[var(--glb-surface-muted)] rounded-lg border border-[var(--shell-border)]">
-        <div className="text-sm">
-          <p className="font-medium text-[var(--glb-text)]">
-            Galería E-commerce ({sortedImages.length} de 8 imágenes permitidas)
-          </p>
-          <p className="text-xs text-[var(--glb-muted)] mt-0.5">
-            Optimización automática a WebP (82% calidad) en 3 tamaños (200px, 800px, 1600px).
+    <div className="ecu-product-gallery">
+      {/* Banner Informativo con cuota e-commerce */}
+      <div className="ecu-product-gallery__banner">
+        <div>
+          <h4 className="ecu-product-gallery__title">
+            Galería E-commerce & Catálogo Digital
+          </h4>
+          <p className="ecu-product-gallery__subtitle">
+            Compresión automática a WebP Full HD en 3 variantes responsive (Thumb 200px, Medium 800px, Large 1600px).
           </p>
         </div>
 
-        {canEdit && (
-          <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={handleFileChange}
-              disabled={uploading || sortedImages.length >= 8}
-            />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <span className="ecu-product-gallery__count-badge">
+            <Sparkles size={13} style={{ color: 'var(--shell-primary)' }} aria-hidden />
+            {sortedImages.length} de {MAX_IMAGES} fotos
+          </span>
+
+          {canEdit && (
             <Button
               variant="primary"
               size="sm"
-              disabled={uploading || sortedImages.length >= 8}
+              disabled={uploading || sortedImages.length >= MAX_IMAGES}
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload size={15} className="mr-1.5 inline" />
-              {uploading ? 'Procesando WebP...' : 'Subir imagen'}
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Grid de imágenes */}
-      {sortedImages.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-8 text-center border-2 border-dashed border-[var(--shell-border)] rounded-xl">
-          <div className="w-12 h-12 rounded-full bg-[var(--glb-surface-muted)] flex items-center justify-center mb-3 text-[var(--glb-muted)]">
-            <ImageIcon size={24} />
-          </div>
-          <p className="text-sm font-medium text-[var(--glb-text)]">Sin imágenes de producto</p>
-          <p className="text-xs text-[var(--glb-muted)] mt-1 max-w-sm">
-            Sube fotos en alta resolución (mín. 400x400 px, máx. 8 MB). Serán comprimidas y adaptadas para catálogo y tienda online.
-          </p>
-          {canEdit && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload size={14} className="mr-1.5 inline" />
-              Seleccionar archivo
+              <Upload size={14} className="mr-1.5" aria-hidden />
+              {uploading ? uploadStatus || 'Subiendo...' : 'Añadir Fotos'}
             </Button>
           )}
         </div>
+      </div>
+
+      {/* Input invisible nativo con soporte multi-archivo */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+        disabled={uploading || sortedImages.length >= MAX_IMAGES}
+      />
+
+      {/* Zona Drag & Drop interactiva */}
+      {canEdit && sortedImages.length < MAX_IMAGES && (
+        <div
+          className={`ecu-product-gallery__dropzone ${
+            isDragging ? 'ecu-product-gallery__dropzone--active' : ''
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              fileInputRef.current?.click()
+            }
+          }}
+        >
+          <div className="ecu-product-gallery__dropzone-icon">
+            <Upload size={22} strokeWidth={2.2} aria-hidden />
+          </div>
+          <p className="ecu-product-gallery__dropzone-title">
+            {isDragging
+              ? '¡Suelta las imágenes aquí para subirlas en bloque!'
+              : 'Arrastra tus fotografías aquí o haz clic para seleccionar varias'}
+          </p>
+          <p className="ecu-product-gallery__dropzone-hint">
+            Recomendado: relación 1:1 cuadrada (mín. 800×800 px) · Formatos WebP, JPG o PNG hasta 8 MB por archivo.
+          </p>
+        </div>
+      )}
+
+      {/* Grid de imágenes de producto */}
+      {sortedImages.length === 0 ? (
+        <div
+          style={{
+            padding: '2.5rem 1rem',
+            textAlign: 'center',
+            borderRadius: '0.75rem',
+            background: 'var(--glb-surface-muted)',
+            border: '1px solid var(--shell-border)',
+          }}
+        >
+          <div
+            style={{
+              width: '3rem',
+              height: '3rem',
+              borderRadius: '50%',
+              background: 'var(--glb-surface)',
+              border: '1px solid var(--shell-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 0.75rem auto',
+              color: 'var(--shell-muted)',
+            }}
+          >
+            <ImageIcon size={24} aria-hidden />
+          </div>
+          <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--shell-text)' }}>
+            Sin imágenes de producto aún
+          </h4>
+          <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.75rem', color: 'var(--shell-muted)' }}>
+            Las fotos que subas aquí definirán la portada y el carrusel interactivo en tu tienda online.
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {sortedImages.map((img) => {
+        <div className="ecu-product-gallery__grid">
+          {sortedImages.map((img, index) => {
             const isBusy = busyId === img.id
+            const isFirst = index === 0
+            const isLast = index === sortedImages.length - 1
+
             return (
               <div
                 key={img.id}
-                className={`group relative flex flex-col rounded-xl overflow-hidden border bg-[var(--glb-surface)] transition-all ${
-                  img.isMain
-                    ? 'border-amber-500 shadow-sm ring-2 ring-amber-500/20'
-                    : 'border-[var(--shell-border)] hover:border-[var(--glb-primary)]'
+                className={`ecu-product-gallery__card ${
+                  img.isMain ? 'ecu-product-gallery__card--main' : ''
                 }`}
               >
-                {/* Contenedor de la imagen cuadrada */}
-                <div className="relative aspect-square w-full bg-[var(--glb-surface-muted)] overflow-hidden">
+                {/* Ratio 1:1 Cuadrado */}
+                <div className="ecu-product-gallery__thumb-wrap">
                   <img
                     src={img.mediumUrl}
                     alt={img.altText || img.originalFileName}
-                    className="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                    className="ecu-product-gallery__thumb-img"
                     loading="lazy"
                   />
 
-                  {/* Badge de imagen principal */}
+                  {/* Badge de Portada */}
                   {img.isMain && (
-                    <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold shadow">
-                      <Star size={10} className="fill-white" />
-                      <span>Principal</span>
+                    <div className="ecu-product-gallery__main-badge">
+                      <Star size={11} className="fill-white" aria-hidden />
+                      <span>Portada</span>
                     </div>
                   )}
 
-                  {/* Overlay de acciones hover */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  {/* Píldora con orden en el carrusel */}
+                  <div className="ecu-product-gallery__order-pill" title="Posición en el carrusel de la tienda">
+                    #{index + 1}
+                  </div>
+
+                  {/* Overlay de acciones */}
+                  <div className="ecu-product-gallery__actions-overlay">
                     <button
                       type="button"
-                      title="Ver variantes"
+                      title="Ver variantes y zoom"
                       onClick={() => setSelectedPreview(img)}
-                      className="p-2 rounded-full bg-white/90 text-slate-800 hover:bg-white transition-colors"
+                      className="ecu-product-gallery__icon-btn"
                     >
-                      <ExternalLink size={14} />
+                      <ExternalLink size={14} aria-hidden />
                     </button>
+
+                    {canEdit && (
+                      <button
+                        type="button"
+                        title="Editar Alt Text (SEO)"
+                        onClick={() => {
+                          setEditingAltImg(img)
+                          setAltTextValue(img.altText || '')
+                        }}
+                        className="ecu-product-gallery__icon-btn"
+                      >
+                        <Tag size={14} aria-hidden />
+                      </button>
+                    )}
 
                     {canEdit && !img.isMain && (
                       <button
                         type="button"
-                        title="Marcar como Principal"
+                        title="Hacer Portada Principal"
                         disabled={isBusy}
                         onClick={() => handleSetMain(img)}
-                        className="p-2 rounded-full bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                        className="ecu-product-gallery__icon-btn ecu-product-gallery__icon-btn--primary"
                       >
-                        <Star size={14} />
+                        <Star size={14} aria-hidden />
                       </button>
                     )}
 
                     {canEdit && (
                       <button
                         type="button"
-                        title="Eliminar imagen"
+                        title="Eliminar fotografía"
                         disabled={isBusy}
                         onClick={() => handleDelete(img)}
-                        className="p-2 rounded-full bg-rose-600 text-white hover:bg-rose-700 transition-colors"
+                        className="ecu-product-gallery__icon-btn ecu-product-gallery__icon-btn--danger"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={14} aria-hidden />
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Info inferior de la tarjeta */}
-                <div className="p-2.5 text-xs flex flex-col gap-0.5 border-t border-[var(--shell-border)]">
-                  <p className="font-medium text-[var(--glb-text)] truncate" title={img.originalFileName}>
+                {/* Metadatos inferiores */}
+                <div className="ecu-product-gallery__card-meta">
+                  <span className="ecu-product-gallery__card-filename" title={img.originalFileName}>
                     {img.originalFileName}
-                  </p>
-                  <p className="text-[11px] text-[var(--glb-muted)] flex items-center justify-between">
+                  </span>
+                  <div className="ecu-product-gallery__card-details">
                     <span>{img.originalWidth}×{img.originalHeight} px</span>
                     <span>{Math.round(img.fileSizeBytes / 1024)} KB</span>
-                  </p>
+                  </div>
+
+                  {/* Botón rápido de Alt Text SEO */}
+                  <button
+                    type="button"
+                    className="ecu-product-gallery__card-alt"
+                    onClick={() => {
+                      if (!canEdit) return
+                      setEditingAltImg(img)
+                      setAltTextValue(img.altText || '')
+                    }}
+                    title="Editar texto alternativo para SEO en Google"
+                  >
+                    <Tag size={11} aria-hidden />
+                    <span>{img.altText ? `Alt: "${img.altText}"` : '+ Añadir Alt Text SEO'}</span>
+                  </button>
                 </div>
+
+                {/* Controles de reordenamiento para carrusel */}
+                {canEdit && sortedImages.length > 1 && (
+                  <div className="ecu-product-gallery__card-reorder">
+                    <span className="ecu-product-gallery__reorder-label">
+                      Mover posición
+                    </span>
+                    <div className="ecu-product-gallery__reorder-actions">
+                      <button
+                        type="button"
+                        className="ecu-product-gallery__reorder-btn"
+                        disabled={isFirst || isBusy}
+                        onClick={() => handleMove(index, -1)}
+                        title="Mover hacia la izquierda"
+                      >
+                        <ArrowLeft size={13} aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        className="ecu-product-gallery__reorder-btn"
+                        disabled={isLast || isBusy}
+                        onClick={() => handleMove(index, 1)}
+                        title="Mover hacia la derecha"
+                      >
+                        <ArrowRight size={13} aria-hidden />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
       )}
 
-      {/* Modal de previsualización técnica de variantes */}
+      {/* Modal Popup: Variantes Optimizadas Responsive (Glubox) */}
       {selectedPreview && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setSelectedPreview(null)}
+        <Popup
+          open={true}
+          title={`Variantes WebP — ${selectedPreview.originalFileName}`}
+          onClose={() => setSelectedPreview(null)}
+          width="min(95vw, 44rem)"
+          actions={[
+            {
+              id: 'close',
+              label: 'Cerrar',
+              variant: 'secondary',
+              onClick: () => setSelectedPreview(null),
+            },
+          ]}
         >
-          <div
-            className="bg-[var(--glb-surface)] rounded-2xl max-w-2xl w-full p-5 border border-[var(--shell-border)] shadow-2xl space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-[var(--glb-text)]">
-                  Variantes Optimizadas — {selectedPreview.originalFileName}
-                </h3>
-                <p className="text-xs text-[var(--glb-muted)]">
-                  Resolución original: {selectedPreview.originalWidth}×{selectedPreview.originalHeight} px
-                </p>
-              </div>
-              <button
-                type="button"
-                className="text-sm font-medium text-[var(--glb-muted)] hover:text-[var(--glb-text)]"
-                onClick={() => setSelectedPreview(null)}
-              >
-                Cerrar
-              </button>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--shell-muted)' }}>
+              Resolución original: <strong>{selectedPreview.originalWidth}×{selectedPreview.originalHeight} px</strong> · {Math.round(selectedPreview.fileSizeBytes / 1024)} KB.
+              El backend genera 3 cortes WebP optimizados para desktop, mobile y zoom.
+            </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-3 bg-[var(--glb-surface-muted)] rounded-xl border border-[var(--shell-border)] text-center space-y-2">
-                <p className="text-xs font-semibold text-[var(--glb-text)]">Thumb (200px)</p>
-                <div className="h-32 flex items-center justify-center">
+            <div className="ecu-variant-preview-grid">
+              <div className="ecu-variant-preview-card">
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--shell-text)' }}>
+                  Thumbnail (200px)
+                </span>
+                <div className="ecu-variant-preview-card__img-wrap">
                   <img
                     src={selectedPreview.thumbUrl}
                     alt="Thumb"
-                    className="max-h-full max-w-full object-contain rounded"
+                    className="ecu-variant-preview-card__img"
                   />
                 </div>
                 <a
                   href={selectedPreview.thumbUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[11px] text-[var(--glb-primary)] hover:underline block truncate"
+                  className="glb-btn glb-btn--outline glb-btn--sm"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
                 >
+                  <ExternalLink size={12} />
                   Abrir WebP
                 </a>
               </div>
 
-              <div className="p-3 bg-[var(--glb-surface-muted)] rounded-xl border border-[var(--shell-border)] text-center space-y-2">
-                <p className="text-xs font-semibold text-[var(--glb-text)]">Medium (800px)</p>
-                <div className="h-32 flex items-center justify-center">
+              <div className="ecu-variant-preview-card">
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--shell-text)' }}>
+                  Catálogo (800px)
+                </span>
+                <div className="ecu-variant-preview-card__img-wrap">
                   <img
                     src={selectedPreview.mediumUrl}
                     alt="Medium"
-                    className="max-h-full max-w-full object-contain rounded"
+                    className="ecu-variant-preview-card__img"
                   />
                 </div>
                 <a
                   href={selectedPreview.mediumUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[11px] text-[var(--glb-primary)] hover:underline block truncate"
+                  className="glb-btn glb-btn--outline glb-btn--sm"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
                 >
+                  <ExternalLink size={12} />
                   Abrir WebP
                 </a>
               </div>
 
-              <div className="p-3 bg-[var(--glb-surface-muted)] rounded-xl border border-[var(--shell-border)] text-center space-y-2">
-                <p className="text-xs font-semibold text-[var(--glb-text)]">Large (1600px)</p>
-                <div className="h-32 flex items-center justify-center">
+              <div className="ecu-variant-preview-card">
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--shell-text)' }}>
+                  Zoom HD (1600px)
+                </span>
+                <div className="ecu-variant-preview-card__img-wrap">
                   <img
                     src={selectedPreview.largeUrl}
                     alt="Large"
-                    className="max-h-full max-w-full object-contain rounded"
+                    className="ecu-variant-preview-card__img"
                   />
                 </div>
                 <a
                   href={selectedPreview.largeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[11px] text-[var(--glb-primary)] hover:underline block truncate"
+                  className="glb-btn glb-btn--outline glb-btn--sm"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
                 >
+                  <ExternalLink size={12} />
                   Abrir WebP
                 </a>
               </div>
             </div>
           </div>
-        </div>
+        </Popup>
+      )}
+
+      {/* Modal Popup: Edición de Alt Text (SEO Google) */}
+      {editingAltImg && (
+        <Popup
+          open={true}
+          title="Texto Alternativo (SEO & Accesibilidad)"
+          onClose={() => setEditingAltImg(null)}
+          width="min(92vw, 30rem)"
+          actions={[
+            {
+              id: 'cancel-alt',
+              label: 'Cancelar',
+              variant: 'ghost',
+              onClick: () => setEditingAltImg(null),
+              disabled: savingAlt,
+            },
+            {
+              id: 'save-alt',
+              label: savingAlt ? 'Guardando...' : 'Guardar Alt Text',
+              variant: 'primary',
+              onClick: () => void handleSaveAltText(),
+              disabled: savingAlt,
+              loading: savingAlt,
+            },
+          ]}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--shell-muted)' }}>
+              El texto alternativo describe la imagen para lectores de pantalla y ayuda a que tu producto aparezca en los resultados de Google Imágenes.
+            </p>
+
+            <TextBox
+              id="alt-text-input"
+              label="Texto Alternativo (Alt Text)"
+              labelPosition="outlined"
+              variant="outline"
+              value={altTextValue}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setAltTextValue(e.target.value)}
+              placeholder="Ej. Lavadora Whirlpool 19kg frontal vista abierta con tambor inox"
+              fullWidth
+            />
+          </div>
+        </Popup>
       )}
     </div>
   )

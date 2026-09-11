@@ -110,9 +110,10 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Experiencia UX/UI y navegación secuencial en taller</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Galería e-commerce de productos y carga en bloque</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Galería e-commerce de productos y SEO:</strong> Zona moderna de carga Drag & Drop multi-archivo con compresión WebP automática en 3 variantes responsive (Thumb 200px, Medium 800px, Large 1600px); controles de reordenamiento para el carrusel de la tienda online; badge de portada principal; y editor de texto alternativo (Alt Text) para posicionamiento en Google Shopping.</li>
             <li><strong>Navegación secuencial y ergonomía en taller:</strong> Recorrido ágil entre equipos del lote con controles «Anterior / Siguiente» y atajos de teclado (Alt + ◄ / ►); botón de avance rápido a la siguiente fase operativa con 1 clic (Diagnóstico, Reparación, QC); selector segmentado Glubox para fotos; zona Drag & Drop con soporte de cámara móvil; y controles de rotación 90° y copiado de enlace en Lightbox.</li>
             <li><strong>Ficha individual de equipo y galería multimedia:</strong> Vista dedicada para cada equipo del lote con ficha técnica, notas operativas (diagnóstico, reparación y QC), trazabilidad de auditoría en línea de tiempo, galería fotográfica WebP en Cloud S3/B2 y lightbox ampliado; el DataGrid del lote queda optimizado con filas compactas y enlaces directos.</li>
             <li><strong>Diagnóstico de credenciales de almacenamiento:</strong> Validación preventiva de claves Backblaze B2 / S3 y control seguro de excepciones para carga de fotografías de taller e imágenes de catálogo.</li>

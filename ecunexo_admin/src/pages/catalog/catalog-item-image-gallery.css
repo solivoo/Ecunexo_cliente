@@ -1,0 +1,413 @@
+/* ==========================================================================
+   EcuNexo — Galería E-commerce de Imágenes de Producto
+   CSS Enterprise M3 para CatalogItemImageGallery
+   ========================================================================== */
+
+.ecu-product-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Header & Banner informativo */
+.ecu-product-gallery__banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--glb-surface-muted, rgba(0, 0, 0, 0.03));
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.08));
+  border-radius: 0.75rem;
+}
+
+html.sf-dark-mode .ecu-product-gallery__banner {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.ecu-product-gallery__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--shell-text, #0f172a);
+  margin: 0;
+}
+
+.ecu-product-gallery__subtitle {
+  font-size: 0.75rem;
+  color: var(--shell-muted, #64748b);
+  margin: 0.2rem 0 0 0;
+}
+
+.ecu-product-gallery__count-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  background: var(--glb-surface);
+  border: 1px solid var(--shell-border);
+  color: var(--shell-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Dropzone moderna Drag & Drop */
+.ecu-product-gallery__dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.85rem 1.25rem;
+  text-align: center;
+  border: 2px dashed var(--shell-border, #cbd5e1);
+  border-radius: 0.875rem;
+  background: var(--glb-surface-muted, rgba(0, 0, 0, 0.015));
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+html.sf-dark-mode .ecu-product-gallery__dropzone {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.ecu-product-gallery__dropzone:hover,
+.ecu-product-gallery__dropzone--active {
+  border-color: var(--shell-primary, #4f46e5);
+  background: color-mix(in srgb, var(--shell-primary, #4f46e5) 6%, transparent);
+}
+
+.ecu-product-gallery__dropzone-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--shell-primary, #4f46e5) 12%, transparent);
+  color: var(--shell-primary, #4f46e5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.2rem;
+}
+
+.ecu-product-gallery__dropzone-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--shell-text, #0f172a);
+  margin: 0;
+}
+
+.ecu-product-gallery__dropzone-hint {
+  font-size: 0.75rem;
+  color: var(--shell-muted, #64748b);
+  margin: 0;
+  max-width: 32rem;
+}
+
+/* Grid de Imágenes de Producto */
+.ecu-product-gallery__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 1rem;
+}
+
+/* Tarjeta de Imagen Individual */
+.ecu-product-gallery__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--glb-surface, #ffffff);
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.08));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+html.sf-dark-mode .ecu-product-gallery__card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.ecu-product-gallery__card:hover {
+  border-color: var(--shell-primary, #4f46e5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.ecu-product-gallery__card--main {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
+
+html.sf-dark-mode .ecu-product-gallery__card--main {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35);
+}
+
+/* Contenedor de la Imagen (Ratio 1:1 Cuadrada) */
+.ecu-product-gallery__thumb-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: var(--glb-surface-muted, #f8fafc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+html.sf-dark-mode .ecu-product-gallery__thumb-wrap {
+  background: #090d16;
+}
+
+.ecu-product-gallery__thumb-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  padding: 0.5rem;
+  transition: transform 0.25s ease;
+}
+
+.ecu-product-gallery__card:hover .ecu-product-gallery__thumb-img {
+  transform: scale(1.04);
+}
+
+/* Badge de Portada / Principal */
+.ecu-product-gallery__main-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  background: #f59e0b;
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Indicador de orden (1, 2, 3...) */
+.ecu-product-gallery__order-pill {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  backdrop-filter: blur(4px);
+}
+
+/* Overlay de Acciones en Hover */
+.ecu-product-gallery__actions-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 3;
+}
+
+.ecu-product-gallery__card:hover .ecu-product-gallery__actions-overlay,
+.ecu-product-gallery__card:focus-within .ecu-product-gallery__actions-overlay {
+  opacity: 1;
+}
+
+.ecu-product-gallery__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1e293b;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  transition: background 0.15s ease, transform 0.15s ease, color 0.15s ease;
+}
+
+.ecu-product-gallery__icon-btn:hover {
+  background: #ffffff;
+  transform: scale(1.1);
+}
+
+.ecu-product-gallery__icon-btn--primary {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.ecu-product-gallery__icon-btn--primary:hover {
+  background: #d97706;
+}
+
+.ecu-product-gallery__icon-btn--danger {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.ecu-product-gallery__icon-btn--danger:hover {
+  background: #dc2626;
+}
+
+.ecu-product-gallery__icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Pie de la tarjeta: Nombre, dimensiones y Alt Text */
+.ecu-product-gallery__card-meta {
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-top: 1px solid var(--shell-border);
+  font-size: 0.75rem;
+}
+
+.ecu-product-gallery__card-filename {
+  font-weight: 600;
+  color: var(--shell-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ecu-product-gallery__card-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  color: var(--shell-muted);
+}
+
+.ecu-product-gallery__card-alt {
+  font-size: 0.6875rem;
+  color: var(--shell-primary, #4f46e5);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+}
+
+.ecu-product-gallery__card-alt:hover {
+  text-decoration: underline;
+}
+
+/* Barra de controles de reordenamiento inferior */
+.ecu-product-gallery__card-reorder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.6rem;
+  background: var(--glb-surface-muted);
+  border-top: 1px solid var(--shell-border);
+}
+
+.ecu-product-gallery__reorder-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--shell-muted);
+}
+
+.ecu-product-gallery__reorder-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ecu-product-gallery__reorder-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--shell-border);
+  background: var(--glb-surface);
+  color: var(--shell-text);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.15s ease;
+}
+
+.ecu-product-gallery__reorder-btn:hover:not(:disabled) {
+  background: var(--shell-primary);
+  color: #ffffff;
+  border-color: var(--shell-primary);
+}
+
+.ecu-product-gallery__reorder-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Modal de variantes */
+.ecu-variant-preview-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+@media (min-width: 600px) {
+  .ecu-variant-preview-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.ecu-variant-preview-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border-radius: 0.75rem;
+  background: var(--glb-surface-muted);
+  border: 1px solid var(--shell-border);
+  text-align: center;
+}
+
+.ecu-variant-preview-card__img-wrap {
+  width: 100%;
+  height: 8.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+html.sf-dark-mode .ecu-variant-preview-card__img-wrap {
+  background: #020617;
+}
+
+.ecu-variant-preview-card__img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
