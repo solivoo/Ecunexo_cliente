@@ -29,6 +29,8 @@ public sealed class RepairEquipmentRepository : IRepairEquipmentRepository
     public Task<RepairEquipment?> GetTrackedAsync(Guid tenantId, Guid equipmentId, CancellationToken ct) =>
         _db.RepairEquipments
             .Include(e => e.Batch)
+            .Include(e => e.Photos)
+            .Include(e => e.Events)
             .FirstOrDefaultAsync(e => e.TenantId == tenantId && e.Id == equipmentId, ct);
 
     public async Task<IReadOnlyList<RepairEquipment>> ListByBatchAsync(

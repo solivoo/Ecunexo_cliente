@@ -83,6 +83,11 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
 
         builder.HasIndex(i => new { i.TenantId, i.Kind, i.Name });
 
+        builder.HasMany(i => i.Images)
+            .WithOne(img => img.CatalogItem)
+            .HasForeignKey(img => img.CatalogItemId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.Property<uint>("xmin")
             .IsRowVersion()
             .HasColumnName("xmin");

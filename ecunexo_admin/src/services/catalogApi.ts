@@ -1,6 +1,7 @@
 import { api } from '@/lib/apiClient'
 import type {
   CatalogItemDetailDto,
+  CatalogItemImageDto,
   CatalogItemKind,
   CatalogItemListItemDto,
   CatalogItemStatus,
@@ -93,4 +94,67 @@ export async function updateCatalogItem(
 
 export async function softDeleteCatalogItem(tenantId: string, itemId: string): Promise<void> {
   await api.delete(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}`)
+}
+
+export async function uploadCatalogItemImage(
+  tenantId: string,
+  itemId: string,
+  file: File,
+  altText?: string,
+  setAsMain?: boolean
+): Promise<CatalogItemImageDto> {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (altText) {
+    formData.append('altText', altText)
+  }
+  if (setAsMain !== undefined) {
+    formData.append('setAsMain', String(setAsMain))
+  }
+
+  const { data } = await api.post<CatalogItemImageDto>(
+    `/api/v1/tenants/${tenantId}/catalog/items/${itemId}/images`,
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }
+  )
+  return data
+}
+
+export async function deleteCatalogItemImage(
+  tenantId: string,
+  itemId: string,
+  imageId: string
+): Promise<void> {
+  await api.delete(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}/images/${imageId}`)
+}
+
+export async function setCatalogItemMainImage(
+  tenantId: string,
+  itemId: string,
+  imageId: string
+): Promise<void> {
+  await api.put(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}/images/${imageId}/main`)
+}
+
+export async function reorderCatalogItemImages(
+  tenantId: string,
+  itemId: string,
+  imageIds: string[]
+): Promise<void> {
+  await api.put(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}/images/reorder`, {
+    imageIds,
+  })
+}
+
+export async function updateCatalogItemImageAltText(
+  tenantId: string,
+  itemId: string,
+  imageId: string,
+  altText: string
+): Promise<void> {
+  await api.put(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}/images/${imageId}/alt-text`, {
+    altText,
+  })
 }

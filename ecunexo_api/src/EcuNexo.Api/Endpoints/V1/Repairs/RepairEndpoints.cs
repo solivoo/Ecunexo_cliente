@@ -13,8 +13,12 @@ using EcuNexo.Business.Repairs.Queries.GetDispatchInvoicePreview;
 using EcuNexo.Business.Repairs.Queries.ListBatches;
 using EcuNexo.Business.Repairs.Queries.VerifyDispatchPublic;
 using EcuNexo.Business.Customers.Repositories;
+using EcuNexo.Business.Repairs;
+using EcuNexo.Business.Repairs.Commands.DeleteRepairEquipmentPhoto;
+using EcuNexo.Business.Repairs.Commands.UploadRepairEquipmentPhoto;
 using EcuNexo.Business.Repairs.Repositories;
 using EcuNexo.Business.Repairs.Storage;
+using EcuNexo.Business.Storage;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Customers;
 using EcuNexo.Core.Repairs;
@@ -88,12 +92,19 @@ public static class RepairEndpoints
         repairsGroup.MapPatch("/equipments/{equipmentId:guid}/status", UpdateEquipmentStatusAsync)
             .AddEndpointFilter(PermissionFilters.Require("repairs.equipments.update.status"));
 
-        // 4. Fotos de Evidencia en Amazon S3
+        // 4. Fotos de Evidencia (Backblaze B2 / S3)
+        repairsGroup.MapPost("/equipments/{equipmentId:guid}/photos", UploadPhotoDirectAsync)
+            .DisableAntiforgery()
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.equipments.update.status", "repairs.equipments.upload.photo"));
+
+        repairsGroup.MapDelete("/equipments/{equipmentId:guid}/photos/{photoId:guid}", DeletePhotoAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.equipments.update.status", "repairs.equipments.upload.photo"));
+
         repairsGroup.MapPost("/equipments/{equipmentId:guid}/photos/presigned-upload", GeneratePhotoUploadUrlAsync)
-            .AddEndpointFilter(PermissionFilters.Require("repairs.equipments.update.status"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.equipments.update.status", "repairs.equipments.upload.photo"));
 
         repairsGroup.MapPost("/equipments/{equipmentId:guid}/photos/confirm", ConfirmPhotoUploadAsync)
-            .AddEndpointFilter(PermissionFilters.Require("repairs.equipments.update.status"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.equipments.update.status", "repairs.equipments.upload.photo"));
 
         repairsGroup.MapGet("/equipments/{equipmentId:guid}/photos", ListEquipmentPhotosAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b.portal.view"));
@@ -321,10 +332,47 @@ public static class RepairEndpoints
         [FromRoute] Guid batchId,
         [FromQuery] RepairEquipmentStatus? status,
         [FromServices] IRepairEquipmentRepository equipmentRepo,
+        [FromServices] IStorageService storageService,
         CancellationToken ct)
     {
         var equipments = await equipmentRepo.ListByBatchAsync(tenantId, batchId, status, ct).ConfigureAwait(false);
-        return Results.Ok(equipments);
+        var dtos = equipments.Select(e => new
+        {
+            e.Id,
+            e.TenantId,
+            e.BatchId,
+            e.AssignedTechnicianId,
+            e.SerialNumber,
+            e.Model,
+            e.Brand,
+            e.ProductLine,
+            e.DamageLevel,
+            e.Status,
+            e.DiagnosticNotes,
+            e.RepairNotes,
+            e.QualityCheckNotes,
+            e.PassedQualityCheck,
+            e.DiagnosedAt,
+            e.RepairedAt,
+            e.QualityCheckedAt,
+            e.ServiceFeeApplied,
+            e.CustomAttributesJson,
+            e.CreatedAt,
+            e.UpdatedAt,
+            Photos = e.Photos.Select(p => new
+            {
+                p.Id,
+                p.EquipmentId,
+                p.Stage,
+                p.FileName,
+                p.Caption,
+                p.CapturedAt,
+                p.FileSizeBytes,
+                DownloadUrl = storageService.GetPublicUrl(p.S3Bucket, p.S3Key)
+            }).ToList()
+        }).ToList();
+
+        return Results.Ok(dtos);
     }
 
     private static async Task<IResult> DownloadTemplateExcelAsync(
@@ -364,6 +412,59 @@ public static class RepairEndpoints
             ModifiedBy: caller.UserId);
 
         var result = await sender.SendAsync<UpdateEquipmentStatusCommand, UpdateEquipmentStatusResponse>(command, ct).ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> UploadPhotoDirectAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid equipmentId,
+        IFormFile? file,
+        [FromForm] PhotoStage stage,
+        [FromForm] string? caption,
+        [FromServices] ISender sender,
+        [FromServices] ICallerContext caller,
+        CancellationToken ct)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Results.BadRequest(new { message = "El archivo de imagen es obligatorio." });
+        }
+
+        if (file.Length > 15 * 1024 * 1024)
+        {
+            return Results.BadRequest(new { message = "El archivo supera el tamaño máximo permitido de 15 MB." });
+        }
+
+        using var stream = file.OpenReadStream();
+        var command = new UploadRepairEquipmentPhotoCommand(
+            TenantId: tenantId,
+            EquipmentId: equipmentId,
+            Content: stream,
+            FileName: file.FileName,
+            ContentType: file.ContentType,
+            Stage: stage,
+            Caption: caption?.Trim(),
+            UploadedBy: caller.UserId);
+
+        var result = await sender.SendAsync<UploadRepairEquipmentPhotoCommand, RepairEquipmentPhotoResponse>(command, ct).ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> DeletePhotoAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid equipmentId,
+        [FromRoute] Guid photoId,
+        [FromServices] ISender sender,
+        [FromServices] ICallerContext caller,
+        CancellationToken ct)
+    {
+        var command = new DeleteRepairEquipmentPhotoCommand(
+            TenantId: tenantId,
+            EquipmentId: equipmentId,
+            PhotoId: photoId,
+            RemovedBy: caller.UserId);
+
+        var result = await sender.SendAsync<DeleteRepairEquipmentPhotoCommand, DeleteRepairEquipmentPhotoResponse>(command, ct).ConfigureAwait(false);
         return result.ToHttpResult();
     }
 
@@ -428,7 +529,7 @@ public static class RepairEndpoints
         [FromRoute] Guid tenantId,
         [FromRoute] Guid equipmentId,
         [FromServices] IRepairEquipmentRepository equipmentRepo,
-        [FromServices] IAwsS3StorageService storageService,
+        [FromServices] IStorageService storageService,
         CancellationToken ct)
     {
         var photos = await equipmentRepo.ListPhotosAsync(equipmentId, ct).ConfigureAwait(false);
@@ -440,7 +541,8 @@ public static class RepairEndpoints
             p.FileName,
             p.Caption,
             p.CapturedAt,
-            DownloadUrl = storageService.GeneratePresignedDownloadUrl(p.S3Bucket, p.S3Key).DownloadUrl
+            p.FileSizeBytes,
+            DownloadUrl = storageService.GetPublicUrl(p.S3Bucket, p.S3Key)
         }).ToList();
 
         return Results.Ok(photosWithUrls);

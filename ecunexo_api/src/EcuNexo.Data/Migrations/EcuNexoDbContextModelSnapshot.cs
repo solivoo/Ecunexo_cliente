@@ -118,6 +118,107 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("items", "catalog");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Catalog.CatalogItemImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AltText")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("alt_text");
+
+                    b.Property<Guid>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("file_size_bytes");
+
+                    b.Property<bool>("IsMain")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_main");
+
+                    b.Property<string>("LargeUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("large_url");
+
+                    b.Property<string>("MediumUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("medium_url");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("image/webp")
+                        .HasColumnName("mime_type");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("original_file_name");
+
+                    b.Property<int>("OriginalHeight")
+                        .HasColumnType("integer")
+                        .HasColumnName("original_height");
+
+                    b.Property<int>("OriginalWidth")
+                        .HasColumnType("integer")
+                        .HasColumnName("original_width");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("storage_key");
+
+                    b.Property<string>("ThumbUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("thumb_url");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_item_images");
+
+                    b.HasIndex("CatalogItemId")
+                        .HasDatabaseName("ix_item_images_catalog_item_id");
+
+                    b.HasIndex("CatalogItemId", "DisplayOrder")
+                        .HasDatabaseName("ix_item_images_catalog_item_id_display_order");
+
+                    b.ToTable("item_images", "catalog");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Catalog.Category", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2522,6 +2623,18 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Catalog.CatalogItemImage", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Catalog.CatalogItem", "CatalogItem")
+                        .WithMany("Images")
+                        .HasForeignKey("CatalogItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_item_images_items_catalog_item_id");
+
+                    b.Navigation("CatalogItem");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Catalog.Category", b =>
                 {
                     b.HasOne("EcuNexo.Core.Catalog.Category", "Parent")
@@ -2904,6 +3017,11 @@ namespace EcuNexo.Data.Migrations
                         .HasConstraintName("fk_warehouses_tenants_tenant_id");
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Catalog.CatalogItem", b =>
+                {
+                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Identity.Permission", b =>

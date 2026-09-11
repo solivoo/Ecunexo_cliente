@@ -58,6 +58,8 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<CatalogItem> CatalogItems => Set<CatalogItem>();
 
+    public DbSet<CatalogItemImage> CatalogItemImages => Set<CatalogItemImage>();
+
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
 
     public DbSet<Stock> Stocks => Set<Stock>();

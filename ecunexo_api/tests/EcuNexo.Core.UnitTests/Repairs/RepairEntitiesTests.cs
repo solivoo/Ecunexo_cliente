@@ -252,4 +252,110 @@ public sealed class RepairEntitiesTests
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("repairs.dispatch.items.empty");
     }
+
+    [Fact(DisplayName = "RepairEquipment.AddPhoto agrega foto exitosamente y registra evento de auditoría")]
+    public void RepairEquipment_AddPhoto_Succeeds_AndRecordsEvent()
+    {
+        var eq = RepairEquipment.Create(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "SN-PHOTO-1", "WWG16", "Whirlpool", DamageLevel.Level1).Value!;
+
+        var photoId = Guid.NewGuid();
+        var addRes = eq.AddPhoto(
+            photoId,
+            PhotoStage.DamageInitial,
+            "ecunexo-publico-assets",
+            "tenants/test/photo.webp",
+            "foto_dano.webp",
+            102400,
+            "image/webp",
+            "Golpe en lateral izquierdo");
+
+        addRes.IsSuccess.Should().BeTrue();
+        eq.Photos.Should().HaveCount(1);
+        eq.Photos.First().Id.Should().Be(photoId);
+        eq.Photos.First().Stage.Should().Be(PhotoStage.DamageInitial);
+        eq.Photos.First().Caption.Should().Be("Golpe en lateral izquierdo");
+
+        // Evento registrado
+        eq.Events.Should().Contain(e => e.Note!.Contains("Golpe en lateral izquierdo"));
+    }
+
+    [Fact(DisplayName = "RepairEquipment.AddPhoto en equipo anulado es rechazado")]
+    public void RepairEquipment_AddPhoto_WhenCancelled_Fails()
+    {
+        var eq = RepairEquipment.Create(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "SN-PHOTO-2", "WWG16", "Whirlpool", DamageLevel.Level1).Value!;
+
+        eq.Cancel("Cancelado por error");
+
+        var addRes = eq.AddPhoto(
+            Guid.NewGuid(),
+            PhotoStage.DamageInitial,
+            "ecunexo-publico-assets",
+            "tenants/test/photo.webp",
+            "foto.webp",
+            50000);
+
+        addRes.IsFailure.Should().BeTrue();
+        addRes.Error!.Code.Should().Be("repairs.equipment.cancelled");
+        eq.Photos.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName = "RepairEquipment.AddPhoto supera límite de 15 fotos y es rechazado")]
+    public void RepairEquipment_AddPhoto_ExceedingLimit_Fails()
+    {
+        var eq = RepairEquipment.Create(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "SN-PHOTO-3", "WWG16", "Whirlpool", DamageLevel.Level1).Value!;
+
+        for (int i = 0; i < RepairEquipment.MaxPhotosCount; i++)
+        {
+            var res = eq.AddPhoto(
+                Guid.NewGuid(),
+                PhotoStage.InRepair,
+                "ecunexo-publico-assets",
+                $"key_{i}.webp",
+                $"file_{i}.webp",
+                1000);
+            res.IsSuccess.Should().BeTrue();
+        }
+
+        var extraRes = eq.AddPhoto(
+            Guid.NewGuid(),
+            PhotoStage.QualityFinal,
+            "ecunexo-publico-assets",
+            "key_extra.webp",
+            "file_extra.webp",
+            1000);
+
+        extraRes.IsFailure.Should().BeTrue();
+        extraRes.Error!.Code.Should().Be("repairs.equipment.photos.limit_reached");
+        eq.Photos.Should().HaveCount(RepairEquipment.MaxPhotosCount);
+    }
+
+    [Fact(DisplayName = "RepairEquipment.RemovePhoto remueve foto y registra evento")]
+    public void RepairEquipment_RemovePhoto_Succeeds()
+    {
+        var eq = RepairEquipment.Create(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "SN-PHOTO-4", "WWG16", "Whirlpool", DamageLevel.Level1).Value!;
+
+        var photoId = Guid.NewGuid();
+        eq.AddPhoto(
+            photoId,
+            PhotoStage.DamageInitial,
+            "ecunexo-publico-assets",
+            "key.webp",
+            "foto.webp",
+            5000);
+
+        eq.Photos.Should().HaveCount(1);
+
+        var remRes = eq.RemovePhoto(photoId);
+        remRes.IsSuccess.Should().BeTrue();
+        eq.Photos.Should().BeEmpty();
+        eq.Events.Should().Contain(e => e.Note!.Contains("Fotografía de evidencia eliminada"));
+    }
 }

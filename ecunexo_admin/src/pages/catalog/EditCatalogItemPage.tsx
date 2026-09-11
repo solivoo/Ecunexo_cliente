@@ -17,6 +17,7 @@ import {
   serializeAttributeValues,
 } from '@/lib/catalogAttributes'
 import { CatalogExtraAttributeFields } from '@/pages/catalog/CatalogExtraAttributeFields'
+import { CatalogItemImageGallery } from '@/pages/catalog/CatalogItemImageGallery'
 import { readApiError } from '@/lib/readApiError'
 import { getCatalogItem, listCatalogCategories, softDeleteCatalogItem, updateCatalogItem } from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
@@ -278,7 +279,8 @@ export function EditCatalogItemPage() {
             <p className="app-shell__muted">Recuperando datos del ítem de catálogo…</p>
           </SectionCard>
         ) : (
-          <form onSubmit={(e) => void onSubmit(e)} noValidate>
+          <>
+            <form onSubmit={(e) => void onSubmit(e)} noValidate>
             <SectionCard
               title="Ficha del Ítem"
               subtitle="Parámetros comerciales, asignación taxonómica y atributos dinámicos"
@@ -430,7 +432,28 @@ export function EditCatalogItemPage() {
               </div>
             </SectionCard>
           </form>
-        )}
+
+          {tenantId && item && (
+            <div className="mt-6">
+              <SectionCard
+                title="Imágenes del Producto"
+                subtitle="Galería e-commerce con compresión WebP y 3 variantes responsive"
+              >
+                <CatalogItemImageGallery
+                  tenantId={tenantId}
+                  itemId={item.id}
+                  images={item.images ?? []}
+                  canEdit={canEdit}
+                  onImagesChanged={async () => {
+                    const fresh = await getCatalogItem(tenantId, item.id)
+                    setItem(fresh)
+                  }}
+                />
+              </SectionCard>
+            </div>
+          )}
+        </>
+      )}
       </div>
 
       <Popup

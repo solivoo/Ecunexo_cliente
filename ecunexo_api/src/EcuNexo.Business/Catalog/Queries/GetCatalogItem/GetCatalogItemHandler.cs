@@ -33,6 +33,11 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
             categoryName = category?.Name;
         }
 
+        var images = item.Images
+            .OrderBy(i => i.DisplayOrder)
+            .Select(CatalogItemImageResponse.FromEntity)
+            .ToList();
+
         return Result.Success(
             new CatalogItemDetailResponse(
                 item.Id,
@@ -46,6 +51,7 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 item.CustomAttributesJson,
                 item.Status,
                 item.CreatedAt,
-                item.UpdatedAt));
+                item.UpdatedAt,
+                images));
     }
 }

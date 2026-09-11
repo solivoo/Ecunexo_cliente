@@ -26,6 +26,7 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
         CancellationToken ct)
     {
         var query = _db.CatalogItems.AsNoTracking()
+            .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
             .Where(i => i.TenantId == tenantId && i.DeletedAt == null);
         if (kind.HasValue)
         {
@@ -44,14 +45,17 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
 
     public Task<CatalogItem?> GetActiveByIdAsync(Guid tenantId, Guid itemId, CancellationToken ct) =>
         _db.CatalogItems.AsNoTracking()
+            .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
             .FirstOrDefaultAsync(
                 i => i.TenantId == tenantId && i.Id == itemId && i.DeletedAt == null,
                 ct);
 
     public Task<CatalogItem?> GetTrackedByIdAsync(Guid tenantId, Guid itemId, CancellationToken ct) =>
-        _db.CatalogItems.FirstOrDefaultAsync(
-            i => i.TenantId == tenantId && i.Id == itemId && i.DeletedAt == null,
-            ct);
+        _db.CatalogItems
+            .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
+            .FirstOrDefaultAsync(
+                i => i.TenantId == tenantId && i.Id == itemId && i.DeletedAt == null,
+                ct);
 
     public async Task<IReadOnlyList<CatalogItem>> GetActiveByIdsAsync(
         Guid tenantId,

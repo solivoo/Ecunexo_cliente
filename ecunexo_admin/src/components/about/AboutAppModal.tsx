@@ -110,9 +110,12 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Tarifario dedicado</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Galería de imágenes de catálogo y multimedia</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Galería multimedia de catálogo:</strong> Carga múltiple de imágenes con almacenamiento en AWS S3 / LocalStack, optimización automática WebP y miniaturas.</li>
+            <li><strong>Gestión de imágenes de producto:</strong> Reordenamiento secuencial interactivo, selección de imagen principal con badge distintivo y edición de texto alternativo.</li>
+            <li><strong>Fotografías de recepción Whirlpool:</strong> Registro fotográfico y visualización de equipos recepcionados en el portal de servicio técnico.</li>
             <li><strong>Tarifario fuera de la ficha:</strong> En Clientes, el icono de tarifas abre un modal solo para N1/N2/N3; la ficha queda para datos comerciales.</li>
             <li><strong>Tarifario solo en Clientes:</strong> El asistente de importar lote ya no edita N1/N2/N3; usa el maestro del cliente y guarda snapshot en el lote.</li>
             <li><strong>Tarifario por cliente:</strong> Maestro N1/N2/N3 en el directorio; al importar el lote se precarga y se guarda snapshot. Factura usa servicios de catálogo REP-N1/N2/N3.</li>

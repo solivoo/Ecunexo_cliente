@@ -18,6 +18,8 @@ import {
   Truck,
   Upload,
   Wrench,
+  Trash2,
+  Eye,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -28,12 +30,12 @@ import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
   cancelRepairBatch,
-  confirmPhotoUpload,
-  getPhotoUploadUrl,
+  deleteRepairEquipmentPhoto,
   getRepairBatch,
   listBatchEquipments,
   listEquipmentPhotos,
   updateEquipmentStatus,
+  uploadRepairEquipmentPhoto,
 } from '@/services/repairsApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
@@ -66,7 +68,7 @@ export function RepairBatchDetailPage() {
   const canRead = useHasPermission('repairs.batches.read')
   const canCancel = useHasPermission('repairs.batches.cancel')
   const canUpdateStatus = useHasPermission('repairs.equipments.update.status')
-  const canUploadPhoto = useHasPermission('repairs.equipments.upload.photo')
+  const canUploadPhoto = useHasPermission('repairs.equipments.upload.photo') || canUpdateStatus
   const canDispatch = useHasPermission('repairs.dispatches.create')
   const canReadDispatches = useHasPermission('repairs.dispatches.read')
 
@@ -198,6 +200,8 @@ export function RepairBatchDetailPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoStage, setPhotoStage] = useState<PhotoStage>(PhotoStage.DamageInitial)
   const [photoCaption, setPhotoCaption] = useState('')
+  const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null)
+  const [previewPhoto, setPreviewPhoto] = useState<RepairEquipmentPhotoDto | null>(null)
 
   // Filtrado de equipos
   const filteredEquipments = useMemo(() => {
@@ -272,65 +276,80 @@ export function RepairBatchDetailPage() {
     }
   }
 
-  // Subida de foto a S3 (Presigned PUT directo, Cero-Blob)
+  // Subida de foto con optimización WebP en Backblaze B2
   const handlePhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !tenantId || !photoEquipment) return
 
+    if (file.size > 15 * 1024 * 1024) {
+      toast.show({
+        title: 'Archivo muy grande',
+        message: 'La fotografía no debe superar el límite de 15 MB.',
+        variant: 'error',
+      })
+      e.target.value = ''
+      return
+    }
+
     setUploadingPhoto(true)
     try {
-      // 1. Obtener URL prefirmada
-      const presigned = await getPhotoUploadUrl(
+      await uploadRepairEquipmentPhoto(
         tenantId,
         photoEquipment.id,
-        photoStage.toString(),
-        file.name,
-        file.type || 'image/jpeg'
+        file,
+        photoStage,
+        photoCaption.trim() || undefined
       )
 
-      // 2. Subir directamente a Amazon S3
-      const uploadRes = await fetch(presigned.uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type || 'image/jpeg',
-        },
-        body: file,
-      })
-
-      if (!uploadRes.ok) {
-        throw new Error('Error al subir el archivo directamente a Amazon S3.')
-      }
-
-      // 3. Confirmar registro en backend (metadata ligera)
-      await confirmPhotoUpload(tenantId, photoEquipment.id, {
-        stage: photoStage,
-        s3Bucket: presigned.s3Bucket,
-        s3Key: presigned.s3Key,
-        fileName: file.name,
-        fileSizeBytes: file.size,
-        contentType: file.type || 'image/jpeg',
-        caption: photoCaption.trim() || undefined,
-      })
-
       toast.show({
-        title: 'Foto archivada en S3',
-        message: 'Evidencia registrada bajo principio Cero-Blob.',
+        title: 'Evidencia procesada',
+        message: 'Fotografía optimizada en WebP y guardada en Backblaze B2.',
         variant: 'success',
       })
 
-      // Recargar fotos
+      // Recargar fotos del modal y refrescar equipos para actualizar miniatura de tabla
       const updated = await listEquipmentPhotos(tenantId, photoEquipment.id)
       setPhotos(updated)
       setPhotoCaption('')
+      void load({ silent: true })
     } catch (err: unknown) {
       toast.show({
         title: 'Error de subida',
-        message: readApiError(err, 'No se pudo guardar la fotografía en el bucket.'),
+        message: readApiError(err, 'No se pudo guardar la fotografía en el bucket de almacenamiento.'),
         variant: 'error',
       })
     } finally {
       setUploadingPhoto(false)
       e.target.value = ''
+    }
+  }
+
+  const handleDeletePhoto = async (photoId: string) => {
+    if (!tenantId || !photoEquipment || deletingPhotoId) return
+
+    setDeletingPhotoId(photoId)
+    try {
+      await deleteRepairEquipmentPhoto(tenantId, photoEquipment.id, photoId)
+      toast.show({
+        title: 'Foto eliminada',
+        message: 'La evidencia fotográfica fue eliminada del almacenamiento.',
+        variant: 'success',
+      })
+
+      const updated = await listEquipmentPhotos(tenantId, photoEquipment.id)
+      setPhotos(updated)
+      if (previewPhoto?.id === photoId) {
+        setPreviewPhoto(null)
+      }
+      void load({ silent: true })
+    } catch (err: unknown) {
+      toast.show({
+        title: 'Error al eliminar',
+        message: readApiError(err, 'No fue posible eliminar la fotografía.'),
+        variant: 'error',
+      })
+    } finally {
+      setDeletingPhotoId(null)
     }
   }
 
@@ -392,6 +411,38 @@ export function RepairBatchDetailPage() {
             {repairEquipmentStatusLabel(row.status)}
           </StatusBadge>
         ),
+      },
+      {
+        key: 'photos',
+        header: 'Fotos',
+        width: 100,
+        sortable: false,
+        align: 'center',
+        renderCell: (_v: unknown, row: Row) => {
+          const photoCount = row.photos?.length ?? 0
+          const firstPhoto = row.photos?.[0]
+          return (
+            <button
+              type="button"
+              onClick={() => void handleOpenPhotosModal(row)}
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors hover:bg-[var(--glb-surface-muted)] border border-transparent hover:border-[var(--shell-border)] cursor-pointer"
+              title={photoCount > 0 ? `${photoCount} foto(s) de evidencia` : 'Agregar fotos'}
+            >
+              {firstPhoto?.downloadUrl ? (
+                <img
+                  src={firstPhoto.downloadUrl}
+                  alt={firstPhoto.caption ?? 'Evidencia'}
+                  className="w-7 h-7 rounded object-cover border border-[var(--shell-border)]"
+                />
+              ) : (
+                <Camera size={15} className="text-[var(--glb-muted)]" />
+              )}
+              <span className={photoCount > 0 ? 'text-[var(--glb-primary)] font-semibold' : 'text-[var(--glb-muted)]'}>
+                {photoCount}
+              </span>
+            </button>
+          )
+        },
       },
       {
         key: 'serviceFeeApplied',
@@ -727,29 +778,41 @@ export function RepairBatchDetailPage() {
           </div>
         </Popup>
 
-        {/* Modal Popup Fotos S3 (Cero-Blob) */}
+        {/* Modal Popup Fotos (Evidencia B2 / WebP) */}
         <Popup
           open={photosModalOpen}
-          title={`Evidencia Fotográfica en S3 — Serie ${photoEquipment?.serialNumber ?? ''}`}
-          onClose={() => setPhotosModalOpen(false)}
-          width="min(96vw, 44rem)"
+          title={`Evidencia Fotográfica — Serie ${photoEquipment?.serialNumber ?? ''}`}
+          onClose={() => {
+            setPhotosModalOpen(false)
+            setPreviewPhoto(null)
+          }}
+          width="min(96vw, 48rem)"
           actions={[
             {
               id: 'close',
               label: 'Cerrar',
               variant: 'outline',
-              onClick: () => setPhotosModalOpen(false),
+              onClick: () => {
+                setPhotosModalOpen(false)
+                setPreviewPhoto(null)
+              },
             },
           ]}
         >
           <div className="ecu-modal-form">
-            {/* Formulario de carga rápida a S3 */}
+            {/* Formulario de carga con optimización WebP */}
             {canUploadPhoto && (
               <div className="ecu-modal-panel">
-                <h3 className="ecu-modal-section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Upload size={14} strokeWidth={2} style={{ color: 'var(--shell-primary)' }} aria-hidden />
-                  Subir nueva fotografía
-                </h3>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <h3 className="ecu-modal-section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+                    <Upload size={14} strokeWidth={2} style={{ color: 'var(--shell-primary)' }} aria-hidden />
+                    Subir nueva fotografía de evidencia
+                  </h3>
+                  <span className="text-[11px] text-[var(--glb-muted)]">
+                    Optimización WebP Full HD en Backblaze B2
+                  </span>
+                </div>
+
                 <div className="ecu-modal-form__grid">
                   <div className="ecu-modal-form__field">
                     <Select
@@ -758,9 +821,9 @@ export function RepairBatchDetailPage() {
                       labelPosition="outlined"
                       variant="outline"
                       options={[
-                        { value: String(PhotoStage.DamageInitial), label: 'Daño Inicial / Recepción' },
-                        { value: String(PhotoStage.InRepair), label: 'En Proceso de Reparación' },
-                        { value: String(PhotoStage.QualityFinal), label: 'Control de Calidad Final' },
+                        { value: String(PhotoStage.DamageInitial), label: '1. Daño Inicial / Recepción (Reclamo Aseguradora)' },
+                        { value: String(PhotoStage.InRepair), label: '2. En Proceso de Reparación / Despiece' },
+                        { value: String(PhotoStage.QualityFinal), label: '3. Control de Calidad Final / Aprobado' },
                       ]}
                       value={String(photoStage)}
                       onChange={(val: string) => setPhotoStage(Number(val) as PhotoStage)}
@@ -770,38 +833,62 @@ export function RepairBatchDetailPage() {
                   <div className="ecu-modal-form__field">
                     <TextBox
                       id="photo-caption-input"
-                      label="Descripción / Nota de la foto"
+                      label="Descripción / Nota de la evidencia"
                       labelPosition="outlined"
                       variant="outline"
                       value={photoCaption}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => setPhotoCaption(e.target.value)}
-                      placeholder="ej. Abolladura lateral derecha..."
+                      placeholder="ej. Abolladura en lateral derecho, tina fisurada..."
                       fullWidth
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    id="photo-upload-input"
-                    style={{ display: 'none' }}
-                    onChange={handlePhotoUpload}
-                    disabled={uploadingPhoto}
-                  />
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => document.getElementById('photo-upload-input')?.click()}
-                    disabled={uploadingPhoto}
-                  >
-                    <Camera size={16} strokeWidth={2} aria-hidden />
-                    {uploadingPhoto ? 'Subiendo a S3...' : 'Seleccionar Foto'}
-                  </Button>
+                <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    {/* Input estándar de archivo */}
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                      id="photo-upload-input"
+                      style={{ display: 'none' }}
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto}
+                    />
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => document.getElementById('photo-upload-input')?.click()}
+                      disabled={uploadingPhoto}
+                    >
+                      <Upload size={15} strokeWidth={2} aria-hidden />
+                      {uploadingPhoto ? 'Procesando WebP...' : 'Seleccionar Archivo'}
+                    </Button>
+
+                    {/* Input directo de cámara para tablets o teléfonos móviles */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      id="photo-camera-input"
+                      style={{ display: 'none' }}
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('photo-camera-input')?.click()}
+                      disabled={uploadingPhoto}
+                    >
+                      <Camera size={15} strokeWidth={2} aria-hidden />
+                      Tomar Foto
+                    </Button>
+                  </div>
+
                   {uploadingPhoto && (
-                    <span className="ecu-modal-section-lead" style={{ color: 'var(--shell-primary)' }}>
-                      Transmitiendo al bucket Amazon S3...
+                    <span className="text-xs font-medium text-[var(--shell-primary)] flex items-center gap-1.5 animate-pulse">
+                      Optimizando y transmitiendo a Backblaze B2...
                     </span>
                   )}
                 </div>
@@ -811,56 +898,131 @@ export function RepairBatchDetailPage() {
             {/* Galería de fotos */}
             <div className="ecu-modal-panel">
               <h3 className="ecu-modal-section-title">
-                Fotos registradas ({photos.length})
+                Fotografías registradas ({photos.length} de 15 máx.)
               </h3>
               {loadingPhotos ? (
-                <p className="ecu-modal-section-lead" style={{ textAlign: 'center', padding: '1rem 0' }}>
-                  Cargando fotos de S3...
+                <p className="ecu-modal-section-lead" style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+                  Cargando fotos de almacenamiento...
                 </p>
               ) : photos.length === 0 ? (
                 <EmptyState
                   className="ecu-empty-state--compact ecu-empty-state--in-panel"
                   icon={<ImageIcon size={22} strokeWidth={1.75} aria-hidden />}
                   title="Sin evidencia fotográfica"
-                  description="Aún no hay fotos registradas para este equipo."
+                  description="Aún no hay fotos registradas para este equipo. Sube fotos del daño o proceso técnico."
                 />
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(9.5rem, 1fr))', gap: '0.85rem' }}>
-                  {photos.map((p) => (
-                    <div
-                      key={p.id}
-                      style={{
-                        borderRadius: '0.75rem',
-                        border: '1px solid var(--shell-border)',
-                        overflow: 'hidden',
-                        background: 'var(--glb-surface)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                    >
-                      <img
-                        src={p.downloadUrl}
-                        alt={p.caption ?? p.fileName}
-                        style={{ width: '100%', height: '8rem', objectFit: 'cover' }}
-                      />
-                      <div style={{ padding: '0.65rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1 }}>
-                        <StatusBadge tone="info">{photoStageLabel(p.stage)}</StatusBadge>
-                        {p.caption && (
-                          <p className="ecu-modal-section-lead" style={{ fontWeight: 500, color: 'var(--shell-text)' }}>
-                            {p.caption}
-                          </p>
-                        )}
-                        <span className="ecu-modal-section-lead" style={{ fontSize: '0.6875rem' }}>
-                          {formatDateTime(p.capturedAt)}
-                        </span>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(11rem, 1fr))', gap: '0.85rem' }}>
+                  {photos.map((p) => {
+                    const isDeleting = deletingPhotoId === p.id
+                    return (
+                      <div
+                        key={p.id}
+                        className="group relative flex flex-col rounded-xl overflow-hidden border border-[var(--shell-border)] bg-[var(--glb-surface)] shadow-sm hover:shadow transition-all"
+                      >
+                        {/* Contenedor imagen */}
+                        <div className="relative aspect-video w-full bg-[var(--glb-surface-muted)] overflow-hidden">
+                          <img
+                            src={p.downloadUrl}
+                            alt={p.caption ?? p.fileName}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            loading="lazy"
+                          />
+                          {/* Overlay de acciones */}
+                          <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              title="Ver en tamaño completo"
+                              onClick={() => setPreviewPhoto(p)}
+                              className="p-1.5 rounded-full bg-white/90 text-slate-800 hover:bg-white transition-colors cursor-pointer shadow"
+                            >
+                              <Eye size={15} />
+                            </button>
+                            {canUploadPhoto && (
+                              <button
+                                type="button"
+                                title="Eliminar fotografía"
+                                disabled={isDeleting}
+                                onClick={() => void handleDeletePhoto(p.id)}
+                                className="p-1.5 rounded-full bg-rose-600 text-white hover:bg-rose-700 transition-colors cursor-pointer shadow disabled:opacity-50"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Metadatos inferiores */}
+                        <div className="p-2.5 flex flex-col gap-1 text-xs flex-1">
+                          <StatusBadge tone="info">{photoStageLabel(p.stage)}</StatusBadge>
+                          {p.caption && (
+                            <p className="font-medium text-[var(--shell-text)] line-clamp-2" title={p.caption}>
+                              {p.caption}
+                            </p>
+                          )}
+                          <div className="mt-auto pt-1 flex items-center justify-between text-[10px] text-[var(--glb-muted)]">
+                            <span>{formatDateTime(p.capturedAt)}</span>
+                            {p.fileSizeBytes ? <span>{Math.round(p.fileSizeBytes / 1024)} KB</span> : null}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
           </div>
         </Popup>
+
+        {/* Modal Lightbox de Previsualización en Alta Resolución */}
+        {previewPhoto && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+            onClick={() => setPreviewPhoto(null)}
+          >
+            <div
+              className="bg-[var(--glb-surface)] rounded-2xl max-w-3xl w-full p-4 border border-[var(--shell-border)] shadow-2xl space-y-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <StatusBadge tone="info">{photoStageLabel(previewPhoto.stage)}</StatusBadge>
+                  <span className="text-sm font-semibold text-[var(--glb-text)]">
+                    {previewPhoto.caption || previewPhoto.fileName}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={previewPhoto.downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[var(--shell-primary)] hover:underline flex items-center gap-1 font-medium"
+                  >
+                    Abrir WebP
+                  </a>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold px-2 py-1 rounded bg-[var(--glb-surface-muted)] text-[var(--glb-muted)] hover:text-[var(--glb-text)]"
+                    onClick={() => setPreviewPhoto(null)}
+                  >
+                    ✕ Cerrar
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-[70vh] flex items-center justify-center overflow-hidden rounded-lg bg-black/20">
+                <img
+                  src={previewPhoto.downloadUrl}
+                  alt={previewPhoto.caption ?? previewPhoto.fileName}
+                  className="max-h-[70vh] max-w-full object-contain rounded"
+                />
+              </div>
+              <div className="flex items-center justify-between text-xs text-[var(--glb-muted)] pt-1">
+                <span>Capturada: {formatDateTime(previewPhoto.capturedAt)}</span>
+                <span>{previewPhoto.fileName}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal Popup para Confirmar Anulación de Lote (Auditoría) */}
         <Popup

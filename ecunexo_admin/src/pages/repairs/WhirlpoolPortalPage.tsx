@@ -19,7 +19,7 @@ import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { formatDate } from '@/lib/formatDate'
+import { formatDate, formatDateTime } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
@@ -33,13 +33,15 @@ import { useAppSelector } from '@/store/hooks'
 import {
   damageLevelBadgeTone,
   damageLevelLabel,
+  photoStageLabel,
   repairBatchStatusBadgeTone,
   repairBatchStatusLabel,
   repairEquipmentStatusBadgeTone,
   repairEquipmentStatusLabel,
   type BatchListItemDto,
-  type CustomerDto,
+  type RepairCustomerDto,
   type RepairEquipmentDto,
+  type RepairEquipmentPhotoDto,
 } from '@/types/repairsApi'
 import './portal-track.css'
 
@@ -60,13 +62,14 @@ export function CorporatePortalPage() {
   const canReadBatches = useHasPermission('repairs.batches.read')
   const canReadDispatches = useHasPermission('repairs.dispatches.read')
 
-  const [customers, setCustomers] = useState<CustomerDto[]>([])
+  const [customers, setCustomers] = useState<RepairCustomerDto[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('')
   const [batches, setBatches] = useState<BatchListItemDto[]>([])
   const [allEquipments, setAllEquipments] = useState<EquipmentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [searchSerial, setSearchSerial] = useState('')
   const [downloadingReport, setDownloadingReport] = useState(false)
+  const [previewPhoto, setPreviewPhoto] = useState<RepairEquipmentPhotoDto | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
 
@@ -493,6 +496,38 @@ export function CorporatePortalPage() {
                               <strong>Diagnóstico:</strong> {notes}
                             </p>
                           ) : null}
+
+                          {eq.photos && eq.photos.length > 0 ? (
+                            <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--glb-muted)' }}>
+                                Evidencia ({eq.photos.length}):
+                              </span>
+                              {eq.photos.map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => setPreviewPhoto(p)}
+                                  style={{
+                                    width: '2.5rem',
+                                    height: '2.5rem',
+                                    borderRadius: '0.375rem',
+                                    overflow: 'hidden',
+                                    border: '1px solid var(--shell-border)',
+                                    cursor: 'pointer',
+                                    padding: 0,
+                                    background: 'var(--glb-surface-muted)',
+                                  }}
+                                  title={`${photoStageLabel(p.stage)}: ${p.caption ?? p.fileName}`}
+                                >
+                                  <img
+                                    src={p.downloadUrl}
+                                    alt={p.caption ?? p.fileName}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
 
                         <div className="ecu-portal-track__aside">
@@ -555,6 +590,56 @@ export function CorporatePortalPage() {
             />
           )}
         </SectionCard>
+
+        {/* Lightbox Modal de Previsualización para Cliente B2B */}
+        {previewPhoto && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+            onClick={() => setPreviewPhoto(null)}
+          >
+            <div
+              className="bg-[var(--glb-surface)] rounded-2xl max-w-3xl w-full p-4 border border-[var(--shell-border)] shadow-2xl space-y-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <StatusBadge tone="info">{photoStageLabel(previewPhoto.stage)}</StatusBadge>
+                  <span className="text-sm font-semibold text-[var(--glb-text)]">
+                    {previewPhoto.caption || previewPhoto.fileName}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={previewPhoto.downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[var(--shell-primary)] hover:underline font-medium"
+                  >
+                    Abrir WebP
+                  </a>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold px-2 py-1 rounded bg-[var(--glb-surface-muted)] text-[var(--glb-muted)] hover:text-[var(--glb-text)] cursor-pointer"
+                    onClick={() => setPreviewPhoto(null)}
+                  >
+                    ✕ Cerrar
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-[70vh] flex items-center justify-center overflow-hidden rounded-lg bg-black/20">
+                <img
+                  src={previewPhoto.downloadUrl}
+                  alt={previewPhoto.caption ?? previewPhoto.fileName}
+                  className="max-h-[70vh] max-w-full object-contain rounded"
+                />
+              </div>
+              <div className="flex items-center justify-between text-xs text-[var(--glb-muted)] pt-1">
+                <span>Capturada: {formatDateTime(previewPhoto.capturedAt)}</span>
+                <span>{previewPhoto.fileName}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </TenantSessionGate>
   )

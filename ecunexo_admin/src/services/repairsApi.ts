@@ -194,6 +194,40 @@ export async function confirmPhotoUpload(
   return data
 }
 
+export async function uploadRepairEquipmentPhoto(
+  tenantId: string,
+  equipmentId: string,
+  file: File,
+  stage: number | string,
+  caption?: string
+): Promise<RepairEquipmentPhotoDto> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('stage', String(stage))
+  if (caption && caption.trim()) {
+    formData.append('caption', caption.trim())
+  }
+
+  const { data } = await api.post<RepairEquipmentPhotoDto>(
+    `/api/v1/tenants/${tenantId}/repairs/equipments/${equipmentId}/photos`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  )
+  return data
+}
+
+export async function deleteRepairEquipmentPhoto(
+  tenantId: string,
+  equipmentId: string,
+  photoId: string
+): Promise<void> {
+  await api.delete(`/api/v1/tenants/${tenantId}/repairs/equipments/${equipmentId}/photos/${photoId}`)
+}
+
 export async function listEquipmentPhotos(
   tenantId: string,
   equipmentId: string

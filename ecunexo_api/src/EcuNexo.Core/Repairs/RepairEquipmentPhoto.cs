@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using EcuNexo.Core.Common;
 
 namespace EcuNexo.Core.Repairs;
@@ -19,6 +20,7 @@ public sealed class RepairEquipmentPhoto : Entity<Guid>
 
     public Guid EquipmentId { get; private set; }
 
+    [JsonIgnore]
     public RepairEquipment? Equipment { get; private set; }
 
     public Guid? UploadedBy { get; private set; }

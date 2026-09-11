@@ -1,13 +1,22 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
+using EcuNexo.Business.Catalog.Commands.DeleteCatalogItemImage;
+using EcuNexo.Business.Catalog.Commands.ReorderCatalogItemImages;
+using EcuNexo.Business.Catalog.Commands.SetCatalogItemMainImage;
 using EcuNexo.Business.Catalog.Commands.SoftDeleteCatalogItem;
 using EcuNexo.Business.Catalog.Commands.SoftDeleteCategory;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
+using EcuNexo.Business.Catalog.Commands.UpdateCatalogItemImageAltText;
 using EcuNexo.Business.Catalog.Commands.UpdateCategory;
+using EcuNexo.Business.Catalog.Commands.UploadCatalogItemImage;
+using EcuNexo.Business.Catalog.Images;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
 using EcuNexo.Business.Catalog.Queries.ListCatalogItems;
 using EcuNexo.Business.Catalog.Queries.ListCategories;
+using EcuNexo.Business.Storage;
+using Microsoft.Extensions.Configuration;
 using EcuNexo.Business.Identity;
 using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Inventory.Commands.ApplyAuthorizedInvoiceEgress;
@@ -20,9 +29,11 @@ using EcuNexo.Business.Inventory.Queries.ListInventoryDocuments;
 using EcuNexo.Business.Inventory.Queries.ListInventoryMovements;
 using EcuNexo.Business.Inventory.Queries.ListStock;
 using EcuNexo.Business.Repairs.Commands.CreateRepairDispatch;
+using EcuNexo.Business.Repairs.Commands.DeleteRepairEquipmentPhoto;
 using EcuNexo.Business.Repairs.Commands.LinkDispatchInvoice;
 using EcuNexo.Business.Repairs.Commands.ImportRepairBatch;
 using EcuNexo.Business.Repairs.Commands.UpdateEquipmentStatus;
+using EcuNexo.Business.Repairs.Commands.UploadRepairEquipmentPhoto;
 using EcuNexo.Business.Repairs.Excel;
 using EcuNexo.Business.Repairs.Queries.GetDispatchInvoicePreview;
 using EcuNexo.Business.Repairs.Queries.ListBatches;
@@ -79,8 +90,13 @@ namespace EcuNexo.Business;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddBusiness(this IServiceCollection services)
+    public static IServiceCollection AddBusiness(this IServiceCollection services, IConfiguration? configuration = null)
     {
+        var storageOptions = configuration?.GetSection(StorageOptions.SectionName).Get<StorageOptions>() ?? new StorageOptions();
+        services.AddSingleton(storageOptions);
+        services.AddSingleton<IStorageService, BackblazeB2StorageService>();
+        services.AddSingleton<IImageProcessingService, ImageProcessingService>();
+
         services.AddValidatorsFromAssemblyContaining<CreateTenantValidator>();
 
         services.AddScoped<ICommandHandler<CreateTenantCommand, CreateTenantResponse>, CreateTenantHandler>();
@@ -183,12 +199,21 @@ public static class DependencyInjection
 
         services.AddScoped<ICommandHandler<ImportRepairBatchCommand, ImportRepairBatchResponse>, ImportRepairBatchHandler>();
         services.AddScoped<ICommandHandler<UpdateEquipmentStatusCommand, UpdateEquipmentStatusResponse>, UpdateEquipmentStatusHandler>();
+        services.AddScoped<ICommandHandler<UploadRepairEquipmentPhotoCommand, RepairEquipmentPhotoResponse>, UploadRepairEquipmentPhotoHandler>();
+        services.AddScoped<ICommandHandler<DeleteRepairEquipmentPhotoCommand, DeleteRepairEquipmentPhotoResponse>, DeleteRepairEquipmentPhotoHandler>();
         services.AddScoped<ICommandHandler<CreateRepairDispatchCommand, CreateRepairDispatchResponse>, CreateRepairDispatchHandler>();
         services.AddScoped<ICommandHandler<LinkDispatchInvoiceCommand, LinkDispatchInvoiceResponse>, LinkDispatchInvoiceHandler>();
         services.AddScoped<IQueryHandler<ListBatchesQuery, IReadOnlyList<BatchListItemResponse>>, ListBatchesHandler>();
         services.AddScoped<IQueryHandler<VerifyDispatchPublicQuery, PublicDispatchVerificationResponse>, VerifyDispatchPublicHandler>();
         services.AddScoped<IQueryHandler<GetDispatchInvoicePreviewQuery, DispatchInvoicePreviewResponse>, GetDispatchInvoicePreviewHandler>();
         services.AddScoped<RepairCatalogServiceEnsurer>();
+
+        // Catalog Item Images (E-commerce / Optimización)
+        services.AddScoped<ICommandHandler<UploadCatalogItemImageCommand, CatalogItemImageResponse>, UploadCatalogItemImageHandler>();
+        services.AddScoped<ICommandHandler<DeleteCatalogItemImageCommand, DeleteCatalogItemImageResponse>, DeleteCatalogItemImageHandler>();
+        services.AddScoped<ICommandHandler<SetCatalogItemMainImageCommand, SetCatalogItemMainImageResponse>, SetCatalogItemMainImageHandler>();
+        services.AddScoped<ICommandHandler<ReorderCatalogItemImagesCommand, ReorderCatalogItemImagesResponse>, ReorderCatalogItemImagesHandler>();
+        services.AddScoped<ICommandHandler<UpdateCatalogItemImageAltTextCommand, UpdateCatalogItemImageAltTextResponse>, UpdateCatalogItemImageAltTextHandler>();
 
         return services;
     }

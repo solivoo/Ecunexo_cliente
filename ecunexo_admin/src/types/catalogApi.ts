@@ -30,6 +30,23 @@ export type CategoryListItemDto = {
   createdAt: string
 }
 
+export type CatalogItemImageDto = {
+  id: string
+  catalogItemId: string
+  originalFileName: string
+  altText: string | null
+  displayOrder: number
+  isMain: boolean
+  originalWidth: number
+  originalHeight: number
+  fileSizeBytes: number
+  mimeType: string
+  thumbUrl: string
+  mediumUrl: string
+  largeUrl: string
+  createdAt: string
+}
+
 export type CatalogItemListItemDto = {
   id: string
   kind: CatalogItemKind
@@ -41,6 +58,8 @@ export type CatalogItemListItemDto = {
   categoryName: string | null
   status: CatalogItemStatus
   createdAt: string
+  mainImageThumbUrl?: string | null
+  mainImageUrl?: string | null
 }
 
 export type CatalogItemDetailDto = {
@@ -56,6 +75,7 @@ export type CatalogItemDetailDto = {
   status: CatalogItemStatus
   createdAt: string
   updatedAt: string | null
+  images: CatalogItemImageDto[]
 }
 
 export type CreateCategoryBody = {

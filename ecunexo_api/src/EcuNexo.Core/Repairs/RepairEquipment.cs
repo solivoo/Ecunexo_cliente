@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Common;
 
@@ -13,6 +14,7 @@ public sealed class RepairEquipment : AggregateRoot<Guid>, ITenantEntity, IAudit
     public const int ModelMaxLength = 60;
     public const int BrandMaxLength = 60;
     public const int ProductLineMaxLength = 60;
+    public const int MaxPhotosCount = 15;
 
     private readonly List<RepairEquipmentPhoto> _photos = [];
     private readonly List<RepairEquipmentEvent> _events = [];
@@ -25,6 +27,7 @@ public sealed class RepairEquipment : AggregateRoot<Guid>, ITenantEntity, IAudit
 
     public Guid BatchId { get; private set; }
 
+    [JsonIgnore]
     public RepairBatch? Batch { get; private set; }
 
     public Guid? AssignedTechnicianId { get; private set; }
@@ -345,6 +348,116 @@ public sealed class RepairEquipment : AggregateRoot<Guid>, ITenantEntity, IAudit
         UpdatedBy = modifiedBy;
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Agrega una evidencia fotográfica vinculada al equipo en la etapa indicada.
+    /// Invariante DDD: máximo 15 fotos por equipo; no se admiten fotos en equipos anulados.
+    /// </summary>
+    public Result<RepairEquipmentPhoto> AddPhoto(
+        Guid photoId,
+        PhotoStage stage,
+        string s3Bucket,
+        string s3Key,
+        string fileName,
+        long fileSizeBytes,
+        string? contentType = null,
+        string? caption = null,
+        Guid? uploadedBy = null,
+        DateTimeOffset? capturedAt = null)
+    {
+        if (Status == RepairEquipmentStatus.Cancelled)
+        {
+            return Result.Failure<RepairEquipmentPhoto>(new Error(
+                "repairs.equipment.cancelled",
+                "No se pueden adjuntar fotografías de evidencia a un equipo anulado.",
+                ErrorType.Validation));
+        }
+
+        if (_photos.Count >= MaxPhotosCount)
+        {
+            return Result.Failure<RepairEquipmentPhoto>(new Error(
+                "repairs.equipment.photos.limit_reached",
+                $"Se ha alcanzado el límite máximo de {MaxPhotosCount} fotografías para este equipo.",
+                ErrorType.Validation));
+        }
+
+        var photoResult = RepairEquipmentPhoto.Create(
+            photoId,
+            Id,
+            stage,
+            s3Bucket,
+            s3Key,
+            fileName,
+            fileSizeBytes,
+            contentType,
+            caption,
+            uploadedBy,
+            capturedAt);
+
+        if (photoResult.IsFailure)
+        {
+            return photoResult;
+        }
+
+        var photo = photoResult.Value!;
+        _photos.Add(photo);
+
+        UpdatedAt = DateTimeOffset.UtcNow;
+        UpdatedBy = uploadedBy;
+
+        var note = string.IsNullOrWhiteSpace(caption)
+            ? $"Fotografía adjuntada en etapa {stage}: {fileName}"
+            : $"Fotografía adjuntada en etapa {stage}: {caption.Trim()} ({fileName})";
+
+        _events.Add(RepairEquipmentEvent.Record(
+            Guid.NewGuid(),
+            Id,
+            Status,
+            Status,
+            note,
+            uploadedBy));
+
+        return Result.Success(photo);
+    }
+
+    /// <summary>
+    /// Remueve una fotografía de evidencia del equipo.
+    /// Invariante DDD: no se pueden eliminar fotografías de equipos anulados o ya despachados/facturados.
+    /// </summary>
+    public Result<RepairEquipmentPhoto> RemovePhoto(Guid photoId, Guid? removedBy = null)
+    {
+        var photo = _photos.FirstOrDefault(p => p.Id == photoId);
+        if (photo == null)
+        {
+            return Result.Failure<RepairEquipmentPhoto>(new Error(
+                "repairs.equipment.photo.not_found",
+                "La fotografía no existe en este equipo.",
+                ErrorType.NotFound));
+        }
+
+        if (Status is RepairEquipmentStatus.Cancelled or RepairEquipmentStatus.Dispatched or RepairEquipmentStatus.Invoiced)
+        {
+            return Result.Failure<RepairEquipmentPhoto>(new Error(
+                "repairs.equipment.photo.cannot_delete",
+                $"No se pueden eliminar fotografías de un equipo en estado {Status}.",
+                ErrorType.Validation));
+        }
+
+        _photos.Remove(photo);
+
+        UpdatedAt = DateTimeOffset.UtcNow;
+        UpdatedBy = removedBy;
+
+        _events.Add(RepairEquipmentEvent.Record(
+            Guid.NewGuid(),
+            Id,
+            Status,
+            Status,
+            $"Fotografía de evidencia eliminada ({photo.Stage}): {photo.FileName}",
+            removedBy));
+
+        return Result.Success(photo);
     }
 
     private static string NormalizeJson(string? json)

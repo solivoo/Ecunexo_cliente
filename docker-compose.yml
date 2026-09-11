@@ -48,6 +48,13 @@ services:
       LicenseValidation__PlatformApiBaseUrl: ${PLATFORM_API_BASE_URL:-}
       InventoryEgress__ApiKey: ${INVENTORY_EGRESS_API_KEY:-}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-}
+      Storage__Provider: ${STORAGE_PROVIDER:-BackblazeB2}
+      Storage__ServiceUrl: ${STORAGE_SERVICE_URL:-https://s3.us-east-005.backblazeb2.com}
+      Storage__Region: ${STORAGE_REGION:-us-east-005}
+      Storage__PublicBucket: ${STORAGE_PUBLIC_BUCKET:-ecunexo-publico-assets}
+      Storage__PrivateBucket: ${STORAGE_PRIVATE_BUCKET:-ecunexo-private-assets}
+      Storage__KeyId: ${STORAGE_KEY_ID:-}
+      Storage__ApplicationKey: ${STORAGE_APPLICATION_KEY:-}
     volumes:
       - ${LICENSE_KEYS_HOST_PATH:?set LICENSE_KEYS_HOST_PATH}:/keys:ro
     ports:

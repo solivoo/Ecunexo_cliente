@@ -4,8 +4,11 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup Label="Identity / ABAC">
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.103.1" />
     <PackageVersion Include="ClosedXML" Version="0.105.1" />
     <PackageVersion Include="DynamicExpresso.Core" Version="2.19.3" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.12" />
+    <PackageVersion Include="SixLabors.ImageSharp" Version="4.1.1" />
   </ItemGroup>
   <ItemGroup Label="EF Core / PostgreSQL">
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.7" />

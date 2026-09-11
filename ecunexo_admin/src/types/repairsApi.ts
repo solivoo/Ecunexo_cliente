@@ -142,6 +142,7 @@ export type RepairEquipmentPhotoDto = {
   caption: string | null
   capturedAt: string
   downloadUrl: string
+  fileSizeBytes?: number
 }
 
 export type RepairEquipmentEventDto = {

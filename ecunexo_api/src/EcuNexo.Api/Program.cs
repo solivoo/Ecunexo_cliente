@@ -65,7 +65,7 @@ builder.Services.AddSingleton<IPasswordHasher, EcuPasswordHasher>();
 builder.Services.AddSingleton<IJwtAccessTokenFactory, JwtAccessTokenFactory>();
 builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
 
-builder.Services.AddBusiness();
+builder.Services.AddBusiness(builder.Configuration);
 builder.Services.AddData(connectionString);
 
 var corsOrigins = ParseCorsOrigins(builder.Configuration);

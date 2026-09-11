@@ -1,4 +1,5 @@
 using EcuNexo.Core.Abstractions;
+using EcuNexo.Core.Catalog.ValueObjects;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Tenancy;
 
@@ -12,11 +13,15 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
     public const int NameMaxLength = 200;
     public const int DescriptionMaxLength = 1000;
 
+    private readonly List<CatalogItemImage> _images = [];
+
     private CatalogItem()
     {
         Name = string.Empty;
         CustomAttributesJson = CatalogAttributeSchema.EmptyObjectJson;
     }
+
+    public IReadOnlyCollection<CatalogItemImage> Images => _images.AsReadOnly();
 
     public Guid TenantId { get; private set; }
 
@@ -237,6 +242,177 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         DeletedBy = deletedBy;
         Status = CatalogItemStatus.Inactive;
         Touch(deletedBy);
+        return Result.Success();
+    }
+
+    public Result<CatalogItemImage> AddImage(
+        Guid imageId,
+        string storageKey,
+        string originalFileName,
+        string? altText,
+        ImageDimensions dimensions,
+        long fileSizeBytes,
+        string thumbUrl,
+        string mediumUrl,
+        string largeUrl,
+        bool? setAsMain = null,
+        Guid? createdBy = null)
+    {
+        if (_images.Count >= ImageOptimizationPolicy.MaxImagesPerItem)
+        {
+            return Result.Failure<CatalogItemImage>(new Error(
+                "catalog.item.image.limit.exceeded",
+                $"No se pueden agregar más de {ImageOptimizationPolicy.MaxImagesPerItem} imágenes por producto.",
+                ErrorType.Validation));
+        }
+
+        var isMain = setAsMain ?? (_images.Count == 0);
+
+        if (isMain)
+        {
+            foreach (var img in _images)
+            {
+                img.DemoteFromMain();
+            }
+        }
+
+        var nextOrder = _images.Count + 1;
+
+        var imageResult = CatalogItemImage.Create(
+            imageId,
+            Id,
+            storageKey,
+            originalFileName,
+            altText,
+            nextOrder,
+            isMain,
+            dimensions,
+            fileSizeBytes,
+            thumbUrl,
+            mediumUrl,
+            largeUrl,
+            createdBy);
+
+        if (imageResult.IsFailure)
+        {
+            return Result.Failure<CatalogItemImage>(imageResult.Error!);
+        }
+
+        _images.Add(imageResult.Value!);
+        Touch(createdBy);
+        return Result.Success(imageResult.Value!);
+    }
+
+    public Result RemoveImage(Guid imageId, Guid? updatedBy = null)
+    {
+        var image = _images.FirstOrDefault(i => i.Id == imageId);
+        if (image is null)
+        {
+            return Result.Failure(new Error(
+                "catalog.item.image.not_found",
+                "La imagen indicada no existe en este producto.",
+                ErrorType.NotFound));
+        }
+
+        var wasMain = image.IsMain;
+        _images.Remove(image);
+
+        if (wasMain && _images.Count > 0)
+        {
+            _images.OrderBy(i => i.DisplayOrder).First().PromoteToMain();
+        }
+
+        var order = 1;
+        foreach (var img in _images.OrderBy(i => i.DisplayOrder))
+        {
+            img.SetOrder(order++);
+        }
+
+        Touch(updatedBy);
+        return Result.Success();
+    }
+
+    public Result SetMainImage(Guid imageId, Guid? updatedBy = null)
+    {
+        var targetImage = _images.FirstOrDefault(i => i.Id == imageId);
+        if (targetImage is null)
+        {
+            return Result.Failure(new Error(
+                "catalog.item.image.not_found",
+                "La imagen indicada no pertenece a este producto.",
+                ErrorType.NotFound));
+        }
+
+        if (targetImage.IsMain)
+        {
+            return Result.Success();
+        }
+
+        foreach (var img in _images)
+        {
+            if (img.Id == imageId)
+            {
+                img.PromoteToMain();
+            }
+            else if (img.IsMain)
+            {
+                img.DemoteFromMain();
+            }
+        }
+
+        Touch(updatedBy);
+        return Result.Success();
+    }
+
+    public Result ReorderImages(IReadOnlyList<Guid> orderedImageIds, Guid? updatedBy = null)
+    {
+        if (orderedImageIds.Count != _images.Count || orderedImageIds.Distinct().Count() != _images.Count)
+        {
+            return Result.Failure(new Error(
+                "catalog.item.image.reorder.invalid",
+                "La lista de identificadores no coincide con la cantidad actual de imágenes.",
+                ErrorType.Validation));
+        }
+
+        var imageMap = _images.ToDictionary(i => i.Id);
+        foreach (var id in orderedImageIds)
+        {
+            if (!imageMap.ContainsKey(id))
+            {
+                return Result.Failure(new Error(
+                    "catalog.item.image.reorder.unknown_id",
+                    $"El identificador {id} no pertenece a las imágenes de este producto.",
+                    ErrorType.Validation));
+            }
+        }
+
+        for (var i = 0; i < orderedImageIds.Count; i++)
+        {
+            imageMap[orderedImageIds[i]].SetOrder(i + 1);
+        }
+
+        Touch(updatedBy);
+        return Result.Success();
+    }
+
+    public Result UpdateImageAltText(Guid imageId, string? altText, Guid? updatedBy = null)
+    {
+        var image = _images.FirstOrDefault(i => i.Id == imageId);
+        if (image is null)
+        {
+            return Result.Failure(new Error(
+                "catalog.item.image.not_found",
+                "La imagen indicada no existe en este producto.",
+                ErrorType.NotFound));
+        }
+
+        var result = image.UpdateAltText(altText, updatedBy);
+        if (result.IsFailure)
+        {
+            return result;
+        }
+
+        Touch(updatedBy);
         return Result.Success();
     }
 

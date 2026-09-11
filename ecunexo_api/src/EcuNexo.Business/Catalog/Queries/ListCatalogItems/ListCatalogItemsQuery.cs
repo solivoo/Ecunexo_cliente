@@ -19,4 +19,6 @@ public sealed record CatalogItemListItemResponse(
     Guid? CategoryId,
     string? CategoryName,
     CatalogItemStatus Status,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? MainImageThumbUrl = null,
+    string? MainImageUrl = null);

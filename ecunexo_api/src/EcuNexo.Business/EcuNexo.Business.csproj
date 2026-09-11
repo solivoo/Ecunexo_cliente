@@ -9,10 +9,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AWSSDK.S3" />
     <PackageReference Include="ClosedXML" />
     <PackageReference Include="DynamicExpresso.Core" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="SixLabors.ImageSharp" />
   </ItemGroup>
 
   <PropertyGroup>

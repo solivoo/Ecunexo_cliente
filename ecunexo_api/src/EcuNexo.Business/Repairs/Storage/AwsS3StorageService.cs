@@ -1,14 +1,14 @@
+using EcuNexo.Business.Storage;
+
 namespace EcuNexo.Business.Repairs.Storage;
 
 public sealed class AwsS3StorageService : IAwsS3StorageService
 {
-    private readonly string _defaultBucket;
-    private readonly string _region;
+    private readonly IStorageService _storageService;
 
-    public AwsS3StorageService(string? defaultBucket = null, string? region = null)
+    public AwsS3StorageService(IStorageService storageService)
     {
-        _defaultBucket = string.IsNullOrWhiteSpace(defaultBucket) ? "ecunexo-repairs-evidence-dev" : defaultBucket;
-        _region = string.IsNullOrWhiteSpace(region) ? "us-east-1" : region;
+        _storageService = storageService;
     }
 
     public PresignedUploadResponse GeneratePresignedUploadUrl(
@@ -30,11 +30,12 @@ public sealed class AwsS3StorageService : IAwsS3StorageService
         }
 
         var s3Key = $"tenants/{tenantId:N}/batches/{batchId:N}/equipments/{safeSerial}/{stage}_{safeFile}_{timestamp}{ext}";
-        var uploadUrl = $"https://{_defaultBucket}.s3.{_region}.amazonaws.com/{s3Key}?X-Amz-Expires={expiresInMinutes * 60}";
+        var bucket = _storageService.PublicBucket;
+        var uploadUrl = _storageService.GetPresignedUploadUrl(bucket, s3Key, contentType, expiresInMinutes);
 
         return new PresignedUploadResponse(
             UploadUrl: uploadUrl,
-            S3Bucket: _defaultBucket,
+            S3Bucket: bucket,
             S3Key: s3Key,
             ContentType: contentType,
             ExpiresInSeconds: expiresInMinutes * 60);
@@ -45,8 +46,8 @@ public sealed class AwsS3StorageService : IAwsS3StorageService
         string s3Key,
         int expiresInMinutes = 15)
     {
-        var bucket = string.IsNullOrWhiteSpace(s3Bucket) ? _defaultBucket : s3Bucket;
-        var downloadUrl = $"https://{bucket}.s3.{_region}.amazonaws.com/{s3Key}?X-Amz-Expires={expiresInMinutes * 60}";
+        var bucket = string.IsNullOrWhiteSpace(s3Bucket) ? _storageService.PublicBucket : s3Bucket;
+        var downloadUrl = _storageService.GetPublicUrl(bucket, s3Key);
 
         return new PresignedDownloadResponse(
             DownloadUrl: downloadUrl,
@@ -55,6 +56,7 @@ public sealed class AwsS3StorageService : IAwsS3StorageService
 
     public Task DeleteObjectAsync(string s3Bucket, string s3Key, CancellationToken ct)
     {
-        return Task.CompletedTask;
+        var bucket = string.IsNullOrWhiteSpace(s3Bucket) ? _storageService.PublicBucket : s3Bucket;
+        return _storageService.DeleteAsync(bucket, s3Key, ct);
     }
 }

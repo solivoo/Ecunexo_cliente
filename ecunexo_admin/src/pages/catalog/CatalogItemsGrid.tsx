@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataGrid, type ColumnDef } from 'glubox'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Package, Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { StatusBadge } from '@/components/ui'
@@ -42,6 +42,25 @@ export function CatalogItemsGrid({
 
   const columns = useMemo((): ColumnDef<CatalogItemGridRow>[] => {
     const cols: ColumnDef<CatalogItemGridRow>[] = [
+      {
+        key: 'mainImageThumbUrl',
+        header: 'Foto',
+        width: 68,
+        sortable: false,
+        renderCell: (_value: unknown, row: CatalogItemGridRow) =>
+          row.mainImageThumbUrl ? (
+            <img
+              src={row.mainImageThumbUrl}
+              alt={row.name}
+              className="w-9 h-9 rounded-md object-contain bg-[var(--glb-surface-muted)] border border-[var(--shell-border)]"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-md bg-[var(--glb-surface-muted)] flex items-center justify-center text-[var(--glb-muted)] border border-[var(--shell-border)]">
+              <Package size={16} />
+            </div>
+          ),
+      },
       {
         key: 'name',
         header: 'Nombre',

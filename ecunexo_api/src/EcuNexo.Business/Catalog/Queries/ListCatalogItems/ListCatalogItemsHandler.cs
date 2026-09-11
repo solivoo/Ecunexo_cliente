@@ -24,17 +24,23 @@ public sealed class ListCatalogItemsHandler
         var names = categories.ToDictionary(c => c.Id, c => c.Name);
 
         IReadOnlyList<CatalogItemListItemResponse> items = list
-            .Select(i => new CatalogItemListItemResponse(
-                i.Id,
-                i.Kind,
-                i.Name,
-                i.Description,
-                i.Sku,
-                i.BasePrice,
-                i.CategoryId,
-                i.CategoryId is { } cid && names.TryGetValue(cid, out var n) ? n : null,
-                i.Status,
-                i.CreatedAt))
+            .Select(i =>
+            {
+                var mainImg = i.Images.FirstOrDefault(img => img.IsMain) ?? i.Images.FirstOrDefault();
+                return new CatalogItemListItemResponse(
+                    i.Id,
+                    i.Kind,
+                    i.Name,
+                    i.Description,
+                    i.Sku,
+                    i.BasePrice,
+                    i.CategoryId,
+                    i.CategoryId is { } cid && names.TryGetValue(cid, out var n) ? n : null,
+                    i.Status,
+                    i.CreatedAt,
+                    mainImg?.ThumbUrl,
+                    mainImg?.MediumUrl);
+            })
             .ToList();
         return Result.Success(items);
     }

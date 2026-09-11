@@ -17,4 +17,5 @@ public sealed record CatalogItemDetailResponse(
     string CustomAttributesJson,
     CatalogItemStatus Status,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt,
+    IReadOnlyList<CatalogItemImageResponse> Images);

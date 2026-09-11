@@ -4,16 +4,23 @@ using EcuNexo.Api.Contracts.V1.Catalog;
 using EcuNexo.Api.Extensions;
 using EcuNexo.Api.Security;
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
+using EcuNexo.Business.Catalog.Commands.DeleteCatalogItemImage;
+using EcuNexo.Business.Catalog.Commands.ReorderCatalogItemImages;
+using EcuNexo.Business.Catalog.Commands.SetCatalogItemMainImage;
 using EcuNexo.Business.Catalog.Commands.SoftDeleteCatalogItem;
 using EcuNexo.Business.Catalog.Commands.SoftDeleteCategory;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
+using EcuNexo.Business.Catalog.Commands.UpdateCatalogItemImageAltText;
 using EcuNexo.Business.Catalog.Commands.UpdateCategory;
+using EcuNexo.Business.Catalog.Commands.UploadCatalogItemImage;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
 using EcuNexo.Business.Catalog.Queries.ListCatalogItems;
 using EcuNexo.Business.Catalog.Queries.ListCategories;
 using EcuNexo.Core.Catalog;
+using Microsoft.AspNetCore.Mvc;
 
 namespace EcuNexo.Api.Endpoints.V1.Catalog;
 
@@ -60,6 +67,18 @@ public static class CatalogEndpoints
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
         items.MapDelete("/{itemId:guid}", SoftDeleteItemAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.delete"));
+
+        items.MapPost("/{itemId:guid}/images", UploadItemImageAsync)
+            .DisableAntiforgery()
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
+        items.MapDelete("/{itemId:guid}/images/{imageId:guid}", DeleteItemImageAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
+        items.MapPut("/{itemId:guid}/images/{imageId:guid}/main", SetMainImageAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
+        items.MapPut("/{itemId:guid}/images/reorder", ReorderImagesAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
+        items.MapPut("/{itemId:guid}/images/{imageId:guid}/alt-text", UpdateImageAltTextAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
 
         return app;
     }
@@ -201,6 +220,89 @@ public static class CatalogEndpoints
                 new SoftDeleteCatalogItemCommand(tenantId, itemId),
                 ct)
             .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> UploadItemImageAsync(
+        Guid tenantId,
+        Guid itemId,
+        IFormFile? file,
+        [FromForm] string? altText,
+        [FromForm] bool? setAsMain,
+        ISender sender,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return Results.BadRequest(new { code = "catalog.item.image.required", message = "Debe proporcionar un archivo de imagen." });
+        }
+
+        using var stream = file.OpenReadStream();
+        var command = new UploadCatalogItemImageCommand(
+            TenantId: tenantId,
+            ItemId: itemId,
+            FileStream: stream,
+            FileName: file.FileName,
+            ContentType: file.ContentType,
+            AltText: altText,
+            SetAsMain: setAsMain,
+            UserId: caller.UserId);
+
+        var result = await sender.SendAsync<UploadCatalogItemImageCommand, CatalogItemImageResponse>(command, ct).ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> DeleteItemImageAsync(
+        Guid tenantId,
+        Guid itemId,
+        Guid imageId,
+        ISender sender,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        var command = new DeleteCatalogItemImageCommand(tenantId, itemId, imageId, caller.UserId);
+        var result = await sender.SendAsync<DeleteCatalogItemImageCommand, DeleteCatalogItemImageResponse>(command, ct).ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> SetMainImageAsync(
+        Guid tenantId,
+        Guid itemId,
+        Guid imageId,
+        ISender sender,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        var command = new SetCatalogItemMainImageCommand(tenantId, itemId, imageId, caller.UserId);
+        var result = await sender.SendAsync<SetCatalogItemMainImageCommand, SetCatalogItemMainImageResponse>(command, ct).ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> ReorderImagesAsync(
+        Guid tenantId,
+        Guid itemId,
+        ReorderCatalogItemImagesRequest body,
+        ISender sender,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        var command = new ReorderCatalogItemImagesCommand(tenantId, itemId, body.ImageIds, caller.UserId);
+        var result = await sender.SendAsync<ReorderCatalogItemImagesCommand, ReorderCatalogItemImagesResponse>(command, ct).ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> UpdateImageAltTextAsync(
+        Guid tenantId,
+        Guid itemId,
+        Guid imageId,
+        UpdateCatalogItemImageAltTextRequest body,
+        ISender sender,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        var command = new UpdateCatalogItemImageAltTextCommand(tenantId, itemId, imageId, body.AltText, caller.UserId);
+        var result = await sender.SendAsync<UpdateCatalogItemImageAltTextCommand, UpdateCatalogItemImageAltTextResponse>(command, ct).ConfigureAwait(false);
         return result.ToHttpResult();
     }
 }
