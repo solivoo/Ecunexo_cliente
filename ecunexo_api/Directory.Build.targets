@@ -1,0 +1,4 @@
+<Project>
+  <!-- Sobrescribe el target de SixLabors para evitar fallos de licencia en compilaciones Release -->
+  <Target Name="SixLabors_ValidateLicense" BeforeTargets="CoreCompile" />
+</Project>
