@@ -89,6 +89,9 @@ public static class RepairEndpoints
             .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.batches.import", "repairs.b2b.portal.view"));
 
         // 3. Equipos y Estados
+        repairsGroup.MapGet("/equipments/{equipmentId:guid}", GetEquipmentByIdAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("repairs.batches.read", "repairs.b2b.portal.view"));
+
         repairsGroup.MapPatch("/equipments/{equipmentId:guid}/status", UpdateEquipmentStatusAsync)
             .AddEndpointFilter(PermissionFilters.Require("repairs.equipments.update.status"));
 
@@ -373,6 +376,77 @@ public static class RepairEndpoints
         }).ToList();
 
         return Results.Ok(dtos);
+    }
+
+    private static async Task<IResult> GetEquipmentByIdAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid equipmentId,
+        [FromServices] IRepairEquipmentRepository equipmentRepo,
+        [FromServices] IStorageService storageService,
+        CancellationToken ct)
+    {
+        var equipment = await equipmentRepo.GetByIdAsync(tenantId, equipmentId, ct).ConfigureAwait(false);
+        if (equipment == null)
+        {
+            return Results.NotFound(new { message = "Equipo no encontrado." });
+        }
+
+        var dto = new
+        {
+            equipment.Id,
+            equipment.TenantId,
+            equipment.BatchId,
+            BatchNumber = equipment.Batch?.BatchNumber,
+            ContractReference = equipment.Batch?.ContractReference,
+            CustomerId = equipment.Batch?.CustomerId,
+            CustomerName = equipment.Batch?.Customer?.Name,
+            equipment.AssignedTechnicianId,
+            equipment.SerialNumber,
+            equipment.Model,
+            equipment.Brand,
+            equipment.ProductLine,
+            equipment.DamageLevel,
+            equipment.Status,
+            equipment.DiagnosticNotes,
+            equipment.RepairNotes,
+            equipment.QualityCheckNotes,
+            equipment.PassedQualityCheck,
+            equipment.DiagnosedAt,
+            equipment.RepairedAt,
+            equipment.QualityCheckedAt,
+            equipment.ServiceFeeApplied,
+            equipment.CustomAttributesJson,
+            equipment.CreatedAt,
+            equipment.UpdatedAt,
+            Photos = equipment.Photos
+                .OrderBy(p => p.Stage)
+                .ThenBy(p => p.CapturedAt)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.EquipmentId,
+                    p.Stage,
+                    p.FileName,
+                    p.Caption,
+                    p.CapturedAt,
+                    p.FileSizeBytes,
+                    DownloadUrl = storageService.GetPublicUrl(p.S3Bucket, p.S3Key)
+                }).ToList(),
+            Events = equipment.Events
+                .OrderByDescending(ev => ev.OccurredAt)
+                .Select(ev => new
+                {
+                    ev.Id,
+                    ev.EquipmentId,
+                    ev.FromStatus,
+                    ev.ToStatus,
+                    ev.UserId,
+                    ev.Note,
+                    ev.OccurredAt
+                }).ToList()
+        };
+
+        return Results.Ok(dto);
     }
 
     private static async Task<IResult> DownloadTemplateExcelAsync(

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Ban,
   Camera,
+  ExternalLink,
   Image as ImageIcon,
   Truck,
   Upload,
@@ -366,9 +367,14 @@ export function RepairBatchDetailPage() {
         width: 170,
         sortable: true,
         renderCell: (_v: Row['serialNumber'], row: Row) => (
-          <span className="font-mono font-bold text-slate-800 dark:text-slate-100">
-            {row.serialNumber}
-          </span>
+          <Link
+            to={`/taller/lotes/${batchId}/equipos/${row.id}`}
+            className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 group"
+            title="Ver gestión completa del equipo"
+          >
+            <span>{row.serialNumber}</span>
+            <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+          </Link>
         ),
       },
       {
@@ -415,29 +421,20 @@ export function RepairBatchDetailPage() {
       {
         key: 'photos',
         header: 'Fotos',
-        width: 100,
+        width: 90,
         sortable: false,
         align: 'center',
         renderCell: (_v: unknown, row: Row) => {
           const photoCount = row.photos?.length ?? 0
-          const firstPhoto = row.photos?.[0]
           return (
             <button
               type="button"
               onClick={() => void handleOpenPhotosModal(row)}
-              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors hover:bg-[var(--glb-surface-muted)] border border-transparent hover:border-[var(--shell-border)] cursor-pointer"
-              title={photoCount > 0 ? `${photoCount} foto(s) de evidencia` : 'Agregar fotos'}
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium transition-colors hover:bg-[var(--glb-surface-muted)] border border-[var(--shell-border)] cursor-pointer"
+              title={photoCount > 0 ? `${photoCount} foto(s) de evidencia` : 'Gestionar fotos'}
             >
-              {firstPhoto?.downloadUrl ? (
-                <img
-                  src={firstPhoto.downloadUrl}
-                  alt={firstPhoto.caption ?? 'Evidencia'}
-                  className="w-7 h-7 rounded object-cover border border-[var(--shell-border)]"
-                />
-              ) : (
-                <Camera size={15} className="text-[var(--glb-muted)]" />
-              )}
-              <span className={photoCount > 0 ? 'text-[var(--glb-primary)] font-semibold' : 'text-[var(--glb-muted)]'}>
+              <Camera size={13} className={photoCount > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-[var(--glb-muted)]'} />
+              <span className={photoCount > 0 ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-[var(--glb-muted)]'}>
                 {photoCount}
               </span>
             </button>
@@ -459,7 +456,7 @@ export function RepairBatchDetailPage() {
         key: 'id',
         header: 'Acciones',
         sticky: 'right',
-        width: 130,
+        width: 150,
         align: 'center',
         renderCell: (_v: unknown, row: Row) => {
           if (batch?.status === RepairBatchStatus.Cancelled || row.status === RepairEquipmentStatus.Cancelled) {
@@ -471,6 +468,11 @@ export function RepairBatchDetailPage() {
           }
           return (
             <div className="flex items-center justify-center gap-1">
+              <GridIconButton
+                icon={Eye}
+                label="Gestionar ficha del equipo"
+                onClick={() => navigate(`/taller/lotes/${batchId}/equipos/${row.id}`)}
+              />
               {canUpdateStatus && (
                 <GridIconButton
                   icon={Wrench}
@@ -490,7 +492,7 @@ export function RepairBatchDetailPage() {
         },
       },
     ],
-    [canUpdateStatus, canUploadPhoto, batch?.status]
+    [canUpdateStatus, canUploadPhoto, batch?.status, batchId, navigate]
   )
 
   if (!canRead) {

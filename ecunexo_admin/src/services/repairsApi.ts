@@ -17,6 +17,7 @@ import type {
   RepairCustomerDto,
   RepairDispatchDto,
   RepairEquipmentDto,
+  RepairEquipmentDetailDto,
   RepairEquipmentPhotoDto,
   UpdateEquipmentStatusBody,
 } from '@/types/repairsApi'
@@ -50,6 +51,16 @@ export async function listBatchEquipments(
   const { data } = await api.get<RepairEquipmentDto[]>(
     `/api/v1/tenants/${tenantId}/repairs/batches/${batchId}/equipments`,
     { params: status !== undefined ? { status } : undefined }
+  )
+  return data
+}
+
+export async function getRepairEquipment(
+  tenantId: string,
+  equipmentId: string
+): Promise<RepairEquipmentDetailDto> {
+  const { data } = await api.get<RepairEquipmentDetailDto>(
+    `/api/v1/tenants/${tenantId}/repairs/equipments/${equipmentId}`
   )
   return data
 }

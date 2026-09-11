@@ -148,12 +148,15 @@ export type RepairEquipmentPhotoDto = {
 export type RepairEquipmentEventDto = {
   id: string
   equipmentId: string
-  eventType: string
+  eventType?: string
   fromStatus: RepairEquipmentStatus | null
   toStatus: RepairEquipmentStatus | null
-  notes: string | null
-  createdAt: string
-  createdBy: string | null
+  userId?: string | null
+  note?: string | null
+  notes?: string | null
+  occurredAt?: string
+  createdAt?: string
+  createdBy?: string | null
 }
 
 export type RepairEquipmentDto = {
@@ -176,8 +179,19 @@ export type RepairEquipmentDto = {
   qualityCheckedAt: string | null
   serviceFeeApplied: number | null
   customAttributesJson: string
+  createdAt?: string | null
+  updatedAt?: string | null
   photos?: RepairEquipmentPhotoDto[]
   events?: RepairEquipmentEventDto[]
+}
+
+export type RepairEquipmentDetailDto = RepairEquipmentDto & {
+  batchNumber?: string | null
+  contractReference?: string | null
+  customerId?: string | null
+  customerName?: string | null
+  photos: RepairEquipmentPhotoDto[]
+  events: RepairEquipmentEventDto[]
 }
 
 export type UpdateEquipmentStatusBody = {
@@ -492,6 +506,21 @@ export function photoStageLabel(stage: PhotoStage): string {
       return 'Control de Calidad Final'
     default:
       return `Fase ${stage}`
+  }
+}
+
+export function photoStageBadgeTone(
+  stage: PhotoStage
+): 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'neutral' {
+  switch (stage) {
+    case PhotoStage.DamageInitial:
+      return 'info'
+    case PhotoStage.InRepair:
+      return 'warning'
+    case PhotoStage.QualityFinal:
+      return 'success'
+    default:
+      return 'neutral'
   }
 }
 
