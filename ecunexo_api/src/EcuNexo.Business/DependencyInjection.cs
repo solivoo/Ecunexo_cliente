@@ -15,6 +15,17 @@ using EcuNexo.Business.Catalog.Images;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
 using EcuNexo.Business.Catalog.Queries.ListCatalogItems;
 using EcuNexo.Business.Catalog.Queries.ListCategories;
+using EcuNexo.Business.Ecommerce.Commands.CancelEcommerceOrder;
+using EcuNexo.Business.Ecommerce.Commands.ConfirmEcommerceOrderPayment;
+using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
+using EcuNexo.Business.Ecommerce.Commands.LinkEcommerceOrderInvoice;
+using EcuNexo.Business.Ecommerce.Commands.ProcessEcommerceOrder;
+using EcuNexo.Business.Ecommerce.Commands.ShipEcommerceOrder;
+using EcuNexo.Business.Ecommerce.Dtos;
+using EcuNexo.Business.Ecommerce.Queries.GetEcommerceMetrics;
+using EcuNexo.Business.Ecommerce.Queries.GetEcommerceOrderById;
+using EcuNexo.Business.Ecommerce.Queries.ListEcommerceOrders;
+using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Business.Storage;
 using Microsoft.Extensions.Configuration;
 using EcuNexo.Business.Identity;
@@ -214,6 +225,17 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<SetCatalogItemMainImageCommand, SetCatalogItemMainImageResponse>, SetCatalogItemMainImageHandler>();
         services.AddScoped<ICommandHandler<ReorderCatalogItemImagesCommand, ReorderCatalogItemImagesResponse>, ReorderCatalogItemImagesHandler>();
         services.AddScoped<ICommandHandler<UpdateCatalogItemImageAltTextCommand, UpdateCatalogItemImageAltTextResponse>, UpdateCatalogItemImageAltTextHandler>();
+
+        // Ecommerce Core Module
+        services.AddScoped<ICommandHandler<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>, CreateEcommerceOrderHandler>();
+        services.AddScoped<ICommandHandler<ConfirmEcommerceOrderPaymentCommand, ConfirmEcommerceOrderPaymentResponse>, ConfirmEcommerceOrderPaymentHandler>();
+        services.AddScoped<ICommandHandler<ProcessEcommerceOrderCommand, ProcessEcommerceOrderResponse>, ProcessEcommerceOrderHandler>();
+        services.AddScoped<ICommandHandler<ShipEcommerceOrderCommand, ShipEcommerceOrderResponse>, ShipEcommerceOrderHandler>();
+        services.AddScoped<ICommandHandler<CancelEcommerceOrderCommand, CancelEcommerceOrderResponse>, CancelEcommerceOrderHandler>();
+        services.AddScoped<ICommandHandler<LinkEcommerceOrderInvoiceCommand, LinkEcommerceOrderInvoiceResponse>, LinkEcommerceOrderInvoiceHandler>();
+        services.AddScoped<IQueryHandler<ListEcommerceOrdersQuery, ListEcommerceOrdersResponse>, ListEcommerceOrdersHandler>();
+        services.AddScoped<IQueryHandler<GetEcommerceOrderByIdQuery, EcommerceOrderDetailDto>, GetEcommerceOrderByIdHandler>();
+        services.AddScoped<IQueryHandler<GetEcommerceMetricsQuery, EcommerceOrderMetrics>, GetEcommerceMetricsHandler>();
 
         return services;
     }

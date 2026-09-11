@@ -47,6 +47,13 @@ public sealed class StockConfiguration : IEntityTypeConfiguration<Stock>
             .HasColumnType("numeric(18,4)")
             .IsRequired();
 
+        builder.Property(s => s.ReservedQuantity)
+            .HasColumnType("numeric(18,4)")
+            .IsRequired()
+            .HasDefaultValue(0m);
+
+        builder.Ignore(s => s.AvailableQuantity);
+
         builder.Property(s => s.MinimumQuantity)
             .HasColumnType("numeric(18,4)");
 

@@ -222,6 +222,31 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
+    // Ecommerce — Pedidos online y reservas
+    // ──────────────────────────────────────────────
+    public const string LimitMaxOrdersPerMonth = "max_orders_per_month";
+
+    private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> EcommerceLimits = new()
+    {
+        [ModuleTier.Small] = new Dictionary<string, int>
+        {
+            [LimitMaxOrdersPerMonth] = 100,
+        },
+        [ModuleTier.Medium] = new Dictionary<string, int>
+        {
+            [LimitMaxOrdersPerMonth] = 1_000,
+        },
+        [ModuleTier.Big] = new Dictionary<string, int>
+        {
+            [LimitMaxOrdersPerMonth] = 5_000,
+        },
+        [ModuleTier.Enterprise] = new Dictionary<string, int>
+        {
+            [LimitMaxOrdersPerMonth] = int.MaxValue,
+        },
+    };
+
+    // ──────────────────────────────────────────────
     // Resolución
     // ──────────────────────────────────────────────
 
@@ -241,6 +266,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Support => SupportLimits,
             TenantModuleCodes.Repairs => RepairsLimits,
             TenantModuleCodes.Customers => CustomersLimits,
+            TenantModuleCodes.Ecommerce => EcommerceLimits,
             _ => null,
         };
 
@@ -268,6 +294,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Support => SupportLimits,
             TenantModuleCodes.Repairs => RepairsLimits,
             TenantModuleCodes.Customers => CustomersLimits,
+            TenantModuleCodes.Ecommerce => EcommerceLimits,
             _ => null,
         };
 

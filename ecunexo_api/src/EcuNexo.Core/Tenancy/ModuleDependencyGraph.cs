@@ -28,6 +28,7 @@ public static class ModuleDependencyGraph
             [TenantModuleCodes.Invoicing] = [TenantModuleCodes.Catalog],
             [TenantModuleCodes.Repairs] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.Customers] = [TenantModuleCodes.Identity],
+            [TenantModuleCodes.Ecommerce] = [TenantModuleCodes.Catalog, TenantModuleCodes.Inventory],
         };
 
     /// <summary>

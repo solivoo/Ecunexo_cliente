@@ -4,6 +4,7 @@ using EcuNexo.Api.Development;
 using EcuNexo.Api.Endpoints.V1.Auth;
 using EcuNexo.Api.Endpoints.V1.Catalog;
 using EcuNexo.Api.Endpoints.V1.Customers;
+using EcuNexo.Api.Endpoints.V1.Ecommerce;
 using EcuNexo.Api.Endpoints.V1.Identity;
 using EcuNexo.Api.Endpoints.V1.Inventory;
 using EcuNexo.Api.Endpoints.V1.Platform;
@@ -136,6 +137,7 @@ app.MapInventoryEndpointsV1();
 app.MapCustomerEndpointsV1();
 app.MapCustomerTypeEndpointsV1();
 app.MapRepairEndpointsV1();
+app.MapEcommerceOrderEndpointsV1();
 
 var migrateOnStartup = app.Configuration.GetValue(
     "Database:MigrateOnStartup",

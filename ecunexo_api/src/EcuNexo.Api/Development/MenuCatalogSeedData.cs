@@ -89,6 +89,10 @@ internal static class MenuCatalogSeedData
 
         ("customers.read", "Clientes — consultar", "Listar y consultar clientes del directorio", "customers", 130),
         ("customers.manage", "Clientes — administrar", "Crear, editar clientes y gestionar tipos de clasificación", "customers", 131),
+
+        ("ecommerce.orders.read", "Pedidos Ecommerce — consultar", "Listar y ver detalle de pedidos de la tienda online", "ecommerce", 140),
+        ("ecommerce.orders.create", "Pedidos Ecommerce — crear", "Registrar pedidos recibidos", "ecommerce", 141),
+        ("ecommerce.orders.manage", "Pedidos Ecommerce — gestionar", "Cambiar estados, despachar y cancelar pedidos", "ecommerce", 142),
     ];
 
     public static IReadOnlyList<(string Code, string DisplayName)> ProductModules =>
@@ -102,6 +106,7 @@ internal static class MenuCatalogSeedData
         ("contabilidad", "Contabilidad"),
         ("repairs", "Reparaciones"),
         ("customers", "Clientes"),
+        ("ecommerce", "Comercio Electrónico"),
     ];
 
     public static IReadOnlyList<MenuItem> MenuItems =>
@@ -135,6 +140,9 @@ internal static class MenuCatalogSeedData
         Item("repairs-batches", "repairs", "Lotes de Equipos", "layers", "taller/lotes", 1, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
         Item("repairs-dispatches", "repairs", "Actas y Despachos", "truck", "taller/despachos", 2, MenuContextKind.Operational, "repairs", ["repairs.dispatches.create", "repairs.batches.read"]),
         Item("repairs-portal", "repairs", "Portal Corporativo", "eye", "taller/portal", 3, MenuContextKind.Operational, "repairs", ["repairs.b2b.portal.view"]),
+
+        Item("ecommerce", null, "Ecommerce", "shopping-bag", null, 58, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
+        Item("ecommerce-orders", "ecommerce", "Pedidos", "shopping-bag", "ecommerce/pedidos", 1, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Comprobantes", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),

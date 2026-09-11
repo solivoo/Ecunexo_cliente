@@ -553,6 +553,350 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("customer_types", "repairs");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("BillingInvoiceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("billing_invoice_id");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cancellation_reason");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("CustomerNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("customer_notes");
+
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("delivered_at");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("discount_amount");
+
+                    b.Property<DateTimeOffset?>("EstimatedDeliveryDate")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("estimated_delivery_date");
+
+                    b.Property<string>("InternalNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("internal_notes");
+
+                    b.Property<DateTimeOffset>("OrderDate")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("order_date");
+
+                    b.Property<string>("OrderNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("order_number");
+
+                    b.Property<int>("PaymentMethod")
+                        .HasColumnType("integer")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("payment_reference");
+
+                    b.Property<int>("PaymentStatus")
+                        .HasColumnType("integer")
+                        .HasColumnName("payment_status");
+
+                    b.Property<DateTimeOffset?>("ShippedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("shipped_at");
+
+                    b.Property<decimal>("ShippingCost")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("shipping_cost");
+
+                    b.Property<int>("ShippingMethod")
+                        .HasColumnType("integer")
+                        .HasColumnName("shipping_method");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("subtotal");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax_amount");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Customer", "EcuNexo.Core.Ecommerce.EcommerceOrder.Customer#EcommerceCustomerInfo", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<string>("Address")
+                                .HasMaxLength(500)
+                                .HasColumnType("character varying(500)")
+                                .HasColumnName("customer_address");
+
+                            b1.Property<string>("CustomerName")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("customer_name");
+
+                            b1.Property<string>("Email")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("customer_email");
+
+                            b1.Property<string>("Phone")
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasColumnName("customer_phone");
+
+                            b1.Property<string>("TaxId")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)")
+                                .HasColumnName("customer_tax_id");
+
+                            b1.Property<string>("TaxIdType")
+                                .HasMaxLength(10)
+                                .HasColumnType("character varying(10)")
+                                .HasColumnName("customer_tax_id_type");
+                        });
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Shipping", "EcuNexo.Core.Ecommerce.EcommerceOrder.Shipping#EcommerceShippingInfo", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<string>("AddressLine1")
+                                .IsRequired()
+                                .HasMaxLength(300)
+                                .HasColumnType("character varying(300)")
+                                .HasColumnName("shipping_address_line1");
+
+                            b1.Property<string>("AddressLine2")
+                                .HasMaxLength(300)
+                                .HasColumnType("character varying(300)")
+                                .HasColumnName("shipping_address_line2");
+
+                            b1.Property<string>("Carrier")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("shipping_carrier");
+
+                            b1.Property<string>("City")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("shipping_city");
+
+                            b1.Property<string>("Notes")
+                                .HasMaxLength(500)
+                                .HasColumnType("character varying(500)")
+                                .HasColumnName("shipping_notes");
+
+                            b1.Property<string>("PostalCode")
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)")
+                                .HasColumnName("shipping_postal_code");
+
+                            b1.Property<string>("Province")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("shipping_province");
+
+                            b1.Property<string>("RecipientName")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("shipping_recipient_name");
+
+                            b1.Property<string>("RecipientPhone")
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasColumnName("shipping_recipient_phone");
+
+                            b1.Property<string>("TrackingNumber")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("shipping_tracking_number");
+                        });
+
+                    b.HasKey("Id")
+                        .HasName("pk_orders");
+
+                    b.HasIndex("WarehouseId")
+                        .HasDatabaseName("ix_orders_warehouse_id");
+
+                    b.HasIndex("TenantId", "BillingInvoiceId")
+                        .HasDatabaseName("ix_orders_tenant_id_billing_invoice_id");
+
+                    b.HasIndex("TenantId", "OrderDate")
+                        .HasDatabaseName("ix_orders_tenant_id_order_date");
+
+                    b.HasIndex("TenantId", "OrderNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_orders_tenant_id_order_number");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("ix_orders_tenant_id_status");
+
+                    b.ToTable("orders", "ecommerce");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceOrderItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("discount_amount");
+
+                    b.Property<Guid>("EcommerceOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ecommerce_order_id");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("item_name");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("sku");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax_amount");
+
+                    b.Property<decimal>("TaxRate")
+                        .HasColumnType("numeric(6,4)")
+                        .HasColumnName("tax_rate");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_price");
+
+                    b.HasKey("Id")
+                        .HasName("pk_order_items");
+
+                    b.HasIndex("CatalogItemId")
+                        .HasDatabaseName("ix_order_items_catalog_item_id");
+
+                    b.HasIndex("EcommerceOrderId")
+                        .HasDatabaseName("ix_order_items_ecommerce_order_id");
+
+                    b.ToTable("order_items", "ecommerce");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceOrderTimeline", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("EcommerceOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ecommerce_order_id");
+
+                    b.Property<int>("NewStatus")
+                        .HasColumnType("integer")
+                        .HasColumnName("new_status");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<int?>("PreviousStatus")
+                        .HasColumnType("integer")
+                        .HasColumnName("previous_status");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("user_name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_order_timelines");
+
+                    b.HasIndex("EcommerceOrderId")
+                        .HasDatabaseName("ix_order_timelines_ecommerce_order_id");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("ix_order_timelines_occurred_at");
+
+                    b.ToTable("order_timelines", "ecommerce");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Identity.Department", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1234,6 +1578,12 @@ namespace EcuNexo.Data.Migrations
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("quantity");
+
+                    b.Property<decimal>("ReservedQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("reserved_quantity");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
@@ -2667,6 +3017,58 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Customer");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceOrder", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_orders_tenants_tenant_id");
+
+                    b.HasOne("EcuNexo.Core.Warehousing.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_orders_warehouses_warehouse_id");
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceOrderItem", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Catalog.CatalogItem", "CatalogItem")
+                        .WithMany()
+                        .HasForeignKey("CatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_order_items_items_catalog_item_id");
+
+                    b.HasOne("EcuNexo.Core.Ecommerce.EcommerceOrder", "EcommerceOrder")
+                        .WithMany("Items")
+                        .HasForeignKey("EcommerceOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_order_items_orders_ecommerce_order_id");
+
+                    b.Navigation("CatalogItem");
+
+                    b.Navigation("EcommerceOrder");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceOrderTimeline", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Ecommerce.EcommerceOrder", null)
+                        .WithMany("Timeline")
+                        .HasForeignKey("EcommerceOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_order_timelines_orders_ecommerce_order_id");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Identity.Department", b =>
                 {
                     b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
@@ -3022,6 +3424,13 @@ namespace EcuNexo.Data.Migrations
             modelBuilder.Entity("EcuNexo.Core.Catalog.CatalogItem", b =>
                 {
                     b.Navigation("Images");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceOrder", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Timeline");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Identity.Permission", b =>

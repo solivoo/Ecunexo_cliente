@@ -62,6 +62,8 @@ import { WhirlpoolPortalPage } from '@/pages/repairs/WhirlpoolPortalPage'
 import RepairCustomersListPage from '@/pages/repairs/RepairCustomersListPage'
 import CustomerTypesListPage from '@/pages/customers/CustomerTypesListPage'
 import { PublicDispatchVerificationPage } from '@/pages/repairs/PublicDispatchVerificationPage'
+import { EcommerceOrdersListPage } from '@/pages/ecommerce/EcommerceOrdersListPage'
+import { EcommerceOrderDetailPage } from '@/pages/ecommerce/EcommerceOrderDetailPage'
 import { DashboardLayout } from '@/shell/DashboardLayout'
 
 const placeholder = (title: string): RouteObject => ({
@@ -140,6 +142,9 @@ export const routes: RouteObject[] = [
           { path: 'taller/clientes', element: <Navigate to="/clientes" replace /> },
           { path: 'clientes', element: <RepairCustomersListPage /> },
           { path: 'clientes/tipos', element: <CustomerTypesListPage /> },
+          { path: 'ecommerce', element: <Navigate to="/ecommerce/pedidos" replace /> },
+          { path: 'ecommerce/pedidos', element: <EcommerceOrdersListPage /> },
+          { path: 'ecommerce/pedidos/:orderId', element: <EcommerceOrderDetailPage /> },
           { path: 'compras/documentos', element: <ComprasDocumentosPage /> },
           { path: 'compras/retenciones', element: <ComprasDocumentosPage /> },
           { path: 'compras/liquidaciones', element: <ComprasDocumentosPage /> },

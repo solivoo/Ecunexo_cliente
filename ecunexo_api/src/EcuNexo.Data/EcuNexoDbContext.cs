@@ -1,6 +1,7 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Customers;
+using EcuNexo.Core.Ecommerce;
 using EcuNexo.Core.Identity;
 using EcuNexo.Core.Inventory;
 using EcuNexo.Core.Platform;
@@ -91,6 +92,12 @@ public sealed class EcuNexoDbContext : DbContext
     public DbSet<RepairDispatch> RepairDispatches => Set<RepairDispatch>();
 
     public DbSet<RepairDispatchItem> RepairDispatchItems => Set<RepairDispatchItem>();
+
+    public DbSet<EcommerceOrder> EcommerceOrders => Set<EcommerceOrder>();
+
+    public DbSet<EcommerceOrderItem> EcommerceOrderItems => Set<EcommerceOrderItem>();
+
+    public DbSet<EcommerceOrderTimeline> EcommerceOrderTimelines => Set<EcommerceOrderTimeline>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

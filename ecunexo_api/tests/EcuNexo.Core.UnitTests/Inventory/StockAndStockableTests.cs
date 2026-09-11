@@ -107,4 +107,95 @@ public sealed class StockAndStockableTests
         // Verificar
         stock.Quantity.Should().Be(6m);
     }
+
+    [Fact(DisplayName = "Reserve incrementa ReservedQuantity y reduce AvailableQuantity")]
+    public void Reserve_ValidQuantity_UpdatesReservedAndAvailable()
+    {
+        var stock = Stock.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7()).Value!;
+        stock.Increase(10m, null);
+
+        var result = stock.Reserve(4m, null);
+
+        result.IsSuccess.Should().BeTrue();
+        stock.Quantity.Should().Be(10m);
+        stock.ReservedQuantity.Should().Be(4m);
+        stock.AvailableQuantity.Should().Be(6m);
+    }
+
+    [Fact(DisplayName = "Reserve con cantidad mayor a AvailableQuantity falla con conflicto")]
+    public void Reserve_MoreThanAvailable_ReturnsConflict()
+    {
+        var stock = Stock.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7()).Value!;
+        stock.Increase(5m, null);
+        stock.Reserve(3m, null);
+
+        var result = stock.Reserve(3m, null); // Solo quedan 2 disponibles
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("inventory.stock.insufficient_available");
+        stock.ReservedQuantity.Should().Be(3m);
+    }
+
+    [Fact(DisplayName = "ReleaseReservation decrementa ReservedQuantity y restaura AvailableQuantity")]
+    public void ReleaseReservation_ValidQuantity_RestoresAvailable()
+    {
+        var stock = Stock.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7()).Value!;
+        stock.Increase(10m, null);
+        stock.Reserve(5m, null);
+
+        var result = stock.ReleaseReservation(3m, null);
+
+        result.IsSuccess.Should().BeTrue();
+        stock.ReservedQuantity.Should().Be(2m);
+        stock.AvailableQuantity.Should().Be(8m);
+    }
+
+    [Fact(DisplayName = "CommitReservation liquida la reserva descontando físico y reservado")]
+    public void CommitReservation_ValidQuantity_DecreasesBothQuantities()
+    {
+        var stock = Stock.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7()).Value!;
+        stock.Increase(10m, null);
+        stock.Reserve(4m, null);
+
+        var result = stock.CommitReservation(4m, null);
+
+        result.IsSuccess.Should().BeTrue();
+        stock.Quantity.Should().Be(6m);
+        stock.ReservedQuantity.Should().Be(0m);
+        stock.AvailableQuantity.Should().Be(6m);
+    }
+
+    [Fact(DisplayName = "Decrease falla si intenta egresar más allá del saldo disponible no reservado")]
+    public void Decrease_ExceedingAvailableStockDueToReservations_ReturnsConflict()
+    {
+        var stock = Stock.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7()).Value!;
+        stock.Increase(10m, null);
+        stock.Reserve(6m, null); // 4 disponibles
+
+        var result = stock.Decrease(5m, null);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("inventory.stock.reserved_conflict");
+        stock.Quantity.Should().Be(10m);
+    }
 }
