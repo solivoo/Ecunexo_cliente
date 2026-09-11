@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Button, Popup, Select, TextBox, useToast } from 'glubox'
+import { Button, OptionGroup, Popup, Select, TextBox, useToast } from 'glubox'
 import {
   EmptyState,
   PageHeader,
@@ -9,9 +9,13 @@ import {
   StatusBadge,
 } from '@/components/ui'
 import {
+  AlertCircle,
   ArrowLeft,
   Calendar,
   Camera,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Cpu,
   DollarSign,
@@ -19,15 +23,18 @@ import {
   Eye,
   Tag,
   Trash2,
+  Upload,
   Wrench,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
+import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { formatDate, formatDateTime } from '@/lib/formatDate'
 import { readApiError } from '@/lib/readApiError'
 import {
   deleteRepairEquipmentPhoto,
   getRepairEquipment,
+  listBatchEquipments,
   listEquipmentPhotos,
   updateEquipmentStatus,
   uploadRepairEquipmentPhoto,
@@ -45,8 +52,10 @@ import {
   repairEquipmentStatusBadgeTone,
   repairEquipmentStatusLabel,
   type RepairEquipmentDetailDto,
+  type RepairEquipmentDto,
   type RepairEquipmentPhotoDto,
 } from '@/types/repairsApi'
+import './repair-equipment-detail.css'
 
 export function RepairEquipmentDetailPage() {
   const { batchId, equipmentId } = useParams<{ batchId: string; equipmentId: string }>()
@@ -62,6 +71,8 @@ export function RepairEquipmentDetailPage() {
   const [equipment, setEquipment] = useState<RepairEquipmentDetailDto | null>(null)
   const [photos, setPhotos] = useState<RepairEquipmentPhotoDto[]>([])
   const [activePhotoTab, setActivePhotoTab] = useState<string>('all')
+  const [batchEquipments, setBatchEquipments] = useState<RepairEquipmentDto[]>([])
+  const size = useGluComponentSize()
 
   // Modals
   const [statusModalOpen, setStatusModalOpen] = useState(false)
@@ -79,9 +90,11 @@ export function RepairEquipmentDetailPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   // Lightbox
   const [lightboxPhoto, setLightboxPhoto] = useState<RepairEquipmentPhotoDto | null>(null)
+  const [lightboxRotation, setLightboxRotation] = useState<number>(0)
 
   const loadData = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -91,6 +104,14 @@ export function RepairEquipmentDetailPage() {
         const data = await getRepairEquipment(tenantId, equipmentId)
         setEquipment(data)
         setPhotos(data.photos || [])
+        if (data.batchId) {
+          try {
+            const list = await listBatchEquipments(tenantId, data.batchId)
+            setBatchEquipments(list)
+          } catch {
+            // Continúa con la ficha principal si la lista de lote falla
+          }
+        }
       } catch (err: unknown) {
         toast.show({
           title: 'Error al cargar equipo',
@@ -109,6 +130,69 @@ export function RepairEquipmentDetailPage() {
       void loadData()
     }
   }, [canRead, tenantId, equipmentId, loadData])
+
+  // Navegación secuencial por el lote
+  const currentIndex = useMemo(() => {
+    if (!equipment || !batchEquipments.length) return -1
+    return batchEquipments.findIndex((e) => e.id === equipment.id)
+  }, [equipment, batchEquipments])
+
+  const prevEquipment = useMemo(() => {
+    if (currentIndex <= 0) return null
+    return batchEquipments[currentIndex - 1]
+  }, [currentIndex, batchEquipments])
+
+  const nextEquipment = useMemo(() => {
+    if (currentIndex < 0 || currentIndex >= batchEquipments.length - 1) return null
+    return batchEquipments[currentIndex + 1]
+  }, [currentIndex, batchEquipments])
+
+  // Atajos de teclado para navegación (Alt + Izquierda / Alt + Derecha)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return
+      if (e.altKey && e.key === 'ArrowLeft' && prevEquipment && equipment?.batchId) {
+        navigate(`/taller/lotes/${equipment.batchId}/equipos/${prevEquipment.id}`)
+      } else if (e.altKey && e.key === 'ArrowRight' && nextEquipment && equipment?.batchId) {
+        navigate(`/taller/lotes/${equipment.batchId}/equipos/${nextEquipment.id}`)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [navigate, prevEquipment, nextEquipment, equipment?.batchId])
+
+  // Acción rápida contextual de 1-clic según la fase actual
+  const quickAction = useMemo(() => {
+    if (!equipment) return null
+    switch (equipment.status) {
+      case RepairEquipmentStatus.Received:
+        return {
+          label: 'Iniciar Diagnóstico',
+          icon: Wrench,
+          targetStatus: RepairEquipmentStatus.Diagnosing,
+        }
+      case RepairEquipmentStatus.Diagnosing:
+        return {
+          label: 'Pasar a Reparación',
+          icon: Wrench,
+          targetStatus: RepairEquipmentStatus.InRepair,
+        }
+      case RepairEquipmentStatus.InRepair:
+        return {
+          label: 'A Control de Calidad',
+          icon: CheckCircle2,
+          targetStatus: RepairEquipmentStatus.QualityCheck,
+        }
+      case RepairEquipmentStatus.QualityCheck:
+        return {
+          label: 'Aprobar QC & Listo',
+          icon: CheckCircle2,
+          targetStatus: RepairEquipmentStatus.ReadyToDispatch,
+        }
+      default:
+        return null
+    }
+  }, [equipment])
 
   // Custom attributes parsed
   const parsedCustomAttributes = useMemo(() => {
@@ -134,18 +218,20 @@ export function RepairEquipmentDetailPage() {
   }, [photos, activePhotoTab])
 
   // Abrir modal de cambio de estado
-  const handleOpenStatusModal = () => {
+  const handleOpenStatusModal = (preselectedStatus?: RepairEquipmentStatus) => {
     if (!equipment) return
     setTargetStatus(
-      equipment.status === RepairEquipmentStatus.Received
-        ? RepairEquipmentStatus.Diagnosing
-        : equipment.status === RepairEquipmentStatus.Diagnosing
-          ? RepairEquipmentStatus.InRepair
-          : equipment.status === RepairEquipmentStatus.InRepair
-            ? RepairEquipmentStatus.QualityCheck
-            : equipment.status === RepairEquipmentStatus.QualityCheck
-              ? RepairEquipmentStatus.ReadyToDispatch
-              : equipment.status
+      preselectedStatus !== undefined
+        ? preselectedStatus
+        : equipment.status === RepairEquipmentStatus.Received
+          ? RepairEquipmentStatus.Diagnosing
+          : equipment.status === RepairEquipmentStatus.Diagnosing
+            ? RepairEquipmentStatus.InRepair
+            : equipment.status === RepairEquipmentStatus.InRepair
+              ? RepairEquipmentStatus.QualityCheck
+              : equipment.status === RepairEquipmentStatus.QualityCheck
+                ? RepairEquipmentStatus.ReadyToDispatch
+                : equipment.status
     )
     setStatusNotes('')
     setConfirmedDamage(equipment.damageLevel)
@@ -197,6 +283,45 @@ export function RepairEquipmentDetailPage() {
         variant: 'error',
       })
       e.target.value = ''
+      return
+    }
+
+    setSelectedFile(file)
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      toast.show({
+        title: 'Formato no soportado',
+        message: 'Por favor arrastre un archivo de imagen (JPG, PNG, WebP).',
+        variant: 'error',
+      })
+      return
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      toast.show({
+        title: 'Archivo muy pesado',
+        message: 'La imagen no debe superar los 15 MB.',
+        variant: 'error',
+      })
       return
     }
 
@@ -291,36 +416,43 @@ export function RepairEquipmentDetailPage() {
 
   if (loading && !equipment) {
     return (
-      <div className="p-6 space-y-6 max-w-7xl mx-auto animate-pulse">
-        <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded w-1/3" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="h-28 bg-slate-200 dark:bg-slate-800 rounded-xl" />
-          <div className="h-28 bg-slate-200 dark:bg-slate-800 rounded-xl" />
-          <div className="h-28 bg-slate-200 dark:bg-slate-800 rounded-xl" />
-          <div className="h-28 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+      <TenantSessionGate
+        title="Ficha del Equipo"
+        lead="Gestión operativa, trazabilidad y evidencias fotográficas."
+      >
+        <div className="ecu-dashboard-layout">
+          <SectionCard title="Cargando equipo…">
+            <p className="app-shell__muted" style={{ margin: 0 }}>
+              Recuperando información técnica y evidencias fotográficas…
+            </p>
+          </SectionCard>
         </div>
-        <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-xl" />
-      </div>
+      </TenantSessionGate>
     )
   }
 
   if (!equipment) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <EmptyState
-          title="Equipo no encontrado"
-          description="El electrodoméstico o equipo solicitado no existe o fue removido."
-          action={
-            <Button
-              variant="secondary"
-              onClick={() => navigate(batchId ? `/taller/lotes/${batchId}` : '/taller/lotes')}
-            >
-              <ArrowLeft size={16} className="mr-1.5" />
-              Volver al lote
-            </Button>
-          }
-        />
-      </div>
+      <TenantSessionGate
+        title="Ficha del Equipo"
+        lead="Gestión operativa, trazabilidad y evidencias fotográficas."
+      >
+        <div className="ecu-dashboard-layout">
+          <EmptyState
+            title="Equipo no encontrado"
+            description="El electrodoméstico o equipo solicitado no existe o fue removido."
+            action={
+              <Button
+                variant="secondary"
+                onClick={() => navigate(batchId ? `/taller/lotes/${batchId}` : '/taller/lotes')}
+              >
+                <ArrowLeft size={16} className="mr-1.5" />
+                Volver al lote
+              </Button>
+            }
+          />
+        </div>
+      </TenantSessionGate>
     )
   }
 
@@ -332,6 +464,21 @@ export function RepairEquipmentDetailPage() {
       lead="Gestión operativa, trazabilidad y evidencias fotográficas."
     >
       <div className="ecu-dashboard-layout">
+        {/* Breadcrumb de Navegación Jerárquica */}
+        <nav className="ecu-breadcrumb" aria-label="Navegación jerárquica">
+          <Link to="/taller/lotes" className="ecu-breadcrumb__item">
+            Lotes de Reparación
+          </Link>
+          <ChevronRight size={13} className="ecu-breadcrumb__sep" aria-hidden />
+          <Link to={`/taller/lotes/${equipment.batchId}`} className="ecu-breadcrumb__item">
+            {equipment.batchNumber ? `Lote #${equipment.batchNumber}` : 'Lote'}
+          </Link>
+          <ChevronRight size={13} className="ecu-breadcrumb__sep" aria-hidden />
+          <span className="ecu-breadcrumb__current font-mono">
+            {equipment.serialNumber}
+          </span>
+        </nav>
+
         {/* Header Principal */}
         <PageHeader
           title={`Equipo: ${equipment.serialNumber}`}
@@ -339,7 +486,7 @@ export function RepairEquipmentDetailPage() {
             equipment.productLine ? `· Línea ${equipment.productLine}` : ''
           }`}
           badge={
-            <div className="flex flex-wrap items-center gap-2">
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
               <StatusBadge
                 tone={repairEquipmentStatusBadgeTone(equipment.status)}
                 withDot={!isCancelled}
@@ -357,7 +504,7 @@ export function RepairEquipmentDetailPage() {
             </div>
           }
           actions={
-            <div className="flex flex-wrap items-center gap-2">
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
               <Button
                 variant="secondary"
                 onClick={() => navigate(`/taller/lotes/${equipment.batchId}`)}
@@ -367,14 +514,37 @@ export function RepairEquipmentDetailPage() {
                 Volver al Lote
               </Button>
 
-              {canUpdateStatus && !isCancelled && (
+              {canUpdateStatus && !isCancelled && quickAction && (
                 <Button
                   variant="primary"
-                  onClick={handleOpenStatusModal}
+                  onClick={() => handleOpenStatusModal(quickAction.targetStatus)}
+                  title={`Avanzar a ${repairEquipmentStatusLabel(quickAction.targetStatus)}`}
+                >
+                  <quickAction.icon size={16} className="mr-1.5" />
+                  {quickAction.label}
+                </Button>
+              )}
+
+              {canUpdateStatus && !isCancelled && equipment.status === RepairEquipmentStatus.QualityCheck && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleOpenStatusModal(RepairEquipmentStatus.InRepair)}
+                  style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#dc2626' }}
+                  title="Rechazar control de calidad y devolver a reparación"
+                >
+                  <AlertCircle size={16} className="mr-1.5" />
+                  Rechazar QC
+                </Button>
+              )}
+
+              {canUpdateStatus && !isCancelled && (
+                <Button
+                  variant={quickAction ? 'outline' : 'primary'}
+                  onClick={() => handleOpenStatusModal()}
                   title="Cambiar fase operativa o registrar notas técnicas"
                 >
                   <Wrench size={16} className="mr-1.5" />
-                  Actualizar Estado
+                  {quickAction ? 'Otras opciones...' : 'Actualizar Estado'}
                 </Button>
               )}
 
@@ -397,19 +567,55 @@ export function RepairEquipmentDetailPage() {
           }
         />
 
-        {/* KPI StatCards */}
+        {/* Barra de Navegación Secuencial de Equipos («Anterior / Siguiente») */}
+        {batchEquipments.length > 0 && (
+          <div className="ecu-equipment-nav-strip" aria-label="Navegación secuencial por el lote">
+            <div className="ecu-equipment-nav-strip__info">
+              <span className="ecu-equipment-nav-strip__badge">
+                {currentIndex >= 0 ? `Equipo ${currentIndex + 1} de ${batchEquipments.length}` : 'Equipos del lote'}
+              </span>
+              <span>
+                en {equipment.batchNumber ? `Lote #${equipment.batchNumber}` : 'Lote'} · Usa <kbd style={{ padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'var(--glb-surface-muted)', border: '1px solid var(--shell-border)', fontSize: '0.7rem' }}>Alt + ◄</kbd> / <kbd style={{ padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'var(--glb-surface-muted)', border: '1px solid var(--shell-border)', fontSize: '0.7rem' }}>Alt + ►</kbd> para alternar
+              </span>
+            </div>
+            <div className="ecu-equipment-nav-strip__controls">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!prevEquipment}
+                onClick={() => prevEquipment && navigate(`/taller/lotes/${equipment.batchId}/equipos/${prevEquipment.id}`)}
+                title={prevEquipment ? `Anterior: Serie ${prevEquipment.serialNumber}` : 'Primer equipo del lote'}
+              >
+                <ChevronLeft size={14} className="mr-1" />
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!nextEquipment}
+                onClick={() => nextEquipment && navigate(`/taller/lotes/${equipment.batchId}/equipos/${nextEquipment.id}`)}
+                title={nextEquipment ? `Siguiente: Serie ${nextEquipment.serialNumber}` : 'Último equipo del lote'}
+              >
+                Siguiente
+                <ChevronRight size={14} className="ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Tira de Métricas KPI */}
         <div className="ecu-stat-grid">
           <StatCard
             label="Identificación"
             value={equipment.serialNumber}
             footerText={`${equipment.brand} - ${equipment.model}`}
-            icon={<Cpu size={22} className="text-blue-500" />}
+            icon={<Cpu size={22} color="#3b82f6" />}
           />
           <StatCard
             label="Fase Operativa"
             value={repairEquipmentStatusLabel(equipment.status)}
             footerText={equipment.updatedAt ? `Act.: ${formatDate(equipment.updatedAt)}` : 'Sin cambios'}
-            icon={<Wrench size={22} className="text-amber-500" />}
+            icon={<Wrench size={22} color="#f59e0b" />}
           />
           <StatCard
             label="Nivel & Tarifa"
@@ -419,94 +625,84 @@ export function RepairEquipmentDetailPage() {
                 ? `Tarifa: $${equipment.serviceFeeApplied.toFixed(2)}`
                 : 'Tarifa pendiente'
             }
-            icon={<DollarSign size={22} className="text-emerald-500" />}
+            icon={<DollarSign size={22} color="#10b981" />}
           />
           <StatCard
             label="Evidencias S3"
             value={`${photos.length} ${photos.length === 1 ? 'foto' : 'fotos'}`}
             footerText="Cloud Storage B2"
-            icon={<Camera size={22} className="text-purple-500" />}
+            icon={<Camera size={22} color="#a855f7" />}
           />
         </div>
 
-        {/* Grid de 2 Columnas: Ficha Técnica & Auditoría */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Columna Izquierda (2 cols): Datos Técnicos y Fases */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Ficha Técnica */}
+        {/* Cuadrícula de 2 Columnas: Ficha Técnica (Izq) + Trazabilidad (Der) */}
+        <div className="ecu-equipment-detail__layout">
+          {/* Columna Izquierda: Ficha y Fases */}
+          <div className="ecu-equipment-detail__main">
+            {/* Especificaciones y Datos de Entrada */}
             <SectionCard
               title="Especificaciones & Datos de Entrada"
               subtitle="Información de origen proporcionada en el manifiesto o plantilla Excel del lote."
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                <div className="p-3.5 rounded-lg bg-[var(--glb-surface-muted)] border border-[var(--shell-border)]">
-                  <span className="text-xs font-medium text-[var(--glb-muted)] block mb-1">
-                    Número de Serie
-                  </span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-100 select-all">
+              <div className="ecu-equipment-spec-grid">
+                <div className="ecu-equipment-spec-tile">
+                  <span className="ecu-equipment-spec-tile__label">Número de Serie</span>
+                  <span className="ecu-equipment-spec-tile__value ecu-equipment-spec-tile__value--mono">
                     {equipment.serialNumber}
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-[var(--glb-surface-muted)] border border-[var(--shell-border)]">
-                  <span className="text-xs font-medium text-[var(--glb-muted)] block mb-1">Marca</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-100">
-                    {equipment.brand}
-                  </span>
+                <div className="ecu-equipment-spec-tile">
+                  <span className="ecu-equipment-spec-tile__label">Marca</span>
+                  <span className="ecu-equipment-spec-tile__value">{equipment.brand}</span>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-[var(--glb-surface-muted)] border border-[var(--shell-border)]">
-                  <span className="text-xs font-medium text-[var(--glb-muted)] block mb-1">Modelo</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-100">
-                    {equipment.model}
-                  </span>
+                <div className="ecu-equipment-spec-tile">
+                  <span className="ecu-equipment-spec-tile__label">Modelo</span>
+                  <span className="ecu-equipment-spec-tile__value">{equipment.model}</span>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-[var(--glb-surface-muted)] border border-[var(--shell-border)]">
-                  <span className="text-xs font-medium text-[var(--glb-muted)] block mb-1">
-                    Línea de Producto
-                  </span>
-                  <span className="text-slate-800 dark:text-slate-200">
+                <div className="ecu-equipment-spec-tile">
+                  <span className="ecu-equipment-spec-tile__label">Línea de Producto</span>
+                  <span className="ecu-equipment-spec-tile__value">
                     {equipment.productLine || 'General / No especificada'}
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-[var(--glb-surface-muted)] border border-[var(--shell-border)]">
-                  <span className="text-xs font-medium text-[var(--glb-muted)] block mb-1">Lote Padre</span>
+                <div className="ecu-equipment-spec-tile">
+                  <span className="ecu-equipment-spec-tile__label">Lote Padre</span>
                   <Link
                     to={`/taller/lotes/${equipment.batchId}`}
-                    className="font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                    className="ecu-equipment-spec-tile__link"
+                    title="Ver lote de origen"
                   >
                     <span>{equipment.batchNumber ? `#${equipment.batchNumber}` : 'Ver Lote'}</span>
-                    <ExternalLink size={12} />
+                    <ExternalLink size={13} />
                   </Link>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-[var(--glb-surface-muted)] border border-[var(--shell-border)]">
-                  <span className="text-xs font-medium text-[var(--glb-muted)] block mb-1">Cliente B2B</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">
+                <div className="ecu-equipment-spec-tile">
+                  <span className="ecu-equipment-spec-tile__label">Cliente B2B</span>
+                  <span className="ecu-equipment-spec-tile__value">
                     {equipment.customerName || 'No asignado'}
                   </span>
                 </div>
               </div>
 
-              {/* Atributos Personalizados si existen */}
+              {/* Atributos Adicionales de la Plantilla */}
               {parsedCustomAttributes.length > 0 && (
-                <div className="mt-5 pt-4 border-t border-[var(--shell-border)]">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--glb-muted)] mb-3 flex items-center gap-1.5">
+                <div className="ecu-equipment-custom-attrs">
+                  <div className="ecu-equipment-custom-attrs__title">
                     <Tag size={13} />
-                    Atributos Adicionales de la Plantilla
-                  </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <span>Atributos Adicionales de la Plantilla</span>
+                  </div>
+                  <div className="ecu-equipment-custom-attrs__grid">
                     {parsedCustomAttributes.map(([key, value]) => (
-                      <div
-                        key={key}
-                        className="px-3 py-2 rounded-md bg-[var(--glb-surface)] border border-[var(--shell-border)] text-xs"
-                      >
-                        <span className="text-[var(--glb-muted)] block font-medium capitalize">
-                          {key.replace(/_/g, ' ')}:
+                      <div key={key} className="ecu-equipment-custom-attr-chip">
+                        <span className="ecu-equipment-custom-attr-chip__key">
+                          {key.replace(/_/g, ' ')}
                         </span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-100">
+                        <span className="ecu-equipment-custom-attr-chip__val">
                           {String(value)}
                         </span>
                       </div>
@@ -521,78 +717,81 @@ export function RepairEquipmentDetailPage() {
               title="Diagnóstico, Reparación & Control de Calidad"
               subtitle="Notas técnicas registradas por el personal operativo a lo largo del flujo de trabajo."
             >
-              <div className="space-y-4">
+              <div className="ecu-equipment-phases">
                 {/* Diagnóstico */}
-                <div className="p-4 rounded-xl border border-[var(--shell-border)] bg-[var(--glb-surface-muted)]/50">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                      <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100">
-                        Diagnóstico Técnico
-                      </h4>
+                <div className="ecu-equipment-phase-card">
+                  <div className="ecu-equipment-phase-card__header">
+                    <div className="ecu-equipment-phase-card__title-group">
+                      <span className="ecu-equipment-phase-card__indicator ecu-equipment-phase-card__indicator--diag" />
+                      <h4 className="ecu-equipment-phase-card__title">Diagnóstico Técnico</h4>
                     </div>
-                    <span className="text-xs text-[var(--glb-muted)]">
+                    <span className="ecu-equipment-phase-card__date">
+                      <Clock size={12} />
                       {equipment.diagnosedAt ? formatDateTime(equipment.diagnosedAt) : 'No diagnosticado aún'}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line bg-[var(--glb-surface)] p-3 rounded-lg border border-[var(--shell-border)]">
+                  <p
+                    className={`ecu-equipment-phase-card__notes ${
+                      !equipment.diagnosticNotes ? 'ecu-equipment-phase-card__notes--empty' : ''
+                    }`}
+                  >
                     {equipment.diagnosticNotes || 'Sin notas de diagnóstico registradas.'}
                   </p>
                 </div>
 
                 {/* Reparación */}
-                <div className="p-4 rounded-xl border border-[var(--shell-border)] bg-[var(--glb-surface-muted)]/50">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                      <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100">
-                        Trabajo de Reparación
-                      </h4>
+                <div className="ecu-equipment-phase-card">
+                  <div className="ecu-equipment-phase-card__header">
+                    <div className="ecu-equipment-phase-card__title-group">
+                      <span className="ecu-equipment-phase-card__indicator ecu-equipment-phase-card__indicator--repair" />
+                      <h4 className="ecu-equipment-phase-card__title">Trabajo de Reparación</h4>
                     </div>
-                    <span className="text-xs text-[var(--glb-muted)]">
+                    <span className="ecu-equipment-phase-card__date">
+                      <Clock size={12} />
                       {equipment.repairedAt ? formatDateTime(equipment.repairedAt) : 'Reparación pendiente'}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line bg-[var(--glb-surface)] p-3 rounded-lg border border-[var(--shell-border)]">
+                  <p
+                    className={`ecu-equipment-phase-card__notes ${
+                      !equipment.repairNotes ? 'ecu-equipment-phase-card__notes--empty' : ''
+                    }`}
+                  >
                     {equipment.repairNotes || 'Sin notas de reparación registradas.'}
                   </p>
                 </div>
 
                 {/* Control de Calidad */}
-                <div className="p-4 rounded-xl border border-[var(--shell-border)] bg-[var(--glb-surface-muted)]/50">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-2.5 h-2.5 rounded-full ${
+                <div className="ecu-equipment-phase-card">
+                  <div className="ecu-equipment-phase-card__header">
+                    <div className="ecu-equipment-phase-card__title-group">
+                      <span
+                        className={`ecu-equipment-phase-card__indicator ${
                           equipment.passedQualityCheck === true
-                            ? 'bg-emerald-500'
+                            ? 'ecu-equipment-phase-card__indicator--qc-ok'
                             : equipment.passedQualityCheck === false
-                              ? 'bg-rose-500'
-                              : 'bg-slate-400'
+                              ? 'ecu-equipment-phase-card__indicator--qc-fail'
+                              : 'ecu-equipment-phase-card__indicator--qc-none'
                         }`}
                       />
-                      <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100">
-                        Control de Calidad (QC)
-                      </h4>
+                      <h4 className="ecu-equipment-phase-card__title">Control de Calidad (QC)</h4>
                       {equipment.passedQualityCheck !== null && (
-                        <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded-md ${
-                            equipment.passedQualityCheck
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                          }`}
-                        >
+                        <StatusBadge tone={equipment.passedQualityCheck ? 'success' : 'danger'}>
                           {equipment.passedQualityCheck ? 'Aprobado' : 'Rechazado'}
-                        </span>
+                        </StatusBadge>
                       )}
                     </div>
-                    <span className="text-xs text-[var(--glb-muted)]">
+                    <span className="ecu-equipment-phase-card__date">
+                      <Clock size={12} />
                       {equipment.qualityCheckedAt
                         ? formatDateTime(equipment.qualityCheckedAt)
                         : 'QC pendiente'}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line bg-[var(--glb-surface)] p-3 rounded-lg border border-[var(--shell-border)]">
+                  <p
+                    className={`ecu-equipment-phase-card__notes ${
+                      !equipment.qualityCheckNotes ? 'ecu-equipment-phase-card__notes--empty' : ''
+                    }`}
+                  >
                     {equipment.qualityCheckNotes || 'Sin notas de control de calidad registradas.'}
                   </p>
                 </div>
@@ -600,25 +799,25 @@ export function RepairEquipmentDetailPage() {
             </SectionCard>
           </div>
 
-          {/* Columna Derecha (1 col): Historial de Auditoría / Timeline */}
-          <div className="space-y-6">
+          {/* Columna Derecha: Trazabilidad & Eventos */}
+          <div className="ecu-equipment-detail__aside">
             <SectionCard
               title="Trazabilidad & Eventos"
               subtitle="Historial inmutable de cambios de estado y acciones técnicas."
             >
               {equipment.events && equipment.events.length > 0 ? (
-                <div className="relative pl-6 space-y-6 before:content-[''] before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[var(--shell-border)]">
+                <div className="ecu-equipment-timeline">
                   {equipment.events.map((ev) => (
-                    <div key={ev.id} className="relative group">
-                      <div className="absolute -left-6 top-1.5 w-3 h-3 rounded-full border-2 border-[var(--glb-surface)] bg-blue-500 shadow-sm" />
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                    <div key={ev.id} className="ecu-equipment-timeline__item">
+                      <div className="ecu-equipment-timeline__dot" />
+                      <div className="ecu-equipment-timeline__content">
+                        <div className="ecu-equipment-timeline__badges">
                           {ev.fromStatus !== null && ev.fromStatus !== undefined ? (
                             <>
                               <StatusBadge tone={repairEquipmentStatusBadgeTone(ev.fromStatus)}>
                                 {repairEquipmentStatusLabel(ev.fromStatus)}
                               </StatusBadge>
-                              <span className="text-xs text-[var(--glb-muted)]">➔</span>
+                              <span className="ecu-equipment-timeline__arrow">➔</span>
                             </>
                           ) : null}
                           {ev.toStatus !== null && ev.toStatus !== undefined ? (
@@ -628,13 +827,13 @@ export function RepairEquipmentDetailPage() {
                           ) : null}
                         </div>
 
-                        <div className="text-xs text-[var(--glb-muted)] flex items-center gap-1">
+                        <div className="ecu-equipment-timeline__meta">
                           <Clock size={11} />
                           <span>{formatDateTime(ev.occurredAt || ev.createdAt)}</span>
                         </div>
 
                         {(ev.note || ev.notes) && (
-                          <p className="text-xs text-slate-700 dark:text-slate-300 bg-[var(--glb-surface-muted)] p-2 rounded border border-[var(--shell-border)] mt-1">
+                          <p className="ecu-equipment-timeline__note">
                             {ev.note || ev.notes}
                           </p>
                         )}
@@ -643,7 +842,7 @@ export function RepairEquipmentDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-[var(--glb-muted)] italic text-center py-4">
+                <p className="app-shell__muted" style={{ margin: 0, textAlign: 'center', padding: '1.5rem 0' }}>
                   No hay transiciones de estado registradas aún.
                 </p>
               )}
@@ -673,126 +872,100 @@ export function RepairEquipmentDetailPage() {
             ) : undefined
           }
         >
-          {/* Pestañas de filtrado por etapa */}
-          <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-[var(--shell-border)] pb-3">
-            <button
-              type="button"
-              onClick={() => setActivePhotoTab('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                activePhotoTab === 'all'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-[var(--glb-surface-muted)] text-[var(--glb-text)] hover:bg-[var(--shell-border)]'
-              }`}
-            >
-              Todas ({photos.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActivePhotoTab(String(PhotoStage.DamageInitial))}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                activePhotoTab === String(PhotoStage.DamageInitial)
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-[var(--glb-surface-muted)] text-[var(--glb-text)] hover:bg-[var(--shell-border)]'
-              }`}
-            >
-              Recepción Inicial (
-              {photos.filter((p) => p.stage === PhotoStage.DamageInitial).length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActivePhotoTab(String(PhotoStage.InRepair))}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                activePhotoTab === String(PhotoStage.InRepair)
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-[var(--glb-surface-muted)] text-[var(--glb-text)] hover:bg-[var(--shell-border)]'
-              }`}
-            >
-              En Reparación ({photos.filter((p) => p.stage === PhotoStage.InRepair).length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActivePhotoTab(String(PhotoStage.QualityFinal))}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                activePhotoTab === String(PhotoStage.QualityFinal)
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-[var(--glb-surface-muted)] text-[var(--glb-text)] hover:bg-[var(--shell-border)]'
-              }`}
-            >
-              Control Final ({photos.filter((p) => p.stage === PhotoStage.QualityFinal).length})
-            </button>
+          {/* Pestañas de filtrado por etapa con OptionGroup oficial de Glubox */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <OptionGroup
+              id="equipment-photos-tab"
+              name="equipment-photos-tab"
+              layout="segmented"
+              variant="outline"
+              size={size}
+              value={activePhotoTab}
+              onChange={setActivePhotoTab}
+              options={[
+                { value: 'all', label: `Todas (${photos.length})` },
+                {
+                  value: String(PhotoStage.DamageInitial),
+                  label: `Recepción Inicial (${photos.filter((p) => p.stage === PhotoStage.DamageInitial).length})`,
+                },
+                {
+                  value: String(PhotoStage.InRepair),
+                  label: `En Proceso (${photos.filter((p) => p.stage === PhotoStage.InRepair).length})`,
+                },
+                {
+                  value: String(PhotoStage.QualityFinal),
+                  label: `Calidad Final (${photos.filter((p) => p.stage === PhotoStage.QualityFinal).length})`,
+                },
+              ]}
+            />
           </div>
 
           {/* Rejilla de fotos */}
           {filteredPhotos.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="ecu-equipment-photo-grid">
               {filteredPhotos.map((photo) => (
-                <div
-                  key={photo.id}
-                  className="group relative rounded-xl overflow-hidden border border-[var(--shell-border)] bg-[var(--glb-surface)] shadow-xs transition-all hover:shadow-md flex flex-col"
-                >
-                  {/* Imagen */}
+                <div key={photo.id} className="ecu-equipment-photo-card">
+                  {/* Imagen Thumbnail */}
                   <div
-                    className="relative aspect-video bg-slate-100 dark:bg-slate-900 cursor-pointer overflow-hidden"
+                    className="ecu-equipment-photo-card__thumb"
                     onClick={() => setLightboxPhoto(photo)}
                   >
                     <img
                       src={photo.downloadUrl}
                       alt={photo.caption || photo.fileName}
                       loading="lazy"
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      className="ecu-equipment-photo-card__img"
                     />
-                    {/* Badge de etapa sobre la imagen */}
-                    <div className="absolute top-2 left-2">
+                    <div className="ecu-equipment-photo-card__badge">
                       <StatusBadge tone={photoStageBadgeTone(photo.stage)}>
                         {photoStageLabel(photo.stage)}
                       </StatusBadge>
                     </div>
-                    {/* Hover overlay para ver zoom */}
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-white bg-black/60 px-2.5 py-1 rounded-full backdrop-blur-xs">
+                    <div className="ecu-equipment-photo-card__overlay">
+                      <span className="ecu-equipment-photo-card__zoom-pill">
                         <Eye size={13} />
                         Ver imagen
                       </span>
                     </div>
                   </div>
 
-                  {/* Info y Acciones al pie */}
-                  <div className="p-3 flex-1 flex flex-col justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-slate-800 dark:text-slate-100 line-clamp-2">
-                        {photo.caption || (
-                          <span className="italic text-[var(--glb-muted)] font-normal">
-                            Sin descripción
-                          </span>
-                        )}
-                      </p>
-                      <div className="text-[11px] text-[var(--glb-muted)] mt-1.5 flex items-center gap-1">
+                  {/* Pie de foto e info */}
+                  <div className="ecu-equipment-photo-card__body">
+                    <p
+                      className={`ecu-equipment-photo-card__caption ${
+                        !photo.caption ? 'ecu-equipment-photo-card__caption--empty' : ''
+                      }`}
+                    >
+                      {photo.caption || 'Sin descripción'}
+                    </p>
+
+                    <div className="ecu-equipment-photo-card__footer">
+                      <span className="ecu-equipment-photo-card__date">
                         <Calendar size={11} />
-                        <span>{formatDate(photo.capturedAt)}</span>
-                      </div>
-                    </div>
+                        {formatDate(photo.capturedAt)}
+                      </span>
 
-                    <div className="mt-3 pt-2 border-t border-[var(--shell-border)] flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => setLightboxPhoto(photo)}
-                        className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <Eye size={12} />
-                        Ampliar
-                      </button>
-
-                      {canUploadPhoto && !isCancelled && (
+                      <div className="ecu-equipment-photo-card__actions">
                         <button
                           type="button"
-                          onClick={() => void handleDeletePhoto(photo.id)}
-                          disabled={deletingPhotoId === photo.id}
-                          className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                          title="Eliminar evidencia"
+                          onClick={() => setLightboxPhoto(photo)}
+                          className="ecu-equipment-photo-card__action-btn"
+                          title="Ampliar imagen"
                         >
-                          <Trash2 size={13} />
+                          <Eye size={13} />
                         </button>
-                      )}
+                        {canUploadPhoto && !isCancelled && (
+                          <button
+                            type="button"
+                            onClick={() => void handleDeletePhoto(photo.id)}
+                            disabled={deletingPhotoId === photo.id}
+                            className="ecu-equipment-photo-card__action-btn ecu-equipment-photo-card__action-btn--delete"
+                            title="Eliminar evidencia"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -847,8 +1020,8 @@ export function RepairEquipmentDetailPage() {
             },
           ]}
         >
-          <div className="space-y-4 p-2">
-            <div>
+          <div className="ecu-modal-form">
+            <div className="ecu-modal-form__field">
               <Select
                 id="target-status-select"
                 label="Nueva Fase Técnica / Estado *"
@@ -869,7 +1042,7 @@ export function RepairEquipmentDetailPage() {
               />
             </div>
 
-            <div>
+            <div className="ecu-modal-form__field">
               <Select
                 id="confirmed-damage-select"
                 label="Confirmar o Rectificar Nivel de Daño *"
@@ -886,7 +1059,7 @@ export function RepairEquipmentDetailPage() {
               />
             </div>
 
-            <div>
+            <div className="ecu-modal-form__field">
               <TextBox
                 id="service-fee-input"
                 label="Tarifa de Facturación Aplicada ($ USD)"
@@ -898,17 +1071,27 @@ export function RepairEquipmentDetailPage() {
                 placeholder="Ej. 45.00 (opcional o según contrato)"
                 fullWidth
               />
-              <span className="text-[11px] text-[var(--glb-muted)] mt-1 block">
+              <span className="ecu-modal-form__hint" style={{ marginTop: '0.35rem', display: 'block' }}>
                 Requerida para poder incluir este equipo en un acta de despacho exitosa.
               </span>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <div className="ecu-modal-form__field">
+              <label className="ecu-modal-form__label" style={{ display: 'block', marginBottom: '0.4rem' }}>
                 Observaciones / Notas Técnicas
               </label>
               <textarea
-                className="w-full text-xs p-2.5 rounded-lg border border-[var(--shell-border)] bg-[var(--glb-surface)] text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-1 focus:ring-blue-500 min-h-[90px]"
+                className="glb-textbox__input"
+                style={{
+                  width: '100%',
+                  minHeight: '80px',
+                  padding: '0.65rem',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--shell-border)',
+                  background: 'var(--glb-surface)',
+                  color: 'var(--shell-text)',
+                  boxSizing: 'border-box',
+                }}
                 placeholder="Describa el trabajo realizado, piezas reemplazadas o dictamen del QC..."
                 value={statusNotes}
                 onChange={(e) => setStatusNotes(e.target.value)}
@@ -941,8 +1124,8 @@ export function RepairEquipmentDetailPage() {
             },
           ]}
         >
-          <div className="space-y-4 p-2">
-            <div>
+          <div className="ecu-modal-form">
+            <div className="ecu-modal-form__field">
               <Select
                 id="upload-stage-select"
                 label="Etapa de la Fotografía *"
@@ -959,7 +1142,7 @@ export function RepairEquipmentDetailPage() {
               />
             </div>
 
-            <div>
+            <div className="ecu-modal-form__field">
               <TextBox
                 id="upload-caption-input"
                 label="Descripción o Pie de Foto (Opcional)"
@@ -972,21 +1155,75 @@ export function RepairEquipmentDetailPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Seleccionar Archivo de Imagen (JPG, PNG, WebP)
+            <div className="ecu-modal-form__field">
+              <label className="ecu-modal-form__label" style={{ display: 'block', marginBottom: '0.4rem' }}>
+                Archivo de Imagen (Evidencia)
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="block w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-950 dark:file:text-blue-300 cursor-pointer border border-[var(--shell-border)] rounded-lg p-1.5"
-              />
+
+              {/* Zona Drag & Drop interactiva */}
+              <div
+                className={`ecu-equipment-dropzone ${isDragging ? 'ecu-equipment-dropzone--active' : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById('equipment-file-input')?.click()}
+              >
+                <input
+                  id="equipment-file-input"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
+                <Upload size={26} className="ecu-equipment-dropzone__icon" aria-hidden />
+                <p className="ecu-equipment-dropzone__title">
+                  {selectedFile ? selectedFile.name : 'Arrastra una fotografía o haz clic para explorar'}
+                </p>
+                <p className="ecu-equipment-dropzone__hint">
+                  JPG, PNG o WebP hasta 15 MB · Optimización Full HD en Backblaze B2
+                </p>
+              </div>
+
+              {/* Botón de captura rápida con cámara móvil / tablet */}
+              <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                <input
+                  id="equipment-camera-input"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('equipment-camera-input')?.click()}
+                >
+                  <Camera size={14} className="mr-1" />
+                  Tomar con cámara
+                </Button>
+              </div>
             </div>
 
             {previewUrl && (
-              <div className="rounded-lg overflow-hidden border border-[var(--shell-border)] max-h-48 bg-slate-900 flex items-center justify-center">
-                <img src={previewUrl} alt="Vista previa" className="max-h-48 object-contain" />
+              <div
+                style={{
+                  borderRadius: '0.5rem',
+                  overflow: 'hidden',
+                  border: '1px solid var(--shell-border)',
+                  maxHeight: '12rem',
+                  background: '#0f172a',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <img
+                  src={previewUrl}
+                  alt="Vista previa"
+                  style={{ maxHeight: '12rem', objectFit: 'contain' }}
+                />
               </div>
             )}
           </div>
@@ -996,48 +1233,76 @@ export function RepairEquipmentDetailPage() {
         {lightboxPhoto && (
           <Popup
             open={true}
-            onClose={() => setLightboxPhoto(null)}
+            onClose={() => {
+              setLightboxPhoto(null)
+              setLightboxRotation(0)
+            }}
             title={`Evidencia: ${photoStageLabel(lightboxPhoto.stage)}`}
             width="min(95vw, 48rem)"
             actions={[
               {
+                id: 'rotate',
+                label: 'Rotar 90°',
+                variant: 'outline',
+                onClick: () => setLightboxRotation((prev) => (prev + 90) % 360),
+              },
+              {
+                id: 'copy',
+                label: 'Copiar Enlace',
+                variant: 'outline',
+                onClick: () => {
+                  void navigator.clipboard.writeText(lightboxPhoto.downloadUrl)
+                  toast.show({
+                    title: 'Enlace copiado',
+                    message: 'URL pública de la imagen copiada al portapapeles.',
+                    variant: 'info',
+                  })
+                },
+              },
+              {
                 id: 'close',
                 label: 'Cerrar',
                 variant: 'secondary',
-                onClick: () => setLightboxPhoto(null),
+                onClick: () => {
+                  setLightboxPhoto(null)
+                  setLightboxRotation(0)
+                },
               },
             ]}
           >
-            <div className="p-2 space-y-3">
-              <div className="rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center max-h-[70vh]">
+            <div className="ecu-lightbox-modal">
+              <div className="ecu-lightbox-modal__img-wrap">
                 <img
                   src={lightboxPhoto.downloadUrl}
                   alt={lightboxPhoto.caption || 'Evidencia'}
-                  className="max-h-[70vh] w-auto max-w-full object-contain"
+                  className="ecu-lightbox-modal__img"
+                  style={{
+                    transform: `rotate(${lightboxRotation}deg)`,
+                    transition: 'transform 0.25s ease',
+                  }}
                 />
               </div>
 
-              <div className="px-2 flex items-center justify-between text-xs">
+              <div className="ecu-lightbox-modal__info">
                 <div>
-                  <p className="font-semibold text-slate-800 dark:text-slate-100">
+                  <p className="ecu-lightbox-modal__caption" style={{ margin: 0 }}>
                     {lightboxPhoto.caption || 'Sin descripción'}
                   </p>
-                  <p className="text-[var(--glb-muted)] mt-0.5">
+                  <p className="ecu-lightbox-modal__date" style={{ margin: '0.2rem 0 0 0' }}>
                     Registrada el {formatDateTime(lightboxPhoto.capturedAt)}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <a
-                    href={lightboxPhoto.downloadUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3 py-1.5 rounded-lg border border-[var(--shell-border)] hover:bg-[var(--glb-surface-muted)] text-xs font-medium inline-flex items-center gap-1 text-blue-600 dark:text-blue-400"
-                  >
-                    <ExternalLink size={13} />
-                    Abrir original
-                  </a>
-                </div>
+                <a
+                  href={lightboxPhoto.downloadUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="glb-btn glb-btn--outline glb-btn--sm"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <ExternalLink size={13} />
+                  Abrir original
+                </a>
               </div>
             </div>
           </Popup>
