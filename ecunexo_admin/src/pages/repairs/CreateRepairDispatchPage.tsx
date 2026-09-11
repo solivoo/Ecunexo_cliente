@@ -9,7 +9,7 @@ import {
   StatCard,
   StatusBadge,
 } from '@/components/ui'
-import { ArrowLeft, PackageCheck, Truck, UserCheck } from 'lucide-react'
+import { ArrowLeft, AlertCircle, PackageCheck, Truck, UserCheck } from 'lucide-react'
 import { createAndLinkDispatchInvoice } from '@/pages/repairs/dispatchInvoiceHelper'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -207,6 +207,11 @@ export function CreateRepairDispatchPage() {
     [selectedEquipments, batchDetail]
   )
 
+  const missingPricingEquipments = useMemo(() => {
+    if (exitType !== DispatchExitType.Repaired) return []
+    return selectedEquipments.filter((eq) => rateForLevel(batchDetail, eq.damageLevel) <= 0)
+  }, [exitType, selectedEquipments, batchDetail])
+
   const isPartial =
     readyEquipments.length > 0 &&
     selectedEquipments.length > 0 &&
@@ -299,16 +304,26 @@ export function CreateRepairDispatchPage() {
       {
         key: 'id',
         header: 'Tarifa ($)',
-        width: 100,
+        width: 120,
         align: 'right',
-        renderCell: (_v, row) => (
-          <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {rateForLevel(batchDetail, row.damageLevel).toFixed(2)}
-          </span>
-        ),
+        renderCell: (_v, row) => {
+          const rate = rateForLevel(batchDetail, row.damageLevel)
+          if (exitType === DispatchExitType.Repaired && rate <= 0) {
+            return (
+              <StatusBadge tone="danger">
+                Sin tarifa
+              </StatusBadge>
+            )
+          }
+          return (
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+              ${rate.toFixed(2)}
+            </span>
+          )
+        },
       },
     ],
-    [batchDetail]
+    [batchDetail, exitType]
   )
 
   const actionItems = useMemo<PageActionItem[]>(
@@ -339,6 +354,14 @@ export function CreateRepairDispatchPage() {
     }
     if (selectedIds.length === 0) {
       toast.show({ title: 'Atención', message: 'Selecciona al menos un equipo.', variant: 'error' })
+      return
+    }
+    if (exitType === DispatchExitType.Repaired && missingPricingEquipments.length > 0) {
+      toast.show({
+        title: 'Tarifa de facturación requerida',
+        message: `No se puede generar un acta de reparación exitosa si no se ha definido un precio para facturación (${missingPricingEquipments.length} equipo(s) sin tarifa). Defina las tarifas acordadas en el lote o en la ficha del cliente.`,
+        variant: 'error',
+      })
       return
     }
     if (exitType !== DispatchExitType.Repaired && !returnReason.trim()) {
@@ -877,6 +900,35 @@ export function CreateRepairDispatchPage() {
           )}
         </SectionCard>
 
+        {exitType === DispatchExitType.Repaired && missingPricingEquipments.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.75rem',
+              padding: '0.85rem 1.15rem',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              color: 'var(--glb-text)',
+              fontSize: '0.875rem',
+              lineHeight: 1.45,
+            }}
+          >
+            <AlertCircle size={20} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} aria-hidden />
+            <div>
+              <strong style={{ display: 'block', color: '#dc2626', marginBottom: '0.2rem' }}>
+                Precio de facturación no definido
+              </strong>
+              <span>
+                No se puede generar el acta de reparación exitosa si no se ha definido un precio para facturación. Hay{' '}
+                <strong>{missingPricingEquipments.length} equipo(s)</strong> seleccionado(s) sin tarifa pactada (N1, N2 o N3).
+                Configure las tarifas en el lote o en la ficha del cliente antes de emitir la salida.
+              </span>
+            </div>
+          </div>
+        )}
+
         {exitType === DispatchExitType.Repaired && (
           <SectionCard
             title="Facturación electrónica SRI"
@@ -1003,14 +1055,20 @@ export function CreateRepairDispatchPage() {
             variant="primary"
             onClick={() => void handleSubmit()}
             disabled={
-              saving || selectedIds.length === 0 || !selectedBatchId || !dispatchNumber.trim()
+              saving ||
+              selectedIds.length === 0 ||
+              !selectedBatchId ||
+              !dispatchNumber.trim() ||
+              (exitType === DispatchExitType.Repaired && missingPricingEquipments.length > 0)
             }
           >
             {saving
               ? 'Emitiendo acta...'
-              : exitType === DispatchExitType.Repaired
-                ? `Emitir acta (${selectedIds.length} equipos · $${estimatedUsd.toFixed(2)})`
-                : `Registrar salida (${selectedIds.length} equipos — ${dispatchExitTypeLabel(exitType)})`}
+              : exitType === DispatchExitType.Repaired && missingPricingEquipments.length > 0
+                ? `Falta definir precio (${missingPricingEquipments.length} eq.)`
+                : exitType === DispatchExitType.Repaired
+                  ? `Emitir acta (${selectedIds.length} equipos · $${estimatedUsd.toFixed(2)})`
+                  : `Registrar salida (${selectedIds.length} equipos — ${dispatchExitTypeLabel(exitType)})`}
           </Button>
         </div>
       </div>

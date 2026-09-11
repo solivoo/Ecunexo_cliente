@@ -164,7 +164,14 @@ public sealed class RepairHandlersTests
         equipment.ApproveQualityCheck().IsSuccess.Should().BeTrue();
         equipment.Status.Should().Be(RepairEquipmentStatus.ReadyToDispatch);
 
-        var batch = RepairBatch.Create(batchId, tenantId, Guid.NewGuid(), "LOT-01").Value!;
+        var batch = RepairBatch.Create(
+            batchId,
+            tenantId,
+            Guid.NewGuid(),
+            "LOT-01",
+            agreedRateN1: 35.0m,
+            agreedRateN2: 50.0m,
+            agreedRateN3: 80.0m).Value!;
         // Asociar equipo al lote mediante reflection / interna para prueba
         var equipmentsField = typeof(RepairBatch).GetField("_equipments", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         var list = (List<RepairEquipment>)equipmentsField!.GetValue(batch)!;
@@ -193,6 +200,109 @@ public sealed class RepairHandlersTests
 
         await _dispatchRepo.Received(1).AddAsync(Arg.Any<RepairDispatch>(), Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact(DisplayName = "CreateRepairDispatchHandler rechaza acta de reparación exitosa si no se ha definido precio para facturación")]
+    public async Task CreateRepairDispatchHandler_Fails_WhenPricingIsNotDefinedForRepairedExitType()
+    {
+        var tenantId = Guid.NewGuid();
+        var batchId = Guid.NewGuid();
+        var eqId = Guid.NewGuid();
+
+        var equipment = RepairEquipment.Create(
+            eqId,
+            tenantId,
+            batchId,
+            "SN-READY-NOPRICE",
+            "WWG16AK",
+            "Whirlpool",
+            DamageLevel.Level1).Value!;
+
+        equipment.StartRepair().IsSuccess.Should().BeTrue();
+        equipment.SendToQualityCheck().IsSuccess.Should().BeTrue();
+        equipment.ApproveQualityCheck().IsSuccess.Should().BeTrue();
+        equipment.Status.Should().Be(RepairEquipmentStatus.ReadyToDispatch);
+
+        // Lote sin tarifas pactadas
+        var batch = RepairBatch.Create(batchId, tenantId, Guid.NewGuid(), "LOT-NOPRICE").Value!;
+        var equipmentsField = typeof(RepairBatch).GetField("_equipments", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var list = (List<RepairEquipment>)equipmentsField!.GetValue(batch)!;
+        list.Add(equipment);
+
+        _batchRepo.GetTrackedWithEquipmentsAsync(tenantId, batchId, Arg.Any<CancellationToken>())
+            .Returns(batch);
+
+        var handler = new CreateRepairDispatchHandler(_batchRepo, _dispatchRepo, _equipmentRepo, _unitOfWork);
+
+        var command = new CreateRepairDispatchCommand(
+            TenantId: tenantId,
+            BatchId: batchId,
+            DispatchNumber: "DSP-2026-002",
+            EquipmentIds: [eqId],
+            ExitType: DispatchExitType.Repaired);
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("repairs.dispatch.pricing_missing");
+    }
+
+    [Fact(DisplayName = "CreateRepairDispatchHandler resuelve precio desde tarifario del cliente si el lote no lo tenía")]
+    public async Task CreateRepairDispatchHandler_Succeeds_WhenPricingIsResolvedFromCustomerRateCard()
+    {
+        var tenantId = Guid.NewGuid();
+        var customerId = Guid.NewGuid();
+        var batchId = Guid.NewGuid();
+        var eqId = Guid.NewGuid();
+
+        var equipment = RepairEquipment.Create(
+            eqId,
+            tenantId,
+            batchId,
+            "SN-READY-RATECARD",
+            "WWG16AK",
+            "Whirlpool",
+            DamageLevel.Level1).Value!;
+
+        equipment.StartRepair().IsSuccess.Should().BeTrue();
+        equipment.SendToQualityCheck().IsSuccess.Should().BeTrue();
+        equipment.ApproveQualityCheck().IsSuccess.Should().BeTrue();
+        equipment.Status.Should().Be(RepairEquipmentStatus.ReadyToDispatch);
+
+        // Lote sin tarifas
+        var batch = RepairBatch.Create(batchId, tenantId, customerId, "LOT-WITH-RATECARD").Value!;
+        var equipmentsField = typeof(RepairBatch).GetField("_equipments", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var list = (List<RepairEquipment>)equipmentsField!.GetValue(batch)!;
+        list.Add(equipment);
+
+        _batchRepo.GetTrackedWithEquipmentsAsync(tenantId, batchId, Arg.Any<CancellationToken>())
+            .Returns(batch);
+
+        var rateCardRepo = Substitute.For<EcuNexo.Business.Customers.Repositories.ICustomerRepairRateCardRepository>();
+        var rateCard = EcuNexo.Core.Customers.CustomerRepairRateCard.Create(
+            Guid.NewGuid(),
+            tenantId,
+            customerId,
+            rateN1: 42.50m,
+            rateN2: 60.0m,
+            rateN3: 90.0m).Value!;
+
+        rateCardRepo.GetByCustomerAsync(tenantId, customerId, Arg.Any<CancellationToken>())
+            .Returns(rateCard);
+
+        var handler = new CreateRepairDispatchHandler(_batchRepo, _dispatchRepo, _equipmentRepo, _unitOfWork, rateCardRepo);
+
+        var command = new CreateRepairDispatchCommand(
+            TenantId: tenantId,
+            BatchId: batchId,
+            DispatchNumber: "DSP-2026-003",
+            EquipmentIds: [eqId],
+            ExitType: DispatchExitType.Repaired);
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        batch.AgreedRateN1.Should().Be(42.50m);
     }
 
     [Fact(DisplayName = "VerifyDispatchPublicHandler devuelve información para escaneo QR anónimo")]

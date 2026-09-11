@@ -1,4 +1,6 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Customers.Repositories;
+using EcuNexo.Business.Repairs.Queries.GetDispatchInvoicePreview;
 using EcuNexo.Business.Repairs.Repositories;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Repairs;
@@ -10,18 +12,21 @@ public sealed class CreateRepairDispatchHandler : ICommandHandler<CreateRepairDi
     private readonly IRepairBatchRepository _batchRepository;
     private readonly IRepairDispatchRepository _dispatchRepository;
     private readonly IRepairEquipmentRepository _equipmentRepository;
+    private readonly ICustomerRepairRateCardRepository? _rateCardRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateRepairDispatchHandler(
         IRepairBatchRepository batchRepository,
         IRepairDispatchRepository dispatchRepository,
         IRepairEquipmentRepository equipmentRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICustomerRepairRateCardRepository? rateCardRepository = null)
     {
         _batchRepository = batchRepository;
         _dispatchRepository = dispatchRepository;
         _equipmentRepository = equipmentRepository;
         _unitOfWork = unitOfWork;
+        _rateCardRepository = rateCardRepository;
     }
 
     public async Task<Result<CreateRepairDispatchResponse>> Handle(CreateRepairDispatchCommand command, CancellationToken ct)
@@ -56,6 +61,43 @@ public sealed class CreateRepairDispatchHandler : ICommandHandler<CreateRepairDi
                 "repairs.dispatch.equipment_not_eligible",
                 $"El equipo '{notEligible.SerialNumber}' no está en un estado válido para el tipo de salida '{command.ExitType}'. Estado actual: {notEligible.Status}. Esperado: {expectedLabel}.",
                 ErrorType.Validation));
+        }
+
+        // Regla de negocio: No se puede generar un acta de reparación exitosa si no se ha definido un precio para facturación
+        if (command.ExitType == DispatchExitType.Repaired)
+        {
+            if (_rateCardRepository != null &&
+                (batch.AgreedRateN1 is null or <= 0m ||
+                 batch.AgreedRateN2 is null or <= 0m ||
+                 batch.AgreedRateN3 is null or <= 0m))
+            {
+                var rateCard = await _rateCardRepository
+                    .GetByCustomerAsync(command.TenantId, batch.CustomerId, ct)
+                    .ConfigureAwait(false);
+
+                if (rateCard != null)
+                {
+                    var r1 = batch.AgreedRateN1 ?? rateCard.RateN1;
+                    var r2 = batch.AgreedRateN2 ?? rateCard.RateN2;
+                    var r3 = batch.AgreedRateN3 ?? rateCard.RateN3;
+                    batch.UpdateAgreedRates(r1, r2, r3);
+                }
+            }
+
+            var missingPriceEquipment = selectedEquipments.FirstOrDefault(e =>
+            {
+                var rate = DispatchInvoicePricing.RateFor(batch, e.DamageLevel);
+                return rate is null or <= 0m;
+            });
+
+            if (missingPriceEquipment != null)
+            {
+                var levelDesc = DispatchInvoicePricing.LevelDescription(missingPriceEquipment.DamageLevel);
+                return Result.Failure<CreateRepairDispatchResponse>(new Error(
+                    "repairs.dispatch.pricing_missing",
+                    $"No se puede generar un acta de reparación exitosa si no se ha definido un precio para facturación ({levelDesc}, equipo serie '{missingPriceEquipment.SerialNumber}'). Defina las tarifas en el lote o en el tarifario del cliente antes de emitir la salida.",
+                    ErrorType.Validation));
+            }
         }
 
         var dispatchId = Guid.NewGuid();
