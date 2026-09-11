@@ -10,9 +10,11 @@ using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.LinkEcommerceOrderInvoice;
 using EcuNexo.Business.Ecommerce.Commands.ProcessEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.ShipEcommerceOrder;
+using EcuNexo.Business.Ecommerce.Dtos;
 using EcuNexo.Business.Ecommerce.Queries.GetEcommerceMetrics;
 using EcuNexo.Business.Ecommerce.Queries.GetEcommerceOrderById;
 using EcuNexo.Business.Ecommerce.Queries.ListEcommerceOrders;
+using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Core.Ecommerce;
 using Microsoft.AspNetCore.Mvc;
 
@@ -85,7 +87,9 @@ public static class EcommerceOrderEndpoints
             page,
             pageSize);
 
-        var result = await sender.Send(query, ct).ConfigureAwait(false);
+        var result = await sender
+            .AskAsync<ListEcommerceOrdersQuery, ListEcommerceOrdersResponse>(query, ct)
+            .ConfigureAwait(false);
         return result.ToHttpResult();
     }
 
@@ -95,7 +99,9 @@ public static class EcommerceOrderEndpoints
         CancellationToken ct)
     {
         var query = new GetEcommerceMetricsQuery(tenantId);
-        var result = await sender.Send(query, ct).ConfigureAwait(false);
+        var result = await sender
+            .AskAsync<GetEcommerceMetricsQuery, EcommerceOrderMetrics>(query, ct)
+            .ConfigureAwait(false);
         return result.ToHttpResult();
     }
 
@@ -106,7 +112,9 @@ public static class EcommerceOrderEndpoints
         CancellationToken ct)
     {
         var query = new GetEcommerceOrderByIdQuery(tenantId, orderId);
-        var result = await sender.Send(query, ct).ConfigureAwait(false);
+        var result = await sender
+            .AskAsync<GetEcommerceOrderByIdQuery, EcommerceOrderDetailDto>(query, ct)
+            .ConfigureAwait(false);
         return result.ToHttpResult();
     }
 
@@ -129,9 +137,11 @@ public static class EcommerceOrderEndpoints
             InternalNotes: request.InternalNotes,
             CustomerNotes: request.CustomerNotes,
             CreatedBy: caller.UserId,
-            CreatedByName: caller.Email);
+            CreatedByName: caller.UserId?.ToString());
 
-        var result = await sender.Send(command, ct).ConfigureAwait(false);
+        var result = await sender
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(command, ct)
+            .ConfigureAwait(false);
         return result.ToHttpResult();
     }
 
@@ -148,9 +158,11 @@ public static class EcommerceOrderEndpoints
             orderId,
             request?.PaymentReference,
             caller.UserId,
-            caller.Email);
+            caller.UserId?.ToString());
 
-        var result = await sender.Send(command, ct).ConfigureAwait(false);
+        var result = await sender
+            .SendAsync<ConfirmEcommerceOrderPaymentCommand, ConfirmEcommerceOrderPaymentResponse>(command, ct)
+            .ConfigureAwait(false);
         return result.ToHttpResult();
     }
 
@@ -165,9 +177,11 @@ public static class EcommerceOrderEndpoints
             tenantId,
             orderId,
             caller.UserId,
-            caller.Email);
+            caller.UserId?.ToString());
 
-        var result = await sender.Send(command, ct).ConfigureAwait(false);
+        var result = await sender
+            .SendAsync<ProcessEcommerceOrderCommand, ProcessEcommerceOrderResponse>(command, ct)
+            .ConfigureAwait(false);
         return result.ToHttpResult();
     }
 
@@ -185,9 +199,11 @@ public static class EcommerceOrderEndpoints
             request.Carrier,
             request.TrackingNumber,
             caller.UserId,
-            caller.Email);
+            caller.UserId?.ToString());
 
-        var result = await sender.Send(command, ct).ConfigureAwait(false);
+        var result = await sender
+            .SendAsync<ShipEcommerceOrderCommand, ShipEcommerceOrderResponse>(command, ct)
+            .ConfigureAwait(false);
         return result.ToHttpResult();
     }
 
@@ -204,9 +220,11 @@ public static class EcommerceOrderEndpoints
             orderId,
             request.Reason,
             caller.UserId,
-            caller.Email);
+            caller.UserId?.ToString());
 
-        var result = await sender.Send(command, ct).ConfigureAwait(false);
+        var result = await sender
+            .SendAsync<CancelEcommerceOrderCommand, CancelEcommerceOrderResponse>(command, ct)
+            .ConfigureAwait(false);
         return result.ToHttpResult();
     }
 
@@ -224,7 +242,9 @@ public static class EcommerceOrderEndpoints
             request.BillingInvoiceId,
             caller.UserId);
 
-        var result = await sender.Send(command, ct).ConfigureAwait(false);
+        var result = await sender
+            .SendAsync<LinkEcommerceOrderInvoiceCommand, LinkEcommerceOrderInvoiceResponse>(command, ct)
+            .ConfigureAwait(false);
         return result.ToHttpResult();
     }
 }
