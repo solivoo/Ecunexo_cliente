@@ -110,9 +110,10 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Compilación Docker y optimización Release</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Diagnóstico de almacenamiento S3</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Diagnóstico de credenciales de almacenamiento:</strong> Validación preventiva de claves Backblaze B2 / S3 y control seguro de excepciones para carga de fotografías de taller e imágenes de catálogo.</li>
             <li><strong>Optimización de compilación Docker:</strong> Resolución del target MSBuild de SixLabors para builds en modo Release de la API e inclusión de Directory.Build.targets en contenedor.</li>
             <li><strong>Validación de precio en actas de reparación:</strong> Bloqueo estricto para salidas de equipos reparados sin tarifa acordada; incluye alerta visual, badges «Sin tarifa» en DataGrid y resolución automática contra el tarifario maestro del cliente.</li>
             <li><strong>Galería multimedia de catálogo:</strong> Carga múltiple de imágenes con almacenamiento en AWS S3 / LocalStack, optimización automática WebP y miniaturas.</li>

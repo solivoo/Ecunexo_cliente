@@ -58,13 +58,30 @@ public sealed class UploadRepairEquipmentPhotoHandler : ICommandHandler<UploadRe
 
         // Subir a Backblaze B2 (bucket público para carga veloz en taller y portal B2B)
         string publicUrl;
-        using (var webpStream = new MemoryStream(processed.WebpBytes))
+        try
         {
-            publicUrl = await _storageService.UploadPublicAsync(
-                s3Key,
-                webpStream,
-                processed.ContentType,
-                ct).ConfigureAwait(false);
+            using (var webpStream = new MemoryStream(processed.WebpBytes))
+            {
+                publicUrl = await _storageService.UploadPublicAsync(
+                    s3Key,
+                    webpStream,
+                    processed.ContentType,
+                    ct).ConfigureAwait(false);
+            }
+        }
+        catch (Amazon.S3.AmazonS3Exception s3Ex)
+        {
+            return Result.Failure<RepairEquipmentPhotoResponse>(new Error(
+                "repairs.photo.storage_error",
+                $"Error de comunicación con el servicio de almacenamiento Backblaze B2: {s3Ex.Message}. Verifique las credenciales STORAGE_KEY_ID y STORAGE_APPLICATION_KEY.",
+                ErrorType.Validation));
+        }
+        catch (Exception ex)
+        {
+            return Result.Failure<RepairEquipmentPhotoResponse>(new Error(
+                "repairs.photo.storage_error",
+                ex.Message,
+                ErrorType.Validation));
         }
 
         // Agregar foto al Aggregate Root aplicando invariantes DDD

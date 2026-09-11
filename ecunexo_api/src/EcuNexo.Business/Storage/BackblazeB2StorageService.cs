@@ -34,6 +34,8 @@ public sealed class BackblazeB2StorageService : IStorageService, IDisposable
 
     public async Task<string> UploadPublicAsync(string key, Stream content, string contentType, CancellationToken ct)
     {
+        EnsureConfigured();
+
         if (content.CanSeek)
         {
             content.Position = 0;
@@ -54,6 +56,8 @@ public sealed class BackblazeB2StorageService : IStorageService, IDisposable
 
     public async Task<string> UploadPrivateAsync(string key, Stream content, string contentType, CancellationToken ct)
     {
+        EnsureConfigured();
+
         if (content.CanSeek)
         {
             content.Position = 0;
@@ -114,6 +118,15 @@ public sealed class BackblazeB2StorageService : IStorageService, IDisposable
         };
 
         return _s3Client.GetPreSignedURL(request);
+    }
+
+    private void EnsureConfigured()
+    {
+        if (string.IsNullOrWhiteSpace(_options.KeyId) || _options.KeyId == "dev_dummy_key" ||
+            string.IsNullOrWhiteSpace(_options.ApplicationKey) || _options.ApplicationKey == "dev_dummy_app_key")
+        {
+            throw new InvalidOperationException("Las credenciales de almacenamiento Backblaze B2 no están configuradas. Configure STORAGE_KEY_ID y STORAGE_APPLICATION_KEY en las variables de entorno para subir fotografías o imágenes.");
+        }
     }
 
     public void Dispose()

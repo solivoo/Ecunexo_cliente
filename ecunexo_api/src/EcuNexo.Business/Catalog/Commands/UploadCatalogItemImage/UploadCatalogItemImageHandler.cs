@@ -72,11 +72,31 @@ public sealed class UploadCatalogItemImageHandler : ICommandHandler<UploadCatalo
         var mediumTask = _storage.UploadPublicAsync(mediumKey, mediumMs, ImageOptimizationPolicy.CanonicalMimeType, ct);
         var largeTask = _storage.UploadPublicAsync(largeKey, largeMs, ImageOptimizationPolicy.CanonicalMimeType, ct);
 
-        await Task.WhenAll(thumbTask, mediumTask, largeTask).ConfigureAwait(false);
+        string thumbUrl;
+        string mediumUrl;
+        string largeUrl;
 
-        var thumbUrl = await thumbTask.ConfigureAwait(false);
-        var mediumUrl = await mediumTask.ConfigureAwait(false);
-        var largeUrl = await largeTask.ConfigureAwait(false);
+        try
+        {
+            await Task.WhenAll(thumbTask, mediumTask, largeTask).ConfigureAwait(false);
+            thumbUrl = await thumbTask.ConfigureAwait(false);
+            mediumUrl = await mediumTask.ConfigureAwait(false);
+            largeUrl = await largeTask.ConfigureAwait(false);
+        }
+        catch (Amazon.S3.AmazonS3Exception s3Ex)
+        {
+            return Result.Failure<CatalogItemImageResponse>(new Error(
+                "catalog.image.storage_error",
+                $"Error de comunicación con el almacenamiento Backblaze B2: {s3Ex.Message}. Verifique las credenciales STORAGE_KEY_ID y STORAGE_APPLICATION_KEY.",
+                ErrorType.Validation));
+        }
+        catch (Exception ex)
+        {
+            return Result.Failure<CatalogItemImageResponse>(new Error(
+                "catalog.image.storage_error",
+                ex.Message,
+                ErrorType.Validation));
+        }
 
         // 3. Invocar invariantes del agregado CatalogItem en DDD
         var addResult = item.AddImage(
