@@ -110,9 +110,10 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Vista Dedicada de Importación de Compras, Auditoría Preventiva SRI y DateBox Global</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Despliegue Resiliente, Importación de Compras y Auditoría Preventiva SRI</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Despliegue Desacoplado y Clave Pública de Licencias Integrada:</strong> Integración directa de la clave pública RSA en el empaquetado del contenedor API y configuración de appsettings, eliminación del montaje de volumen obligatorio en docker-compose y asignación de valores de contingencia para un despliegue resiliente en Portainer.</li>
             <li><strong>Vista Dedicada de Importación de Compras y Auditoría Preventiva SRI:</strong> Nueva vista de pantalla completa (/compras/documentos/importar) con soporte para carga masiva por lote de múltiples archivos XML o registro de facturas físicas preimpresas (autorización SRI de 10 dígitos). Incorporación del motor de auditoría preventiva (SriPurchaseAuditor) con validación algorítmica de la clave de acceso de 49 dígitos mediante Módulo 11 (ponderaciones 7 a 2), detección de comprobantes emitidos en contingencia o sin autorización oficial por caída del SRI, detección de descuadres aritméticos en bases imponibles vs total, y verificación de tarifas de IVA vigentes (15% vs alertas por 12% desfasado).</li>
             <li><strong>Auditoría Global de Fechas con Glubox DateBox:</strong> Reemplazo sistemático del 100% de los controles nativos de fecha por el componente oficial DateBox de Glubox en compras, proformas, categorías SRI y emisión de comprobantes, garantizando estilos enterprise, soporte dark mode y erradicación del datepicker transparente del navegador.</li>
             <li><strong>Control Estricto de Permisos RBAC en Compras:</strong> Eliminación de bypasses cruzados con facturación de ventas en endpoints backend (facturas, proveedores, categorías y proformas) y evaluación exclusiva de permisos granulares purchases.* en vistas y acciones de usuario.</li>
