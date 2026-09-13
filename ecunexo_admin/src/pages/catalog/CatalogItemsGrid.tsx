@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataGrid, type ColumnDef } from 'glubox'
 import { Package, Pencil, Trash2 } from 'lucide-react'
@@ -26,6 +26,65 @@ export type CatalogItemsGridProps = {
   readonly toolbarRight?: ReactNode
 }
 
+function resolveCatalogItemThumbUrl(row: CatalogItemGridRow): string | null {
+  const raw = row.mainImageThumbUrl || (row as { mainImageUrl?: string | null }).mainImageUrl
+  if (!raw || typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  // Si la URL apunta a una variante grande o mediana, asegurar la variante pequeña (_thumb) del bucket
+  if (trimmed.includes('_large.webp')) {
+    return trimmed.replace('_large.webp', '_thumb.webp')
+  }
+  if (trimmed.includes('_medium.webp')) {
+    return trimmed.replace('_medium.webp', '_thumb.webp')
+  }
+  return trimmed
+}
+
+function CatalogItemGridThumb({ row }: { readonly row: CatalogItemGridRow }) {
+  const [hasError, setHasError] = useState(false)
+  const thumbUrl = resolveCatalogItemThumbUrl(row)
+
+  if (!thumbUrl || hasError) {
+    return (
+      <div
+        className="catalog-item-thumb catalog-item-thumb--empty"
+        title={row.name}
+        aria-label={row.name}
+        style={{
+          width: 36,
+          height: 36,
+          minWidth: 36,
+          maxWidth: 36,
+          minHeight: 36,
+          maxHeight: 36,
+        }}
+      >
+        <Package size={16} />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={thumbUrl}
+      alt={row.name}
+      className="catalog-item-thumb"
+      loading="lazy"
+      onError={() => setHasError(true)}
+      style={{
+        width: 36,
+        height: 36,
+        minWidth: 36,
+        maxWidth: 36,
+        minHeight: 36,
+        maxHeight: 36,
+        objectFit: 'cover',
+      }}
+    />
+  )
+}
+
 const gridMessages = createSpanishDataGridMessages('ítem', 'ítems')
 
 export function CatalogItemsGrid({
@@ -46,20 +105,11 @@ export function CatalogItemsGrid({
         key: 'mainImageThumbUrl',
         header: 'Foto',
         width: 68,
+        align: 'center',
         sortable: false,
-        renderCell: (_value: unknown, row: CatalogItemGridRow) =>
-          row.mainImageThumbUrl ? (
-            <img
-              src={row.mainImageThumbUrl}
-              alt={row.name}
-              className="w-9 h-9 rounded-md object-contain bg-[var(--glb-surface-muted)] border border-[var(--shell-border)]"
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-9 h-9 rounded-md bg-[var(--glb-surface-muted)] flex items-center justify-center text-[var(--glb-muted)] border border-[var(--shell-border)]">
-              <Package size={16} />
-            </div>
-          ),
+        renderCell: (_value: unknown, row: CatalogItemGridRow) => (
+          <CatalogItemGridThumb row={row} />
+        ),
       },
       {
         key: 'name',

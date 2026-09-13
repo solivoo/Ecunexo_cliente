@@ -1,18 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Button } from 'glubox'
+import { CheckCircle2, Copy, FileCheck2, Printer, ShieldCheck, XCircle } from 'lucide-react'
 import { StatusBadge } from '@/components/ui'
-import { CheckCircle2, FileCheck2, Printer, ShieldCheck, XCircle } from 'lucide-react'
 import { formatDateTime } from '@/lib/formatDate'
 import { readApiError } from '@/lib/readApiError'
 import { verifyDispatchPublic } from '@/services/repairsApi'
 import type { PublicDispatchVerificationDto } from '@/types/repairsApi'
+import './public-dispatch-verification.css'
 
 export function PublicDispatchVerificationPage() {
   const { verificationHash } = useParams<{ verificationHash: string }>()
   const [data, setData] = useState<PublicDispatchVerificationDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!verificationHash) return
@@ -45,188 +47,223 @@ export function PublicDispatchVerificationPage() {
     window.print()
   }
 
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Ignorar fallback
+    }
+  }
+
+  const filteredEquipments = useMemo(() => {
+    if (!data?.equipments) return []
+    const term = searchTerm.trim().toLowerCase()
+    if (!term) return data.equipments
+    return data.equipments.filter(
+      (eq) =>
+        eq.serialNumber.toLowerCase().includes(term) ||
+        eq.model.toLowerCase().includes(term) ||
+        eq.brand.toLowerCase().includes(term) ||
+        eq.damageLevel.toLowerCase().includes(term)
+    )
+  }, [data?.equipments, searchTerm])
+
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 p-4 sm:p-6 flex flex-col items-center justify-center font-sans text-slate-900 dark:text-slate-100">
-      <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden print:shadow-none print:border-none print:max-w-full">
-        {/* Cabecera de Verificación */}
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 text-white text-center">
-          <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-3 border border-white/30 shadow-inner">
-            <ShieldCheck className="w-10 h-10 text-white" />
+    <div className="ecu-public-verify">
+      <main className="ecu-public-verify__card" role="main">
+        {/* Cabecera de Verificación Oficial */}
+        <header className="ecu-public-verify__header">
+          <div className="ecu-public-verify__shield" aria-hidden="true">
+            <ShieldCheck className="ecu-public-verify__shield-icon" />
           </div>
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/20 border border-white/30 mb-2">
-            Verificación Oficial EcuNexo Taller
-          </span>
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight">
-            Acta de Despacho Certificada
-          </h1>
-          <p className="text-xs text-emerald-100 mt-1">
+          <br />
+          <span className="ecu-public-verify__tag">Verificación Oficial EcuNexo Taller</span>
+          <h1 className="ecu-public-verify__title">Acta de Despacho Certificada</h1>
+          <p className="ecu-public-verify__subtitle">
             Validación criptográfica en tiempo real de salida autorizada de equipos
           </p>
-        </div>
+        </header>
 
-        <div className="p-6">
+        <div className="ecu-public-verify__body">
           {loading ? (
-            <div className="py-12 text-center text-slate-500">
-              <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-              <p className="text-sm font-medium">Verificando firma digital en el servidor...</p>
+            <div className="ecu-public-verify__loading">
+              <div className="ecu-public-verify__spinner" aria-hidden="true" />
+              <p className="ecu-public-verify__error-text">Verificando firma digital en el servidor...</p>
             </div>
           ) : error ? (
-            <div className="py-10 text-center">
-              <XCircle className="w-14 h-14 text-rose-500 mx-auto mb-3" />
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                Código No Válido o No Encontrado
-              </h2>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                El hash de verificación proporcionado no coincide con ningún despacho oficial
-                emitido por el taller.
+            <div className="ecu-public-verify__error">
+              <XCircle className="ecu-public-verify__error-icon" aria-hidden="true" />
+              <h2 className="ecu-public-verify__error-title">Código No Válido o No Encontrado</h2>
+              <p className="ecu-public-verify__error-text">
+                El hash de verificación proporcionado no coincide con ningún despacho oficial emitido por el taller.
               </p>
             </div>
           ) : data ? (
-            <div className="space-y-6">
+            <>
               {/* Sello de Autenticidad */}
-              <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-800/40 flex items-center gap-3">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div className="ecu-public-verify__seal">
+                <CheckCircle2 className="ecu-public-verify__seal-icon" aria-hidden="true" />
                 <div>
-                  <h3 className="text-xs font-bold text-emerald-900 dark:text-emerald-200 uppercase tracking-wide">
-                    Documento Auténtico y Vigente
-                  </h3>
-                  <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
-                    Este despacho fue emitido y autorizado por la administración del taller.
+                  <h2 className="ecu-public-verify__seal-title">Documento Auténtico y Vigente</h2>
+                  <p className="ecu-public-verify__seal-desc">
+                    Este despacho fue emitido y autorizado por la administración del taller técnico.
                   </p>
                 </div>
               </div>
 
               {/* Ficha Resumen */}
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 space-y-2.5 text-xs">
-                <div className="flex justify-between border-b border-slate-200 dark:border-slate-700/60 pb-2">
-                  <span className="text-slate-500">Número de Acta:</span>
-                  <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
+              <section className="ecu-public-verify__meta" aria-label="Resumen del despacho">
+                <div className="ecu-public-verify__meta-row">
+                  <span className="ecu-public-verify__meta-label">Número de Acta:</span>
+                  <span className="ecu-public-verify__meta-value ecu-public-verify__meta-value--mono">
                     {data.dispatchNumber}
                   </span>
                 </div>
-                <div className="flex justify-between border-b border-slate-200 dark:border-slate-700/60 pb-2">
-                  <span className="text-slate-500">Cliente Corporativo:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {data.customerName}
+                <div className="ecu-public-verify__meta-row">
+                  <span className="ecu-public-verify__meta-label">Cliente Corporativo:</span>
+                  <span className="ecu-public-verify__meta-value">{data.customerName}</span>
+                </div>
+                <div className="ecu-public-verify__meta-row">
+                  <span className="ecu-public-verify__meta-label">Conductor / Transportista:</span>
+                  <span className="ecu-public-verify__meta-value">
+                    {data.carrierName || 'No registrado'}
                   </span>
                 </div>
-                <div className="flex justify-between border-b border-slate-200 dark:border-slate-700/60 pb-2">
-                  <span className="text-slate-500">Conductor / Transportista:</span>
-                  <span className="font-medium text-slate-800 dark:text-slate-200">
-                    {data.carrierName ?? 'No registrado'}
-                  </span>
-                </div>
-                <div className="flex justify-between border-b border-slate-200 dark:border-slate-700/60 pb-2">
-                  <span className="text-slate-500">Placa de Vehículo:</span>
-                  <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                <div className="ecu-public-verify__meta-row">
+                  <span className="ecu-public-verify__meta-label">Placa de Vehículo:</span>
+                  <span className="ecu-public-verify__meta-value ecu-public-verify__meta-value--mono">
                     {data.carrierVehiclePlate ?? '—'}
                   </span>
                 </div>
-                <div className="flex justify-between border-b border-slate-200 dark:border-slate-700/60 pb-2">
-                  <span className="text-slate-500">Fecha y Hora de Salida:</span>
-                  <span className="text-slate-800 dark:text-slate-200">
+                <div className="ecu-public-verify__meta-row">
+                  <span className="ecu-public-verify__meta-label">Fecha de Salida:</span>
+                  <span className="ecu-public-verify__meta-value">
                     {data.dispatchedAt ? formatDateTime(data.dispatchedAt) : 'En tránsito'}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1">
-                  <span className="text-slate-500">Total Equipos Autorizados:</span>
-                  <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                <div className="ecu-public-verify__meta-row">
+                  <span className="ecu-public-verify__meta-label">Total Equipos:</span>
+                  <span className="ecu-public-verify__meta-value ecu-public-verify__meta-value--highlight">
                     {data.totalEquipments} unidades
                   </span>
                 </div>
-              </div>
+              </section>
 
-              {/* Lista de Equipos */}
-              <div>
-                <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <FileCheck2 size={16} strokeWidth={2} style={{ color: '#059669' }} />
-                  Equipos Incluidos en el Despacho ({data.equipments.length})
-                </h3>
-                <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                  {data.equipments.map((eq, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40"
-                    >
-                      <div>
-                        <span className="font-mono font-bold text-slate-900 dark:text-white block">
-                          {eq.serialNumber}
-                        </span>
-                        <span className="text-slate-500 text-[11px]">
-                          {eq.brand} {eq.model}
-                        </span>
-                      </div>
-                      <StatusBadge tone="neutral">
-                        {eq.damageLevel}
-                      </StatusBadge>
-                    </div>
-                  ))}
+              {/* Lista de Equipos con buscador rápido para celular */}
+              <section className="ecu-public-verify__equipments" aria-label="Equipos incluidos">
+                <div className="ecu-public-verify__equipments-head">
+                  <h3 className="ecu-public-verify__section-title">
+                    <FileCheck2 size={16} strokeWidth={2} aria-hidden="true" />
+                    Equipos en el Acta ({data.equipments.length})
+                  </h3>
                 </div>
-              </div>
 
-              {/* Firmas de Responsabilidad */}
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
-                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
-                  Acreditación de Traspaso de Custodia
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/70 flex flex-col justify-between">
+                {data.equipments.length > 3 && (
+                  <input
+                    type="search"
+                    className="ecu-public-verify__search-input"
+                    placeholder="Buscar serie, modelo o marca..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    aria-label="Buscar serie o modelo de equipo"
+                  />
+                )}
+
+                <div className="ecu-public-verify__list" role="list">
+                  {filteredEquipments.length === 0 ? (
+                    <div className="ecu-public-verify__empty-search">
+                      No se encontraron equipos con el criterio "{searchTerm}".
+                    </div>
+                  ) : (
+                    filteredEquipments.map((eq, idx) => (
+                      <div key={idx} className="ecu-public-verify__item" role="listitem">
+                        <div className="ecu-public-verify__item-main">
+                          <span className="ecu-public-verify__item-serial">{eq.serialNumber}</span>
+                          <span className="ecu-public-verify__item-model">
+                            {eq.brand} · {eq.model}
+                          </span>
+                        </div>
+                        <StatusBadge tone="neutral">{eq.damageLevel}</StatusBadge>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+
+              {/* Acreditación de Custodia y Firmas */}
+              <section className="ecu-public-verify__custody" aria-label="Traspaso de custodia">
+                <h4 className="ecu-public-verify__section-title">Acreditación de Traspaso de Custodia</h4>
+                <div className="ecu-public-verify__custody-grid">
+                  <div className="ecu-public-verify__custody-card">
                     <div>
-                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide block">
+                      <span className="ecu-public-verify__custody-role">
                         Conductor / Solicitante de Retiro
                       </span>
-                      <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">
-                        {data.carrierName || 'Conductor asignado'}
+                      <p className="ecu-public-verify__custody-name">
+                        {data.carrierName || 'Conductor Asignado'}
                       </p>
                       {data.carrierVehiclePlate && (
-                        <p className="text-[11px] text-slate-500 font-mono">
-                          Placa: {data.carrierVehiclePlate}
+                        <p className="ecu-public-verify__custody-meta">
+                          Vehículo:{' '}
+                          <strong style={{ fontFamily: 'ui-monospace, monospace' }}>
+                            {data.carrierVehiclePlate}
+                          </strong>
                         </p>
                       )}
                     </div>
-                    <div className="mt-6 pt-2 border-t border-dashed border-slate-300 dark:border-slate-700 text-center text-[10px] text-slate-400">
+                    <div className="ecu-public-verify__custody-sign-line">
                       Firma de Recepción Conforme
                     </div>
                   </div>
 
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/70 flex flex-col justify-between">
+                  <div className="ecu-public-verify__custody-card">
                     <div>
-                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide block">
-                        Aprobación de Salida / Taller
-                      </span>
-                      <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">
-                        Responsable de Control y Despacho
-                      </p>
-                      <p className="text-[11px] text-slate-500">
+                      <span className="ecu-public-verify__custody-role">Aprobación de Salida / Taller</span>
+                      <p className="ecu-public-verify__custody-name">Responsable de Control y Despacho</p>
+                      <p className="ecu-public-verify__custody-meta">
                         {data.dispatchedAt ? formatDateTime(data.dispatchedAt) : 'Salida autorizada'}
                       </p>
                     </div>
-                    <div className="mt-6 pt-2 border-t border-dashed border-slate-300 dark:border-slate-700 text-center text-[10px] text-slate-400">
-                      Firma Autorizada y Sello
-                    </div>
+                    <div className="ecu-public-verify__custody-sign-line">Firma Autorizada y Sello</div>
                   </div>
                 </div>
-              </div>
+              </section>
 
-              {/* Acciones */}
-              <div className="pt-2 flex justify-center print:hidden">
-                <Button
+              {/* Acciones para Móvil y Desktop */}
+              <div className="ecu-public-verify__actions">
+                <button
                   type="button"
-                  variant="primary"
+                  className="ecu-public-verify__btn ecu-public-verify__btn--primary"
                   onClick={handlePrint}
                 >
-                  <Printer size={16} strokeWidth={2} aria-hidden />
-                  Imprimir Comprobante de Entrega
-                </Button>
+                  <Printer size={15} strokeWidth={2} aria-hidden="true" />
+                  Imprimir Comprobante
+                </button>
+                <button
+                  type="button"
+                  className="ecu-public-verify__btn ecu-public-verify__btn--outline"
+                  onClick={() => void handleCopyLink()}
+                >
+                  <Copy size={15} strokeWidth={2} aria-hidden="true" />
+                  {copied ? '¡Enlace Copiado!' : 'Copiar Enlace'}
+                </button>
               </div>
-            </div>
+            </>
           ) : null}
         </div>
 
-        <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 text-center text-[11px] text-slate-400 print:hidden">
-          EcuNexo Cloud Platform · Sistema de Reacondicionamiento de Lotes Taller B2B
-        </div>
-      </div>
+        <footer className="ecu-public-verify__footer">
+          <div>EcuNexo Cloud Platform · Sistema de Reacondicionamiento de Lotes Taller B2B</div>
+          {verificationHash && (
+            <div className="ecu-public-verify__hash" title="Hash criptográfico">
+              Hash: {verificationHash}
+            </div>
+          )}
+        </footer>
+      </main>
     </div>
   )
 }
+

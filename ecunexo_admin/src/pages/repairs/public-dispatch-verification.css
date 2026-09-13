@@ -1,0 +1,684 @@
+/* ==========================================================================
+   EcuNexo — Verificación Pública de Despacho (Certificación QR Móvil)
+   Diseño Mobile-First, Enterprise M3, con soporte para Light/Dark Mode
+   ========================================================================== */
+
+.ecu-public-verify {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 1rem 0.75rem 2.5rem;
+  background-color: var(--glb-background, #f8fafc);
+  color: var(--glb-text, #0f172a);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .ecu-public-verify {
+    justify-content: center;
+    padding: 2rem 1.25rem;
+  }
+}
+
+.ecu-public-verify__card {
+  width: 100%;
+  max-width: 640px;
+  background: var(--glb-surface, #ffffff);
+  border-radius: 1.25rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.08));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s ease;
+}
+
+/* --- Cabecera de Seguridad y Certificación --- */
+.ecu-public-verify__header {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
+  color: #ffffff;
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+  position: relative;
+}
+
+@media (min-width: 640px) {
+  .ecu-public-verify__header {
+    padding: 2rem 1.75rem;
+  }
+}
+
+.ecu-public-verify__shield {
+  width: 3.5rem;
+  height: 3.5rem;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.15);
+}
+
+.ecu-public-verify__shield-icon {
+  width: 2rem;
+  height: 2rem;
+  color: #ffffff;
+}
+
+.ecu-public-verify__tag {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  margin-bottom: 0.5rem;
+}
+
+.ecu-public-verify__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+@media (min-width: 640px) {
+  .ecu-public-verify__title {
+    font-size: 1.5rem;
+  }
+}
+
+.ecu-public-verify__subtitle {
+  margin: 0.375rem auto 0;
+  font-size: 0.8125rem;
+  opacity: 0.9;
+  max-width: 32rem;
+  line-height: 1.4;
+}
+
+/* --- Cuerpo Principal --- */
+.ecu-public-verify__body {
+  padding: 1.25rem 1rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .ecu-public-verify__body {
+    padding: 1.75rem 1.5rem 2rem;
+    gap: 1.5rem;
+  }
+}
+
+/* --- Estados de Carga / Error --- */
+.ecu-public-verify__loading,
+.ecu-public-verify__error {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.ecu-public-verify__spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid rgba(15, 23, 42, 0.15);
+  border-top-color: #0f172a;
+  border-radius: 50%;
+  animation: ecuVerifySpin 0.8s linear infinite;
+}
+
+@keyframes ecuVerifySpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ecu-public-verify__error-icon {
+  width: 3rem;
+  height: 3rem;
+  color: #ef4444;
+}
+
+.ecu-public-verify__error-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--glb-text, #0f172a);
+}
+
+.ecu-public-verify__error-text {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--glb-muted, #64748b);
+  max-width: 22rem;
+  line-height: 1.4;
+}
+
+/* --- Sello de Autenticidad --- */
+.ecu-public-verify__seal {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.875rem;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.ecu-public-verify__seal-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #0f172a;
+  flex-shrink: 0;
+}
+
+.ecu-public-verify__seal-title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0f172a;
+}
+
+.ecu-public-verify__seal-desc {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+  color: #475569;
+  line-height: 1.35;
+}
+
+/* --- Ficha Resumen de Datos --- */
+.ecu-public-verify__meta {
+  background: var(--glb-surface-muted, rgba(0, 0, 0, 0.025));
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.08));
+  border-radius: 0.875rem;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.ecu-public-verify__meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--shell-border, rgba(0, 0, 0, 0.06));
+  font-size: 0.8125rem;
+}
+
+.ecu-public-verify__meta-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0.25rem;
+}
+
+.ecu-public-verify__meta-row:first-child {
+  padding-top: 0.25rem;
+}
+
+.ecu-public-verify__meta-label {
+  color: var(--glb-muted, #64748b);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.ecu-public-verify__meta-value {
+  font-weight: 600;
+  color: var(--glb-text, #0f172a);
+  text-align: right;
+  word-break: break-word;
+}
+
+.ecu-public-verify__meta-value--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
+}
+
+.ecu-public-verify__meta-value--highlight {
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+
+/* --- Sección de Equipos Autorizados --- */
+.ecu-public-verify__equipments {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ecu-public-verify__equipments-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ecu-public-verify__section-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--glb-muted, #64748b);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.ecu-public-verify__search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.15));
+  background: var(--glb-surface, #ffffff);
+  color: var(--glb-text, #0f172a);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.ecu-public-verify__search-input:focus {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.12);
+}
+
+.ecu-public-verify__list {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.08));
+  border-radius: 0.875rem;
+  background: var(--glb-surface, #ffffff);
+  -webkit-overflow-scrolling: touch;
+}
+
+.ecu-public-verify__item {
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--shell-border, rgba(0, 0, 0, 0.06));
+}
+
+.ecu-public-verify__item:last-child {
+  border-bottom: none;
+}
+
+.ecu-public-verify__item-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.ecu-public-verify__item-serial {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--glb-text, #0f172a);
+  letter-spacing: 0.02em;
+}
+
+.ecu-public-verify__item-model {
+  font-size: 0.75rem;
+  color: var(--glb-muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ecu-public-verify__empty-search {
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--glb-muted, #64748b);
+}
+
+/* --- Papeleta de Custodia y Firmas --- */
+.ecu-public-verify__custody {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--shell-border, rgba(0, 0, 0, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ecu-public-verify__custody-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 600px) {
+  .ecu-public-verify__custody-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.ecu-public-verify__custody-card {
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--glb-surface-muted, rgba(0, 0, 0, 0.025));
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.08));
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 120px;
+}
+
+.ecu-public-verify__custody-role {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #334155;
+}
+
+.ecu-public-verify__custody-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--glb-text, #0f172a);
+  margin-top: 0.25rem;
+}
+
+.ecu-public-verify__custody-meta {
+  font-size: 0.6875rem;
+  color: var(--glb-muted, #64748b);
+  margin-top: 0.125rem;
+}
+
+.ecu-public-verify__custody-sign-line {
+  margin-top: 1.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--shell-border, rgba(0, 0, 0, 0.15));
+  text-align: center;
+  font-size: 0.6875rem;
+  color: var(--glb-muted, #64748b);
+}
+
+/* --- Acciones de Pie --- */
+.ecu-public-verify__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding-top: 0.5rem;
+}
+
+.ecu-public-verify__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.ecu-public-verify__btn--primary {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.ecu-public-verify__btn--primary:hover {
+  background: #1e293b;
+  border-color: #1e293b;
+}
+
+.ecu-public-verify__btn--outline {
+  background: transparent;
+  border-color: var(--shell-border, rgba(0, 0, 0, 0.15));
+  color: var(--glb-text, #0f172a);
+}
+
+.ecu-public-verify__btn--outline:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* --- Footer de la Tarjeta --- */
+.ecu-public-verify__footer {
+  padding: 0.875rem 1rem;
+  background: var(--glb-surface-muted, rgba(0, 0, 0, 0.02));
+  border-top: 1px solid var(--shell-border, rgba(0, 0, 0, 0.08));
+  text-align: center;
+  font-size: 0.6875rem;
+  color: var(--glb-muted, #64748b);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ecu-public-verify__hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.625rem;
+  opacity: 0.8;
+  word-break: break-all;
+}
+
+/* --- Dark Mode Support --- */
+html.sf-dark-mode .ecu-public-verify {
+  background-color: #090d16;
+  color: #f1f5f9;
+}
+
+html.sf-dark-mode .ecu-public-verify__card {
+  background: #111827;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+html.sf-dark-mode .ecu-public-verify__seal {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html.sf-dark-mode .ecu-public-verify__seal-icon {
+  color: #cbd5e1;
+}
+
+html.sf-dark-mode .ecu-public-verify__seal-title {
+  color: #f8fafc;
+}
+
+html.sf-dark-mode .ecu-public-verify__seal-desc {
+  color: #94a3b8;
+}
+
+html.sf-dark-mode .ecu-public-verify__meta-value--highlight {
+  color: #f8fafc;
+}
+
+html.sf-dark-mode .ecu-public-verify__custody-role {
+  color: #cbd5e1;
+}
+
+html.sf-dark-mode .ecu-public-verify__meta,
+html.sf-dark-mode .ecu-public-verify__custody-card,
+html.sf-dark-mode .ecu-public-verify__footer {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.sf-dark-mode .ecu-public-verify__meta-row,
+html.sf-dark-mode .ecu-public-verify__item {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+html.sf-dark-mode .ecu-public-verify__list {
+  background: #111827;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.sf-dark-mode .ecu-public-verify__search-input {
+  background: #1f2937;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+
+html.sf-dark-mode .ecu-public-verify__custody-sign-line {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html.sf-dark-mode .ecu-public-verify__btn--primary {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #f8fafc;
+}
+
+html.sf-dark-mode .ecu-public-verify__btn--primary:hover {
+  background: #e2e8f0;
+  border-color: #e2e8f0;
+}
+
+html.sf-dark-mode .ecu-public-verify__btn--outline {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+}
+
+html.sf-dark-mode .ecu-public-verify__btn--outline:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not(.sf-light-mode) .ecu-public-verify {
+    background-color: #090d16;
+    color: #f1f5f9;
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__card {
+    background: #111827;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__seal {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__seal-icon {
+    color: #cbd5e1;
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__seal-title {
+    color: #f8fafc;
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__seal-desc {
+    color: #94a3b8;
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__meta-value--highlight {
+    color: #f8fafc;
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__custody-role {
+    color: #cbd5e1;
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__meta,
+  html:not(.sf-light-mode) .ecu-public-verify__custody-card,
+  html:not(.sf-light-mode) .ecu-public-verify__footer {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__meta-row,
+  html:not(.sf-light-mode) .ecu-public-verify__item {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__list {
+    background: #111827;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__search-input {
+    background: #1f2937;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #f1f5f9;
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__custody-sign-line {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__btn--primary {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: #f8fafc;
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__btn--primary:hover {
+    background: #e2e8f0;
+    border-color: #e2e8f0;
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__btn--outline {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #e2e8f0;
+  }
+
+  html:not(.sf-light-mode) .ecu-public-verify__btn--outline:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* --- Estilos de Impresión --- */
+@media print {
+  .ecu-public-verify {
+    padding: 0;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .ecu-public-verify__card {
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .ecu-public-verify__header {
+    background: #0f172a !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .ecu-public-verify__actions,
+  .ecu-public-verify__search-input {
+    display: none !important;
+  }
+
+  .ecu-public-verify__list {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}

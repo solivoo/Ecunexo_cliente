@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, DataGrid, useToast, type ColumnDef, type PageActionItem } from 'glubox'
+import { Button, DataGrid, Popup, useToast, type ColumnDef, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   EmptyState,
@@ -10,7 +10,7 @@ import {
   StatusBadge,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
-import { Eye, FileDown, Plus, QrCode } from 'lucide-react'
+import { Copy, ExternalLink, Eye, FileDown, Plus, QrCode } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
@@ -62,6 +62,7 @@ export function RepairDispatchesListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isCarriersModalOpen, setIsCarriersModalOpen] = useState(false)
+  const [selectedQrDispatch, setSelectedQrDispatch] = useState<RepairDispatchDto | null>(null)
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
 
   useEffect(() => {
@@ -199,15 +200,35 @@ export function RepairDispatchesListPage() {
       {
         key: 'carrierName',
         header: 'Transportista',
-        width: 200,
+        width: 230,
         sortable: true,
         renderCell: (_v, row) => (
-          <div>
-            <div style={{ fontWeight: 500 }}>{row.carrierName || 'No registrado'}</div>
-            {row.carrierVehiclePlate && (
-              <span className="app-shell__muted" style={{ fontSize: '0.75rem', fontFamily: 'ui-monospace, monospace' }}>
-                Placa: {row.carrierVehiclePlate}
-              </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 500, color: 'var(--glb-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {row.carrierName || 'No registrado'}
+              </div>
+              {row.carrierVehiclePlate && (
+                <span className="app-shell__muted" style={{ fontSize: '0.75rem', fontFamily: 'ui-monospace, monospace' }}>
+                  Placa: {row.carrierVehiclePlate}
+                </span>
+              )}
+            </div>
+            {row.verificationHash && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSelectedQrDispatch(row)
+                }}
+                title="Ver código QR de este despacho"
+                style={{ padding: '0.2rem 0.45rem', fontSize: '0.75rem', flexShrink: 0 }}
+              >
+                <QrCode size={13} strokeWidth={2} aria-hidden />
+                QR
+              </Button>
             )}
           </div>
         ),
@@ -269,10 +290,8 @@ export function RepairDispatchesListPage() {
             />
             <GridIconButton
               icon={QrCode}
-              label="Abrir verificación QR"
-              onClick={() =>
-                window.open(`${window.location.origin}/verificar/despacho/${row.verificationHash}`, '_blank')
-              }
+              label="Ver código QR oficial"
+              onClick={() => setSelectedQrDispatch(row)}
             />
           </div>
         ),
@@ -397,6 +416,91 @@ export function RepairDispatchesListPage() {
         onClose={() => setIsCarriersModalOpen(false)}
         tenantId={tenantId ?? ''}
       />
+
+      {/* Modal / Popup de Código QR de Despacho */}
+      {selectedQrDispatch && (
+        <Popup
+          open={!!selectedQrDispatch}
+          onClose={() => setSelectedQrDispatch(null)}
+          title={`Código QR — Acta ${selectedQrDispatch.dispatchNumber}`}
+          width={420}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', padding: '0.5rem 0' }}>
+            <p className="ecu-modal-section-lead" style={{ margin: 0, textAlign: 'center', fontSize: '0.8125rem' }}>
+              Escanea este código desde cualquier celular para verificar el acta oficial del transportista{' '}
+              <strong>{selectedQrDispatch.carrierName || 'asignado'}</strong>.
+            </p>
+
+            <div
+              style={{
+                background: '#ffffff',
+                padding: '12px',
+                borderRadius: '12px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                  `${window.location.origin}/verificar/despacho/${selectedQrDispatch.verificationHash}`
+                )}`}
+                alt="Código QR de verificación oficial"
+                style={{ width: 180, height: 180, display: 'block' }}
+              />
+            </div>
+
+            <div style={{ textAlign: 'center', maxWidth: '340px' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)', marginBottom: '0.25rem' }}>
+                Firma criptográfica:
+              </div>
+              <code
+                style={{
+                  fontFamily: 'ui-monospace, monospace',
+                  fontSize: '0.6875rem',
+                  padding: '0.25rem 0.5rem',
+                  backgroundColor: 'var(--glb-surface-muted, rgba(0,0,0,0.04))',
+                  borderRadius: '6px',
+                  border: '1px solid var(--shell-border)',
+                  wordBreak: 'break-all',
+                  display: 'inline-block',
+                }}
+              >
+                {selectedQrDispatch.verificationHash}
+              </code>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', width: '100%', paddingTop: '0.5rem' }}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard.writeText(
+                    `${window.location.origin}/verificar/despacho/${selectedQrDispatch.verificationHash}`
+                  )
+                  toast.show({ title: 'Enlace copiado', message: 'URL de verificación en el portapapeles.', variant: 'success' })
+                }}
+              >
+                <Copy size={14} strokeWidth={2} aria-hidden />
+                Copiar enlace
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() =>
+                  window.open(`${window.location.origin}/verificar/despacho/${selectedQrDispatch.verificationHash}`, '_blank')
+                }
+              >
+                <ExternalLink size={14} strokeWidth={2} aria-hidden />
+                Abrir portal público
+              </Button>
+            </div>
+          </div>
+        </Popup>
+      )}
     </TenantSessionGate>
   )
 }

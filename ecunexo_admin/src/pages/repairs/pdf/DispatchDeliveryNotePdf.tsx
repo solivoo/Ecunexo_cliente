@@ -1,7 +1,6 @@
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import { formatDateTime } from '@/lib/formatDate'
 import { damageLevelLabel, DamageLevel, type RepairDispatchDto } from '@/types/repairsApi'
-import { buildRidePalette } from '@/pages/facturacion/rideFacturaPalette'
 
 export type DispatchPdfCompanyInfo = {
   name: string
@@ -25,8 +24,14 @@ export type DispatchDeliveryNotePdfProps = {
   issuerRole?: string | null
 }
 
-function createDispatchStyles(primaryColorHex?: string | null) {
-  const palette = buildRidePalette(primaryColorHex)
+function createDispatchStyles() {
+  const corporateDark = '#0f172a'
+  const corporateHeader = '#1e293b'
+  const corporateBorder = '#cbd5e1'
+  const corporateMuted = '#475569'
+  const corporateSurface = '#f8fafc'
+  const corporateLine = '#e2e8f0'
+
   return StyleSheet.create({
     page: {
       paddingTop: 18,
@@ -34,7 +39,7 @@ function createDispatchStyles(primaryColorHex?: string | null) {
       paddingHorizontal: 24,
       fontSize: 8,
       fontFamily: 'Helvetica',
-      color: '#0f172a',
+      color: corporateDark,
       backgroundColor: '#ffffff',
     },
     topAccent: {
@@ -42,8 +47,8 @@ function createDispatchStyles(primaryColorHex?: string | null) {
       top: 0,
       left: 0,
       right: 0,
-      height: 4,
-      backgroundColor: palette.accent,
+      height: 3,
+      backgroundColor: corporateHeader,
     },
     header: {
       flexDirection: 'row',
@@ -51,8 +56,8 @@ function createDispatchStyles(primaryColorHex?: string | null) {
       alignItems: 'flex-start',
       marginBottom: 8,
       paddingBottom: 6,
-      borderBottomWidth: 1.5,
-      borderBottomColor: palette.accent,
+      borderBottomWidth: 1,
+      borderBottomColor: corporateBorder,
     },
     companyBox: {
       maxWidth: 460,
@@ -64,29 +69,29 @@ function createDispatchStyles(primaryColorHex?: string | null) {
       marginBottom: 3,
     },
     companyName: {
-      fontSize: 11,
+      fontSize: 10.5,
       fontFamily: 'Helvetica-Bold',
-      color: '#0f172a',
+      color: corporateDark,
       marginBottom: 2,
     },
     companyMeta: {
       fontSize: 7,
-      color: '#475569',
+      color: corporateMuted,
       lineHeight: 1.25,
     },
     docBox: {
       width: 250,
       borderWidth: 1,
-      borderColor: '#cbd5e1',
-      borderRadius: 4,
-      backgroundColor: '#f8fafc',
+      borderColor: corporateBorder,
+      borderRadius: 3,
+      backgroundColor: corporateSurface,
       padding: 6,
       alignItems: 'center',
     },
     docTitle: {
-      fontSize: 9,
+      fontSize: 8.5,
       fontFamily: 'Helvetica-Bold',
-      color: palette.accentDeep,
+      color: corporateDark,
       textAlign: 'center',
       textTransform: 'uppercase',
       letterSpacing: 0.5,
@@ -95,7 +100,7 @@ function createDispatchStyles(primaryColorHex?: string | null) {
     docNumber: {
       fontSize: 11,
       fontFamily: 'Helvetica-Bold',
-      color: '#0f172a',
+      color: corporateDark,
       marginBottom: 3,
     },
     docMetaRow: {
@@ -106,11 +111,11 @@ function createDispatchStyles(primaryColorHex?: string | null) {
       marginBottom: 1.5,
     },
     docMetaLabel: {
-      color: '#64748b',
+      color: corporateMuted,
       fontFamily: 'Helvetica-Bold',
     },
     docMetaVal: {
-      color: '#0f172a',
+      color: corporateDark,
     },
     barcode: {
       height: 20,
@@ -126,19 +131,19 @@ function createDispatchStyles(primaryColorHex?: string | null) {
     card: {
       flex: 1,
       borderWidth: 0.8,
-      borderColor: '#e2e8f0',
-      borderRadius: 4,
-      backgroundColor: '#fbfcfd',
+      borderColor: corporateLine,
+      borderRadius: 3,
+      backgroundColor: '#ffffff',
       padding: 6,
     },
     cardHeader: {
       fontSize: 7.5,
       fontFamily: 'Helvetica-Bold',
-      color: palette.accentDeep,
+      color: corporateDark,
       textTransform: 'uppercase',
       letterSpacing: 0.3,
       borderBottomWidth: 0.6,
-      borderBottomColor: '#e2e8f0',
+      borderBottomColor: corporateLine,
       paddingBottom: 2.5,
       marginBottom: 3.5,
     },
@@ -150,23 +155,23 @@ function createDispatchStyles(primaryColorHex?: string | null) {
     cardLabel: {
       width: '40%',
       fontFamily: 'Helvetica-Bold',
-      color: '#64748b',
+      color: corporateMuted,
     },
     cardValue: {
       width: '60%',
-      color: '#0f172a',
+      color: corporateDark,
     },
     tableContainer: {
       borderWidth: 0.8,
-      borderColor: '#cbd5e1',
-      borderRadius: 4,
+      borderColor: corporateBorder,
+      borderRadius: 3,
       overflow: 'hidden',
       marginBottom: 7,
     },
     tableHeader: {
       flexDirection: 'row',
-      backgroundColor: palette.accentDeep,
-      color: palette.onAccent,
+      backgroundColor: corporateHeader,
+      color: '#ffffff',
       paddingVertical: 4,
       paddingHorizontal: 6,
       fontSize: 7.2,
@@ -175,10 +180,11 @@ function createDispatchStyles(primaryColorHex?: string | null) {
     tableRow: {
       flexDirection: 'row',
       borderBottomWidth: 0.5,
-      borderBottomColor: '#e2e8f0',
+      borderBottomColor: corporateLine,
       paddingVertical: 3.2,
       paddingHorizontal: 6,
       fontSize: 7,
+      color: corporateDark,
     },
     tableRowAlt: {
       backgroundColor: '#f8fafc',
@@ -192,19 +198,19 @@ function createDispatchStyles(primaryColorHex?: string | null) {
     tableFooter: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      backgroundColor: palette.accentSoft,
+      backgroundColor: corporateSurface,
       paddingVertical: 4,
       paddingHorizontal: 8,
       borderTopWidth: 0.8,
-      borderTopColor: palette.hairline,
+      borderTopColor: corporateBorder,
       fontSize: 7.5,
       fontFamily: 'Helvetica-Bold',
-      color: palette.accentDeep,
+      color: corporateDark,
     },
     notesBox: {
       borderWidth: 0.8,
-      borderColor: '#e2e8f0',
-      borderRadius: 4,
+      borderColor: corporateLine,
+      borderRadius: 3,
       padding: 5,
       backgroundColor: '#ffffff',
       marginBottom: 7,
@@ -212,25 +218,25 @@ function createDispatchStyles(primaryColorHex?: string | null) {
     notesTitle: {
       fontSize: 7.2,
       fontFamily: 'Helvetica-Bold',
-      color: '#334155',
+      color: corporateDark,
       marginBottom: 1.5,
     },
     notesContent: {
       fontSize: 6.8,
-      color: '#475569',
+      color: corporateMuted,
       lineHeight: 1.25,
     },
     clauseBox: {
       borderWidth: 0.6,
-      borderColor: '#cbd5e1',
-      borderRadius: 4,
-      backgroundColor: '#f8fafc',
+      borderColor: corporateBorder,
+      borderRadius: 3,
+      backgroundColor: corporateSurface,
       padding: 5,
       marginBottom: 16,
     },
     clauseText: {
       fontSize: 6.5,
-      color: '#475569',
+      color: corporateMuted,
       lineHeight: 1.25,
       textAlign: 'justify',
     },
@@ -253,13 +259,13 @@ function createDispatchStyles(primaryColorHex?: string | null) {
     signLine: {
       width: 210,
       borderTopWidth: 1,
-      borderTopColor: '#334155',
+      borderTopColor: corporateDark,
       marginBottom: 6,
     },
     signTitle: {
       fontSize: 8,
       fontFamily: 'Helvetica-Bold',
-      color: palette.accentDeep,
+      color: corporateDark,
       textTransform: 'uppercase',
       letterSpacing: 0.4,
       marginBottom: 2.5,
@@ -267,17 +273,17 @@ function createDispatchStyles(primaryColorHex?: string | null) {
     signName: {
       fontSize: 8,
       fontFamily: 'Helvetica-Bold',
-      color: '#0f172a',
+      color: corporateDark,
       marginBottom: 1.5,
     },
     signSub: {
       fontSize: 7,
-      color: '#475569',
+      color: corporateMuted,
       marginBottom: 1.5,
     },
     signRole: {
       fontSize: 6.8,
-      color: '#64748b',
+      color: corporateMuted,
       textTransform: 'uppercase',
       marginTop: 2,
     },
@@ -289,7 +295,7 @@ function createDispatchStyles(primaryColorHex?: string | null) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       borderTopWidth: 0.6,
-      borderTopColor: '#e2e8f0',
+      borderTopColor: corporateLine,
       paddingTop: 3,
       fontSize: 6.2,
       color: '#94a3b8',
@@ -308,7 +314,7 @@ export function DispatchDeliveryNotePdf({
   issuerName,
   issuerRole,
 }: DispatchDeliveryNotePdfProps) {
-  const styles = createDispatchStyles(company?.primaryColorHex)
+  const styles = createDispatchStyles()
   const finalCustomer = customerName || dispatch.customerName || 'Cliente Corporativo'
   const finalBatch = batchNumber || dispatch.batchNumber || 'N/A'
   const issuedDate = dispatch.dispatchedAt ? formatDateTime(dispatch.dispatchedAt) : formatDateTime(dispatch.createdAt)

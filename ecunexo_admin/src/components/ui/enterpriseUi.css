@@ -986,3 +986,97 @@ html.sf-dark-mode .ecu-alert-box--success {
   background: color-mix(in srgb, var(--glb-surface) 70%, transparent);
 }
 
+/* --- Enterprise Property Grid & Tiles (compact key-value pairs) --- */
+.ecu-property-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+@media (min-width: 600px) {
+  .ecu-property-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 960px) {
+  .ecu-property-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .ecu-property-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.ecu-property-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 0.95rem;
+  border-radius: 0.625rem;
+  background: var(--glb-surface-muted, rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.08));
+  min-width: 0;
+}
+
+html.sf-dark-mode .ecu-property-tile {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.ecu-property-tile--full {
+  grid-column: 1 / -1;
+}
+
+.ecu-property-tile__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--shell-muted, var(--glb-muted, #64748b));
+}
+
+.ecu-property-tile__value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--shell-text, var(--glb-text, #0f172a));
+  word-break: break-word;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-height: 1.5rem;
+}
+
+.ecu-property-tile__value--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* --- Catálogo: Miniatura de Ítem en DataGrid --- */
+.catalog-item-thumb {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+  background-color: var(--glb-surface-muted, #f8fafc);
+  border: 1px solid var(--shell-border, #e2e8f0);
+  display: block;
+  box-sizing: border-box;
+}
+
+.catalog-item-thumb--empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--shell-muted, var(--glb-muted, #94a3b8));
+}
+
