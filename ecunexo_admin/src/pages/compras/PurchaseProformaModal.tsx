@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Button, Popup, Select, TextBox } from 'glubox'
+import { Button, DateBox, Popup, Select, TextBox } from 'glubox'
 import { AlertCircle, Plus, Trash2 } from 'lucide-react'
 import type {
   CreatePurchaseProformaItemPayload,
@@ -264,12 +264,12 @@ export function PurchaseProformaModal({
           </div>
 
           <div className="ecu-customer-form__field">
-            <TextBox
+            <DateBox
               id="proforma-issue-date"
               label="Fecha de Emisión *"
               labelPosition="outlined"
               variant="outline"
-              type="date"
+              size="md"
               value={issueDate}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setIssueDate(e.target.value)}
               fullWidth
@@ -278,12 +278,12 @@ export function PurchaseProformaModal({
           </div>
 
           <div className="ecu-customer-form__field">
-            <TextBox
+            <DateBox
               id="proforma-expiration-date"
               label="Válida hasta (Opcional)"
               labelPosition="outlined"
               variant="outline"
-              type="date"
+              size="md"
               value={expirationDate}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setExpirationDate(e.target.value)}
               fullWidth

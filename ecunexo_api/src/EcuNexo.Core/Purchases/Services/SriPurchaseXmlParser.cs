@@ -37,7 +37,8 @@ public sealed record ParsedSriInvoice(
     string? PaymentMethodCode,
     int CreditDays,
     IReadOnlyList<ParsedSriInvoiceLine> Lines,
-    string RawXml);
+    string RawXml,
+    SriValidationReport? ValidationReport = null);
 
 /// <summary>
 /// Parser especializado para comprobantes electrónicos de compra del SRI (Factura 01).
@@ -333,6 +334,21 @@ public static class SriPurchaseXmlParser
                 }
             }
 
+            var validationReport = SriPurchaseAuditor.Audit(
+                doc,
+                claveAcceso,
+                authNumberFinal,
+                issueDate,
+                subtotalZero,
+                subtotalTaxed,
+                subtotalNoSubject,
+                subtotalExempt,
+                predominantTaxRate,
+                totalTaxAmount,
+                totalDescuento,
+                importeTotal,
+                lines);
+
             var parsed = new ParsedSriInvoice(
                 SupplierTaxId: supplierRuc,
                 SupplierBusinessName: supplierRazonSocial,
@@ -355,7 +371,8 @@ public static class SriPurchaseXmlParser
                 PaymentMethodCode: paymentMethodCode,
                 CreditDays: creditDays,
                 Lines: lines.AsReadOnly(),
-                RawXml: cleanXml
+                RawXml: cleanXml,
+                ValidationReport: validationReport
             );
 
             return Result.Success(parsed);

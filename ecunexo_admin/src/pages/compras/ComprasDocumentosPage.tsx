@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, Select, TextBox, useToast, type ColumnDef } from 'glubox'
 import {
   Eye,
@@ -62,6 +63,7 @@ const gridMessages = createSpanishDataGridMessages('factura de compra', 'factura
 
 export function ComprasDocumentosPage() {
   const toast = useToast()
+  const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
 
   const canRead =
@@ -341,10 +343,10 @@ export function ComprasDocumentosPage() {
                 </Button>
                 <Button
                   variant="primary"
-                  onClick={() => setXmlModalOpen(true)}
+                  onClick={() => navigate('/compras/documentos/importar')}
                 >
                   <UploadCloud size={16} />
-                  Cargar Factura XML SRI
+                  Importar Facturas SRI (Lote / XML)
                 </Button>
               </div>
             ) : undefined
@@ -429,10 +431,10 @@ export function ComprasDocumentosPage() {
                 canManage ? (
                   <Button
                     variant="primary"
-                    onClick={() => setXmlModalOpen(true)}
+                    onClick={() => navigate('/compras/documentos/importar')}
                   >
                     <UploadCloud size={16} />
-                    Cargar Factura XML SRI
+                    Importar Facturas SRI (Lote / XML)
                   </Button>
                 ) : undefined
               }

@@ -256,6 +256,30 @@ export interface ParsedLineWithMatchDto {
   assignedWarehouseId?: string | null
 }
 
+export interface SriValidationAlertDto {
+  severity: 'success' | 'warning' | 'danger' | 'info'
+  code: string
+  title: string
+  message: string
+  recommendation?: string | null
+}
+
+export interface SriValidationReportDto {
+  overallStatus: 'valid' | 'warning' | 'danger'
+  isAuthorizedBySri: boolean
+  sriStatus?: string | null
+  sriAuthorizationDate?: string | null
+  environment: string
+  isAccessKeyValid: boolean
+  accessKeyCheckDigitExpected?: string | null
+  isMathConsistent: boolean
+  calculatedTotal: number
+  declaredTotal: number
+  mathDiscrepancy: number
+  taxRateStatus: string
+  alerts: SriValidationAlertDto[]
+}
+
 export interface ParseSriPurchaseXmlResponse {
   supplier: DetectedSupplierDto
   invoiceNumber: string
@@ -274,6 +298,7 @@ export interface ParseSriPurchaseXmlResponse {
   creditDays: number
   lines: ParsedLineWithMatchDto[]
   rawXml: string
+  validationReport?: SriValidationReportDto | null
 }
 
 export interface CreatePurchaseItemPayload {

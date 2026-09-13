@@ -7,9 +7,27 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.20.1`.
+* **Última Versión Publicada:** `v0.21.0`.
 * **Hitos Recientes Completados:**
-  - **Identificación Inequívoca de Ambiente de Pruebas SRI (Sin Validez Tributaria):**
+  - **Vista Dedicada de Importación de Compras & Auditoría Preventiva SRI (`/compras/documentos/importar`):**
+    - **Transición de Modal a Vista Propia:** Reemplazo de `ParseXmlModal` por una pantalla completa dedicada con amplio espacio horizontal y vertical para procesar tanto cargas individuales como masivas por lotes de múltiples archivos XML simultáneos.
+    - **Auditoría Preventiva del SRI (`SriPurchaseAuditor` & `SriValidationReport`):**
+      * Verificación algorítmica de la Clave de Acceso de 49 dígitos con el algoritmo Módulo 11 (ponderaciones 7 a 2) alertando si el dígito verificador está corrupto o mal generado por el emisor.
+      * Detección de estado ante el SRI y contingencia: Alertas preventivas para comprobantes sin constancia oficial de autorización (`<autorizacion> / <estado>AUTORIZADO</estado>`), emitidos durante caídas o indisponibilidad del SRI, comprobantes en proceso o devueltos/rechazados.
+      * Auditoría aritmética de cuadre: Verificación entre la suma de bases imponibles (tarifa 0%, gravada, no objeto, exenta), IVA liquidado, descuentos e Importe Total declarado en la cabecera.
+      * Verificación de vigencia de tarifas SRI: Detección de la tarifa general vigente de IVA del 15% (desde abril 2024), 5% construcción y tarifa 0%, con advertencias preventivas si el proveedor emitió con tarifas desfasadas (12% o 14%).
+      * Soporte para Facturas Físicas Preimpresas: Flexibilización en `Purchase.Create` para aceptar números de autorización de 10 dígitos (imprenta SRI) y 49 dígitos (electrónica).
+    - **Cola de Facturas en Lote & Homologación de Catálogo:**
+      * Grid de facturas en cola con selector múltiple, badges de auditoría SRI (`Válida SRI`, `Advertencia / Contingencia`, `Inconsistente`), inspección de cada comprobante, vinculación directa a productos de catálogo (`catalog_items`), asignación de bodegas físicas y registro consolidado en lote.
+    - **Auditoría Global de Selectores de Fecha (`DateBox` de Glubox en todo el sistema):**
+      * Se auditó todo el repositorio frontend en búsqueda de inputs nativos `type="date"` que desplegaban el datepicker nativo transparente y desalineado del navegador.
+      * Reemplazo sistemático por `<DateBox ... />` de Glubox en todos los formularios identificados:
+        1. [`ExpenseTypeModal.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/ExpenseTypeModal.tsx) (Vigencia Desde y Vigencia Hasta).
+        2. [`PurchaseProformaModal.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/PurchaseProformaModal.tsx) (Fecha de Emisión y Válida hasta).
+        3. [`PurchaseProformaCreatePage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/PurchaseProformaCreatePage.tsx) (Fecha de Emisión y Vencimiento / Vigencia de Precios).
+        4. [`InvoiceIssuerFields.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/facturacion/InvoiceIssuerFields.tsx) (Fecha de Emisión en emisión de facturas).
+        5. [`ImportPurchasesPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/ImportPurchasesPage.tsx) (Fecha de Emisión en ingreso de factura física).
+      * Con esta normalización, el 100% de los campos de fecha del frontend utilizan los componentes oficiales de Glubox (`DateBox` y `RangeDateBox`).
     - Detección determinista por dígito 24 de la clave de acceso de 49 dígitos (`accessKey[23] === '1'` para Pruebas, `'2'` para Producción).
     - **RIDE PDF:** Incorporación de banner superior prominente de alerta (`AMBIENTE DE PRUEBAS — DOCUMENTO SIN VALIDEZ TRIBUTARIA`), marca de agua diagonal de seguridad (`PRUEBAS — SIN VALIDEZ TRIBUTARIA`), indicativo en cabecera junto al número (`[AMBIENTE DE PRUEBAS — SIN VALIDEZ TRIBUTARIA]`), y etiquetado resaltado en el campo Ambiente (`PRUEBAS (SIN VALIDEZ TRIBUTARIA)`).
     - **Grilla de Comprobantes (`FacturasGrid`):** Nueva columna `Ambiente` con badge específico (`🧪 Pruebas (Sin validez)`, `🚀 Producción`, `Borrador`) y tooltip explicativo.

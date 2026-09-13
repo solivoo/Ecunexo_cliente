@@ -45,7 +45,8 @@ public sealed record ParseSriPurchaseXmlResponse(
     string? PaymentMethodCode,
     int CreditDays,
     IReadOnlyList<ParsedLineWithMatchDto> Lines,
-    string RawXml);
+    string RawXml,
+    SriValidationReport? ValidationReport = null);
 
 public sealed record ParseSriPurchaseXmlCommand(
     Guid TenantId,
@@ -159,7 +160,8 @@ public sealed class ParseSriPurchaseXmlHandler : ICommandHandler<ParseSriPurchas
             PaymentMethodCode: parsed.PaymentMethodCode,
             CreditDays: parsed.CreditDays,
             Lines: linesWithMatch.AsReadOnly(),
-            RawXml: parsed.RawXml
+            RawXml: parsed.RawXml,
+            ValidationReport: parsed.ValidationReport
         );
 
         return Result.Success(response);

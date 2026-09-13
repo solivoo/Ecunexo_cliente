@@ -376,6 +376,130 @@ public sealed class PurchaseAndXmlParserTests
         parsed.Lines[0].UnitPrice.Should().Be(2.25m);
         parsed.Lines[0].TaxAmount.Should().Be(0.34m);
         parsed.Lines[0].Total.Should().Be(2.59m);
+
+        parsed.ValidationReport.Should().NotBeNull();
+        parsed.ValidationReport!.IsAuthorizedBySri.Should().BeTrue();
+        parsed.ValidationReport.IsAccessKeyValid.Should().BeTrue();
+        parsed.ValidationReport.IsMathConsistent.Should().BeTrue();
+        parsed.ValidationReport.TaxRateStatus.Should().Be("VIGENTE_15");
+        parsed.ValidationReport.OverallStatus.Should().Be("valid");
+    }
+
+    [Fact(DisplayName = "Purchase.Create con autorización física preimpresa de 10 dígitos es exitoso")]
+    public void Purchase_Create_Physical10DigitAuth_Succeeds()
+    {
+        var result = Purchase.Create(
+            id: Guid.NewGuid(),
+            tenantId: TenantId,
+            supplierId: SupplierId,
+            invoiceNumber: "001-001-000000045",
+            issueDate: new DateOnly(2026, 9, 10),
+            authorizationNumber: "1123456789", // 10 dígitos de imprenta SRI
+            sriSustentoCode: "01");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.AuthorizationNumber.Should().Be("1123456789");
+    }
+
+    [Fact(DisplayName = "SriPurchaseAuditor.ValidateAccessKeyModulo11 valida clave correcta e invalida dígito alterado")]
+    public void SriPurchaseAuditor_ValidateAccessKeyModulo11_WorksCorrectly()
+    {
+        // Clave válida de Servientrega
+        const string validKey = "1009202601099128567900126650210000214721234567810";
+        var (valid, expected, err) = SriPurchaseAuditor.ValidateAccessKeyModulo11(validKey);
+        valid.Should().BeTrue();
+        err.Should().BeNull();
+
+        // Clave con dígito verificador alterado (de 0 a 9)
+        const string corruptKey = "1009202601099128567900126650210000214721234567819";
+        var (corruptValid, corruptExpected, corruptErr) = SriPurchaseAuditor.ValidateAccessKeyModulo11(corruptKey);
+        corruptValid.Should().BeFalse();
+        corruptExpected.Should().Be(0);
+        corruptErr.Should().Contain("Dígito verificador inválido");
+    }
+
+    [Fact(DisplayName = "SriPurchaseAuditor detecta XML sin contenedor de autorización (contingencia SRI) y genera advertencia")]
+    public void SriPurchaseAuditor_Detects_MissingSriAuthorizationContainer()
+    {
+        const string rawFacturaXml = """
+            <factura id="comprobante" version="1.1.0">
+                <infoTributaria>
+                    <ambiente>2</ambiente>
+                    <tipoEmision>1</tipoEmision>
+                    <razonSocial>PROVEEDOR CONTINGENCIA S.A.</razonSocial>
+                    <ruc>1790016919001</ruc>
+                    <claveAcceso>1009202601099128567900126650210000214721234567810</claveAcceso>
+                    <codDoc>01</codDoc>
+                    <estab>001</estab>
+                    <ptoEmi>001</ptoEmi>
+                    <secuencial>000000010</secuencial>
+                </infoTributaria>
+                <infoFactura>
+                    <fechaEmision>10/09/2026</fechaEmision>
+                    <totalSinImpuestos>100.00</totalSinImpuestos>
+                    <totalConImpuestos>
+                        <totalImpuesto>
+                            <codigo>2</codigo>
+                            <codigoPorcentaje>4</codigoPorcentaje>
+                            <baseImponible>100.00</baseImponible>
+                            <tarifa>15</tarifa>
+                            <valor>15.00</valor>
+                        </totalImpuesto>
+                    </totalConImpuestos>
+                    <importeTotal>115.00</importeTotal>
+                </infoFactura>
+            </factura>
+            """;
+
+        var result = SriPurchaseXmlParser.Parse(rawFacturaXml);
+        result.IsSuccess.Should().BeTrue();
+        var report = result.Value!.ValidationReport!;
+        report.IsAuthorizedBySri.Should().BeFalse();
+        report.SriStatus.Should().Be("SIN_CONTENEDOR_SRI");
+        report.OverallStatus.Should().Be("warning");
+        report.Alerts.Should().Contain(a => a.Code == "NO_SRI_CONTAINER");
+    }
+
+    [Fact(DisplayName = "SriPurchaseAuditor detecta discrepancia matemática entre bases declaradas e importe total")]
+    public void SriPurchaseAuditor_Detects_MathDiscrepancy()
+    {
+        const string mathErrorXml = """
+            <factura id="comprobante" version="1.1.0">
+                <infoTributaria>
+                    <ambiente>2</ambiente>
+                    <tipoEmision>1</tipoEmision>
+                    <razonSocial>PROVEEDOR ERROR MATEMATICO S.A.</razonSocial>
+                    <ruc>1790016919001</ruc>
+                    <claveAcceso>1009202601099128567900126650210000214721234567810</claveAcceso>
+                    <codDoc>01</codDoc>
+                    <estab>001</estab>
+                    <ptoEmi>001</ptoEmi>
+                    <secuencial>000000011</secuencial>
+                </infoTributaria>
+                <infoFactura>
+                    <fechaEmision>10/09/2026</fechaEmision>
+                    <totalSinImpuestos>100.00</totalSinImpuestos>
+                    <totalConImpuestos>
+                        <totalImpuesto>
+                            <codigo>2</codigo>
+                            <codigoPorcentaje>4</codigoPorcentaje>
+                            <baseImponible>100.00</baseImponible>
+                            <tarifa>15</tarifa>
+                            <valor>15.00</valor>
+                        </totalImpuesto>
+                    </totalConImpuestos>
+                    <importeTotal>200.00</importeTotal> <!-- ERROR: 100 + 15 = 115 != 200 -->
+                </infoFactura>
+            </factura>
+            """;
+
+        var result = SriPurchaseXmlParser.Parse(mathErrorXml);
+        result.IsSuccess.Should().BeTrue();
+        var report = result.Value!.ValidationReport!;
+        report.IsMathConsistent.Should().BeFalse();
+        report.MathDiscrepancy.Should().Be(85.00m);
+        report.OverallStatus.Should().Be("danger");
+        report.Alerts.Should().Contain(a => a.Code == "MATH_TOTAL_MISMATCH");
     }
 }
 

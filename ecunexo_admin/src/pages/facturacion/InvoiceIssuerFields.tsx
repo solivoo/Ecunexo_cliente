@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react'
-import { TextBox } from 'glubox'
+import { DateBox, TextBox } from 'glubox'
 import type { InvoiceHeaderValues } from '@/pages/facturacion/invoiceFormTypes'
 
 export type InvoiceIssuerFieldsProps = {
@@ -59,13 +59,12 @@ export function InvoiceIssuerFields({
           />
         </div>
         <div className="factura-emitir__cell factura-emitir__cell--fecha">
-          <TextBox
+          <DateBox
             id="inv-fecha"
             label="Fecha de emisión"
             labelPosition="outlined"
             variant="outline"
             size="md"
-            type="date"
             value={header.issueDate}
             onChange={(e: ChangeEvent<HTMLInputElement>) => {
               if (disabled) return

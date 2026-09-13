@@ -318,9 +318,9 @@ public sealed class Purchase : AggregateRoot<Guid>, ITenantEntity, IAuditable
         if (!string.IsNullOrWhiteSpace(authorizationNumber))
         {
             cleanAuth = authorizationNumber.Trim();
-            if (cleanAuth.Length != AuthorizationNumberMaxLength || !cleanAuth.All(char.IsDigit))
+            if ((cleanAuth.Length != 10 && cleanAuth.Length != AuthorizationNumberMaxLength) || !cleanAuth.All(char.IsDigit))
             {
-                return Result.Failure<Purchase>(new Error("purchase.authorization_number.invalid", "La clave de acceso / autorización SRI debe tener exactamente 49 dígitos numéricos.", ErrorType.Validation));
+                return Result.Failure<Purchase>(new Error("purchase.authorization_number.invalid", "La autorización SRI debe tener 10 dígitos (física preimpresa) o 49 dígitos (clave de acceso electrónica).", ErrorType.Validation));
             }
         }
 

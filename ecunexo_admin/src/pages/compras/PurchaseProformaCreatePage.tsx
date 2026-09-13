@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Select, TextBox, useToast } from 'glubox'
+import { Button, DateBox, Select, TextBox, useToast } from 'glubox'
 import {
   AlertCircle,
   ArrowLeft,
@@ -425,11 +425,11 @@ export function PurchaseProformaCreatePage() {
               </div>
 
               <div>
-                <TextBox
+                <DateBox
                   label="Fecha de Emisión *"
                   labelPosition="outlined"
-                  type="date"
                   variant="outline"
+                  size="md"
                   value={issueDate}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setIssueDate(e.target.value)}
                   fullWidth
@@ -438,11 +438,11 @@ export function PurchaseProformaCreatePage() {
               </div>
 
               <div>
-                <TextBox
+                <DateBox
                   label="Fecha de Vencimiento / Vigencia de Precios"
                   labelPosition="outlined"
-                  type="date"
                   variant="outline"
+                  size="md"
                   value={expirationDate}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setExpirationDate(e.target.value)}
                   fullWidth

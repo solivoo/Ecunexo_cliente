@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { CheckButton, Popup, Select, TextBox } from 'glubox'
+import { CheckButton, DateBox, Popup, Select, TextBox } from 'glubox'
 import { AlertCircle, Info } from 'lucide-react'
 import type {
   CreateExpenseTypePayload,
@@ -363,12 +363,12 @@ export function ExpenseTypeModal({
 
           {/* Vigencia Desde y Hasta */}
           <div className="ecu-customer-form__field">
-            <TextBox
+            <DateBox
               id="expense-valid-from"
               label="Vigencia Desde"
               labelPosition="outlined"
               variant="outline"
-              type="date"
+              size="md"
               value={validFrom}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setValidFrom(e.target.value)}
               fullWidth
@@ -377,12 +377,12 @@ export function ExpenseTypeModal({
           </div>
 
           <div className="ecu-customer-form__field">
-            <TextBox
+            <DateBox
               id="expense-valid-until"
               label="Vigencia Hasta (Opcional)"
               labelPosition="outlined"
               variant="outline"
-              type="date"
+              size="md"
               value={validUntil}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setValidUntil(e.target.value)}
               fullWidth

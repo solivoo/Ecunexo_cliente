@@ -51,6 +51,7 @@ import { ComprobantesPage } from '@/pages/facturacion/ComprobantesPage'
 import { SriMonitorPage } from '@/pages/facturacion/SriMonitorPage'
 import { TaxRulesCatalogPage } from '@/pages/facturacion/TaxRulesCatalogPage'
 import { ComprasDocumentosPage } from '@/pages/compras/ComprasDocumentosPage'
+import { ImportPurchasesPage } from '@/pages/compras/ImportPurchasesPage'
 import { PurchaseWithholdingsListPage } from '@/pages/compras/PurchaseWithholdingsListPage'
 import { PurchaseSettlementsListPage } from '@/pages/compras/PurchaseSettlementsListPage'
 import { SuppliersListPage } from '@/pages/compras/SuppliersListPage'
@@ -155,6 +156,8 @@ export const routes: RouteObject[] = [
           { path: 'ecommerce/pedidos', element: <EcommerceOrdersListPage /> },
           { path: 'ecommerce/pedidos/:orderId', element: <EcommerceOrderDetailPage /> },
           { path: 'compras/documentos', element: <ComprasDocumentosPage /> },
+          { path: 'compras/documentos/importar', element: <ImportPurchasesPage /> },
+          { path: 'compras/importar', element: <Navigate to="/compras/documentos/importar" replace /> },
           { path: 'compras/retenciones', element: <PurchaseWithholdingsListPage /> },
           { path: 'compras/liquidaciones', element: <PurchaseSettlementsListPage /> },
           { path: 'compras/proveedores', element: <SuppliersListPage /> },
