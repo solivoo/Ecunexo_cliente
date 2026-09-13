@@ -113,6 +113,7 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
             <span>Novedades v{APP_VERSION_INFO.version} — Módulo integral de Compras, Proveedores y Recepción SRI</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Normalización de iconos Material Symbols en Compras:</strong> Corrección de ligaduras tipográficas en StatCards y EmptyStates de Proveedores, Proformas y Tipos de Gasto SRI para garantizar renderizado gráfico nativo en lugar de texto plano.</li>
             <li><strong>Directorio de Proveedores y Validación SRI:</strong> Gestión centralizada de proveedores con validación de RUC de persona natural, sociedades privadas y entidades públicas según el algoritmo oficial Módulo 10/11 del SRI; validación de cédula de identidad; control de condición fiscal (Rimpe Negocio Popular / Emprendedor, Agente de Retención, Contribuyente Especial) y plazos comerciales de crédito.</li>
             <li><strong>Gestión de Proformas y Cotizaciones:</strong> Registro integral de cotizaciones de compra con desglose automático de tarifas de IVA ecuatorianas (0%, 15%, 5%, no objeto, exento); seguimiento de vigencia y aprobación para conversión ágil a facturas de compra.</li>
             <li><strong>Catálogo de Tipos de Gastos SRI / ATS:</strong> Clasificación fiscal de compras y adquisiciones según los códigos de deducción del Anexo Transaccional Simplificado (ATS) y cuentas contables vinculadas.</li>

@@ -7,8 +7,8 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (limpia y sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.17.0`.
-* **Hito Completado:** **Módulo de Compras & Proveedores (Ecuador SRI)** implementado, migrado y validado con 219 tests unitarios backend y 17 tests Playwright frontend.
+* **Última Versión Publicada:** `v0.17.1`.
+* **Hito Completado:** **Módulo de Compras & Proveedores (Ecuador SRI)** implementado, probado y refinado con normalización completa de glifos Material Symbols.
 
 ---
 

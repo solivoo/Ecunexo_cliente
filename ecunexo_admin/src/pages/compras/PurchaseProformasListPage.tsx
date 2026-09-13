@@ -357,28 +357,28 @@ export function PurchaseProformasListPage() {
           <StatCard
             label="Total Cotizaciones"
             value={String(stats.total)}
-            icon="clipboard-list"
+            icon="request_quote"
             toneColor="#4f46e5"
             footerText="Proformas registradas"
           />
           <StatCard
             label="En Borrador"
             value={String(stats.borrador)}
-            icon="pencil"
+            icon="edit_note"
             toneColor="#eab308"
             footerText="Pendientes de aprobación"
           />
           <StatCard
             label="Aprobadas"
             value={String(stats.aprobadas)}
-            icon="check"
+            icon="verified"
             toneColor="#10b981"
             footerText="Listas para facturación"
           />
           <StatCard
             label="Convertidas / Rechazadas"
             value={String(stats.finalizadas)}
-            icon="file-text"
+            icon="receipt_long"
             toneColor="#6b7280"
             footerText="Ciclo completado"
           />
@@ -401,7 +401,7 @@ export function PurchaseProformasListPage() {
         >
           {!loading && proformas.length === 0 ? (
             <EmptyState
-              icon="clipboard-list"
+              icon="request_quote"
               title="No hay proformas registradas"
               description="Registra la cotización o proforma enviada por tu proveedor para comparar precios y autorizar la compra."
               action={

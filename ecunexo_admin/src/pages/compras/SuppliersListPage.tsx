@@ -341,28 +341,28 @@ export function SuppliersListPage() {
           <StatCard
             label="Total Proveedores"
             value={String(stats.total)}
-            icon="truck"
+            icon="local_shipping"
             toneColor="#4f46e5"
             footerText="Registrados en la empresa"
           />
           <StatCard
             label="Proveedores Activos"
             value={String(stats.activos)}
-            icon="check"
+            icon="verified"
             toneColor="#10b981"
             footerText="Disponibles para compras"
           />
           <StatCard
             label="Agentes de Retención"
             value={String(stats.agentesRetencion)}
-            icon="shield-check"
+            icon="verified_user"
             toneColor="#0ea5e9"
             footerText="Calificados por el SRI"
           />
           <StatCard
             label="Régimen RIMPE"
             value={String(stats.rimpe)}
-            icon="tags"
+            icon="sell"
             toneColor="#8b5cf6"
             footerText="Emprendedor y Negocio Popular"
           />
@@ -387,7 +387,7 @@ export function SuppliersListPage() {
         >
           {!loading && suppliers.length === 0 ? (
             <EmptyState
-              icon="truck"
+              icon="local_shipping"
               title="No hay proveedores registrados"
               description="Registra a tus proveedores para asociar proformas de compra, facturas recibidas y retenciones SRI."
               action={

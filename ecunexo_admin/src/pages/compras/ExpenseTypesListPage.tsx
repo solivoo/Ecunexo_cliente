@@ -246,28 +246,28 @@ export function ExpenseTypesListPage() {
           <StatCard
             label="Total Conceptos"
             value={String(stats.total)}
-            icon="tags"
+            icon="category"
             toneColor="#4f46e5"
             footerText="Tipos de compra configurados"
           />
           <StatCard
             label="Afectan Inventario"
             value={String(stats.inventariables)}
-            icon="package"
+            icon="inventory_2"
             toneColor="#10b981"
             footerText="Mercadería y materiales"
           />
           <StatCard
             label="Gastos Operativos"
             value={String(stats.noInventariables)}
-            icon="receipt"
+            icon="receipt_long"
             toneColor="#0ea5e9"
             footerText="Publicidad, cloud, arriendos"
           />
           <StatCard
             label="Semillero SRI"
             value={String(stats.sistema)}
-            icon="shield-check"
+            icon="verified_user"
             toneColor="#8b5cf6"
             footerText="Oficiales ATS v2.0"
           />
@@ -303,7 +303,7 @@ export function ExpenseTypesListPage() {
         >
           {!loading && expenseTypes.length === 0 ? (
             <EmptyState
-              icon="tags"
+              icon="category"
               title="No hay tipos de gasto registrados"
               description="Siembra el catálogo estándar del SRI con los 8 conceptos más utilizados en Ecuador (mercaderías, publicidad, servicios cloud, arriendos, honorarios)."
               action={
