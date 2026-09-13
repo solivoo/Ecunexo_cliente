@@ -173,6 +173,17 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
             return Result.Failure<Supplier>(new Error("supplier.credit_limit.invalid", "El límite de crédito no puede ser negativo.", ErrorType.Validation));
         }
 
+        if (string.IsNullOrWhiteSpace(contactEmail))
+        {
+            return Result.Failure<Supplier>(new Error("supplier.contact_email.empty", "El correo electrónico del proveedor es obligatorio para notificar proformas y retenciones SRI.", ErrorType.Validation));
+        }
+
+        var trimmedEmail = contactEmail.Trim().ToLowerInvariant();
+        if (trimmedEmail.Length > EmailMaxLength || !IsValidEmail(trimmedEmail))
+        {
+            return Result.Failure<Supplier>(new Error("supplier.contact_email.invalid", "El correo electrónico del proveedor no tiene un formato válido.", ErrorType.Validation));
+        }
+
         return new Supplier
         {
             Id = id,
@@ -184,7 +195,7 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
             TaxRegime = taxRegime,
             IsRetentionAgent = isRetentionAgent,
             ResolutionNumber = string.IsNullOrWhiteSpace(resolutionNumber) ? null : resolutionNumber.Trim(),
-            ContactEmail = string.IsNullOrWhiteSpace(contactEmail) ? null : contactEmail.Trim().ToLowerInvariant(),
+            ContactEmail = trimmedEmail,
             ContactPhone = string.IsNullOrWhiteSpace(contactPhone) ? null : contactPhone.Trim(),
             Address = string.IsNullOrWhiteSpace(address) ? null : address.Trim(),
             ContactPerson = string.IsNullOrWhiteSpace(contactPerson) ? null : contactPerson.Trim(),
@@ -245,6 +256,17 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         if (creditLimit.HasValue && creditLimit.Value < 0)
         {
             return Result.Failure(new Error("supplier.credit_limit.invalid", "El límite de crédito no puede ser negativo.", ErrorType.Validation));
+        }
+
+        if (string.IsNullOrWhiteSpace(contactEmail))
+        {
+            return Result.Failure(new Error("supplier.contact_email.empty", "El correo electrónico del proveedor es obligatorio para notificar proformas y retenciones SRI.", ErrorType.Validation));
+        }
+
+        var trimmedEmail = contactEmail.Trim().ToLowerInvariant();
+        if (trimmedEmail.Length > EmailMaxLength || !IsValidEmail(trimmedEmail))
+        {
+            return Result.Failure(new Error("supplier.contact_email.invalid", "El correo electrónico del proveedor no tiene un formato válido.", ErrorType.Validation));
         }
 
         BusinessName = trimmedBusinessName;
@@ -461,5 +483,23 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         }
 
         return false;
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return false;
+        }
+
+        try
+        {
+            var addr = new System.Net.Mail.MailAddress(email.Trim());
+            return addr.Address == email.Trim();
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

@@ -40,10 +40,13 @@ public sealed class CreatePurchaseProformaHandler : ICommandHandler<CreatePurcha
                 new Error("purchases.proforma.number_duplicate", "Ya existe una proforma con este número para el proveedor seleccionado.", ErrorType.Conflict));
         }
 
-        if (command.Items == null || command.Items.Count == 0)
+        var hasItems = command.Items != null && command.Items.Count > 0;
+        var hasDocumentWithAmount = !string.IsNullOrWhiteSpace(command.AttachmentUrl) && (command.TotalAmount > 0 || command.Subtotal > 0);
+
+        if (!hasItems && !hasDocumentWithAmount)
         {
             return Result.Failure<PurchaseProformaResponse>(
-                new Error("purchases.proforma.items_empty", "La proforma debe incluir al menos un ítem o producto.", ErrorType.Validation));
+                new Error("purchases.proforma.items_or_doc_required", "Debe incluir al menos un ítem cotizado o registrar el enlace al documento de cotización con su monto.", ErrorType.Validation));
         }
 
         var proformaResult = PurchaseProforma.Create(
@@ -56,7 +59,10 @@ public sealed class CreatePurchaseProformaHandler : ICommandHandler<CreatePurcha
             currency: "USD",
             notes: command.Notes,
             attachmentUrl: command.AttachmentUrl,
-            attachmentFileName: command.AttachmentFileName);
+            attachmentFileName: command.AttachmentFileName,
+            subtotal: command.Subtotal,
+            taxAmount: command.TaxAmount,
+            totalAmount: command.TotalAmount);
 
         if (proformaResult.IsFailure)
         {
@@ -65,20 +71,23 @@ public sealed class CreatePurchaseProformaHandler : ICommandHandler<CreatePurcha
 
         var proforma = proformaResult.Value!;
 
-        foreach (var item in command.Items)
+        if (hasItems)
         {
-            var itemResult = proforma.AddItem(
-                _idGenerator.NewId(),
-                item.Description,
-                item.Quantity,
-                item.UnitPrice,
-                item.TaxRate,
-                item.CatalogItemId,
-                item.ExpenseTypeId);
-
-            if (itemResult.IsFailure)
+            foreach (var item in command.Items!)
             {
-                return Result.Failure<PurchaseProformaResponse>(itemResult.Error!);
+                var itemResult = proforma.AddItem(
+                    _idGenerator.NewId(),
+                    item.Description,
+                    item.Quantity,
+                    item.UnitPrice,
+                    item.TaxRate,
+                    item.CatalogItemId,
+                    item.ExpenseTypeId);
+
+                if (itemResult.IsFailure)
+                {
+                    return Result.Failure<PurchaseProformaResponse>(itemResult.Error!);
+                }
             }
         }
 

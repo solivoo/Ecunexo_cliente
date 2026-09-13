@@ -320,16 +320,17 @@ export function ParseXmlModal({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div
               style={{
-                border: '2px dashed var(--shell-border, #cbd5e1)',
+                border: '2px dashed color-mix(in srgb, var(--shell-primary, #4f46e5) 40%, var(--shell-border, rgba(255, 255, 255, 0.15)))',
                 borderRadius: '0.75rem',
                 padding: '2rem 1.5rem',
                 textAlign: 'center',
-                backgroundColor: 'rgba(241, 245, 249, 0.4)',
+                backgroundColor: 'color-mix(in srgb, var(--shell-primary, #4f46e5) 5%, transparent)',
                 cursor: 'pointer',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: '0.75rem',
+                transition: 'all 0.2s ease',
               }}
               onClick={() => fileInputRef.current?.click()}
             >
@@ -342,7 +343,7 @@ export function ParseXmlModal({
               />
               <UploadCloud size={36} style={{ color: 'var(--shell-primary, #4f46e5)' }} />
               <div>
-                <p style={{ fontWeight: 600, margin: 0, fontSize: '0.95rem' }}>
+                <p style={{ fontWeight: 600, margin: 0, fontSize: '0.95rem', color: 'var(--glb-text, inherit)' }}>
                   {fileName ? `Archivo seleccionado: ${fileName}` : 'Haz clic para seleccionar o arrastra tu archivo XML'}
                 </p>
                 <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: 'var(--glb-muted, #64748b)' }}>
@@ -361,7 +362,7 @@ export function ParseXmlModal({
                   fontSize: '0.8125rem',
                   fontWeight: 600,
                   marginBottom: '0.5rem',
-                  color: 'var(--glb-text, #1e293b)',
+                  color: 'var(--glb-text, inherit)',
                 }}
               >
                 O pega el contenido XML directamente:
@@ -381,9 +382,9 @@ export function ParseXmlModal({
                   fontSize: '0.8125rem',
                   padding: '0.75rem',
                   borderRadius: '0.5rem',
-                  border: '1px solid var(--shell-border, #cbd5e1)',
-                  backgroundColor: 'var(--glb-surface, #ffffff)',
-                  color: 'var(--glb-text, #1e293b)',
+                  border: '1px solid var(--shell-border, rgba(255, 255, 255, 0.12))',
+                  backgroundColor: 'var(--glb-surface, transparent)',
+                  color: 'var(--glb-text, inherit)',
                   resize: 'vertical',
                 }}
               />
@@ -396,8 +397,8 @@ export function ParseXmlModal({
             {/* Supplier & Header Card */}
             <div
               style={{
-                backgroundColor: 'var(--glb-surface, #ffffff)',
-                border: '1px solid var(--shell-border, #e2e8f0)',
+                backgroundColor: 'var(--glb-surface, transparent)',
+                border: '1px solid var(--shell-border, rgba(255, 255, 255, 0.08))',
                 borderRadius: '0.75rem',
                 padding: '1.25rem',
                 display: 'grid',
@@ -408,7 +409,7 @@ export function ParseXmlModal({
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
                   <Building2 size={18} style={{ color: 'var(--shell-primary, #4f46e5)' }} />
-                  <span style={{ fontWeight: 700, fontSize: '1rem' }}>
+                  <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--glb-text, inherit)' }}>
                     {parsedData.supplier.businessName}
                   </span>
                 </div>
@@ -430,10 +431,10 @@ export function ParseXmlModal({
 
               <div>
                 <div style={{ fontSize: '0.8125rem', color: 'var(--glb-muted, #64748b)' }}>
-                  Factura N°: <strong style={{ color: 'var(--glb-text, #1e293b)' }}>{parsedData.invoiceNumber}</strong>
+                  Factura N°: <strong style={{ color: 'var(--glb-text, inherit)' }}>{parsedData.invoiceNumber}</strong>
                 </div>
                 <div style={{ fontSize: '0.8125rem', color: 'var(--glb-muted, #64748b)', marginTop: '0.25rem' }}>
-                  Fecha Emisión: <strong style={{ color: 'var(--glb-text, #1e293b)' }}>{parsedData.issueDate}</strong>
+                  Fecha Emisión: <strong style={{ color: 'var(--glb-text, inherit)' }}>{parsedData.issueDate}</strong>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #64748b)', marginTop: '0.25rem' }}>
                   Clave de Acceso: <span style={{ fontFamily: 'monospace' }}>{parsedData.authorizationNumber}</span>
@@ -507,19 +508,19 @@ export function ParseXmlModal({
 
               <div
                 style={{
-                  border: '1px solid var(--shell-border, #e2e8f0)',
+                  border: '1px solid var(--shell-border, rgba(255, 255, 255, 0.08))',
                   borderRadius: '0.5rem',
                   overflowX: 'auto',
                   maxHeight: '260px',
-                  backgroundColor: 'var(--glb-surface, #ffffff)',
+                  backgroundColor: 'var(--glb-surface, transparent)',
                 }}
               >
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
                   <thead>
                     <tr
                       style={{
-                        backgroundColor: 'rgba(241, 245, 249, 0.7)',
-                        borderBottom: '1px solid var(--shell-border, #e2e8f0)',
+                        backgroundColor: 'var(--glb-surface-hover, rgba(255, 255, 255, 0.04))',
+                        borderBottom: '1px solid var(--shell-border, rgba(255, 255, 255, 0.08))',
                         textAlign: 'left',
                       }}
                     >
@@ -537,7 +538,7 @@ export function ParseXmlModal({
                       <tr
                         key={`line-${idx}`}
                         style={{
-                          borderBottom: '1px solid var(--shell-border, #e2e8f0)',
+                          borderBottom: '1px solid var(--shell-border, rgba(255, 255, 255, 0.06))',
                         }}
                       >
                         <td style={{ padding: '0.5rem 0.75rem', fontFamily: 'monospace', fontSize: '0.75rem' }}>
@@ -563,10 +564,10 @@ export function ParseXmlModal({
                               width: '100%',
                               padding: '0.35rem 0.5rem',
                               borderRadius: '0.375rem',
-                              border: '1px solid var(--shell-border, #cbd5e1)',
+                              border: '1px solid var(--shell-border, rgba(255, 255, 255, 0.12))',
                               fontSize: '0.75rem',
-                              backgroundColor: 'var(--glb-surface, #ffffff)',
-                              color: 'var(--glb-text, #1e293b)',
+                              backgroundColor: 'var(--glb-surface, transparent)',
+                              color: 'var(--glb-text, inherit)',
                             }}
                           >
                             {catalogItemOptions.map((opt) => (

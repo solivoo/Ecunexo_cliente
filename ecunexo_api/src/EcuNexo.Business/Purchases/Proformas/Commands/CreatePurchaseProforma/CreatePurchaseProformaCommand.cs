@@ -19,4 +19,7 @@ public sealed record CreatePurchaseProformaCommand(
     string? Notes,
     string? AttachmentUrl,
     string? AttachmentFileName,
-    IReadOnlyList<CreatePurchaseProformaItemInput> Items) : ICommand<PurchaseProformaResponse>;
+    decimal Subtotal = 0,
+    decimal TaxAmount = 0,
+    decimal TotalAmount = 0,
+    IReadOnlyList<CreatePurchaseProformaItemInput>? Items = null) : ICommand<PurchaseProformaResponse>;

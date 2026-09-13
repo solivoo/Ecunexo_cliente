@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Button,
   DataGrid,
@@ -21,19 +22,14 @@ import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
   approvePurchaseProforma,
-  createPurchaseProforma,
   listPurchaseProformas,
-  listSuppliers,
   rejectPurchaseProforma,
 } from '@/services/purchasesApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import { PurchaseProformaModal } from '@/pages/compras/PurchaseProformaModal'
 import type {
-  CreatePurchaseProformaPayload,
   PurchaseProformaDto,
   PurchaseProformaStatus,
-  SupplierDto,
 } from '@/types/purchasesApi'
 import '@/pages/repairs/ecu-customer-form.css'
 
@@ -57,29 +53,23 @@ function formatStatus(status: PurchaseProformaStatus): { label: string; tone: 'p
 }
 
 export function PurchaseProformasListPage() {
+  const navigate = useNavigate()
   const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
 
   const canRead = useHasPermission('purchases.proformas.read') || useHasPermission('facturacion.read')
   const canManage = useHasPermission('purchases.proformas.manage') || useHasPermission('facturacion.read')
+  const canApprove = useHasPermission('purchases.proformas.approve') || useHasPermission('facturacion.read')
 
   const [loading, setLoading] = useState(true)
   const [proformas, setProformas] = useState<PurchaseProformaDto[]>([])
-  const [suppliers, setSuppliers] = useState<SupplierDto[]>([])
-
-  const [modalOpen, setModalOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
 
   const loadData = useCallback(async () => {
     if (!tenantId) return
     setLoading(true)
     try {
-      const [proformasData, suppliersData] = await Promise.all([
-        listPurchaseProformas(tenantId),
-        listSuppliers(tenantId, { activeOnly: true }),
-      ])
+      const proformasData = await listPurchaseProformas(tenantId)
       setProformas(proformasData)
-      setSuppliers(suppliersData)
     } catch (err) {
       toast.show({
         title: 'Error de carga',
@@ -96,30 +86,8 @@ export function PurchaseProformasListPage() {
   }, [loadData])
 
   const openCreate = useCallback(() => {
-    setModalOpen(true)
-  }, [])
-
-  const handleSave = useCallback(
-    async (payload: CreatePurchaseProformaPayload) => {
-      if (!tenantId) return
-      setSaving(true)
-      try {
-        await createPurchaseProforma(tenantId, payload)
-        toast.show({
-          title: 'Proforma registrada',
-          message: `Proforma "${payload.proformaNumber}" registrada con éxito.`,
-          variant: 'success',
-        })
-        setModalOpen(false)
-        await loadData()
-      } catch (err) {
-        throw new Error(readApiError(err, 'No se pudo registrar la proforma.'))
-      } finally {
-        setSaving(false)
-      }
-    },
-    [tenantId, loadData, toast]
-  )
+    navigate('/compras/proformas/nueva')
+  }, [navigate])
 
   const handleApprove = useCallback(
     async (row: PurchaseProformaDto) => {
@@ -286,11 +254,13 @@ export function PurchaseProformasListPage() {
             <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center' }}>
               {row.status === 1 ? (
                 <>
-                  <GridIconButton
-                    label="Aprobar proforma"
-                    icon={Check}
-                    onClick={() => void handleApprove(row)}
-                  />
+                  {canApprove && (
+                    <GridIconButton
+                      label="Aprobar proforma"
+                      icon={Check}
+                      onClick={() => void handleApprove(row)}
+                    />
+                  )}
                   <GridIconButton
                     label="Rechazar proforma"
                     icon={X}
@@ -304,7 +274,7 @@ export function PurchaseProformasListPage() {
         },
       },
     ]
-  }, [canManage, handleApprove, handleReject])
+  }, [canManage, canApprove, handleApprove, handleReject])
 
   const {
     paging,
@@ -432,14 +402,6 @@ export function PurchaseProformasListPage() {
             />
           )}
         </SectionCard>
-
-        <PurchaseProformaModal
-          open={modalOpen}
-          suppliers={suppliers}
-          saving={saving}
-          onClose={() => setModalOpen(false)}
-          onSave={handleSave}
-        />
       </div>
     </TenantSessionGate>
   )

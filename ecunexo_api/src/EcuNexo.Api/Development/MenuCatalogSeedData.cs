@@ -99,11 +99,12 @@ internal static class MenuCatalogSeedData
         ("purchases.suppliers.read", "Proveedores — consultar", "Listar y consultar proveedores del directorio", "purchases", 152),
         ("purchases.suppliers.manage", "Proveedores — administrar", "Crear, editar proveedores y condiciones de pago", "purchases", 153),
         ("purchases.proformas.read", "Proformas — consultar", "Listar y ver cotizaciones de compra", "purchases", 154),
-        ("purchases.proformas.manage", "Proformas — administrar", "Crear, aprobar y rechazar proformas de compra", "purchases", 155),
-        ("purchases.expenses.read", "Tipos de gasto — consultar", "Listar conceptos de compra y sustentos SRI", "purchases", 156),
-        ("purchases.expenses.manage", "Tipos de gasto — administrar", "Configurar catálogo de tipos de gasto y retenciones", "purchases", 157),
-        ("purchases.withholdings.read", "Retenciones compras — consultar", "Consultar retenciones electrónicas emitidas (07)", "purchases", 158),
-        ("purchases.withholdings.issue", "Retenciones compras — emitir", "Emitir, firmar (XAdES-BES) y transmitir retenciones al SRI", "purchases", 159),
+        ("purchases.proformas.manage", "Proformas — administrar", "Crear y editar proformas de compra", "purchases", 155),
+        ("purchases.proformas.approve", "Proformas — aprobar", "Aprobar cotizaciones formalmente y notificar al proveedor", "purchases", 156),
+        ("purchases.expenses.read", "Tipos de gasto — consultar", "Listar conceptos de compra y sustentos SRI", "purchases", 157),
+        ("purchases.expenses.manage", "Tipos de gasto — administrar", "Configurar catálogo de tipos de gasto y retenciones", "purchases", 158),
+        ("purchases.withholdings.read", "Retenciones compras — consultar", "Consultar retenciones electrónicas emitidas (07)", "purchases", 159),
+        ("purchases.withholdings.issue", "Retenciones compras — emitir", "Emitir, firmar (XAdES-BES) y transmitir retenciones al SRI", "purchases", 160),
     ];
 
     public static IReadOnlyList<(string Code, string DisplayName)> ProductModules =>

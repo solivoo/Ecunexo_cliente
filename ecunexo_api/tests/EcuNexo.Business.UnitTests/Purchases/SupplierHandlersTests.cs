@@ -91,12 +91,7 @@ public sealed class SupplierHandlersTests
         var tenantId = Guid.NewGuid();
         var supplierId = Guid.NewGuid();
 
-        var supplier = Supplier.Create(
-            supplierId,
-            tenantId,
-            "Proveedor Inicial",
-            "1790016919001").Value!;
-
+        var supplier = Supplier.Create(supplierId, tenantId, "Proveedor Original", "1790016919001", contactEmail: "contacto@proveedor.ec").Value!;
         _suppliers.GetTrackedByIdAsync(tenantId, supplierId, Arg.Any<CancellationToken>()).Returns(supplier);
         _suppliers.ExistsByTaxIdAsync(tenantId, "1790016919001", supplierId, Arg.Any<CancellationToken>()).Returns(false);
         _suppliers.ExistsByBusinessNameAsync(tenantId, "Proveedor Modificado S.A.", supplierId, Arg.Any<CancellationToken>()).Returns(false);
@@ -110,6 +105,7 @@ public sealed class SupplierHandlersTests
             SupplierIdentificationType.Ruc,
             SupplierTaxRegime.RimpeEmprendedor,
             TradeName: "Nombre Comercial",
+            ContactEmail: "modificado@proveedor.ec",
             CreditDays: 45);
 
         // Act
@@ -134,7 +130,8 @@ public sealed class SupplierHandlersTests
             supplierId,
             tenantId,
             "Proveedor a Eliminar",
-            "1790016919001").Value!;
+            "1790016919001",
+            contactEmail: "eliminar@proveedor.ec").Value!;
 
         _suppliers.GetTrackedByIdAsync(tenantId, supplierId, Arg.Any<CancellationToken>()).Returns(supplier);
 
@@ -155,7 +152,7 @@ public sealed class SupplierHandlersTests
     {
         // Arrange
         var tenantId = Guid.NewGuid();
-        var supplier = Supplier.Create(Guid.NewGuid(), tenantId, "Proveedor 1", "1790016919001").Value!;
+        var supplier = Supplier.Create(Guid.NewGuid(), tenantId, "Proveedor 1", "1790016919001", contactEmail: "proveedor1@test.ec").Value!;
         _suppliers.ListAsync(tenantId, null, null, Arg.Any<CancellationToken>()).Returns([supplier]);
 
         var handler = new ListSuppliersHandler(_suppliers);

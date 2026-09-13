@@ -48,7 +48,8 @@ public sealed class SupplierTests
             tenantId: TenantId,
             businessName: "Proveedor Falso S.A.",
             taxId: "0992345679001", // Dígito verificador incorrecto (debería ser 5)
-            identificationType: SupplierIdentificationType.Ruc);
+            identificationType: SupplierIdentificationType.Ruc,
+            contactEmail: "contacto@proveedor.ec");
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("supplier.tax_id.ruc.invalid");
@@ -64,7 +65,8 @@ public sealed class SupplierTests
             businessName: "Carlos Alberto Mendoza",
             taxId: "0923456784",
             identificationType: SupplierIdentificationType.Cedula,
-            taxRegime: SupplierTaxRegime.RimpeEmprendedor);
+            taxRegime: SupplierTaxRegime.RimpeEmprendedor,
+            contactEmail: "carlos@mendoza.ec");
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.IdentificationType.Should().Be(SupplierIdentificationType.Cedula);
@@ -79,7 +81,8 @@ public sealed class SupplierTests
             tenantId: TenantId,
             businessName: "Persona Invalida",
             taxId: "0923456780", // Dígito incorrecto (debería ser 4)
-            identificationType: SupplierIdentificationType.Cedula);
+            identificationType: SupplierIdentificationType.Cedula,
+            contactEmail: "invalida@test.ec");
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("supplier.tax_id.cedula.invalid");
@@ -93,10 +96,41 @@ public sealed class SupplierTests
             tenantId: TenantId,
             businessName: "Global Trade Logistics LLC",
             taxId: "USA987654321",
-            identificationType: SupplierIdentificationType.Pasaporte);
+            identificationType: SupplierIdentificationType.Pasaporte,
+            contactEmail: "ops@globaltrade.com");
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.IdentificationType.Should().Be(SupplierIdentificationType.Pasaporte);
+    }
+
+    [Fact(DisplayName = "Supplier.Create sin correo de contacto falla con error requerido")]
+    public void Supplier_Create_WithoutEmail_Fails()
+    {
+        var result = Supplier.Create(
+            id: Guid.NewGuid(),
+            tenantId: TenantId,
+            businessName: "Proveedor Sin Correo",
+            taxId: "0992345675001",
+            identificationType: SupplierIdentificationType.Ruc,
+            contactEmail: null);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("supplier.contact_email.empty");
+    }
+
+    [Fact(DisplayName = "Supplier.Create con formato de correo inválido falla")]
+    public void Supplier_Create_WithInvalidEmailFormat_Fails()
+    {
+        var result = Supplier.Create(
+            id: Guid.NewGuid(),
+            tenantId: TenantId,
+            businessName: "Proveedor Email Malo",
+            taxId: "0992345675001",
+            identificationType: SupplierIdentificationType.Ruc,
+            contactEmail: "correo_sin_arroba_ni_dominio");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("supplier.contact_email.invalid");
     }
 
     [Fact(DisplayName = "Supplier.Update actualiza campos y audita fecha")]
@@ -106,7 +140,8 @@ public sealed class SupplierTests
             id: Guid.NewGuid(),
             tenantId: TenantId,
             businessName: "Original S.A.",
-            taxId: "0992345675001").Value!;
+            taxId: "0992345675001",
+            contactEmail: "contacto@original.ec").Value!;
 
         var updateResult = supplier.Update(
             businessName: "Nombre Modificado S.A.",
@@ -138,7 +173,8 @@ public sealed class SupplierTests
             id: Guid.NewGuid(),
             tenantId: TenantId,
             businessName: "Eliminar S.A.",
-            taxId: "0992345675001").Value!;
+            taxId: "0992345675001",
+            contactEmail: "eliminar@empresa.ec").Value!;
 
         var delResult = supplier.SoftDelete();
 

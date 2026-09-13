@@ -51,8 +51,11 @@ import { ComprobantesPage } from '@/pages/facturacion/ComprobantesPage'
 import { SriMonitorPage } from '@/pages/facturacion/SriMonitorPage'
 import { TaxRulesCatalogPage } from '@/pages/facturacion/TaxRulesCatalogPage'
 import { ComprasDocumentosPage } from '@/pages/compras/ComprasDocumentosPage'
+import { PurchaseWithholdingsListPage } from '@/pages/compras/PurchaseWithholdingsListPage'
+import { PurchaseSettlementsListPage } from '@/pages/compras/PurchaseSettlementsListPage'
 import { SuppliersListPage } from '@/pages/compras/SuppliersListPage'
 import { PurchaseProformasListPage } from '@/pages/compras/PurchaseProformasListPage'
+import { PurchaseProformaCreatePage } from '@/pages/compras/PurchaseProformaCreatePage'
 import { ExpenseTypesListPage } from '@/pages/compras/ExpenseTypesListPage'
 import { RepairsBatchesListPage } from '@/pages/repairs/RepairsBatchesListPage'
 import { CreateRepairBatchPage } from '@/pages/repairs/CreateRepairBatchPage'
@@ -149,10 +152,11 @@ export const routes: RouteObject[] = [
           { path: 'ecommerce/pedidos', element: <EcommerceOrdersListPage /> },
           { path: 'ecommerce/pedidos/:orderId', element: <EcommerceOrderDetailPage /> },
           { path: 'compras/documentos', element: <ComprasDocumentosPage /> },
-          { path: 'compras/retenciones', element: <ComprasDocumentosPage /> },
-          { path: 'compras/liquidaciones', element: <ComprasDocumentosPage /> },
+          { path: 'compras/retenciones', element: <PurchaseWithholdingsListPage /> },
+          { path: 'compras/liquidaciones', element: <PurchaseSettlementsListPage /> },
           { path: 'compras/proveedores', element: <SuppliersListPage /> },
           { path: 'compras/proformas', element: <PurchaseProformasListPage /> },
+          { path: 'compras/proformas/nueva', element: <PurchaseProformaCreatePage /> },
           { path: 'compras/gastos', element: <ExpenseTypesListPage /> },
           { path: 'facturacion/comprobantes', element: <ComprobantesPage /> },
           { path: 'facturacion/facturas/emitir', element: <FacturaEmitirPage /> },

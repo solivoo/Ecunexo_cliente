@@ -786,6 +786,29 @@ test.describe('Compras UI — Proformas y Cotizaciones', () => {
     await expect(page.getByText('PRF-2026-001')).toBeVisible()
     await expect(page.getByText('$1150.00')).toBeVisible()
   })
+
+  test('Proformas: navega a vista dedicada /compras/proformas/nueva y muestra modos híbridos', async ({ page }) => {
+    await openProformas(page)
+
+    // Clic en Nueva Cotización
+    const newBtn = page.getByRole('button', { name: /Nueva Cotización/i })
+    await expect(newBtn).toBeVisible()
+    await newBtn.click()
+
+    // Verificar que estamos en la nueva vista dedicada
+    await expect(page).toHaveURL(/.*\/compras\/proformas\/nueva/)
+    await expect(page.getByRole('heading', { name: /Registrar Proforma \/ Cotización/i })).toBeVisible()
+
+    // Verificar selector de modo híbrido
+    await expect(page.getByText('Por Documento / Enlace Externo (PDF)')).toBeVisible()
+    await expect(page.getByText('Desglose Detallado por Ítems')).toBeVisible()
+
+    // En modo documento, la sección de URL y montos directos está visible y no el grid de ítems
+    await expect(page.getByText('Enlace / URL de la Cotización (PDF / Imagen / Cloud)')).toBeVisible()
+    await expect(page.getByText('Subtotal Neto ($ USD)')).toBeVisible()
+    await expect(page.getByText('Tarifa de IVA Aplicable')).toBeVisible()
+    await expect(page.getByText('Total General ($ USD)')).toBeVisible()
+  })
 })
 
 test.describe('Compras UI — Tipos de Gasto SRI', () => {

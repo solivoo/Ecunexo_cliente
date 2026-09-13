@@ -130,7 +130,10 @@ export interface CreatePurchaseProformaPayload {
   notes?: string | null
   attachmentUrl?: string | null
   attachmentFileName?: string | null
-  items: CreatePurchaseProformaItemPayload[]
+  subtotal?: number
+  taxAmount?: number
+  totalAmount?: number
+  items?: CreatePurchaseProformaItemPayload[]
 }
 
 export interface PurchaseProformaFilterParams {

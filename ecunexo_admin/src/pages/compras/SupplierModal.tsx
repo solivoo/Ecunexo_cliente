@@ -133,6 +133,17 @@ export function SupplierModal({
         return
       }
 
+      if (!contactEmail.trim()) {
+        setFormError('El correo electrónico del proveedor es obligatorio para notificar aprobaciones de proformas y retenciones SRI.')
+        return
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(contactEmail.trim())) {
+        setFormError('El correo electrónico ingresado no tiene un formato válido (ejemplo: contacto@proveedor.ec).')
+        return
+      }
+
       const parsedCreditDays = parseInt(creditDays, 10)
       const parsedCreditLimit = creditLimit.trim() ? parseFloat(creditLimit) : null
 
@@ -352,7 +363,7 @@ export function SupplierModal({
           <div className="ecu-customer-form__field">
             <TextBox
               id="supplier-contact-email"
-              label="Correo para Retenciones y Facturas"
+              label="Correo para Retenciones, Facturas y Proformas *"
               labelPosition="outlined"
               variant="outline"
               placeholder="contabilidad@proveedor.com"

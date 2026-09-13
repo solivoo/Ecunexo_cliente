@@ -88,6 +88,9 @@ public sealed class PurchaseProforma : AggregateRoot<Guid>, ITenantEntity, IAudi
         string? notes = null,
         string? attachmentUrl = null,
         string? attachmentFileName = null,
+        decimal subtotal = 0,
+        decimal taxAmount = 0,
+        decimal totalAmount = 0,
         Guid? createdBy = null)
     {
         if (id == Guid.Empty)
@@ -121,6 +124,10 @@ public sealed class PurchaseProforma : AggregateRoot<Guid>, ITenantEntity, IAudi
             return Result.Failure<PurchaseProforma>(new Error("proforma.dates.invalid", "La fecha de caducidad no puede ser anterior a la fecha de emisión.", ErrorType.Validation));
         }
 
+        var calculatedTotal = totalAmount > 0 
+            ? Math.Round(totalAmount, 2, MidpointRounding.AwayFromZero)
+            : (subtotal + taxAmount > 0 ? Math.Round(subtotal + taxAmount, 2, MidpointRounding.AwayFromZero) : 0);
+
         return new PurchaseProforma
         {
             Id = id,
@@ -131,6 +138,9 @@ public sealed class PurchaseProforma : AggregateRoot<Guid>, ITenantEntity, IAudi
             ExpirationDate = expirationDate,
             Status = PurchaseProformaStatus.Draft,
             Currency = string.IsNullOrWhiteSpace(currency) ? "USD" : currency.Trim().ToUpperInvariant(),
+            Subtotal = subtotal > 0 ? Math.Round(subtotal, 2, MidpointRounding.AwayFromZero) : 0,
+            TaxAmount = taxAmount > 0 ? Math.Round(taxAmount, 2, MidpointRounding.AwayFromZero) : 0,
+            TotalAmount = calculatedTotal,
             Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
             AttachmentUrl = string.IsNullOrWhiteSpace(attachmentUrl) ? null : attachmentUrl.Trim(),
             AttachmentFileName = string.IsNullOrWhiteSpace(attachmentFileName) ? null : attachmentFileName.Trim(),
@@ -183,6 +193,30 @@ public sealed class PurchaseProforma : AggregateRoot<Guid>, ITenantEntity, IAudi
         return Result.Success();
     }
 
+    public Result SetManualAmounts(decimal subtotal, decimal taxAmount, decimal totalAmount, Guid? updatedBy = null)
+    {
+        if (Status != PurchaseProformaStatus.Draft)
+        {
+            return Result.Failure(new Error("proforma.status.readonly", "Solo se pueden modificar montos en proformas en estado Borrador.", ErrorType.Validation));
+        }
+
+        if (subtotal < 0 || taxAmount < 0 || totalAmount < 0)
+        {
+            return Result.Failure(new Error("proforma.amounts.negative", "Los montos de la proforma no pueden ser negativos.", ErrorType.Validation));
+        }
+
+        var calculatedTotal = totalAmount > 0
+            ? Math.Round(totalAmount, 2, MidpointRounding.AwayFromZero)
+            : Math.Round(subtotal + taxAmount, 2, MidpointRounding.AwayFromZero);
+
+        Subtotal = Math.Round(subtotal, 2, MidpointRounding.AwayFromZero);
+        TaxAmount = Math.Round(taxAmount, 2, MidpointRounding.AwayFromZero);
+        TotalAmount = calculatedTotal;
+        UpdatedAt = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
+        return Result.Success();
+    }
+
     public Result Approve(Guid? updatedBy = null)
     {
         if (Status != PurchaseProformaStatus.Draft)
@@ -190,9 +224,17 @@ public sealed class PurchaseProforma : AggregateRoot<Guid>, ITenantEntity, IAudi
             return Result.Failure(new Error("proforma.approve.invalid_status", "Solo se pueden aprobar proformas en borrador.", ErrorType.Validation));
         }
 
-        if (_items.Count == 0)
+        // Validación ABAC: Fecha de vencimiento
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (ExpirationDate.HasValue && ExpirationDate.Value < today)
         {
-            return Result.Failure(new Error("proforma.approve.no_items", "No se puede aprobar una proforma sin ítems cotizados.", ErrorType.Validation));
+            return Result.Failure(new Error("proforma.expired", $"La proforma de compra venció el {ExpirationDate.Value:dd/MM/yyyy} y no puede ser aprobada.", ErrorType.Validation));
+        }
+
+        // Permite aprobar si tiene ítems desglosados O si tiene documento adjunto/URL con monto total válido
+        if (_items.Count == 0 && (string.IsNullOrWhiteSpace(AttachmentUrl) || TotalAmount <= 0))
+        {
+            return Result.Failure(new Error("proforma.approve.no_items_or_document", "No se puede aprobar una proforma sin ítems cotizados ni documento de cotización con monto válido.", ErrorType.Validation));
         }
 
         Status = PurchaseProformaStatus.Approved;
@@ -248,6 +290,11 @@ public sealed class PurchaseProforma : AggregateRoot<Guid>, ITenantEntity, IAudi
 
     private void RecalculateTotals()
     {
+        if (_items.Count == 0)
+        {
+            return;
+        }
+
         decimal subtotal = 0;
         decimal tax = 0;
 

@@ -122,4 +122,50 @@ public sealed class ExpenseTypeAndProformaTests
         proforma.Status.Should().Be(PurchaseProformaStatus.ConvertedToPurchase);
         proforma.ConvertedPurchaseId.Should().Be(purchaseId);
     }
+
+    [Fact(DisplayName = "PurchaseProforma.Approve cuando está vencida falla con error proforma.expired")]
+    public void PurchaseProforma_Approve_WhenExpired_Fails()
+    {
+        var proforma = PurchaseProforma.Create(
+            id: Guid.NewGuid(),
+            tenantId: TenantId,
+            supplierId: Guid.NewGuid(),
+            proformaNumber: "PROF-EXP-001",
+            issueDate: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30)),
+            expirationDate: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1))).Value!;
+
+        proforma.AddItem(Guid.NewGuid(), "Producto Vencido", 1, 100m, 15m);
+
+        var result = proforma.Approve();
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("proforma.expired");
+    }
+
+    [Fact(DisplayName = "PurchaseProforma.Approve en modo documento/URL sin ítems es exitoso si tiene total y URL")]
+    public void PurchaseProforma_Approve_InDocumentModeWithoutItems_Succeeds()
+    {
+        var proforma = PurchaseProforma.Create(
+            id: Guid.NewGuid(),
+            tenantId: TenantId,
+            supplierId: Guid.NewGuid(),
+            proformaNumber: "PROF-DOC-001",
+            issueDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            expirationDate: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(15)),
+            attachmentUrl: "https://bucket.ecunexo.com/proformas/cotizacion-001.pdf",
+            attachmentFileName: "cotizacion.pdf",
+            subtotal: 500m,
+            taxAmount: 75m,
+            totalAmount: 575m).Value!;
+
+        proforma.Items.Should().BeEmpty();
+        proforma.Subtotal.Should().Be(500m);
+        proforma.TaxAmount.Should().Be(75m);
+        proforma.TotalAmount.Should().Be(575m);
+
+        var result = proforma.Approve();
+
+        result.IsSuccess.Should().BeTrue();
+        proforma.Status.Should().Be(PurchaseProformaStatus.Approved);
+    }
 }

@@ -189,15 +189,15 @@ export function PurchaseDetailModal({
                   border: '1px solid var(--shell-border, #e2e8f0)',
                   borderRadius: '0.5rem',
                   overflowX: 'auto',
-                  backgroundColor: 'var(--glb-surface, #ffffff)',
+                  backgroundColor: 'var(--glb-surface, transparent)',
                 }}
               >
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
                   <thead>
                     <tr
                       style={{
-                        backgroundColor: 'rgba(241, 245, 249, 0.7)',
-                        borderBottom: '1px solid var(--shell-border, #e2e8f0)',
+                        backgroundColor: 'var(--glb-surface-hover, rgba(255, 255, 255, 0.04))',
+                        borderBottom: '1px solid var(--shell-border, rgba(255, 255, 255, 0.08))',
                         textAlign: 'left',
                       }}
                     >

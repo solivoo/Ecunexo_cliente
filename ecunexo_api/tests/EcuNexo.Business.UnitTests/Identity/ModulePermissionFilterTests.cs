@@ -47,6 +47,7 @@ public sealed class ModulePermissionFilterTests
             "purchases.suppliers.manage",
             "purchases.proformas.read",
             "purchases.proformas.manage",
+            "purchases.proformas.approve",
             "purchases.expenses.read",
             "purchases.expenses.manage",
             "purchases.withholdings.read",

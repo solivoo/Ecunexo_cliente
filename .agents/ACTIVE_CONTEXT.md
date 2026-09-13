@@ -6,9 +6,13 @@
 
 ## 1. Estado Actual del Repositorio
 
-* **Rama Activa:** `main` (limpia y sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.17.1`.
-* **Hito Completado:** **Módulo de Compras & Proveedores (Ecuador SRI)** implementado, probado y refinado con normalización completa de glifos Material Symbols.
+* **Rama Activa:** `main`.
+* **Última Versión Publicada:** `v0.18.0`.
+* **Hito Completado:** **Proformas Híbridas, Retenciones SRI 07 y Liquidaciones de Compra:**
+  - Nueva vista dedicada `/compras/proformas/nueva` con modalidad híbrida (PDF/URL vs Ítems), vigencia y email obligatorio en proveedores.
+  - Reglas de expiración ABAC y permiso `purchases.proformas.approve` con notificación por correo al proveedor.
+  - Segregación de rutas en Compras con vistas dedicadas para Retenciones (`/compras/retenciones`) y Liquidaciones (`/compras/liquidaciones`), con banner fiscal y enlace a Ajustes de Empresa para firma digital `.p12`.
+  - Normalización de contrastes dark mode en modales de compra y parseo de XML.
 
 ---
 

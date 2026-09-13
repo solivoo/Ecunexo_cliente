@@ -65,6 +65,9 @@ public sealed record CreatePurchaseProformaApiRequest(
     string? Notes = null,
     string? AttachmentUrl = null,
     string? AttachmentFileName = null,
+    decimal Subtotal = 0,
+    decimal TaxAmount = 0,
+    decimal TotalAmount = 0,
     IReadOnlyList<CreatePurchaseProformaItemApiRequest>? Items = null);
 
 public sealed record RejectPurchaseProformaApiRequest(string? Reason = null);

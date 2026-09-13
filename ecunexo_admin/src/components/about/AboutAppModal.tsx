@@ -110,9 +110,14 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Módulo integral de Compras, Proveedores y Recepción SRI</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Proformas Híbridas, Retenciones SRI 07 y Liquidaciones de Compra</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Vista Dedicada y Modo Híbrido en Proformas de Compra:</strong> Nueva pantalla completa (/compras/proformas/nueva) con soporte para registro documental por enlace externo o PDF (con subtotal y tarifa IVA directa sin forzar ítems) y modo detallado por ítems; control de vigencia con botones de acceso rápido (+7, +15, +30 días).</li>
+            <li><strong>Notificación Automática por Correo y Control ABAC:</strong> Reglas de expiración de cotizaciones con bloqueo de aprobación vencida; permiso granular purchases.proformas.approve y emisión automática de correo de adjudicación al proveedor oferente.</li>
+            <li><strong>Obligatoriedad de Correo en Proveedores:</strong> Validación estricta con formato RFC para garantizar la entrega de comprobantes y notificaciones formales de compra.</li>
+            <li><strong>Vistas Dedicadas para Retenciones (07) y Liquidaciones (03):</strong> Segregación de accesos en el módulo de Compras con vistas independientes; indicador de serie de emisión del emisor y conexión centralizada con el certificado de firma digital .p12 configurado en Ajustes de Empresa.</li>
+            <li><strong>Corrección de Tema Dark Mode en Modales de Compra:</strong> Normalización de la zona de arrastre (dropzone) y tablas de parseo XML SRI con tokens translúcidos para integración perfecta en modo oscuro.</li>
             <li><strong>Normalización de iconos Material Symbols en Compras:</strong> Corrección de ligaduras tipográficas en StatCards y EmptyStates de Proveedores, Proformas y Tipos de Gasto SRI para garantizar renderizado gráfico nativo en lugar de texto plano.</li>
             <li><strong>Directorio de Proveedores y Validación SRI:</strong> Gestión centralizada de proveedores con validación de RUC de persona natural, sociedades privadas y entidades públicas según el algoritmo oficial Módulo 10/11 del SRI; validación de cédula de identidad; control de condición fiscal (Rimpe Negocio Popular / Emprendedor, Agente de Retención, Contribuyente Especial) y plazos comerciales de crédito.</li>
             <li><strong>Gestión de Proformas y Cotizaciones:</strong> Registro integral de cotizaciones de compra con desglose automático de tarifas de IVA ecuatorianas (0%, 15%, 5%, no objeto, exento); seguimiento de vigencia y aprobación para conversión ágil a facturas de compra.</li>

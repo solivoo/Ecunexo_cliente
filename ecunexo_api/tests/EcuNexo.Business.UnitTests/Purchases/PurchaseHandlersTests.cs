@@ -34,7 +34,7 @@ public sealed class PurchaseHandlersTests
         // Arrange
         var tenantId = Guid.NewGuid();
         var supplierId = Guid.NewGuid();
-        var existingSupplier = Supplier.Create(supplierId, tenantId, "DISTRIBUIDORA ECUATORIANA TEC S.A.", "1790016919001").Value!;
+        var existingSupplier = Supplier.Create(supplierId, tenantId, "DISTRIBUIDORA ECUATORIANA TEC S.A.", "1790016919001", contactEmail: "contacto@distribuidora.ec").Value!;
         _suppliers.GetByTaxIdAsync(tenantId, "1790016919001", Arg.Any<CancellationToken>()).Returns(existingSupplier);
 
         var catalogItemId = Guid.NewGuid();
@@ -118,7 +118,7 @@ public sealed class PurchaseHandlersTests
         var purchaseId = Guid.NewGuid();
         _idGenerator.NewId().Returns(purchaseId, Guid.NewGuid());
 
-        var supplier = Supplier.Create(supplierId, tenantId, "Proveedor Mayorista S.A.", "1790016919001").Value!;
+        var supplier = Supplier.Create(supplierId, tenantId, "Proveedor Mayorista S.A.", "1790016919001", contactEmail: "mayorista@proveedor.ec").Value!;
         _suppliers.GetByIdAsync(tenantId, supplierId, Arg.Any<CancellationToken>()).Returns(supplier);
         _purchases.ExistsByInvoiceNumberAsync(tenantId, supplierId, "001-001-000000001", null, Arg.Any<CancellationToken>()).Returns(false);
 

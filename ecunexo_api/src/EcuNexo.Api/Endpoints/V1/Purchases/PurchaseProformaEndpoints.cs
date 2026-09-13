@@ -49,6 +49,7 @@ public static class PurchaseProformaEndpoints
 
         group.MapPost("/{proformaId:guid}/approve", ApproveAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny(
+                "purchases.proformas.approve",
                 "purchases.proformas.manage",
                 "facturacion.read"));
 
@@ -99,8 +100,7 @@ public static class PurchaseProformaEndpoints
         [FromServices] ISender sender,
         CancellationToken ct)
     {
-        var items = (request.Items ?? [])
-            .Select(i => new CreatePurchaseProformaItemInput(
+        var items = request.Items?.Select(i => new CreatePurchaseProformaItemInput(
                 i.Description,
                 i.Quantity,
                 i.UnitPrice,
@@ -118,6 +118,9 @@ public static class PurchaseProformaEndpoints
             request.Notes,
             request.AttachmentUrl,
             request.AttachmentFileName,
+            request.Subtotal,
+            request.TaxAmount,
+            request.TotalAmount,
             items);
 
         var result = await sender
