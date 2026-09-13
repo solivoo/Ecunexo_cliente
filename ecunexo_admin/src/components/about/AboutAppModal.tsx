@@ -110,9 +110,10 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Unificación de Compras y Rediseño de Ampliación de Licencia</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Sincronización Criptográfica de Licencias de Producción</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Sincronización Criptográfica de Licenciamiento de Producción:</strong> Actualización de la clave pública RSA en el backend del Cliente (license-public.pem y appsettings.json) sincronizada directamente con la clave privada de producción de license.ecunexo.com, habilitando la verificación y renovación de licencias oficiales sin fallos de firma.</li>
             <li><strong>Unificación de Módulo de Compras:</strong> Normalización de la nomenclatura en catálogos y menús del sistema consolidando «Compras, Gastos & Recepción SRI» bajo la denominación estándar «Compras», manteniendo integrada de forma nativa la recepción de comprobantes electrónicos 01 del SRI y la clasificación de compras y gastos operativos.</li>
             <li><strong>Rediseño Ergonómico de Ampliación de Licencia:</strong> Reestructuración de la interfaz en /organizacion/plan con un flujo guiado en 2 pasos independientes (código de activación con tipografía monoespaciada y selector de archivo criptográfico .ecunexo-license con resumen en chips de módulos y badges de estado), optimizando el aprovechamiento visual del espacio y eliminando elementos asimétricos.</li>
             <li><strong>Plan General de Cuentas Contables NIIF / SCVS Ecuador:</strong> Nuevo módulo de contabilidad con catálogo maestro oficial de 45 cuentas jerárquicas conforme a la Superintendencia de Compañías, Valores y Seguros del Ecuador. Vista jerárquica con identación visual, códigos monoespaciados, control de imputabilidad de movimientos, modal de alta/edición con inferencia automática de tipo y naturaleza contable, y semillero inicial en 1 clic.</li>

@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.22.2`.
+* **Última Versión Publicada:** `v0.22.3`.
 * **Hitos Recientes Completados:**
+  - **Sincronización Criptográfica con Licenciamiento de Producción (license.ecunexo.com):**
+    - Extracción de la clave pública oficial RSA-PSS SHA-256 desde el endpoint `GET /api/v1/platform/public-key` de la plataforma de licencias de producción.
+    - Actualización en el backend del Cliente (`license-public.pem` y `appsettings.json` `LicenseValidation:SigningPublicKeyPem`) erradicando el error `license.artifact.signature` ("La firma de la licencia no es válida").
   - **Unificación Canónica del Módulo «Compras»:**
     - Normalización de denominaciones en `ModuleDependencyGraph.cs`, `MenuCatalogSeedData.cs` y `ModuleTierCatalog.cs`, consolidando «Compras, Gastos & Recepción SRI» bajo la denominación canónica «Compras».
     - Mantenimiento integral de los flujos de recepción de facturas electrónicas XML 01 y diferenciación de compras de inventario vs. gastos de servicios directos dentro del mismo módulo técnico `purchases`.
