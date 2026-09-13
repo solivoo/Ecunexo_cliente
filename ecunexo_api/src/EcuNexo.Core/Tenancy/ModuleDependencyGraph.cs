@@ -29,6 +29,7 @@ public static class ModuleDependencyGraph
             [TenantModuleCodes.Repairs] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.Customers] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.Ecommerce] = [TenantModuleCodes.Catalog, TenantModuleCodes.Inventory],
+            [TenantModuleCodes.Purchases] = [TenantModuleCodes.Identity, TenantModuleCodes.Catalog],
         };
 
     /// <summary>
@@ -157,6 +158,8 @@ public static class ModuleDependencyGraph
         TenantModuleCodes.Support => "Soporte",
         TenantModuleCodes.Repairs => "Taller y Reparaciones B2B",
         TenantModuleCodes.Customers => "Clientes y Directorio Comercial",
+        TenantModuleCodes.Ecommerce => "E-commerce",
+        TenantModuleCodes.Purchases => "Compras y Proveedores",
         _ => code,
     };
 

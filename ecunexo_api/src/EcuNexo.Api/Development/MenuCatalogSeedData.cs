@@ -93,6 +93,17 @@ internal static class MenuCatalogSeedData
         ("ecommerce.orders.read", "Pedidos Ecommerce — consultar", "Listar y ver detalle de pedidos de la tienda online", "ecommerce", 140),
         ("ecommerce.orders.create", "Pedidos Ecommerce — crear", "Registrar pedidos recibidos", "ecommerce", 141),
         ("ecommerce.orders.manage", "Pedidos Ecommerce — gestionar", "Cambiar estados, despachar y cancelar pedidos", "ecommerce", 142),
+
+        ("purchases.documents.read", "Facturas de compra — consultar", "Listar y ver detalle de comprobantes de compra", "purchases", 150),
+        ("purchases.documents.manage", "Facturas de compra — administrar", "Ingresar facturas, parsear XML y recibir en inventario", "purchases", 151),
+        ("purchases.suppliers.read", "Proveedores — consultar", "Listar y consultar proveedores del directorio", "purchases", 152),
+        ("purchases.suppliers.manage", "Proveedores — administrar", "Crear, editar proveedores y condiciones de pago", "purchases", 153),
+        ("purchases.proformas.read", "Proformas — consultar", "Listar y ver cotizaciones de compra", "purchases", 154),
+        ("purchases.proformas.manage", "Proformas — administrar", "Crear, aprobar y rechazar proformas de compra", "purchases", 155),
+        ("purchases.expenses.read", "Tipos de gasto — consultar", "Listar conceptos de compra y sustentos SRI", "purchases", 156),
+        ("purchases.expenses.manage", "Tipos de gasto — administrar", "Configurar catálogo de tipos de gasto y retenciones", "purchases", 157),
+        ("purchases.withholdings.read", "Retenciones compras — consultar", "Consultar retenciones electrónicas emitidas (07)", "purchases", 158),
+        ("purchases.withholdings.issue", "Retenciones compras — emitir", "Emitir, firmar (XAdES-BES) y transmitir retenciones al SRI", "purchases", 159),
     ];
 
     public static IReadOnlyList<(string Code, string DisplayName)> ProductModules =>
@@ -107,6 +118,7 @@ internal static class MenuCatalogSeedData
         ("repairs", "Reparaciones"),
         ("customers", "Clientes"),
         ("ecommerce", "Comercio Electrónico"),
+        ("purchases", "Compras y Proveedores"),
     ];
 
     public static IReadOnlyList<MenuItem> MenuItems =>
@@ -151,11 +163,14 @@ internal static class MenuCatalogSeedData
         Item("facturacion-catalogos", "facturacion", "Catálogos", "library", null, 4, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
         Item("facturacion-catalogos-reglas", "facturacion-catalogos", "Reglas SRI", null, "facturacion/catalogos/reglas", 1, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
 
-        // Compras: misma licencia de facturación (no es un SKU aparte). Retención 07 y liquidación 03.
-        Item("compras", null, "Compras", "shopping-cart", null, 65, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
-        Item("compras-documentos", "compras", "Documentos", "file-text", "compras/documentos", 1, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
-        Item("compras-retenciones", "compras", "Retenciones", "receipt", "compras/retenciones", 2, MenuContextKind.Operational, "facturacion", ["facturacion.retenciones.read", "facturacion.read"]),
+        // Compras: Compras, Proveedores y Retenciones SRI
+        Item("compras", null, "Compras", "shopping-cart", null, 65, MenuContextKind.Operational, "purchases", ["purchases.documents.read"]),
+        Item("compras-documentos", "compras", "Documentos", "file-text", "compras/documentos", 1, MenuContextKind.Operational, "purchases", ["purchases.documents.read"]),
+        Item("compras-retenciones", "compras", "Retenciones", "receipt", "compras/retenciones", 2, MenuContextKind.Operational, "purchases", ["purchases.withholdings.read"]),
         Item("compras-liquidaciones", "compras", "Liquidaciones", "file-text", "compras/liquidaciones", 3, MenuContextKind.Operational, "facturacion", ["facturacion.liquidacion.compra.read", "facturacion.read"]),
+        Item("compras-proveedores", "compras", "Proveedores", "truck", "compras/proveedores", 4, MenuContextKind.Operational, "purchases", ["purchases.suppliers.read"]),
+        Item("compras-proformas", "compras", "Proformas", "clipboard-list", "compras/proformas", 5, MenuContextKind.Operational, "purchases", ["purchases.proformas.read"]),
+        Item("compras-gastos", "compras", "Tipos de Gasto", "tags", "compras/gastos", 6, MenuContextKind.Operational, "purchases", ["purchases.expenses.read"]),
 
         // —— Contabilidad (tenant admin SPA) ——
         Item("contabilidad", null, "Contabilidad", "calculator", null, 70, MenuContextKind.Operational, "contabilidad", ["contabilidad.read"]),

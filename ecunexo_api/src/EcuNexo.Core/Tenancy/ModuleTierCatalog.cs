@@ -247,6 +247,41 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
+    // Purchases — Compras, Proveedores & Retenciones SRI
+    // ──────────────────────────────────────────────
+    public const string LimitMaxMonthlyPurchases = "max_monthly_purchases";
+    public const string LimitMaxSuppliers = "max_suppliers";
+    public const string LimitMaxMonthlyWithholdings = "max_monthly_withholdings";
+
+    private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> PurchasesLimits = new()
+    {
+        [ModuleTier.Small] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyPurchases] = 50,
+            [LimitMaxSuppliers] = 25,
+            [LimitMaxMonthlyWithholdings] = 50,
+        },
+        [ModuleTier.Medium] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyPurchases] = 250,
+            [LimitMaxSuppliers] = 100,
+            [LimitMaxMonthlyWithholdings] = 250,
+        },
+        [ModuleTier.Big] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyPurchases] = 1_000,
+            [LimitMaxSuppliers] = 500,
+            [LimitMaxMonthlyWithholdings] = 1_000,
+        },
+        [ModuleTier.Enterprise] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyPurchases] = int.MaxValue,
+            [LimitMaxSuppliers] = int.MaxValue,
+            [LimitMaxMonthlyWithholdings] = int.MaxValue,
+        },
+    };
+
+    // ──────────────────────────────────────────────
     // Resolución
     // ──────────────────────────────────────────────
 
@@ -267,6 +302,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Repairs => RepairsLimits,
             TenantModuleCodes.Customers => CustomersLimits,
             TenantModuleCodes.Ecommerce => EcommerceLimits,
+            TenantModuleCodes.Purchases => PurchasesLimits,
             _ => null,
         };
 
@@ -295,6 +331,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Repairs => RepairsLimits,
             TenantModuleCodes.Customers => CustomersLimits,
             TenantModuleCodes.Ecommerce => EcommerceLimits,
+            TenantModuleCodes.Purchases => PurchasesLimits,
             _ => null,
         };
 

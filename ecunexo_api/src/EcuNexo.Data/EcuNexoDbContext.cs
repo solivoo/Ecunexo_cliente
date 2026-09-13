@@ -6,6 +6,7 @@ using EcuNexo.Core.Identity;
 using EcuNexo.Core.Inventory;
 using EcuNexo.Core.Platform;
 using EcuNexo.Core.Platform.Navigation;
+using EcuNexo.Core.Purchases;
 using EcuNexo.Core.Repairs;
 using EcuNexo.Core.Tenancy;
 using EcuNexo.Core.Warehousing;
@@ -98,6 +99,18 @@ public sealed class EcuNexoDbContext : DbContext
     public DbSet<EcommerceOrderItem> EcommerceOrderItems => Set<EcommerceOrderItem>();
 
     public DbSet<EcommerceOrderTimeline> EcommerceOrderTimelines => Set<EcommerceOrderTimeline>();
+
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+
+    public DbSet<ExpenseType> ExpenseTypes => Set<ExpenseType>();
+
+    public DbSet<PurchaseProforma> PurchaseProformas => Set<PurchaseProforma>();
+
+    public DbSet<PurchaseProformaItem> PurchaseProformaItems => Set<PurchaseProformaItem>();
+
+    public DbSet<Purchase> Purchases => Set<Purchase>();
+
+    public DbSet<PurchaseItem> PurchaseItems => Set<PurchaseItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

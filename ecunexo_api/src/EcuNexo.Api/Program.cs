@@ -8,6 +8,7 @@ using EcuNexo.Api.Endpoints.V1.Ecommerce;
 using EcuNexo.Api.Endpoints.V1.Identity;
 using EcuNexo.Api.Endpoints.V1.Inventory;
 using EcuNexo.Api.Endpoints.V1.Platform;
+using EcuNexo.Api.Endpoints.V1.Purchases;
 using EcuNexo.Api.Endpoints.V1.Repairs;
 using EcuNexo.Api.Endpoints.V1.Warehousing;
 using EcuNexo.Api.Endpoints.V1.Subscription;
@@ -143,6 +144,10 @@ app.MapCustomerEndpointsV1();
 app.MapCustomerTypeEndpointsV1();
 app.MapRepairEndpointsV1();
 app.MapEcommerceOrderEndpointsV1();
+app.MapSupplierEndpointsV1();
+app.MapExpenseTypeEndpointsV1();
+app.MapPurchaseProformaEndpointsV1();
+app.MapPurchaseEndpointsV1();
 
 var migrateOnStartup = app.Configuration.GetValue(
     "Database:MigrateOnStartup",

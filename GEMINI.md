@@ -22,3 +22,14 @@ When creating or modifying UI components, views, layouts, or styles in this repo
      - **MAJOR**: Breaking API changes, destructive database schema migrations, architectural shifts.
      - Increment `"version"` in `ecunexo_admin/package.json` and sync the `AboutAppModal.tsx` changelog.
      - Reference the new version in the git commit message (e.g. `feat(clientes): ... [v0.8.0]`).
+5. **Active Context & Token Optimization**:
+   - Maintain `.agents/ACTIVE_CONTEXT.md` updated with the active module, architectural decisions, and current phase.
+   - When starting or resuming complex tasks across sessions, consult `.agents/ACTIVE_CONTEXT.md` to avoid re-reading large histories or asking repetitive questions.
+6. **Mandatory Testing & Quality Assurance (Backend & Frontend)**:
+   - When creating or modifying domain entities, business logic, endpoints, or critical frontend components: ALWAYS write corresponding automated unit/integration tests alongside the code.
+   - **Backend:** Create unit tests in `EcuNexo.Core.UnitTests` (domain rules, invariants, validaciones SRI) and `EcuNexo.Business.UnitTests` (handlers, CQRS commands/queries).
+   - **Frontend:** Include component/e2e tests in `tests-ui/` or unit helpers whenever new flows or critical forms are introduced.
+   - Never consider a feature "complete" without its accompanying test suite verifying positive, negative, and edge cases.
+7. **Mandatory Licensing Prompt on Module Creation**:
+   - ALWAYS generate and include a structured prompt at the end of the turn when a new functional module is created or developed (using the skill `licenciamiento-modulo-prompt`).
+   - The prompt must be ready to copy and send to the licensing/entitlements team/agent, detailing: `ModuleCode`, `ModuleDependencyGraph` dependencies, `ModuleTierCatalog` limits per tier, RBAC permissions, commercial plans inclusion, and frontend routes.

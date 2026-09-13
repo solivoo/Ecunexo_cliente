@@ -1775,6 +1775,652 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("sys_settings", "platform");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Purchases.ExpenseType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AffectsInventory")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("affects_inventory");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsSystem")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_system");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("SriSustentoCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)")
+                        .HasDefaultValue("01")
+                        .HasColumnName("sri_sustento_code");
+
+                    b.Property<string>("SuggestedRetentionCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("suggested_retention_code");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_expense_types");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_expense_types_tenant_code_unique");
+
+                    b.HasIndex("TenantId", "IsActive")
+                        .HasDatabaseName("ix_expense_types_tenant_active");
+
+                    b.ToTable("expense_types", "purchases");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Purchases.Purchase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AuthorizationNumber")
+                        .HasMaxLength(49)
+                        .HasColumnType("character varying(49)")
+                        .HasColumnName("authorization_number");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("CreditDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("credit_days");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("01")
+                        .HasColumnName("document_type");
+
+                    b.Property<Guid?>("ExpenseTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("expense_type_id");
+
+                    b.Property<Guid?>("InventoryDocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inventory_document_id");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("invoice_number");
+
+                    b.Property<DateOnly>("IssueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("issue_date");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("PaymentMethodCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("payment_method_code");
+
+                    b.Property<Guid?>("ProformaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("proforma_id");
+
+                    b.Property<string>("RawXml")
+                        .HasColumnType("text")
+                        .HasColumnName("raw_xml");
+
+                    b.Property<DateTimeOffset>("RegistrationDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("registration_date");
+
+                    b.Property<string>("SriSustentoCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)")
+                        .HasDefaultValue("01")
+                        .HasColumnName("sri_sustento_code");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("SubtotalExempt")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("subtotal_exempt");
+
+                    b.Property<decimal>("SubtotalNoSubject")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("subtotal_no_subject");
+
+                    b.Property<decimal>("SubtotalTaxed")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("subtotal_taxed");
+
+                    b.Property<decimal>("SubtotalZero")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("subtotal_zero");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax_amount");
+
+                    b.Property<decimal>("TaxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(15.00m)
+                        .HasColumnName("tax_rate");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<decimal>("TotalDiscount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_discount");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_purchases");
+
+                    b.HasIndex("ExpenseTypeId")
+                        .HasDatabaseName("ix_purchases_expense_type_id");
+
+                    b.HasIndex("SupplierId")
+                        .HasDatabaseName("ix_purchases_supplier_id");
+
+                    b.HasIndex("TenantId", "AuthorizationNumber")
+                        .HasDatabaseName("ix_purchases_tenant_authorization");
+
+                    b.HasIndex("TenantId", "IssueDate")
+                        .HasDatabaseName("ix_purchases_tenant_issue_date");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("ix_purchases_tenant_status");
+
+                    b.HasIndex("TenantId", "SupplierId", "InvoiceNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_purchases_tenant_supplier_invoice_unique");
+
+                    b.ToTable("purchases", "purchases");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Purchases.PurchaseItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AffectsInventory")
+                        .HasColumnType("boolean")
+                        .HasColumnName("affects_inventory");
+
+                    b.Property<Guid?>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("description");
+
+                    b.Property<decimal>("Discount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("discount");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("item_code");
+
+                    b.Property<Guid>("PurchaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("purchase_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("subtotal");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax_amount");
+
+                    b.Property<decimal>("TaxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(15.00m)
+                        .HasColumnName("tax_rate");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<Guid?>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_purchase_items");
+
+                    b.HasIndex("CatalogItemId")
+                        .HasDatabaseName("ix_purchase_items_catalog_item_id");
+
+                    b.HasIndex("PurchaseId")
+                        .HasDatabaseName("ix_purchase_items_purchase_id");
+
+                    b.ToTable("purchase_items", "purchases");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Purchases.PurchaseProforma", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AttachmentFileName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("attachment_file_name");
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("attachment_url");
+
+                    b.Property<Guid?>("ConvertedPurchaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("converted_purchase_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("USD")
+                        .HasColumnName("currency");
+
+                    b.Property<DateOnly?>("ExpirationDate")
+                        .HasColumnType("date")
+                        .HasColumnName("expiration_date");
+
+                    b.Property<DateOnly>("IssueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("issue_date");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("ProformaNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("proforma_number");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("subtotal");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax_amount");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_proformas");
+
+                    b.HasIndex("SupplierId")
+                        .HasDatabaseName("ix_proformas_supplier_id");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("ix_proformas_tenant_status");
+
+                    b.HasIndex("TenantId", "SupplierId", "ProformaNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_proformas_tenant_supplier_number_unique");
+
+                    b.ToTable("proformas", "purchases");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Purchases.PurchaseProformaItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("description");
+
+                    b.Property<Guid?>("ExpenseTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("expense_type_id");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("line_total");
+
+                    b.Property<Guid>("PurchaseProformaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("purchase_proforma_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<decimal>("TaxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(15.00m)
+                        .HasColumnName("tax_rate");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_price");
+
+                    b.HasKey("Id")
+                        .HasName("pk_proforma_items");
+
+                    b.HasIndex("PurchaseProformaId")
+                        .HasDatabaseName("ix_proforma_items_proforma_id");
+
+                    b.ToTable("proforma_items", "purchases");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Purchases.Supplier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("BankAccountNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("bank_account_number");
+
+                    b.Property<string>("BankAccountType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("bank_account_type");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("bank_name");
+
+                    b.Property<string>("BusinessName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("business_name");
+
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("contact_email");
+
+                    b.Property<string>("ContactPerson")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("contact_person");
+
+                    b.Property<string>("ContactPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("contact_phone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("CreditDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("credit_days");
+
+                    b.Property<decimal?>("CreditLimit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("credit_limit");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<int>("IdentificationType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("identification_type");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsRetentionAgent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_retention_agent");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("ResolutionNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("resolution_number");
+
+                    b.Property<string>("TaxId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tax_id");
+
+                    b.Property<int>("TaxRegime")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("tax_regime");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("TradeName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("trade_name");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_suppliers");
+
+                    b.HasIndex("TenantId", "IsActive")
+                        .HasDatabaseName("ix_suppliers_tenant_active");
+
+                    b.HasIndex("TenantId", "TaxId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_suppliers_tenant_tax_id_unique")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("suppliers", "purchases");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Repairs.RepairBatch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3301,6 +3947,59 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Warehouse");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Purchases.Purchase", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Purchases.ExpenseType", "ExpenseType")
+                        .WithMany()
+                        .HasForeignKey("ExpenseTypeId")
+                        .HasConstraintName("fk_purchases_expense_types_expense_type_id");
+
+                    b.HasOne("EcuNexo.Core.Purchases.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_purchases_suppliers_supplier_id");
+
+                    b.Navigation("ExpenseType");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Purchases.PurchaseItem", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Purchases.Purchase", null)
+                        .WithMany("Items")
+                        .HasForeignKey("PurchaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_purchase_items_purchases_purchase_id");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Purchases.PurchaseProforma", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Purchases.Supplier", "Supplier")
+                        .WithMany("Proformas")
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_proformas_suppliers_supplier_id");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Purchases.PurchaseProformaItem", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Purchases.PurchaseProforma", "PurchaseProforma")
+                        .WithMany("Items")
+                        .HasForeignKey("PurchaseProformaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_proforma_items_proformas_purchase_proforma_id");
+
+                    b.Navigation("PurchaseProforma");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Repairs.RepairBatch", b =>
                 {
                     b.HasOne("EcuNexo.Core.Customers.Customer", "Customer")
@@ -3455,6 +4154,21 @@ namespace EcuNexo.Data.Migrations
             modelBuilder.Entity("EcuNexo.Core.Inventory.InventoryDocument", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Purchases.Purchase", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Purchases.PurchaseProforma", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Purchases.Supplier", b =>
+                {
+                    b.Navigation("Proformas");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Repairs.RepairBatch", b =>

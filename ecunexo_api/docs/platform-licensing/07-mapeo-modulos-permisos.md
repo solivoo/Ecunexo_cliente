@@ -40,16 +40,17 @@ Los **módulos** del plan limitan qué áreas tiene sentido usar (`ModuleEntitle
 | inventory | `inventory.*` | Catálogo + ítems **physical** |
 | warehousing | `warehousing.*` | Inventario (comercial) |
 | invoicing | `facturacion.*` | Catálogo (ítems a facturar) |
+| purchases | `purchases.documents.*`, `purchases.suppliers.*`, `purchases.proformas.*`, `purchases.expenses.*`, `purchases.withholdings.*` | `identity` + `catalog` |
 
 ## Plan → módulos por defecto (objetivo)
 
 | Plan (`planCode`) | `enabled_module_codes` | Catálogo | Inventario |
 |-------------------|------------------------|----------|------------|
 | **`pro-independiente`** | `identity`, `catalog`, `facturacion` | Solo **service** (objetivo) | ❌ |
-| `local-comercio` | + `inventory`, `warehousing` | Físico + servicio | ✅ (1 bodega) |
-| `taller-mixto` | iguales a Local | Físico + servicio | ✅ (2 bodegas) |
-| `empresa-pyme` | iguales | Completo | ✅ (3) |
-| `cadena-retail` | iguales | Completo | ✅ (8) |
+| `local-comercio` | + `inventory`, `warehousing`, `purchases` | Físico + servicio | ✅ (1 bodega) |
+| `taller-mixto` | iguales a Local + `repairs` | Físico + servicio | ✅ (2 bodegas) |
+| `empresa-pyme` | iguales a Local | Completo | ✅ (3) |
+| `cadena-retail` | iguales a Local | Completo | ✅ (8) |
 | `grupo-multi-ruc` | iguales por tenant | Completo | ✅ (10, 5 empresas) |
 
 ### Restricción plan servicios

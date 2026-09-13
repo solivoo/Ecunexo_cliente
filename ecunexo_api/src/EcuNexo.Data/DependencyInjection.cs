@@ -5,6 +5,7 @@ using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Platform;
 using EcuNexo.Business.Customers.Repositories;
 using EcuNexo.Business.Ecommerce.Repositories;
+using EcuNexo.Business.Purchases.Repositories;
 using EcuNexo.Business.Repairs.Repositories;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
@@ -66,6 +67,10 @@ public static class DependencyInjection
         services.AddScoped<IRepairEquipmentRepository, RepairEquipmentRepository>();
         services.AddScoped<IRepairDispatchRepository, RepairDispatchRepository>();
         services.AddScoped<IEcommerceOrderRepository, EcommerceOrderRepository>();
+        services.AddScoped<ISupplierRepository, SupplierRepository>();
+        services.AddScoped<IExpenseTypeRepository, ExpenseTypeRepository>();
+        services.AddScoped<IPurchaseProformaRepository, PurchaseProformaRepository>();
+        services.AddScoped<IPurchaseRepository, PurchaseRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
         return services;

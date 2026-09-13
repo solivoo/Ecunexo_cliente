@@ -29,8 +29,10 @@ public static class TenantModuleCodes
 
     public const string Ecommerce = "ecommerce";
 
+    public const string Purchases = "purchases";
+
     public static readonly IReadOnlyList<string> All =
-        [Identity, Catalog, Warehousing, Inventory, Invoicing, Accounting, Training, Support, Repairs, Customers, Ecommerce];
+        [Identity, Catalog, Warehousing, Inventory, Invoicing, Accounting, Training, Support, Repairs, Customers, Ecommerce, Purchases];
 
     public static bool IsKnown(string code) =>
         All.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase));

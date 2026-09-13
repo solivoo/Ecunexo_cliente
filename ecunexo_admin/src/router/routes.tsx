@@ -51,6 +51,9 @@ import { ComprobantesPage } from '@/pages/facturacion/ComprobantesPage'
 import { SriMonitorPage } from '@/pages/facturacion/SriMonitorPage'
 import { TaxRulesCatalogPage } from '@/pages/facturacion/TaxRulesCatalogPage'
 import { ComprasDocumentosPage } from '@/pages/compras/ComprasDocumentosPage'
+import { SuppliersListPage } from '@/pages/compras/SuppliersListPage'
+import { PurchaseProformasListPage } from '@/pages/compras/PurchaseProformasListPage'
+import { ExpenseTypesListPage } from '@/pages/compras/ExpenseTypesListPage'
 import { RepairsBatchesListPage } from '@/pages/repairs/RepairsBatchesListPage'
 import { CreateRepairBatchPage } from '@/pages/repairs/CreateRepairBatchPage'
 import { CreateRepairDispatchPage } from '@/pages/repairs/CreateRepairDispatchPage'
@@ -148,6 +151,9 @@ export const routes: RouteObject[] = [
           { path: 'compras/documentos', element: <ComprasDocumentosPage /> },
           { path: 'compras/retenciones', element: <ComprasDocumentosPage /> },
           { path: 'compras/liquidaciones', element: <ComprasDocumentosPage /> },
+          { path: 'compras/proveedores', element: <SuppliersListPage /> },
+          { path: 'compras/proformas', element: <PurchaseProformasListPage /> },
+          { path: 'compras/gastos', element: <ExpenseTypesListPage /> },
           { path: 'facturacion/comprobantes', element: <ComprobantesPage /> },
           { path: 'facturacion/facturas/emitir', element: <FacturaEmitirPage /> },
           {

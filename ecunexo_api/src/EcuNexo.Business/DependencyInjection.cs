@@ -26,6 +26,27 @@ using EcuNexo.Business.Ecommerce.Queries.GetEcommerceMetrics;
 using EcuNexo.Business.Ecommerce.Queries.GetEcommerceOrderById;
 using EcuNexo.Business.Ecommerce.Queries.ListEcommerceOrders;
 using EcuNexo.Business.Ecommerce.Repositories;
+using EcuNexo.Business.Purchases.Expenses;
+using EcuNexo.Business.Purchases.Expenses.Commands.CreateExpenseType;
+using EcuNexo.Business.Purchases.Expenses.Commands.SeedDefaultExpenseTypes;
+using EcuNexo.Business.Purchases.Expenses.Queries.ListExpenseTypes;
+using EcuNexo.Business.Purchases.Proformas;
+using EcuNexo.Business.Purchases.Proformas.Commands.ApprovePurchaseProforma;
+using EcuNexo.Business.Purchases.Proformas.Commands.CreatePurchaseProforma;
+using EcuNexo.Business.Purchases.Proformas.Commands.RejectPurchaseProforma;
+using EcuNexo.Business.Purchases.Proformas.Queries.GetPurchaseProformaById;
+using EcuNexo.Business.Purchases.Proformas.Queries.ListPurchaseProformas;
+using EcuNexo.Business.Purchases.Suppliers;
+using EcuNexo.Business.Purchases.Suppliers.Commands.CreateSupplier;
+using EcuNexo.Business.Purchases.Suppliers.Commands.DeleteSupplier;
+using EcuNexo.Business.Purchases.Suppliers.Commands.UpdateSupplier;
+using EcuNexo.Business.Purchases.Suppliers.Queries.GetSupplierById;
+using EcuNexo.Business.Purchases.Suppliers.Queries.ListSuppliers;
+using EcuNexo.Business.Purchases.Commands.CreatePurchase;
+using EcuNexo.Business.Purchases.Commands.ParseSriPurchaseXml;
+using EcuNexo.Business.Purchases.Commands.ReceivePurchase;
+using EcuNexo.Business.Purchases.Queries.GetPurchaseById;
+using EcuNexo.Business.Purchases.Queries.ListPurchases;
 using EcuNexo.Business.Storage;
 using Microsoft.Extensions.Configuration;
 using EcuNexo.Business.Identity;
@@ -236,6 +257,29 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<ListEcommerceOrdersQuery, ListEcommerceOrdersResponse>, ListEcommerceOrdersHandler>();
         services.AddScoped<IQueryHandler<GetEcommerceOrderByIdQuery, EcommerceOrderDetailDto>, GetEcommerceOrderByIdHandler>();
         services.AddScoped<IQueryHandler<GetEcommerceMetricsQuery, EcommerceOrderMetrics>, GetEcommerceMetricsHandler>();
+
+        // Purchases (Proveedores / Proformas / Gastos SRI)
+        services.AddScoped<ICommandHandler<CreateSupplierCommand, SupplierResponse>, CreateSupplierHandler>();
+        services.AddScoped<ICommandHandler<UpdateSupplierCommand, SupplierResponse>, UpdateSupplierHandler>();
+        services.AddScoped<ICommandHandler<DeleteSupplierCommand, bool>, DeleteSupplierHandler>();
+        services.AddScoped<IQueryHandler<ListSuppliersQuery, IReadOnlyList<SupplierResponse>>, ListSuppliersHandler>();
+        services.AddScoped<IQueryHandler<GetSupplierByIdQuery, SupplierResponse>, GetSupplierByIdHandler>();
+
+        services.AddScoped<ICommandHandler<SeedDefaultExpenseTypesCommand, int>, SeedDefaultExpenseTypesHandler>();
+        services.AddScoped<ICommandHandler<CreateExpenseTypeCommand, ExpenseTypeResponse>, CreateExpenseTypeHandler>();
+        services.AddScoped<IQueryHandler<ListExpenseTypesQuery, IReadOnlyList<ExpenseTypeResponse>>, ListExpenseTypesHandler>();
+
+        services.AddScoped<ICommandHandler<CreatePurchaseProformaCommand, PurchaseProformaResponse>, CreatePurchaseProformaHandler>();
+        services.AddScoped<ICommandHandler<ApprovePurchaseProformaCommand, PurchaseProformaResponse>, ApprovePurchaseProformaHandler>();
+        services.AddScoped<ICommandHandler<RejectPurchaseProformaCommand, PurchaseProformaResponse>, RejectPurchaseProformaHandler>();
+        services.AddScoped<IQueryHandler<ListPurchaseProformasQuery, IReadOnlyList<PurchaseProformaResponse>>, ListPurchaseProformasHandler>();
+        services.AddScoped<IQueryHandler<GetPurchaseProformaByIdQuery, PurchaseProformaResponse>, GetPurchaseProformaByIdHandler>();
+
+        services.AddScoped<ICommandHandler<ParseSriPurchaseXmlCommand, ParseSriPurchaseXmlResponse>, ParseSriPurchaseXmlHandler>();
+        services.AddScoped<ICommandHandler<CreatePurchaseCommand, CreatePurchaseResponse>, CreatePurchaseHandler>();
+        services.AddScoped<ICommandHandler<ReceivePurchaseCommand, ReceivePurchaseResponse>, ReceivePurchaseHandler>();
+        services.AddScoped<IQueryHandler<ListPurchasesQuery, ListPurchasesResponse>, ListPurchasesHandler>();
+        services.AddScoped<IQueryHandler<GetPurchaseByIdQuery, PurchaseDetailDto>, GetPurchaseByIdHandler>();
 
         return services;
     }

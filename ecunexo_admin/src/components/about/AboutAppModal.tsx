@@ -110,9 +110,14 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Miniaturas de catálogo, credenciales storage y verificación de actas</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Módulo integral de Compras, Proveedores y Recepción SRI</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Directorio de Proveedores y Validación SRI:</strong> Gestión centralizada de proveedores con validación de RUC de persona natural, sociedades privadas y entidades públicas según el algoritmo oficial Módulo 10/11 del SRI; validación de cédula de identidad; control de condición fiscal (Rimpe Negocio Popular / Emprendedor, Agente de Retención, Contribuyente Especial) y plazos comerciales de crédito.</li>
+            <li><strong>Gestión de Proformas y Cotizaciones:</strong> Registro integral de cotizaciones de compra con desglose automático de tarifas de IVA ecuatorianas (0%, 15%, 5%, no objeto, exento); seguimiento de vigencia y aprobación para conversión ágil a facturas de compra.</li>
+            <li><strong>Catálogo de Tipos de Gastos SRI / ATS:</strong> Clasificación fiscal de compras y adquisiciones según los códigos de deducción del Anexo Transaccional Simplificado (ATS) y cuentas contables vinculadas.</li>
+            <li><strong>Ingesta y Parseo XML de Facturas SRI:</strong> Carga automatizada de comprobantes electrónicos XML bajo esquema offline SRI v2.32; extracción instantánea de clave de acceso de 49 dígitos, emisor, fecha de autorización, desglose impositivo y detalle de ítems facturados.</li>
+            <li><strong>Recepción en Bodega y Kárdex Promedio Ponderado:</strong> Ingreso físico de mercadería a almacén destino con verificación ítem por ítem; actualización atómica de existencias físicas y registro cronológico de movimientos en el kárdex contable.</li>
             <li><strong>Miniaturas optimizadas en grid de catálogo:</strong> Normalización estricta de imágenes en el DataGrid de ítems; resolución automática hacia la variante liviana del bucket (_thumb.webp), contenedor de 36×36 px con recorte adaptativo, fallback con icono y prevención de desbordamientos visuales.</li>
             <li><strong>Soporte multientorno para Object Storage:</strong> Configuración centralizada de variables .env / .env.local para Backblaze B2 / S3 y carga preventiva en Program.cs de la API.</li>
             <li><strong>Verificación móvil y estilizado de actas:</strong> Página dedicada responsive para validación QR de actas de despacho con certificación de autenticidad y optimización de albaranes PDF con paleta sobria corporativa.</li>

@@ -8,6 +8,10 @@ const KNOWN_PRODUCT_MODULES = new Set([
   'contabilidad',
   'training',
   'support',
+  'repairs',
+  'customers',
+  'ecommerce',
+  'purchases',
 ])
 
 export function productModuleFromPermissionCode(code: string): string | null {
