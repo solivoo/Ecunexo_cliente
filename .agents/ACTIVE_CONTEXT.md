@@ -9,6 +9,16 @@
 * **Rama Activa:** `main`.
 * **Última Versión Publicada:** `v0.21.1`.
 * **Hitos Recientes Completados:**
+  - **Catálogo Oficial SRI AIR Tabla 3.10 ATS 2026 y Edición Completa de Conceptos (`/compras/categorias`):**
+    - **Extracción Autorizada del SRI ATS:** Extracción e integración fiel de la "Tabla 3.10: CONCEPTOS DE RETENCIÓN EN LA FUENTE DE IMPUESTO A LA RENTA (AIR) DESDE 06/AGOSTO/2026" de `Catalogo_ATS.pdf` (creación de [`src/lib/sriAirCatalog.ts`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/lib/sriAirCatalog.ts) con códigos 300 para residentes y 500 para exterior).
+    - **Corrección de Códigos Desfasados:** Reemplazo de tarifas erróneas (ej. código 332 corregido de 2% a 0% oficial para RIMPE Negocios Populares y no sujetos a retención; 344 normalizado al código ATS oficial de 4 dígitos `3440` al 3%; adición de `3482` al 5% para comisiones a sociedades, `304A`, `311`, `319`, `322`, `343A`, etc.).
+    - **Edición Completa en [`ExpenseTypeModal.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/ExpenseTypeModal.tsx):**
+      * Selector categorizado con todas las opciones oficiales de la Tabla 3.10 y opción para código AIR manual.
+      * Callout informativo dinámico con código oficial, grupo tributario, descripción íntegra del SRI y notas técnicas aplicables.
+      * Botón "Copiar descripción oficial a nombre y notas" para sincronizar la categoría en 1 clic.
+      * Flexibilidad total para editar porcentajes (0%, 1%, 1.75%, 2%, 3%, 5%, 10%, 15%, 25%, etc.), fechas de vigencia y sustentos.
+      * Las categorías de sistema (`isSystem = true`) permiten modificar libremente todos sus campos tributarios (nombre, sustento, retención AIR, porcentaje, vigencia, notas y estado activo) bloqueando únicamente el código interno para preservar la integridad del ATS.
+    - **Visualización Enriquecida en [`ExpenseTypesListPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/ExpenseTypesListPage.tsx):** La columna "Retención AIR (IR)" ahora expone el código AIR, porcentaje con estilo condicional (0% en gris neutro, tarifas gravadas en azul primario) y la descripción oficial del concepto SRI como subtítulo y tooltip.
   - **Despliegue Desacoplado y Clave Pública de Licencias Integrada (`v0.21.1`):**
     - **Clave Pública RSA Integrada:** Empaquetado de `license-public.pem` dentro del proyecto `EcuNexo.Api` y `SigningPublicKeyPem` embebido en `appsettings.json`, eliminando la necesidad de variables o volúmenes externos para la verificación de licencias.
     - **Desacoplamiento de Volúmenes en Docker Compose:** Eliminación de la dependencia forzada de `${LICENSE_KEYS_HOST_PATH}:/keys:ro` en `docker-compose.yml` y configuración de valores por defecto seguros para prevenir fallos de inicio en Portainer ante variables no definidas.
