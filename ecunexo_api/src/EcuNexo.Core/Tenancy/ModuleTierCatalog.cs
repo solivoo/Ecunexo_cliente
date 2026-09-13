@@ -247,9 +247,10 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
-    // Purchases — Compras, Proveedores & Retenciones SRI
+    // Purchases — Compras, Gastos & Recepción SRI
     // ──────────────────────────────────────────────
     public const string LimitMaxMonthlyPurchases = "max_monthly_purchases";
+    public const string LimitMonthlyPurchasesProcessed = "monthly_purchases_processed";
     public const string LimitMaxSuppliers = "max_suppliers";
     public const string LimitMaxMonthlyWithholdings = "max_monthly_withholdings";
 
@@ -257,24 +258,28 @@ public static class ModuleTierCatalog
     {
         [ModuleTier.Small] = new Dictionary<string, int>
         {
+            [LimitMonthlyPurchasesProcessed] = 50,
             [LimitMaxMonthlyPurchases] = 50,
             [LimitMaxSuppliers] = 25,
             [LimitMaxMonthlyWithholdings] = 50,
         },
         [ModuleTier.Medium] = new Dictionary<string, int>
         {
+            [LimitMonthlyPurchasesProcessed] = 250,
             [LimitMaxMonthlyPurchases] = 250,
             [LimitMaxSuppliers] = 100,
             [LimitMaxMonthlyWithholdings] = 250,
         },
         [ModuleTier.Big] = new Dictionary<string, int>
         {
+            [LimitMonthlyPurchasesProcessed] = 1_000,
             [LimitMaxMonthlyPurchases] = 1_000,
             [LimitMaxSuppliers] = 500,
             [LimitMaxMonthlyWithholdings] = 1_000,
         },
         [ModuleTier.Enterprise] = new Dictionary<string, int>
         {
+            [LimitMonthlyPurchasesProcessed] = int.MaxValue,
             [LimitMaxMonthlyPurchases] = int.MaxValue,
             [LimitMaxSuppliers] = int.MaxValue,
             [LimitMaxMonthlyWithholdings] = int.MaxValue,

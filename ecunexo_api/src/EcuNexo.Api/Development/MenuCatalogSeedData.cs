@@ -103,8 +103,11 @@ internal static class MenuCatalogSeedData
         ("purchases.proformas.approve", "Proformas — aprobar", "Aprobar cotizaciones formalmente y notificar al proveedor", "purchases", 156),
         ("purchases.expenses.read", "Tipos de gasto — consultar", "Listar conceptos de compra y sustentos SRI", "purchases", 157),
         ("purchases.expenses.manage", "Tipos de gasto — administrar", "Configurar catálogo de tipos de gasto y retenciones", "purchases", 158),
-        ("purchases.withholdings.read", "Retenciones compras — consultar", "Consultar retenciones electrónicas emitidas (07)", "purchases", 159),
-        ("purchases.withholdings.issue", "Retenciones compras — emitir", "Emitir, firmar (XAdES-BES) y transmitir retenciones al SRI", "purchases", 160),
+        ("purchases.expense_types.read", "Categorías de gasto — consultar", "Listar tipos de gasto ATS y códigos de sustento SRI", "purchases", 159),
+        ("purchases.expense_types.manage", "Categorías de gasto — administrar", "Configurar categorías de gasto ATS y retenciones AIR", "purchases", 160),
+        ("purchases.withholdings.read", "Retenciones compras — consultar", "Consultar retenciones electrónicas emitidas (07)", "purchases", 161),
+        ("purchases.withholdings.issue", "Retenciones compras — emitir", "Emitir, firmar (XAdES-BES) y transmitir retenciones al SRI", "purchases", 162),
+        ("purchases.manage", "Compras — administración total", "Control total sobre configuración y operaciones del módulo de compras", "purchases", 163),
     ];
 
     public static IReadOnlyList<(string Code, string DisplayName)> ProductModules =>
@@ -119,7 +122,7 @@ internal static class MenuCatalogSeedData
         ("repairs", "Reparaciones"),
         ("customers", "Clientes"),
         ("ecommerce", "Comercio Electrónico"),
-        ("purchases", "Compras y Proveedores"),
+        ("purchases", "Compras, Gastos & Recepción SRI"),
     ];
 
     public static IReadOnlyList<MenuItem> MenuItems =>
