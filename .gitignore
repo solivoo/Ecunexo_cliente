@@ -3,7 +3,6 @@
 .env.*
 !.env*.example
 *.pem
-!ecunexo_api/src/EcuNexo.Api/dev-license-public.pem
 appsettings.*.local.json
 *.received.*
 
