@@ -49,7 +49,6 @@ const PROFILE_OPTIONS = BILLING_EMIT_PROFILES.map((p) => ({
   label: p.label,
 }))
 
-const CERT_ACCEPT = '.p12,.pfx,.P12,.PFX,application/x-pkcs12,application/pkcs12,application/x-pkcs-12,application/octet-stream'
 
 function formatDate(isoString: string | null | undefined): string {
   if (!isoString) return '-'
@@ -110,12 +109,10 @@ export function SriSignatureSection({
     void loadCertStatus()
   }, [loadCertStatus])
 
-  const [isDragOverCard, setIsDragOverCard] = useState(false)
-
   const onPickFiles = (files: File[]) => {
     if (disabled) return
-    setCertFiles(files)
-    if (files[0]) {
+    if (files.length > 0 && files[0]) {
+      setCertFiles([files[0]])
       emitChange('fileName', files[0].name)
       toast.show({
         title: 'Certificado preparado',
@@ -123,50 +120,8 @@ export function SriSignatureSection({
         variant: 'info',
       })
     } else {
+      setCertFiles([])
       emitChange('fileName', null)
-    }
-  }
-
-  const handleCardDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!disabled && !uploading) {
-      setIsDragOverCard(true)
-    }
-  }
-
-  const handleCardDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsDragOverCard(false)
-    }
-  }
-
-  const handleCardDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOverCard(false)
-    if (disabled || uploading) return
-    const droppedFiles = Array.from(e.dataTransfer.files)
-    if (droppedFiles.length === 0) return
-
-    const candidate = droppedFiles[0]
-    const ext = candidate.name.split('.').pop()?.toLowerCase()
-    if (ext === 'p12' || ext === 'pfx') {
-      setCertFiles([candidate])
-      emitChange('fileName', candidate.name)
-      toast.show({
-        title: 'Certificado preparado',
-        message: `Se cargó "${candidate.name}". Ingresa la contraseña y haz clic en "Cargar y Validar Firma".`,
-        variant: 'info',
-      })
-    } else {
-      toast.show({
-        title: 'Formato no admitido',
-        message: `El archivo "${candidate.name}" debe ser un certificado digital con extensión .p12 o .pfx.`,
-        variant: 'error',
-      })
     }
   }
 
@@ -397,24 +352,13 @@ export function SriSignatureSection({
       {/* 2. Formulario para Cargar / Reemplazar Firma Digital */}
       {(!certStatus?.isConfigured || showReplaceForm) && (
         <div
-          onDragOver={handleCardDragOver}
-          onDragLeave={handleCardDragLeave}
-          onDrop={handleCardDrop}
           style={{
             borderRadius: '0.75rem',
-            border: isDragOverCard
-              ? '2px dashed var(--shell-primary, #6366f1)'
-              : '1px dashed var(--shell-border, rgba(255, 255, 255, 0.2))',
+            border: '1px solid var(--shell-border, rgba(255, 255, 255, 0.08))',
             padding: '1.25rem',
-            backgroundColor: isDragOverCard ? 'rgba(99, 102, 241, 0.08)' : 'rgba(0, 0, 0, 0.01)',
-            transition: 'border-color 0.2s ease, background-color 0.2s ease',
+            backgroundColor: 'var(--glb-surface, rgba(0, 0, 0, 0.02))',
           }}
         >
-          <style>{`
-            .glb-filebox__dropzone * {
-              pointer-events: none;
-            }
-          `}</style>
           <h5 style={{ margin: '0 0 1rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--glb-text, inherit)' }}>
             {certStatus?.isConfigured ? 'Reemplazar archivo de firma electrónica' : 'Subir archivo de firma electrónica'}
           </h5>
@@ -423,29 +367,31 @@ export function SriSignatureSection({
             <div className="ecu-companies-form__field">
               <FileBox
                 id="sri-cert-file-upload"
-                label="Archivo digital (.p12 / .pfx)"
+                label="Archivo digital (.p12 / .pfx / binario)"
                 labelPosition="outlined"
                 variant="outline"
                 size="md"
                 displayMode="dropzone"
-                accept={CERT_ACCEPT}
+                accept="*/*"
                 multiple={false}
                 value={certFiles}
                 onChange={onPickFiles}
                 onReject={(rejected) => {
                   if (disabled) return
-                  const rej = rejected[0]
-                  toast.show({
-                    title: 'Archivo no admitido',
-                    message: rej?.file?.name
-                      ? `"${rej.file.name}" no es admitido. Selecciona un archivo .p12 o .pfx.`
-                      : 'El archivo seleccionado no es válido.',
-                    variant: 'error',
-                  })
+                  const file = rejected[0]?.file
+                  if (file) {
+                    setCertFiles([file])
+                    emitChange('fileName', file.name)
+                    toast.show({
+                      title: 'Certificado preparado',
+                      message: `Se cargó "${file.name}". Ingresa la contraseña y haz clic en "Cargar y Validar Firma".`,
+                      variant: 'info',
+                    })
+                  }
                 }}
-                placeholder="Arrastra o selecciona el archivo .p12"
+                placeholder="Arrastra o selecciona el archivo de firma electrónica"
                 buttonLabel="Examinar"
-                helperText={certFiles[0]?.name ? `Seleccionado: ${certFiles[0].name}` : 'Formato PKCS#12 (.p12 o .pfx)'}
+                helperText={certFiles[0]?.name ? `Seleccionado: ${certFiles[0].name}` : 'Formato PKCS#12 (.p12, .pfx o binario de Security Data / BCE)'}
                 disabled={disabled || uploading}
                 fullWidth
               />

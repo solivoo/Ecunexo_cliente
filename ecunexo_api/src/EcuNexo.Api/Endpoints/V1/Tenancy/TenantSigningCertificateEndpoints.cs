@@ -80,13 +80,6 @@ public static class TenantSigningCertificateEndpoints
             return Results.BadRequest(new { error = "certificate_password_required", message = "Ingresa la contraseña del certificado digital." });
         }
 
-        var ext = Path.GetExtension(file.FileName);
-        if (!string.Equals(ext, ".p12", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(ext, ".pfx", StringComparison.OrdinalIgnoreCase))
-        {
-            return Results.BadRequest(new { error = "invalid_extension", message = "El archivo debe tener extensión .p12 o .pfx." });
-        }
-
         if (file.Length > MaxCertificateBytes)
         {
             return Results.BadRequest(new { error = "file_too_large", message = "El certificado no puede superar 5 MB." });
