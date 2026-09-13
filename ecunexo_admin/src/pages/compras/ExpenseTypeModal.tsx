@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { CheckButton, DateBox, Popup, Select, TextBox } from 'glubox'
-import { AlertCircle, Info } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
+import { Button, CheckButton, DateBox, Popup, Select, TextBox } from 'glubox'
+import { AlertCircle, Info, Sparkles } from 'lucide-react'
+import { findAirConcept, SRI_AIR_CATALOG, type SriAirConcept } from '@/lib/sriAirCatalog'
 import type {
   CreateExpenseTypePayload,
   ExpenseTypeDto,
@@ -16,22 +17,6 @@ const SUSTENTO_OPTIONS = [
   { value: '06', label: '06 — Costo o Gasto con Devolución de IVA' },
   { value: '07', label: '07 — Gastos de Viaje y Hospedaje' },
   { value: '08', label: '08 — Arrendamiento Mercantil' },
-]
-
-const RETENTION_AIR_OPTIONS = [
-  { value: '', label: '— Sin código AIR sugerido —', defaultPct: null },
-  { value: '312', label: '312 — Compra de Bienes Muebles y Mercadería (2.00%)', defaultPct: '2.00' },
-  { value: '307', label: '307 — Mano de obra y mantenimiento (3.00%)', defaultPct: '3.00' },
-  { value: '303', label: '303 — Honorarios Profesionales P. Naturales (10.00%)', defaultPct: '10.00' },
-  { value: '303A', label: '303A — Honorarios Sociedades / Comisiones (5.00%)', defaultPct: '5.00' },
-  { value: '304', label: '304 — Servicios de intelecto sin título profesional (10.00%)', defaultPct: '10.00' },
-  { value: '310', label: '310 — Transporte y fletes (1.00%)', defaultPct: '1.00' },
-  { value: '320', label: '320 — Arriendo Inmuebles y Bodegas (10.00%)', defaultPct: '10.00' },
-  { value: '309', label: '309 — Publicidad, promoción y medios (3.00%)', defaultPct: '3.00' },
-  { value: '343', label: '343 — Pagos a proveedores RIMPE Emprendedor (1.00%)', defaultPct: '1.00' },
-  { value: '332', label: '332 — Otras compras con retención al 2.00%', defaultPct: '2.00' },
-  { value: '344', label: '344 — Otras retenciones de servicios al 3.00%', defaultPct: '3.00' },
-  { value: 'custom', label: 'Otro código AIR manual...', defaultPct: null },
 ]
 
 interface ExpenseTypeModalProps {
@@ -63,6 +48,18 @@ export function ExpenseTypeModal({
 
   const [formError, setFormError] = useState<string | null>(null)
 
+  const retentionOptions = useMemo(() => {
+    return [
+      { value: '', label: '— Sin código AIR sugerido —', defaultPct: null as string | null },
+      ...SRI_AIR_CATALOG.map((c) => ({
+        value: c.code,
+        label: `${c.code} — ${c.description}${c.defaultPercentage != null ? ` (${c.defaultPercentage.toFixed(2)}%)` : ''}`,
+        defaultPct: c.defaultPercentage != null ? c.defaultPercentage.toFixed(2) : null,
+      })),
+      { value: 'custom', label: 'Otro código AIR manual / no catalogado...', defaultPct: null },
+    ]
+  }, [])
+
   useEffect(() => {
     if (!open) {
       setFormError(null)
@@ -75,8 +72,10 @@ export function ExpenseTypeModal({
       setSriSustentoCode(expenseType.sriSustentoCode || '01')
       setAffectsInventory(expenseType.affectsInventory)
       
-      const foundOption = RETENTION_AIR_OPTIONS.find((o) => o.value === expenseType.suggestedRetentionCode)
-      if (foundOption) {
+      const foundOption = retentionOptions.find(
+        (o) => o.value.toUpperCase() === expenseType.suggestedRetentionCode?.toUpperCase()
+      )
+      if (foundOption && foundOption.value) {
         setSelectedRetentionOption(foundOption.value)
         setCustomRetentionCode('')
       } else if (expenseType.suggestedRetentionCode) {
@@ -105,14 +104,14 @@ export function ExpenseTypeModal({
       setDescription('')
       setIsActive(true)
     }
-  }, [open, expenseType])
+  }, [open, expenseType, retentionOptions])
 
   const handleRetentionOptionChange = (val: string) => {
     setSelectedRetentionOption(val)
     if (val === 'custom') {
       return
     }
-    const option = RETENTION_AIR_OPTIONS.find((o) => o.value === val)
+    const option = retentionOptions.find((o) => o.value === val)
     if (option && option.defaultPct !== null) {
       setRetentionPercentage(option.defaultPct)
       if (!validFrom) {
@@ -122,6 +121,16 @@ export function ExpenseTypeModal({
       setRetentionPercentage('')
     }
   }
+
+  const selectedAirConcept: SriAirConcept | undefined = useMemo(() => {
+    if (selectedRetentionOption && selectedRetentionOption !== 'custom') {
+      return findAirConcept(selectedRetentionOption)
+    }
+    if (selectedRetentionOption === 'custom' && customRetentionCode) {
+      return findAirConcept(customRetentionCode)
+    }
+    return undefined
+  }, [selectedRetentionOption, customRetentionCode])
 
   const handleSubmit = useCallback(
     async (e?: FormEvent) => {
@@ -318,11 +327,11 @@ export function ExpenseTypeModal({
           <div className="ecu-customer-form__field">
             <Select
               id="expense-retention-code"
-              label="Código Sugerido AIR SRI"
+              label="Código Sugerido AIR SRI (Tabla 3.10)"
               labelPosition="outlined"
               variant="outline"
               value={selectedRetentionOption}
-              options={RETENTION_AIR_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+              options={retentionOptions.map((o) => ({ value: o.value, label: o.label }))}
               onChange={handleRetentionOptionChange}
               fullWidth
               disabled={saving}
@@ -336,9 +345,9 @@ export function ExpenseTypeModal({
                 label="Código AIR Manual *"
                 labelPosition="outlined"
                 variant="outline"
-                placeholder="Ej. 344"
+                placeholder="Ej. 3440"
                 value={customRetentionCode}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomRetentionCode(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomRetentionCode(e.target.value.toUpperCase())}
                 fullWidth
                 disabled={saving}
               />
@@ -352,7 +361,7 @@ export function ExpenseTypeModal({
               label="% Retención en la Fuente IR"
               labelPosition="outlined"
               variant="outline"
-              placeholder="Ej. 2.00, 3.00, 10.00"
+              placeholder="Ej. 0.00, 1.00, 2.00, 3.00, 5.00, 10.00"
               type="number"
               value={retentionPercentage}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setRetentionPercentage(e.target.value)}
@@ -360,6 +369,69 @@ export function ExpenseTypeModal({
               disabled={saving}
             />
           </div>
+
+          {selectedAirConcept ? (
+            <div
+              className="ecu-customer-form__field ecu-customer-form__field--span"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.375rem',
+                padding: '0.75rem 0.875rem',
+                borderRadius: '0.5rem',
+                background: 'rgba(59, 130, 246, 0.06)',
+                border: '1px solid rgba(59, 130, 246, 0.18)',
+                fontSize: '0.8rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem' }}>
+                <span style={{ fontWeight: 600, color: 'var(--shell-primary, #2563eb)' }}>
+                  SRI ATS Tabla 3.10 — Concepto AIR {selectedAirConcept.code}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    padding: '0.125rem 0.5rem',
+                    borderRadius: '9999px',
+                    background: 'rgba(59, 130, 246, 0.12)',
+                    color: 'var(--shell-primary, #2563eb)',
+                    fontWeight: 500,
+                  }}
+                >
+                  {selectedAirConcept.group}
+                </span>
+              </div>
+              <div style={{ color: 'var(--glb-text, #1f2937)', lineHeight: 1.4 }}>
+                {selectedAirConcept.description}
+              </div>
+              {selectedAirConcept.notes ? (
+                <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #6b7280)', fontStyle: 'italic' }}>
+                  Nota técnica: {selectedAirConcept.notes}
+                </div>
+              ) : null}
+              <div style={{ marginTop: '0.25rem' }}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setName(selectedAirConcept.description.slice(0, 200))
+                    if (!description || description.trim() === '') {
+                      setDescription(
+                        `AIR ${selectedAirConcept.code} (${selectedAirConcept.defaultPercentage != null ? `${selectedAirConcept.defaultPercentage.toFixed(2)}%` : 'variable'}): ${selectedAirConcept.description}`.slice(
+                          0,
+                          500
+                        )
+                      )
+                    }
+                  }}
+                >
+                  <Sparkles size={14} style={{ marginRight: '0.375rem' }} />
+                  Copiar descripción oficial a nombre y notas
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           {/* Vigencia Desde y Hasta */}
           <div className="ecu-customer-form__field">

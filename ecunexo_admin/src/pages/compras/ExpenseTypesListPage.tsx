@@ -29,6 +29,7 @@ import {
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import { ExpenseTypeModal } from '@/pages/compras/ExpenseTypeModal'
+import { findAirConcept } from '@/lib/sriAirCatalog'
 import type {
   CreateExpenseTypePayload,
   ExpenseTypeDto,
@@ -289,20 +290,46 @@ export function ExpenseTypesListPage() {
       {
         key: 'suggestedRetentionCode',
         header: 'Retención AIR (IR)',
-        width: 160,
+        width: 210,
         sortable: true,
-        renderCell: (_value, row: ExpenseRow) => (
-          <div>
-            <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.825rem' }}>
-              {row.suggestedRetentionCode ? `AIR ${row.suggestedRetentionCode}` : '—'}
-            </div>
-            {row.retentionPercentage != null ? (
-              <div style={{ fontSize: '0.75rem', color: 'var(--shell-primary, #2563eb)', fontWeight: 500 }}>
-                {row.retentionPercentage.toFixed(2)}%
+        renderCell: (_value, row: ExpenseRow) => {
+          const air = findAirConcept(row.suggestedRetentionCode)
+          return (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.825rem' }}>
+                  {row.suggestedRetentionCode ? `AIR ${row.suggestedRetentionCode}` : '—'}
+                </span>
+                {row.retentionPercentage != null ? (
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: row.retentionPercentage === 0 ? 'var(--glb-muted, #6b7280)' : 'var(--shell-primary, #2563eb)',
+                    }}
+                  >
+                    ({row.retentionPercentage.toFixed(2)}%)
+                  </span>
+                ) : null}
               </div>
-            ) : null}
-          </div>
-        ),
+              {air ? (
+                <div
+                  title={air.description}
+                  style={{
+                    fontSize: '0.725rem',
+                    color: 'var(--glb-muted, #6b7280)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '12rem',
+                  }}
+                >
+                  {air.description}
+                </div>
+              ) : null}
+            </div>
+          )
+        },
       },
       {
         key: 'validFrom',
