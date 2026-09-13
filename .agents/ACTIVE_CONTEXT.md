@@ -7,7 +7,7 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.21.1`.
+* **Última Versión Publicada:** `v0.21.2`.
 * **Hitos Recientes Completados:**
   - **Catálogo Oficial SRI AIR Tabla 3.10 ATS 2026 y Edición Completa de Conceptos (`/compras/categorias`):**
     - **Extracción Autorizada del SRI ATS:** Extracción e integración fiel de la "Tabla 3.10: CONCEPTOS DE RETENCIÓN EN LA FUENTE DE IMPUESTO A LA RENTA (AIR) DESDE 06/AGOSTO/2026" de `Catalogo_ATS.pdf` (creación de [`src/lib/sriAirCatalog.ts`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/lib/sriAirCatalog.ts) con códigos 300 para residentes y 500 para exterior).
