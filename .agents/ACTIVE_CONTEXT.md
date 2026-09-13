@@ -7,7 +7,7 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.19.0`.
+* **Última Versión Publicada:** `v0.19.1`.
 * **Hito Completado:** **Aislamiento de Firma Digital (.p12), Bloqueo de Emisión SRI y RIDE Preview:**
   - **Aislamiento total de firmas:** Eliminada la asignación/fallback automática de la firma default de ecunexo (`EnsureInfisicalCertificateBoundAsync`) en `Billing.Api`. Ningún emisor puede firmar sin su propio certificado `.p12` cargado y validado.
   - **Bloqueo preventivo en frontend (`FacturaEmitirPage`):** Si la empresa no tiene un certificado `.p12` configurado o está expirado, se bloquean los botones "Emitir (SRI)" y "Solo firmar", mostrando un banner de alerta con redirección a Ajustes de Empresa.
