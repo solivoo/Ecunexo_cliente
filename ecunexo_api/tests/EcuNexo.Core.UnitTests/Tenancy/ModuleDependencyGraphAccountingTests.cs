@@ -34,15 +34,19 @@ public sealed class ModuleDependencyGraphAccountingTests
         ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Small, ModuleTierCatalog.LimitMaxChartAccounts)
             .Should().Be(100);
         ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Small, ModuleTierCatalog.LimitMaxMonthlyJournalEntries)
-            .Should().Be(200);
+            .Should().Be(0);
+        ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Small, ModuleTierCatalog.LimitEnableCustomSubaccounts)
+            .Should().Be(0);
         ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Small, ModuleTierCatalog.LimitAllowCustomSubaccounts)
-            .Should().Be(1);
+            .Should().Be(0);
 
         // Medium
         ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Medium, ModuleTierCatalog.LimitMaxChartAccounts)
             .Should().Be(500);
         ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Medium, ModuleTierCatalog.LimitMaxMonthlyJournalEntries)
-            .Should().Be(1_000);
+            .Should().Be(500);
+        ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Medium, ModuleTierCatalog.LimitEnableCustomSubaccounts)
+            .Should().Be(1);
         ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Medium, ModuleTierCatalog.LimitAllowCustomSubaccounts)
             .Should().Be(1);
 
@@ -50,7 +54,9 @@ public sealed class ModuleDependencyGraphAccountingTests
         ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Big, ModuleTierCatalog.LimitMaxChartAccounts)
             .Should().Be(2_000);
         ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Big, ModuleTierCatalog.LimitMaxMonthlyJournalEntries)
-            .Should().Be(5_000);
+            .Should().Be(2_500);
+        ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Big, ModuleTierCatalog.LimitEnableCustomSubaccounts)
+            .Should().Be(1);
         ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Big, ModuleTierCatalog.LimitAllowCustomSubaccounts)
             .Should().Be(1);
 
@@ -59,12 +65,19 @@ public sealed class ModuleDependencyGraphAccountingTests
             .Should().Be(int.MaxValue);
         ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Enterprise, ModuleTierCatalog.LimitMaxMonthlyJournalEntries)
             .Should().Be(int.MaxValue);
+        ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Enterprise, ModuleTierCatalog.LimitEnableCustomSubaccounts)
+            .Should().Be(1);
         ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Accounting, ModuleTier.Enterprise, ModuleTierCatalog.LimitAllowCustomSubaccounts)
             .Should().Be(1);
 
+        // Test alias "accounting"
+        ModuleTierCatalog.GetDefaultLimit("accounting", ModuleTier.Medium, ModuleTierCatalog.LimitMaxChartAccounts)
+            .Should().Be(500);
+
         var defaults = ModuleTierCatalog.GetDefaultsForTier(TenantModuleCodes.Accounting, ModuleTier.Small);
         defaults.Should().ContainKey(ModuleTierCatalog.LimitMaxChartAccounts).WhoseValue.Should().Be(100);
-        defaults.Should().ContainKey(ModuleTierCatalog.LimitMaxMonthlyJournalEntries).WhoseValue.Should().Be(200);
-        defaults.Should().ContainKey(ModuleTierCatalog.LimitAllowCustomSubaccounts).WhoseValue.Should().Be(1);
+        defaults.Should().ContainKey(ModuleTierCatalog.LimitMaxMonthlyJournalEntries).WhoseValue.Should().Be(0);
+        defaults.Should().ContainKey(ModuleTierCatalog.LimitEnableCustomSubaccounts).WhoseValue.Should().Be(0);
+        defaults.Should().ContainKey(ModuleTierCatalog.LimitAllowCustomSubaccounts).WhoseValue.Should().Be(0);
     }
 }

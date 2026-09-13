@@ -34,8 +34,16 @@ public static class TenantModuleCodes
     public static readonly IReadOnlyList<string> All =
         [Identity, Catalog, Warehousing, Inventory, Invoicing, Accounting, Training, Support, Repairs, Customers, Ecommerce, Purchases];
 
-    public static bool IsKnown(string code) =>
-        All.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase));
+    public static bool IsKnown(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return false;
+        }
+
+        var canonical = Canonicalize(code);
+        return All.Any(c => string.Equals(c, canonical, StringComparison.OrdinalIgnoreCase));
+    }
 
     /// <summary>Normaliza un código de módulo para persistencia (trim + minúsculas invariantes).</summary>
     public static string Normalize(string code)
