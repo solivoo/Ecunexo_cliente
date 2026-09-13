@@ -32,28 +32,23 @@ public static class ExpenseTypeEndpoints
         group.MapGet("/", ListAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.expenses.read",
-                "purchases.expenses.manage",
-                "facturacion.read"));
+                "purchases.expenses.manage"));
 
         group.MapPost("/", CreateAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny(
-                "purchases.expenses.manage",
-                "facturacion.read"));
+            .AddEndpointFilter(PermissionFilters.Require(
+                "purchases.expenses.manage"));
 
         group.MapPut("/{id:guid}", UpdateAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny(
-                "purchases.expenses.manage",
-                "facturacion.read"));
+            .AddEndpointFilter(PermissionFilters.Require(
+                "purchases.expenses.manage"));
 
         group.MapDelete("/{id:guid}", DeleteAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny(
-                "purchases.expenses.manage",
-                "facturacion.read"));
+            .AddEndpointFilter(PermissionFilters.Require(
+                "purchases.expenses.manage"));
 
         group.MapPost("/seed", SeedDefaultsAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny(
-                "purchases.expenses.manage",
-                "facturacion.read"));
+            .AddEndpointFilter(PermissionFilters.Require(
+                "purchases.expenses.manage"));
 
         return app;
     }

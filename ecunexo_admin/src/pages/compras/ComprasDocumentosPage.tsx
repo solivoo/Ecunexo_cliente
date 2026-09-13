@@ -66,12 +66,11 @@ export function ComprasDocumentosPage() {
 
   const canRead =
     useHasPermission('purchases.documents.read') ||
-    useHasPermission('purchases.read') ||
-    useHasPermission('facturacion.read')
+    useHasPermission('purchases.documents.manage') ||
+    useHasPermission('purchases.read')
   const canManage =
     useHasPermission('purchases.documents.manage') ||
-    useHasPermission('purchases.manage') ||
-    useHasPermission('facturacion.read')
+    useHasPermission('purchases.manage')
 
   // Data states
   const [loading, setLoading] = useState(true)

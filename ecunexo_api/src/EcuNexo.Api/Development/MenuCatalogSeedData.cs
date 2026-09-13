@@ -164,7 +164,7 @@ internal static class MenuCatalogSeedData
         Item("facturacion-catalogos-reglas", "facturacion-catalogos", "Reglas SRI", null, "facturacion/catalogos/reglas", 1, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
 
         // Compras: Compras, Proveedores y Retenciones SRI
-        Item("compras", null, "Compras", "shopping-cart", null, 65, MenuContextKind.Operational, "purchases", ["purchases.documents.read"]),
+        Item("compras", null, "Compras", "shopping-cart", null, 65, MenuContextKind.Operational, "purchases", []),
         Item("compras-documentos", "compras", "Documentos", "file-text", "compras/documentos", 1, MenuContextKind.Operational, "purchases", ["purchases.documents.read"]),
         Item("compras-retenciones", "compras", "Retenciones", "receipt", "compras/retenciones", 2, MenuContextKind.Operational, "purchases", ["purchases.withholdings.read"]),
         Item("compras-liquidaciones", "compras", "Liquidaciones", "file-text", "compras/liquidaciones", 3, MenuContextKind.Operational, "facturacion", ["facturacion.liquidacion.compra.read", "facturacion.read"]),

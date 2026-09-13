@@ -72,8 +72,8 @@ export function ExpenseTypesListPage() {
   const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
 
-  const canRead = useHasPermission('purchases.expenses.read') || useHasPermission('facturacion.read')
-  const canManage = useHasPermission('purchases.expenses.manage') || useHasPermission('facturacion.read')
+  const canRead = useHasPermission('purchases.expenses.read') || useHasPermission('purchases.expenses.manage')
+  const canManage = useHasPermission('purchases.expenses.manage')
 
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)

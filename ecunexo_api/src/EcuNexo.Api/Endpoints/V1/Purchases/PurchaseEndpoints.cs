@@ -33,33 +33,28 @@ public static class PurchaseEndpoints
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.documents.read",
                 "purchases.documents.manage",
-                "purchases.read",
-                "facturacion.read"));
+                "purchases.read"));
 
         group.MapGet("/{purchaseId:guid}", GetByIdAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.documents.read",
                 "purchases.documents.manage",
-                "purchases.read",
-                "facturacion.read"));
+                "purchases.read"));
 
         group.MapPost("/", CreateAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.documents.manage",
-                "purchases.manage",
-                "facturacion.read"));
+                "purchases.manage"));
 
         group.MapPost("/parse-xml", ParseXmlAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.documents.manage",
-                "purchases.manage",
-                "facturacion.read"));
+                "purchases.manage"));
 
         group.MapPost("/{purchaseId:guid}/receive", ReceiveAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.documents.manage",
-                "purchases.manage",
-                "facturacion.read"));
+                "purchases.manage"));
 
         return app;
     }

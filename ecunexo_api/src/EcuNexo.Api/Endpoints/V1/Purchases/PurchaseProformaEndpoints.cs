@@ -33,30 +33,24 @@ public static class PurchaseProformaEndpoints
         group.MapGet("/", ListAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.proformas.read",
-                "purchases.proformas.manage",
-                "facturacion.read"));
+                "purchases.proformas.manage"));
 
         group.MapGet("/{proformaId:guid}", GetByIdAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.proformas.read",
-                "purchases.proformas.manage",
-                "facturacion.read"));
+                "purchases.proformas.manage"));
 
         group.MapPost("/", CreateAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny(
-                "purchases.proformas.manage",
-                "facturacion.read"));
+            .AddEndpointFilter(PermissionFilters.Require(
+                "purchases.proformas.manage"));
 
         group.MapPost("/{proformaId:guid}/approve", ApproveAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny(
-                "purchases.proformas.approve",
-                "purchases.proformas.manage",
-                "facturacion.read"));
+            .AddEndpointFilter(PermissionFilters.Require(
+                "purchases.proformas.approve"));
 
         group.MapPost("/{proformaId:guid}/reject", RejectAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny(
-                "purchases.proformas.manage",
-                "facturacion.read"));
+            .AddEndpointFilter(PermissionFilters.Require(
+                "purchases.proformas.manage"));
 
         return app;
     }

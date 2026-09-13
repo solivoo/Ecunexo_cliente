@@ -46,7 +46,7 @@ export function PurchaseProformaCreatePage() {
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
 
-  const canManage = useHasPermission('purchases.proformas.manage') || useHasPermission('facturacion.read')
+  const canManage = useHasPermission('purchases.proformas.manage') || useHasPermission('purchases.manage')
 
   const [loadingSuppliers, setLoadingSuppliers] = useState(true)
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([])

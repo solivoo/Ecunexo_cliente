@@ -57,9 +57,9 @@ export function PurchaseProformasListPage() {
   const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
 
-  const canRead = useHasPermission('purchases.proformas.read') || useHasPermission('facturacion.read')
-  const canManage = useHasPermission('purchases.proformas.manage') || useHasPermission('facturacion.read')
-  const canApprove = useHasPermission('purchases.proformas.approve') || useHasPermission('facturacion.read')
+  const canRead = useHasPermission('purchases.proformas.read') || useHasPermission('purchases.proformas.manage')
+  const canManage = useHasPermission('purchases.proformas.manage')
+  const canApprove = useHasPermission('purchases.proformas.approve')
 
   const [loading, setLoading] = useState(true)
   const [proformas, setProformas] = useState<PurchaseProformaDto[]>([])

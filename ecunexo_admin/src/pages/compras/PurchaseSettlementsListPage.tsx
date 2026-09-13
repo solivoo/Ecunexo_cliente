@@ -34,8 +34,7 @@ export function PurchaseSettlementsListPage() {
     useHasPermission('facturacion.read')
   const canIssue =
     useHasPermission('facturacion.liquidacion.compra.issue') ||
-    useHasPermission('purchases.documents.manage') ||
-    useHasPermission('facturacion.read')
+    useHasPermission('purchases.documents.manage')
 
   const [tenant, setTenant] = useState<GetTenantByIdDto | null>(null)
   const [certStatus, setCertStatus] = useState<SigningCertificateStatusDto | null>(null)

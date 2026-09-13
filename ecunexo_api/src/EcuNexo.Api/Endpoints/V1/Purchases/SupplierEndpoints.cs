@@ -33,29 +33,25 @@ public static class SupplierEndpoints
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.suppliers.read",
                 "purchases.suppliers.manage",
-                "facturacion.read",
+                "purchases.documents.manage",
                 "inventory.documents.create"));
 
         group.MapGet("/{supplierId:guid}", GetByIdAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.suppliers.read",
-                "purchases.suppliers.manage",
-                "facturacion.read"));
+                "purchases.suppliers.manage"));
 
         group.MapPost("/", CreateAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny(
-                "purchases.suppliers.manage",
-                "facturacion.read"));
+            .AddEndpointFilter(PermissionFilters.Require(
+                "purchases.suppliers.manage"));
 
         group.MapPut("/{supplierId:guid}", UpdateAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny(
-                "purchases.suppliers.manage",
-                "facturacion.read"));
+            .AddEndpointFilter(PermissionFilters.Require(
+                "purchases.suppliers.manage"));
 
         group.MapDelete("/{supplierId:guid}", DeleteAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny(
-                "purchases.suppliers.manage",
-                "facturacion.read"));
+            .AddEndpointFilter(PermissionFilters.Require(
+                "purchases.suppliers.manage"));
 
         return app;
     }

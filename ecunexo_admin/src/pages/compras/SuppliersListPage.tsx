@@ -59,8 +59,8 @@ export function SuppliersListPage() {
   const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
 
-  const canRead = useHasPermission('purchases.suppliers.read') || useHasPermission('facturacion.read')
-  const canManage = useHasPermission('purchases.suppliers.manage') || useHasPermission('facturacion.read')
+  const canRead = useHasPermission('purchases.suppliers.read') || useHasPermission('purchases.suppliers.manage')
+  const canManage = useHasPermission('purchases.suppliers.manage')
 
   const [loading, setLoading] = useState(true)
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([])

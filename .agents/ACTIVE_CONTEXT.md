@@ -7,7 +7,7 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.20.0`.
+* **Última Versión Publicada:** `v0.20.1`.
 * **Hitos Recientes Completados:**
   - **Identificación Inequívoca de Ambiente de Pruebas SRI (Sin Validez Tributaria):**
     - Detección determinista por dígito 24 de la clave de acceso de 49 dígitos (`accessKey[23] === '1'` para Pruebas, `'2'` para Producción).
@@ -36,7 +36,10 @@
     - **CQRS Handlers:** Implementados `UpdateExpenseTypeHandler` y `DeleteExpenseTypeHandler` (protección de conceptos `IsSystem` contra borrado destructivo pero permitiendo desactivación y edición de nombres/tarifas; descarte físico sólo si no existen compras asociadas, y desactivación preventiva si ya fue usado).
     - **Endpoints API:** `PUT` y `DELETE` en `/api/v1/tenants/{tenantId}/purchases/expense-types/{id}` expuestos y documentados en Swagger.
     - **Frontend (`ExpenseTypeModal.tsx` & `ExpenseTypesListPage.tsx`):** Modal completo Glubox para crear y editar conceptos, selector de códigos AIR del SRI con autocompletado de porcentajes y fechas vigentes (desde agosto 2026), columnas en DataGrid con `% Retención AIR`, `Vigencia SRI` y botones de acción (Editar y Desactivar/Eliminar con confirmación segura).
-    - **Tests:** 174 pruebas en `EcuNexo.Core.UnitTests` y 75 pruebas en `EcuNexo.Business.UnitTests` (100% pasando). Compilación frontend Vite limpia.
+  - **Seguridad & Endurecimiento de Permisos RBAC en Compras:**
+    - Eliminado el bypass temporal de `facturacion.read` en endpoints de escritura (`POST`, `PUT`, `DELETE`, `/receive`, `/seed`, `/parse-xml`, `/approve`, `/reject`) en [`ExpenseTypeEndpoints.cs`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/src/EcuNexo.Api/Endpoints/V1/Purchases/ExpenseTypeEndpoints.cs), [`SupplierEndpoints.cs`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/src/EcuNexo.Api/Endpoints/V1/Purchases/SupplierEndpoints.cs), [`PurchaseEndpoints.cs`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/src/EcuNexo.Api/Endpoints/V1/Purchases/PurchaseEndpoints.cs) y [`PurchaseProformaEndpoints.cs`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/src/EcuNexo.Api/Endpoints/V1/Purchases/PurchaseProformaEndpoints.cs).
+    - Alineados todos los componentes y páginas frontend de compras ([`ComprasDocumentosPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/ComprasDocumentosPage.tsx), [`SuppliersListPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/SuppliersListPage.tsx), [`ExpenseTypesListPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/ExpenseTypesListPage.tsx), [`PurchaseProformasListPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/PurchaseProformasListPage.tsx), [`PurchaseProformaCreatePage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/PurchaseProformaCreatePage.tsx), [`PurchaseWithholdingsListPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/PurchaseWithholdingsListPage.tsx), [`PurchaseSettlementsListPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/PurchaseSettlementsListPage.tsx)) para evaluar estrictamente los permisos granulares `purchases.*` en lugar de conceder accesos por facturación de ventas.
+    - Menú padre "Compras" en [`MenuCatalogSeedData.cs`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/src/EcuNexo.Api/Development/MenuCatalogSeedData.cs) configurado con permisos abiertos para que cualquier usuario con permiso a al menos una de las subsecciones (facturas, proveedores, proformas, retenciones o categorías) pueda acceder a su área autorizada sin exigir forzosamente `purchases.documents.read`.
   - **Seguridad:**
     - Eliminado archivo `.pem` del repositorio, configurado `.gitignore` y `appsettings.Development.local.json`.
 

@@ -31,11 +31,11 @@ export function PurchaseWithholdingsListPage() {
   const canRead =
     useHasPermission('purchases.withholdings.read') ||
     useHasPermission('purchases.documents.read') ||
-    useHasPermission('facturacion.read')
+    useHasPermission('purchases.read')
   const canIssue =
     useHasPermission('purchases.withholdings.issue') ||
     useHasPermission('purchases.documents.manage') ||
-    useHasPermission('facturacion.read')
+    useHasPermission('purchases.manage')
 
   const [tenant, setTenant] = useState<GetTenantByIdDto | null>(null)
   const [certStatus, setCertStatus] = useState<SigningCertificateStatusDto | null>(null)
