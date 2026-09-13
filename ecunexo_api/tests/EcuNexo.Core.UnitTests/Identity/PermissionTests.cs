@@ -55,4 +55,17 @@ public sealed class PermissionTests
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("permission.code.format");
     }
+
+    [Theory(DisplayName = "Código con guion bajo o guion medio se rechaza terminantemente")]
+    [InlineData("purchases.expense_types.read")]
+    [InlineData("purchases.expense-types.read")]
+    [InlineData("catalog_items.read")]
+    [InlineData("repairs.batch_dispatch")]
+    public void Create_WithUnderscoreOrHyphen_FailsWithFormatError(string invalidCode)
+    {
+        var result = Permission.Create(Guid.CreateVersion7(), invalidCode, "Test");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("permission.code.format");
+    }
 }
