@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.21.0`.
+* **Última Versión Publicada:** `v0.21.1`.
 * **Hitos Recientes Completados:**
+  - **Despliegue Desacoplado y Clave Pública de Licencias Integrada (`v0.21.1`):**
+    - **Clave Pública RSA Integrada:** Empaquetado de `license-public.pem` dentro del proyecto `EcuNexo.Api` y `SigningPublicKeyPem` embebido en `appsettings.json`, eliminando la necesidad de variables o volúmenes externos para la verificación de licencias.
+    - **Desacoplamiento de Volúmenes en Docker Compose:** Eliminación de la dependencia forzada de `${LICENSE_KEYS_HOST_PATH}:/keys:ro` en `docker-compose.yml` y configuración de valores por defecto seguros para prevenir fallos de inicio en Portainer ante variables no definidas.
+    - **Resolución de Error 502 Cloudflare / Nginx Upstream:** Identificación de `Connection refused` en `http://172.22.0.3:8080` debido a la caída inicial del contenedor API por la variable de volumen requerida y restauración del ciclo de vida del contenedor en el stack Portainer.
   - **Vista Dedicada de Importación de Compras & Auditoría Preventiva SRI (`/compras/documentos/importar`):**
     - **Transición de Modal a Vista Propia:** Reemplazo de `ParseXmlModal` por una pantalla completa dedicada con amplio espacio horizontal y vertical para procesar tanto cargas individuales como masivas por lotes de múltiples archivos XML simultáneos.
     - **Auditoría Preventiva del SRI (`SriPurchaseAuditor` & `SriValidationReport`):**
