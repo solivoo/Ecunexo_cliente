@@ -113,6 +113,7 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
             <span>Novedades v{APP_VERSION_INFO.version} — Proformas Híbridas, Retenciones SRI 07 y Liquidaciones de Compra</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Unificación de Configuración SRI y Ambiente de Emisión:</strong> Centralización de datos de emisor y firma electrónica en Ajustes de Empresa → Facturación electrónica, eliminación de opciones redundantes en el menú lateral y nuevo selector oficial de ambiente SRI (Pruebas celcer vs Producción cel) con banner descriptivo.</li>
             <li><strong>Vista Dedicada y Modo Híbrido en Proformas de Compra:</strong> Nueva pantalla completa (/compras/proformas/nueva) con soporte para registro documental por enlace externo o PDF (con subtotal y tarifa IVA directa sin forzar ítems) y modo detallado por ítems; control de vigencia con botones de acceso rápido (+7, +15, +30 días).</li>
             <li><strong>Notificación Automática por Correo y Control ABAC:</strong> Reglas de expiración de cotizaciones con bloqueo de aprobación vencida; permiso granular purchases.proformas.approve y emisión automática de correo de adjudicación al proveedor oferente.</li>
             <li><strong>Obligatoriedad de Correo en Proveedores:</strong> Validación estricta con formato RFC para garantizar la entrega de comprobantes y notificaciones formales de compra.</li>

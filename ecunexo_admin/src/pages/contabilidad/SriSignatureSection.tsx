@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
-import { Button, CheckButton, FileBox, Select, TextBox, useToast } from 'glubox'
+import { Button, FileBox, Select, TextBox, useToast } from 'glubox'
 import {
   AlertCircle,
   AlertTriangle,
@@ -15,8 +15,6 @@ import {
 import { StatusBadge } from '@/components/ui'
 import { readApiError } from '@/lib/readApiError'
 import {
-  BILLING_EMIT_PROFILES,
-  getBillingEmitProfile,
   type BillingEmitProfileId,
 } from '@/lib/billingEmitProfile'
 import {
@@ -28,7 +26,6 @@ import {
 export type SriSignatureValues = {
   readonly password: string
   readonly expiresAt: string
-  readonly autoSign: boolean
   readonly fileName: string | null
   readonly emitProfile: BillingEmitProfileId
 }
@@ -44,10 +41,16 @@ export type SriSignatureSectionProps = {
   readonly tenantId?: string | null
 }
 
-const PROFILE_OPTIONS = BILLING_EMIT_PROFILES.map((p) => ({
-  value: p.value,
-  label: p.label,
-}))
+const ENVIRONMENT_OPTIONS = [
+  {
+    value: 'dev_sri',
+    label: 'Ambiente 1 — Pruebas / Certificación (SRI celcer)',
+  },
+  {
+    value: 'production',
+    label: 'Ambiente 2 — Producción (SRI cel)',
+  },
+]
 
 
 function formatDate(isoString: string | null | undefined): string {
@@ -78,8 +81,6 @@ export function SriSignatureSection({
   const [loadingStatus, setLoadingStatus] = useState(false)
   const [certStatus, setCertStatus] = useState<SigningCertificateStatusDto | null>(null)
   const [showReplaceForm, setShowReplaceForm] = useState(false)
-
-  const profile = getBillingEmitProfile(values.emitProfile)
 
   const emitChange: SriSignatureSectionProps['onChange'] = (key, value) => {
     if (disabled) return
@@ -439,44 +440,55 @@ export function SriSignatureSection({
         </div>
       )}
 
-      {/* 3. Opciones de Emisión y Perfil */}
-      <div className="ecu-companies-form__grid ecu-companies-form__grid--2" style={{ marginTop: '0.5rem' }}>
-        <div className="ecu-companies-form__field">
+      {/* 3. Ambiente SRI de Emisión */}
+      <div style={{ marginTop: '0.75rem' }}>
+        <div style={{ maxWidth: '28rem' }}>
           <Select
-            id="sri-emit-profile"
-            label="Perfil de emisión"
+            id="sri-environment"
+            label="Ambiente SRI de Emisión"
             labelPosition="outlined"
             variant="outline"
-            options={[...PROFILE_OPTIONS]}
-            value={values.emitProfile}
+            options={ENVIRONMENT_OPTIONS}
+            value={values.emitProfile === 'production' ? 'production' : 'dev_sri'}
             onChange={(v) => emitChange('emitProfile', v as BillingEmitProfileId)}
             disabled={disabled}
             fullWidth
           />
         </div>
 
-        <div className="ecu-companies-form__field sri-config-field--check-align" style={{ display: 'flex', alignItems: 'center' }}>
-          <CheckButton
-            variant="ghost"
-            checked={values.autoSign}
-            onChange={(checked: boolean) => emitChange('autoSign', checked)}
-            disabled={disabled}
-          >
-            Firmado automático al emitir comprobantes
-          </CheckButton>
+        <div
+          style={{
+            marginTop: '0.75rem',
+            padding: '0.85rem 1rem',
+            borderRadius: '0.5rem',
+            border: values.emitProfile === 'production'
+              ? '1px solid rgba(16, 185, 129, 0.3)'
+              : '1px solid rgba(245, 158, 11, 0.3)',
+            backgroundColor: values.emitProfile === 'production'
+              ? 'rgba(16, 185, 129, 0.06)'
+              : 'rgba(245, 158, 11, 0.06)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.75rem',
+          }}
+        >
+          <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>
+            {values.emitProfile === 'production' ? '🚀' : '🧪'}
+          </span>
+          <div style={{ fontSize: '0.82rem', lineHeight: 1.45 }}>
+            <strong style={{ color: 'var(--glb-text, inherit)', display: 'block', marginBottom: '0.15rem' }}>
+              {values.emitProfile === 'production'
+                ? 'Ambiente 2 — Producción SRI (cel.sri.gob.ec)'
+                : 'Ambiente 1 — Pruebas / Certificación (celcer.sri.gob.ec)'}
+            </strong>
+            <span style={{ color: 'var(--glb-muted, #64748b)' }}>
+              {values.emitProfile === 'production'
+                ? 'Los comprobantes emitidos tienen plena validez fiscal y tributaria ante el SRI. Toda factura, retención o nota de crédito emitida será autorizada formalmente ante el fisco.'
+                : 'Los comprobantes se enviarán a los servidores de prueba del SRI. No generan obligaciones tributarias ni validez fiscal. Recomendado para pruebas de integración y capacitación.'}
+            </span>
+          </div>
         </div>
       </div>
-
-      <p
-        className={
-          profile.isDevelopment
-            ? 'sri-config-profile-note sri-config-profile-note--dev'
-            : 'sri-config-profile-note sri-config-profile-note--prod'
-        }
-        role="note"
-      >
-        {profile.description}
-      </p>
     </div>
   )
 

@@ -159,9 +159,8 @@ internal static class MenuCatalogSeedData
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Comprobantes", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
-        Item("facturacion-emisor-config", "facturacion", "Emisor y SRI", "settings", "organizacion/facturacion-electronica", 2, MenuContextKind.Operational, "facturacion", ["facturacion.emisor.read", "tenancy.tenant.read", "contabilidad.configuracion.read"]),
-        Item("facturacion-sri", "facturacion", "Monitoreo SRI", "shield-check", "facturacion/sri", 3, MenuContextKind.Operational, "facturacion", ["facturacion.sri.read"]),
-        Item("facturacion-catalogos", "facturacion", "Catálogos", "library", null, 4, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
+        Item("facturacion-sri", "facturacion", "Monitoreo SRI", "shield-check", "facturacion/sri", 2, MenuContextKind.Operational, "facturacion", ["facturacion.sri.read"]),
+        Item("facturacion-catalogos", "facturacion", "Catálogos", "library", null, 3, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
         Item("facturacion-catalogos-reglas", "facturacion-catalogos", "Reglas SRI", null, "facturacion/catalogos/reglas", 1, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
 
         // Compras: Compras, Proveedores y Retenciones SRI
@@ -226,6 +225,7 @@ internal static class MenuCatalogSeedData
         "facturacion-emisor",
         "facturacion-emisor-datos",
         "facturacion-emisor-certificado",
+        "facturacion-emisor-config",
         "contabilidad-configuracion-sri",
         "facturacion-config",
         "facturacion-config-impuestos",

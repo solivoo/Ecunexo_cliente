@@ -10,6 +10,9 @@ const SIDEBAR_EXCLUDED_IDS = new Set([
   'configuracion-roles',
   'configuracion-permisos',
   'configuracion-politicas',
+  // Emisor y SRI ya está centralizado bajo Ajustes de Empresa:
+  'facturacion-emisor',
+  'facturacion-emisor-config',
 ])
 
 const SIDEBAR_EXCLUDED_ROUTES = new Set([

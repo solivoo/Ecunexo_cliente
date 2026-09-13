@@ -64,7 +64,6 @@ const INITIAL_LEGAL: SriLegalInfoValues = {
 const INITIAL_SIGNATURE: SriSignatureValues = {
   password: '',
   expiresAt: '',
-  autoSign: true,
   fileName: null,
   emitProfile: 'dev_sri',
 }
