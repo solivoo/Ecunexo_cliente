@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.22.3`.
+* **Última Versión Publicada:** `v0.22.4`.
 * **Hitos Recientes Completados:**
+  - **Blindaje de Permisos RBAC y Estado de Firma SRI en Compras:**
+    - Retiro de botones redundantes de configuración de firma en vistas operativas de Retenciones y Liquidaciones de Compra (`PurchaseWithholdingsListPage.tsx`, `PurchaseSettlementsListPage.tsx`), preservando la seguridad y segregación de funciones (la configuración de firma electrónica es potestad exclusiva de Ajustes de Empresa con permisos de rol de administración).
+    - Eliminación completa de términos técnicos crudos `.p12` de la interfaz de emisión de facturas (`FacturaEmitirPage.tsx`).
+    - Incorporación de insignias informativas de estado SRI y firma electrónica (`SRI Pruebas / SRI Producción` y `Firma Digital Activa / Sin Firma / Expirada`).
   - **Sincronización Criptográfica con Licenciamiento de Producción (license.ecunexo.com):**
     - Extracción de la clave pública oficial RSA-PSS SHA-256 desde el endpoint `GET /api/v1/platform/public-key` de la plataforma de licencias de producción.
     - Actualización en el backend del Cliente (`license-public.pem` y `appsettings.json` `LicenseValidation:SigningPublicKeyPem`) erradicando el error `license.artifact.signature` ("La firma de la licencia no es válida").

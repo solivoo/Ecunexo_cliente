@@ -12,7 +12,6 @@ import {
   AlertCircle,
   Building2,
   FileCheck2,
-  KeyRound,
   Plus,
   RefreshCw,
   ShieldCheck,
@@ -23,6 +22,7 @@ import { getSigningCertificateStatus, getTenant, type SigningCertificateStatusDt
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { GetTenantByIdDto } from '@/types/tenantApi'
+import { getBillingEmitProfile, readBillingEmitProfile } from '@/lib/billingEmitProfile'
 
 export function PurchaseWithholdingsListPage() {
   const navigate = useNavigate()
@@ -40,6 +40,10 @@ export function PurchaseWithholdingsListPage() {
   const [tenant, setTenant] = useState<GetTenantByIdDto | null>(null)
   const [certStatus, setCertStatus] = useState<SigningCertificateStatusDto | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const emitProfile = useMemo(() => {
+    return getBillingEmitProfile(readBillingEmitProfile(tenantId))
+  }, [tenantId])
 
   useEffect(() => {
     if (!tenantId) return
@@ -165,21 +169,25 @@ export function PurchaseWithholdingsListPage() {
                 <StatusBadge tone={tenant?.isWithholdingAgent ? 'success' : 'neutral'} withDot>
                   {tenant?.isWithholdingAgent ? 'Agente de Retención SRI' : 'Régimen General'}
                 </StatusBadge>
+                <StatusBadge tone={emitProfile.isDevelopment ? 'warning' : 'success'} withDot>
+                  {emitProfile.isDevelopment ? 'SRI Pruebas' : 'SRI Producción'}
+                </StatusBadge>
+                <StatusBadge
+                  tone={certStatus?.isConfigured && !certStatus.isExpired ? 'success' : certStatus?.isExpired ? 'danger' : 'warning'}
+                  withDot
+                >
+                  {certStatus?.isConfigured && !certStatus.isExpired
+                    ? 'Firma Digital Activa'
+                    : certStatus?.isExpired
+                      ? 'Firma Expirada'
+                      : 'Sin Firma Digital'}
+                </StatusBadge>
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #64748b)', marginTop: '0.2rem' }}>
-                Serie autorizada: <strong>{tenant?.establishmentCode || '001'}-001</strong> · La firma digital .p12 y ambiente SRI se consumen desde Ajustes de Empresa.
+                Serie autorizada: <strong>{tenant?.establishmentCode || '001'}-001</strong>
               </div>
             </div>
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/organizacion/facturacion-electronica')}
-          >
-            <KeyRound size={14} />
-            Configurar Firma Electrónica (.p12)
-          </Button>
         </div>
 
         {/* Banner Informativo de Firma Electrónica */}
@@ -212,11 +220,11 @@ export function PurchaseWithholdingsListPage() {
               </>
             ) : certStatus?.isExpired ? (
               <>
-                <strong>Certificado digital expirado:</strong> El certificado .p12 expiró. Actualiza la firma en <em>Ajustes de Empresa &rarr; Facturación Electrónica</em> para emitir retenciones.
+                <strong>Certificado digital expirado:</strong> La firma electrónica expiró. Actualiza el certificado en <em>Ajustes de Empresa &rarr; Facturación Electrónica</em> para emitir retenciones.
               </>
             ) : (
               <>
-                <strong>Firma digital compartida:</strong> Las retenciones electrónicas (Tipo 07) toman automáticamente el certificado .p12 cargado en <em>Ajustes de Empresa &rarr; Facturación Electrónica</em>. Puedes generar y revisar borradores de retención antes de su transmisión al SRI.
+                <strong>Firma digital compartida:</strong> Las retenciones electrónicas (Tipo 07) toman automáticamente la firma electrónica cargada en <em>Ajustes de Empresa &rarr; Facturación Electrónica</em>. Puedes generar y revisar borradores de retención antes de su transmisión al SRI.
               </>
             )}
           </div>
@@ -265,16 +273,10 @@ export function PurchaseWithholdingsListPage() {
             description="Las retenciones se generan al liquidar facturas de compra sujetas a retención de Impuesto a la Renta o IVA conforme a la condición tributaria de tu empresa ante el SRI."
             action={
               canIssue ? (
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Button variant="primary" onClick={() => navigate('/compras/documentos')}>
-                    <FileCheck2 size={16} />
-                    Ver Facturas de Compra Recibidas
-                  </Button>
-                  <Button variant="outline" onClick={() => navigate('/organizacion/facturacion-electronica')}>
-                    <ShieldCheck size={16} />
-                    Verificar Estado de Firma Digital (.p12)
-                  </Button>
-                </div>
+                <Button variant="primary" onClick={() => navigate('/compras/documentos')}>
+                  <FileCheck2 size={16} />
+                  Ver Facturas de Compra Recibidas
+                </Button>
               ) : undefined
             }
           />

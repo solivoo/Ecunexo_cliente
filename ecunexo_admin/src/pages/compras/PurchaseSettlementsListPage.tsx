@@ -12,7 +12,6 @@ import {
   AlertCircle,
   Building2,
   FilePlus,
-  KeyRound,
   RefreshCw,
   ShieldCheck,
   UserCheck,
@@ -23,6 +22,7 @@ import { getSigningCertificateStatus, getTenant, type SigningCertificateStatusDt
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { GetTenantByIdDto } from '@/types/tenantApi'
+import { getBillingEmitProfile, readBillingEmitProfile } from '@/lib/billingEmitProfile'
 
 export function PurchaseSettlementsListPage() {
   const navigate = useNavigate()
@@ -39,6 +39,10 @@ export function PurchaseSettlementsListPage() {
   const [tenant, setTenant] = useState<GetTenantByIdDto | null>(null)
   const [certStatus, setCertStatus] = useState<SigningCertificateStatusDto | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const emitProfile = useMemo(() => {
+    return getBillingEmitProfile(readBillingEmitProfile(tenantId))
+  }, [tenantId])
 
   useEffect(() => {
     if (!tenantId) return
@@ -164,21 +168,25 @@ export function PurchaseSettlementsListPage() {
                 <StatusBadge tone="primary" withDot>
                   Emisor Tipo 03
                 </StatusBadge>
+                <StatusBadge tone={emitProfile.isDevelopment ? 'warning' : 'success'} withDot>
+                  {emitProfile.isDevelopment ? 'SRI Pruebas' : 'SRI Producción'}
+                </StatusBadge>
+                <StatusBadge
+                  tone={certStatus?.isConfigured && !certStatus.isExpired ? 'success' : certStatus?.isExpired ? 'danger' : 'warning'}
+                  withDot
+                >
+                  {certStatus?.isConfigured && !certStatus.isExpired
+                    ? 'Firma Digital Activa'
+                    : certStatus?.isExpired
+                      ? 'Firma Expirada'
+                      : 'Sin Firma Digital'}
+                </StatusBadge>
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #64748b)', marginTop: '0.2rem' }}>
-                Serie autorizada: <strong>{tenant?.establishmentCode || '001'}-001</strong> · Certificado .p12 y clave de acceso de 49 dígitos centralizados en Ajustes de Empresa.
+                Serie autorizada: <strong>{tenant?.establishmentCode || '001'}-001</strong>
               </div>
             </div>
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/organizacion/facturacion-electronica')}
-          >
-            <KeyRound size={14} />
-            Configurar Firma Electrónica (.p12)
-          </Button>
         </div>
 
         {/* Banner Informativo de Emisión y Firma */}
@@ -211,7 +219,7 @@ export function PurchaseSettlementsListPage() {
               </>
             ) : (
               <>
-                <strong>Normativa SRI (Art. 48 RCVR):</strong> Las liquidaciones de compra son comprobantes autorizados emitidos por el comprador. Requieren firma electrónica .p12 configurada en <em>Ajustes de Empresa &rarr; Facturación Electrónica</em> y retención del 100% de IVA e IR aplicable.
+                <strong>Normativa SRI (Art. 48 RCVR):</strong> Las liquidaciones de compra son comprobantes autorizados emitidos por el comprador. Requieren firma electrónica configurada en <em>Ajustes de Empresa &rarr; Facturación Electrónica</em> y retención del 100% de IVA e IR aplicable.
               </>
             )}
           </div>
@@ -260,16 +268,10 @@ export function PurchaseSettlementsListPage() {
             description="Emite una liquidación de compra (Tipo 03) cuando adquieras productos o contrates servicios a personas naturales que por disposición legal no poseen RUC ni emiten facturas."
             action={
               canIssue ? (
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Button variant="primary" onClick={() => navigate('/compras/proveedores')}>
-                    <UserCheck size={16} />
-                    Ver Proveedores Registrados
-                  </Button>
-                  <Button variant="outline" onClick={() => navigate('/organizacion/facturacion-electronica')}>
-                    <KeyRound size={16} />
-                    Verificar Estado de Firma Digital (.p12)
-                  </Button>
-                </div>
+                <Button variant="primary" onClick={() => navigate('/compras/proveedores')}>
+                  <UserCheck size={16} />
+                  Ver Proveedores Registrados
+                </Button>
               ) : undefined
             }
           />

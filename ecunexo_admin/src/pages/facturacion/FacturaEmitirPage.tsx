@@ -93,7 +93,7 @@ export function FacturaEmitirPage() {
                   {form.certStatus?.isExpired ? 'Firma digital expirada' : 'Firma electrónica no configurada'}
                 </span>
                 <p className="factura-emitir__cert-alert-text">
-                  Esta empresa no cuenta con un certificado digital propio (.p12).
+                  Esta empresa no cuenta con un certificado de firma digital propio.
                   <strong> La emisión al SRI está bloqueada.</strong> Puedes previsualizar el documento en PDF (RIDE sin validez tributaria) o validar la estructura XML.
                 </p>
               </div>
@@ -103,7 +103,7 @@ export function FacturaEmitirPage() {
                 size="sm"
                 onClick={() => navigate('/organizacion/facturacion-electronica')}
               >
-                Configurar firma (.p12)
+                Configurar firma
               </Button>
             </div>
           )}
@@ -184,7 +184,7 @@ export function FacturaEmitirPage() {
                     disabled={form.formDisabled || !form.hasValidCertificate}
                     title={
                       !form.hasValidCertificate
-                        ? 'Requiere firma electrónica (.p12) configurada'
+                        ? 'Requiere firma electrónica configurada'
                         : undefined
                     }
                     onClick={() => void form.onSubmit('sign')}
@@ -203,7 +203,7 @@ export function FacturaEmitirPage() {
                   loading={form.busy}
                   title={
                     !form.hasValidCertificate && profile.emitMode !== 'draft'
-                      ? 'Debe configurar su firma electrónica (.p12) propia para emitir comprobantes ante el SRI'
+                      ? 'Debe configurar su firma electrónica propia para emitir comprobantes ante el SRI'
                       : undefined
                   }
                 >
