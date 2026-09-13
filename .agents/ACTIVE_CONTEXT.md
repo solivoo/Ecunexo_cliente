@@ -7,12 +7,14 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.18.0`.
-* **Hito Completado:** **Proformas Híbridas, Retenciones SRI 07 y Liquidaciones de Compra:**
-  - Nueva vista dedicada `/compras/proformas/nueva` con modalidad híbrida (PDF/URL vs Ítems), vigencia y email obligatorio en proveedores.
-  - Reglas de expiración ABAC y permiso `purchases.proformas.approve` con notificación por correo al proveedor.
-  - Segregación de rutas en Compras con vistas dedicadas para Retenciones (`/compras/retenciones`) y Liquidaciones (`/compras/liquidaciones`), con banner fiscal y enlace a Ajustes de Empresa para firma digital `.p12`.
-  - Normalización de contrastes dark mode en modales de compra y parseo de XML.
+* **Última Versión Publicada:** `v0.19.0`.
+* **Hito Completado:** **Aislamiento de Firma Digital (.p12), Bloqueo de Emisión SRI y RIDE Preview:**
+  - **Aislamiento total de firmas:** Eliminada la asignación/fallback automática de la firma default de ecunexo (`EnsureInfisicalCertificateBoundAsync`) en `Billing.Api`. Ningún emisor puede firmar sin su propio certificado `.p12` cargado y validado.
+  - **Bloqueo preventivo en frontend (`FacturaEmitirPage`):** Si la empresa no tiene un certificado `.p12` configurado o está expirado, se bloquean los botones "Emitir (SRI)" y "Solo firmar", mostrando un banner de alerta con redirección a Ajustes de Empresa.
+  - **Modo Previsualización RIDE Exclusivo:** Se mantiene habilitado el botón "Previsualizar RIDE" (PDF) y la validación de estructura XML ("Solo validar").
+  - **Marca de agua y leyenda en PDF RIDE:** Si el comprobante es borrador o no cuenta con autorización del SRI, se imprime en el encabezado `PREVISUALIZACIÓN — DOCUMENTO SIN VALIDEZ TRIBUTARIA`, con marca de agua diagonal y estado `NO AUTORIZADO`.
+  - **Optimización de proporciones en el pie del RIDE (`RideFacturaFooter` / `rideFacturaStyles`):** El cuadro de subtotales e impuestos se redujo a `width: 215` (más angosto), permitiendo que la columna izquierda (información adicional, dirección, correo y formas de pago) se expanda con `flex: 1.5` sin solapamientos.
+  - **Cumplimiento normativo y legal:** Modal y términos click-wrap con respaldo en LOPDP y Ficha Técnica SRI en onboarding y login.
 
 ---
 
@@ -101,6 +103,21 @@
       * `ReceivePurchaseModal.tsx`: Recepción física de mercadería en almacén y afectación a kárdex.
       * `PurchaseDetailModal.tsx`: Consulta detallada de la factura, impuestos y líneas.
     * **Frontend Tests:** 17 tests unitarios y E2E en Playwright (`tests-ui/comun/compras-ui.spec.ts`) pasando al 100%, `npm run build` con 0 errores TypeScript.
-* [ ] **Fase 5: Motor de Emisión de Retenciones SRI (XML 07):**
-  * Generación de comprobante de retención electrónica versión 2.0.0 (Anexo 10 ATS v2.32), cálculo automático de IR/IVA según condición tributaria del proveedor, firma digital XAdES-BES (`.p12`), transmisión WebServices SOAP SRI y generación de RIDE.
-  * **Unit & E2E Tests:** Validación de cálculos de retención, estructura XML y emisión.
+* [x] **Fase 5: Arquitectura de Firma Electrónica (.p12) Cifrada en Base de Datos (AES-256-GCM):**
+  * **Almacenamiento Cifrado en PostgreSQL:**
+    * Entidad `TenantSigningCertificate` en `EcuNexo.Core/Tenancy/` con campos `encrypted_data` (bytea), `encrypted_password` (bytea), `nonce` (12 bytes), `tag` (16 bytes) y metadatos del titular (`subject`, `issuer`, `valid_from`, `valid_to`, `subject_tax_id`, `serial_number`, `original_file_name`, `is_active`).
+    * Servicio de cifrado autenticado `AesGcmCertificateEncryptionService` (AES-256-GCM con clave maestra derivada o por configuración).
+    * Validador en memoria `SigningCertificateValidator` usando `X509CertificateLoader.LoadPkcs12` (.NET 10) con `EphemeralKeySet`, comprobando presencia de clave privada, vigencia y extrayendo el RUC/titular.
+    * Repositorio `TenantSigningCertificateRepository` y mapeo EF Core en tabla `tenancy.tenant_signing_certificates`.
+    * Migración aplicada: `20260913053039_AddTenantSigningCertificates`.
+    * Endpoints REST en `TenantSigningCertificateEndpoints.cs`:
+      * `POST /api/v1/tenants/{tenantId}/signing-certificate`: Carga y validación en memoria del archivo `.p12`/`.pfx`, cifrado AES-GCM y persistencia.
+      * `GET /api/v1/tenants/{tenantId}/signing-certificate/status`: Estado del certificado, titular, RUC, días restantes y alerta de expiración.
+    * **Backend Unit Tests:** 238 tests en verde al 100% (168 Core + 70 Business), incluyendo pruebas de ida y vuelta de cifrado AES-256-GCM, detección de datos/tags alterados y validación PKCS#12 en memoria.
+  * **Frontend (`ecunexo_admin`):**
+    * Métodos `getSigningCertificateStatus` y `uploadSigningCertificate` en `src/services/tenantApi.ts`.
+    * Interfaz renovada en `SriSignatureSection.tsx` (`Ajustes de Empresa -> Facturación Electrónica`) con tarjeta informativa del certificado activo (AES-256-GCM, titular, RUC, vigencia, días restantes con StatusBadge) y dropzone con botón "Cargar y Validar Firma".
+    * Banners dinámicos en `PurchaseWithholdingsListPage.tsx` y `PurchaseSettlementsListPage.tsx` que reflejan en tiempo real el estado de la firma electrónica.
+    * `npm run build` en verde con 0 errores TypeScript.
+* [ ] **Fase 6: Motor de Emisión de Retenciones SRI (XML 07) & Liquidaciones (XML 03):**
+  * Generación de comprobante de retención electrónica versión 2.0.0 (Anexo 10 ATS v2.32), cálculo automático de IR/IVA según condición tributaria del proveedor, firma digital XAdES-BES tomando el `.p12` descifrado en memoria desde la base de datos, transmisión WebServices SOAP SRI y generación de RIDE.

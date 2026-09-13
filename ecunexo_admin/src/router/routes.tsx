@@ -70,6 +70,7 @@ import CustomerTypesListPage from '@/pages/customers/CustomerTypesListPage'
 import { PublicDispatchVerificationPage } from '@/pages/repairs/PublicDispatchVerificationPage'
 import { EcommerceOrdersListPage } from '@/pages/ecommerce/EcommerceOrdersListPage'
 import { EcommerceOrderDetailPage } from '@/pages/ecommerce/EcommerceOrderDetailPage'
+import { LegalPublicPage } from '@/pages/legal/LegalPublicPage'
 import { DashboardLayout } from '@/shell/DashboardLayout'
 
 const placeholder = (title: string): RouteObject => ({
@@ -79,6 +80,8 @@ const placeholder = (title: string): RouteObject => ({
 
 export const routes: RouteObject[] = [
   { path: '/', element: <LoginLayout /> },
+  { path: '/terminos', element: <LegalPublicPage /> },
+  { path: '/privacidad', element: <LegalPublicPage /> },
   { path: '/verificar/despacho/:verificationHash', element: <PublicDispatchVerificationPage /> },
   {
     path: '/bienvenida',

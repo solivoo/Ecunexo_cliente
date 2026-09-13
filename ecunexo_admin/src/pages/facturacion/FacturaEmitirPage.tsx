@@ -86,6 +86,28 @@ export function FacturaEmitirPage() {
           }}
           noValidate
         >
+          {!form.loadingTenant && !form.loadingCert && !form.hasValidCertificate && (
+            <div className="factura-emitir__cert-alert" role="alert">
+              <div className="factura-emitir__cert-alert-main">
+                <span className="factura-emitir__cert-alert-badge">
+                  {form.certStatus?.isExpired ? 'Firma digital expirada' : 'Firma electrónica no configurada'}
+                </span>
+                <p className="factura-emitir__cert-alert-text">
+                  Esta empresa no cuenta con un certificado digital propio (.p12).
+                  <strong> La emisión al SRI está bloqueada.</strong> Puedes previsualizar el documento en PDF (RIDE sin validez tributaria) o validar la estructura XML.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/organizacion/facturacion-electronica')}
+              >
+                Configurar firma (.p12)
+              </Button>
+            </div>
+          )}
+
           <div className="factura-emitir__sections">
             <SectionCard
               title="Datos de Emisión y Cliente"
@@ -159,7 +181,12 @@ export function FacturaEmitirPage() {
                     type="button"
                     variant="ghost"
                     size="md"
-                    disabled={form.formDisabled}
+                    disabled={form.formDisabled || !form.hasValidCertificate}
+                    title={
+                      !form.hasValidCertificate
+                        ? 'Requiere firma electrónica (.p12) configurada'
+                        : undefined
+                    }
                     onClick={() => void form.onSubmit('sign')}
                   >
                     Solo firmar
@@ -169,8 +196,16 @@ export function FacturaEmitirPage() {
                   type="submit"
                   variant="primary"
                   size="md"
-                  disabled={form.formDisabled}
+                  disabled={
+                    form.formDisabled ||
+                    (profile.emitMode !== 'draft' && !form.hasValidCertificate)
+                  }
                   loading={form.busy}
+                  title={
+                    !form.hasValidCertificate && profile.emitMode !== 'draft'
+                      ? 'Debe configurar su firma electrónica (.p12) propia para emitir comprobantes ante el SRI'
+                      : undefined
+                  }
                 >
                   {form.busy ? 'Procesando…' : primaryLabel}
                 </Button>

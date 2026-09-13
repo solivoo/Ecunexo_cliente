@@ -56,6 +56,8 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<TenantBrandLogo> TenantBrandLogos => Set<TenantBrandLogo>();
 
+    public DbSet<TenantSigningCertificate> TenantSigningCertificates => Set<TenantSigningCertificate>();
+
     public DbSet<Category> Categories => Set<Category>();
 
     public DbSet<CatalogItem> CatalogItems => Set<CatalogItem>();

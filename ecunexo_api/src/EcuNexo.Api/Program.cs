@@ -124,6 +124,7 @@ app.MapGet("/", () => Results.Ok(new { service = "EcuNexo", status = "ok" }));
 
 app.MapTenantEndpointsV1();
 app.MapTenantBrandLogoEndpointsV1();
+app.MapTenantSigningCertificateEndpointsV1();
 app.MapSubscriptionEndpointsV1();
 app.MapOnboardingEndpointsV1();
 app.MapAuthEndpointsV1();

@@ -22,6 +22,10 @@ import {
   printPdfBlob,
   type RidePdfResult,
 } from '@/pages/facturacion/invoiceDownloads'
+import {
+  getSigningCertificateStatus,
+  type SigningCertificateStatusDto,
+} from '@/services/tenantApi'
 import { toInvoiceDetailPreview } from '@/pages/facturacion/toInvoiceDetailPreview'
 import {
   applyCounterpartyIdType,
@@ -101,6 +105,8 @@ export function useInvoiceEmitForm({
   const [previewRide, setPreviewRide] = useState<RidePdfResult | null>(null)
   const [previewing, setPreviewing] = useState(false)
   const [previewPrinting, setPreviewPrinting] = useState(false)
+  const [certStatus, setCertStatus] = useState<SigningCertificateStatusDto | null>(null)
+  const [loadingCert, setLoadingCert] = useState(Boolean(tenantId))
 
   const [emitProfileId, setEmitProfileId] = useState(() =>
     readBillingEmitProfile(tenantId)
@@ -108,12 +114,23 @@ export function useInvoiceEmitForm({
 
   const emitProfile = getBillingEmitProfile(emitProfileId)
 
+  const hasValidCertificate = Boolean(
+    certStatus?.isConfigured && !certStatus?.isExpired
+  )
+
   useEffect(() => {
     setEmitProfileId(readBillingEmitProfile(tenantId))
   }, [tenantId])
 
   useEffect(() => {
-    const refresh = () => setEmitProfileId(readBillingEmitProfile(tenantId))
+    const refresh = () => {
+      setEmitProfileId(readBillingEmitProfile(tenantId))
+      if (tenantId) {
+        void getSigningCertificateStatus(tenantId)
+          .then((st) => setCertStatus(st))
+          .catch(() => setCertStatus(null))
+      }
+    }
     window.addEventListener('focus', refresh)
     return () => window.removeEventListener('focus', refresh)
   }, [tenantId])
@@ -128,12 +145,26 @@ export function useInvoiceEmitForm({
     if (!tenantId) {
       setLoadingTenant(false)
       setLoadError(null)
+      setCertStatus(null)
+      setLoadingCert(false)
       return
     }
 
     let cancelled = false
     setLoadingTenant(true)
+    setLoadingCert(true)
     setLoadError(null)
+
+    void (async () => {
+      try {
+        const cert = await getSigningCertificateStatus(tenantId)
+        if (!cancelled) setCertStatus(cert)
+      } catch {
+        if (!cancelled) setCertStatus(null)
+      } finally {
+        if (!cancelled) setLoadingCert(false)
+      }
+    })()
 
     void (async () => {
       try {
@@ -436,6 +467,15 @@ export function useInvoiceEmitForm({
         })
         return
       }
+      if (mode !== 'draft' && !hasValidCertificate) {
+        toast.show({
+          title: 'Firma electrónica no configurada',
+          message:
+            'Esta empresa no tiene un certificado de firma digital (.p12) registrado o está vencido. Debe cargar su firma en Ajustes de Empresa para emitir ante el SRI.',
+          variant: 'error',
+        })
+        return
+      }
 
       const counterpartyPayload = normalizeCounterpartyForEmit(counterparty)
 
@@ -527,6 +567,9 @@ export function useInvoiceEmitForm({
     companyLabel,
     requiresNotaVenta: company?.salesDocumentKind === 'nota-venta',
     emitProfile,
+    certStatus,
+    loadingCert,
+    hasValidCertificate,
     formDisabled:
       busy ||
       previewing ||

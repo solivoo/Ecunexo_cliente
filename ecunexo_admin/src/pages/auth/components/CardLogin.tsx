@@ -25,7 +25,11 @@ function companyLabel(c: SubscriptionCompanyListItemDto): string {
   return c.name
 }
 
-export function CardLogin() {
+export interface CardLoginProps {
+  readonly onOpenLegal?: (tab: 'terms' | 'privacy') => void
+}
+
+export function CardLogin({ onOpenLegal }: CardLoginProps = {}) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const [step, setStep] = useState<LoginStep>('credentials')
@@ -266,6 +270,54 @@ export function CardLogin() {
           {busy ? 'Conectando…' : 'Iniciar sesión'}
         </Button>
       </div>
+
+      <p
+        style={{
+          margin: '0.85rem 0 0',
+          fontSize: '0.725rem',
+          color: 'var(--glb-muted, #64748b)',
+          textAlign: 'center',
+          lineHeight: 1.45,
+        }}
+      >
+        Al ingresar, declaras conocer y aceptar los{' '}
+        <button
+          type="button"
+          onClick={() => onOpenLegal ? onOpenLegal('terms') : window.open('/terminos', '_blank')}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            color: 'var(--shell-primary, #4f46e5)',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            fontSize: 'inherit',
+            fontWeight: 500,
+            fontFamily: 'inherit',
+          }}
+        >
+          Términos del Servicio
+        </button>{' '}
+        y la{' '}
+        <button
+          type="button"
+          onClick={() => onOpenLegal ? onOpenLegal('privacy') : window.open('/privacidad', '_blank')}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            color: 'var(--shell-primary, #4f46e5)',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            fontSize: 'inherit',
+            fontWeight: 500,
+            fontFamily: 'inherit',
+          }}
+        >
+          Política de Privacidad (LOPDP)
+        </button>
+        .
+      </p>
     </form>
   )
 }

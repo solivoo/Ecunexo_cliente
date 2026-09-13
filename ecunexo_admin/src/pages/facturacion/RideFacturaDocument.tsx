@@ -1,4 +1,4 @@
-import { Document, Page, View } from '@react-pdf/renderer'
+import { Document, Page, Text, View } from '@react-pdf/renderer'
 import { RideFacturaBuyer } from '@/pages/facturacion/RideFacturaBuyer'
 import { RideFacturaFooter, RideSoftwareFooter } from '@/pages/facturacion/RideFacturaFooter'
 import { RideFacturaHeader } from '@/pages/facturacion/RideFacturaHeader'
@@ -45,13 +45,35 @@ export function RideFacturaDocument(props: RideFacturaDocumentProps) {
   )
   const totals = computeTotals(invoice)
   const theme = { palette, styles }
+  const isPreview =
+    !invoice.accessKey ||
+    !authorizationDateTime ||
+    invoice.state === 'Draft' ||
+    invoice.invoiceId === 'preview'
 
   return (
     <Document title={`RIDE-${docNumber}`} author={issuerName || invoice.emitter.businessName}>
       <Page size="A4" style={styles.page}>
         <RideThemeContext.Provider value={theme}>
           <View style={styles.topBar} />
+          {isPreview ? (
+            <View style={styles.previewBanner}>
+              <Text style={styles.previewBannerText}>
+                PREVISUALIZACIÓN — DOCUMENTO SIN VALIDEZ TRIBUTARIA
+              </Text>
+              <Text style={styles.previewBannerSubtext}>
+                (Comprobante borrador preliminar — No autorizado ante el SRI)
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.body}>
+            {isPreview ? (
+              <View style={styles.watermarkWrap}>
+                <Text style={styles.watermarkText}>
+                  PREVISUALIZACIÓN — SIN VALIDEZ TRIBUTARIA
+                </Text>
+              </View>
+            ) : null}
             <RideFacturaHeader
               invoice={invoice}
               legal={legal}

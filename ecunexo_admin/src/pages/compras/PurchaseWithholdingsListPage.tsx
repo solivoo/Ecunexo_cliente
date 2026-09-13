@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { getTenant } from '@/services/tenantApi'
+import { getSigningCertificateStatus, getTenant, type SigningCertificateStatusDto } from '@/services/tenantApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { GetTenantByIdDto } from '@/types/tenantApi'
@@ -38,17 +38,23 @@ export function PurchaseWithholdingsListPage() {
     useHasPermission('facturacion.read')
 
   const [tenant, setTenant] = useState<GetTenantByIdDto | null>(null)
+  const [certStatus, setCertStatus] = useState<SigningCertificateStatusDto | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!tenantId) return
     let active = true
     setLoading(true)
-    getTenant(tenantId)
-      .then((data) => {
-        if (active) setTenant(data)
+    Promise.all([
+      getTenant(tenantId).catch(() => null),
+      getSigningCertificateStatus(tenantId).catch(() => null),
+    ])
+      .then(([tenantData, certData]) => {
+        if (active) {
+          if (tenantData) setTenant(tenantData)
+          if (certData) setCertStatus(certData)
+        }
       })
-      .catch(() => {})
       .finally(() => {
         if (active) setLoading(false)
       })
@@ -184,15 +190,35 @@ export function PurchaseWithholdingsListPage() {
             gap: '0.75rem',
             padding: '0.75rem 1rem',
             borderRadius: '0.5rem',
-            border: '1px solid rgba(234, 179, 8, 0.3)',
-            backgroundColor: 'rgba(234, 179, 8, 0.08)',
+            border: certStatus?.isConfigured && !certStatus.isExpired
+              ? '1px solid rgba(16, 185, 129, 0.3)'
+              : '1px solid rgba(234, 179, 8, 0.3)',
+            backgroundColor: certStatus?.isConfigured && !certStatus.isExpired
+              ? 'rgba(16, 185, 129, 0.08)'
+              : 'rgba(234, 179, 8, 0.08)',
             fontSize: '0.8125rem',
             color: 'var(--glb-text, inherit)',
           }}
         >
-          <AlertCircle size={16} style={{ color: '#eab308', flexShrink: 0 }} />
+          {certStatus?.isConfigured && !certStatus.isExpired ? (
+            <ShieldCheck size={16} style={{ color: '#10b981', flexShrink: 0 }} />
+          ) : (
+            <AlertCircle size={16} style={{ color: '#eab308', flexShrink: 0 }} />
+          )}
           <div style={{ flex: 1 }}>
-            <strong>Firma digital compartida:</strong> Las retenciones electrónicas (Tipo 07) toman automáticamente el certificado .p12 cargado en <em>Ajustes de Empresa &rarr; Facturación Electrónica</em>. Puedes generar y revisar borradores de retención antes de su transmisión al SRI.
+            {certStatus?.isConfigured && !certStatus.isExpired ? (
+              <>
+                <strong>Firma digital activa (AES-256-GCM):</strong> Titular: <em>{certStatus.subject || 'SRI'}</em> · Vigente ({certStatus.daysRemaining} días restantes). Las retenciones (Tipo 07) se firmarán automáticamente al transmitirse al SRI.
+              </>
+            ) : certStatus?.isExpired ? (
+              <>
+                <strong>Certificado digital expirado:</strong> El certificado .p12 expiró. Actualiza la firma en <em>Ajustes de Empresa &rarr; Facturación Electrónica</em> para emitir retenciones.
+              </>
+            ) : (
+              <>
+                <strong>Firma digital compartida:</strong> Las retenciones electrónicas (Tipo 07) toman automáticamente el certificado .p12 cargado en <em>Ajustes de Empresa &rarr; Facturación Electrónica</em>. Puedes generar y revisar borradores de retención antes de su transmisión al SRI.
+              </>
+            )}
           </div>
         </div>
 

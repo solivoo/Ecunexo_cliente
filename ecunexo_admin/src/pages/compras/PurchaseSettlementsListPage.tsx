@@ -14,11 +14,12 @@ import {
   FilePlus,
   KeyRound,
   RefreshCw,
+  ShieldCheck,
   UserCheck,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { getTenant } from '@/services/tenantApi'
+import { getSigningCertificateStatus, getTenant, type SigningCertificateStatusDto } from '@/services/tenantApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { GetTenantByIdDto } from '@/types/tenantApi'
@@ -37,17 +38,23 @@ export function PurchaseSettlementsListPage() {
     useHasPermission('facturacion.read')
 
   const [tenant, setTenant] = useState<GetTenantByIdDto | null>(null)
+  const [certStatus, setCertStatus] = useState<SigningCertificateStatusDto | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!tenantId) return
     let active = true
     setLoading(true)
-    getTenant(tenantId)
-      .then((data) => {
-        if (active) setTenant(data)
+    Promise.all([
+      getTenant(tenantId).catch(() => null),
+      getSigningCertificateStatus(tenantId).catch(() => null),
+    ])
+      .then(([tenantData, certData]) => {
+        if (active) {
+          if (tenantData) setTenant(tenantData)
+          if (certData) setCertStatus(certData)
+        }
       })
-      .catch(() => {})
       .finally(() => {
         if (active) setLoading(false)
       })
@@ -175,7 +182,7 @@ export function PurchaseSettlementsListPage() {
           </Button>
         </div>
 
-        {/* Banner Informativo de Emisión */}
+        {/* Banner Informativo de Emisión y Firma */}
         <div
           style={{
             display: 'flex',
@@ -183,15 +190,31 @@ export function PurchaseSettlementsListPage() {
             gap: '0.75rem',
             padding: '0.75rem 1rem',
             borderRadius: '0.5rem',
-            border: '1px solid rgba(234, 179, 8, 0.3)',
-            backgroundColor: 'rgba(234, 179, 8, 0.08)',
+            border: certStatus?.isConfigured && !certStatus.isExpired
+              ? '1px solid rgba(16, 185, 129, 0.3)'
+              : '1px solid rgba(234, 179, 8, 0.3)',
+            backgroundColor: certStatus?.isConfigured && !certStatus.isExpired
+              ? 'rgba(16, 185, 129, 0.08)'
+              : 'rgba(234, 179, 8, 0.08)',
             fontSize: '0.8125rem',
             color: 'var(--glb-text, inherit)',
           }}
         >
-          <AlertCircle size={16} style={{ color: '#eab308', flexShrink: 0 }} />
+          {certStatus?.isConfigured && !certStatus.isExpired ? (
+            <ShieldCheck size={16} style={{ color: '#10b981', flexShrink: 0 }} />
+          ) : (
+            <AlertCircle size={16} style={{ color: '#eab308', flexShrink: 0 }} />
+          )}
           <div style={{ flex: 1 }}>
-            <strong>Normativa SRI (Art. 48 RCVR):</strong> Las liquidaciones de compra son comprobantes autorizados emitidos por el comprador. Requieren firma electrónica .p12 y retención del 100% de IVA y del Impuesto a la Renta aplicable.
+            {certStatus?.isConfigured && !certStatus.isExpired ? (
+              <>
+                <strong>Firma electrónica activa (AES-256-GCM):</strong> Titular: <em>{certStatus.subject || 'SRI'}</em> · Vigente ({certStatus.daysRemaining} días restantes). Las liquidaciones de compra (Tipo 03) se firman y autorizan en línea ante el SRI.
+              </>
+            ) : (
+              <>
+                <strong>Normativa SRI (Art. 48 RCVR):</strong> Las liquidaciones de compra son comprobantes autorizados emitidos por el comprador. Requieren firma electrónica .p12 configurada en <em>Ajustes de Empresa &rarr; Facturación Electrónica</em> y retención del 100% de IVA e IR aplicable.
+              </>
+            )}
           </div>
         </div>
 

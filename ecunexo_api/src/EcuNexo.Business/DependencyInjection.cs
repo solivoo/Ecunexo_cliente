@@ -95,6 +95,9 @@ using EcuNexo.Business.Platform.Queries.GetTenantMenu;
 using EcuNexo.Business.Platform.Settings;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Tenancy.Authorization;
+using EcuNexo.Business.Tenancy.Certificates;
+using EcuNexo.Business.Tenancy.Certificates.Commands.UploadSigningCertificate;
+using EcuNexo.Business.Tenancy.Certificates.Queries.GetSigningCertificateStatus;
 using EcuNexo.Business.Tenancy.Commands;
 using EcuNexo.Business.Tenancy.Commands.ActivateLicense;
 using EcuNexo.Business.Tenancy.Commands.ApplySubscriptionLicenseUpgrade;
@@ -280,6 +283,12 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<ReceivePurchaseCommand, ReceivePurchaseResponse>, ReceivePurchaseHandler>();
         services.AddScoped<IQueryHandler<ListPurchasesQuery, ListPurchasesResponse>, ListPurchasesHandler>();
         services.AddScoped<IQueryHandler<GetPurchaseByIdQuery, PurchaseDetailDto>, GetPurchaseByIdHandler>();
+
+        // Tenant Signing Certificate (Firma Electrónica SRI)
+        services.AddSingleton<ICertificateEncryptionService, AesGcmCertificateEncryptionService>();
+        services.AddSingleton<ISigningCertificateValidator, SigningCertificateValidator>();
+        services.AddScoped<ICommandHandler<UploadSigningCertificateCommand, SigningCertificateStatusResponse>, UploadSigningCertificateHandler>();
+        services.AddScoped<IQueryHandler<GetSigningCertificateStatusQuery, SigningCertificateStatusResponse>, GetSigningCertificateStatusHandler>();
 
         return services;
     }

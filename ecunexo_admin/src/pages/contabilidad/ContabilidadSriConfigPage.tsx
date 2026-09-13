@@ -517,6 +517,7 @@ export function ContabilidadSriConfigPage() {
               values={signature}
               disabled={formDisabled}
               onChange={patchSignature}
+              tenantId={tenantId}
               embedded
             />
           </SectionCard>

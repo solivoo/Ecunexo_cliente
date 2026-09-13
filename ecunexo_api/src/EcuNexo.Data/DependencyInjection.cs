@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<IIdGenerator, UuidV7Generator>();
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ITenantBrandLogoRepository, TenantBrandLogoRepository>();
+        services.AddScoped<EcuNexo.Business.Tenancy.Certificates.ITenantSigningCertificateRepository, TenantSigningCertificateRepository>();
         services.AddScoped<IActivationCodeRepository, ActivationCodeRepository>();
         services.AddScoped<ILicenseRedemptionRepository, LicenseRedemptionRepository>();
         services.AddScoped<ISubscriptionAccountRepository, SubscriptionAccountRepository>();

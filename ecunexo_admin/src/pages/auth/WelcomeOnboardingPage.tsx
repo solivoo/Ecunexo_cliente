@@ -1,13 +1,22 @@
+import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useOnboardingStatus } from '@/features/auth/useOnboardingStatus'
 import { ActivateLicenseForm } from '@/features/onboarding/ActivateLicenseForm'
 import { ThemeToggleButton } from '@/components/ui/ThemeToggleButton'
+import { LegalModal, type LegalModalTab } from '@/pages/legal/LegalModal'
 import Branding from './components/Branding'
 import './loginPage.css'
 import './welcomeOnboarding.css'
 
 const WelcomeOnboardingPage = () => {
   const { hasOrganization } = useOnboardingStatus()
+  const [legalOpen, setLegalOpen] = useState(false)
+  const [legalTab, setLegalTab] = useState<LegalModalTab>('terms')
+
+  const openLegal = (tab: LegalModalTab) => {
+    setLegalTab(tab)
+    setLegalOpen(true)
+  }
 
   if (hasOrganization === null) {
     return null
@@ -30,13 +39,31 @@ const WelcomeOnboardingPage = () => {
           <span className="welcome-onboarding__footer-action">Iniciar sesión</span>
         </Link>
         <div className="login-page__footer-links login-page__footer-links--compact">
-          <a href="#privacidad">Política de Privacidad</a>
-          <a href="#terminos">Términos del Servicio</a>
+          <button
+            type="button"
+            className="login-page__footer-btn-link"
+            onClick={() => openLegal('privacy')}
+          >
+            Política de Privacidad (LOPDP)
+          </button>
+          <button
+            type="button"
+            className="login-page__footer-btn-link"
+            onClick={() => openLegal('terms')}
+          >
+            Términos del Servicio (SRI / SaaS)
+          </button>
         </div>
         <span className="login-page__footer-brand">
           © {new Date().getFullYear()} EcuNexo — SaaS Multi-Tenant Platform
         </span>
       </footer>
+
+      <LegalModal
+        open={legalOpen}
+        onClose={() => setLegalOpen(false)}
+        initialTab={legalTab}
+      />
     </div>
   )
 }

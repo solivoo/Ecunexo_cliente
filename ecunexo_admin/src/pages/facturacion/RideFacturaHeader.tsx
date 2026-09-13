@@ -42,6 +42,16 @@ export function RideFacturaHeader({
     rideText(legal?.matrizAddress) || rideText(invoice.emitter.mainAddress)
   const authWhen = formatAuthDateTime(authorizationDateTime)
 
+  const isPreview =
+    !accessKey ||
+    !authorizationDateTime ||
+    invoice.state === 'Draft' ||
+    invoice.invoiceId === 'preview'
+  const displayDocNumber =
+    isPreview && (invoice.sequential === '000000000' || invoice.sequential === '—')
+      ? `${invoice.establishment}-${invoice.emissionPoint}-PREVISUALIZACIÓN`
+      : docNumber
+
   return (
     <View style={styles.headerRow}>
       <View style={styles.leftBox}>
@@ -80,7 +90,7 @@ export function RideFacturaHeader({
           <Text style={styles.facturaTitle}>
             {invoice.documentType === '04' ? 'NOTA DE CRÉDITO' : 'FACTURA'}
           </Text>
-          <Text style={styles.docNumber}>No. {docNumber}</Text>
+          <Text style={styles.docNumber}>No. {displayDocNumber}</Text>
         </View>
         <View style={styles.rightBody}>
           {invoice.documentType === '04' && invoice.modifiedDocumentNumber ? (
@@ -88,17 +98,31 @@ export function RideFacturaHeader({
           ) : null}
           <View style={styles.metaField}>
             <Text style={styles.metaLabel}>Número de autorización</Text>
-            <Text style={styles.authValue}>{rideValue(accessKey)}</Text>
+            <Text style={styles.authValue}>
+              {isPreview
+                ? 'DOCUMENTO SIN VALIDEZ TRIBUTARIA'
+                : rideValue(accessKey)}
+            </Text>
           </View>
-          <Meta label="Fecha y hora de autorización" value={authWhen} />
-          <Meta label="Ambiente" value={ambienteFromAccessKey(accessKey)} />
+          <Meta
+            label="Fecha y hora de autorización"
+            value={isPreview ? 'NO AUTORIZADO' : authWhen}
+          />
+          <Meta
+            label="Ambiente"
+            value={isPreview ? 'PREVISUALIZACIÓN' : ambienteFromAccessKey(accessKey)}
+          />
           <Meta label="Emisión" value="NORMAL" />
           <Text style={styles.metaLabel}>Clave de acceso</Text>
           <View style={styles.barcodeWrap}>
-            {barcodeDataUrl && accessKey ? (
+            {barcodeDataUrl && accessKey && !isPreview ? (
               <Image src={barcodeDataUrl} style={styles.barcode} />
             ) : null}
-            <Text style={styles.claveText}>{rideValue(accessKey)}</Text>
+            <Text style={styles.claveText}>
+              {isPreview
+                ? 'DOCUMENTO EN BORRADOR / SIN VALIDEZ TRIBUTARIA'
+                : rideValue(accessKey)}
+            </Text>
           </View>
         </View>
       </View>
