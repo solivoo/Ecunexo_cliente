@@ -1,4 +1,10 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Accounting;
+using EcuNexo.Business.Accounting.Commands.CreateAccount;
+using EcuNexo.Business.Accounting.Commands.DeleteAccount;
+using EcuNexo.Business.Accounting.Commands.SeedStandardEcuadorPlan;
+using EcuNexo.Business.Accounting.Commands.UpdateAccount;
+using EcuNexo.Business.Accounting.Queries.ListAccounts;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
@@ -293,6 +299,13 @@ public static class DependencyInjection
         services.AddSingleton<ISigningCertificateValidator, SigningCertificateValidator>();
         services.AddScoped<ICommandHandler<UploadSigningCertificateCommand, SigningCertificateStatusResponse>, UploadSigningCertificateHandler>();
         services.AddScoped<IQueryHandler<GetSigningCertificateStatusQuery, SigningCertificateStatusResponse>, GetSigningCertificateStatusHandler>();
+
+        // Accounting (Plan General de Cuentas NIIF / SCVS Ecuador)
+        services.AddScoped<ICommandHandler<SeedStandardEcuadorPlanCommand, int>, SeedStandardEcuadorPlanHandler>();
+        services.AddScoped<ICommandHandler<CreateAccountCommand, AccountResponse>, CreateAccountHandler>();
+        services.AddScoped<ICommandHandler<UpdateAccountCommand, AccountResponse>, UpdateAccountHandler>();
+        services.AddScoped<ICommandHandler<DeleteAccountCommand, bool>, DeleteAccountHandler>();
+        services.AddScoped<IQueryHandler<ListAccountsQuery, IReadOnlyList<AccountResponse>>, ListAccountsHandler>();
 
         return services;
     }

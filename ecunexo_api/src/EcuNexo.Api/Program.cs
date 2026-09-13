@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using EcuNexo.Api.Configuration;
 using EcuNexo.Api.Development;
+using EcuNexo.Api.Endpoints.V1.Accounting;
 using EcuNexo.Api.Endpoints.V1.Auth;
 using EcuNexo.Api.Endpoints.V1.Catalog;
 using EcuNexo.Api.Endpoints.V1.Customers;
@@ -149,6 +150,7 @@ app.MapSupplierEndpointsV1();
 app.MapExpenseTypeEndpointsV1();
 app.MapPurchaseProformaEndpointsV1();
 app.MapPurchaseEndpointsV1();
+app.MapAccountEndpointsV1();
 
 var migrateOnStartup = app.Configuration.GetValue(
     "Database:MigrateOnStartup",

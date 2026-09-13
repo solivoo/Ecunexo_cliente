@@ -89,8 +89,20 @@ export const TERMS_AND_CONDITIONS_SECTIONS: LegalSectionItem[] = [
     ],
   },
   {
+    id: 'control-inventarios-sustento',
+    title: '8. Control de Inventarios, Bodegas y Movimientos de Stock sin Sustento Tributario',
+    content: [
+      'La plataforma EcuNexo provee herramientas informáticas para la gestión logística de bodegas, control de existencias físicas y trazabilidad de kárdex bajo métodos contables estándar (como promedio ponderado).',
+      'El Usuario reconoce y declara expresamente que:',
+      'a) EcuNexo permite registrar movimientos de inventario internos (tales como inventarios iniciales, ajustes de conteo físico, mermas, consumos internos o devoluciones) sin exigir un comprobante electrónico o factura física vinculada, respondiendo estrictamente a necesidades operativas y logísticas del negocio.',
+      'b) EcuNexo NO audita, certifica, valida ni garantiza la licitud, procedencia material ni el respaldo tributario o aduanero de las mercancías, materias primas o productos registrados en las bodegas del Usuario.',
+      'c) De conformidad con el Código Orgánico Tributario, la Ley de Régimen Tributario Interno y el Código Orgánico Integral Penal (COIP, Art. 298 sobre defraudación tributaria), la responsabilidad civil, penal, administrativa y tributaria por el ingreso, posesión, comercialización o tenencia de inventarios sin sustento legal o documental recae de forma exclusiva y excluyente sobre el Usuario contribuyente y sus administradores.',
+      'd) Cada transacción de inventario genera una bitácora inmutable de auditoría (registrando identificador del usuario, dirección IP, fecha/hora y firmas de aprobación) que EcuNexo mantendrá a disposición de las autoridades competentes en caso de requerimiento formal u orden judicial.',
+    ],
+  },
+  {
     id: 'legislacion-jurisdiccion',
-    title: '8. Legislación Aplicable y Resolución de Controversias',
+    title: '9. Legislación Aplicable y Resolución de Controversias',
     content: [
       'Estos Términos y Condiciones se rigen e interpretan exclusivamente conforme a las leyes de la República del Ecuador.',
       'Cualquier controversia o discrepancia derivada del presente contrato que no pueda resolverse de mutuo acuerdo en un plazo de treinta (30) días, será sometida al procedimiento de mediación y arbitraje en el Centro de Arbitraje y Mediación de la Cámara de Comercio de Quito (o la correspondiente al domicilio principal del proveedor del servicio), conforme a la Ley de Arbitraje y Mediación del Ecuador.',

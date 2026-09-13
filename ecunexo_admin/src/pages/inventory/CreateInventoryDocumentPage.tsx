@@ -409,6 +409,17 @@ export function CreateInventoryDocumentPage() {
               ) : null}
             </div>
 
+            {isReceipt && !isPurchaseReceipt ? (
+              <div className="ecu-info-banner" role="status" style={{ marginTop: '0.75rem' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '1.25rem', color: 'var(--shell-primary)' }}>
+                  info
+                </span>
+                <div>
+                  <strong>Movimiento interno de bodega (sin factura SRI):</strong> Este ingreso registra un movimiento físico directo (inventario inicial, devolución o ajuste). No genera crédito tributario ni sustituye a un comprobante fiscal autorizado. La empresa y el usuario operador asumen la responsabilidad exclusiva del sustento legal y documental de las existencias.
+                </div>
+              </div>
+            ) : null}
+
             <div className="ecu-companies-form__field" style={{ marginTop: '1rem' }}>
               <TextArea
                 id="inv-notes"

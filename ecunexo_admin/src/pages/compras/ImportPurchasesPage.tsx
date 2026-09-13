@@ -237,6 +237,25 @@ export function ImportPurchasesPage() {
     return queue.findIndex((q) => q.id === activeInvoice.id)
   }, [queue, activeInvoice])
 
+  // Helper para verificar si una factura ya está en cola por clave de acceso o RUC + número
+  const isDuplicateInvoice = (
+    list: QueuedInvoice[],
+    authNumber: string | null | undefined,
+    supplierTaxId: string,
+    invoiceNumber: string
+  ): boolean => {
+    return list.some((item) => {
+      const sameAuth =
+        Boolean(authNumber) &&
+        Boolean(item.parsedData.authorizationNumber) &&
+        item.parsedData.authorizationNumber === authNumber
+      const sameSupplierAndNumber =
+        item.parsedData.supplier.taxId === supplierTaxId &&
+        item.parsedData.invoiceNumber === invoiceNumber
+      return sameAuth || sameSupplierAndNumber
+    })
+  }
+
   // Process files (Multiple XMLs)
   const handleFilesSelected = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -248,6 +267,8 @@ export function ImportPurchasesPage() {
 
     const newInvoices: QueuedInvoice[] = []
     const errors: string[] = []
+    const skippedQueueDuplicates: string[] = []
+    const skippedDbDuplicates: string[] = []
 
     const defaultWhId = warehouses[0]?.id ?? ''
 
@@ -259,7 +280,32 @@ export function ImportPurchasesPage() {
         const text = await file.text()
         const parsed = await parseSriPurchaseXml(tenantId, text)
 
-        // Detección inteligente de tipo de gasto (Flete, Bienes, etc.)
+        // 1. Evitar cargar XML repetido en la cola o en el mismo lote
+        const isDupInCurrentQueue = isDuplicateInvoice(
+          queue,
+          parsed.authorizationNumber,
+          parsed.supplier.taxId,
+          parsed.invoiceNumber
+        )
+        const isDupInBatch = isDuplicateInvoice(
+          newInvoices,
+          parsed.authorizationNumber,
+          parsed.supplier.taxId,
+          parsed.invoiceNumber
+        )
+
+        if (isDupInCurrentQueue || isDupInBatch) {
+          skippedQueueDuplicates.push(parsed.invoiceNumber || file.name)
+          continue
+        }
+
+        // 2. Detección de factura ya registrada previamente en el sistema (en base de datos)
+        const isAlreadyRegisteredInDb = Boolean(parsed.isAlreadyRegistered)
+        if (isAlreadyRegisteredInDb) {
+          skippedDbDuplicates.push(parsed.invoiceNumber)
+        }
+
+        // 3. Detección inteligente de tipo de gasto (Flete, Bienes, etc.)
         const expId = detectDefaultExpenseType(
           parsed.supplier.businessName,
           parsed.supplier.taxId,
@@ -285,7 +331,7 @@ export function ImportPurchasesPage() {
           defaultWarehouseId: isService ? '' : defaultWhId,
           lines: initialLines,
           notes: '',
-          selected: true,
+          selected: !isAlreadyRegisteredInDb, // Desmarcar por defecto si ya está en BD
         })
       } catch (err) {
         errors.push(`${file.name}: ${readApiError(err, 'Error al interpretar comprobante SRI.')}`)
@@ -297,10 +343,25 @@ export function ImportPurchasesPage() {
       if (!activeInvoiceId) {
         setActiveInvoiceId(newInvoices[0].id)
       }
+
+      let summaryText = `Se agregaron ${newInvoices.length} factura(s) a la cola.`
+      if (skippedQueueDuplicates.length > 0) {
+        summaryText += ` ${skippedQueueDuplicates.length} repetida(s) en cola omitidas.`
+      }
+      if (skippedDbDuplicates.length > 0) {
+        summaryText += ` ${skippedDbDuplicates.length} ya registrada(s) en sistema.`
+      }
+
       toast.show({
         title: 'Comprobantes Cargados',
-        message: `Se agregaron ${newInvoices.length} factura(s) a la cola de importación.`,
+        message: summaryText,
         variant: 'success',
+      })
+    } else if (skippedQueueDuplicates.length > 0) {
+      toast.show({
+        title: 'Comprobantes Omitidos por Duplicidad',
+        message: `Se omitieron ${skippedQueueDuplicates.length} XML(s) ya presentes en la cola:\n${skippedQueueDuplicates.slice(0, 3).join(', ')}${skippedQueueDuplicates.length > 3 ? '...' : ''}`,
+        variant: 'warning',
       })
     }
 
@@ -326,7 +387,25 @@ export function ImportPurchasesPage() {
 
     try {
       const parsed = await parseSriPurchaseXml(tenantId, pastedXmlText.trim())
+
+      // Validar duplicado en cola
+      const isDup = isDuplicateInvoice(
+        queue,
+        parsed.authorizationNumber,
+        parsed.supplier.taxId,
+        parsed.invoiceNumber
+      )
+      if (isDup) {
+        toast.show({
+          title: 'Factura duplicada',
+          message: `La factura N° ${parsed.invoiceNumber} ya se encuentra cargada en la cola de importación.`,
+          variant: 'warning',
+        })
+        return
+      }
+
       const defaultWhId = warehouses[0]?.id ?? ''
+      const isAlreadyRegisteredInDb = Boolean(parsed.isAlreadyRegistered)
 
       const expId = detectDefaultExpenseType(
         parsed.supplier.businessName,
@@ -353,7 +432,7 @@ export function ImportPurchasesPage() {
         defaultWarehouseId: isService ? '' : defaultWhId,
         lines: initialLines,
         notes: '',
-        selected: true,
+        selected: !isAlreadyRegisteredInDb,
       }
 
       setQueue((prev) => [...prev, newInv])
@@ -362,8 +441,10 @@ export function ImportPurchasesPage() {
       setPastedXmlText('')
       toast.show({
         title: 'XML Procesado',
-        message: `Factura N° ${parsed.invoiceNumber} incorporada a la cola.`,
-        variant: 'success',
+        message: isAlreadyRegisteredInDb
+          ? `Factura N° ${parsed.invoiceNumber} cargada (AVISO: Ya registrada en el sistema).`
+          : `Factura N° ${parsed.invoiceNumber} incorporada a la cola.`,
+        variant: isAlreadyRegisteredInDb ? 'warning' : 'success',
       })
     } catch (err) {
       toast.show({
@@ -603,15 +684,10 @@ export function ImportPurchasesPage() {
 
   const handleLineCatalogChange = (lineIdx: number, catItemId: string) => {
     updateActiveInvoice((inv) => {
-      const expObj = expenseTypes.find((e) => e.id === inv.selectedExpenseTypeId)
-      const isService = expObj ? !expObj.affectsInventory : false
-
       const newLines = [...inv.lines]
       newLines[lineIdx] = {
         ...newLines[lineIdx],
         selectedCatalogItemId: catItemId,
-        // Si el tipo de gasto es servicio, NO afecta stock incluso al asociarse a catálogo
-        affectsStock: isService ? false : Boolean(catItemId),
       }
       return { ...inv, lines: newLines }
     })
@@ -619,11 +695,53 @@ export function ImportPurchasesPage() {
 
   const handleLineAffectsStockChange = (lineIdx: number, affectsStock: boolean) => {
     updateActiveInvoice((inv) => {
+      const defaultWhId = warehouses[0]?.id ?? ''
       const newLines = [...inv.lines]
-      newLines[lineIdx] = { ...newLines[lineIdx], affectsStock }
+      newLines[lineIdx] = {
+        ...newLines[lineIdx],
+        affectsStock,
+        selectedWarehouseId: affectsStock
+          ? (newLines[lineIdx].selectedWarehouseId || inv.defaultWarehouseId || defaultWhId)
+          : '',
+      }
       return { ...inv, lines: newLines }
     })
   }
+
+  const handleSetAllLinesStock = (affectsStock: boolean) => {
+    updateActiveInvoice((inv) => {
+      const defaultWhId = warehouses[0]?.id ?? ''
+      return {
+        ...inv,
+        lines: inv.lines.map((l) => ({
+          ...l,
+          affectsStock,
+          selectedWarehouseId: affectsStock
+            ? (l.selectedWarehouseId || inv.defaultWarehouseId || defaultWhId)
+            : '',
+        })),
+      }
+    })
+  }
+
+  // Determina si la factura activa tiene ítems que afectan existencias en bodega
+  const activeInvoiceHasStock = useMemo(() => {
+    if (!activeInvoice) return false
+    if (isActiveService) return false
+    return activeInvoice.lines.some((l) => l.affectsStock)
+  }, [activeInvoice, isActiveService])
+
+  // Filtra alertas redundantes del SRI para evitar saturación de información que repite lo mismo
+  const relevantAlerts = useMemo(() => {
+    const all = activeInvoice?.parsedData.validationReport?.alerts ?? []
+    return all.filter(
+      (a) =>
+        a.severity === 'danger' ||
+        a.severity === 'warning' ||
+        a.code === 'DUPLICATE_PURCHASE_REGISTERED' ||
+        a.code === 'MANUAL_PHYSICAL'
+    )
+  }, [activeInvoice])
 
   // KPIs
   const stats = useMemo(() => {
@@ -1019,13 +1137,14 @@ export function ImportPurchasesPage() {
                       <th>Tipo de Gasto SRI (Tabla 5)</th>
                       <th style={{ textAlign: 'right' }}>Total Factura</th>
                       <th style={{ textAlign: 'center' }}>Auditoría SRI</th>
-                      <th style={{ width: '160px', textAlign: 'center' }}>Acciones</th>
+                      <th className="ecu-col-actions-header" style={{ width: '160px', textAlign: 'center' }}>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {queue.map((inv) => {
                       const report = inv.parsedData.validationReport
                       const status = report?.overallStatus ?? 'valid'
+                      const isAlreadyReg = Boolean(inv.parsedData.isAlreadyRegistered)
                       const invExpenseType = expenseTypes.find((e) => e.id === inv.selectedExpenseTypeId)
                       const isService = invExpenseType ? !invExpenseType.affectsInventory : false
 
@@ -1035,12 +1154,21 @@ export function ImportPurchasesPage() {
                             <input
                               type="checkbox"
                               checked={inv.selected}
+                              disabled={isAlreadyReg}
+                              title={isAlreadyReg ? 'Factura ya registrada previamente en el sistema' : 'Seleccionar factura para importación'}
                               onChange={(e) => handleToggleSelectInvoice(inv.id, e.target.checked)}
                             />
                           </td>
                           <td>
-                            <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--glb-text)' }}>
-                              {inv.parsedData.invoiceNumber}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--glb-text)' }}>
+                                {inv.parsedData.invoiceNumber}
+                              </span>
+                              {isAlreadyReg ? (
+                                <span className="ecu-tag ecu-tag--registered-sys" title="Ya registrada en la base de datos">
+                                  Ya en Sistema
+                                </span>
+                              ) : null}
                             </div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
                               {inv.fileName}
@@ -1064,12 +1192,12 @@ export function ImportPurchasesPage() {
                             {isService ? (
                               <span className="ecu-tag ecu-tag--service" title="Gasto Operativo / Servicio — No ingresa a bodega ni genera stock">
                                 <Briefcase size={12} style={{ display: 'inline', marginRight: '3px', verticalAlign: 'middle' }} />
-                                Servicio (Sin stock)
+                                Servicio (Gasto)
                               </span>
                             ) : (
                               <span className="ecu-tag ecu-tag--goods" title="Compra de Bienes — Ingresa a bodega e incrementa stock en kárdex">
                                 <Package size={12} style={{ display: 'inline', marginRight: '3px', verticalAlign: 'middle' }} />
-                                Bienes / Stock
+                                Bienes (Stock)
                               </span>
                             )}
                           </td>
@@ -1080,7 +1208,7 @@ export function ImportPurchasesPage() {
                               value={inv.selectedExpenseTypeId}
                               options={expenseTypes.map((et) => ({
                                 value: et.id,
-                                label: `${et.code} - ${et.name} ${!et.affectsInventory ? '(Servicio)' : '(Stock)'}`,
+                                label: `${et.code} — ${et.name}`,
                               }))}
                               onChange={(val) => handleExpenseTypeChange(val, inv.id)}
                               fullWidth
@@ -1090,7 +1218,12 @@ export function ImportPurchasesPage() {
                             ${inv.parsedData.totalAmount.toFixed(2)}
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            {status === 'valid' ? (
+                            {isAlreadyReg ? (
+                              <span className="ecu-audit-badge ecu-audit-badge--danger" title="Factura ya registrada previamente en el sistema">
+                                <XCircle size={13} />
+                                Ya Registrada
+                              </span>
+                            ) : status === 'valid' ? (
                               <span className="ecu-audit-badge ecu-audit-badge--valid" title="Comprobante SRI Válido y Autorizado">
                                 <CheckCircle2 size={13} />
                                 Válida SRI
@@ -1107,7 +1240,7 @@ export function ImportPurchasesPage() {
                               </span>
                             )}
                           </td>
-                          <td style={{ textAlign: 'center' }}>
+                          <td className="ecu-col-actions-cell" style={{ textAlign: 'center' }}>
                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                               <Button
                                 variant="outline"
@@ -1278,11 +1411,10 @@ export function ImportPurchasesPage() {
                     </div>
                   </div>
 
-                  {/* Alertas Preventivas SRI */}
-                  {activeInvoice.parsedData.validationReport?.alerts &&
-                  activeInvoice.parsedData.validationReport.alerts.length > 0 ? (
+                  {/* Alertas Relevantes del SRI (Omite redundancias informativas y muestra solo inconsistencias reales o avisos clave) */}
+                  {relevantAlerts.length > 0 ? (
                     <div className="ecu-audit-alerts-list">
-                      {activeInvoice.parsedData.validationReport.alerts.map((alert, idx) => (
+                      {relevantAlerts.map((alert, idx) => (
                         <div
                           key={idx}
                           className={`ecu-audit-alert ecu-audit-alert--${alert.severity}`}
@@ -1292,8 +1424,6 @@ export function ImportPurchasesPage() {
                               <XCircle size={18} />
                             ) : alert.severity === 'warning' ? (
                               <AlertTriangle size={18} />
-                            ) : alert.severity === 'success' ? (
-                              <CheckCircle2 size={18} />
                             ) : (
                               <Info size={18} />
                             )}
@@ -1310,7 +1440,14 @@ export function ImportPurchasesPage() {
                         </div>
                       ))}
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="ecu-audit-clean-banner">
+                      <CheckCircle2 size={16} />
+                      <span>
+                        <strong>Auditoría SRI Aprobada:</strong> Comprobante íntegro ante el SRI, clave Módulo 11 válida y cuadre matemático exacto.
+                      </span>
+                    </div>
+                  )}
                 </SectionCard>
               </div>
 
@@ -1320,7 +1457,13 @@ export function ImportPurchasesPage() {
                   title="Parámetros Tributarios y Destino"
                   subtitle="Configura el sustento de crédito tributario y destino físico de esta factura."
                 >
-                  <div className="ecu-customer-form__grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.875rem' }}>
+                  <div
+                    className="ecu-customer-form__grid"
+                    style={{
+                      gridTemplateColumns: activeInvoiceHasStock ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
+                      gap: '0.875rem',
+                    }}
+                  >
                     <Select
                       label="Tipo de Gasto SRI (Tabla 5) *"
                       labelPosition="outlined"
@@ -1328,7 +1471,7 @@ export function ImportPurchasesPage() {
                       value={activeInvoice.selectedExpenseTypeId}
                       options={expenseTypes.map((et) => ({
                         value: et.id,
-                        label: `${et.code} - ${et.name} ${!et.affectsInventory ? '(Servicio)' : '(Bienes)'}`,
+                        label: `${et.code} — ${et.name} ${!et.affectsInventory ? '(Servicio)' : '(Bienes)'}`,
                       }))}
                       onChange={(val) => handleExpenseTypeChange(val)}
                       fullWidth
@@ -1344,30 +1487,28 @@ export function ImportPurchasesPage() {
                       fullWidth
                     />
 
-                    <Select
-                      label={isActiveService ? 'Bodega (No Aplica)' : 'Bodega Predeterminada *'}
-                      labelPosition="outlined"
-                      variant="outline"
-                      value={isActiveService ? '' : activeInvoice.defaultWarehouseId}
-                      disabled={isActiveService}
-                      options={
-                        isActiveService
-                          ? [{ value: '', label: '— No aplica (Servicio / Gasto Operativo) —' }]
-                          : warehouses.map((w) => ({
-                              value: w.id,
-                              label: `${w.name} (${w.code})`,
-                            }))
-                      }
-                      onChange={handleDefaultWarehouseChange}
-                      fullWidth
-                    />
+                    {/* Si no tiene stock, no se muestra el select de bodega */}
+                    {activeInvoiceHasStock ? (
+                      <Select
+                        label="Bodega Predeterminada *"
+                        labelPosition="outlined"
+                        variant="outline"
+                        value={activeInvoice.defaultWarehouseId}
+                        options={warehouses.map((w) => ({
+                          value: w.id,
+                          label: `${w.name} (${w.code})`,
+                        }))}
+                        onChange={handleDefaultWarehouseChange}
+                        fullWidth
+                      />
+                    ) : null}
                   </div>
 
-                  {isActiveService ? (
+                  {!activeInvoiceHasStock ? (
                     <div className="ecu-service-notice">
                       <Briefcase size={18} className="ecu-service-notice__icon" />
                       <span>
-                        <strong>Concepto de Servicio / Gasto Operativo:</strong> Esta factura corresponde a un servicio (flete, courier, arriendo, honorarios, etc.). No requiere ingreso a bodega ni genera kárdex de inventario. Pasará directamente al estado <strong>Facturado</strong> al registrarse.
+                        <strong>Sin Ingreso a Bodega:</strong> Esta compra se registrará como costo/gasto contable directo sin generar existencias físicas en bodega ni requerir movimientos de kárdex. Pasará directamente al estado <strong>Facturado</strong> al registrarse.
                       </span>
                     </div>
                   ) : null}
@@ -1388,27 +1529,59 @@ export function ImportPurchasesPage() {
                 </SectionCard>
               </div>
 
-              {/* 3. Detalle de Líneas de la Factura */}
+              {/* 3. Detalle de Líneas de la Factura y Sinergia con Bodega */}
               <SectionCard
                 title={`Detalle de Ítems (${activeInvoice.lines.length}) & Homologación de Catálogo`}
                 subtitle={
-                  isActiveService
-                    ? 'Al ser un servicio, las líneas se registran como gasto operativo sin generar stock en bodega.'
-                    : 'Asigna cada ítem del comprobante a un producto de tu catálogo para ingresar existencias a bodega.'
+                  !activeInvoiceHasStock
+                    ? 'Líneas registradas como costo/gasto operativo directo sin control de inventario.'
+                    : 'Clasifica qué productos ingresan a stock y cuáles corresponden a insumos o gastos operativos.'
                 }
               >
+                {/* Barra de acciones masivas y aviso de sinergia con Bodega */}
+                <div className="ecu-line-actions-strip">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--glb-muted)', fontWeight: 500 }}>
+                      Acciones masivas de líneas:
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isActiveService}
+                      onClick={() => handleSetAllLinesStock(true)}
+                    >
+                      <Package size={13} />
+                      Marcar todo como Mercadería (Stock)
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetAllLinesStock(false)}
+                    >
+                      <Briefcase size={13} />
+                      Marcar todo como Gasto / Costo
+                    </Button>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--glb-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Info size={14} style={{ color: 'var(--shell-primary, #3b82f6)' }} />
+                    <span>
+                      <strong>Sinergia con Bodega:</strong> Los ítems de mercadería que no homologues aquí quedarán listos para recepción física en almacén.
+                    </span>
+                  </div>
+                </div>
+
                 <div className="ecu-import-items-table-container">
                   <table className="ecu-import-items-table">
                     <thead>
                       <tr>
-                        <th style={{ width: '100px' }}>Cód. SRI</th>
+                        <th style={{ width: '90px' }}>Cód. SRI</th>
                         <th>Descripción Proveedor</th>
-                        <th style={{ width: '70px', textAlign: 'center' }}>Cant.</th>
-                        <th style={{ width: '90px', textAlign: 'right' }}>P. Unit</th>
-                        <th style={{ width: '70px', textAlign: 'center' }}>IVA</th>
-                        <th style={{ width: '100px', textAlign: 'right' }}>Total</th>
-                        <th style={{ minWidth: '240px' }}>Homologación Catálogo</th>
-                        <th style={{ width: '130px', textAlign: 'center' }}>Stock</th>
+                        <th style={{ width: '60px', textAlign: 'center' }}>Cant.</th>
+                        <th style={{ width: '85px', textAlign: 'right' }}>P. Unit</th>
+                        <th style={{ width: '60px', textAlign: 'center' }}>IVA</th>
+                        <th style={{ width: '90px', textAlign: 'right' }}>Total</th>
+                        <th style={{ width: '160px' }}>Destino / Tipo</th>
+                        <th style={{ minWidth: '260px' }}>Homologación & Sinergia con Bodega</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1428,40 +1601,54 @@ export function ImportPurchasesPage() {
                             <Select
                               size="sm"
                               variant="outline"
-                              value={line.selectedCatalogItemId}
+                              disabled={isActiveService}
+                              value={line.affectsStock ? 'stock' : 'expense'}
                               options={[
-                                {
-                                  value: '',
-                                  label: isActiveService
-                                    ? '— Sin vincular (Solo Gasto Operativo) —'
-                                    : '— Sin vincular (Solo Gasto) —',
-                                },
-                                ...catalogItems.map((ci) => ({
-                                  value: ci.id,
-                                  label: `${ci.sku || ci.id.slice(0, 6)} · ${ci.name}`,
-                                })),
+                                { value: 'stock', label: '📦 Stock / Bodega' },
+                                { value: 'expense', label: '💼 Gasto Directo' },
                               ]}
-                              onChange={(val) => handleLineCatalogChange(idx, val)}
+                              onChange={(val) => handleLineAffectsStockChange(idx, val === 'stock')}
                               fullWidth
                             />
                           </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {isActiveService ? (
-                              <span className="ecu-tag ecu-tag--service" style={{ fontSize: '0.72rem' }}>
-                                Sin Stock (Servicio)
+                          <td>
+                            {!line.affectsStock ? (
+                              <span className="ecu-tag ecu-tag--service" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
+                                💼 Costo / Gasto Directo
                               </span>
                             ) : (
-                              <input
-                                type="checkbox"
-                                checked={line.affectsStock}
-                                disabled={!line.selectedCatalogItemId}
-                                title={
-                                  !line.selectedCatalogItemId
-                                    ? 'Selecciona un producto del catálogo para habilitar stock'
-                                    : 'Habilitar ingreso a stock'
-                                }
-                                onChange={(e) => handleLineAffectsStockChange(idx, e.target.checked)}
-                              />
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                <Select
+                                  size="sm"
+                                  variant="outline"
+                                  value={line.selectedCatalogItemId}
+                                  options={[
+                                    {
+                                      value: '',
+                                      label: '⏳ Dejar para recepción física en Bodega',
+                                    },
+                                    ...catalogItems.map((ci) => ({
+                                      value: ci.id,
+                                      label: `${ci.sku || ci.id.slice(0, 6)} · ${ci.name}`,
+                                    })),
+                                  ]}
+                                  onChange={(val) => handleLineCatalogChange(idx, val)}
+                                  fullWidth
+                                />
+                                {line.selectedCatalogItemId ? (
+                                  <span className="ecu-tag ecu-tag--synced-warehouse" style={{ width: 'fit-content' }}>
+                                    ✓ Vinculado a producto
+                                  </span>
+                                ) : (
+                                  <span
+                                    className="ecu-tag ecu-tag--pending-warehouse"
+                                    style={{ width: 'fit-content' }}
+                                    title="El personal de bodega lo vinculará al recepcionar el lote físico"
+                                  >
+                                    ⏳ Pendiente Recepción en Bodega
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </td>
                         </tr>

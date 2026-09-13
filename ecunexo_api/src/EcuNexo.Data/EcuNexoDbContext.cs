@@ -1,4 +1,5 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Core.Accounting;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Customers;
 using EcuNexo.Core.Ecommerce;
@@ -114,9 +115,15 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<PurchaseItem> PurchaseItems => Set<PurchaseItem>();
 
+    public DbSet<Account> Accounts => Set<Account>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(EcuNexoDbContext).Assembly);
+
+        modelBuilder.Entity<Account>().HasQueryFilter(
+            a => (!_tenantContext.CurrentTenantId.HasValue || a.TenantId == _tenantContext.CurrentTenantId)
+                 && a.DeletedAt == null);
 
         modelBuilder.Entity<User>().HasQueryFilter(
             u => (!_tenantContext.CurrentTenantId.HasValue || u.TenantId == _tenantContext.CurrentTenantId)

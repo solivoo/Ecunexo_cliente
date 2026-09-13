@@ -7,8 +7,52 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.21.2`.
+* **Última Versión Publicada:** `v0.22.0`.
 * **Hitos Recientes Completados:**
+  - **Control de Ingreso a Bodega sin Factura & Blindaje Legal/Tributario del Proveedor:**
+    - **Análisis Jurídico-Tributario (SRI Ecuador):**
+      * Neutralidad de la herramienta informática: el proveedor SaaS no es sujeto pasivo tributario ni solidariamente responsable por las operaciones materiales de sus clientes (Código Orgánico Tributario, Arts. 24 a 28; LRTI y COIP Art. 298 sobre defraudación tributaria).
+      * El software provee una herramienta estándar requerida para inventarios iniciales, mermas, ajustes de conteo y devoluciones sin comprobante SRI cruzado.
+    - **Pilar 1: Trazabilidad Estricta & Kárdex Inmutable:**
+      * Auditoría forense mediante `IAuditable` (`created_by`, `created_at`, `approved_by`, `approved_at`, `warehouse_id`, `receipt_origin` y `notes`), permitiendo delimitar exactamente qué usuario de la empresa dio de alta o aprobó cada lote físico.
+    - **Pilar 2: Tipificación Transparente de Movimientos:**
+      * `InventoryReceiptOrigin` diferencia explícitamente `Purchase` (factura SRI obligatoria validada con formato `001-001-000000123`) de `Opening`, `Return` y `Other` (movimientos internos sin crédito tributario).
+    - **Pilar 3: Alerta Preventiva en UI (`CreateInventoryDocumentPage.tsx`):**
+      * Inclusión de banner contextual `.ecu-info-banner` cuando el origen es interno (sin factura SRI), recordando que no genera crédito fiscal ni sustituye una factura SRI, y que la empresa es la única responsable del sustento documental.
+    - **Pilar 4: Cláusula Contractual de Deslinde en Términos y Condiciones (`legalTermsContent.ts`):**
+      * Adición formal de la Sección 8 ("Control de Inventarios, Bodegas y Movimientos de Stock sin Sustento Tributario") con declaración de no certificación de procedencia tributaria, exoneración total y retención de bitácoras de auditoría ante requerimientos judiciales.
+  - **Plan General de Cuentas Contables NIIF / SCVS Ecuador & Sinergia con Compras:**
+    - **Catálogo Oficial SCVS Ecuador (`StandardEcuadorChartOfAccounts`):**
+      * Catálogo maestro estándar de 45 cuentas jerárquicas conforme al marco oficial de la Superintendencia de Compañías, Valores y Seguros del Ecuador (NIIF para PYMES).
+      * Cuentas organizadas por grupos: 1. Activo (Caja, Bancos, Clientes, Inventarios/Kárdex, Crédito Tributario IVA Compras/AIR), 2. Pasivo (Proveedores Locales/Exterior, Anticipos Clientes, Retenciones por Pagar SRI, IESS), 3. Patrimonio (Capital Social, Reservas, Utilidad del Ejercicio), 4. Ingresos (Ventas 15%, Ventas 0%, Taller/Servicios) y 5. Costos y Gastos (Costo de Mercaderías Vendidas, Gastos de Personal, Arriendos, Servicios Básicos, Publicidad/Marketing, Fletes/Couriers, Comisiones).
+    - **Dominio & Base de Datos:**
+      * Entidad `Account` con `AccountType` (Asset, Liability, Equity, Revenue, Expense), `AccountNature` (Debit, Credit), cálculo de nivel jerárquico por código decimal, inferencia de cuenta padre y control de movimiento transaccional.
+      * Migración EF Core `20260913212005_AddAccountingAccountsModule` en esquema `accounting`, tabla `accounts`, con índices por tenant, código único y tipo de cuenta.
+      * Repositorio `IAccountRepository` en `EcuNexo.Data/Repositories/AccountRepository.cs`.
+    - **CQRS Commands & Queries:**
+      * `SeedStandardEcuadorPlanCommand`: Semillero seguro que inserta el catálogo oficial SCVS sin duplicar registros y enlazando las cuentas de mayor a sus auxiliares.
+      * `ListAccountsQuery`, `CreateAccountCommand`, `UpdateAccountCommand`, `DeleteAccountCommand`.
+      * Endpoints REST V1 en `/api/v1/tenants/{tenantId}/accounting/accounts` protegidos por permisos RBAC conformes a regex `^[a-z0-9]+(\.[a-z0-9]+)*$` (`contabilidad.plan.contable.read`, `contabilidad.plan.contable.manage`, `contabilidad.cuentas.read`, `contabilidad.cuentas.manage`).
+    - **Frontend (Glubox & Material Design 3):**
+      * Vista [`ChartOfAccountsPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/accounting/ChartOfAccountsPage.tsx) con PageHeader, KPIs M3 dentro de `<div className="ecu-stat-grid">`, filtros por Grupo NIIF y cuentas imputables, DataGrid jerárquico con indentación por nivel, código monoespaciado y badges de naturaleza/imputabilidad.
+      * Modal [`AccountModal.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/accounting/AccountModal.tsx) para crear y editar cuentas con inferencia reactiva de tipo y naturaleza según el primer dígito del código contable.
+      * Rutas enlazadas en [`routes.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/router/routes.tsx) para `/contabilidad/plan-contable` y `/contabilidad/cuentas`.
+    - **Pruebas Automatizadas:**
+      * 192 pruebas en `EcuNexo.Core.UnitTests` y 84 pruebas en `EcuNexo.Business.UnitTests` (276 tests backend al 100%).
+      * 4 pruebas de UI en Playwright (`tests-ui/comun/contabilidad-ui.spec.ts`) y 18 pruebas en (`tests-ui/comun/compras-ui.spec.ts`) pasando al 100%.
+  - **Optimización de Importación de Compras, Detección de Duplicados & Sinergia con Bodega:**
+    - **Prevención de XMLs Duplicados (Backend & Frontend):**
+      * Detección estricta de comprobantes repetidos en cola (por clave de autorización de 49 dígitos o combinación RUC proveedor + secuencial), omitiendo cargas redundantes con aviso claro al usuario.
+      * Verificación bidireccional contra base de datos en `ParseSriPurchaseXmlHandler` y bloqueo contra duplicidad en `CreatePurchaseHandler` (`purchases.authorization_number.duplicate`).
+      * Indicador visual en grilla con badge `Ya en Sistema`, deshabilitación de selección para importación masiva y alertas explicativas.
+    - **Simplificación Visual y Eliminación de Información Redundante:**
+      * Depuración de alertas en la auditoría preventiva SRI: eliminación de las 4 cajas repetitivas que duplicaban la información de las métricas KPI, reemplazándolas por un banner limpio de auditoría aprobada (`.ecu-audit-clean-banner`) y reservando las alertas exclusivamente para advertencias, contingencias o inconsistencias reales.
+    - **Ocultamiento Condicional del Selector de Bodega y Sinergia con Bodega:**
+      * Si la compra no maneja existencias (servicios o líneas sin stock), se oculta por completo el `<Select>` de bodega predeterminada para no generar confusión visual, adaptando el layout a 2 columnas.
+      * En facturas con múltiples productos (bienes y gastos en el mismo comprobante), cada línea dispone de un selector individual para definir si es Mercadería (Stock) o Gasto Operativo Directo, con botones de asignación masiva rápida.
+      * Sinergia total con almacén: los productos que no se homologan en el momento de la importación quedan marcados como `⏳ Pendiente Recepción en Bodega`, registrando la compra contablemente y habilitando su recepción física y kárdex en `ReceivePurchaseModal`.
+    - **Columna de Acciones Fija (Sticky / Fixed):**
+      * La columna de acciones en la tabla de cola (`.ecu-col-actions-header`, `.ecu-col-actions-cell`) y en la grilla principal de documentos (`ComprasDocumentosPage.tsx` con `sticky: 'right'`) queda permanentemente visible y anclada al desplazarse horizontalmente.
   - **Catálogo Oficial SRI AIR Tabla 3.10 ATS 2026 y Edición Completa de Conceptos (`/compras/categorias`):**
     - **Extracción Autorizada del SRI ATS:** Extracción e integración fiel de la "Tabla 3.10: CONCEPTOS DE RETENCIÓN EN LA FUENTE DE IMPUESTO A LA RENTA (AIR) DESDE 06/AGOSTO/2026" de `Catalogo_ATS.pdf` (creación de [`src/lib/sriAirCatalog.ts`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/lib/sriAirCatalog.ts) con códigos 300 para residentes y 500 para exterior).
     - **Corrección de Códigos Desfasados:** Reemplazo de tarifas erróneas (ej. código 332 corregido de 2% a 0% oficial para RIMPE Negocios Populares y no sujetos a retención; 344 normalizado al código ATS oficial de 4 dígitos `3440` al 3%; adición de `3482` al 5% para comisiones a sociedades, `304A`, `311`, `319`, `322`, `343A`, etc.).

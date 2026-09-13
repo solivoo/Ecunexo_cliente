@@ -85,7 +85,21 @@ public sealed class CreatePurchaseHandler : ICommandHandler<CreatePurchaseComman
                 new Error("purchases.supplier.not_found", "El proveedor especificado no existe.", ErrorType.NotFound));
         }
 
-        // 2. Validar que no exista ya la misma factura registrada para este proveedor
+        // 2. Validar que no exista ya la misma factura registrada para este proveedor ni clave de autorización duplicada
+        if (!string.IsNullOrWhiteSpace(command.AuthorizationNumber))
+        {
+            var existingByAuth = await _purchases.GetByAuthorizationNumberAsync(
+                command.TenantId,
+                command.AuthorizationNumber.Trim(),
+                ct).ConfigureAwait(false);
+
+            if (existingByAuth is not null)
+            {
+                return Result.Failure<CreatePurchaseResponse>(
+                    new Error("purchases.authorization_number.duplicate", $"Ya existe una factura registrada con la clave de acceso / autorización '{command.AuthorizationNumber.Trim()}'.", ErrorType.Conflict));
+            }
+        }
+
         var normalizedInvoiceNumber = command.InvoiceNumber.Trim();
         if (normalizedInvoiceNumber.Length == 15 && normalizedInvoiceNumber.All(char.IsDigit))
         {

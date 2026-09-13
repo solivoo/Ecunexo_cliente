@@ -1,0 +1,78 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace EcuNexo.Data.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddAccountingAccountsModule : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.EnsureSchema(
+                name: "accounting");
+
+            migrationBuilder.CreateTable(
+                name: "accounts",
+                schema: "accounting",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    account_type = table.Column<int>(type: "integer", nullable: false),
+                    nature = table.Column<int>(type: "integer", nullable: false),
+                    level = table.Column<int>(type: "integer", nullable: false),
+                    parent_account_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    parent_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    allows_movement = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
+                    is_system = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
+                    is_active = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
+                    description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamptz", nullable: false),
+                    updated_at = table.Column<DateTimeOffset>(type: "timestamptz", nullable: true),
+                    created_by = table.Column<Guid>(type: "uuid", nullable: true),
+                    updated_by = table.Column<Guid>(type: "uuid", nullable: true),
+                    deleted_at = table.Column<DateTimeOffset>(type: "timestamptz", nullable: true),
+                    deleted_by = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_accounts", x => x.id);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_accounts_tenant_id_account_type",
+                schema: "accounting",
+                table: "accounts",
+                columns: new[] { "tenant_id", "account_type" },
+                filter: "deleted_at IS NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_accounts_tenant_id_code",
+                schema: "accounting",
+                table: "accounts",
+                columns: new[] { "tenant_id", "code" },
+                unique: true,
+                filter: "deleted_at IS NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_accounts_tenant_id_parent_code",
+                schema: "accounting",
+                table: "accounts",
+                columns: new[] { "tenant_id", "parent_code" },
+                filter: "deleted_at IS NULL");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(
+                name: "accounts",
+                schema: "accounting");
+        }
+    }
+}

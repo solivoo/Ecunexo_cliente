@@ -284,6 +284,7 @@ export function ComprasDocumentosPage() {
         width: 110,
         sortable: false,
         align: 'center',
+        sticky: 'right',
         renderCell: (_v: unknown, row: PurchaseRow) => (
           <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
             <GridIconButton

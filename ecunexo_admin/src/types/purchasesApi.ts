@@ -301,6 +301,9 @@ export interface ParseSriPurchaseXmlResponse {
   lines: ParsedLineWithMatchDto[]
   rawXml: string
   validationReport?: SriValidationReportDto | null
+  isAlreadyRegistered?: boolean
+  existingPurchaseId?: string | null
+  existingPurchaseInvoiceNumber?: string | null
 }
 
 export interface CreatePurchaseItemPayload {

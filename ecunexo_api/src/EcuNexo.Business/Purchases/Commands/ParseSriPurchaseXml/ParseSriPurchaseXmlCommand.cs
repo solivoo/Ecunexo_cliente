@@ -2,6 +2,7 @@ using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Purchases.Repositories;
 using EcuNexo.Core.Common;
+using EcuNexo.Core.Purchases;
 using EcuNexo.Core.Purchases.Services;
 
 namespace EcuNexo.Business.Purchases.Commands.ParseSriPurchaseXml;
@@ -46,7 +47,10 @@ public sealed record ParseSriPurchaseXmlResponse(
     int CreditDays,
     IReadOnlyList<ParsedLineWithMatchDto> Lines,
     string RawXml,
-    SriValidationReport? ValidationReport = null);
+    SriValidationReport? ValidationReport = null,
+    bool IsAlreadyRegistered = false,
+    Guid? ExistingPurchaseId = null,
+    string? ExistingPurchaseInvoiceNumber = null);
 
 public sealed record ParseSriPurchaseXmlCommand(
     Guid TenantId,
@@ -56,13 +60,16 @@ public sealed class ParseSriPurchaseXmlHandler : ICommandHandler<ParseSriPurchas
 {
     private readonly ISupplierRepository _suppliers;
     private readonly ICatalogItemRepository _catalogItems;
+    private readonly IPurchaseRepository _purchases;
 
     public ParseSriPurchaseXmlHandler(
         ISupplierRepository suppliers,
-        ICatalogItemRepository catalogItems)
+        ICatalogItemRepository catalogItems,
+        IPurchaseRepository purchases)
     {
         _suppliers = suppliers;
         _catalogItems = catalogItems;
+        _purchases = purchases;
     }
 
     public async Task<Result<ParseSriPurchaseXmlResponse>> Handle(
@@ -94,6 +101,40 @@ public sealed class ParseSriPurchaseXmlHandler : ICommandHandler<ParseSriPurchas
             Address: existingSupplier?.Address ?? parsed.SupplierAddress,
             IsRegistered: existingSupplier is not null
         );
+
+        // 2. Detectar si el comprobante ya está registrado previamente en el sistema (por clave de autorización o proveedor + número)
+        Purchase? existingByAuth = null;
+        if (!string.IsNullOrWhiteSpace(parsed.AuthorizationNumber))
+        {
+            existingByAuth = await _purchases.GetByAuthorizationNumberAsync(command.TenantId, parsed.AuthorizationNumber.Trim(), ct).ConfigureAwait(false);
+        }
+
+        var existsByNumber = existingSupplier is not null && await _purchases.ExistsByInvoiceNumberAsync(
+            command.TenantId, existingSupplier.Id, parsed.InvoiceNumber, null, ct).ConfigureAwait(false);
+
+        bool isAlreadyRegistered = existingByAuth is not null || existsByNumber;
+        Guid? existingPurchaseId = existingByAuth?.Id;
+        string? existingInvoiceNumber = existingByAuth?.InvoiceNumber ?? (existsByNumber ? parsed.InvoiceNumber : null);
+
+        var report = parsed.ValidationReport;
+        if (isAlreadyRegistered && report is not null)
+        {
+            var alerts = new List<SriValidationAlert>(report.Alerts)
+            {
+                new(
+                    Code: "DUPLICATE_PURCHASE_REGISTERED",
+                    Title: "Comprobante Ya Registrado en Sistema",
+                    Message: $"Esta factura ({parsed.InvoiceNumber}) ya se encuentra registrada en el sistema EcuNexo.",
+                    Severity: "danger",
+                    Recommendation: "No vuelva a importar esta factura para evitar duplicar existencias o registros tributarios."
+                )
+            };
+            report = report with
+            {
+                OverallStatus = "danger",
+                Alerts = alerts.AsReadOnly()
+            };
+        }
 
         // 2. Correlacionar ítems de la factura con el catálogo de productos del tenant por SKU / Código
         var skus = parsed.Lines
@@ -161,7 +202,10 @@ public sealed class ParseSriPurchaseXmlHandler : ICommandHandler<ParseSriPurchas
             CreditDays: parsed.CreditDays,
             Lines: linesWithMatch.AsReadOnly(),
             RawXml: parsed.RawXml,
-            ValidationReport: parsed.ValidationReport
+            ValidationReport: report,
+            IsAlreadyRegistered: isAlreadyRegistered,
+            ExistingPurchaseId: existingPurchaseId,
+            ExistingPurchaseInvoiceNumber: existingInvoiceNumber
         );
 
         return Result.Success(response);

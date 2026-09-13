@@ -287,6 +287,41 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
+    // Accounting — Contabilidad y Plan General de Cuentas NIIF Ecuador
+    // ──────────────────────────────────────────────
+    public const string LimitMaxChartAccounts = "max_chart_accounts";
+    public const string LimitMaxMonthlyJournalEntries = "max_monthly_journal_entries";
+    public const string LimitAllowCustomSubaccounts = "allow_custom_subaccounts";
+
+    private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> AccountingLimits = new()
+    {
+        [ModuleTier.Small] = new Dictionary<string, int>
+        {
+            [LimitMaxChartAccounts] = 100,
+            [LimitMaxMonthlyJournalEntries] = 200,
+            [LimitAllowCustomSubaccounts] = 1,
+        },
+        [ModuleTier.Medium] = new Dictionary<string, int>
+        {
+            [LimitMaxChartAccounts] = 500,
+            [LimitMaxMonthlyJournalEntries] = 1_000,
+            [LimitAllowCustomSubaccounts] = 1,
+        },
+        [ModuleTier.Big] = new Dictionary<string, int>
+        {
+            [LimitMaxChartAccounts] = 2_000,
+            [LimitMaxMonthlyJournalEntries] = 5_000,
+            [LimitAllowCustomSubaccounts] = 1,
+        },
+        [ModuleTier.Enterprise] = new Dictionary<string, int>
+        {
+            [LimitMaxChartAccounts] = int.MaxValue,
+            [LimitMaxMonthlyJournalEntries] = int.MaxValue,
+            [LimitAllowCustomSubaccounts] = 1,
+        },
+    };
+
+    // ──────────────────────────────────────────────
     // Resolución
     // ──────────────────────────────────────────────
 
@@ -308,6 +343,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Customers => CustomersLimits,
             TenantModuleCodes.Ecommerce => EcommerceLimits,
             TenantModuleCodes.Purchases => PurchasesLimits,
+            TenantModuleCodes.Accounting => AccountingLimits,
             _ => null,
         };
 
@@ -337,6 +373,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Customers => CustomersLimits,
             TenantModuleCodes.Ecommerce => EcommerceLimits,
             TenantModuleCodes.Purchases => PurchasesLimits,
+            TenantModuleCodes.Accounting => AccountingLimits,
             _ => null,
         };
 

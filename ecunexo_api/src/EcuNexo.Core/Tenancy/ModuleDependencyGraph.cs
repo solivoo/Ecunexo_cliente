@@ -30,6 +30,7 @@ public static class ModuleDependencyGraph
             [TenantModuleCodes.Customers] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.Ecommerce] = [TenantModuleCodes.Catalog, TenantModuleCodes.Inventory],
             [TenantModuleCodes.Purchases] = [TenantModuleCodes.Identity],
+            [TenantModuleCodes.Accounting] = [TenantModuleCodes.Identity],
         };
 
     /// <summary>
@@ -153,7 +154,7 @@ public static class ModuleDependencyGraph
         TenantModuleCodes.Warehousing => "Bodegas",
         TenantModuleCodes.Inventory => "Inventario",
         TenantModuleCodes.Invoicing => "Facturación",
-        TenantModuleCodes.Accounting => "Contabilidad",
+        TenantModuleCodes.Accounting => "Contabilidad y Plan General de Cuentas NIIF Ecuador",
         TenantModuleCodes.Training => "Capacitación",
         TenantModuleCodes.Support => "Soporte",
         TenantModuleCodes.Repairs => "Taller y Reparaciones B2B",

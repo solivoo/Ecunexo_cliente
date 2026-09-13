@@ -72,6 +72,7 @@ import { PublicDispatchVerificationPage } from '@/pages/repairs/PublicDispatchVe
 import { EcommerceOrdersListPage } from '@/pages/ecommerce/EcommerceOrdersListPage'
 import { EcommerceOrderDetailPage } from '@/pages/ecommerce/EcommerceOrderDetailPage'
 import { LegalPublicPage } from '@/pages/legal/LegalPublicPage'
+import { ChartOfAccountsPage } from '@/pages/accounting/ChartOfAccountsPage'
 import { DashboardLayout } from '@/shell/DashboardLayout'
 
 const placeholder = (title: string): RouteObject => ({
@@ -222,10 +223,10 @@ export const routes: RouteObject[] = [
           },
           { path: 'contabilidad/asientos', ...placeholder('Asientos') },
           { path: 'contabilidad/ejercicios', ...placeholder('Ejercicios') },
-          { path: 'contabilidad/plan-contable', ...placeholder('Plan contable') },
+          { path: 'contabilidad/plan-contable', element: <ChartOfAccountsPage /> },
           { path: 'contabilidad/balances', ...placeholder('Balances') },
           { path: 'contabilidad/declaraciones', ...placeholder('Declaraciones') },
-          { path: 'contabilidad/cuentas', ...placeholder('Cuentas') },
+          { path: 'contabilidad/cuentas', element: <ChartOfAccountsPage /> },
           { path: 'contabilidad/reportes', ...placeholder('Reportes') },
           {
             path: 'contabilidad/configuracion/sri',

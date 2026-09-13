@@ -93,7 +93,7 @@ public sealed class PurchaseHandlersTests
             </factura>
             """;
 
-        var handler = new ParseSriPurchaseXmlHandler(_suppliers, _catalogItems);
+        var handler = new ParseSriPurchaseXmlHandler(_suppliers, _catalogItems, _purchases);
 
         // Act
         var result = await handler.Handle(new ParseSriPurchaseXmlCommand(tenantId, xml), CancellationToken.None);
@@ -107,6 +107,131 @@ public sealed class PurchaseHandlersTests
         data.Lines.Should().HaveCount(1);
         data.Lines[0].MatchedCatalogItemId.Should().Be(catalogItemId);
         data.Lines[0].CanAffectInventory.Should().BeTrue();
+        data.IsAlreadyRegistered.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "ParseSriPurchaseXmlHandler detecta si la factura ya fue registrada previamente por clave de acceso")]
+    public async Task ParseSriPurchaseXmlHandler_AlreadyRegistered_FlagsDuplicate()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var existingPurchaseId = Guid.NewGuid();
+        var existingSupplierId = Guid.NewGuid();
+        var existingSupplier = Supplier.Create(existingSupplierId, tenantId, "DISTRIBUIDORA S.A.", "1790016919001").Value!;
+        _suppliers.GetByTaxIdAsync(tenantId, "1790016919001", Arg.Any<CancellationToken>()).Returns(existingSupplier);
+
+        var existingPurchase = Purchase.Create(
+            id: existingPurchaseId,
+            tenantId: tenantId,
+            supplierId: existingSupplierId,
+            invoiceNumber: "001-002-000001234",
+            issueDate: new DateOnly(2026, 9, 10),
+            authorizationNumber: "1009202601179001691900120010020000012341234567813"
+        ).Value!;
+
+        _purchases.GetByAuthorizationNumberAsync(tenantId, "1009202601179001691900120010020000012341234567813", Arg.Any<CancellationToken>())
+            .Returns(existingPurchase);
+
+        const string xml = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <factura id="comprobante" version="1.1.0">
+              <infoTributaria>
+                <ambiente>1</ambiente>
+                <tipoEmision>1</tipoEmision>
+                <razonSocial>DISTRIBUIDORA S.A.</razonSocial>
+                <ruc>1790016919001</ruc>
+                <claveAcceso>1009202601179001691900120010020000012341234567813</claveAcceso>
+                <codDoc>01</codDoc>
+                <estab>001</estab>
+                <ptoEmi>002</ptoEmi>
+                <secuencial>000001234</secuencial>
+                <dirMatriz>Av. Amazonas y Colón</dirMatriz>
+              </infoTributaria>
+              <infoFactura>
+                <fechaEmision>10/09/2026</fechaEmision>
+                <totalSinImpuestos>100.00</totalSinImpuestos>
+                <totalDescuento>0.00</totalDescuento>
+                <totalConImpuestos>
+                  <totalImpuesto>
+                    <codigo>2</codigo>
+                    <codigoPorcentaje>4</codigoPorcentaje>
+                    <baseImponible>100.00</baseImponible>
+                    <tarifa>15.00</tarifa>
+                    <valor>15.00</valor>
+                  </totalImpuesto>
+                </totalConImpuestos>
+                <propina>0.00</propina>
+                <importeTotal>115.00</importeTotal>
+                <moneda>DOLAR</moneda>
+              </infoFactura>
+              <detalles>
+                <detalle>
+                  <codigoPrincipal>PROD-001</codigoPrincipal>
+                  <descripcion>Memoria RAM</descripcion>
+                  <cantidad>1.00</cantidad>
+                  <precioUnitario>100.00</precioUnitario>
+                  <descuento>0.00</descuento>
+                  <precioTotalSinImpuesto>100.00</precioTotalSinImpuesto>
+                  <impuestos>
+                    <impuesto>
+                      <codigo>2</codigo>
+                      <codigoPorcentaje>4</codigoPorcentaje>
+                      <tarifa>15.00</tarifa>
+                      <valor>15.00</valor>
+                    </impuesto>
+                  </impuestos>
+                </detalle>
+              </detalles>
+            </factura>
+            """;
+
+        var handler = new ParseSriPurchaseXmlHandler(_suppliers, _catalogItems, _purchases);
+
+        // Act
+        var result = await handler.Handle(new ParseSriPurchaseXmlCommand(tenantId, xml), CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var data = result.Value!;
+        data.IsAlreadyRegistered.Should().BeTrue();
+        data.ExistingPurchaseId.Should().Be(existingPurchaseId);
+        data.ValidationReport.Should().NotBeNull();
+        data.ValidationReport!.Alerts.Should().Contain(a => a.Code == "DUPLICATE_PURCHASE_REGISTERED");
+    }
+
+    [Fact(DisplayName = "CreatePurchaseHandler falla si ya existe una factura con la misma clave de autorización")]
+    public async Task CreatePurchaseHandler_DuplicateAuthorizationNumber_ReturnsConflict()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var supplierId = Guid.NewGuid();
+        var existingAuth = "1009202601179001691900120010020000012341234567813";
+
+        var supplier = Supplier.Create(supplierId, tenantId, "Proveedor S.A.", "1790016919001").Value!;
+        _suppliers.GetByIdAsync(tenantId, supplierId, Arg.Any<CancellationToken>()).Returns(supplier);
+
+        var existingPurchase = Purchase.Create(
+            Guid.NewGuid(), tenantId, supplierId, "001-001-000000099", new DateOnly(2026, 9, 10), authorizationNumber: existingAuth).Value!;
+        _purchases.GetByAuthorizationNumberAsync(tenantId, existingAuth, Arg.Any<CancellationToken>()).Returns(existingPurchase);
+
+        var handler = new CreatePurchaseHandler(_purchases, _suppliers, _proformas, _expenseTypes, _idGenerator, _unitOfWork);
+        var command = new CreatePurchaseCommand(
+            TenantId: tenantId,
+            SupplierId: supplierId,
+            InvoiceNumber: "001-001-000000100",
+            IssueDate: new DateOnly(2026, 9, 10),
+            AuthorizationNumber: existingAuth,
+            SubtotalTaxed: 100m,
+            TaxAmount: 15m,
+            TotalAmount: 115m
+        );
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("purchases.authorization_number.duplicate");
     }
 
     [Fact(DisplayName = "CreatePurchaseHandler crea compra, ítems y persiste en repositorio")]

@@ -1,4 +1,5 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Accounting.Repositories;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Identity;
 using EcuNexo.Business.Inventory;
@@ -72,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<IExpenseTypeRepository, ExpenseTypeRepository>();
         services.AddScoped<IPurchaseProformaRepository, PurchaseProformaRepository>();
         services.AddScoped<IPurchaseRepository, PurchaseRepository>();
+        services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
         return services;
