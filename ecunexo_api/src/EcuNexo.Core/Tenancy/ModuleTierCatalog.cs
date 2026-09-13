@@ -247,7 +247,7 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
-    // Purchases — Compras, Gastos & Recepción SRI
+    // Purchases — Compras
     // ──────────────────────────────────────────────
     public const string LimitMaxMonthlyPurchases = "max_monthly_purchases";
     public const string LimitMonthlyPurchasesProcessed = "monthly_purchases_processed";

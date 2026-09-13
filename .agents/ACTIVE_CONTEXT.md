@@ -7,8 +7,16 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.22.0`.
+* **Última Versión Publicada:** `v0.22.2`.
 * **Hitos Recientes Completados:**
+  - **Unificación Canónica del Módulo «Compras»:**
+    - Normalización de denominaciones en `ModuleDependencyGraph.cs`, `MenuCatalogSeedData.cs` y `ModuleTierCatalog.cs`, consolidando «Compras, Gastos & Recepción SRI» bajo la denominación canónica «Compras».
+    - Mantenimiento integral de los flujos de recepción de facturas electrónicas XML 01 y diferenciación de compras de inventario vs. gastos de servicios directos dentro del mismo módulo técnico `purchases`.
+  - **Rediseño UI/UX de Ampliación de Licencia (`ApplyLicenseSection.tsx`):**
+    - **Resolución de Asimetría Vertical y Dead Space:** Sustitución de la cuadrícula desequilibrada (input de 40px vs dropzone de 180px) por un flujo guiado en 2 columnas con numeración de pasos (`1` Código de activación, `2` Archivo de licencia).
+    - **Tarjeta de Guía Criptográfica:** Inclusión de panel informativo con icono de clave y reglas de correspondencia obligatoria para equilibrar la columna izquierda.
+    - **Previsualización Estructurada de Licencia Detectada:** Al cargar el archivo `.ecunexo-license`, se reemplazó el texto plano corrido por una tarjeta M3 con badge del plan (`Enterprise-plus`, etc.) y chips individuales (`.ecu-plan-page__chips`) formateados con nombres legibles (`moduleLabel`), suprimiendo el helperText plano de FileBox.
+    - **Integración con `SectionCard`:** Unificación visual con el resto de `OrganizationPlanPage`, tipografía monoespaciada para el serial de activación, indicador de estado reactivo y botón `Actualizar Licencia` con icono `KeyRound`.
   - **Control de Ingreso a Bodega sin Factura & Blindaje Legal/Tributario del Proveedor:**
     - **Análisis Jurídico-Tributario (SRI Ecuador):**
       * Neutralidad de la herramienta informática: el proveedor SaaS no es sujeto pasivo tributario ni solidariamente responsable por las operaciones materiales de sus clientes (Código Orgánico Tributario, Arts. 24 a 28; LRTI y COIP Art. 298 sobre defraudación tributaria).

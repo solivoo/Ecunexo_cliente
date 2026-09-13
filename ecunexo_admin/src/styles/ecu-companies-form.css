@@ -581,3 +581,195 @@ html.sf-dark-mode .ecu-invoice-status--danger {
   white-space: nowrap;
   border: 0;
 }
+
+/* --- Ampliar o Modificar Licencia (ApplyLicenseSection) --- */
+.ecu-license-upgrade-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .ecu-license-upgrade-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+
+.ecu-license-upgrade-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.ecu-license-upgrade-col__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.15rem;
+}
+
+.ecu-license-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--shell-primary, #2563eb) 16%, var(--shell-surface, var(--glb-surface)));
+  border: 1.5px solid var(--shell-primary, #2563eb);
+  color: var(--shell-primary, #2563eb);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ecu-license-step-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--shell-text, var(--glb-text));
+}
+
+.ecu-license-step-desc {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--shell-muted, var(--glb-muted));
+}
+
+.ecu-activation-code-input input {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+}
+
+.ecu-license-guide-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--shell-border, var(--glb-border));
+  background: color-mix(in srgb, var(--shell-surface, var(--glb-surface)) 94%, var(--shell-text, var(--glb-text)));
+}
+
+.ecu-license-guide-card__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--shell-muted, var(--glb-muted));
+}
+
+.ecu-license-guide-card__row strong {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--shell-text, var(--glb-text));
+  margin-bottom: 0.15rem;
+}
+
+.ecu-license-guide-card__row p {
+  margin: 0;
+}
+
+.ecu-license-guide-card__icon {
+  font-size: 1.15rem;
+  color: var(--shell-primary, #2563eb);
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.ecu-license-detected-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--shell-primary, #2563eb) 35%, transparent);
+  background: color-mix(in srgb, var(--shell-primary, #2563eb) 6%, var(--shell-surface, var(--glb-surface)));
+}
+
+.ecu-license-detected-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ecu-license-detected-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ecu-license-detected-card__title-row strong {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--shell-text, var(--glb-text));
+}
+
+.ecu-license-detected-card__filename {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--shell-muted, var(--glb-muted));
+  font-family: monospace;
+}
+
+.ecu-license-detected-card__modules {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ecu-license-detected-card__modules-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--shell-muted, var(--glb-muted));
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ecu-license-upgrade-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--shell-border, var(--glb-border));
+  flex-wrap: wrap;
+}
+
+.ecu-license-upgrade-footer__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.ecu-license-status-ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #12b76a;
+  font-weight: 600;
+}
+
+.ecu-license-status-ready .material-symbols-outlined {
+  font-size: 1.15rem;
+}
+
+.ecu-license-status-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--shell-muted, var(--glb-muted));
+}
+
+.ecu-license-status-pending .material-symbols-outlined {
+  font-size: 1.15rem;
+}

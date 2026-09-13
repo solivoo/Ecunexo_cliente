@@ -1,9 +1,12 @@
 import { useCallback, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Button, TextBox, useToast } from 'glubox'
 import { KeyRound } from 'lucide-react'
+import { SectionCard, StatusBadge } from '@/components/ui'
 import { LicenseFileField } from '@/features/onboarding/LicenseFileField'
+import { moduleLabel } from '@/lib/moduleLabels'
 import { readApiError } from '@/lib/readApiError'
 import { applyLicenseUpgrade } from '@/services/onboardingApi'
+import type { ParsedLicenseFile } from '@/utils/licenseFile'
 
 export type ApplyLicenseSectionProps = {
   readonly disabled?: boolean
@@ -14,9 +17,12 @@ export function ApplyLicenseSection({ disabled = false, onApplied }: ApplyLicens
   const toast = useToast()
   const [activationCode, setActivationCode] = useState('')
   const [licenseArtifact, setLicenseArtifact] = useState('')
+  const [parsedLicense, setParsedLicense] = useState<ParsedLicenseFile | null>(null)
   const [fileKey, setFileKey] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const canApply = Boolean(activationCode.trim() && licenseArtifact.trim())
 
   const onSubmit = useCallback(
     async (e: FormEvent) => {
@@ -40,6 +46,7 @@ export function ApplyLicenseSection({ disabled = false, onApplied }: ApplyLicens
         })
         setActivationCode('')
         setLicenseArtifact('')
+        setParsedLicense(null)
         setFileKey((key) => key + 1)
         await onApplied()
       } catch (err: unknown) {
@@ -56,55 +63,148 @@ export function ApplyLicenseSection({ disabled = false, onApplied }: ApplyLicens
   const locked = disabled || busy
 
   return (
-    <section className="app-shell__card ecu-companies-form__card">
-      <h2 className="app-shell__section-title">
-        <KeyRound size={18} strokeWidth={1.75} aria-hidden /> Ampliar o modificar licencia
-      </h2>
-      <p className="ecu-companies-form__hint">
-        Canjea un código emitido por Ecunexo para subir cupos (usuarios, empresas) o habilitar
-        módulos. No crea otra organización.
-      </p>
+    <SectionCard
+      title="Ampliar o Modificar Licencia"
+      subtitle="Canjea un código emitido por EcuNexo para subir cupos (usuarios, empresas) o habilitar módulos en esta organización."
+    >
       {error ? (
-        <p className="welcome-onboarding__error" role="alert">
-          {error}
-        </p>
+        <div className="ecu-form-error-banner" role="alert" style={{ marginBottom: '1.25rem' }}>
+          <span className="material-symbols-outlined">error</span>
+          <span>{error}</span>
+        </div>
       ) : null}
-      <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
-        <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
-          <div className="ecu-companies-form__field">
-            <TextBox
-              id="upgrade-activation-code"
-              label="Código de activación"
-              labelPosition="outlined"
-              variant="outline"
-              value={activationCode}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setActivationCode(e.target.value)}
-              disabled={locked}
-              required
-              fullWidth
-            />
+
+      <form onSubmit={(e) => void onSubmit(e)} noValidate>
+        <div className="ecu-license-upgrade-grid">
+          {/* Columna 1: Código de activación */}
+          <div className="ecu-license-upgrade-col">
+            <div className="ecu-license-upgrade-col__header">
+              <span className="ecu-license-step-badge">1</span>
+              <div>
+                <h3 className="ecu-license-step-title">Código de Activación</h3>
+                <p className="ecu-license-step-desc">Clave alfanumérica única emitida por EcuNexo</p>
+              </div>
+            </div>
+
+            <div className="ecu-activation-code-input">
+              <TextBox
+                id="upgrade-activation-code"
+                label="Código de activación"
+                labelPosition="outlined"
+                variant="outline"
+                value={activationCode}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setActivationCode(e.target.value)}
+                placeholder="ECU-XXXX-XXXX-XXXX-XXXX"
+                disabled={locked}
+                required
+                fullWidth
+              />
+            </div>
+
+            <div className="ecu-license-guide-card">
+              <div className="ecu-license-guide-card__row">
+                <span className="material-symbols-outlined ecu-license-guide-card__icon">vpn_key</span>
+                <div>
+                  <strong>Clave Criptográfica Única</strong>
+                  <p>Autoriza la vinculación del paquete de licencia directamente a esta organización titular.</p>
+                </div>
+              </div>
+              <div className="ecu-license-guide-card__row">
+                <span className="material-symbols-outlined ecu-license-guide-card__icon">verified_user</span>
+                <div>
+                  <strong>Correspondencia Obligatoria</strong>
+                  <p>El código debe coincidir exactamente con el certificado del archivo adjunto para autenticar la firma.</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="ecu-companies-form__field">
+
+          {/* Columna 2: Archivo de licencia y previsualización */}
+          <div className="ecu-license-upgrade-col">
+            <div className="ecu-license-upgrade-col__header">
+              <span className="ecu-license-step-badge">2</span>
+              <div>
+                <h3 className="ecu-license-step-title">Archivo de Licencia</h3>
+                <p className="ecu-license-step-desc">Archivo criptográfico firmado .ecunexo-license</p>
+              </div>
+            </div>
+
             <LicenseFileField
               key={fileKey}
               disabled={locked}
-              onLoaded={(parsed) => setLicenseArtifact(parsed.artifactJson)}
-              onClear={() => setLicenseArtifact('')}
+              showInlineSummary={false}
+              onLoaded={(parsed) => {
+                setLicenseArtifact(parsed.artifactJson)
+                setParsedLicense(parsed)
+              }}
+              onClear={() => {
+                setLicenseArtifact('')
+                setParsedLicense(null)
+              }}
             />
+
+            {parsedLicense ? (
+              <div className="ecu-license-detected-card" role="region" aria-label="Paquete de licencia detectado">
+                <div className="ecu-license-detected-card__head">
+                  <div className="ecu-license-detected-card__title-row">
+                    <span className="material-symbols-outlined" style={{ color: 'var(--shell-primary, #2563eb)' }}>
+                      task_alt
+                    </span>
+                    <div>
+                      <strong>Paquete Detectado</strong>
+                      <span className="ecu-license-detected-card__filename">{parsedLicense.fileName}</span>
+                    </div>
+                  </div>
+                  {parsedLicense.planLabel ? (
+                    <StatusBadge tone="primary">{parsedLicense.planLabel}</StatusBadge>
+                  ) : null}
+                </div>
+
+                {parsedLicense.enabledModules && parsedLicense.enabledModules.length > 0 ? (
+                  <div className="ecu-license-detected-card__modules">
+                    <span className="ecu-license-detected-card__modules-label">
+                      Módulos incluidos ({parsedLicense.enabledModules.length}):
+                    </span>
+                    <div className="ecu-plan-page__chips">
+                      {parsedLicense.enabledModules.map((mod) => (
+                        <span key={mod} className="ecu-plan-page__chip">
+                          {moduleLabel(mod)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
-        <div className="ecu-companies-form__actions">
+
+        {/* Footer con estado y botón de acción */}
+        <div className="ecu-license-upgrade-footer">
+          <div className="ecu-license-upgrade-footer__status">
+            {canApply ? (
+              <span className="ecu-license-status-ready">
+                <span className="material-symbols-outlined">check_circle</span>
+                Listo para aplicar actualización
+              </span>
+            ) : (
+              <span className="ecu-license-status-pending">
+                <span className="material-symbols-outlined">info</span>
+                Ingresa el código y adjunta el archivo .ecunexo-license para continuar.
+              </span>
+            )}
+          </div>
           <Button
             type="submit"
             variant="primary"
             loading={busy}
-            disabled={locked}
-            fullWidth
+            disabled={locked || !canApply}
           >
-            Aplicar código
+            <KeyRound size={16} aria-hidden />
+            Actualizar Licencia
           </Button>
         </div>
       </form>
-    </section>
+    </SectionCard>
   )
 }

@@ -5,14 +5,21 @@ import {
   readLicenseFile,
   type ParsedLicenseFile,
 } from '@/utils/licenseFile'
+import { moduleLabel } from '@/lib/moduleLabels'
 
 export interface LicenseFileFieldProps {
   readonly disabled?: boolean
   readonly onLoaded: (parsed: ParsedLicenseFile) => void
   readonly onClear: () => void
+  readonly showInlineSummary?: boolean
 }
 
-export function LicenseFileField({ disabled, onLoaded, onClear }: LicenseFileFieldProps) {
+export function LicenseFileField({
+  disabled,
+  onLoaded,
+  onClear,
+  showInlineSummary = true,
+}: LicenseFileFieldProps) {
   const inputId = useId()
   const [files, setFiles] = useState<File[]>([])
   const [planLabel, setPlanLabel] = useState<string | null>(null)
@@ -77,14 +84,20 @@ export function LicenseFileField({ disabled, onLoaded, onClear }: LicenseFileFie
         placeholder="Arrastra o selecciona tu archivo .ecunexo-license"
         buttonLabel="Elegir archivo"
         helperText={
-          planLabel || (modules && modules.length > 0)
-            ? [
-                planLabel ? `Plan: ${planLabel}` : null,
-                modules && modules.length > 0 ? `Módulos: ${modules.join(', ')}` : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')
-            : 'Usa el archivo .ecunexo-license que te envió Ecunexo.'
+          showInlineSummary
+            ? planLabel || (modules && modules.length > 0)
+              ? [
+                  planLabel ? `Plan: ${planLabel}` : null,
+                  modules && modules.length > 0
+                    ? `Módulos: ${modules.map((m) => moduleLabel(m)).join(', ')}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              : 'Usa el archivo .ecunexo-license que te envió Ecunexo.'
+            : files.length > 0
+              ? 'Archivo criptográfico cargado correctamente.'
+              : 'Usa el archivo .ecunexo-license que te envió Ecunexo.'
         }
         errorMessage={fieldError ?? undefined}
         disabled={disabled}

@@ -122,7 +122,7 @@ internal static class MenuCatalogSeedData
         ("repairs", "Reparaciones"),
         ("customers", "Clientes"),
         ("ecommerce", "Comercio Electrónico"),
-        ("purchases", "Compras, Gastos & Recepción SRI"),
+        ("purchases", "Compras"),
     ];
 
     public static IReadOnlyList<MenuItem> MenuItems =>

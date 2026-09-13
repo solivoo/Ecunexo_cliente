@@ -160,7 +160,7 @@ public static class ModuleDependencyGraph
         TenantModuleCodes.Repairs => "Taller y Reparaciones B2B",
         TenantModuleCodes.Customers => "Clientes y Directorio Comercial",
         TenantModuleCodes.Ecommerce => "E-commerce",
-        TenantModuleCodes.Purchases => "Compras, Gastos & Recepción SRI",
+        TenantModuleCodes.Purchases => "Compras",
         _ => code,
     };
 
