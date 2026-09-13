@@ -177,6 +177,13 @@ public sealed class CreatePurchaseHandler : ICommandHandler<CreatePurchaseComman
             }
         }
 
+        // Si la compra es 100% de servicios o gastos operativos (ninguna línea afecta inventario físico),
+        // pasa directamente a estado Invoiced (Facturado), sin requerir recepción física en bodega.
+        if (purchase.Items.Count > 0 && purchase.Items.All(i => !i.AffectsInventory))
+        {
+            purchase.MarkAsInvoiced(command.CreatedBy);
+        }
+
         // 6. Si vino de una Proforma, marcar la proforma como convertida a compra
         if (command.ProformaId.HasValue)
         {

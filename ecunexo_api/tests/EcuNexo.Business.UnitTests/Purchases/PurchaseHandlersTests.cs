@@ -144,6 +144,40 @@ public sealed class PurchaseHandlersTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    [Fact(DisplayName = "CreatePurchaseHandler marca compra de servicios (sin stock) directamente como Facturada")]
+    public async Task CreatePurchaseHandler_ServiceItemsOnly_MarksDirectlyAsInvoiced()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var supplierId = Guid.NewGuid();
+        var purchaseId = Guid.NewGuid();
+        _suppliers.GetByIdAsync(tenantId, supplierId, Arg.Any<CancellationToken>())
+            .Returns(Supplier.Create(supplierId, tenantId, "SERVIENTREGA ECUADOR S.A.", "0991285679001").Value!);
+
+        _purchases.ExistsByInvoiceNumberAsync(tenantId, supplierId, "665-021-000021472", null, Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        _idGenerator.NewId().Returns(purchaseId, Guid.NewGuid());
+
+        var handler = new CreatePurchaseHandler(_purchases, _suppliers, _proformas, _expenseTypes, _idGenerator, _unitOfWork);
+        var command = new CreatePurchaseCommand(
+            TenantId: tenantId,
+            SupplierId: supplierId,
+            InvoiceNumber: "665-021-000021472",
+            IssueDate: new DateOnly(2026, 9, 10),
+            Lines:
+            [
+                new CreatePurchaseLineInput("Servicio de Envío por Encomienda", Quantity: 1, UnitPrice: 2.25m, TaxRate: 15m, AffectsInventory: false)
+            ]);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        await _purchases.Received(1).AddAsync(Arg.Is<Purchase>(p => p.Status == PurchaseStatus.Invoiced && !p.AffectsInventory), Arg.Any<CancellationToken>());
+    }
+
     [Fact(DisplayName = "ReceivePurchaseHandler genera ingreso de inventario, lo aprueba y marca compra como recibida")]
     public async Task ReceivePurchaseHandler_InventoryItems_CreatesReceiptAndMarksReceived()
     {

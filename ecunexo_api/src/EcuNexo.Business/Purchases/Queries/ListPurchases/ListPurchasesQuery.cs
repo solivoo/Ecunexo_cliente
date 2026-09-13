@@ -25,7 +25,9 @@ public sealed record PurchaseSummaryDto(
     PurchaseStatus Status,
     Guid? InventoryDocumentId,
     int ItemsCount,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    bool AffectsInventory = false,
+    string? ExpenseTypeName = null);
 
 public sealed record ListPurchasesKpisDto(
     int TotalPurchases,
@@ -99,7 +101,9 @@ public sealed class ListPurchasesHandler : IQueryHandler<ListPurchasesQuery, Lis
             Status: p.Status,
             InventoryDocumentId: p.InventoryDocumentId,
             ItemsCount: p.Items.Count,
-            CreatedAt: p.CreatedAt
+            CreatedAt: p.CreatedAt,
+            AffectsInventory: p.Items.Any(i => i.AffectsInventory),
+            ExpenseTypeName: p.ExpenseType?.Name
         )).ToList();
 
         return Result.Success(new ListPurchasesResponse(kpis, dtos.AsReadOnly()));

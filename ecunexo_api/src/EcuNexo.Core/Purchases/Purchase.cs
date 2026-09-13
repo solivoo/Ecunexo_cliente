@@ -399,6 +399,22 @@ public sealed class Purchase : AggregateRoot<Guid>, ITenantEntity, IAuditable
         return Result.Success();
     }
 
+    /// <summary>Indica si alguna de las líneas de la compra ingresa a bodega física y genera stock.</summary>
+    public bool AffectsInventory => _items.Any(i => i.AffectsInventory);
+
+    public Result MarkAsInvoiced(Guid? updatedBy = null)
+    {
+        if (Status == PurchaseStatus.Cancelled)
+        {
+            return Result.Failure(new Error("purchase.invoiced.cancelled", "No se puede marcar como facturada una compra cancelada.", ErrorType.Validation));
+        }
+
+        Status = PurchaseStatus.Invoiced;
+        UpdatedAt = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
+        return Result.Success();
+    }
+
     public Result Cancel(string? reason = null, Guid? updatedBy = null)
     {
         if (Status == PurchaseStatus.Cancelled)

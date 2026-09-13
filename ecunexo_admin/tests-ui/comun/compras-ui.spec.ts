@@ -725,7 +725,7 @@ async function openExpenseTypes(page: Page) {
     await comprasBtn.click()
   }
   await page.getByRole('button', { name: /Tipos de Gasto SRI/i }).click()
-  await expect(page.getByRole('heading', { name: /Tipos de Gasto y Sustentos SRI/i })).toBeVisible({
+  await expect(page.getByRole('heading', { name: /Categorías de Compra|Tipos de Gasto/i })).toBeVisible({
     timeout: 15_000,
   })
 }
@@ -820,7 +820,7 @@ test.describe('Compras UI — Tipos de Gasto SRI', () => {
     await openExpenseTypes(page)
 
     // Tira de métricas
-    await expect(page.getByLabel('Resumen de tipos de gasto')).toBeVisible()
+    await expect(page.getByLabel(/Resumen de (tipos de gasto|categorías de compra)/i)).toBeVisible()
     await expect(page.getByText('Afectan Inventario')).toBeVisible()
 
     // Tabla con códigos de gasto
@@ -856,34 +856,33 @@ test.describe('Compras UI — Documentos de Compra & Parseo XML SRI', () => {
     await expect(page.getByText('Borrador', { exact: true })).toBeVisible()
   })
 
-  test('Documentos: abrir modal XML, procesar comprobante y registrar compra', async ({ page }) => {
+  test('Documentos: abrir vista de importación, procesar comprobante y registrar compra', async ({ page }) => {
     await openPurchases(page)
 
-    // Abrir modal de carga XML
-    const uploadBtn = page.getByRole('button', { name: /Cargar Factura XML SRI/i }).first()
+    // Navegar a vista dedicada de importación
+    const uploadBtn = page.getByRole('button', { name: /Importar Facturas SRI/i }).first()
     await expect(uploadBtn).toBeVisible()
     await uploadBtn.click()
 
-    // Verificar modal abierto
-    await expect(page.getByRole('heading', { name: /Cargar Factura Electrónica SRI/i })).toBeVisible()
+    // Verificar vista de importación
+    await expect(page.getByRole('heading', { name: /Importación y Auditoría SRI de Compras/i })).toBeVisible()
 
-    // Pegar contenido XML en el textarea
+    // Abrir modal de pegar XML
+    await page.getByRole('button', { name: /Pegar XML en texto/i }).click()
     const xmlTextarea = page.locator('textarea')
     await xmlTextarea.fill('<factura id="comprobante" version="1.1.0"><infoTributaria></infoTributaria></factura>')
 
     // Procesar XML
-    await page.getByRole('button', { name: /Analizar XML SRI/i }).click()
+    await page.getByRole('button', { name: /Procesar XML/i }).click()
 
-    // Previsualización de compra parseada
+    // Previsualización de compra parseada en la cola
     await expect(page.getByText('001-002-000000789', { exact: true })).toBeVisible()
-    await expect(page.getByText('Memoria RAM DDR4 16GB Kingston').first()).toBeVisible()
-    await expect(page.getByText('Proveedor Registrado')).toBeVisible()
 
-    // Registrar la factura de compra
-    await page.getByRole('button', { name: /Registrar Factura de Compra/i }).click()
+    // Registrar facturas seleccionadas
+    await page.getByRole('button', { name: /Registrar Facturas Seleccionadas/i }).click()
 
     // Toast de éxito
-    await expect(page.getByText(/Factura registrada/i)).toBeVisible()
+    await expect(page.getByText(/Importación Exitosa/i)).toBeVisible()
   })
 
   test('Documentos: recepcionar mercadería en bodega y actualizar kárdex', async ({ page }) => {

@@ -4,13 +4,17 @@ import { Button, CheckButton, DateBox, Select, TextBox, useToast } from 'glubox'
 import {
   AlertTriangle,
   ArrowLeft,
+  Briefcase,
   Building2,
   CheckCircle2,
-  Eye,
+  ChevronLeft,
+  ChevronRight,
   FileCode,
   FileSpreadsheet,
   FileText,
   Info,
+  Package,
+  Sliders,
   Trash2,
   UploadCloud,
   XCircle,
@@ -72,6 +76,78 @@ export interface QueuedInvoice {
   selected: boolean
 }
 
+/**
+ * Detecta automáticamente si el proveedor es de servicios o encomiendas
+ * (Courier/Servientrega, telecomunicaciones, cloud, servicios profesionales)
+ * y asigna el tipo de gasto SRI más adecuado.
+ */
+function detectDefaultExpenseType(
+  supplierName: string,
+  supplierRuc: string,
+  types: ExpenseTypeDto[]
+): string {
+  if (types.length === 0) return ''
+
+  const upper = `${supplierName} ${supplierRuc}`.toUpperCase()
+
+  // 1. Courier, encomiendas, envíos y fletes
+  const isCourier =
+    upper.includes('SERVIENTREGA') ||
+    upper.includes('LAAR') ||
+    upper.includes('URBANO') ||
+    upper.includes('COURIER') ||
+    upper.includes('FLETE') ||
+    upper.includes('ENCOMIENDA') ||
+    upper.includes('TRANSPORTE') ||
+    upper.includes('DHL') ||
+    upper.includes('FEDEX')
+
+  if (isCourier) {
+    const flete = types.find(
+      (e) =>
+        e.code.toUpperCase() === 'FLETE' ||
+        e.name.toUpperCase().includes('TRANSPORTE') ||
+        e.name.toUpperCase().includes('FLETE') ||
+        e.name.toUpperCase().includes('ENCOMIENDA')
+    )
+    if (flete) return flete.id
+  }
+
+  // 2. Telecomunicaciones, publicidad y software
+  const isTechOrTelco =
+    upper.includes('CNT') ||
+    upper.includes('CLARO') ||
+    upper.includes('CONECEL') ||
+    upper.includes('MOVISTAR') ||
+    upper.includes('OTECEL') ||
+    upper.includes('GOOGLE') ||
+    upper.includes('META') ||
+    upper.includes('AMAZON') ||
+    upper.includes('MICROSOFT')
+
+  if (isTechOrTelco) {
+    const tech = types.find(
+      (e) =>
+        e.code.toUpperCase() === 'PUB' ||
+        e.name.toUpperCase().includes('PUBLICIDAD') ||
+        e.name.toUpperCase().includes('SERVICIOS')
+    )
+    if (tech) return tech.id
+  }
+
+  // 3. Arriendos
+  if (upper.includes('ARRIENDO') || upper.includes('INMOBILIARIA')) {
+    const arr = types.find(
+      (e) => e.code.toUpperCase() === 'ARRIENDO' || e.name.toUpperCase().includes('ARRIENDO')
+    )
+    if (arr) return arr.id
+  }
+
+  // 4. Por defecto, buscar BIEN si existe, sino el primer elemento
+  const bien = types.find((e) => e.code.toUpperCase() === 'BIEN')
+  return bien?.id ?? types[0]?.id ?? ''
+}
+
 export function ImportPurchasesPage() {
   const toast = useToast()
   const navigate = useNavigate()
@@ -83,7 +159,7 @@ export function ImportPurchasesPage() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  // Catalog dependencies
+  // Catalogs
   const [expenseTypes, setExpenseTypes] = useState<ExpenseTypeDto[]>([])
   const [warehouses, setWarehouses] = useState<WarehouseListItemDto[]>([])
   const [catalogItems, setCatalogItems] = useState<CatalogItemListItemDto[]>([])
@@ -91,6 +167,7 @@ export function ImportPurchasesPage() {
   // Queue state
   const [queue, setQueue] = useState<QueuedInvoice[]>([])
   const [activeInvoiceId, setActiveInvoiceId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'queue' | 'detail'>('queue')
 
   // Upload/Processing state
   const [isProcessingFiles, setIsProcessingFiles] = useState(false)
@@ -139,6 +216,27 @@ export function ImportPurchasesPage() {
     void loadCatalogs()
   }, [loadCatalogs])
 
+  // Active invoice getter
+  const activeInvoice = useMemo(() => {
+    return queue.find((q) => q.id === activeInvoiceId) ?? queue[0] ?? null
+  }, [queue, activeInvoiceId])
+
+  // Active expense type & service indicator
+  const activeExpenseType = useMemo(() => {
+    if (!activeInvoice) return null
+    return expenseTypes.find((e) => e.id === activeInvoice.selectedExpenseTypeId) ?? null
+  }, [activeInvoice, expenseTypes])
+
+  const isActiveService = useMemo(() => {
+    return activeExpenseType ? !activeExpenseType.affectsInventory : false
+  }, [activeExpenseType])
+
+  // Active invoice index in queue for pagination
+  const activeInvoiceIndex = useMemo(() => {
+    if (!activeInvoice) return -1
+    return queue.findIndex((q) => q.id === activeInvoice.id)
+  }, [queue, activeInvoice])
+
   // Process files (Multiple XMLs)
   const handleFilesSelected = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -151,7 +249,6 @@ export function ImportPurchasesPage() {
     const newInvoices: QueuedInvoice[] = []
     const errors: string[] = []
 
-    const defaultExpId = expenseTypes[0]?.id ?? ''
     const defaultWhId = warehouses[0]?.id ?? ''
 
     for (let i = 0; i < fileList.length; i++) {
@@ -162,11 +259,20 @@ export function ImportPurchasesPage() {
         const text = await file.text()
         const parsed = await parseSriPurchaseXml(tenantId, text)
 
+        // Detección inteligente de tipo de gasto (Flete, Bienes, etc.)
+        const expId = detectDefaultExpenseType(
+          parsed.supplier.businessName,
+          parsed.supplier.taxId,
+          expenseTypes
+        )
+        const expObj = expenseTypes.find((et) => et.id === expId)
+        const isService = expObj ? !expObj.affectsInventory : false
+
         const initialLines: EditableQueuedLineItem[] = parsed.lines.map((l) => ({
           ...l,
-          selectedCatalogItemId: l.matchedCatalogItemId ?? '',
-          selectedWarehouseId: defaultWhId,
-          affectsStock: l.canAffectInventory ?? true,
+          selectedCatalogItemId: isService ? '' : (l.matchedCatalogItemId ?? ''),
+          selectedWarehouseId: isService ? '' : defaultWhId,
+          affectsStock: isService ? false : (l.canAffectInventory ?? true),
         }))
 
         newInvoices.push({
@@ -174,9 +280,9 @@ export function ImportPurchasesPage() {
           fileName: file.name,
           sourceType: 'xml',
           parsedData: parsed,
-          selectedExpenseTypeId: defaultExpId,
-          sriSustentoCode: '01',
-          defaultWarehouseId: defaultWhId,
+          selectedExpenseTypeId: expId,
+          sriSustentoCode: expObj?.sriSustentoCode || '01',
+          defaultWarehouseId: isService ? '' : defaultWhId,
           lines: initialLines,
           notes: '',
           selected: true,
@@ -206,7 +312,6 @@ export function ImportPurchasesPage() {
       })
     }
 
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -221,14 +326,21 @@ export function ImportPurchasesPage() {
 
     try {
       const parsed = await parseSriPurchaseXml(tenantId, pastedXmlText.trim())
-      const defaultExpId = expenseTypes[0]?.id ?? ''
       const defaultWhId = warehouses[0]?.id ?? ''
+
+      const expId = detectDefaultExpenseType(
+        parsed.supplier.businessName,
+        parsed.supplier.taxId,
+        expenseTypes
+      )
+      const expObj = expenseTypes.find((et) => et.id === expId)
+      const isService = expObj ? !expObj.affectsInventory : false
 
       const initialLines: EditableQueuedLineItem[] = parsed.lines.map((l) => ({
         ...l,
-        selectedCatalogItemId: l.matchedCatalogItemId ?? '',
-        selectedWarehouseId: defaultWhId,
-        affectsStock: l.canAffectInventory ?? true,
+        selectedCatalogItemId: isService ? '' : (l.matchedCatalogItemId ?? ''),
+        selectedWarehouseId: isService ? '' : defaultWhId,
+        affectsStock: isService ? false : (l.canAffectInventory ?? true),
       }))
 
       const newInv: QueuedInvoice = {
@@ -236,9 +348,9 @@ export function ImportPurchasesPage() {
         fileName: `XML_${parsed.invoiceNumber || 'Manual'}.xml`,
         sourceType: 'xml',
         parsedData: parsed,
-        selectedExpenseTypeId: defaultExpId,
-        sriSustentoCode: '01',
-        defaultWarehouseId: defaultWhId,
+        selectedExpenseTypeId: expId,
+        sriSustentoCode: expObj?.sriSustentoCode || '01',
+        defaultWarehouseId: isService ? '' : defaultWhId,
         lines: initialLines,
         notes: '',
         selected: true,
@@ -298,35 +410,28 @@ export function ImportPurchasesPage() {
       return
     }
 
-    if (cleanAuth && cleanAuth.length !== 10 && cleanAuth.length !== 49) {
-      toast.show({
-        title: 'Autorización SRI inválida',
-        message: 'Para facturas físicas preimpresas, la autorización del SRI consta de 10 dígitos numéricos de imprenta.',
-        variant: 'warning',
-      })
-      return
-    }
-
     const sub0 = parseFloat(manualSubtotalZero) || 0
     const subTax = parseFloat(manualSubtotalTaxed) || 0
     const rate = parseFloat(manualTaxRate) || 15
     const taxAmt = Math.round(subTax * (rate / 100) * 100) / 100
-    const total = Math.round((sub0 + subTax + taxAmt) * 100) / 100
+    const total = sub0 + subTax + taxAmt
 
-    const defaultExpId = expenseTypes[0]?.id ?? ''
+    const expId = detectDefaultExpenseType(cleanName, cleanRuc, expenseTypes)
+    const expObj = expenseTypes.find((et) => et.id === expId)
+    const isService = expObj ? !expObj.affectsInventory : false
     const defaultWhId = warehouses[0]?.id ?? ''
 
-    const manualParsed: ParseSriPurchaseXmlResponse = {
+    const fakeParsed: ParseSriPurchaseXmlResponse = {
       supplier: {
-        existingSupplierId: null,
         taxId: cleanRuc,
         businessName: cleanName,
-        tradeName: cleanName,
-        address: 'Dirección del emisor (Factura Física)',
+        tradeName: null,
+        address: null,
         isRegistered: false,
+        existingSupplierId: null,
       },
       invoiceNumber: cleanInv,
-      authorizationNumber: cleanAuth,
+      authorizationNumber: cleanAuth || '',
       issueDate: manualIssueDate,
       documentType: '01',
       subtotalZero: sub0,
@@ -339,10 +444,11 @@ export function ImportPurchasesPage() {
       totalAmount: total,
       paymentMethodCode: '01',
       creditDays: 0,
+      rawXml: '',
       lines: [
         {
-          itemCode: 'FISICO-01',
-          description: `Gasto / Compra física s/f ${cleanInv}`,
+          itemCode: 'MANUAL',
+          description: `Compra física registrada manualmente - ${cleanName}`,
           quantity: 1,
           unitPrice: sub0 + subTax,
           discount: 0,
@@ -352,48 +458,45 @@ export function ImportPurchasesPage() {
           total: total,
           matchedCatalogItemId: null,
           matchedCatalogItemName: null,
-          canAffectInventory: false,
+          canAffectInventory: !isService,
         },
       ],
-      rawXml: '',
       validationReport: {
-        overallStatus: 'warning',
+        environment: '1',
+        isAccessKeyValid: true,
         isAuthorizedBySri: false,
-        sriStatus: 'FACTURA_FISICA_PREIMPRESA',
-        sriAuthorizationDate: null,
-        environment: 'FISICA',
-        isAccessKeyValid: false,
         isMathConsistent: true,
         calculatedTotal: total,
         declaredTotal: total,
         mathDiscrepancy: 0,
-        taxRateStatus: rate === 15 ? 'VIGENTE_15' : 'REDUCIDA_CONSTRUCCION_5',
+        taxRateStatus: 'Standard',
+        overallStatus: 'warning',
         alerts: [
           {
+            code: 'MANUAL_PHYSICAL',
+            title: 'Factura Física Preimpresa',
+            message: 'Comprobante registrado manualmente. Conserve el documento físico en su archivo tributario.',
             severity: 'info',
-            code: 'PHYSICAL_INVOICE',
-            title: 'Factura Física Preimpresa / Nota de Venta',
-            message: `Registrada manualmente con Autorización de Imprenta SRI N° ${cleanAuth || 'N/A'}.`,
-            recommendation: 'Asegúrese de archivar el documento físico preimpreso durante 7 años conforme el Código Tributario.',
+            recommendation: 'Verifique que la autorización de imprenta esté vigente.',
           },
         ],
       },
     }
 
     const newInv: QueuedInvoice = {
-      id: `queue-${Date.now()}`,
-      fileName: `Factura_Fisica_${cleanInv}.pdf`,
+      id: `queue-manual-${Date.now()}`,
+      fileName: `Fisica_${cleanInv}.manual`,
       sourceType: 'manual_physical',
-      parsedData: manualParsed,
-      selectedExpenseTypeId: defaultExpId,
-      sriSustentoCode: '01',
-      defaultWarehouseId: defaultWhId,
+      parsedData: fakeParsed,
+      selectedExpenseTypeId: expId,
+      sriSustentoCode: expObj?.sriSustentoCode || '01',
+      defaultWarehouseId: isService ? '' : defaultWhId,
       lines: [
         {
-          ...manualParsed.lines[0],
+          ...fakeParsed.lines[0],
           selectedCatalogItemId: '',
-          selectedWarehouseId: defaultWhId,
-          affectsStock: false,
+          selectedWarehouseId: isService ? '' : defaultWhId,
+          affectsStock: !isService,
         },
       ],
       notes: manualNotes,
@@ -415,20 +518,28 @@ export function ImportPurchasesPage() {
     })
   }
 
-  // Active invoice getter
-  const activeInvoice = useMemo(() => {
-    return queue.find((q) => q.id === activeInvoiceId) ?? queue[0] ?? null
-  }, [queue, activeInvoiceId])
-
   // Queue manipulation
   const handleRemoveInvoice = (id: string) => {
     setQueue((prev) => {
       const next = prev.filter((q) => q.id !== id)
       if (activeInvoiceId === id) {
-        setActiveInvoiceId(next[0]?.id ?? null)
+        const nextActive = next[0]?.id ?? null
+        setActiveInvoiceId(nextActive)
+        if (!nextActive) {
+          setViewMode('queue')
+        }
       }
       return next
     })
+  }
+
+  const handleClearQueue = () => {
+    if (queue.length === 0) return
+    if (window.confirm('¿Desea vaciar todas las facturas cargadas en la cola de importación?')) {
+      setQueue([])
+      setActiveInvoiceId(null)
+      setViewMode('queue')
+    }
   }
 
   const handleToggleSelectInvoice = (id: string, selected: boolean) => {
@@ -445,8 +556,34 @@ export function ImportPurchasesPage() {
     setQueue((prev) => prev.map((q) => (q.id === activeInvoice.id ? updater(q) : q)))
   }
 
-  const handleExpenseTypeChange = (expId: string) => {
-    updateActiveInvoice((inv) => ({ ...inv, selectedExpenseTypeId: expId }))
+  // Cuando se cambia el tipo de gasto, si es SERVICIO, se desactivan automáticamente los inventarios
+  const handleExpenseTypeChange = (expId: string, invoiceId?: string) => {
+    const targetId = invoiceId ?? activeInvoice?.id
+    if (!targetId) return
+
+    const selectedType = expenseTypes.find((e) => e.id === expId)
+    const isService = selectedType ? !selectedType.affectsInventory : false
+    const defaultWhId = warehouses[0]?.id ?? ''
+
+    setQueue((prev) =>
+      prev.map((inv) => {
+        if (inv.id !== targetId) return inv
+
+        const updatedLines = inv.lines.map((l) => ({
+          ...l,
+          affectsStock: isService ? false : Boolean(l.selectedCatalogItemId),
+          selectedWarehouseId: isService ? '' : (l.selectedWarehouseId || defaultWhId),
+        }))
+
+        return {
+          ...inv,
+          selectedExpenseTypeId: expId,
+          sriSustentoCode: selectedType?.sriSustentoCode || inv.sriSustentoCode,
+          defaultWarehouseId: isService ? '' : (inv.defaultWarehouseId || defaultWhId),
+          lines: updatedLines,
+        }
+      })
+    )
   }
 
   const handleSustentoChange = (sustento: string) => {
@@ -466,11 +603,15 @@ export function ImportPurchasesPage() {
 
   const handleLineCatalogChange = (lineIdx: number, catItemId: string) => {
     updateActiveInvoice((inv) => {
+      const expObj = expenseTypes.find((e) => e.id === inv.selectedExpenseTypeId)
+      const isService = expObj ? !expObj.affectsInventory : false
+
       const newLines = [...inv.lines]
       newLines[lineIdx] = {
         ...newLines[lineIdx],
         selectedCatalogItemId: catItemId,
-        affectsStock: Boolean(catItemId),
+        // Si el tipo de gasto es servicio, NO afecta stock incluso al asociarse a catálogo
+        affectsStock: isService ? false : Boolean(catItemId),
       }
       return { ...inv, lines: newLines }
     })
@@ -562,6 +703,10 @@ export function ImportPurchasesPage() {
         }
 
         // 2. Preparar payload de compra
+        // Si el tipo de gasto es Servicio, forzar affectsInventory = false y warehouseId = null
+        const expObj = expenseTypes.find((e) => e.id === inv.selectedExpenseTypeId)
+        const isService = expObj ? !expObj.affectsInventory : false
+
         const purchaseItems: CreatePurchaseItemPayload[] = inv.lines.map((l) => ({
           description: l.description,
           quantity: l.quantity,
@@ -570,8 +715,8 @@ export function ImportPurchasesPage() {
           taxRate: l.taxRate,
           itemCode: l.itemCode || null,
           catalogItemId: l.selectedCatalogItemId || null,
-          warehouseId: l.affectsStock && l.selectedWarehouseId ? l.selectedWarehouseId : null,
-          affectsInventory: l.affectsStock,
+          warehouseId: (!isService && l.affectsStock && l.selectedWarehouseId) ? l.selectedWarehouseId : null,
+          affectsInventory: isService ? false : l.affectsStock,
         }))
 
         const payload: CreatePurchasePayload = {
@@ -598,155 +743,183 @@ export function ImportPurchasesPage() {
         }
 
         const res = await createPurchase(tenantId, payload)
-        registeredIds.push(res.purchaseId)
         successIds.push(inv.id)
+        registeredIds.push(res.purchaseId)
       } catch (err) {
-        errors.push(`${inv.parsedData.invoiceNumber}: ${readApiError(err, 'Error al guardar')}`)
+        errors.push(`Factura ${inv.parsedData.invoiceNumber}: ${readApiError(err, 'Error al registrar en sistema.')}`)
       }
     }
 
     setSavingBatch(false)
     setSaveProgress(null)
 
-    // Remove registered invoices from queue
-    setQueue((prev) => prev.filter((q) => !successIds.includes(q.id)))
-
+    // Quitar de la cola las registradas con éxito
     if (successIds.length > 0) {
+      setQueue((prev) => {
+        const next = prev.filter((q) => !successIds.includes(q.id))
+        if (activeInvoiceId && successIds.includes(activeInvoiceId)) {
+          setActiveInvoiceId(next[0]?.id ?? null)
+          if (next.length === 0) {
+            setViewMode('queue')
+          }
+        }
+        return next
+      })
+
       toast.show({
-        title: 'Importación Completada',
-        message: `Se registraron exitosamente ${successIds.length} factura(s) de compra en el sistema.`,
+        title: 'Importación Exitosa',
+        message: `Se registraron ${successIds.length} factura(s) en el sistema correctamente.`,
         variant: 'success',
       })
 
-      // If all were registered, redirect back to purchases list
-      if (errors.length === 0) {
+      // Si se registró todo el lote con éxito, redirigir a Compras
+      if (errors.length === 0 && (onlyActive || successIds.length === queue.length)) {
         navigate('/compras/documentos')
+        return
       }
     }
 
     if (errors.length > 0) {
       toast.show({
-        title: 'Observaciones al registrar',
-        message: errors.join('\n'),
+        title: 'Errores en registro',
+        message: errors.slice(0, 3).join('\n') + (errors.length > 3 ? `\n...y ${errors.length - 3} más` : ''),
         variant: 'error',
       })
     }
   }
 
+  // Navegar al detalle de una factura específica
+  const handleOpenDetail = (invoiceId: string) => {
+    setActiveInvoiceId(invoiceId)
+    setViewMode('detail')
+  }
+
+  // Navegar a la factura anterior o siguiente
+  const handleNavigateInvoice = (direction: 'prev' | 'next') => {
+    if (activeInvoiceIndex === -1) return
+    const nextIdx = direction === 'prev' ? activeInvoiceIndex - 1 : activeInvoiceIndex + 1
+    if (nextIdx >= 0 && nextIdx < queue.length) {
+      setActiveInvoiceId(queue[nextIdx].id)
+    }
+  }
+
   return (
     <TenantSessionGate
-      title="Importar Facturas SRI"
-      lead="Recepción y validación preventiva de comprobantes electrónicos y físicos de compra."
+      title="Importación y Auditoría SRI de Compras"
+      lead="Audita comprobantes electrónicos con el algoritmo Módulo 11, clasifica compras de bienes o servicios y sincroniza con tu inventario."
     >
       <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid ecu-import-purchases-page">
+        {/* Page Header */}
         <PageHeader
-          title="Recepción e Importación de Facturas SRI"
+          title="Importación y Auditoría SRI de Compras"
           badge={
             <StatusBadge tone="primary" withDot>
-              Módulo Compras · Lote & Validación
+              Lotes & XMLs SRI
             </StatusBadge>
           }
-          subtitle="Carga de comprobantes electrónicos del SRI y facturas físicas con validación preventiva de autorización, tarifas vigentes y consistencia matemática antes del ingreso al sistema."
           actions={
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              <Button
-                variant="outline"
-                size="md"
-                onClick={() => navigate('/compras/documentos')}
-                disabled={savingBatch || isProcessingFiles}
-              >
-                <ArrowLeft size={16} />
-                Volver a Compras
-              </Button>
-              {queue.length > 0 && canManage ? (
-                <Button
-                  variant="primary"
-                  size="md"
-                  disabled={savingBatch || isProcessingFiles || stats.selectedCount === 0}
-                  loading={savingBatch}
-                  onClick={() => void handleRegisterInvoices(false)}
-                >
-                  <CheckCircle2 size={16} />
-                  {savingBatch
-                    ? saveProgress || 'Registrando...'
-                    : `Registrar Facturas Aprobadas (${stats.selectedCount})`}
-                </Button>
-              ) : null}
-            </div>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => navigate('/compras/documentos')}
+              disabled={savingBatch || isProcessingFiles}
+            >
+              <ArrowLeft size={16} />
+              Volver a Compras
+            </Button>
           }
         />
 
-        {/* KPI Strip */}
-        <div className="ecu-stat-grid" aria-label="Resumen de facturas en cola">
-          <StatCard
-            label="Comprobantes en Cola"
-            value={stats.total}
-            toneColor="#4f46e5"
-            icon={<FileSpreadsheet size={20} />}
-            footerText="Listas para auditoría e importación"
-          />
-          <StatCard
-            label="Válidas SRI (Aprobadas)"
-            value={stats.valids}
-            toneColor="#10b981"
-            icon={<CheckCircle2 size={20} />}
-            footerText="Autorizadas sin inconsistencias"
-          />
-          <StatCard
-            label="Advertencias / Contingencia"
-            value={stats.warnings}
-            toneColor="#f59e0b"
-            icon={<AlertTriangle size={20} />}
-            footerText="SRI offline o sin contenedor oficial"
-          />
-          <StatCard
-            label="Importe Total Lote"
-            value={`$${stats.totalBatchAmount.toFixed(2)}`}
-            toneColor="#8b5cf6"
-            icon={<Building2 size={20} />}
-            footerText={`${stats.selectedCount} de ${stats.total} seleccionadas`}
-          />
-        </div>
+        {/* Input de archivos oculto para selección de XMLs */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".xml,text/xml"
+          style={{ display: 'none' }}
+          onChange={(e) => void handleFilesSelected(e)}
+        />
 
-        {/* Dropzone & Carga de Comprobantes */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <SectionCard
-            title="Carga de Comprobantes (Individual o por Lote)"
-            subtitle="Soporta múltiples archivos XML oficiales del SRI, respuestas de autorización y registro de facturas físicas preimpresas."
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".xml,text/xml"
-              style={{ display: 'none' }}
-              onChange={(e) => void handleFilesSelected(e)}
-            />
-
-            <div
-              className="ecu-import-dropzone"
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault()
-                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                  const fakeEvent = {
-                    target: { files: e.dataTransfer.files },
-                  } as unknown as ChangeEvent<HTMLInputElement>
-                  void handleFilesSelected(fakeEvent)
-                }
-              }}
+        {/* =========================================================================
+            MODO 1: COLA VACÍA — Muestra Dropzone Inicial Prominente
+           ========================================================================= */}
+        {queue.length === 0 ? (
+          <div>
+            <SectionCard
+              title="Carga de Comprobantes (Individual o por Lote)"
+              subtitle="Soporta múltiples archivos XML oficiales del SRI, respuestas de autorización y registro de facturas físicas preimpresas."
             >
-              <UploadCloud size={42} className="ecu-import-dropzone__icon" />
-              <h4 className="ecu-import-dropzone__title">
-                {isProcessingFiles
-                  ? `Interpretando XMLs (${processingProgress?.current ?? 0} de ${processingProgress?.total ?? 0})...`
-                  : 'Arrastra aquí tus archivos XML o haz clic para seleccionarlos'}
-              </h4>
-              <p className="ecu-import-dropzone__subtitle">
-                Puedes seleccionar varios archivos XML simultáneamente. El sistema verificará de forma preventiva la firma, autorización SRI y cálculo de bases.
-              </p>
-              <div className="ecu-import-dropzone__actions" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="ecu-import-dropzone"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    const fakeEvent = {
+                      target: { files: e.dataTransfer.files },
+                    } as unknown as ChangeEvent<HTMLInputElement>
+                    void handleFilesSelected(fakeEvent)
+                  }
+                }}
+              >
+                <UploadCloud size={48} className="ecu-import-dropzone__icon" />
+                <h4 className="ecu-import-dropzone__title">
+                  {isProcessingFiles
+                    ? `Interpretando XMLs (${processingProgress?.current ?? 0} de ${processingProgress?.total ?? 0})...`
+                    : 'Arrastra aquí tus archivos XML o haz clic para seleccionarlos'}
+                </h4>
+                <p className="ecu-import-dropzone__subtitle">
+                  Puedes seleccionar múltiples archivos XML simultáneamente (bienes, fletes de Servientrega, servicios, etc.). El sistema clasificará automáticamente la naturaleza del gasto y auditará la clave de acceso ante el SRI.
+                </p>
+                <div className="ecu-import-dropzone__actions" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isProcessingFiles || savingBatch}
+                  >
+                    <UploadCloud size={16} />
+                    Seleccionar archivos XML
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPasteModalOpen(true)}
+                    disabled={isProcessingFiles || savingBatch}
+                  >
+                    <FileCode size={16} />
+                    Pegar XML en texto
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setManualPhysicalOpen(true)}
+                    disabled={isProcessingFiles || savingBatch}
+                  >
+                    <FileText size={16} />
+                    Agregar Factura Física Preimpresa
+                  </Button>
+                </div>
+              </div>
+            </SectionCard>
+
+            <div style={{ marginTop: '1.5rem' }}>
+              <EmptyState
+                icon="receipt_long"
+                title="No hay facturas cargadas en la cola de importación"
+                description="Arrastra tus XMLs arriba para iniciar la auditoría SRI y el registro consolidado de compras."
+              />
+            </div>
+          </div>
+        ) : viewMode === 'queue' ? (
+          /* =========================================================================
+             MODO 2: VISTA DE COLA / GRID DE FACTURAS CARGADAS (Ancho Completo)
+             ========================================================================= */
+          <div>
+            {/* Toolbar Superior de Importación */}
+            <div className="ecu-import-toolbar">
+              <div className="ecu-import-toolbar__group">
                 <Button
                   variant="primary"
                   size="sm"
@@ -754,7 +927,7 @@ export function ImportPurchasesPage() {
                   disabled={isProcessingFiles || savingBatch}
                 >
                   <UploadCloud size={16} />
-                  Seleccionar archivos XML
+                  + Cargar más XMLs
                 </Button>
                 <Button
                   variant="outline"
@@ -763,7 +936,7 @@ export function ImportPurchasesPage() {
                   disabled={isProcessingFiles || savingBatch}
                 >
                   <FileCode size={16} />
-                  Pegar XML en texto
+                  Pegar XML
                 </Button>
                 <Button
                   variant="outline"
@@ -772,12 +945,587 @@ export function ImportPurchasesPage() {
                   disabled={isProcessingFiles || savingBatch}
                 >
                   <FileText size={16} />
-                  Agregar Factura Física Preimpresa
+                  + Factura Física
+                </Button>
+              </div>
+
+              <div className="ecu-import-toolbar__group">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearQueue}
+                  disabled={savingBatch || isProcessingFiles}
+                >
+                  <Trash2 size={16} />
+                  Vaciar Cola ({queue.length})
                 </Button>
               </div>
             </div>
-          </SectionCard>
-        </div>
+
+            {/* KPI Strip del Lote */}
+            <div className="ecu-stat-grid" aria-label="Resumen de facturas en cola">
+              <StatCard
+                label="Comprobantes en Cola"
+                value={stats.total}
+                toneColor="#4f46e5"
+                icon={<FileSpreadsheet size={20} />}
+                footerText="Listas para auditoría e importación"
+              />
+              <StatCard
+                label="Válidas SRI (Aprobadas)"
+                value={stats.valids}
+                toneColor="#10b981"
+                icon={<CheckCircle2 size={20} />}
+                footerText="Autorizadas sin inconsistencias"
+              />
+              <StatCard
+                label="Advertencias / Contingencia"
+                value={stats.warnings}
+                toneColor="#f59e0b"
+                icon={<AlertTriangle size={20} />}
+                footerText="SRI offline o sin contenedor oficial"
+              />
+              <StatCard
+                label="Importe Total del Lote"
+                value={`$${stats.totalBatchAmount.toFixed(2)}`}
+                toneColor="#8b5cf6"
+                icon={<Building2 size={20} />}
+                footerText={`${stats.selectedCount} de ${stats.total} seleccionadas`}
+              />
+            </div>
+
+            {/* Grid / Tabla Principal de Facturas Cargadas */}
+            <SectionCard
+              title={`Facturas Cargadas en el Lote (${queue.length})`}
+              subtitle="Revisa el estado de auditoría del SRI, clasifica entre Bienes (Stock) o Servicios (Gasto) y gestiona el lote."
+              action={
+                <CheckButton
+                  checked={queue.length > 0 && queue.every((q) => q.selected)}
+                  onChange={(chk) => handleToggleSelectAll(chk)}
+                >
+                  <span style={{ fontSize: '0.85rem' }}>Seleccionar todas</span>
+                </CheckButton>
+              }
+            >
+              <div className="ecu-import-queue-table-container" style={{ maxHeight: 'none' }}>
+                <table className="ecu-import-queue-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '44px', textAlign: 'center' }}>Sel.</th>
+                      <th>Factura N°</th>
+                      <th>Proveedor</th>
+                      <th>Emisión</th>
+                      <th>Naturaleza</th>
+                      <th>Tipo de Gasto SRI (Tabla 5)</th>
+                      <th style={{ textAlign: 'right' }}>Total Factura</th>
+                      <th style={{ textAlign: 'center' }}>Auditoría SRI</th>
+                      <th style={{ width: '160px', textAlign: 'center' }}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {queue.map((inv) => {
+                      const report = inv.parsedData.validationReport
+                      const status = report?.overallStatus ?? 'valid'
+                      const invExpenseType = expenseTypes.find((e) => e.id === inv.selectedExpenseTypeId)
+                      const isService = invExpenseType ? !invExpenseType.affectsInventory : false
+
+                      return (
+                        <tr key={inv.id} className="ecu-import-queue-row">
+                          <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={inv.selected}
+                              onChange={(e) => handleToggleSelectInvoice(inv.id, e.target.checked)}
+                            />
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--glb-text)' }}>
+                              {inv.parsedData.invoiceNumber}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+                              {inv.fileName}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 500, fontSize: '0.88rem' }}>
+                              {inv.parsedData.supplier.businessName}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                              <span>RUC: {inv.parsedData.supplier.taxId}</span>
+                              {inv.parsedData.supplier.isRegistered ? (
+                                <span className="ecu-tag ecu-tag--registered">Registrado</span>
+                              ) : (
+                                <span className="ecu-tag ecu-tag--new">Nuevo Proveedor</span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.85rem' }}>{inv.parsedData.issueDate}</td>
+                          <td>
+                            {isService ? (
+                              <span className="ecu-tag ecu-tag--service" title="Gasto Operativo / Servicio — No ingresa a bodega ni genera stock">
+                                <Briefcase size={12} style={{ display: 'inline', marginRight: '3px', verticalAlign: 'middle' }} />
+                                Servicio (Sin stock)
+                              </span>
+                            ) : (
+                              <span className="ecu-tag ecu-tag--goods" title="Compra de Bienes — Ingresa a bodega e incrementa stock en kárdex">
+                                <Package size={12} style={{ display: 'inline', marginRight: '3px', verticalAlign: 'middle' }} />
+                                Bienes / Stock
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ minWidth: '220px' }}>
+                            <Select
+                              size="sm"
+                              variant="outline"
+                              value={inv.selectedExpenseTypeId}
+                              options={expenseTypes.map((et) => ({
+                                value: et.id,
+                                label: `${et.code} - ${et.name} ${!et.affectsInventory ? '(Servicio)' : '(Stock)'}`,
+                              }))}
+                              onChange={(val) => handleExpenseTypeChange(val, inv.id)}
+                              fullWidth
+                            />
+                          </td>
+                          <td style={{ fontWeight: 700, fontSize: '0.95rem', textAlign: 'right', color: 'var(--shell-primary, #3b82f6)' }}>
+                            ${inv.parsedData.totalAmount.toFixed(2)}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {status === 'valid' ? (
+                              <span className="ecu-audit-badge ecu-audit-badge--valid" title="Comprobante SRI Válido y Autorizado">
+                                <CheckCircle2 size={13} />
+                                Válida SRI
+                              </span>
+                            ) : status === 'warning' ? (
+                              <span className="ecu-audit-badge ecu-audit-badge--warning" title="Advertencia o Contingencia SRI">
+                                <AlertTriangle size={13} />
+                                Advertencia
+                              </span>
+                            ) : (
+                              <span className="ecu-audit-badge ecu-audit-badge--danger" title="Inconsistencia Crítica SRI">
+                                <XCircle size={13} />
+                                Inconsistente
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenDetail(inv.id)}
+                                title="Ver auditoría SRI, líneas y configurar comprobante"
+                              >
+                                <Sliders size={14} />
+                                Configurar
+                              </Button>
+                              <button
+                                type="button"
+                                className="ecu-grid-btn ecu-grid-btn--danger"
+                                title="Quitar de la cola"
+                                onClick={() => handleRemoveInvoice(inv.id)}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </SectionCard>
+
+            {/* Barra Inferior Flotante de Registro del Lote */}
+            {queue.length > 0 && canManage ? (
+              <div className="ecu-import-batch-bar">
+                <div className="ecu-import-batch-bar__info">
+                  <CheckCircle2 size={20} style={{ color: '#10b981' }} />
+                  <div className="ecu-import-batch-bar__text">
+                    <strong>{stats.selectedCount}</strong> de <strong>{stats.total}</strong> facturas seleccionadas para importar (Monto: <strong>${stats.totalBatchAmount.toFixed(2)}</strong>)
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    disabled={savingBatch || isProcessingFiles || stats.selectedCount === 0}
+                    loading={savingBatch}
+                    onClick={() => void handleRegisterInvoices(false)}
+                  >
+                    <CheckCircle2 size={16} />
+                    {savingBatch
+                      ? saveProgress || 'Registrando...'
+                      : `Registrar Facturas Seleccionadas (${stats.selectedCount})`}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          /* =========================================================================
+             MODO 3: VISTA DE DETALLE, AUDITORÍA Y CONFIGURACIÓN INDIVIDUAL
+             ========================================================================= */
+          activeInvoice && (
+            <div>
+              {/* Barra de Navegación del Comprobante Activo */}
+              <div className="ecu-detail-nav-bar">
+                <div className="ecu-detail-nav-bar__left">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    onClick={() => setViewMode('queue')}
+                  >
+                    <ArrowLeft size={16} />
+                    ← Volver a la Cola de Facturas ({queue.length})
+                  </Button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--glb-text)' }}>
+                      Factura N° {activeInvoice.parsedData.invoiceNumber}
+                    </span>
+                    {isActiveService ? (
+                      <span className="ecu-tag ecu-tag--service">
+                        <Briefcase size={12} style={{ display: 'inline', marginRight: '3px' }} />
+                        Servicio / Gasto Operativo
+                      </span>
+                    ) : (
+                      <span className="ecu-tag ecu-tag--goods">
+                        <Package size={12} style={{ display: 'inline', marginRight: '3px' }} />
+                        Bienes / Mercadería
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Paginador rápido entre facturas de la cola */}
+                <div className="ecu-detail-nav-bar__pagination">
+                  <span className="ecu-detail-nav-bar__counter">
+                    Factura {activeInvoiceIndex + 1} de {queue.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={activeInvoiceIndex <= 0}
+                    onClick={() => handleNavigateInvoice('prev')}
+                    title="Factura anterior"
+                  >
+                    <ChevronLeft size={16} />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={activeInvoiceIndex >= queue.length - 1}
+                    onClick={() => handleNavigateInvoice('next')}
+                    title="Siguiente factura"
+                  >
+                    <ChevronRight size={16} />
+                  </Button>
+                </div>
+              </div>
+
+              {/* 1. Auditoría Preventiva SRI */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <SectionCard
+                  title={`Auditoría SRI: Factura ${activeInvoice.parsedData.invoiceNumber}`}
+                  subtitle={`Proveedor: ${activeInvoice.parsedData.supplier.businessName} (RUC: ${activeInvoice.parsedData.supplier.taxId})`}
+                >
+                  <div className="ecu-audit-summary-grid">
+                    <div className="ecu-audit-metric">
+                      <span className="ecu-audit-metric__label">Clave de Acceso SRI</span>
+                      <span className="ecu-audit-metric__value" style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>
+                        {activeInvoice.parsedData.authorizationNumber || 'Factura Física (Sin clave electrónica)'}
+                      </span>
+                    </div>
+                    <div className="ecu-audit-metric">
+                      <span className="ecu-audit-metric__label">Estado Autorización</span>
+                      <span className="ecu-audit-metric__value">
+                        {activeInvoice.parsedData.validationReport?.isAuthorizedBySri ? (
+                          <span style={{ color: '#10b981', fontWeight: 600 }}>● Autorizado Oficialmente SRI</span>
+                        ) : activeInvoice.sourceType === 'manual_physical' ? (
+                          <span style={{ color: '#3b82f6', fontWeight: 600 }}>● Factura Física Preimpresa</span>
+                        ) : (
+                          <span style={{ color: '#f59e0b', fontWeight: 600 }}>● Sin Constancia Oficial (Contingencia)</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="ecu-audit-metric">
+                      <span className="ecu-audit-metric__label">Consistencia Matemática</span>
+                      <span className="ecu-audit-metric__value">
+                        {activeInvoice.parsedData.validationReport?.isMathConsistent ? (
+                          <span style={{ color: '#10b981', fontWeight: 600 }}>✓ Cuadrado Exacto ($0.00 dif.)</span>
+                        ) : (
+                          <span style={{ color: '#ef4444', fontWeight: 600 }}>
+                            ✗ Descuadre: ${activeInvoice.parsedData.validationReport?.mathDiscrepancy.toFixed(2)}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="ecu-audit-metric">
+                      <span className="ecu-audit-metric__label">Tarifa IVA Detectada</span>
+                      <span className="ecu-audit-metric__value">
+                        {activeInvoice.parsedData.taxRate === 15 ? (
+                          <span style={{ color: '#10b981', fontWeight: 600 }}>15% (General Vigente)</span>
+                        ) : activeInvoice.parsedData.taxRate === 5 ? (
+                          <span style={{ color: '#3b82f6', fontWeight: 600 }}>5% (Construcción)</span>
+                        ) : activeInvoice.parsedData.taxRate === 0 ? (
+                          <span>0% (Tarifa Cero)</span>
+                        ) : (
+                          <span style={{ color: '#f59e0b', fontWeight: 600 }}>
+                            {activeInvoice.parsedData.taxRate}% (Verificar vigencia)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Alertas Preventivas SRI */}
+                  {activeInvoice.parsedData.validationReport?.alerts &&
+                  activeInvoice.parsedData.validationReport.alerts.length > 0 ? (
+                    <div className="ecu-audit-alerts-list">
+                      {activeInvoice.parsedData.validationReport.alerts.map((alert, idx) => (
+                        <div
+                          key={idx}
+                          className={`ecu-audit-alert ecu-audit-alert--${alert.severity}`}
+                        >
+                          <div className="ecu-audit-alert__icon">
+                            {alert.severity === 'danger' ? (
+                              <XCircle size={18} />
+                            ) : alert.severity === 'warning' ? (
+                              <AlertTriangle size={18} />
+                            ) : alert.severity === 'success' ? (
+                              <CheckCircle2 size={18} />
+                            ) : (
+                              <Info size={18} />
+                            )}
+                          </div>
+                          <div className="ecu-audit-alert__content">
+                            <div className="ecu-audit-alert__title">{alert.title}</div>
+                            <div className="ecu-audit-alert__message">{alert.message}</div>
+                            {alert.recommendation ? (
+                              <div className="ecu-audit-alert__rec">
+                                💡 <strong>Acción preventiva recomendada:</strong> {alert.recommendation}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </SectionCard>
+              </div>
+
+              {/* 2. Parámetros Tributarios y Asignación de Bodega */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <SectionCard
+                  title="Parámetros Tributarios y Destino"
+                  subtitle="Configura el sustento de crédito tributario y destino físico de esta factura."
+                >
+                  <div className="ecu-customer-form__grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.875rem' }}>
+                    <Select
+                      label="Tipo de Gasto SRI (Tabla 5) *"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={activeInvoice.selectedExpenseTypeId}
+                      options={expenseTypes.map((et) => ({
+                        value: et.id,
+                        label: `${et.code} - ${et.name} ${!et.affectsInventory ? '(Servicio)' : '(Bienes)'}`,
+                      }))}
+                      onChange={(val) => handleExpenseTypeChange(val)}
+                      fullWidth
+                    />
+
+                    <Select
+                      label="Sustento Tributario SRI *"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={activeInvoice.sriSustentoCode}
+                      options={SUSTENTO_OPTIONS}
+                      onChange={handleSustentoChange}
+                      fullWidth
+                    />
+
+                    <Select
+                      label={isActiveService ? 'Bodega (No Aplica)' : 'Bodega Predeterminada *'}
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={isActiveService ? '' : activeInvoice.defaultWarehouseId}
+                      disabled={isActiveService}
+                      options={
+                        isActiveService
+                          ? [{ value: '', label: '— No aplica (Servicio / Gasto Operativo) —' }]
+                          : warehouses.map((w) => ({
+                              value: w.id,
+                              label: `${w.name} (${w.code})`,
+                            }))
+                      }
+                      onChange={handleDefaultWarehouseChange}
+                      fullWidth
+                    />
+                  </div>
+
+                  {isActiveService ? (
+                    <div className="ecu-service-notice">
+                      <Briefcase size={18} className="ecu-service-notice__icon" />
+                      <span>
+                        <strong>Concepto de Servicio / Gasto Operativo:</strong> Esta factura corresponde a un servicio (flete, courier, arriendo, honorarios, etc.). No requiere ingreso a bodega ni genera kárdex de inventario. Pasará directamente al estado <strong>Facturado</strong> al registrarse.
+                      </span>
+                    </div>
+                  ) : null}
+
+                  <div style={{ marginTop: '0.875rem' }}>
+                    <TextBox
+                      label="Notas u Observaciones de la Compra (Opcional)"
+                      labelPosition="outlined"
+                      variant="outline"
+                      placeholder="Ej. Guía de remisión N° ..., encomienda Servientrega, o detalles operativos..."
+                      value={activeInvoice.notes}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        updateActiveInvoice((inv) => ({ ...inv, notes: e.target.value }))
+                      }
+                      fullWidth
+                    />
+                  </div>
+                </SectionCard>
+              </div>
+
+              {/* 3. Detalle de Líneas de la Factura */}
+              <SectionCard
+                title={`Detalle de Ítems (${activeInvoice.lines.length}) & Homologación de Catálogo`}
+                subtitle={
+                  isActiveService
+                    ? 'Al ser un servicio, las líneas se registran como gasto operativo sin generar stock en bodega.'
+                    : 'Asigna cada ítem del comprobante a un producto de tu catálogo para ingresar existencias a bodega.'
+                }
+              >
+                <div className="ecu-import-items-table-container">
+                  <table className="ecu-import-items-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '100px' }}>Cód. SRI</th>
+                        <th>Descripción Proveedor</th>
+                        <th style={{ width: '70px', textAlign: 'center' }}>Cant.</th>
+                        <th style={{ width: '90px', textAlign: 'right' }}>P. Unit</th>
+                        <th style={{ width: '70px', textAlign: 'center' }}>IVA</th>
+                        <th style={{ width: '100px', textAlign: 'right' }}>Total</th>
+                        <th style={{ minWidth: '240px' }}>Homologación Catálogo</th>
+                        <th style={{ width: '130px', textAlign: 'center' }}>Stock</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeInvoice.lines.map((line, idx) => (
+                        <tr key={idx}>
+                          <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                            {line.itemCode || '—'}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 500, fontSize: '0.88rem' }}>{line.description}</div>
+                          </td>
+                          <td style={{ fontWeight: 600, textAlign: 'center' }}>{line.quantity}</td>
+                          <td style={{ textAlign: 'right' }}>${line.unitPrice.toFixed(2)}</td>
+                          <td style={{ textAlign: 'center' }}>{line.taxRate}%</td>
+                          <td style={{ fontWeight: 600, textAlign: 'right' }}>${line.total.toFixed(2)}</td>
+                          <td>
+                            <Select
+                              size="sm"
+                              variant="outline"
+                              value={line.selectedCatalogItemId}
+                              options={[
+                                {
+                                  value: '',
+                                  label: isActiveService
+                                    ? '— Sin vincular (Solo Gasto Operativo) —'
+                                    : '— Sin vincular (Solo Gasto) —',
+                                },
+                                ...catalogItems.map((ci) => ({
+                                  value: ci.id,
+                                  label: `${ci.sku || ci.id.slice(0, 6)} · ${ci.name}`,
+                                })),
+                              ]}
+                              onChange={(val) => handleLineCatalogChange(idx, val)}
+                              fullWidth
+                            />
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {isActiveService ? (
+                              <span className="ecu-tag ecu-tag--service" style={{ fontSize: '0.72rem' }}>
+                                Sin Stock (Servicio)
+                              </span>
+                            ) : (
+                              <input
+                                type="checkbox"
+                                checked={line.affectsStock}
+                                disabled={!line.selectedCatalogItemId}
+                                title={
+                                  !line.selectedCatalogItemId
+                                    ? 'Selecciona un producto del catálogo para habilitar stock'
+                                    : 'Habilitar ingreso a stock'
+                                }
+                                onChange={(e) => handleLineAffectsStockChange(idx, e.target.checked)}
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Resumen de Totales */}
+                <div className="ecu-import-totals-strip">
+                  <div className="ecu-import-totals-item">
+                    <span>Subtotal 0%:</span>
+                    <strong>${activeInvoice.parsedData.subtotalZero.toFixed(2)}</strong>
+                  </div>
+                  <div className="ecu-import-totals-item">
+                    <span>Subtotal Gravado ({activeInvoice.parsedData.taxRate}%):</span>
+                    <strong>${activeInvoice.parsedData.subtotalTaxed.toFixed(2)}</strong>
+                  </div>
+                  <div className="ecu-import-totals-item">
+                    <span>IVA Liquidado:</span>
+                    <strong>${activeInvoice.parsedData.taxAmount.toFixed(2)}</strong>
+                  </div>
+                  <div className="ecu-import-totals-item ecu-import-totals-item--total">
+                    <span>Total Factura:</span>
+                    <strong>${activeInvoice.parsedData.totalAmount.toFixed(2)}</strong>
+                  </div>
+                </div>
+
+                {/* Botones de Acción de esta Factura */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <Button
+                    variant="outline"
+                    size="md"
+                    onClick={() => setViewMode('queue')}
+                  >
+                    <ArrowLeft size={16} />
+                    Volver a la Cola de Facturas
+                  </Button>
+
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <Button
+                      variant="outline"
+                      size="md"
+                      onClick={() => handleRemoveInvoice(activeInvoice.id)}
+                    >
+                      <Trash2 size={16} />
+                      Quitar de la Cola
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      loading={savingBatch}
+                      disabled={savingBatch}
+                      onClick={() => void handleRegisterInvoices(true)}
+                    >
+                      <CheckCircle2 size={16} />
+                      Registrar Factura en el Sistema
+                    </Button>
+                  </div>
+                </div>
+              </SectionCard>
+            </div>
+          )
+        )}
 
         {/* Modal Pegar XML */}
         {pasteModalOpen ? (
@@ -930,396 +1678,6 @@ export function ImportPurchasesPage() {
             </div>
           </div>
         ) : null}
-
-        {/* Cola de Facturas y Panel Principal */}
-        {queue.length === 0 ? (
-          <EmptyState
-            icon="receipt_long"
-            title="No hay facturas en la cola de importación"
-            description="Arrastra uno o varios archivos XML del SRI en el recuadro superior o agrega una factura física preimpresa para auditar y registrar tus compras."
-          />
-        ) : (
-          <div className="ecu-import-layout">
-            {/* Left Column: Grid / Cola de Facturas */}
-            <div className="ecu-import-layout__queue">
-              <SectionCard
-                title={`Cola de Facturas (${queue.length})`}
-                subtitle="Comprobantes cargados en el lote actual."
-                action={
-                  <CheckButton
-                    checked={queue.length > 0 && queue.every((q) => q.selected)}
-                    onChange={(chk) => handleToggleSelectAll(chk)}
-                  >
-                    <span style={{ fontSize: '0.8rem' }}>Marcar todas</span>
-                  </CheckButton>
-                }
-              >
-                <div className="ecu-import-queue-table-container">
-                  <table className="ecu-import-queue-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: '40px' }}>Sel.</th>
-                        <th>Factura N°</th>
-                        <th>Proveedor</th>
-                        <th>Fecha</th>
-                        <th>Total</th>
-                        <th>Auditoría SRI</th>
-                        <th style={{ width: '90px' }}>Acción</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {queue.map((inv) => {
-                        const isSelected = inv.id === activeInvoice?.id
-                        const report = inv.parsedData.validationReport
-                        const status = report?.overallStatus ?? 'valid'
-
-                        return (
-                          <tr
-                            key={inv.id}
-                            className={`ecu-import-queue-row ${isSelected ? 'ecu-import-queue-row--active' : ''}`}
-                            onClick={() => setActiveInvoiceId(inv.id)}
-                          >
-                            <td onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={inv.selected}
-                                onChange={(e) => handleToggleSelectInvoice(inv.id, e.target.checked)}
-                              />
-                            </td>
-                            <td>
-                              <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-                                {inv.parsedData.invoiceNumber}
-                              </div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
-                                {inv.fileName}
-                              </div>
-                            </td>
-                            <td>
-                              <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>
-                                {inv.parsedData.supplier.businessName}
-                              </div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
-                                {inv.parsedData.supplier.taxId}
-                                {inv.parsedData.supplier.isRegistered ? (
-                                  <span className="ecu-tag ecu-tag--registered">Registrado</span>
-                                ) : (
-                                  <span className="ecu-tag ecu-tag--new">Nuevo</span>
-                                )}
-                              </div>
-                            </td>
-                            <td style={{ fontSize: '0.8rem' }}>{inv.parsedData.issueDate}</td>
-                            <td style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--glb-text)' }}>
-                              ${inv.parsedData.totalAmount.toFixed(2)}
-                            </td>
-                            <td>
-                              {status === 'valid' ? (
-                                <span className="ecu-audit-badge ecu-audit-badge--valid" title="Comprobante SRI Válido y Autorizado">
-                                  <CheckCircle2 size={13} />
-                                  Válida SRI
-                                </span>
-                              ) : status === 'warning' ? (
-                                <span className="ecu-audit-badge ecu-audit-badge--warning" title="Advertencia o Contingencia SRI">
-                                  <AlertTriangle size={13} />
-                                  Advertencia
-                                </span>
-                              ) : (
-                                <span className="ecu-audit-badge ecu-audit-badge--danger" title="Inconsistencia Crítica SRI">
-                                  <XCircle size={13} />
-                                  Inconsistente
-                                </span>
-                              )}
-                            </td>
-                            <td onClick={(e) => e.stopPropagation()}>
-                              <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                <button
-                                  type="button"
-                                  className="ecu-grid-btn"
-                                  title="Inspeccionar factura"
-                                  onClick={() => setActiveInvoiceId(inv.id)}
-                                >
-                                  <Eye size={15} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="ecu-grid-btn ecu-grid-btn--danger"
-                                  title="Quitar de la cola"
-                                  onClick={() => handleRemoveInvoice(inv.id)}
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </SectionCard>
-            </div>
-
-            {/* Right Column: Inspección y Homologación de Factura Activa */}
-            {activeInvoice ? (
-              <div className="ecu-import-layout__detail">
-                {/* Auditoría Preventiva SRI Card */}
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <SectionCard
-                    title={`Auditoría SRI: Factura ${activeInvoice.parsedData.invoiceNumber}`}
-                    subtitle={`Proveedor: ${activeInvoice.parsedData.supplier.businessName} (${activeInvoice.parsedData.supplier.taxId})`}
-                  >
-                    <div className="ecu-audit-summary-grid">
-                      <div className="ecu-audit-metric">
-                        <span className="ecu-audit-metric__label">Clave de Acceso SRI</span>
-                        <span className="ecu-audit-metric__value" style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>
-                          {activeInvoice.parsedData.authorizationNumber || 'Factura Física (Sin clave)'}
-                        </span>
-                      </div>
-                      <div className="ecu-audit-metric">
-                        <span className="ecu-audit-metric__label">Estado Autorización</span>
-                        <span className="ecu-audit-metric__value">
-                          {activeInvoice.parsedData.validationReport?.isAuthorizedBySri ? (
-                            <span style={{ color: '#10b981', fontWeight: 600 }}>● Autorizado Oficialmente</span>
-                          ) : activeInvoice.sourceType === 'manual_physical' ? (
-                            <span style={{ color: '#3b82f6', fontWeight: 600 }}>● Factura Física Preimpresa</span>
-                          ) : (
-                            <span style={{ color: '#f59e0b', fontWeight: 600 }}>● Sin Constancia Oficial (Contingencia)</span>
-                          )}
-                        </span>
-                      </div>
-                      <div className="ecu-audit-metric">
-                        <span className="ecu-audit-metric__label">Consistencia Matemática</span>
-                        <span className="ecu-audit-metric__value">
-                          {activeInvoice.parsedData.validationReport?.isMathConsistent ? (
-                            <span style={{ color: '#10b981', fontWeight: 600 }}>✓ Cuadrado Exacto ($0.00 dif.)</span>
-                          ) : (
-                            <span style={{ color: '#ef4444', fontWeight: 600 }}>
-                              ✗ Descuadre: ${activeInvoice.parsedData.validationReport?.mathDiscrepancy.toFixed(2)}
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      <div className="ecu-audit-metric">
-                        <span className="ecu-audit-metric__label">Tarifa IVA Detectada</span>
-                        <span className="ecu-audit-metric__value">
-                          {activeInvoice.parsedData.taxRate === 15 ? (
-                            <span style={{ color: '#10b981', fontWeight: 600 }}>15% (General Vigente)</span>
-                          ) : activeInvoice.parsedData.taxRate === 5 ? (
-                            <span style={{ color: '#3b82f6', fontWeight: 600 }}>5% (Construcción)</span>
-                          ) : activeInvoice.parsedData.taxRate === 0 ? (
-                            <span>0% (Tarifa Cero)</span>
-                          ) : (
-                            <span style={{ color: '#f59e0b', fontWeight: 600 }}>
-                              {activeInvoice.parsedData.taxRate}% (Verificar vigencia)
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Alertas Preventivas */}
-                    {activeInvoice.parsedData.validationReport?.alerts &&
-                    activeInvoice.parsedData.validationReport.alerts.length > 0 ? (
-                      <div className="ecu-audit-alerts-list">
-                        {activeInvoice.parsedData.validationReport.alerts.map((alert, idx) => (
-                          <div
-                            key={idx}
-                            className={`ecu-audit-alert ecu-audit-alert--${alert.severity}`}
-                          >
-                            <div className="ecu-audit-alert__icon">
-                              {alert.severity === 'danger' ? (
-                                <XCircle size={18} />
-                              ) : alert.severity === 'warning' ? (
-                                <AlertTriangle size={18} />
-                              ) : alert.severity === 'success' ? (
-                                <CheckCircle2 size={18} />
-                              ) : (
-                                <Info size={18} />
-                              )}
-                            </div>
-                            <div className="ecu-audit-alert__content">
-                              <div className="ecu-audit-alert__title">{alert.title}</div>
-                              <div className="ecu-audit-alert__message">{alert.message}</div>
-                              {alert.recommendation ? (
-                                <div className="ecu-audit-alert__rec">
-                                  💡 <strong>Acción preventiva recomendada:</strong> {alert.recommendation}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </SectionCard>
-                </div>
-
-                {/* Parámetros de Compra y Homologación */}
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <SectionCard
-                    title="Parámetros Tributarios y Asignación de Bodega"
-                    subtitle="Configura el sustento de crédito tributario y destino físico para esta factura."
-                  >
-                    <div className="ecu-customer-form__grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.875rem' }}>
-                      <Select
-                        label="Tipo de Gasto SRI (Tabla 5) *"
-                        labelPosition="outlined"
-                        variant="outline"
-                        value={activeInvoice.selectedExpenseTypeId}
-                        options={expenseTypes.map((et) => ({
-                          value: et.id,
-                          label: `${et.code} - ${et.name}`,
-                        }))}
-                        onChange={handleExpenseTypeChange}
-                        fullWidth
-                      />
-
-                      <Select
-                        label="Sustento Tributario SRI *"
-                        labelPosition="outlined"
-                        variant="outline"
-                        value={activeInvoice.sriSustentoCode}
-                        options={SUSTENTO_OPTIONS}
-                        onChange={handleSustentoChange}
-                        fullWidth
-                      />
-
-                      <Select
-                        label="Bodega Predeterminada *"
-                        labelPosition="outlined"
-                        variant="outline"
-                        value={activeInvoice.defaultWarehouseId}
-                        options={warehouses.map((w) => ({
-                          value: w.id,
-                          label: `${w.name} (${w.code})`,
-                        }))}
-                        onChange={handleDefaultWarehouseChange}
-                        fullWidth
-                      />
-                    </div>
-
-                    <div style={{ marginTop: '0.875rem' }}>
-                      <TextBox
-                        label="Notas u Observaciones de la Compra (Opcional)"
-                        labelPosition="outlined"
-                        variant="outline"
-                        placeholder="Ej. Compra para campaña de inventario o proveedor de logística..."
-                        value={activeInvoice.notes}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          updateActiveInvoice((inv) => ({ ...inv, notes: e.target.value }))
-                        }
-                        fullWidth
-                      />
-                    </div>
-                  </SectionCard>
-                </div>
-
-                {/* Detalle de Ítems & Homologación de Catálogo */}
-                <SectionCard
-                  title={`Detalle de Ítems (${activeInvoice.lines.length}) & Homologación de Catálogo`}
-                  subtitle="Asigna cada ítem del comprobante a un producto de tu inventario o déjalo como gasto deducible."
-                >
-                  <div className="ecu-import-items-table-container">
-                    <table className="ecu-import-items-table">
-                      <thead>
-                        <tr>
-                          <th>Cód. SRI</th>
-                          <th>Descripción Proveedor</th>
-                          <th>Cant.</th>
-                          <th>P. Unit</th>
-                          <th>IVA</th>
-                          <th>Total</th>
-                          <th style={{ minWidth: '220px' }}>Homologación Catálogo</th>
-                          <th style={{ width: '80px', textAlign: 'center' }}>Stock</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {activeInvoice.lines.map((line, idx) => (
-                          <tr key={idx}>
-                            <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                              {line.itemCode || '—'}
-                            </td>
-                            <td>
-                              <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>{line.description}</div>
-                            </td>
-                            <td style={{ fontWeight: 600 }}>{line.quantity}</td>
-                            <td>${line.unitPrice.toFixed(2)}</td>
-                            <td>{line.taxRate}%</td>
-                            <td style={{ fontWeight: 600 }}>${line.total.toFixed(2)}</td>
-                            <td>
-                              <Select
-                                size="sm"
-                                variant="outline"
-                                value={line.selectedCatalogItemId}
-                                options={[
-                                  { value: '', label: '— Sin vincular (Solo Gasto) —' },
-                                  ...catalogItems.map((ci) => ({
-                                    value: ci.id,
-                                    label: `${ci.sku || ci.id.slice(0, 6)} · ${ci.name}`,
-                                  })),
-                                ]}
-                                onChange={(val) => handleLineCatalogChange(idx, val)}
-                                fullWidth
-                              />
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <input
-                                type="checkbox"
-                                checked={line.affectsStock}
-                                disabled={!line.selectedCatalogItemId}
-                                onChange={(e) => handleLineAffectsStockChange(idx, e.target.checked)}
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Totales Resumen */}
-                  <div className="ecu-import-totals-strip">
-                    <div className="ecu-import-totals-item">
-                      <span>Subtotal 0%:</span>
-                      <strong>${activeInvoice.parsedData.subtotalZero.toFixed(2)}</strong>
-                    </div>
-                    <div className="ecu-import-totals-item">
-                      <span>Subtotal Gravado ({activeInvoice.parsedData.taxRate}%):</span>
-                      <strong>${activeInvoice.parsedData.subtotalTaxed.toFixed(2)}</strong>
-                    </div>
-                    <div className="ecu-import-totals-item">
-                      <span>IVA:</span>
-                      <strong>${activeInvoice.parsedData.taxAmount.toFixed(2)}</strong>
-                    </div>
-                    <div className="ecu-import-totals-item ecu-import-totals-item--total">
-                      <span>Total Factura:</span>
-                      <strong>${activeInvoice.parsedData.totalAmount.toFixed(2)}</strong>
-                    </div>
-                  </div>
-
-                  {/* Acciones de la factura activa */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
-                    <Button
-                      variant="outline"
-                      size="md"
-                      onClick={() => handleRemoveInvoice(activeInvoice.id)}
-                    >
-                      <Trash2 size={16} />
-                      Quitar de la Cola
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="md"
-                      loading={savingBatch}
-                      disabled={savingBatch}
-                      onClick={() => void handleRegisterInvoices(true)}
-                    >
-                      <CheckCircle2 size={16} />
-                      Registrar Factura en el Sistema
-                    </Button>
-                  </div>
-                </SectionCard>
-              </div>
-            ) : null}
-          </div>
-        )}
       </div>
     </TenantSessionGate>
   )

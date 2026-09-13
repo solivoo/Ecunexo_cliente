@@ -25,8 +25,12 @@
       * Auditoría aritmética de cuadre: Verificación entre la suma de bases imponibles (tarifa 0%, gravada, no objeto, exenta), IVA liquidado, descuentos e Importe Total declarado en la cabecera.
       * Verificación de vigencia de tarifas SRI: Detección de la tarifa general vigente de IVA del 15% (desde abril 2024), 5% construcción y tarifa 0%, con advertencias preventivas si el proveedor emitió con tarifas desfasadas (12% o 14%).
       * Soporte para Facturas Físicas Preimpresas: Flexibilización en `Purchase.Create` para aceptar números de autorización de 10 dígitos (imprenta SRI) y 49 dígitos (electrónica).
-    - **Cola de Facturas en Lote & Homologación de Catálogo:**
-      * Grid de facturas en cola con selector múltiple, badges de auditoría SRI (`Válida SRI`, `Advertencia / Contingencia`, `Inconsistente`), inspección de cada comprobante, vinculación directa a productos de catálogo (`catalog_items`), asignación de bodegas físicas y registro consolidado en lote.
+    - **Distinción de Bienes vs Servicios y Reestructuración en Dos Vistas de Importación:**
+      * **Bienes vs Servicios:** Las categorías y comprobantes de servicios (fletes, encomiendas Servientrega, courier, arriendos, honorarios, etc.) no manejan stock ni requieren ingreso a bodega. Si la categoría tiene `affectsInventory = false`, el selector de bodega se inhabilita con aviso explicativo, el stock se fija en `Sin Stock (Servicio)` y la compra se registra directamente en estado `Invoiced` (Facturado) sin quedar bloqueada en bodega.
+      * **UI Dividida en Dos Vistas:** La vista de importación `/compras/documentos/importar` se rediseñó en dos modos limpios:
+        1. **Modo Cola/Grid Principal (`queue`):** Ancho completo con toolbar superior (+ Cargar más XMLs, Pegar XML, Factura Física, Vaciar Cola), KPI cards, DataGrid espacioso con clasificación Bien/Servicio y botón "Configurar / Auditar".
+        2. **Modo Detalle/Auditoría (`detail`):** Vista de inspección profunda con botón destacado "← Volver a la Cola de Facturas", paginador rápido entre facturas del lote, auditoría SRI Módulo 11 y tabla completa de líneas.
+      * **Detección Automática por Emisor:** Comprobantes de empresas de courier/encomiendas (Servientrega, Laar, Urbano, etc.) y telecomunicaciones/cloud se asignan automáticamente a su categoría de servicio correspondiente al cargar el XML.
     - **Auditoría Global de Selectores de Fecha (`DateBox` de Glubox en todo el sistema):**
       * Se auditó todo el repositorio frontend en búsqueda de inputs nativos `type="date"` que desplegaban el datepicker nativo transparente y desalineado del navegador.
       * Reemplazo sistemático por `<DateBox ... />` de Glubox en todos los formularios identificados:

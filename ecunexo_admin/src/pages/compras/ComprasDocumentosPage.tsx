@@ -217,11 +217,25 @@ export function ComprasDocumentosPage() {
       },
       {
         key: 'itemsCount',
-        header: 'Ítems',
-        width: 80,
-        align: 'center',
+        header: 'Tipo / Ítems',
+        width: 140,
         renderCell: (_v: unknown, row: PurchaseRow) => (
-          <span style={{ fontWeight: 500 }}>{row.itemsCount}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            {row.affectsInventory === false ? (
+              <span className="ecu-tag ecu-tag--service" style={{ margin: 0, width: 'fit-content' }}>
+                💼 Servicio
+              </span>
+            ) : (
+              <span className="ecu-tag ecu-tag--goods" style={{ margin: 0, width: 'fit-content' }}>
+                📦 Bienes ({row.itemsCount})
+              </span>
+            )}
+            {row.expenseTypeName ? (
+              <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted)' }}>
+                {row.expenseTypeName}
+              </span>
+            ) : null}
+          </div>
         ),
       },
       {
@@ -277,7 +291,7 @@ export function ComprasDocumentosPage() {
               icon={Eye}
               onClick={() => handleOpenDetail(row.id)}
             />
-            {row.status === 1 && canManage && (
+            {row.status === 1 && row.affectsInventory !== false && canManage && (
               <GridIconButton
                 label="Recepcionar en bodega"
                 icon={PackageCheck}

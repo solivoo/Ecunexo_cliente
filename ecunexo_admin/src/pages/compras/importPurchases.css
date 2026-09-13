@@ -397,3 +397,119 @@ html.sf-dark-mode .ecu-audit-alert--warning {
   width: 100%;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
 }
+
+/* Toolbar when batch queue is active */
+.ecu-import-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  background: var(--glb-surface, #1e293b);
+  border: 1px solid var(--shell-border, rgba(255, 255, 255, 0.1));
+  border-radius: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.ecu-import-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Service vs Goods Tags */
+.ecu-tag--service {
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.ecu-tag--goods {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+/* Service Notice in warehouse / stock sections */
+.ecu-service-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: var(--glb-text, #f8fafc);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.ecu-service-notice__icon {
+  color: #818cf8;
+  flex-shrink: 0;
+}
+
+/* Detail view top navigation */
+.ecu-detail-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  background: var(--glb-surface, #1e293b);
+  border: 1px solid var(--shell-border, rgba(255, 255, 255, 0.1));
+  border-radius: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.ecu-detail-nav-bar__left {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.ecu-detail-nav-bar__pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ecu-detail-nav-bar__counter {
+  font-size: 0.85rem;
+  color: var(--glb-muted, #94a3b8);
+  font-weight: 500;
+}
+
+/* Batch registration footer bar */
+.ecu-import-batch-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: var(--glb-surface, #1e293b);
+  border: 1px solid var(--shell-border, rgba(255, 255, 255, 0.12));
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 1.25rem;
+}
+
+.ecu-import-batch-bar__info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ecu-import-batch-bar__text {
+  font-size: 0.92rem;
+  color: var(--glb-text, #f8fafc);
+}
+
+.ecu-import-batch-bar__text strong {
+  color: var(--shell-primary, #3b82f6);
+}

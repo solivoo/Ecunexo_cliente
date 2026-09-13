@@ -204,6 +204,8 @@ export interface PurchaseSummaryDto {
   inventoryDocumentId: string | null
   itemsCount: number
   createdAt: string
+  affectsInventory?: boolean
+  expenseTypeName?: string | null
 }
 
 export interface ListPurchasesKpisDto {
