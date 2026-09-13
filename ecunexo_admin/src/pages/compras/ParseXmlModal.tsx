@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { StatusBadge } from '@/components/ui'
 import { readApiError } from '@/lib/readApiError'
-import { createPurchase, parseSriPurchaseXml } from '@/services/purchasesApi'
+import { createPurchase, createSupplier, parseSriPurchaseXml } from '@/services/purchasesApi'
 import type { CatalogItemListItemDto } from '@/types/catalogApi'
 import type { WarehouseListItemDto } from '@/types/inventoryApi'
 import type {
@@ -16,6 +16,7 @@ import type {
   ExpenseTypeDto,
   ParseSriPurchaseXmlResponse,
   ParsedLineWithMatchDto,
+  SupplierIdentificationType,
 } from '@/types/purchasesApi'
 import '@/pages/repairs/ecu-customer-form.css'
 
@@ -177,6 +178,19 @@ export function ParseXmlModal({
     setErrorMessage(null)
 
     try {
+      let resolvedSupplierId = parsedData.supplier.existingSupplierId
+      if (!resolvedSupplierId) {
+        const idType: SupplierIdentificationType = parsedData.supplier.taxId.length === 13 ? 1 : 2
+        const createdSupplier = await createSupplier(tenantId, {
+          taxId: parsedData.supplier.taxId,
+          businessName: parsedData.supplier.businessName,
+          tradeName: parsedData.supplier.tradeName ?? null,
+          address: parsedData.supplier.address ?? null,
+          identificationType: idType,
+        })
+        resolvedSupplierId = createdSupplier.id
+      }
+
       const itemsPayload: CreatePurchaseItemPayload[] = lines.map((l) => ({
         description: l.description,
         quantity: l.quantity,
@@ -190,7 +204,7 @@ export function ParseXmlModal({
       }))
 
       const payload: CreatePurchasePayload = {
-        supplierId: parsedData.supplier.existingSupplierId ?? '',
+        supplierId: resolvedSupplierId,
         invoiceNumber: parsedData.invoiceNumber,
         issueDate: parsedData.issueDate,
         documentType: parsedData.documentType ?? '01',

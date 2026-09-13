@@ -7,14 +7,38 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.19.2`.
-* **Hito Completado:** **Aislamiento de Firma Digital (.p12), Bloqueo de Emisión SRI y RIDE Preview:**
-  - **Aislamiento total de firmas:** Eliminada la asignación/fallback automática de la firma default de ecunexo (`EnsureInfisicalCertificateBoundAsync`) en `Billing.Api`. Ningún emisor puede firmar sin su propio certificado `.p12` cargado y validado.
-  - **Bloqueo preventivo en frontend (`FacturaEmitirPage`):** Si la empresa no tiene un certificado `.p12` configurado o está expirado, se bloquean los botones "Emitir (SRI)" y "Solo firmar", mostrando un banner de alerta con redirección a Ajustes de Empresa.
-  - **Modo Previsualización RIDE Exclusivo:** Se mantiene habilitado el botón "Previsualizar RIDE" (PDF) y la validación de estructura XML ("Solo validar").
-  - **Marca de agua y leyenda en PDF RIDE:** Si el comprobante es borrador o no cuenta con autorización del SRI, se imprime en el encabezado `PREVISUALIZACIÓN — DOCUMENTO SIN VALIDEZ TRIBUTARIA`, con marca de agua diagonal y estado `NO AUTORIZADO`.
-  - **Optimización de proporciones en el pie del RIDE (`RideFacturaFooter` / `rideFacturaStyles`):** El cuadro de subtotales e impuestos se redujo a `width: 215` (más angosto), permitiendo que la columna izquierda (información adicional, dirección, correo y formas de pago) se expanda con `flex: 1.5` sin solapamientos.
-  - **Cumplimiento normativo y legal:** Modal y términos click-wrap con respaldo en LOPDP y Ficha Técnica SRI en onboarding y login.
+* **Última Versión Publicada:** `v0.20.0`.
+* **Hitos Recientes Completados:**
+  - **Identificación Inequívoca de Ambiente de Pruebas SRI (Sin Validez Tributaria):**
+    - Detección determinista por dígito 24 de la clave de acceso de 49 dígitos (`accessKey[23] === '1'` para Pruebas, `'2'` para Producción).
+    - **RIDE PDF:** Incorporación de banner superior prominente de alerta (`AMBIENTE DE PRUEBAS — DOCUMENTO SIN VALIDEZ TRIBUTARIA`), marca de agua diagonal de seguridad (`PRUEBAS — SIN VALIDEZ TRIBUTARIA`), indicativo en cabecera junto al número (`[AMBIENTE DE PRUEBAS — SIN VALIDEZ TRIBUTARIA]`), y etiquetado resaltado en el campo Ambiente (`PRUEBAS (SIN VALIDEZ TRIBUTARIA)`).
+    - **Grilla de Comprobantes (`FacturasGrid`):** Nueva columna `Ambiente` con badge específico (`🧪 Pruebas (Sin validez)`, `🚀 Producción`, `Borrador`) y tooltip explicativo.
+    - **Modal de Previsualización (`InvoiceRidePreviewPopup`):** Badges dinámicos según el ambiente del comprobante con alertas contextuales sobre la validez fiscal.
+    - **Dashboard de Comprobantes (`ComprobantesPage`):** Desglose explícito en las KPI StatCards de comprobantes en Producción vs Pruebas.
+  - **Corrección de Configuración Legal y Firma SRI (`ContabilidadSriConfigPage`):**
+    - Implementación completa de `UpdateTenantSriLegalHandler` en el backend (reemplazando el stub que devolvía 403 `Results.Forbid()`).
+    - Soporte para `TradeName` (Nombre Comercial) en comando y validaciones.
+    - Ajuste en frontend para invocar el endpoint `/api/v1/tenants/{tenantId}/sri-legal` directamente.
+    - Corrección en el cálculo de completitud de la barra de progreso (100% y badge "Listo" al tener datos fiscales y certificado digital válido).
+  - **Corrección y Soporte Total de XML de Facturas de Compra SRI (`SriPurchaseXmlParser`):**
+    - Soporte completo para XML envueltos en respuestas oficiales del WebService SRI (`<ns2:RespuestaAutorizacion>` y `<autorizacion>`), con comprobantes embebidos en CDATA o texto escapado (`&lt;factura...`).
+    - Navegación agnóstica de namespaces XML para elementos y atributos SRI (`infoTributaria`, `infoFactura`, `detalles`, `impuestos`).
+    - Detección y decodificación automática de entidades HTML/XML si el usuario copia texto escapado.
+    - Respaldo de dirección matriz con `dirEstablecimiento` si `dirMatriz` no viene en `infoTributaria`.
+    - Auto-creación transparente del proveedor en el directorio (`ParseXmlModal.tsx`) si el RUC/Cédula es nuevo, resolviendo el `supplierId` antes de registrar la compra.
+  - **Fortalecimiento de Reglas de Negocio en Compras (Fases 1 y 2):**
+    - **Proveedores:** Flexibilización de correo electrónico en [`Supplier.Create`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/src/EcuNexo.Core/Purchases/Supplier.cs) y `Update` (correo opcional para total compatibilidad con XMLs del SRI que no incluyen el emisor; validación de formato solo si se proporciona).
+    - **Facturas de Compra:** Validación de formato SRI (`^\d{3}-\d{3}-\d{9}$`) con auto-normalización de números continuos de 15 dígitos (`001002000123456` -> `001-002-000123456`), prohibición de fechas de emisión futuras, e imposibilidad de subtotales/totales negativos.
+    - **Recepción en Bodega y Kárdex (`ReceivePurchaseModal.tsx`):** Selector de productos de catálogo por línea para vincular cualquier ítem que no haya sido homologado previamente, asegurando la creación correcta del `InventoryDocument` de ingreso y la actualización del costo promedio ponderado en el kárdex contable.
+    - **Gestión Completa, Edición y Vigencia del Catálogo de Categorías / Conceptos de Compra SRI (`expense_types`):**
+    - **Entidad de Dominio (`ExpenseType`):** Incorporación de campos oficiales de porcentaje de retención (`RetentionPercentage`), fecha inicio de vigencia (`ValidFrom`, ej. `2026-08-06`) y fin de vigencia (`ValidUntil`), con validación de invariantes de fechas y porcentaje (0-100%).
+    - **Base de Datos & Migración EF Core:** Aplicada migración `20260913175114_AddVigenciaAndPercentageToExpenseTypes` en PostgreSQL schema `purchases.expense_types`.
+    - **CQRS Handlers:** Implementados `UpdateExpenseTypeHandler` y `DeleteExpenseTypeHandler` (protección de conceptos `IsSystem` contra borrado destructivo pero permitiendo desactivación y edición de nombres/tarifas; descarte físico sólo si no existen compras asociadas, y desactivación preventiva si ya fue usado).
+    - **Endpoints API:** `PUT` y `DELETE` en `/api/v1/tenants/{tenantId}/purchases/expense-types/{id}` expuestos y documentados en Swagger.
+    - **Frontend (`ExpenseTypeModal.tsx` & `ExpenseTypesListPage.tsx`):** Modal completo Glubox para crear y editar conceptos, selector de códigos AIR del SRI con autocompletado de porcentajes y fechas vigentes (desde agosto 2026), columnas en DataGrid con `% Retención AIR`, `Vigencia SRI` y botones de acción (Editar y Desactivar/Eliminar con confirmación segura).
+    - **Tests:** 174 pruebas en `EcuNexo.Core.UnitTests` y 75 pruebas en `EcuNexo.Business.UnitTests` (100% pasando). Compilación frontend Vite limpia.
+  - **Seguridad:**
+    - Eliminado archivo `.pem` del repositorio, configurado `.gitignore` y `appsettings.Development.local.json`.
 
 ---
 

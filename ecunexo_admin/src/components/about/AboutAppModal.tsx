@@ -110,9 +110,14 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Proformas Híbridas, Retenciones SRI 07 y Liquidaciones de Compra</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Categorías y Retenciones AIR SRI, Homologación XML y Validez de Pruebas</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Gestión Completa de Categorías de Compra y Conceptos AIR (SRI ATS):</strong> Nuevo modal interactivo de creación y edición de conceptos con selector de códigos AIR estándar (312, 307, 303, 303A, 304, 310, 320, 309, 343) o manuales, autocompletado de tarifas oficiales vigentes desde agosto 2026, vigencias cronológicas (Desde/Hasta), afectación a inventario físico y reglas seguras de borrado/desactivación preventiva.</li>
+            <li><strong>Homologación de Recepción en Bodega y Kárdex:</strong> Selector dinámico de ítems de catálogo en recepción física de facturas de compra para vincular productos y recalcular automáticamente el costo promedio ponderado en kárdex.</li>
+            <li><strong>Ingesta Robusta de XML de Compra SRI:</strong> Soporte universal para comprobantes envueltos en respuestas oficiales del WebService SRI (&lt;ns2:RespuestaAutorizacion&gt; y &lt;autorizacion&gt;) y auto-creación inmediata del proveedor nuevo en el directorio.</li>
+            <li><strong>Identificación Inequívoca de Ambiente de Pruebas SRI:</strong> Detección automática por dígito 24 de clave de acceso con marca de agua y banner prominente en RIDE PDF («AMBIENTE DE PRUEBAS — DOCUMENTO SIN VALIDEZ TRIBUTARIA») y badges en la grilla de comprobantes.</li>
+            <li><strong>Corrección de Configuración Legal y Firma Electrónica SRI:</strong> Implementación del endpoint y handler de actualización legal de empresa con soporte para nombre comercial y eliminación del error 403.</li>
             <li><strong>Protección de Claves Criptográficas y Limpieza de Repositorio:</strong> Eliminación de archivos .pem del control de versiones, exclusión estricta en .gitignore y migración de claves de licenciamiento a configuración desacoplada (appsettings local y variables de entorno).</li>
             <li><strong>Unificación de Configuración SRI y Ambiente de Emisión:</strong> Centralización de datos de emisor y firma electrónica en Ajustes de Empresa → Facturación electrónica, eliminación de opciones redundantes en el menú lateral y nuevo selector oficial de ambiente SRI (Pruebas celcer vs Producción cel) con banner descriptivo.</li>
             <li><strong>Vista Dedicada y Modo Híbrido en Proformas de Compra:</strong> Nueva pantalla completa (/compras/proformas/nueva) con soporte para registro documental por enlace externo o PDF (con subtotal y tarifa IVA directa sin forzar ítems) y modo detallado por ítems; control de vigencia con botones de acceso rápido (+7, +15, +30 días).</li>

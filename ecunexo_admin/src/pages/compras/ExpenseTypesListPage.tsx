@@ -12,16 +12,29 @@ import {
   StatCard,
   StatusBadge,
 } from '@/components/ui'
-import { RefreshCw, Sparkles } from 'lucide-react'
+import { GridIconButton } from '@/components/ui/GridIconButton'
+import { Pencil, Plus, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
-import { listExpenseTypes, seedDefaultExpenseTypes } from '@/services/purchasesApi'
+import {
+  createExpenseType,
+  deleteExpenseType,
+  listExpenseTypes,
+  seedDefaultExpenseTypes,
+  updateExpenseType,
+} from '@/services/purchasesApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import type { ExpenseTypeDto } from '@/types/purchasesApi'
+import { ExpenseTypeModal } from '@/pages/compras/ExpenseTypeModal'
+import type {
+  CreateExpenseTypePayload,
+  ExpenseTypeDto,
+  UpdateExpenseTypePayload,
+} from '@/types/purchasesApi'
+import '@/pages/repairs/ecu-customer-form.css'
 
 type ExpenseRow = ExpenseTypeDto & Record<string, unknown>
 
@@ -35,9 +48,24 @@ function formatSustento(code: string): string {
       return '03 — Activo Fijo (Crédito Tributario)'
     case '04':
       return '04 — Liquidación de Compra (Sector Agropecuario/Artesanal)'
+    case '05':
+      return '05 — Liquidación de Compra por Reembolso'
+    case '06':
+      return '06 — Costo o Gasto con Devolución de IVA'
+    case '07':
+      return '07 — Gastos de Viaje y Hospedaje'
+    case '08':
+      return '08 — Arrendamiento Mercantil'
     default:
       return `${code} — Sustento ATS SRI`
   }
+}
+
+function formatValidity(validFrom: string | null, validUntil: string | null): string {
+  if (!validFrom && !validUntil) return 'Indefinida'
+  if (validFrom && !validUntil) return `Desde ${validFrom}`
+  if (!validFrom && validUntil) return `Hasta ${validUntil}`
+  return `${validFrom} — ${validUntil}`
 }
 
 export function ExpenseTypesListPage() {
@@ -49,7 +77,11 @@ export function ExpenseTypesListPage() {
 
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [expenseTypes, setExpenseTypes] = useState<ExpenseTypeDto[]>([])
+
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingExpenseType, setEditingExpenseType] = useState<ExpenseTypeDto | null>(null)
 
   const loadData = useCallback(async () => {
     if (!tenantId) return
@@ -60,7 +92,7 @@ export function ExpenseTypesListPage() {
     } catch (err) {
       toast.show({
         title: 'Error de carga',
-        message: readApiError(err, 'No se pudieron cargar los tipos de gasto.'),
+        message: readApiError(err, 'No se pudieron cargar las categorías de compra.'),
         variant: 'error',
       })
     } finally {
@@ -80,13 +112,13 @@ export function ExpenseTypesListPage() {
       if (count > 0) {
         toast.show({
           title: 'Catálogo SRI sembrado',
-          message: `Se crearon ${count} conceptos estándar de compras y gastos SRI.`,
+          message: `Se crearon ${count} conceptos estándar de compras y retenciones SRI.`,
           variant: 'success',
         })
       } else {
         toast.show({
           title: 'Catálogo existente',
-          message: 'La empresa ya cuenta con tipos de gasto configurados.',
+          message: 'La empresa ya cuenta con categorías de compra configuradas.',
           variant: 'info',
         })
       }
@@ -94,13 +126,109 @@ export function ExpenseTypesListPage() {
     } catch (err) {
       toast.show({
         title: 'Error al sembrar',
-        message: readApiError(err, 'No se pudo inicializar el catálogo de tipos de gasto.'),
+        message: readApiError(err, 'No se pudo inicializar el catálogo de categorías.'),
         variant: 'error',
       })
     } finally {
       setSeeding(false)
     }
   }, [tenantId, loadData, toast])
+
+  const openCreate = useCallback(() => {
+    setEditingExpenseType(null)
+    setModalOpen(true)
+  }, [])
+
+  const openEdit = useCallback((type: ExpenseTypeDto) => {
+    setEditingExpenseType(type)
+    setModalOpen(true)
+  }, [])
+
+  const handleSave = useCallback(
+    async (payload: CreateExpenseTypePayload | UpdateExpenseTypePayload) => {
+      if (!tenantId) return
+      setSaving(true)
+      try {
+        if (editingExpenseType) {
+          await updateExpenseType(tenantId, editingExpenseType.id, payload as UpdateExpenseTypePayload)
+          toast.show({
+            title: 'Categoría actualizada',
+            message: `El concepto "${payload.name}" se actualizó correctamente.`,
+            variant: 'success',
+          })
+        } else {
+          await createExpenseType(tenantId, payload as CreateExpenseTypePayload)
+          toast.show({
+            title: 'Categoría creada',
+            message: `El concepto "${payload.name}" fue agregado al catálogo.`,
+            variant: 'success',
+          })
+        }
+        setModalOpen(false)
+        await loadData()
+      } catch (err) {
+        throw new Error(readApiError(err, 'No se pudo guardar la categoría de compra.'))
+      } finally {
+        setSaving(false)
+      }
+    },
+    [tenantId, editingExpenseType, loadData, toast]
+  )
+
+  const handleDelete = useCallback(
+    async (row: ExpenseTypeDto) => {
+      if (!tenantId) return
+
+      if (row.isSystem) {
+        const confirmDeactivate = window.confirm(
+          `Los conceptos base del SRI no pueden eliminarse físicamente para proteger las validaciones del ATS.\n\n¿Deseas desactivar el concepto "${row.name}" (${row.code}) para que no aparezca en nuevas compras?`
+        )
+        if (!confirmDeactivate) return
+
+        try {
+          await updateExpenseType(tenantId, row.id, {
+            name: row.name,
+            isActive: false,
+          })
+          toast.show({
+            title: 'Concepto desactivado',
+            message: `"${row.name}" quedó inactivo para nuevas compras.`,
+            variant: 'info',
+          })
+          await loadData()
+        } catch (err) {
+          toast.show({
+            title: 'Error',
+            message: readApiError(err, 'No se pudo desactivar el concepto.'),
+            variant: 'error',
+          })
+        }
+        return
+      }
+
+      const confirmed = window.confirm(
+        `¿Eliminar la categoría "${row.name}" (${row.code})?\n\nSi ya está asociada a facturas existentes, se desactivará automáticamente para preservar el histórico contable.`
+      )
+      if (!confirmed) return
+
+      try {
+        await deleteExpenseType(tenantId, row.id)
+        toast.show({
+          title: 'Categoría removida',
+          message: `El concepto "${row.name}" fue retirado del catálogo.`,
+          variant: 'success',
+        })
+        await loadData()
+      } catch (err) {
+        toast.show({
+          title: 'Error al eliminar',
+          message: readApiError(err, 'No se pudo retirar la categoría.'),
+          variant: 'error',
+        })
+      }
+    },
+    [tenantId, loadData, toast]
+  )
 
   const stats = useMemo(() => {
     const total = expenseTypes.length
@@ -123,7 +251,7 @@ export function ExpenseTypesListPage() {
       },
       {
         key: 'name',
-        header: 'Concepto / Gasto',
+        header: 'Categoría / Concepto',
         width: 250,
         sortable: true,
         renderCell: (_value, row: ExpenseRow) => (
@@ -139,8 +267,8 @@ export function ExpenseTypesListPage() {
       },
       {
         key: 'sriSustentoCode',
-        header: 'Sustento Tributario SRI (ATS)',
-        width: 280,
+        header: 'Sustento ATS (Tabla 5)',
+        width: 240,
         sortable: true,
         renderCell: (_value, row: ExpenseRow) => (
           <span style={{ fontSize: '0.8rem' }}>{formatSustento(row.sriSustentoCode)}</span>
@@ -160,12 +288,30 @@ export function ExpenseTypesListPage() {
       },
       {
         key: 'suggestedRetentionCode',
-        header: 'Ret. IR Sugerida',
-        width: 130,
+        header: 'Retención AIR (IR)',
+        width: 160,
         sortable: true,
         renderCell: (_value, row: ExpenseRow) => (
-          <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-            {row.suggestedRetentionCode ? `Código ${row.suggestedRetentionCode}` : '—'}
+          <div>
+            <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.825rem' }}>
+              {row.suggestedRetentionCode ? `AIR ${row.suggestedRetentionCode}` : '—'}
+            </div>
+            {row.retentionPercentage != null ? (
+              <div style={{ fontSize: '0.75rem', color: 'var(--shell-primary, #2563eb)', fontWeight: 500 }}>
+                {row.retentionPercentage.toFixed(2)}%
+              </div>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        key: 'validFrom',
+        header: 'Vigencia SRI',
+        width: 150,
+        sortable: true,
+        renderCell: (_value, row: ExpenseRow) => (
+          <span style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #6b7280)' }}>
+            {formatValidity(row.validFrom, row.validUntil)}
           </span>
         ),
       },
@@ -192,8 +338,32 @@ export function ExpenseTypesListPage() {
           </StatusBadge>
         ),
       },
+      {
+        key: 'id',
+        header: 'Acciones',
+        width: 100,
+        sortable: false,
+        renderCell: (_value: unknown, row: ExpenseRow) => {
+          if (!canManage) return null
+          return (
+            <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center' }}>
+              <GridIconButton
+                label="Editar categoría"
+                icon={Pencil}
+                onClick={() => openEdit(row)}
+              />
+              <GridIconButton
+                label={row.isSystem ? 'Desactivar concepto base' : 'Eliminar categoría'}
+                icon={Trash2}
+                danger={!row.isSystem}
+                onClick={() => void handleDelete(row)}
+              />
+            </div>
+          )
+        },
+      },
     ]
-  }, [])
+  }, [canManage, openEdit, handleDelete])
 
   const {
     paging,
@@ -202,15 +372,15 @@ export function ExpenseTypesListPage() {
     onPageSizeChange,
   } = useGluDataGridPaging(expenseTypes.length)
 
-  const messages = useMemo(() => createSpanishDataGridMessages('concepto', 'conceptos'), [])
+  const messages = useMemo(() => createSpanishDataGridMessages('categoría', 'categorías'), [])
 
   if (!canRead) {
     return (
-      <TenantSessionGate title="Tipos de Gasto" lead="Catálogo de sustentación tributaria ATS.">
+      <TenantSessionGate title="Categorías de Compra" lead="Catálogo de sustentación tributaria ATS.">
         <div className="ecu-dashboard-layout">
           <PageHeader
             title="Acceso Restringido"
-            subtitle="Requieres permisos de compras para ver el catálogo de gastos."
+            subtitle="Requieres permisos de compras para ver el catálogo de categorías."
             badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
           />
         </div>
@@ -220,62 +390,70 @@ export function ExpenseTypesListPage() {
 
   return (
     <TenantSessionGate
-      title="Tipos de Gasto SRI"
-      lead="Deducción tributaria, sustento ATS Tabla 5 y afectación de inventario para compras."
+      title="Categorías de Compra SRI"
+      lead="Deducción tributaria, sustento ATS Tabla 5, porcentaje de retención en la fuente (AIR) y afectación de inventario."
     >
       <div className="ecu-dashboard-layout">
         <PageHeader
-          title="Tipos de Gasto y Sustentos SRI"
-          subtitle="Catálogo oficial de compra y sustento tributario de comprobantes electrónicos de compra y retención en la fuente (07)."
+          title="Categorías de Compra y Sustentos SRI"
+          subtitle="Conceptos esenciales para clasificar compras de bienes y servicios, asignación de crédito tributario ATS, tarifas de retención en la fuente (AIR) y vigencia oficial."
           badge={
             <StatusBadge tone="primary" withDot>
               Módulo Compras
             </StatusBadge>
           }
           actions={
-            canManage && expenseTypes.length === 0 ? (
-              <Button variant="primary" onClick={() => void handleSeedDefaults()} disabled={seeding}>
-                <Sparkles size={16} />
-                {seeding ? 'Sembrando...' : 'Sembrar Estándar SRI'}
-              </Button>
+            canManage ? (
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <Button variant="primary" onClick={openCreate}>
+                  <Plus size={16} />
+                  Nueva Categoría
+                </Button>
+                {expenseTypes.length === 0 && (
+                  <Button variant="outline" onClick={() => void handleSeedDefaults()} disabled={seeding}>
+                    <Sparkles size={16} />
+                    {seeding ? 'Sembrando...' : 'Sembrar Estándar SRI'}
+                  </Button>
+                )}
+              </div>
             ) : undefined
           }
         />
 
-        <div className="ecu-stat-grid" aria-label="Resumen de tipos de gasto">
+        <div className="ecu-stat-grid" aria-label="Resumen de categorías de compra">
           <StatCard
             label="Total Conceptos"
             value={String(stats.total)}
             icon="category"
             toneColor="#4f46e5"
-            footerText="Tipos de compra configurados"
+            footerText="Categorías configuradas"
           />
           <StatCard
             label="Afectan Inventario"
             value={String(stats.inventariables)}
             icon="inventory_2"
             toneColor="#10b981"
-            footerText="Mercadería y materiales"
+            footerText="Mercadería y productos físicos"
           />
           <StatCard
-            label="Gastos Operativos"
+            label="Servicios y Gastos"
             value={String(stats.noInventariables)}
             icon="receipt_long"
             toneColor="#0ea5e9"
-            footerText="Publicidad, cloud, arriendos"
+            footerText="Honorarios, fletes, arriendos"
           />
           <StatCard
             label="Semillero SRI"
             value={String(stats.sistema)}
             icon="verified_user"
             toneColor="#8b5cf6"
-            footerText="Oficiales ATS v2.0"
+            footerText="Catálogo ATS agosto 2026"
           />
         </div>
 
         <SectionCard
-          title="Catálogo de Conceptos"
-          subtitle="Mapeo directo de compras a la Ficha Técnica y Tabla 5 del Anexo Transaccional Simplificado (ATS)"
+          title="Catálogo de Categorías y Conceptos"
+          subtitle="Mapeo directo de compras al Anexo Transaccional Simplificado (ATS), retención en la fuente (AIR) y vigencias normativas"
           action={
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               {canManage && (
@@ -304,14 +482,20 @@ export function ExpenseTypesListPage() {
           {!loading && expenseTypes.length === 0 ? (
             <EmptyState
               icon="category"
-              title="No hay tipos de gasto registrados"
-              description="Siembra el catálogo estándar del SRI con los 8 conceptos más utilizados en Ecuador (mercaderías, publicidad, servicios cloud, arriendos, honorarios)."
+              title="No hay categorías de compra registradas"
+              description="Siembra el catálogo estándar del SRI con los 9 conceptos esenciales (mercaderías, mano de obra, honorarios, arriendos, transporte, publicidad, RIMPE) o crea uno nuevo."
               action={
                 canManage ? (
-                  <Button variant="primary" onClick={() => void handleSeedDefaults()} disabled={seeding}>
-                    <Sparkles size={16} />
-                    {seeding ? 'Sembrando catálogo...' : 'Sembrar Catálogo Estándar SRI'}
-                  </Button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <Button variant="primary" onClick={() => void handleSeedDefaults()} disabled={seeding}>
+                      <Sparkles size={16} />
+                      {seeding ? 'Sembrando catálogo...' : 'Sembrar Catálogo Estándar SRI'}
+                    </Button>
+                    <Button variant="outline" onClick={openCreate}>
+                      <Plus size={16} />
+                      Nueva Categoría
+                    </Button>
+                  </div>
                 ) : undefined
               }
             />
@@ -334,6 +518,15 @@ export function ExpenseTypesListPage() {
             />
           )}
         </SectionCard>
+
+        {/* Modal de Crear / Editar Categoría */}
+        <ExpenseTypeModal
+          open={modalOpen}
+          expenseType={editingExpenseType}
+          saving={saving}
+          onClose={() => setModalOpen(false)}
+          onSave={handleSave}
+        />
       </div>
     </TenantSessionGate>
   )

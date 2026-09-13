@@ -66,6 +66,9 @@ export interface ExpenseTypeDto {
   affectsInventory: boolean
   isSystem: boolean
   suggestedRetentionCode: string | null
+  retentionPercentage: number | null
+  validFrom: string | null
+  validUntil: string | null
   isActive: boolean
   createdAt: string
   updatedAt: string | null
@@ -77,7 +80,23 @@ export interface CreateExpenseTypePayload {
   sriSustentoCode?: string
   affectsInventory?: boolean
   suggestedRetentionCode?: string | null
+  retentionPercentage?: number | null
+  validFrom?: string | null
+  validUntil?: string | null
   description?: string | null
+}
+
+export interface UpdateExpenseTypePayload {
+  name: string
+  sriSustentoCode?: string
+  affectsInventory?: boolean
+  suggestedRetentionCode?: string | null
+  retentionPercentage?: number | null
+  validFrom?: string | null
+  validUntil?: string | null
+  description?: string | null
+  code?: string
+  isActive?: boolean
 }
 
 export interface PurchaseProformaItemDto {

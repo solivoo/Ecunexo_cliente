@@ -170,7 +170,7 @@ internal static class MenuCatalogSeedData
         Item("compras-liquidaciones", "compras", "Liquidaciones", "file-text", "compras/liquidaciones", 3, MenuContextKind.Operational, "facturacion", ["facturacion.liquidacion.compra.read", "facturacion.read"]),
         Item("compras-proveedores", "compras", "Proveedores", "truck", "compras/proveedores", 4, MenuContextKind.Operational, "purchases", ["purchases.suppliers.read"]),
         Item("compras-proformas", "compras", "Proformas", "clipboard-list", "compras/proformas", 5, MenuContextKind.Operational, "purchases", ["purchases.proformas.read"]),
-        Item("compras-gastos", "compras", "Tipos de Gasto", "tags", "compras/gastos", 6, MenuContextKind.Operational, "purchases", ["purchases.expenses.read"]),
+        Item("compras-gastos", "compras", "Categorías de Compra", "tags", "compras/gastos", 6, MenuContextKind.Operational, "purchases", ["purchases.expenses.read"]),
 
         // —— Contabilidad (tenant admin SPA) ——
         Item("contabilidad", null, "Contabilidad", "calculator", null, 70, MenuContextKind.Operational, "contabilidad", ["contabilidad.read"]),

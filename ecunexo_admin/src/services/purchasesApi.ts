@@ -14,6 +14,7 @@ import type {
   ReceivePurchasePayload,
   SupplierDto,
   SupplierFilterParams,
+  UpdateExpenseTypePayload,
   UpdateSupplierPayload,
 } from '@/types/purchasesApi'
 
@@ -106,6 +107,28 @@ export async function createExpenseType(
   const { data } = await api.post<ExpenseTypeDto>(
     `/api/v1/tenants/${tenantId}/purchases/expense-types`,
     payload
+  )
+  return data
+}
+
+export async function updateExpenseType(
+  tenantId: string,
+  expenseTypeId: string,
+  payload: UpdateExpenseTypePayload
+): Promise<ExpenseTypeDto> {
+  const { data } = await api.put<ExpenseTypeDto>(
+    `/api/v1/tenants/${tenantId}/purchases/expense-types/${expenseTypeId}`,
+    payload
+  )
+  return data
+}
+
+export async function deleteExpenseType(
+  tenantId: string,
+  expenseTypeId: string
+): Promise<boolean> {
+  const { data } = await api.delete<boolean>(
+    `/api/v1/tenants/${tenantId}/purchases/expense-types/${expenseTypeId}`
   )
   return data
 }

@@ -103,8 +103,8 @@ public sealed class SupplierTests
         result.Value!.IdentificationType.Should().Be(SupplierIdentificationType.Pasaporte);
     }
 
-    [Fact(DisplayName = "Supplier.Create sin correo de contacto falla con error requerido")]
-    public void Supplier_Create_WithoutEmail_Fails()
+    [Fact(DisplayName = "Supplier.Create sin correo de contacto es exitoso y asigna null")]
+    public void Supplier_Create_WithoutEmail_SucceedsWithNullEmail()
     {
         var result = Supplier.Create(
             id: Guid.NewGuid(),
@@ -114,8 +114,8 @@ public sealed class SupplierTests
             identificationType: SupplierIdentificationType.Ruc,
             contactEmail: null);
 
-        result.IsFailure.Should().BeTrue();
-        result.Error!.Code.Should().Be("supplier.contact_email.empty");
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.ContactEmail.Should().BeNull();
     }
 
     [Fact(DisplayName = "Supplier.Create con formato de correo inválido falla")]
@@ -131,6 +131,27 @@ public sealed class SupplierTests
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("supplier.contact_email.invalid");
+    }
+
+    [Fact(DisplayName = "Supplier.Update sin correo de contacto actualiza y limpia el correo")]
+    public void Supplier_Update_WithoutEmail_ClearsEmail()
+    {
+        var supplier = Supplier.Create(
+            id: Guid.NewGuid(),
+            tenantId: TenantId,
+            businessName: "Proveedor Original",
+            taxId: "0992345675001",
+            contactEmail: "antiguo@correo.ec").Value!;
+
+        var updateResult = supplier.Update(
+            businessName: "Proveedor Modificado",
+            taxId: "0992345675001",
+            identificationType: SupplierIdentificationType.Ruc,
+            taxRegime: SupplierTaxRegime.General,
+            contactEmail: null);
+
+        updateResult.IsSuccess.Should().BeTrue();
+        supplier.ContactEmail.Should().BeNull();
     }
 
     [Fact(DisplayName = "Supplier.Update actualiza campos y audita fecha")]

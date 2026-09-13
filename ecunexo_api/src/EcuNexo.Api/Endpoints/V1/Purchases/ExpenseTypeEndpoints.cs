@@ -6,7 +6,9 @@ using EcuNexo.Api.Security;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Purchases.Expenses;
 using EcuNexo.Business.Purchases.Expenses.Commands.CreateExpenseType;
+using EcuNexo.Business.Purchases.Expenses.Commands.DeleteExpenseType;
 using EcuNexo.Business.Purchases.Expenses.Commands.SeedDefaultExpenseTypes;
+using EcuNexo.Business.Purchases.Expenses.Commands.UpdateExpenseType;
 using EcuNexo.Business.Purchases.Expenses.Queries.ListExpenseTypes;
 using Microsoft.AspNetCore.Mvc;
 
@@ -34,6 +36,16 @@ public static class ExpenseTypeEndpoints
                 "facturacion.read"));
 
         group.MapPost("/", CreateAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "purchases.expenses.manage",
+                "facturacion.read"));
+
+        group.MapPut("/{id:guid}", UpdateAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "purchases.expenses.manage",
+                "facturacion.read"));
+
+        group.MapDelete("/{id:guid}", DeleteAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.expenses.manage",
                 "facturacion.read"));
@@ -74,6 +86,9 @@ public static class ExpenseTypeEndpoints
             request.SriSustentoCode,
             request.AffectsInventory,
             request.SuggestedRetentionCode,
+            request.RetentionPercentage,
+            request.ValidFrom,
+            request.ValidUntil,
             request.Description);
 
         var result = await sender
@@ -86,6 +101,49 @@ public static class ExpenseTypeEndpoints
         }
 
         return Results.Created($"/api/v1/tenants/{tenantId}/purchases/expense-types/{result.Value!.Id}", result.Value);
+    }
+
+    private static async Task<IResult> UpdateAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromBody] UpdateExpenseTypeApiRequest request,
+        [FromServices] ISender sender,
+        CancellationToken ct)
+    {
+        var command = new UpdateExpenseTypeCommand(
+            tenantId,
+            id,
+            request.Name,
+            request.SriSustentoCode,
+            request.AffectsInventory,
+            request.SuggestedRetentionCode,
+            request.RetentionPercentage,
+            request.ValidFrom,
+            request.ValidUntil,
+            request.Description,
+            request.Code,
+            request.IsActive);
+
+        var result = await sender
+            .SendAsync<UpdateExpenseTypeCommand, ExpenseTypeResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> DeleteAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromServices] ISender sender,
+        CancellationToken ct)
+    {
+        var command = new DeleteExpenseTypeCommand(tenantId, id);
+
+        var result = await sender
+            .SendAsync<DeleteExpenseTypeCommand, bool>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
     }
 
     private static async Task<IResult> SeedDefaultsAsync(

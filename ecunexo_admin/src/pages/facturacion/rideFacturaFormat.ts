@@ -61,9 +61,19 @@ export function formatAuthDateTime(iso: string | null | undefined): string {
   return `${get('day')}/${get('month')}/${get('year')} ${get('hour')}:${get('minute')}:${get('second')}`
 }
 
-export function ambienteFromAccessKey(accessKey: string | null): string {
+export function isTestAccessKey(accessKey: string | null | undefined): boolean {
+  if (!accessKey || accessKey.length < 24) return false
+  return accessKey[23] === '1'
+}
+
+export function isProductionAccessKey(accessKey: string | null | undefined): boolean {
+  if (!accessKey || accessKey.length < 24) return false
+  return accessKey[23] === '2'
+}
+
+export function ambienteFromAccessKey(accessKey: string | null | undefined): string {
   if (!accessKey || accessKey.length < 24) return 'PRUEBAS'
-  return accessKey[23] === '2' ? 'PRODUCCION' : 'PRUEBAS'
+  return accessKey[23] === '2' ? 'PRODUCCIÓN' : 'PRUEBAS (SIN VALIDEZ TRIBUTARIA)'
 }
 
 export function yesNo(value: boolean): string {

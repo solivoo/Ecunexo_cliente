@@ -12,6 +12,7 @@ public sealed class UpdateTenantSriLegalValidator : AbstractValidator<UpdateTena
             .When(c => !string.IsNullOrWhiteSpace(c.TaxId))
             .WithMessage("El RUC debe tener exactamente 13 dígitos.");
         RuleFor(c => c.LegalName).MaximumLength(300);
+        RuleFor(c => c.TradeName).MaximumLength(200);
         RuleFor(c => c.City).MaximumLength(120);
         RuleFor(c => c.EstablishmentCode).MaximumLength(20);
         RuleFor(c => c.Address).MaximumLength(500);

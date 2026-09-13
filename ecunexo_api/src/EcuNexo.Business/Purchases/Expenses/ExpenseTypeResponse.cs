@@ -12,6 +12,9 @@ public sealed record ExpenseTypeResponse(
     bool AffectsInventory,
     bool IsSystem,
     string? SuggestedRetentionCode,
+    decimal? RetentionPercentage,
+    DateOnly? ValidFrom,
+    DateOnly? ValidUntil,
     bool IsActive,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt)
@@ -26,6 +29,9 @@ public sealed record ExpenseTypeResponse(
         e.AffectsInventory,
         e.IsSystem,
         e.SuggestedRetentionCode,
+        e.RetentionPercentage,
+        e.ValidFrom,
+        e.ValidUntil,
         e.IsActive,
         e.CreatedAt,
         e.UpdatedAt);

@@ -47,6 +47,13 @@ public sealed class ExpenseTypeConfiguration : IEntityTypeConfiguration<ExpenseT
         builder.Property(e => e.SuggestedRetentionCode)
             .HasMaxLength(20);
 
+        builder.Property(e => e.RetentionPercentage)
+            .HasPrecision(5, 2);
+
+        builder.Property(e => e.ValidFrom);
+
+        builder.Property(e => e.ValidUntil);
+
         builder.Property(e => e.IsActive)
             .IsRequired()
             .HasDefaultValue(true);

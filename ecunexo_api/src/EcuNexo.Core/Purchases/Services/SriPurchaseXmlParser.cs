@@ -62,6 +62,12 @@ public static class SriPurchaseXmlParser
                 cleanXml = cleanXml[1..];
             }
 
+            // Si el XML vino completamente escapado en HTML (ej. &lt;?xml o &lt;ns2:RespuestaAutorizacion)
+            if (cleanXml.StartsWith("&lt;", StringComparison.OrdinalIgnoreCase))
+            {
+                cleanXml = System.Net.WebUtility.HtmlDecode(cleanXml);
+            }
+
             var doc = XDocument.Parse(cleanXml);
             var root = doc.Root;
             if (root is null)
@@ -69,80 +75,112 @@ public static class SriPurchaseXmlParser
                 return Result.Failure<ParsedSriInvoice>(new Error("sri_xml.root_null", "El documento XML no tiene nodo raíz.", ErrorType.Validation));
             }
 
-            string? authorizationNumber = null;
-            XElement? facturaElement;
+            // 1. Extraer número de autorización si viene en el contenedor externo
+            var authElem = root.DescendantsAndSelf()
+                .FirstOrDefault(e => e.Name.LocalName.Equals("numeroAutorizacion", StringComparison.OrdinalIgnoreCase));
+            var authorizationNumber = authElem?.Value?.Trim();
 
-            // Manejo de comprobante envuelto en <autorizacion> del WebService SRI
-            if (root.Name.LocalName.Equals("autorizacion", StringComparison.OrdinalIgnoreCase))
+            // 2. Extraer el elemento <factura>, ya sea que esté directamente en la raíz,
+            // en un descendiente, o envuelto en un nodo <comprobante> (como CDATA o XML escapado).
+            XElement? facturaElement = null;
+
+            // ¿Existe un nodo <comprobante> en la raíz o en sus descendientes?
+            var comprobanteElement = root.DescendantsAndSelf()
+                .FirstOrDefault(e => e.Name.LocalName.Equals("comprobante", StringComparison.OrdinalIgnoreCase) && e.Parent != null);
+
+            if (comprobanteElement is not null)
             {
-                authorizationNumber = root.Element("numeroAutorizacion")?.Value?.Trim();
-                var comprobanteElement = root.Element("comprobante");
-                if (comprobanteElement is null)
+                var innerXml = comprobanteElement.Value?.Trim();
+                if (!string.IsNullOrWhiteSpace(innerXml) && innerXml.Contains('<') && innerXml.Contains('>'))
                 {
-                    return Result.Failure<ParsedSriInvoice>(new Error("sri_xml.comprobante_missing", "No se encontró el elemento <comprobante> dentro de la autorización SRI.", ErrorType.Validation));
-                }
-
-                // El nodo comprobante puede contener un CDATA con XML embebido o elementos XML directos
-                var innerXml = comprobanteElement.Value;
-                if (innerXml.Contains('<') && innerXml.Contains('>'))
-                {
-                    var innerDoc = XDocument.Parse(innerXml);
-                    facturaElement = innerDoc.Root;
+                    try
+                    {
+                        var innerDoc = XDocument.Parse(innerXml);
+                        facturaElement = innerDoc.Root?.Name.LocalName.Equals("factura", StringComparison.OrdinalIgnoreCase) == true
+                            ? innerDoc.Root
+                            : innerDoc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("factura", StringComparison.OrdinalIgnoreCase));
+                    }
+                    catch
+                    {
+                        // Si falló el parseo de innerXml, intentamos buscar hijos directos de comprobanteElement
+                        facturaElement = comprobanteElement.Elements()
+                            .FirstOrDefault(e => e.Name.LocalName.Equals("factura", StringComparison.OrdinalIgnoreCase));
+                    }
                 }
                 else
                 {
-                    facturaElement = comprobanteElement.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("factura", StringComparison.OrdinalIgnoreCase));
+                    facturaElement = comprobanteElement.Elements()
+                        .FirstOrDefault(e => e.Name.LocalName.Equals("factura", StringComparison.OrdinalIgnoreCase));
                 }
             }
-            else if (root.Name.LocalName.Equals("factura", StringComparison.OrdinalIgnoreCase))
-            {
-                facturaElement = root;
-            }
-            else
-            {
-                // Buscar <factura> en cualquier descendiente
-                facturaElement = root.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("factura", StringComparison.OrdinalIgnoreCase));
-            }
+
+            // Si no vino en <comprobante>, buscar <factura> en la raíz o en cualquier descendiente
+            facturaElement ??= root.DescendantsAndSelf()
+                .FirstOrDefault(e => e.Name.LocalName.Equals("factura", StringComparison.OrdinalIgnoreCase));
 
             if (facturaElement is null)
             {
+                var otherDoc = root.DescendantsAndSelf()
+                    .FirstOrDefault(e => e.Name.LocalName.Equals("notaCredito", StringComparison.OrdinalIgnoreCase)
+                                      || e.Name.LocalName.Equals("comprobanteRetencion", StringComparison.OrdinalIgnoreCase)
+                                      || e.Name.LocalName.Equals("liquidacionCompra", StringComparison.OrdinalIgnoreCase)
+                                      || e.Name.LocalName.Equals("guiaRemision", StringComparison.OrdinalIgnoreCase));
+                if (otherDoc is not null)
+                {
+                    var docFriendlyName = otherDoc.Name.LocalName switch
+                    {
+                        "notaCredito" => "Nota de Crédito (Tipo 04)",
+                        "comprobanteRetencion" => "Comprobante de Retención (Tipo 07)",
+                        "liquidacionCompra" => "Liquidación de Compra (Tipo 03)",
+                        "guiaRemision" => "Guía de Remisión (Tipo 06)",
+                        _ => otherDoc.Name.LocalName
+                    };
+                    return Result.Failure<ParsedSriInvoice>(new Error("sri_xml.not_factura", $"El archivo XML cargado corresponde a un(a) {docFriendlyName}. En este formulario se deben registrar Facturas de Venta / Compra (Tipo 01).", ErrorType.Validation));
+                }
+
                 return Result.Failure<ParsedSriInvoice>(new Error("sri_xml.not_factura", "El archivo XML no corresponde a una Factura Electrónica del SRI (<factura>).", ErrorType.Validation));
             }
 
             // 1. infoTributaria
-            var infoTrib = facturaElement.Element("infoTributaria");
+            var infoTrib = Elem(facturaElement, "infoTributaria");
             if (infoTrib is null)
             {
                 return Result.Failure<ParsedSriInvoice>(new Error("sri_xml.info_tributaria_missing", "Falta el bloque <infoTributaria> en la factura.", ErrorType.Validation));
             }
 
-            var supplierRuc = infoTrib.Element("ruc")?.Value?.Trim() ?? string.Empty;
-            var supplierRazonSocial = infoTrib.Element("razonSocial")?.Value?.Trim() ?? string.Empty;
-            var supplierNombreComercial = infoTrib.Element("nombreComercial")?.Value?.Trim();
-            var supplierDirMatriz = infoTrib.Element("dirMatriz")?.Value?.Trim();
-            var claveAcceso = infoTrib.Element("claveAcceso")?.Value?.Trim() ?? string.Empty;
-            var codDoc = infoTrib.Element("codDoc")?.Value?.Trim() ?? "01";
-            var estab = infoTrib.Element("estab")?.Value?.Trim() ?? "001";
-            var ptoEmi = infoTrib.Element("ptoEmi")?.Value?.Trim() ?? "001";
-            var secuencial = infoTrib.Element("secuencial")?.Value?.Trim() ?? "000000001";
+            var supplierRuc = Elem(infoTrib, "ruc")?.Value?.Trim() ?? string.Empty;
+            var supplierRazonSocial = Elem(infoTrib, "razonSocial")?.Value?.Trim() ?? string.Empty;
+            var supplierNombreComercial = Elem(infoTrib, "nombreComercial")?.Value?.Trim();
+            var supplierDirMatriz = Elem(infoTrib, "dirMatriz")?.Value?.Trim();
+            var claveAcceso = Elem(infoTrib, "claveAcceso")?.Value?.Trim() ?? string.Empty;
+            var codDoc = Elem(infoTrib, "codDoc")?.Value?.Trim() ?? "01";
+            var estab = Elem(infoTrib, "estab")?.Value?.Trim() ?? "001";
+            var ptoEmi = Elem(infoTrib, "ptoEmi")?.Value?.Trim() ?? "001";
+            var secuencial = Elem(infoTrib, "secuencial")?.Value?.Trim() ?? "000000001";
 
-            var invoiceNumber = $"{estab}-{ptoEmi}-{secuencial.PadLeft(9, '0')}";
+            var invoiceNumber = $"{estab.PadLeft(3, '0')}-{ptoEmi.PadLeft(3, '0')}-{secuencial.PadLeft(9, '0')}";
             var authNumberFinal = !string.IsNullOrWhiteSpace(authorizationNumber) ? authorizationNumber : claveAcceso;
 
             // 2. infoFactura
-            var infoFactura = facturaElement.Element("infoFactura");
+            var infoFactura = Elem(facturaElement, "infoFactura");
             if (infoFactura is null)
             {
                 return Result.Failure<ParsedSriInvoice>(new Error("sri_xml.info_factura_missing", "Falta el bloque <infoFactura> en la factura.", ErrorType.Validation));
             }
 
-            var fechaEmisionStr = infoFactura.Element("fechaEmision")?.Value?.Trim();
+            // Si dirMatriz no vino en infoTributaria, usar dirEstablecimiento de infoFactura como respaldo
+            if (string.IsNullOrWhiteSpace(supplierDirMatriz))
+            {
+                supplierDirMatriz = Elem(infoFactura, "dirEstablecimiento")?.Value?.Trim();
+            }
+
+            var fechaEmisionStr = Elem(infoFactura, "fechaEmision")?.Value?.Trim();
             var issueDate = ParseSriDate(fechaEmisionStr);
 
-            var buyerRuc = infoFactura.Element("identificacionComprador")?.Value?.Trim() ?? string.Empty;
-            var buyerRazonSocial = infoFactura.Element("razonSocialComprador")?.Value?.Trim() ?? string.Empty;
-            var totalDescuento = ParseDecimal(infoFactura.Element("totalDescuento")?.Value);
-            var importeTotal = ParseDecimal(infoFactura.Element("importeTotal")?.Value);
+            var buyerRuc = Elem(infoFactura, "identificacionComprador")?.Value?.Trim() ?? string.Empty;
+            var buyerRazonSocial = Elem(infoFactura, "razonSocialComprador")?.Value?.Trim() ?? string.Empty;
+            var totalDescuento = ParseDecimal(Elem(infoFactura, "totalDescuento")?.Value);
+            var importeTotal = ParseDecimal(Elem(infoFactura, "importeTotal")?.Value);
 
             // Desglose de impuestos en totalConImpuestos
             decimal subtotalZero = 0;
@@ -152,17 +190,17 @@ public static class SriPurchaseXmlParser
             decimal totalTaxAmount = 0;
             decimal predominantTaxRate = 15m;
 
-            var totalConImpuestos = infoFactura.Element("totalConImpuestos");
+            var totalConImpuestos = Elem(infoFactura, "totalConImpuestos");
             if (totalConImpuestos is not null)
             {
-                foreach (var totalImp in totalConImpuestos.Elements("totalImpuesto"))
+                foreach (var totalImp in Elems(totalConImpuestos, "totalImpuesto"))
                 {
-                    var codigo = totalImp.Element("codigo")?.Value?.Trim();
+                    var codigo = Elem(totalImp, "codigo")?.Value?.Trim();
                     if (codigo == "2") // IVA
                     {
-                        var codPorcentaje = totalImp.Element("codigoPorcentaje")?.Value?.Trim();
-                        var baseImp = ParseDecimal(totalImp.Element("baseImponible")?.Value);
-                        var valor = ParseDecimal(totalImp.Element("valor")?.Value);
+                        var codPorcentaje = Elem(totalImp, "codigoPorcentaje")?.Value?.Trim();
+                        var baseImp = ParseDecimal(Elem(totalImp, "baseImponible")?.Value);
+                        var valor = ParseDecimal(Elem(totalImp, "valor")?.Value);
 
                         switch (codPorcentaje)
                         {
@@ -201,8 +239,11 @@ public static class SriPurchaseXmlParser
                                 predominantTaxRate = 13m;
                                 break;
                             default:
-                                subtotalTaxed += baseImp;
-                                totalTaxAmount += valor;
+                                if (baseImp > 0)
+                                {
+                                    subtotalTaxed += baseImp;
+                                    totalTaxAmount += valor;
+                                }
                                 break;
                         }
                     }
@@ -212,14 +253,14 @@ public static class SriPurchaseXmlParser
             // Pagos y crédito
             string? paymentMethodCode = null;
             int creditDays = 0;
-            var pagos = infoFactura.Element("pagos");
+            var pagos = Elem(infoFactura, "pagos");
             if (pagos is not null)
             {
-                var primerPago = pagos.Elements("pago").FirstOrDefault();
+                var primerPago = Elems(pagos, "pago").FirstOrDefault();
                 if (primerPago is not null)
                 {
-                    paymentMethodCode = primerPago.Element("formaPago")?.Value?.Trim();
-                    var plazoStr = primerPago.Element("plazo")?.Value?.Trim();
+                    paymentMethodCode = Elem(primerPago, "formaPago")?.Value?.Trim();
+                    var plazoStr = Elem(primerPago, "plazo")?.Value?.Trim();
                     if (int.TryParse(plazoStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var plazoVal))
                     {
                         creditDays = Math.Max(0, plazoVal);
@@ -229,37 +270,38 @@ public static class SriPurchaseXmlParser
 
             // 3. Detalles / Líneas de compra
             var lines = new List<ParsedSriInvoiceLine>();
-            var detalles = facturaElement.Element("detalles");
+            var detalles = Elem(facturaElement, "detalles");
             if (detalles is not null)
             {
-                foreach (var det in detalles.Elements("detalle"))
+                foreach (var det in Elems(detalles, "detalle"))
                 {
-                    var codigoPrincipal = det.Element("codigoPrincipal")?.Value?.Trim()
-                        ?? det.Element("codigoInterno")?.Value?.Trim()
+                    var codigoPrincipal = Elem(det, "codigoPrincipal")?.Value?.Trim()
+                        ?? Elem(det, "codigoInterno")?.Value?.Trim()
+                        ?? Elem(det, "codigoAuxiliar")?.Value?.Trim()
                         ?? string.Empty;
-                    var descripcion = det.Element("descripcion")?.Value?.Trim() ?? "Ítem sin descripción";
-                    var cantidad = ParseDecimal(det.Element("cantidad")?.Value, 1m);
-                    var precioUnitario = ParseDecimal(det.Element("precioUnitario")?.Value, 0m);
-                    var descuento = ParseDecimal(det.Element("descuento")?.Value, 0m);
-                    var precioTotalSinImpuesto = ParseDecimal(det.Element("precioTotalSinImpuesto")?.Value, cantidad * precioUnitario - descuento);
+                    var descripcion = Elem(det, "descripcion")?.Value?.Trim() ?? "Ítem sin descripción";
+                    var cantidad = ParseDecimal(Elem(det, "cantidad")?.Value, 1m);
+                    var precioUnitario = ParseDecimal(Elem(det, "precioUnitario")?.Value, 0m);
+                    var descuento = ParseDecimal(Elem(det, "descuento")?.Value, 0m);
+                    var precioTotalSinImpuesto = ParseDecimal(Elem(det, "precioTotalSinImpuesto")?.Value, cantidad * precioUnitario - descuento);
 
                     decimal lineTaxRate = 0;
                     decimal lineTaxAmount = 0;
 
-                    var impuestos = det.Element("impuestos");
+                    var impuestos = Elem(det, "impuestos");
                     if (impuestos is not null)
                     {
-                        var primerImpuesto = impuestos.Elements("impuesto").FirstOrDefault(i => i.Element("codigo")?.Value?.Trim() == "2");
+                        var primerImpuesto = Elems(impuestos, "impuesto").FirstOrDefault(i => Elem(i, "codigo")?.Value?.Trim() == "2");
                         if (primerImpuesto is not null)
                         {
-                            var tarifaStr = primerImpuesto.Element("tarifa")?.Value?.Trim();
+                            var tarifaStr = Elem(primerImpuesto, "tarifa")?.Value?.Trim();
                             if (!string.IsNullOrWhiteSpace(tarifaStr) && decimal.TryParse(tarifaStr, NumberStyles.Number, CultureInfo.InvariantCulture, out var t))
                             {
                                 lineTaxRate = t;
                             }
                             else
                             {
-                                var cp = primerImpuesto.Element("codigoPorcentaje")?.Value?.Trim();
+                                var cp = Elem(primerImpuesto, "codigoPorcentaje")?.Value?.Trim();
                                 lineTaxRate = cp switch
                                 {
                                     "0" => 0m,
@@ -271,7 +313,7 @@ public static class SriPurchaseXmlParser
                                     _ => 0m
                                 };
                             }
-                            lineTaxAmount = ParseDecimal(primerImpuesto.Element("valor")?.Value, Math.Round(precioTotalSinImpuesto * (lineTaxRate / 100m), 2));
+                            lineTaxAmount = ParseDecimal(Elem(primerImpuesto, "valor")?.Value, Math.Round(precioTotalSinImpuesto * (lineTaxRate / 100m), 2));
                         }
                     }
 
@@ -354,8 +396,21 @@ public static class SriPurchaseXmlParser
             return defaultValue;
         }
 
-        return decimal.TryParse(val.Trim(), NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var result)
+        var clean = val.Trim();
+        if (clean.Contains(',') && !clean.Contains('.'))
+        {
+            clean = clean.Replace(',', '.');
+        }
+
+        return decimal.TryParse(clean, NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var result)
             ? result
             : defaultValue;
     }
+
+    private static XElement? Elem(XElement? parent, string localName) =>
+        parent?.Elements().FirstOrDefault(e => e.Name.LocalName.Equals(localName, StringComparison.OrdinalIgnoreCase));
+
+    private static IEnumerable<XElement> Elems(XElement? parent, string localName) =>
+        parent?.Elements().Where(e => e.Name.LocalName.Equals(localName, StringComparison.OrdinalIgnoreCase)) ?? [];
 }
+

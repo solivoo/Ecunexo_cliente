@@ -44,6 +44,15 @@ public sealed class ExpenseType : Entity<Guid>, ITenantEntity, IAuditable
     /// <summary>Código sugerido de retención en la fuente de Impuesto a la Renta (ej. 312, 343, 303, 320).</summary>
     public string? SuggestedRetentionCode { get; private set; }
 
+    /// <summary>Porcentaje oficial de retención en la fuente de Impuesto a la Renta (ej. 2.00, 3.00, 10.00, 1.00).</summary>
+    public decimal? RetentionPercentage { get; private set; }
+
+    /// <summary>Fecha de inicio de vigencia de la tarifa según resolución SRI (ej. 2026-08-06).</summary>
+    public DateOnly? ValidFrom { get; private set; }
+
+    /// <summary>Fecha de fin de vigencia de la tarifa si fue derogada o modificada.</summary>
+    public DateOnly? ValidUntil { get; private set; }
+
     public bool IsActive { get; private set; } = true;
 
     public DateTimeOffset CreatedAt { get; private set; }
@@ -60,6 +69,9 @@ public sealed class ExpenseType : Entity<Guid>, ITenantEntity, IAuditable
         bool affectsInventory = false,
         bool isSystem = false,
         string? suggestedRetentionCode = null,
+        decimal? retentionPercentage = null,
+        DateOnly? validFrom = null,
+        DateOnly? validUntil = null,
         string? description = null,
         Guid? createdBy = null)
     {
@@ -101,6 +113,16 @@ public sealed class ExpenseType : Entity<Guid>, ITenantEntity, IAuditable
             return Result.Failure<ExpenseType>(new Error("expense_type.sri_sustento.invalid", $"El código de sustento SRI no puede superar {SriSustentoCodeMaxLength} caracteres.", ErrorType.Validation));
         }
 
+        if (retentionPercentage.HasValue && (retentionPercentage.Value < 0 || retentionPercentage.Value > 100))
+        {
+            return Result.Failure<ExpenseType>(new Error("expense_type.retention_percentage.invalid", "El porcentaje de retención debe estar entre 0% y 100%.", ErrorType.Validation));
+        }
+
+        if (validFrom.HasValue && validUntil.HasValue && validFrom.Value > validUntil.Value)
+        {
+            return Result.Failure<ExpenseType>(new Error("expense_type.validity.invalid", "La fecha de inicio de vigencia no puede ser posterior a la fecha de fin.", ErrorType.Validation));
+        }
+
         return new ExpenseType
         {
             Id = id,
@@ -112,6 +134,9 @@ public sealed class ExpenseType : Entity<Guid>, ITenantEntity, IAuditable
             AffectsInventory = affectsInventory,
             IsSystem = isSystem,
             SuggestedRetentionCode = string.IsNullOrWhiteSpace(suggestedRetentionCode) ? null : suggestedRetentionCode.Trim(),
+            RetentionPercentage = retentionPercentage,
+            ValidFrom = validFrom,
+            ValidUntil = validUntil,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = createdBy
@@ -123,7 +148,12 @@ public sealed class ExpenseType : Entity<Guid>, ITenantEntity, IAuditable
         string sriSustentoCode,
         bool affectsInventory,
         string? suggestedRetentionCode = null,
+        decimal? retentionPercentage = null,
+        DateOnly? validFrom = null,
+        DateOnly? validUntil = null,
         string? description = null,
+        string? code = null,
+        bool? isActive = null,
         Guid? updatedBy = null)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -143,11 +173,38 @@ public sealed class ExpenseType : Entity<Guid>, ITenantEntity, IAuditable
             return Result.Failure(new Error("expense_type.sri_sustento.invalid", $"El código de sustento SRI no puede superar {SriSustentoCodeMaxLength} caracteres.", ErrorType.Validation));
         }
 
+        if (retentionPercentage.HasValue && (retentionPercentage.Value < 0 || retentionPercentage.Value > 100))
+        {
+            return Result.Failure(new Error("expense_type.retention_percentage.invalid", "El porcentaje de retención debe estar entre 0% y 100%.", ErrorType.Validation));
+        }
+
+        if (validFrom.HasValue && validUntil.HasValue && validFrom.Value > validUntil.Value)
+        {
+            return Result.Failure(new Error("expense_type.validity.invalid", "La fecha de inicio de vigencia no puede ser posterior a la fecha de fin.", ErrorType.Validation));
+        }
+
+        if (!IsSystem && !string.IsNullOrWhiteSpace(code))
+        {
+            var trimmedCode = code.Trim().ToUpperInvariant();
+            if (trimmedCode.Length > CodeMaxLength)
+            {
+                return Result.Failure(new Error("expense_type.code.toolong", $"El código no puede superar los {CodeMaxLength} caracteres.", ErrorType.Validation));
+            }
+            Code = trimmedCode;
+        }
+
         Name = trimmedName;
         SriSustentoCode = trimmedSustento;
         AffectsInventory = affectsInventory;
         SuggestedRetentionCode = string.IsNullOrWhiteSpace(suggestedRetentionCode) ? null : suggestedRetentionCode.Trim();
+        RetentionPercentage = retentionPercentage;
+        ValidFrom = validFrom;
+        ValidUntil = validUntil;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        if (isActive.HasValue)
+        {
+            IsActive = isActive.Value;
+        }
         UpdatedAt = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
 
@@ -172,6 +229,16 @@ public sealed class ExpenseType : Entity<Guid>, ITenantEntity, IAuditable
         IsActive = false;
         UpdatedAt = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
+        return Result.Success();
+    }
+
+    public Result Delete()
+    {
+        if (IsSystem)
+        {
+            return Result.Failure(new Error("expense_type.system.nodelete", "No se pueden eliminar conceptos base del sistema SRI. Puedes desactivarlos si tu empresa no los utiliza.", ErrorType.Validation));
+        }
+
         return Result.Success();
     }
 }

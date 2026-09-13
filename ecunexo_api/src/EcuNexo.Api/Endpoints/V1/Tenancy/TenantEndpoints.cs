@@ -38,7 +38,7 @@ public static class TenantEndpoints
 
         group.MapPut("/{tenantId:guid}/sri-legal", UpdateTenantSriLegalAsync)
             .RequireAuthorization()
-            .AddEndpointFilter(PermissionFilters.Require("tenancy.tenant.update"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("tenancy.tenant.update", "tenancy.tenants.update"));
 
         return app;
     }

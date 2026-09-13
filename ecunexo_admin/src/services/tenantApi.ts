@@ -50,3 +50,32 @@ export async function uploadSigningCertificate(
   )
   return data
 }
+
+export type UpdateTenantSriLegalBody = {
+  taxId?: string | null
+  legalName?: string | null
+  tradeName?: string | null
+  city?: string | null
+  establishmentCode?: string | null
+  address?: string | null
+  accountingRequired: boolean
+  isRimpe: boolean
+  rimpeKind?: string | null
+  preferElectronicInvoice: boolean
+  isExporter: boolean
+  isLargeTaxpayer: boolean
+  isSpecialTaxpayer: boolean
+  isWithholdingAgent: boolean
+}
+
+export async function updateTenantSriLegal(
+  tenantId: string,
+  body: UpdateTenantSriLegalBody
+): Promise<{ tenantId: string }> {
+  const { data } = await api.put<{ tenantId: string }>(
+    `/api/v1/tenants/${tenantId}/sri-legal`,
+    body
+  )
+  return data
+}
+

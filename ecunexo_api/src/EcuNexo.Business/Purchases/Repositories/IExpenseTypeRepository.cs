@@ -11,4 +11,5 @@ public interface IExpenseTypeRepository
     Task<IReadOnlyList<ExpenseType>> ListAsync(Guid tenantId, bool? activeOnly, CancellationToken ct);
     Task<bool> ExistsByCodeAsync(Guid tenantId, string code, Guid? excludeId, CancellationToken ct);
     Task<int> CountAsync(Guid tenantId, CancellationToken ct);
+    void Remove(ExpenseType expenseType);
 }

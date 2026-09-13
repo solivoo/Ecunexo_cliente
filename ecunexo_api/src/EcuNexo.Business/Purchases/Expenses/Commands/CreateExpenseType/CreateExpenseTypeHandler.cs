@@ -39,6 +39,9 @@ public sealed class CreateExpenseTypeHandler : ICommandHandler<CreateExpenseType
             command.AffectsInventory,
             isSystem: false,
             command.SuggestedRetentionCode,
+            command.RetentionPercentage,
+            command.ValidFrom,
+            command.ValidUntil,
             command.Description,
             command.CreatedBy);
 

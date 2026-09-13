@@ -106,4 +106,7 @@ public sealed class PurchaseRepository : IPurchaseRepository
 
         return query.AnyAsync(ct);
     }
+
+    public Task<bool> ExistsByExpenseTypeIdAsync(Guid tenantId, Guid expenseTypeId, CancellationToken ct) =>
+        _db.Purchases.AsNoTracking().AnyAsync(p => p.TenantId == tenantId && p.ExpenseTypeId == expenseTypeId, ct);
 }

@@ -50,6 +50,9 @@ export function RideFacturaDocument(props: RideFacturaDocumentProps) {
     !authorizationDateTime ||
     invoice.state === 'Draft' ||
     invoice.invoiceId === 'preview'
+  const isTest = Boolean(
+    invoice.accessKey && invoice.accessKey.length >= 24 && invoice.accessKey[23] === '1'
+  )
 
   return (
     <Document title={`RIDE-${docNumber}`} author={issuerName || invoice.emitter.businessName}>
@@ -65,12 +68,27 @@ export function RideFacturaDocument(props: RideFacturaDocumentProps) {
                 (Comprobante borrador preliminar — No autorizado ante el SRI)
               </Text>
             </View>
+          ) : isTest ? (
+            <View style={styles.testBanner}>
+              <Text style={styles.testBannerText}>
+                AMBIENTE DE PRUEBAS — DOCUMENTO SIN VALIDEZ TRIBUTARIA
+              </Text>
+              <Text style={styles.testBannerSubtext}>
+                (Emitido en servidores de certificación SRI celcer — No genera crédito tributario ni obligaciones fiscales)
+              </Text>
+            </View>
           ) : null}
           <View style={styles.body}>
             {isPreview ? (
               <View style={styles.watermarkWrap}>
                 <Text style={styles.watermarkText}>
                   PREVISUALIZACIÓN — SIN VALIDEZ TRIBUTARIA
+                </Text>
+              </View>
+            ) : isTest ? (
+              <View style={styles.watermarkWrap}>
+                <Text style={styles.testWatermarkText}>
+                  PRUEBAS — SIN VALIDEZ TRIBUTARIA
                 </Text>
               </View>
             ) : null}

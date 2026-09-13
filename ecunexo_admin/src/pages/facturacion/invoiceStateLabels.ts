@@ -50,3 +50,47 @@ export function sriTransmissionLabel(state: string | null | undefined): string {
 export function sriTransmissionTone(state: string | null | undefined): InvoiceStateTone {
   return invoiceStateTone(state)
 }
+
+export type SriEnvironmentTone = 'warning' | 'success' | 'neutral'
+
+export type SriEnvironmentDetails = {
+  readonly isTest: boolean
+  readonly isProduction: boolean
+  readonly label: string
+  readonly shortLabel: string
+  readonly tone: SriEnvironmentTone
+  readonly tooltip: string
+}
+
+export function sriEnvironmentInfo(accessKey: string | null | undefined): SriEnvironmentDetails {
+  if (!accessKey || accessKey.length < 24) {
+    return {
+      isTest: false,
+      isProduction: false,
+      label: 'Borrador',
+      shortLabel: 'Borrador',
+      tone: 'neutral',
+      tooltip: 'Comprobante en borrador preliminar sin clave de acceso SRI.',
+    }
+  }
+  const isProd = accessKey[23] === '2'
+  if (isProd) {
+    return {
+      isTest: false,
+      isProduction: true,
+      label: 'Producción',
+      shortLabel: 'PROD',
+      tone: 'success',
+      tooltip: 'Emitido en ambiente de producción SRI (cel.sri.gob.ec). Con plena validez tributaria.',
+    }
+  }
+  return {
+    isTest: true,
+    isProduction: false,
+    label: 'Pruebas (Sin validez)',
+    shortLabel: 'PRUEBAS',
+    tone: 'warning',
+    tooltip: 'Emitido en ambiente de pruebas (celcer.sri.gob.ec). NO tiene validez tributaria ni fiscal.',
+  }
+}
+

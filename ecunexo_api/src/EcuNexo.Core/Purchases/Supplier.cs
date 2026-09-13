@@ -173,15 +173,16 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
             return Result.Failure<Supplier>(new Error("supplier.credit_limit.invalid", "El límite de crédito no puede ser negativo.", ErrorType.Validation));
         }
 
-        if (string.IsNullOrWhiteSpace(contactEmail))
+        string? cleanEmail = null;
+        if (!string.IsNullOrWhiteSpace(contactEmail))
         {
-            return Result.Failure<Supplier>(new Error("supplier.contact_email.empty", "El correo electrónico del proveedor es obligatorio para notificar proformas y retenciones SRI.", ErrorType.Validation));
-        }
+            var trimmedEmail = contactEmail.Trim().ToLowerInvariant();
+            if (trimmedEmail.Length > EmailMaxLength || !IsValidEmail(trimmedEmail))
+            {
+                return Result.Failure<Supplier>(new Error("supplier.contact_email.invalid", "El correo electrónico del proveedor no tiene un formato válido.", ErrorType.Validation));
+            }
 
-        var trimmedEmail = contactEmail.Trim().ToLowerInvariant();
-        if (trimmedEmail.Length > EmailMaxLength || !IsValidEmail(trimmedEmail))
-        {
-            return Result.Failure<Supplier>(new Error("supplier.contact_email.invalid", "El correo electrónico del proveedor no tiene un formato válido.", ErrorType.Validation));
+            cleanEmail = trimmedEmail;
         }
 
         return new Supplier
@@ -195,7 +196,7 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
             TaxRegime = taxRegime,
             IsRetentionAgent = isRetentionAgent,
             ResolutionNumber = string.IsNullOrWhiteSpace(resolutionNumber) ? null : resolutionNumber.Trim(),
-            ContactEmail = trimmedEmail,
+            ContactEmail = cleanEmail,
             ContactPhone = string.IsNullOrWhiteSpace(contactPhone) ? null : contactPhone.Trim(),
             Address = string.IsNullOrWhiteSpace(address) ? null : address.Trim(),
             ContactPerson = string.IsNullOrWhiteSpace(contactPerson) ? null : contactPerson.Trim(),
@@ -258,15 +259,16 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
             return Result.Failure(new Error("supplier.credit_limit.invalid", "El límite de crédito no puede ser negativo.", ErrorType.Validation));
         }
 
-        if (string.IsNullOrWhiteSpace(contactEmail))
+        string? cleanEmail = null;
+        if (!string.IsNullOrWhiteSpace(contactEmail))
         {
-            return Result.Failure(new Error("supplier.contact_email.empty", "El correo electrónico del proveedor es obligatorio para notificar proformas y retenciones SRI.", ErrorType.Validation));
-        }
+            var trimmedEmail = contactEmail.Trim().ToLowerInvariant();
+            if (trimmedEmail.Length > EmailMaxLength || !IsValidEmail(trimmedEmail))
+            {
+                return Result.Failure(new Error("supplier.contact_email.invalid", "El correo electrónico del proveedor no tiene un formato válido.", ErrorType.Validation));
+            }
 
-        var trimmedEmail = contactEmail.Trim().ToLowerInvariant();
-        if (trimmedEmail.Length > EmailMaxLength || !IsValidEmail(trimmedEmail))
-        {
-            return Result.Failure(new Error("supplier.contact_email.invalid", "El correo electrónico del proveedor no tiene un formato válido.", ErrorType.Validation));
+            cleanEmail = trimmedEmail;
         }
 
         BusinessName = trimmedBusinessName;
@@ -276,7 +278,7 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         TaxRegime = taxRegime;
         IsRetentionAgent = isRetentionAgent;
         ResolutionNumber = string.IsNullOrWhiteSpace(resolutionNumber) ? null : resolutionNumber.Trim();
-        ContactEmail = string.IsNullOrWhiteSpace(contactEmail) ? null : contactEmail.Trim().ToLowerInvariant();
+        ContactEmail = cleanEmail;
         ContactPhone = string.IsNullOrWhiteSpace(contactPhone) ? null : contactPhone.Trim();
         Address = string.IsNullOrWhiteSpace(address) ? null : address.Trim();
         ContactPerson = string.IsNullOrWhiteSpace(contactPerson) ? null : contactPerson.Trim();

@@ -46,6 +46,17 @@ export function ComprobantesPage() {
   }, [rows, typeCode])
 
   const authorizedCount = visibleRows.filter((r) => r.state === 'Authorized' && !r.isVoided).length
+  const authorizedProdCount = visibleRows.filter(
+    (r) =>
+      r.state === 'Authorized' &&
+      !r.isVoided &&
+      r.accessKey &&
+      r.accessKey.length >= 24 &&
+      r.accessKey[23] === '2'
+  ).length
+  const testCount = visibleRows.filter(
+    (r) => r.accessKey && r.accessKey.length >= 24 && r.accessKey[23] === '1'
+  ).length
   const voidedCount = visibleRows.filter((r) => r.isVoided).length
 
   const actionItems = useMemo((): PageActionItem[] => {
@@ -159,7 +170,11 @@ export function ComprobantesPage() {
             value={authorizedCount}
             icon="verified"
             toneColor="#10b981"
-            footerText="Con validez fiscal"
+            footerText={
+              testCount > 0
+                ? `${authorizedProdCount} en prod. · ${testCount} en pruebas (sin validez)`
+                : 'Con validez fiscal'
+            }
           />
           <StatCard
             label="Anuladas"

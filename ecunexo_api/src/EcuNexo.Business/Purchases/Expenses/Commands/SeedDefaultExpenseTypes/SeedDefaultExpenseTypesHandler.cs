@@ -30,16 +30,18 @@ public sealed class SeedDefaultExpenseTypesHandler : ICommandHandler<SeedDefault
             return Result.Success(0);
         }
 
-        var defaults = new (string Code, string Name, string Sustento, bool AffectsInventory, string? IrRet, string? Description)[]
+        var vigencia2026 = new DateOnly(2026, 8, 6);
+        var defaults = new (string Code, string Name, string Sustento, bool AffectsInventory, string? IrRet, decimal? Pct, DateOnly? From, string? Description)[]
         {
-            ("MERC", "Mercadería e Insumos para la venta", "01", true, "312", "Bienes y productos destinados a reventa o inventario."),
-            ("EMPQ", "Materiales de Empaque y Embalaje", "01", true, "312", "Cajas, cintas, fundas de seguridad para preparación de pedidos."),
-            ("PUB", "Publicidad y Marketing Digital", "02", false, "344", "Pauta en Meta Ads, Google Ads, TikTok, vallas publicitarias."),
-            ("HOST", "Servicios Cloud, Hosting y Software", "02", false, "344", "Servicios SaaS, servidores en la nube, licencias de software."),
-            ("ARR", "Arriendo de Inmuebles / Oficinas / Bodegas", "02", false, "320", "Alquiler de espacios comerciales, oficinas administrativas o bodegas."),
-            ("HON", "Honorarios Profesionales y Asesorías", "02", false, "303", "Servicios contables, jurídicos, técnicos y consultorías."),
-            ("MANT", "Mantenimiento, Reparaciones y Soporte Técnico", "02", false, "344", "Mantenimiento preventivo, correctivo y adecuaciones de infraestructura."),
-            ("SERV", "Servicios Básicos y Telecomunicaciones", "02", false, "344", "Energía eléctrica, agua potable, internet empresarial y telefonía.")
+            ("BIEN", "Compra de Bienes y Mercadería", "01", true, "312", 2.00m, vigencia2026, "Transferencia de bienes muebles corporales para reventa, insumos o inventario (AIR 312 - 2%)."),
+            ("SERV_MANO", "Servicios de Mano de Obra y Mantenimiento", "02", false, "307", 3.00m, vigencia2026, "Servicios donde predomina la mano de obra, reparaciones e infraestructura (AIR 307 - 3%)."),
+            ("HON_NAT", "Honorarios Profesionales (Personas Naturales)", "02", false, "303", 10.00m, vigencia2026, "Servicios profesionales con título: contadores, abogados, asesores (AIR 303 - 10%)."),
+            ("HON_SOC", "Servicios Profesionales (Sociedades)", "02", false, "303A", 5.00m, vigencia2026, "Servicios profesionales prestados por empresas y sociedades jurídicas (AIR 303A - 5%)."),
+            ("SERV_INT", "Servicios de Asesoría e Intelecto sin Título", "02", false, "304", 10.00m, vigencia2026, "Servicios donde predomina el intelecto no titulados (AIR 304 - 10%)."),
+            ("FLETE", "Transporte, Fletes y Envíos", "02", false, "310", 1.00m, vigencia2026, "Transporte privado o público de carga y encomiendas (AIR 310 - 1%)."),
+            ("ARRIENDO", "Arriendo de Inmuebles y Bodegas", "02", false, "320", 10.00m, vigencia2026, "Arrendamiento de locales comerciales, oficinas y bodegas (AIR 320 - 10%)."),
+            ("PUB", "Publicidad y Medios de Comunicación", "02", false, "309", 3.00m, vigencia2026, "Servicios de medios y agencias de publicidad digital o física (AIR 309 - 3%)."),
+            ("RIMPE", "Compras a Proveedores RIMPE Emprendedor", "01", false, "343", 1.00m, vigencia2026, "Bienes o servicios de negocios bajo régimen RIMPE Emprendedores (AIR 343 - 1%).")
         };
 
         var entities = new List<ExpenseType>();
@@ -54,6 +56,9 @@ public sealed class SeedDefaultExpenseTypesHandler : ICommandHandler<SeedDefault
                 def.AffectsInventory,
                 isSystem: true,
                 def.IrRet,
+                def.Pct,
+                def.From,
+                validUntil: null,
                 def.Description);
 
             if (created.IsSuccess)

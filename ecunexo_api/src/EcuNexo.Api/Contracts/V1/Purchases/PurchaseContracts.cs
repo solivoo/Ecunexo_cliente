@@ -47,7 +47,22 @@ public sealed record CreateExpenseTypeApiRequest(
     string SriSustentoCode = "01",
     bool AffectsInventory = false,
     string? SuggestedRetentionCode = null,
+    decimal? RetentionPercentage = null,
+    DateOnly? ValidFrom = null,
+    DateOnly? ValidUntil = null,
     string? Description = null);
+
+public sealed record UpdateExpenseTypeApiRequest(
+    string Name,
+    string SriSustentoCode = "01",
+    bool AffectsInventory = false,
+    string? SuggestedRetentionCode = null,
+    decimal? RetentionPercentage = null,
+    DateOnly? ValidFrom = null,
+    DateOnly? ValidUntil = null,
+    string? Description = null,
+    string? Code = null,
+    bool? IsActive = null);
 
 public sealed record CreatePurchaseProformaItemApiRequest(
     string Description,

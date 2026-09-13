@@ -5,6 +5,7 @@ namespace EcuNexo.Api.Contracts.V1.Tenancy;
 public sealed record UpdateTenantSriLegalRequest(
     string? TaxId,
     string? LegalName,
+    string? TradeName,
     string? City,
     string? EstablishmentCode,
     string? Address,
@@ -22,6 +23,7 @@ public sealed record UpdateTenantSriLegalRequest(
             tenantId,
             TaxId,
             LegalName,
+            TradeName,
             City,
             EstablishmentCode,
             Address,

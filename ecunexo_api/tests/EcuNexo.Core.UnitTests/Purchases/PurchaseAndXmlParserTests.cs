@@ -49,6 +49,64 @@ public sealed class PurchaseAndXmlParserTests
         result.Error!.Code.Should().Be("purchase.authorization_number.invalid");
     }
 
+    [Fact(DisplayName = "Purchase.Create con número de factura continuo de 15 dígitos lo formatea con guiones automáticamente")]
+    public void Purchase_Create_Raw15DigitsInvoiceNumber_FormatsWithHyphens_Succeeds()
+    {
+        var result = Purchase.Create(
+            id: Guid.NewGuid(),
+            tenantId: TenantId,
+            supplierId: SupplierId,
+            invoiceNumber: "001002000123456",
+            issueDate: new DateOnly(2026, 9, 10));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.InvoiceNumber.Should().Be("001-002-000123456");
+    }
+
+    [Fact(DisplayName = "Purchase.Create con formato de factura inválido falla")]
+    public void Purchase_Create_InvalidInvoiceNumberFormat_Fails()
+    {
+        var result = Purchase.Create(
+            id: Guid.NewGuid(),
+            tenantId: TenantId,
+            supplierId: SupplierId,
+            invoiceNumber: "001-002-123", // Secuencial no tiene 9 dígitos
+            issueDate: new DateOnly(2026, 9, 10));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("purchase.invoice_number.invalid_format");
+    }
+
+    [Fact(DisplayName = "Purchase.Create con fecha de emisión futura falla con error")]
+    public void Purchase_Create_FutureIssueDate_Fails()
+    {
+        var futureDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(10));
+        var result = Purchase.Create(
+            id: Guid.NewGuid(),
+            tenantId: TenantId,
+            supplierId: SupplierId,
+            invoiceNumber: "001-002-000123456",
+            issueDate: futureDate);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("purchase.issue_date.future");
+    }
+
+    [Fact(DisplayName = "Purchase.Create con valores numéricos negativos falla")]
+    public void Purchase_Create_NegativeAmounts_Fails()
+    {
+        var result = Purchase.Create(
+            id: Guid.NewGuid(),
+            tenantId: TenantId,
+            supplierId: SupplierId,
+            invoiceNumber: "001-002-000123456",
+            issueDate: new DateOnly(2026, 9, 10),
+            subtotalTaxed: -150m);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("purchase.amounts.negative");
+    }
+
     [Fact(DisplayName = "Purchase.AddItem calcula subtotales, IVA y total correctamente")]
     public void Purchase_AddItem_CalculatesTotals()
     {
@@ -280,4 +338,44 @@ public sealed class PurchaseAndXmlParserTests
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("sri_xml.not_factura");
     }
+
+    [Fact(DisplayName = "SriPurchaseXmlParser parsea correctamente RespuestaAutorizacion del SRI (Servientrega con XML embebido)")]
+    public void SriPurchaseXmlParser_Parse_ServientregaRespuestaAutorizacion_Succeeds()
+    {
+        const string xml = """
+            <?xml version="1.0" encoding="utf-8" standalone="yes"?>
+            <ns2:RespuestaAutorizacion xsi:type="ns2:autorizacion" xmlns:ns2="http://ec.gob.sri.ws.autorizacion" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                <estado>AUTORIZADO</estado>
+                <numeroAutorizacion>1009202601099128567900126650210000214721234567810</numeroAutorizacion>
+                <fechaAutorizacion>2026-09-10T20:39:27-05:00</fechaAutorizacion>
+                <ambiente>PRODUCCIÓN</ambiente>
+                <comprobante>&lt;?xml version="1.0" encoding="UTF-8" standalone="no"?&gt;&lt;factura xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" id="comprobante" version="2.1.0"&gt;&lt;infoTributaria&gt;&lt;ambiente&gt;2&lt;/ambiente&gt;&lt;tipoEmision&gt;1&lt;/tipoEmision&gt;&lt;razonSocial&gt;SERVIENTREGA ECUADOR S.A.&lt;/razonSocial&gt;&lt;nombreComercial&gt;SERVIENTREGA ECUADOR S.A.&lt;/nombreComercial&gt;&lt;ruc&gt;0991285679001&lt;/ruc&gt;&lt;claveAcceso&gt;1009202601099128567900126650210000214721234567810&lt;/claveAcceso&gt;&lt;codDoc&gt;01&lt;/codDoc&gt;&lt;estab&gt;665&lt;/estab&gt;&lt;ptoEmi&gt;021&lt;/ptoEmi&gt;&lt;secuencial&gt;000021472&lt;/secuencial&gt;&lt;dirMatriz&gt;AV JUAN TANCA MARENGO Y DR CAMILO PONCE ENRIQUE&lt;/dirMatriz&gt;&lt;/infoTributaria&gt;&lt;infoFactura&gt;&lt;fechaEmision&gt;10/09/2026&lt;/fechaEmision&gt;&lt;dirEstablecimiento&gt;URB MUCHO LOTE 1 VIGESIMO QUINTA ETAPA VII E ISIDRO AYORA PLAZA CORONEL&lt;/dirEstablecimiento&gt;&lt;contribuyenteEspecial&gt;198&lt;/contribuyenteEspecial&gt;&lt;obligadoContabilidad&gt;SI&lt;/obligadoContabilidad&gt;&lt;tipoIdentificacionComprador&gt;04&lt;/tipoIdentificacionComprador&gt;&lt;razonSocialComprador&gt;EVERCHIC SAS&lt;/razonSocialComprador&gt;&lt;identificacionComprador&gt;0993397804001&lt;/identificacionComprador&gt;&lt;totalSinImpuestos&gt;2.25&lt;/totalSinImpuestos&gt;&lt;totalDescuento&gt;0.00&lt;/totalDescuento&gt;&lt;totalConImpuestos&gt;&lt;totalImpuesto&gt;&lt;codigo&gt;2&lt;/codigo&gt;&lt;codigoPorcentaje&gt;4&lt;/codigoPorcentaje&gt;&lt;baseImponible&gt;2.2500&lt;/baseImponible&gt;&lt;tarifa&gt;15&lt;/tarifa&gt;&lt;valor&gt;0.3400&lt;/valor&gt;&lt;/totalImpuesto&gt;&lt;totalImpuesto&gt;&lt;codigo&gt;2&lt;/codigo&gt;&lt;codigoPorcentaje&gt;0&lt;/codigoPorcentaje&gt;&lt;baseImponible&gt;0.0000&lt;/baseImponible&gt;&lt;tarifa&gt;0&lt;/tarifa&gt;&lt;valor&gt;0.00&lt;/valor&gt;&lt;/totalImpuesto&gt;&lt;/totalConImpuestos&gt;&lt;propina&gt;0.00&lt;/propina&gt;&lt;importeTotal&gt;2.59&lt;/importeTotal&gt;&lt;moneda&gt;DOLAR&lt;/moneda&gt;&lt;pagos&gt;&lt;pago&gt;&lt;formaPago&gt;01&lt;/formaPago&gt;&lt;total&gt;2.59&lt;/total&gt;&lt;plazo&gt;0&lt;/plazo&gt;&lt;unidadTiempo&gt;dias&lt;/unidadTiempo&gt;&lt;/pago&gt;&lt;/pagos&gt;&lt;/infoFactura&gt;&lt;detalles&gt;&lt;detalle&gt;&lt;codigoPrincipal&gt;000000001&lt;/codigoPrincipal&gt;&lt;codigoAuxiliar&gt;000000001&lt;/codigoAuxiliar&gt;&lt;descripcion&gt;MERCANCIA PREMIER/Guía: 9036027492&lt;/descripcion&gt;&lt;cantidad&gt;1&lt;/cantidad&gt;&lt;precioUnitario&gt;2.2500&lt;/precioUnitario&gt;&lt;descuento&gt;0.0000&lt;/descuento&gt;&lt;precioTotalSinImpuesto&gt;2.2500&lt;/precioTotalSinImpuesto&gt;&lt;detallesAdicionales&gt;&lt;detAdicional nombre="ENVIOS" valor=" 1"/&gt;&lt;detAdicional nombre="PORCENTAJE" valor=" 15.00"/&gt;&lt;/detallesAdicionales&gt;&lt;impuestos&gt;&lt;impuesto&gt;&lt;codigo&gt;2&lt;/codigo&gt;&lt;codigoPorcentaje&gt;4&lt;/codigoPorcentaje&gt;&lt;tarifa&gt;15&lt;/tarifa&gt;&lt;baseImponible&gt;2.2500&lt;/baseImponible&gt;&lt;valor&gt;0.3400&lt;/valor&gt;&lt;/impuesto&gt;&lt;/impuestos&gt;&lt;/detalle&gt;&lt;/detalles&gt;&lt;infoAdicional&gt;&lt;campoAdicional nombre="Correo 1"&gt;contabilidad@everchic.ec&lt;/campoAdicional&gt;&lt;/infoAdicional&gt;&lt;/factura&gt;</comprobante>
+                <mensajes/>
+            </ns2:RespuestaAutorizacion>
+            """;
+
+        var result = SriPurchaseXmlParser.Parse(xml);
+
+        result.IsSuccess.Should().BeTrue();
+        var parsed = result.Value!;
+        parsed.SupplierTaxId.Should().Be("0991285679001");
+        parsed.SupplierBusinessName.Should().Be("SERVIENTREGA ECUADOR S.A.");
+        parsed.SupplierTradeName.Should().Be("SERVIENTREGA ECUADOR S.A.");
+        parsed.InvoiceNumber.Should().Be("665-021-000021472");
+        parsed.AuthorizationNumber.Should().Be("1009202601099128567900126650210000214721234567810");
+        parsed.IssueDate.Should().Be(new DateOnly(2026, 9, 10));
+        parsed.SubtotalTaxed.Should().Be(2.25m);
+        parsed.SubtotalZero.Should().Be(0.00m);
+        parsed.TaxRate.Should().Be(15.00m);
+        parsed.TaxAmount.Should().Be(0.34m);
+        parsed.TotalAmount.Should().Be(2.59m);
+        parsed.Lines.Should().HaveCount(1);
+        parsed.Lines[0].ItemCode.Should().Be("000000001");
+        parsed.Lines[0].Description.Should().Be("MERCANCIA PREMIER/Guía: 9036027492");
+        parsed.Lines[0].Quantity.Should().Be(1.00m);
+        parsed.Lines[0].UnitPrice.Should().Be(2.25m);
+        parsed.Lines[0].TaxAmount.Should().Be(0.34m);
+        parsed.Lines[0].Total.Should().Be(2.59m);
+    }
 }
+

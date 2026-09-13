@@ -1,10 +1,10 @@
 using EcuNexo.Business.Abstractions;
 
-namespace EcuNexo.Business.Purchases.Expenses.Commands.CreateExpenseType;
+namespace EcuNexo.Business.Purchases.Expenses.Commands.UpdateExpenseType;
 
-public sealed record CreateExpenseTypeCommand(
+public sealed record UpdateExpenseTypeCommand(
     Guid TenantId,
-    string Code,
+    Guid ExpenseTypeId,
     string Name,
     string SriSustentoCode = "01",
     bool AffectsInventory = false,
@@ -13,4 +13,6 @@ public sealed record CreateExpenseTypeCommand(
     DateOnly? ValidFrom = null,
     DateOnly? ValidUntil = null,
     string? Description = null,
-    Guid? CreatedBy = null) : ICommand<ExpenseTypeResponse>;
+    string? Code = null,
+    bool? IsActive = null,
+    Guid? UpdatedBy = null) : ICommand<ExpenseTypeResponse>;

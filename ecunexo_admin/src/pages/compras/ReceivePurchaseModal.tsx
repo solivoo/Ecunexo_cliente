@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Popup, Select } from 'glubox'
 import { AlertCircle, PackageCheck } from 'lucide-react'
 import { readApiError } from '@/lib/readApiError'
+import { listCatalogItems } from '@/services/catalogApi'
 import { getPurchaseById, receivePurchase } from '@/services/purchasesApi'
+import type { CatalogItemListItemDto } from '@/types/catalogApi'
 import type { WarehouseListItemDto } from '@/types/inventoryApi'
 import type {
   PurchaseDetailDto,
@@ -32,8 +34,10 @@ export function ReceivePurchaseModal({
   const [loading, setLoading] = useState(false)
   const [receiving, setReceiving] = useState(false)
   const [purchaseDetail, setPurchaseDetail] = useState<PurchaseDetailDto | null>(null)
+  const [catalogItems, setCatalogItems] = useState<CatalogItemListItemDto[]>([])
   const [defaultWarehouseId, setDefaultWarehouseId] = useState<string>('')
   const [lineWarehouseMap, setLineWarehouseMap] = useState<Record<string, string>>({})
+  const [lineCatalogMap, setLineCatalogMap] = useState<Record<string, string>>({})
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -42,6 +46,7 @@ export function ReceivePurchaseModal({
       setErrorMessage(null)
       setReceiving(false)
       setLineWarehouseMap({})
+      setLineCatalogMap({})
       return
     }
 
@@ -53,16 +58,34 @@ export function ReceivePurchaseModal({
       setLoading(true)
       setErrorMessage(null)
       try {
-        const detail = await getPurchaseById(tenantId, purchase.id)
+        const [detail, itemsList] = await Promise.all([
+          getPurchaseById(tenantId, purchase.id),
+          listCatalogItems(tenantId).catch(() => [] as CatalogItemListItemDto[]),
+        ])
         setPurchaseDetail(detail)
+        setCatalogItems(itemsList)
+
         // Initialize line mapping
-        const map: Record<string, string> = {}
+        const whMap: Record<string, string> = {}
+        const catMap: Record<string, string> = {}
         for (const item of detail.items) {
           if (item.affectsInventory) {
-            map[item.id] = item.warehouseId || warehouses[0]?.id || ''
+            whMap[item.id] = item.warehouseId || warehouses[0]?.id || ''
+            // Try matching by existing catalogItemId or SKU
+            if (item.catalogItemId) {
+              catMap[item.id] = item.catalogItemId
+            } else if (item.itemCode) {
+              const matched = itemsList.find(
+                (c) => c.sku?.toLowerCase() === item.itemCode.toLowerCase()
+              )
+              if (matched) {
+                catMap[item.id] = matched.id
+              }
+            }
           }
         }
-        setLineWarehouseMap(map)
+        setLineWarehouseMap(whMap)
+        setLineCatalogMap(catMap)
       } catch (err) {
         setErrorMessage(
           readApiError(err, 'No se pudo cargar el detalle del comprobante de compra.')
@@ -81,6 +104,16 @@ export function ReceivePurchaseModal({
       label: `${wh.name} (${wh.code})`,
     }))
   }, [warehouses])
+
+  const catalogOptions = useMemo(() => {
+    return [
+      { value: '', label: '— Selecciona un producto del catálogo —' },
+      ...catalogItems.map((c) => ({
+        value: c.id,
+        label: `${c.sku ? `[${c.sku}] ` : ''}${c.name}`,
+      })),
+    ]
+  }, [catalogItems])
 
   const inventoryItems = useMemo(() => {
     if (!purchaseDetail?.items) return []
@@ -106,6 +139,13 @@ export function ReceivePurchaseModal({
     }))
   }
 
+  const handleLineCatalogChange = (lineId: string, catalogId: string) => {
+    setLineCatalogMap((prev) => ({
+      ...prev,
+      [lineId]: catalogId,
+    }))
+  }
+
   const handleConfirmReceive = async () => {
     if (!purchase) return
     setReceiving(true)
@@ -116,13 +156,27 @@ export function ReceivePurchaseModal({
       if (purchaseDetail) {
         for (const item of inventoryItems) {
           const targetWh = lineWarehouseMap[item.id] || defaultWarehouseId
-          if (item.catalogItemId && targetWh) {
-            lineMappings.push({
-              lineId: item.id,
-              catalogItemId: item.catalogItemId,
-              warehouseId: targetWh,
-            })
+          const targetCatalogId = lineCatalogMap[item.id] || item.catalogItemId
+
+          if (!targetWh) {
+            setErrorMessage(`El ítem '${item.description}' requiere una bodega asignada.`)
+            setReceiving(false)
+            return
           }
+
+          if (!targetCatalogId) {
+            setErrorMessage(
+              `El ítem '${item.description}' debe vincularse a un producto del catálogo para asentar el kárdex.`
+            )
+            setReceiving(false)
+            return
+          }
+
+          lineMappings.push({
+            lineId: item.id,
+            catalogItemId: targetCatalogId,
+            warehouseId: targetWh,
+          })
         }
       }
 
@@ -283,6 +337,7 @@ export function ReceivePurchaseModal({
                         <th style={{ padding: '0.5rem 0.75rem' }}>Descripción</th>
                         <th style={{ padding: '0.5rem 0.75rem', textAlign: 'right' }}>Cantidad</th>
                         <th style={{ padding: '0.5rem 0.75rem', textAlign: 'right' }}>Costo U.</th>
+                        <th style={{ padding: '0.5rem 0.75rem' }}>Producto Catálogo (Kárdex) *</th>
                         <th style={{ padding: '0.5rem 0.75rem' }}>Bodega Destino</th>
                       </tr>
                     </thead>
@@ -307,6 +362,27 @@ export function ReceivePurchaseModal({
                           </td>
                           <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right' }}>
                             ${item.unitPrice.toFixed(2)}
+                          </td>
+                          <td style={{ padding: '0.5rem 0.75rem', minWidth: '220px' }}>
+                            <select
+                              value={lineCatalogMap[item.id] ?? item.catalogItemId ?? ''}
+                              onChange={(e) => handleLineCatalogChange(item.id, e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '0.35rem 0.5rem',
+                                borderRadius: '0.375rem',
+                                border: '1px solid var(--shell-border, #cbd5e1)',
+                                fontSize: '0.75rem',
+                                backgroundColor: 'var(--glb-surface, #ffffff)',
+                                color: 'var(--glb-text, #1e293b)',
+                              }}
+                            >
+                              {catalogOptions.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td style={{ padding: '0.5rem 0.75rem', minWidth: '180px' }}>
                             <select

@@ -65,4 +65,7 @@ public sealed class ExpenseTypeRepository : IExpenseTypeRepository
 
     public Task<int> CountAsync(Guid tenantId, CancellationToken ct) =>
         _db.ExpenseTypes.AsNoTracking().CountAsync(e => e.TenantId == tenantId, ct);
+
+    public void Remove(ExpenseType expenseType) =>
+        _db.ExpenseTypes.Remove(expenseType);
 }

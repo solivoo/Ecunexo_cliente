@@ -86,17 +86,23 @@ public sealed class CreatePurchaseHandler : ICommandHandler<CreatePurchaseComman
         }
 
         // 2. Validar que no exista ya la misma factura registrada para este proveedor
+        var normalizedInvoiceNumber = command.InvoiceNumber.Trim();
+        if (normalizedInvoiceNumber.Length == 15 && normalizedInvoiceNumber.All(char.IsDigit))
+        {
+            normalizedInvoiceNumber = $"{normalizedInvoiceNumber[..3]}-{normalizedInvoiceNumber.Substring(3, 3)}-{normalizedInvoiceNumber[6..]}";
+        }
+
         var exists = await _purchases.ExistsByInvoiceNumberAsync(
             command.TenantId,
             command.SupplierId,
-            command.InvoiceNumber.Trim(),
+            normalizedInvoiceNumber,
             null,
             ct).ConfigureAwait(false);
 
         if (exists)
         {
             return Result.Failure<CreatePurchaseResponse>(
-                new Error("purchases.invoice_number.duplicate", $"Ya existe una factura registrada con el número '{command.InvoiceNumber}' para este proveedor.", ErrorType.Conflict));
+                new Error("purchases.invoice_number.duplicate", $"Ya existe una factura registrada con el número '{normalizedInvoiceNumber}' para este proveedor.", ErrorType.Conflict));
         }
 
         // 3. Validar tipo de gasto / sustento si se envió

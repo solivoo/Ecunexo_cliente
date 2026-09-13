@@ -6,6 +6,7 @@ public sealed record UpdateTenantSriLegalCommand(
     Guid TenantId,
     string? TaxId,
     string? LegalName,
+    string? TradeName,
     string? City,
     string? EstablishmentCode,
     string? Address,

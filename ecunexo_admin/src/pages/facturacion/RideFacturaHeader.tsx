@@ -47,6 +47,7 @@ export function RideFacturaHeader({
     !authorizationDateTime ||
     invoice.state === 'Draft' ||
     invoice.invoiceId === 'preview'
+  const isTest = Boolean(accessKey && accessKey.length >= 24 && accessKey[23] === '1')
   const displayDocNumber =
     isPreview && (invoice.sequential === '000000000' || invoice.sequential === '—')
       ? `${invoice.establishment}-${invoice.emissionPoint}-PREVISUALIZACIÓN`
@@ -91,6 +92,9 @@ export function RideFacturaHeader({
             {invoice.documentType === '04' ? 'NOTA DE CRÉDITO' : 'FACTURA'}
           </Text>
           <Text style={styles.docNumber}>No. {displayDocNumber}</Text>
+          {isTest && !isPreview ? (
+            <Text style={styles.testBadge}>[AMBIENTE DE PRUEBAS — SIN VALIDEZ TRIBUTARIA]</Text>
+          ) : null}
         </View>
         <View style={styles.rightBody}>
           {invoice.documentType === '04' && invoice.modifiedDocumentNumber ? (
@@ -108,10 +112,12 @@ export function RideFacturaHeader({
             label="Fecha y hora de autorización"
             value={isPreview ? 'NO AUTORIZADO' : authWhen}
           />
-          <Meta
-            label="Ambiente"
-            value={isPreview ? 'PREVISUALIZACIÓN' : ambienteFromAccessKey(accessKey)}
-          />
+          <View style={styles.metaField}>
+            <Text style={styles.metaLabel}>Ambiente</Text>
+            <Text style={isTest && !isPreview ? styles.testMetaValue : styles.metaValue}>
+              {isPreview ? 'PREVISUALIZACIÓN' : ambienteFromAccessKey(accessKey)}
+            </Text>
+          </View>
           <Meta label="Emisión" value="NORMAL" />
           <Text style={styles.metaLabel}>Clave de acceso</Text>
           <View style={styles.barcodeWrap}>

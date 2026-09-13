@@ -292,9 +292,26 @@ public sealed class Purchase : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         var cleanInvoiceNumber = invoiceNumber.Trim();
-        if (cleanInvoiceNumber.Length > InvoiceNumberMaxLength)
+        if (cleanInvoiceNumber.Length == 15 && cleanInvoiceNumber.All(char.IsDigit))
         {
-            return Result.Failure<Purchase>(new Error("purchase.invoice_number.too_long", $"El número de factura no puede exceder {InvoiceNumberMaxLength} caracteres.", ErrorType.Validation));
+            cleanInvoiceNumber = $"{cleanInvoiceNumber[..3]}-{cleanInvoiceNumber.Substring(3, 3)}-{cleanInvoiceNumber[6..]}";
+        }
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(cleanInvoiceNumber, @"^\d{3}-\d{3}-\d{9}$"))
+        {
+            return Result.Failure<Purchase>(new Error("purchase.invoice_number.invalid_format", "El número de factura debe tener el formato de 15 dígitos '001-002-000000001'.", ErrorType.Validation));
+        }
+
+        var maxAllowedDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
+        if (issueDate > maxAllowedDate)
+        {
+            return Result.Failure<Purchase>(new Error("purchase.issue_date.future", "La fecha de emisión no puede ser una fecha futura.", ErrorType.Validation));
+        }
+
+        if (subtotalZero < 0 || subtotalTaxed < 0 || subtotalNoSubject < 0 || subtotalExempt < 0 ||
+            taxAmount < 0 || totalDiscount < 0 || totalAmount < 0)
+        {
+            return Result.Failure<Purchase>(new Error("purchase.amounts.negative", "Los montos de subtotales, impuestos o totales no pueden ser negativos.", ErrorType.Validation));
         }
 
         string? cleanAuth = null;

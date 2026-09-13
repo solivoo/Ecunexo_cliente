@@ -17,4 +17,5 @@ public interface IPurchaseRepository
         string? search,
         CancellationToken ct);
     Task<bool> ExistsByInvoiceNumberAsync(Guid tenantId, Guid supplierId, string invoiceNumber, Guid? excludeId, CancellationToken ct);
+    Task<bool> ExistsByExpenseTypeIdAsync(Guid tenantId, Guid expenseTypeId, CancellationToken ct);
 }

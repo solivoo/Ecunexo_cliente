@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { Button, useToast } from 'glubox'
 import { PageHeader, SectionCard, StatCard, StatusBadge } from '@/components/ui'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
@@ -30,16 +30,19 @@ import {
 } from '@/pages/contabilidad/SriSignatureSection'
 import { ensureBillingEmitter, sriTradeName } from '@/pages/facturacion/invoiceEmitApi'
 import { normalizeEstablishmentCode } from '@/pages/facturacion/invoiceFormTypes'
-import { updateSubscriptionCompany } from '@/services/companiesApi'
 import { peekNextSequential, setNextSequential } from '@/services/billingApi'
-import { getTenant } from '@/services/tenantApi'
+import {
+  getSigningCertificateStatus,
+  getTenant,
+  updateTenantSriLegal,
+  type UpdateTenantSriLegalBody,
+} from '@/services/tenantApi'
 import {
   selectIsSubscriptionHolder,
   selectTenantBranding,
   selectTenantId,
 } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import type { UpdateSubscriptionCompanyBody } from '@/types/companiesApi'
 import type { GetTenantByIdDto } from '@/types/tenantApi'
 import type { TenantBranding } from '@/types/tenantBranding'
 import './sriConfig.css'
@@ -106,38 +109,31 @@ function legalFromBranding(branding: TenantBranding, tenantId: string | null): S
 
 function computeProgress(legal: SriLegalInfoValues, sig: SriSignatureValues): number {
   const checks = [
-    legal.ruc.trim().length >= 13,
+    /^\d{13}$/.test(legal.ruc.trim()),
     legal.razonSocial.trim().length > 0,
-    legal.ciudad.trim().length > 0,
     legal.establecimiento.trim().length > 0,
     legal.puntoEmision.trim().length > 0,
     legal.secuencialSiguiente.trim().length > 0,
     legal.direccion.trim().length > 0,
     Boolean(sig.expiresAt),
-    Boolean(sig.fileName),
-    sig.password.trim().length > 0,
   ]
   const done = checks.filter(Boolean).length
   return Math.round((done / checks.length) * 100)
 }
 
-function buildCompanyUpdateBody(
+function buildSriLegalUpdateBody(
   tenant: GetTenantByIdDto,
   legal: SriLegalInfoValues
-): UpdateSubscriptionCompanyBody | string {
+): UpdateTenantSriLegalBody | string {
   const ruc = legal.ruc.trim()
   if (ruc && !/^\d{13}$/.test(ruc)) {
     return 'El RUC debe tener exactamente 13 dígitos.'
   }
   const rimpe = parseRimpeKind(legal.rimpe, legal.rimpe !== 'none')
   return {
-    name: legal.nombreComercial.trim() || tenant.name,
-    timeZoneId: tenant.timeZoneId ?? 'America/Guayaquil',
-    locale: tenant.locale ?? 'es-EC',
-    logoUrl: tenant.logoUrl ?? null,
-    primaryColorHex: tenant.primaryColorHex ?? null,
     taxId: ruc || null,
     legalName: legal.razonSocial.trim() || null,
+    tradeName: legal.nombreComercial.trim() || tenant.name,
     city: legal.ciudad.trim() || null,
     establishmentCode: normalizeEstablishmentCode(legal.establecimiento) || null,
     address: legal.direccion.trim() || null,
@@ -149,9 +145,6 @@ function buildCompanyUpdateBody(
     isLargeTaxpayer: legal.granContribuyente,
     isSpecialTaxpayer: legal.contribuyenteEspecial,
     isWithholdingAgent: legal.agenteRetencion,
-    contactEmail: tenant.contactEmail ?? null,
-    contactPhone: tenant.contactPhone ?? null,
-    rideThankYouText: tenant.rideThankYouText ?? null,
   }
 }
 
@@ -174,7 +167,6 @@ export function ContabilidadSriConfigPage() {
   const canUpdateCompanies = useHasPermission('tenancy.tenants.update')
   const isHolder = useAppSelector(selectIsSubscriptionHolder)
   const canUpdate = canUpdateTenant || canUpdateCompanies || isHolder
-  const canPersistCompany = canUpdateCompanies || isHolder
   const tenantId = useAppSelector(selectTenantId)
   const branding = useAppSelector(selectTenantBranding)
 
@@ -241,12 +233,26 @@ export function ContabilidadSriConfigPage() {
         }
       }
 
+      let certExpiresAt = ''
+      let certFileName: string | null = null
+      try {
+        const certStatus = await getSigningCertificateStatus(tenantId)
+        if (certStatus.isConfigured && certStatus.validTo) {
+          certExpiresAt = certStatus.validTo.slice(0, 10)
+          certFileName = certStatus.originalFileName ?? null
+        }
+      } catch {
+        // No bloquear la carga si el certificado aún no existe
+      }
+
       setLegal(legalFromTenant(tenant, emissionPoint, nextSequential))
       setTenantSnapshot(tenant)
       setCompanyLabel(tenant.legalName?.trim() || tenant.name)
       setSignature({
         ...INITIAL_SIGNATURE,
         emitProfile: readBillingEmitProfile(tenantId),
+        expiresAt: certExpiresAt,
+        fileName: certFileName,
       })
     } catch (err: unknown) {
       setLegal(legalFromBranding(branding, tenantId))
@@ -324,13 +330,13 @@ export function ContabilidadSriConfigPage() {
       storeBillingEmitProfile(tenantId, signature.emitProfile)
 
       let companySynced = false
-      if (canPersistCompany) {
-        const body = buildCompanyUpdateBody(tenantSnapshot, legal)
+      if (canUpdate) {
+        const body = buildSriLegalUpdateBody(tenantSnapshot, legal)
         if (typeof body === 'string') {
           toast.show({ title: 'Datos incompletos', message: body, variant: 'error' })
           return
         }
-        await updateSubscriptionCompany(tenantId, body)
+        await updateTenantSriLegal(tenantId, body)
         companySynced = true
       }
 
@@ -360,8 +366,8 @@ export function ContabilidadSriConfigPage() {
       toast.show({
         title,
         message: companySynced
-          ? `Guardado. Próximo ${savedSeq.establishment}-${savedSeq.emissionPoint}-${savedSeq.nextSequential} · ${profile.label}.`
-          : `Guardado en Billing. La ficha legal requiere titular. Modo: ${profile.label}.`,
+          ? `Configuración guardada. Próximo ${savedSeq.establishment}-${savedSeq.emissionPoint}-${savedSeq.nextSequential} · ${profile.label}.`
+          : `Guardado en Billing. Modo: ${profile.label}.`,
         variant: 'success',
       })
       await loadCompany()
@@ -378,7 +384,6 @@ export function ContabilidadSriConfigPage() {
     tenantId,
     tenantSnapshot,
     canUpdate,
-    canPersistCompany,
     legal,
     signature.emitProfile,
     toast,
@@ -447,13 +452,6 @@ export function ContabilidadSriConfigPage() {
           </div>
         ) : null}
 
-        {!canPersistCompany && canUpdate ? (
-          <p className="ecu-companies-form__hint" role="note">
-            Puedes ajustar emisión y secuencial. Para editar RUC y razón social usa el titular en{' '}
-            <Link to="/organizacion/empresas">empresas</Link>.
-          </p>
-        ) : null}
-
         <div className="ecu-stat-grid" aria-label="Resumen de facturación electrónica">
           <StatCard
             label="Estado"
@@ -488,8 +486,8 @@ export function ContabilidadSriConfigPage() {
         <div className="sri-config-page__stack ecu-companies-form">
           <SriIdentityCard
             values={legal}
-            disabled={formDisabled || !canPersistCompany}
-            onChange={canPersistCompany ? patchLegal : undefined}
+            disabled={formDisabled}
+            onChange={formDisabled ? undefined : patchLegal}
           />
 
           <SectionCard

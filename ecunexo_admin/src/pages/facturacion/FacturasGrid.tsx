@@ -18,6 +18,7 @@ import { formatMoney } from '@/pages/facturacion/invoiceFormTypes'
 import {
   invoiceStateLabel,
   invoiceStateTone,
+  sriEnvironmentInfo,
   sriTransmissionLabel,
   sriTransmissionTone,
 } from '@/pages/facturacion/invoiceStateLabels'
@@ -25,7 +26,9 @@ import { RidePrintConfirmPopup } from '@/pages/facturacion/RidePrintConfirmPopup
 import { VoidInvoicePopup } from '@/pages/facturacion/VoidInvoicePopup'
 import type { InvoiceListItem } from '@/types/billingApi'
 
-export type InvoiceGridRow = InvoiceListItem & Record<string, unknown>
+export type InvoiceGridRow = InvoiceListItem & {
+  readonly environment?: string
+} & Record<string, unknown>
 
 export type FacturasGridProps = {
   readonly rows: readonly InvoiceListItem[]
@@ -64,6 +67,7 @@ export function FacturasGrid({
   >(null)
   const [ridePrint, setRidePrint] = useState<RidePdfResult | null>(null)
   const [previewRide, setPreviewRide] = useState<RidePdfResult | null>(null)
+  const [previewRow, setPreviewRow] = useState<InvoiceListItem | null>(null)
   const [printing, setPrinting] = useState(false)
   const [voidTarget, setVoidTarget] = useState<InvoiceListItem | null>(null)
 
@@ -140,6 +144,25 @@ export function FacturasGrid({
         ),
       },
       {
+        key: 'environment',
+        header: 'Ambiente',
+        width: 155,
+        sortable: true,
+        renderCell: (_v, row) => {
+          const env = sriEnvironmentInfo(row.accessKey)
+          return (
+            <span
+              title={env.tooltip}
+              className={`ecu-invoice-status ecu-invoice-status--${env.tone}`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+            >
+              {env.isTest ? '🧪 ' : env.isProduction ? '🚀 ' : ''}
+              {env.label}
+            </span>
+          )
+        },
+      },
+      {
         key: 'invoiceId',
         header: 'Acciones',
         sticky: 'right',
@@ -166,6 +189,7 @@ export function FacturasGrid({
                   if (!emitterId) return
                   setBusyId(row.invoiceId)
                   setBusyAction('preview')
+                  setPreviewRow(row)
                   void buildInvoiceRidePdf(emitterId, row.invoiceId)
                     .then((r) => setPreviewRide(r))
                     .catch((err: unknown) => {
@@ -405,10 +429,24 @@ export function FacturasGrid({
         open={previewRide !== null}
         blob={previewRide?.blob ?? null}
         filename={previewRide?.filename}
-        hint="Vista del RIDE emitido."
+        hint={
+          previewRow && previewRow.accessKey && previewRow.accessKey.length >= 24 && previewRow.accessKey[23] === '1'
+            ? 'Comprobante emitido en ambiente de pruebas (celcer.sri.gob.ec). No genera crédito fiscal.'
+            : 'Vista del RIDE emitido.'
+        }
+        environment={
+          previewRow?.accessKey && previewRow.accessKey.length >= 24
+            ? previewRow.accessKey[23] === '2'
+              ? 'production'
+              : 'test'
+            : 'preview'
+        }
         printing={printing && previewRide !== null}
         onClose={() => {
-          if (!printing) setPreviewRide(null)
+          if (!printing) {
+            setPreviewRide(null)
+            setPreviewRow(null)
+          }
         }}
         onPrint={() => {
           if (!previewRide || printing) return
