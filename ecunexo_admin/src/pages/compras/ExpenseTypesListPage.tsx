@@ -13,7 +13,7 @@ import {
   StatusBadge,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
-import { Pencil, Plus, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
+import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -77,7 +77,6 @@ export function ExpenseTypesListPage() {
   const canManage = useHasPermission('purchases.expenses.manage')
 
   const [loading, setLoading] = useState(true)
-  const [seeding, setSeeding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [expenseTypes, setExpenseTypes] = useState<ExpenseTypeDto[]>([])
 
@@ -88,7 +87,14 @@ export function ExpenseTypesListPage() {
     if (!tenantId) return
     setLoading(true)
     try {
-      const data = await listExpenseTypes(tenantId)
+      let data = await listExpenseTypes(tenantId)
+      // Siembra automática inicial única si la empresa no tiene categorías registradas
+      if (data.length === 0 && canManage) {
+        const count = await seedDefaultExpenseTypes(tenantId)
+        if (count > 0) {
+          data = await listExpenseTypes(tenantId)
+        }
+      }
       setExpenseTypes(data)
     } catch (err) {
       toast.show({
@@ -99,41 +105,11 @@ export function ExpenseTypesListPage() {
     } finally {
       setLoading(false)
     }
-  }, [tenantId, toast])
+  }, [tenantId, canManage, toast])
 
   useEffect(() => {
     void loadData()
   }, [loadData])
-
-  const handleSeedDefaults = useCallback(async () => {
-    if (!tenantId) return
-    setSeeding(true)
-    try {
-      const count = await seedDefaultExpenseTypes(tenantId)
-      if (count > 0) {
-        toast.show({
-          title: 'Catálogo SRI sembrado',
-          message: `Se crearon ${count} conceptos estándar de compras y retenciones SRI.`,
-          variant: 'success',
-        })
-      } else {
-        toast.show({
-          title: 'Catálogo existente',
-          message: 'La empresa ya cuenta con categorías de compra configuradas.',
-          variant: 'info',
-        })
-      }
-      await loadData()
-    } catch (err) {
-      toast.show({
-        title: 'Error al sembrar',
-        message: readApiError(err, 'No se pudo inicializar el catálogo de categorías.'),
-        variant: 'error',
-      })
-    } finally {
-      setSeeding(false)
-    }
-  }, [tenantId, loadData, toast])
 
   const openCreate = useCallback(() => {
     setEditingExpenseType(null)
@@ -431,18 +407,10 @@ export function ExpenseTypesListPage() {
           }
           actions={
             canManage ? (
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <Button variant="primary" onClick={openCreate}>
-                  <Plus size={16} />
-                  Nueva Categoría
-                </Button>
-                {expenseTypes.length === 0 && (
-                  <Button variant="outline" onClick={() => void handleSeedDefaults()} disabled={seeding}>
-                    <Sparkles size={16} />
-                    {seeding ? 'Sembrando...' : 'Sembrar Estándar SRI'}
-                  </Button>
-                )}
-              </div>
+              <Button variant="primary" onClick={openCreate}>
+                <Plus size={16} />
+                Nueva Categoría
+              </Button>
             ) : undefined
           }
         />
@@ -482,47 +450,28 @@ export function ExpenseTypesListPage() {
           title="Catálogo de Categorías y Conceptos"
           subtitle="Mapeo directo de compras al Anexo Transaccional Simplificado (ATS), retención en la fuente (AIR) y vigencias normativas"
           action={
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {canManage && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void handleSeedDefaults()}
-                  disabled={seeding || loading}
-                >
-                  <Sparkles size={14} />
-                  Sembrar Estándar SRI
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void loadData()}
-                disabled={loading}
-              >
-                <RefreshCw size={14} className={loading ? 'ecu-spin' : ''} />
-                Actualizar
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void loadData()}
+              disabled={loading}
+            >
+              <RefreshCw size={14} className={loading ? 'ecu-spin' : ''} />
+              Actualizar
+            </Button>
           }
         >
           {!loading && expenseTypes.length === 0 ? (
             <EmptyState
               icon="category"
               title="No hay categorías de compra registradas"
-              description="Siembra el catálogo estándar del SRI con los 9 conceptos esenciales (mercaderías, mano de obra, honorarios, arriendos, transporte, publicidad, RIMPE) o crea uno nuevo."
+              description="Crea una categoría de compra para clasificar tus adquisiciones y deducciones tributarias ATS."
               action={
                 canManage ? (
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <Button variant="primary" onClick={() => void handleSeedDefaults()} disabled={seeding}>
-                      <Sparkles size={16} />
-                      {seeding ? 'Sembrando catálogo...' : 'Sembrar Catálogo Estándar SRI'}
-                    </Button>
-                    <Button variant="outline" onClick={openCreate}>
-                      <Plus size={16} />
-                      Nueva Categoría
-                    </Button>
-                  </div>
+                  <Button variant="primary" onClick={openCreate}>
+                    <Plus size={16} />
+                    Nueva Categoría
+                  </Button>
                 ) : undefined
               }
             />
