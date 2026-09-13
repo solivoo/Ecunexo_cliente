@@ -28,7 +28,9 @@ using EcuNexo.Business.Ecommerce.Queries.ListEcommerceOrders;
 using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Business.Purchases.Expenses;
 using EcuNexo.Business.Purchases.Expenses.Commands.CreateExpenseType;
+using EcuNexo.Business.Purchases.Expenses.Commands.DeleteExpenseType;
 using EcuNexo.Business.Purchases.Expenses.Commands.SeedDefaultExpenseTypes;
+using EcuNexo.Business.Purchases.Expenses.Commands.UpdateExpenseType;
 using EcuNexo.Business.Purchases.Expenses.Queries.ListExpenseTypes;
 using EcuNexo.Business.Purchases.Proformas;
 using EcuNexo.Business.Purchases.Proformas.Commands.ApprovePurchaseProforma;
@@ -270,6 +272,8 @@ public static class DependencyInjection
 
         services.AddScoped<ICommandHandler<SeedDefaultExpenseTypesCommand, int>, SeedDefaultExpenseTypesHandler>();
         services.AddScoped<ICommandHandler<CreateExpenseTypeCommand, ExpenseTypeResponse>, CreateExpenseTypeHandler>();
+        services.AddScoped<ICommandHandler<UpdateExpenseTypeCommand, ExpenseTypeResponse>, UpdateExpenseTypeHandler>();
+        services.AddScoped<ICommandHandler<DeleteExpenseTypeCommand, bool>, DeleteExpenseTypeHandler>();
         services.AddScoped<IQueryHandler<ListExpenseTypesQuery, IReadOnlyList<ExpenseTypeResponse>>, ListExpenseTypesHandler>();
 
         services.AddScoped<ICommandHandler<CreatePurchaseProformaCommand, PurchaseProformaResponse>, CreatePurchaseProformaHandler>();
