@@ -3,8 +3,21 @@
 .ecu-import-purchases-page {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
   width: 100%;
+}
+
+.ecu-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .ecu-kpi-strip {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ecu-import-dropzone {

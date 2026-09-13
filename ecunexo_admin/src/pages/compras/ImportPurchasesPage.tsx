@@ -638,7 +638,7 @@ export function ImportPurchasesPage() {
       title="Importar Facturas SRI"
       lead="Recepción y validación preventiva de comprobantes electrónicos y físicos de compra."
     >
-      <div className="ecu-import-purchases-page">
+      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid ecu-import-purchases-page">
         <PageHeader
           title="Recepción e Importación de Facturas SRI"
           badge={
@@ -677,7 +677,7 @@ export function ImportPurchasesPage() {
         />
 
         {/* KPI Strip */}
-        <div className="ecu-kpi-strip" style={{ marginBottom: '1.25rem' }}>
+        <div className="ecu-stat-grid" aria-label="Resumen de facturas en cola">
           <StatCard
             label="Comprobantes en Cola"
             value={stats.total}

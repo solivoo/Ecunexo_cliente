@@ -67,12 +67,46 @@ Provee orientación instantánea al usuario:
 - **Descripción**: Subtítulo explicativo en color atenuado (`--glb-muted`).
 - **Acciones**: Botones de acción principal (`<Button variant="primary">`) y secundarias alineadas a la derecha.
 
-### 3.2. StatCard (KPIs / Métricas)
-Destaca datos cuantitativos o estados clave en una cuadrícula responsiva (`grid-template-columns: repeat(auto-fit, minmax(220px, 1fr))`):
+### 3.2. StatCard (KPIs / Métricas) y Cuadrícula Obligatoria `.ecu-stat-grid`
+Destaca datos cuantitativos o estados clave en una cuadrícula responsiva:
+
+> [!CAUTION]
+> **REGLA DE CONTENEDOR OBLIGATORIO `.ecu-stat-grid`:**
+> Las tarjetas `<StatCard />` **NUNCA** deben renderizarse sueltas ni dentro de un `<div>` plano sin estilos o con clases arbitrarias no definidas.
+> Si se omite la clase `.ecu-stat-grid`, cada tarjeta ocupará el 100% del ancho y se apilarán verticalmente una encima de otra en una columna gigante (rompiendo el layout).
+>
+> **Estructura Canónica Obligatoria:**
+> ```tsx
+> <div className="ecu-stat-grid" aria-label="Resumen de métricas">
+>   <StatCard
+>     label="Total Facturas"
+>     value={String(kpi.total)}
+>     toneColor="#4f46e5"
+>     icon={<FileSpreadsheet size={20} />}
+>     footerText="Documentos procesados"
+>   />
+>   {/* Más tarjetas... */}
+> </div>
+> ```
+
+- **Estilo Canónico en `enterpriseUi.css`:**
+  ```css
+  .ecu-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  ```
 - **Icono en Contenedor Tonal**: Icono SVG/Material en un contenedor redondeado con color tonal tenue (`background: color-mix(in srgb, var(--primary) 12%, transparent)`).
 - **Valor Principal**: Número o estado en grande (1.5rem, font-weight: 700).
 - **Etiqueta**: Nombre de la métrica (font-size: 0.8125rem, color atenuado).
 - **Tendencia o Detalle**: Badge tipo pill que muestra variación (+12%, Límite alcanzado, etc.).
+
+### 3.2.1. Contenedor Raíz de Página (`ecu-dashboard-layout`)
+Toda página o vista de la aplicación debe estar envuelta en el layout estándar:
+- Vistas estándar: `<div className="ecu-dashboard-layout">` (max-width: 1400px, centrado y con espaciado equilibrado).
+- Vistas de pantalla completa / importación / tablas anchas: `<div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">` (max-width: min(100%, 1680px)).
 
 ### 3.3. SectionCard (Contenedores M3)
 - Tarjetas con `border-radius: 14px` o `16px`.

@@ -6,6 +6,8 @@ When creating or modifying UI components, views, layouts, or styles in this repo
    - Use `glubox` for `Button`, `TextBox`, `Select`, `Popup`, `Toast`, `DataGrid`, `RangeDateBox`, `ColorPicker`, `FileBox`, and `Sidebar`.
 2. **Apply Google Material Design 3 (M3) + Modern Enterprise SaaS patterns**:
    - Organize pages using standard layouts: `PageHeader` (title, badge, lead, action buttons) -> KPI / `StatCard` strip -> `SectionCard` containers -> `DataGrid` with toolbars.
+   - ALWAYS wrap `StatCard` items inside `<div className="ecu-stat-grid">`. NEVER render `<StatCard>` inside an unstyled block `div`, which causes cards to take 100% width and stack vertically.
+   - Wrap view contents in `.ecu-dashboard-layout` (or `.ecu-dashboard-layout--fluid` for wide views).
    - Avoid plain or flat screens with isolated tables or links.
    - Use semantic design tokens: `var(--glb-surface)`, `var(--shell-border)`, `var(--shell-primary)`, `var(--glb-text)`, `var(--glb-muted)`.
    - Implement elegant empty states and loading skeletons instead of bare empty tables.
