@@ -500,8 +500,8 @@ export function useInvoiceEmitForm({
         })
         setLastTrace(result.trace ?? getLastSriEmitTrace())
         toast.show({
-          title: emitToastTitle(result.mode, result.outcome),
-          message: result.message,
+          title: result.outcome === 'success' ? 'Factura generada con éxito' : emitToastTitle(result.mode, result.outcome),
+          message: result.outcome === 'success' ? 'Factura generada con éxito.' : result.message,
           variant: result.outcome === 'success' ? 'success' : result.outcome === 'warning' ? 'warning' : 'error',
         })
         await refreshSequentialPreview()

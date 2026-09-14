@@ -401,17 +401,20 @@ export async function saveInvoiceDraft(args: {
       state: polled.state,
       sriTransmissionState: polled.sriTransmissionState,
       outcome,
-      message: [
-        resultLead,
-        `Estado ${polled.state}`,
-        polled.sriTransmissionState ? `(transmisión ${polled.sriTransmissionState})` : null,
-        msgSummary,
-        `Ambiente ${env}.`,
-        keyHint.trim() || null,
-        xmlNote.trim() || null,
-      ]
-        .filter(Boolean)
-        .join(' '),
+      message:
+        outcome === 'success'
+          ? 'Factura generada con éxito.'
+          : [
+              resultLead,
+              `Estado ${polled.state}`,
+              polled.sriTransmissionState ? `(transmisión ${polled.sriTransmissionState})` : null,
+              msgSummary,
+              `Ambiente ${env}.`,
+              keyHint.trim() || null,
+              xmlNote.trim() || null,
+            ]
+              .filter(Boolean)
+              .join(' '),
       trace,
     }
   } catch (err: unknown) {
