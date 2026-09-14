@@ -94,21 +94,7 @@ export function CompanyLegalFields({
             fullWidth
           />
         </div>
-        <div className="ecu-companies-form__field">
-          <TextBox
-            id={`${idPrefix}-estab`}
-            label="Nº de establecimiento"
-            labelPosition="outlined"
-            variant="outline"
-            value={values.establishmentCode}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              emitChange('establishmentCode', e.target.value)
-            }
-            placeholder="001"
-            disabled={disabled}
-            fullWidth
-          />
-        </div>
+
         <div className="ecu-companies-form__field">
           <Select
             id={`${idPrefix}-obligado`}

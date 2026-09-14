@@ -98,6 +98,9 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
     /// <summary>Notas internas u observaciones sobre el proveedor.</summary>
     public string? Notes { get; private set; }
 
+    /// <summary>Tipo de gasto o compra SRI predeterminado para este proveedor.</summary>
+    public Guid? DefaultExpenseTypeId { get; private set; }
+
     public bool IsActive { get; private set; } = true;
 
     public IReadOnlyCollection<PurchaseProforma> Proformas => _proformas.AsReadOnly();
@@ -129,6 +132,7 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         string? bankAccountType = null,
         string? bankAccountNumber = null,
         string? notes = null,
+        Guid? defaultExpenseTypeId = null,
         Guid? createdBy = null)
     {
         if (id == Guid.Empty)
@@ -206,6 +210,7 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
             BankAccountType = string.IsNullOrWhiteSpace(bankAccountType) ? null : bankAccountType.Trim(),
             BankAccountNumber = string.IsNullOrWhiteSpace(bankAccountNumber) ? null : bankAccountNumber.Trim(),
             Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
+            DefaultExpenseTypeId = defaultExpenseTypeId,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = createdBy
@@ -230,6 +235,7 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         string? bankAccountType = null,
         string? bankAccountNumber = null,
         string? notes = null,
+        Guid? defaultExpenseTypeId = null,
         Guid? updatedBy = null)
     {
         if (string.IsNullOrWhiteSpace(businessName))
@@ -288,6 +294,7 @@ public sealed class Supplier : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         BankAccountType = string.IsNullOrWhiteSpace(bankAccountType) ? null : bankAccountType.Trim();
         BankAccountNumber = string.IsNullOrWhiteSpace(bankAccountNumber) ? null : bankAccountNumber.Trim();
         Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+        DefaultExpenseTypeId = defaultExpenseTypeId;
         UpdatedAt = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
 

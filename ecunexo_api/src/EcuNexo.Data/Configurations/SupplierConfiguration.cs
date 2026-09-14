@@ -81,6 +81,9 @@ public sealed class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Property(s => s.Notes)
             .HasMaxLength(1000);
 
+        builder.Property(s => s.DefaultExpenseTypeId)
+            .HasColumnType("uuid");
+
         builder.Property(s => s.IsActive)
             .IsRequired()
             .HasDefaultValue(true);

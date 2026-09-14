@@ -29,6 +29,7 @@ public sealed class SupplierHandlersTests
         _suppliers.ExistsByTaxIdAsync(tenantId, "1790016919001", null, Arg.Any<CancellationToken>()).Returns(false);
         _suppliers.ExistsByBusinessNameAsync(tenantId, "Distribuidora Andina S.A.", null, Arg.Any<CancellationToken>()).Returns(false);
 
+        var expenseTypeId = Guid.NewGuid();
         var handler = new CreateSupplierHandler(_suppliers, _idGenerator, _unitOfWork);
         var command = new CreateSupplierCommand(
             tenantId,
@@ -44,7 +45,8 @@ public sealed class SupplierHandlersTests
             Address: "Av. Shyris y Portugal, Quito",
             ContactPerson: "Carlos Ruiz",
             CreditDays: 30,
-            CreditLimit: 5000m);
+            CreditLimit: 5000m,
+            DefaultExpenseTypeId: expenseTypeId);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -57,8 +59,9 @@ public sealed class SupplierHandlersTests
         result.Value.TaxId.Should().Be("1790016919001");
         result.Value.IsRetentionAgent.Should().BeTrue();
         result.Value.CreditDays.Should().Be(30);
+        result.Value.DefaultExpenseTypeId.Should().Be(expenseTypeId);
 
-        await _suppliers.Received(1).AddAsync(Arg.Is<Supplier>(s => s.Id == supplierId && s.BusinessName == "Distribuidora Andina S.A."), Arg.Any<CancellationToken>());
+        await _suppliers.Received(1).AddAsync(Arg.Is<Supplier>(s => s.Id == supplierId && s.BusinessName == "Distribuidora Andina S.A." && s.DefaultExpenseTypeId == expenseTypeId), Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -95,8 +98,7 @@ public sealed class SupplierHandlersTests
         var supplier = Supplier.Create(supplierId, tenantId, "Proveedor Original", "1790016919001", contactEmail: "contacto@proveedor.ec").Value!;
         _suppliers.GetTrackedByIdAsync(tenantId, supplierId, Arg.Any<CancellationToken>()).Returns(supplier);
         _suppliers.ExistsByTaxIdAsync(tenantId, "1790016919001", supplierId, Arg.Any<CancellationToken>()).Returns(false);
-        _suppliers.ExistsByBusinessNameAsync(tenantId, "Proveedor Modificado S.A.", supplierId, Arg.Any<CancellationToken>()).Returns(false);
-
+        var newExpenseTypeId = Guid.NewGuid();
         var handler = new UpdateSupplierHandler(_suppliers, _unitOfWork);
         var command = new UpdateSupplierCommand(
             tenantId,
@@ -107,7 +109,8 @@ public sealed class SupplierHandlersTests
             SupplierTaxRegime.RimpeEmprendedor,
             TradeName: "Nombre Comercial",
             ContactEmail: "modificado@proveedor.ec",
-            CreditDays: 45);
+            CreditDays: 45,
+            DefaultExpenseTypeId: newExpenseTypeId);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -117,6 +120,7 @@ public sealed class SupplierHandlersTests
         result.Value!.BusinessName.Should().Be("Proveedor Modificado S.A.");
         result.Value.CreditDays.Should().Be(45);
         result.Value.TaxRegime.Should().Be(SupplierTaxRegime.RimpeEmprendedor);
+        result.Value.DefaultExpenseTypeId.Should().Be(newExpenseTypeId);
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

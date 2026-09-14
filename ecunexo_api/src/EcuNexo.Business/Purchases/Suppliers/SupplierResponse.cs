@@ -24,7 +24,8 @@ public sealed record SupplierResponse(
     string? Notes,
     bool IsActive,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? UpdatedAt)
+    DateTimeOffset? UpdatedAt,
+    Guid? DefaultExpenseTypeId = null)
 {
     public static SupplierResponse FromDomain(Supplier s) => new(
         s.Id,
@@ -48,5 +49,6 @@ public sealed record SupplierResponse(
         s.Notes,
         s.IsActive,
         s.CreatedAt,
-        s.UpdatedAt);
+        s.UpdatedAt,
+        s.DefaultExpenseTypeId);
 }

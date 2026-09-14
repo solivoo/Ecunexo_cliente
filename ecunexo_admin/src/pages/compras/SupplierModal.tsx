@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { CheckButton, Popup, Select, TextBox } from 'glubox'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { validateTaxId } from '@/utils/ecuadorTaxIdValidator'
 import type {
   CreateSupplierPayload,
+  ExpenseTypeDto,
   SupplierDto,
   SupplierIdentificationType,
   SupplierTaxRegime,
@@ -28,6 +29,7 @@ interface SupplierModalProps {
   open: boolean
   supplier: SupplierDto | null
   saving: boolean
+  expenseTypes?: ExpenseTypeDto[]
   onClose: () => void
   onSave: (payload: CreateSupplierPayload | UpdateSupplierPayload) => Promise<void>
 }
@@ -36,6 +38,7 @@ export function SupplierModal({
   open,
   supplier,
   saving,
+  expenseTypes = [],
   onClose,
   onSave,
 }: SupplierModalProps) {
@@ -46,6 +49,7 @@ export function SupplierModal({
   const [taxRegime, setTaxRegime] = useState<SupplierTaxRegime>(1)
   const [isRetentionAgent, setIsRetentionAgent] = useState(false)
   const [resolutionNumber, setResolutionNumber] = useState('')
+  const [defaultExpenseTypeId, setDefaultExpenseTypeId] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [contactPhone, setContactPhone] = useState('')
   const [address, setAddress] = useState('')
@@ -59,6 +63,17 @@ export function SupplierModal({
   const [isActive, setIsActive] = useState(true)
 
   const [formError, setFormError] = useState<string | null>(null)
+
+  const expenseTypeOptions = useMemo(
+    () => [
+      { value: '', label: 'Detección automática / Manual en factura' },
+      ...expenseTypes.map((et) => ({
+        value: et.id,
+        label: `${et.code} — ${et.name}${et.affectsInventory ? ' (Inventario/Bodega)' : ' (Gasto/Servicio)'}`,
+      })),
+    ],
+    [expenseTypes]
+  )
 
   // Reset or populate fields when modal opens or supplier changes
   useEffect(() => {
@@ -75,6 +90,7 @@ export function SupplierModal({
       setTaxRegime(supplier.taxRegime)
       setIsRetentionAgent(supplier.isRetentionAgent)
       setResolutionNumber(supplier.resolutionNumber ?? '')
+      setDefaultExpenseTypeId(supplier.defaultExpenseTypeId ?? '')
       setContactEmail(supplier.contactEmail ?? '')
       setContactPhone(supplier.contactPhone ?? '')
       setAddress(supplier.address ?? '')
@@ -94,6 +110,7 @@ export function SupplierModal({
       setTaxRegime(1)
       setIsRetentionAgent(false)
       setResolutionNumber('')
+      setDefaultExpenseTypeId('')
       setContactEmail('')
       setContactPhone('')
       setAddress('')
@@ -155,6 +172,7 @@ export function SupplierModal({
         taxId: taxId.trim(),
         isRetentionAgent,
         resolutionNumber: isRetentionAgent && resolutionNumber.trim() ? resolutionNumber.trim() : null,
+        defaultExpenseTypeId: defaultExpenseTypeId || null,
         contactEmail: contactEmail.trim().toLowerCase() || null,
         contactPhone: contactPhone.trim() || null,
         address: address.trim() || null,
@@ -189,6 +207,7 @@ export function SupplierModal({
       taxRegime,
       isRetentionAgent,
       resolutionNumber,
+      defaultExpenseTypeId,
       contactEmail,
       contactPhone,
       address,
@@ -358,6 +377,24 @@ export function SupplierModal({
               />
             </div>
           ) : null}
+
+          {/* Tipo de Compra / Gasto Predeterminado */}
+          <div className="ecu-customer-form__field ecu-customer-form__field--span">
+            <Select
+              id="supplier-expense-type"
+              label="Tipo de Compra / Gasto Predeterminado (Para XMLs y Facturas)"
+              labelPosition="outlined"
+              variant="outline"
+              value={defaultExpenseTypeId}
+              options={expenseTypeOptions}
+              onChange={(val: string) => setDefaultExpenseTypeId(val)}
+              fullWidth
+              disabled={saving}
+            />
+            <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #6b7280)', marginTop: '0.25rem' }}>
+              Al cargar facturas electrónicas XML de este proveedor, se asignará este tipo de gasto automáticamente (ej. Mercadería de inventario o Servicios/Fletes).
+            </div>
+          </div>
 
           {/* Contacto */}
           <div className="ecu-customer-form__field">

@@ -77,6 +77,7 @@ public sealed class CreateSupplierHandler : ICommandHandler<CreateSupplierComman
             command.BankAccountType,
             command.BankAccountNumber,
             command.Notes,
+            command.DefaultExpenseTypeId,
             command.CreatedBy);
 
         if (supplierResult.IsFailure)

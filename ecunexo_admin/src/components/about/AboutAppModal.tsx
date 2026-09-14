@@ -110,9 +110,12 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Resolución Idempotente de Proveedores en Importación de XML</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Tipo de Gasto Predeterminado en Proveedores y Edición en Compras</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Tipo de Gasto / Servicio Predeterminado en Proveedores:</strong> Asociación directa del tipo de compra o gasto habitual en el Directorio de Proveedores (ej. Mercadería para inventario, Flete de courier o Servicios profesionales). Al importar facturas electrónicas XML de compras, el sistema adopta automáticamente la clasificación del proveedor agilizando la gestión sin selección manual repetitiva.</li>
+            <li><strong>Edición Interactiva de Líneas de Factura en Cola de Compras:</strong> Capacidad completa para editar cantidades, precios unitarios, descuentos, tasas de IVA, destino de inventario vs. gasto y bodega asignada en cada ítem de facturas en cola, con recálculo centesimal automático de subtotales e impuestos SRI en tiempo real.</li>
+            <li><strong>Secuencial de Facturación Centralizado en Ajustes de Empresa:</strong> Centralización de parámetros de establecimiento, punto de emisión y secuenciales exclusivamente en Facturación Electrónica de la empresa, eliminando duplicidad y garantizando que las emisiones respeten el secuencial asignado.</li>
             <li><strong>Resolución Idempotente de Proveedores en Importación de XML de Compras:</strong> Corrección en el registro masivo y en cola de facturas electrónicas XML que comparten un mismo proveedor. Al registrar la primera factura, el sistema crea o resuelve el proveedor automáticamente; para las subsiguientes facturas del mismo emisor, se reutiliza su identificador sin lanzar conflictos de duplicidad (409) ni rechazar los XMLs del lote.</li>
             <li><strong>Herencia Automática de Credenciales del Titular Root:</strong> Eliminada la exigencia forzada de crear una contraseña redundante al dar de alta una nueva empresa bajo la suscripción. El usuario titular asigna automáticamente sus credenciales de acceso globales con aviso visual claro y opción voluntaria para contraseñas específicas.</li>
             <li><strong>Matriz de Planes y Precios Sector Transporte:</strong> Documentación oficial de planes comerciales para el sector transporte ecuatoriano (Planes Local $428/año y Empresa $806/año) con auditoría integral de cumplimiento ante el SRI.</li>

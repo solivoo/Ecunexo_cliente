@@ -203,4 +203,32 @@ public sealed class SupplierTests
         supplier.IsActive.Should().BeFalse();
         supplier.DeletedAt.Should().NotBeNull();
     }
+
+    [Fact(DisplayName = "Supplier.Create y Update persisten DefaultExpenseTypeId correctamente")]
+    public void Supplier_CreateAndUpdate_PersistsDefaultExpenseTypeId()
+    {
+        var supplierId = Guid.NewGuid();
+        var expenseTypeId = Guid.NewGuid();
+        var result = Supplier.Create(
+            id: supplierId,
+            tenantId: TenantId,
+            businessName: "Proveedor con Gasto Predeterminado S.A.",
+            taxId: "0992345675001",
+            defaultExpenseTypeId: expenseTypeId);
+
+        result.IsSuccess.Should().BeTrue();
+        var supplier = result.Value!;
+        supplier.DefaultExpenseTypeId.Should().Be(expenseTypeId);
+
+        var newExpenseTypeId = Guid.NewGuid();
+        var updateResult = supplier.Update(
+            businessName: "Proveedor con Nuevo Gasto S.A.",
+            taxId: "0992345675001",
+            identificationType: SupplierIdentificationType.Ruc,
+            taxRegime: SupplierTaxRegime.General,
+            defaultExpenseTypeId: newExpenseTypeId);
+
+        updateResult.IsSuccess.Should().BeTrue();
+        supplier.DefaultExpenseTypeId.Should().Be(newExpenseTypeId);
+    }
 }

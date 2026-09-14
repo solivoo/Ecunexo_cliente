@@ -5,6 +5,10 @@ import {
   validatePassport,
   validateTaxId,
 } from '../../src/utils/ecuadorTaxIdValidator'
+import {
+  computeLineValues,
+  computeInvoiceTotalsFromLines,
+} from '../../src/utils/purchaseCalculations'
 import type {
   SupplierDto,
   ExpenseTypeDto,
@@ -1201,6 +1205,80 @@ test.describe('Compras UI — Documentos de Compra & Parseo XML SRI', () => {
     // Toast de éxito y redirección a la lista
     await expect(page.getByText(/Liquidación Registrada/i)).toBeVisible({ timeout: 10_000 })
     await expect(page).toHaveURL(/.*\/compras\/liquidaciones/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// UNIT TESTS: Edición y Recálculo Dinámico de Facturas de Proveedores en Grid / Lote
+// ---------------------------------------------------------------------------
+test.describe('Importación XML — Edición de Facturas de Proveedores en Cola / Grid', () => {
+  test('computeLineValues calcula subtotal, IVA y total con precisión centesimal y descuento', () => {
+    // 3 unidades a $25.50 con $5.00 de descuento y 15% IVA
+    // Subtotal: 3 * 25.50 - 5.00 = 76.50 - 5.00 = 71.50
+    // IVA: 71.50 * 0.15 = 10.725 -> 10.73
+    // Total: 71.50 + 10.73 = 82.23
+    const res1 = computeLineValues(3, 25.5, 5, 15)
+    expect(res1.subtotal).toBe(71.5)
+    expect(res1.taxAmount).toBe(10.73)
+    expect(res1.total).toBe(82.23)
+
+    // Tarifa 0% IVA
+    const res0 = computeLineValues(10, 12, 0, 0)
+    expect(res0.subtotal).toBe(120)
+    expect(res0.taxAmount).toBe(0)
+    expect(res0.total).toBe(120)
+
+    // Tarifa 5% IVA (Materiales de construcción)
+    const res5 = computeLineValues(2, 50, 0, 5)
+    expect(res5.subtotal).toBe(100)
+    expect(res5.taxAmount).toBe(5)
+    expect(res5.total).toBe(105)
+  })
+
+  test('computeInvoiceTotalsFromLines desglosa subtotales 0%, gravados, descuentos e IVA total', () => {
+    const lines = [
+      {
+        itemCode: 'ITEM-01',
+        description: 'Servicio con IVA 15%',
+        quantity: 2,
+        unitPrice: 50,
+        discount: 10,
+        subtotal: 90, // 2 * 50 - 10
+        taxRate: 15,
+        taxAmount: 13.5, // 90 * 0.15
+        total: 103.5,
+        matchedCatalogItemId: null,
+        matchedCatalogItemName: null,
+        selectedCatalogItemId: '',
+        selectedWarehouseId: '',
+        affectsStock: false,
+        canAffectInventory: false,
+      },
+      {
+        itemCode: 'ITEM-02',
+        description: 'Bienes con tarifa 0%',
+        quantity: 5,
+        unitPrice: 20,
+        discount: 0,
+        subtotal: 100,
+        taxRate: 0,
+        taxAmount: 0,
+        total: 100,
+        matchedCatalogItemId: null,
+        matchedCatalogItemName: null,
+        selectedCatalogItemId: '',
+        selectedWarehouseId: 'wh-01',
+        affectsStock: true,
+        canAffectInventory: true,
+      },
+    ]
+
+    const totals = computeInvoiceTotalsFromLines(lines)
+    expect(totals.subtotalZero).toBe(100)
+    expect(totals.subtotalTaxed).toBe(90)
+    expect(totals.totalDiscount).toBe(10)
+    expect(totals.taxAmount).toBe(13.5)
+    expect(totals.totalAmount).toBe(203.5)
   })
 })
 

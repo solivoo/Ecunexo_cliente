@@ -21,6 +21,7 @@ export interface SupplierDto {
   bankName: string | null
   bankAccountType: string | null
   bankAccountNumber: string | null
+  defaultExpenseTypeId?: string | null
   notes: string | null
   isActive: boolean
   createdAt: string
@@ -44,6 +45,7 @@ export interface CreateSupplierPayload {
   bankName?: string | null
   bankAccountType?: string | null
   bankAccountNumber?: string | null
+  defaultExpenseTypeId?: string | null
   notes?: string | null
   returnExistingIfExists?: boolean
 }
@@ -241,6 +243,7 @@ export interface DetectedSupplierDto {
   tradeName: string | null
   address: string | null
   isRegistered: boolean
+  defaultExpenseTypeId?: string | null
 }
 
 export interface ParsedLineWithMatchDto {

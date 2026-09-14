@@ -142,6 +142,7 @@ public static class SupplierEndpoints
             request.BankAccountType,
             request.BankAccountNumber,
             request.Notes,
+            request.DefaultExpenseTypeId,
             ReturnExistingIfExists: request.ReturnExistingIfExists);
 
         var result = await sender
@@ -183,6 +184,7 @@ public static class SupplierEndpoints
             request.BankAccountType,
             request.BankAccountNumber,
             request.Notes,
+            request.DefaultExpenseTypeId,
             request.IsActive);
 
         var result = await sender

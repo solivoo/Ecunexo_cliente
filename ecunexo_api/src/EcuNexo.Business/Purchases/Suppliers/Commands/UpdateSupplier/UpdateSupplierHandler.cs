@@ -56,6 +56,7 @@ public sealed class UpdateSupplierHandler : ICommandHandler<UpdateSupplierComman
             command.BankAccountType,
             command.BankAccountNumber,
             command.Notes,
+            command.DefaultExpenseTypeId,
             command.UpdatedBy);
 
         if (updateResult.IsFailure)

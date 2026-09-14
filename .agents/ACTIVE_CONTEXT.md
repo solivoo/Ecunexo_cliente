@@ -7,9 +7,22 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.24.1`.
+* **Última Versión Publicada:** `v0.25.0`.
 * **Hitos Recientes Completados:**
-  - **Resolución Idempotente de Proveedores en Importación de XML de Compras:**
+  - **Tipo de Gasto Predeterminado en Proveedores, Edición Interactiva en Cola de Compras y Secuencial Centralizado (`v0.25.0`):**
+    * **Backend (`ecunexo_api` & `Facturacion`):**
+      - Entidad `Supplier`: propiedad `DefaultExpenseTypeId`, configuración EF Core con columna `default_expense_type_id` y migración `20260914040000_AddDefaultExpenseTypeIdToSuppliers.cs`.
+      - CQRS: Mapeo en `CreateSupplierCommand`, `CreateSupplierHandler`, `UpdateSupplierCommand`, `UpdateSupplierHandler`, `SupplierResponse` y contratos REST V1 (`PurchaseContracts.cs`, `SupplierEndpoints.cs`).
+      - Parseo XML SRI: `ParseSriPurchaseXmlCommand` consulta si el proveedor está registrado y retorna su `DefaultExpenseTypeId` en `DetectedSupplierDto`.
+      - Facturación Electrónica (`Billing.Api` / `Billing.Business`): `CreateInvoiceService` recibe y respeta `RequestedSequential` provisto por la empresa; `SriEmissionIdentityResolver.cs` preserva certificados configurados por empresa.
+      - Cobertura de tests unitarios: 313/313 pasando al 100% (209 Core + 104 Business).
+    * **Frontend (`ecunexo_admin`):**
+      - `SupplierModal.tsx`: selector reactivo de «Tipo de Compra / Gasto Predeterminado» para compras y XMLs.
+      - `SuppliersListPage.tsx`: columna visible «Gasto / Servicio Predeterminado» en DataGrid con mapeo de catálogo.
+      - `ImportPurchasesPage.tsx`: asignación automática del tipo de gasto del proveedor al cargar facturas electrónicas XML; edición interactiva completa por línea (cantidad, precio unitario, descuento, tasa IVA, almacén vs servicio, bodega) y recálculo automático de subtotales e impuestos en tiempo real ([`purchaseCalculations.ts`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/utils/purchaseCalculations.ts)).
+      - `CompanyLegalFields.tsx`: eliminación de establecimiento redundante en Editar Empresa, centralizándolo en Ajustes de Empresa → Facturación electrónica.
+      - Tests UI en Playwright: 24/24 tests pasando al 100% en `tests-ui/comun/compras-ui.spec.ts`.
+  - **Resolución Idempotente de Proveedores en Importación de XML de Compras (`v0.24.1`):**
     * **Backend (`ecunexo_api`):**
       - Endpoint REST V1 `GET /api/v1/tenants/{tenantId}/purchases/suppliers/by-tax-id/{taxId}` con handler `GetSupplierByTaxIdHandler` para consultar proveedores directamente por RUC/Cédula.
       - Opción `ReturnExistingIfExists` en `CreateSupplierCommand` y `CreateSupplierApiRequest`. Si el proveedor ya existe en la base de datos por RUC o Razón Social, retorna el proveedor existente con HTTP 200/Success en lugar de fallar con error de conflicto 409 (`purchases.supplier.tax_id_duplicate`).

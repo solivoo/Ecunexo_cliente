@@ -22,5 +22,6 @@ public sealed record CreateSupplierCommand(
     string? BankAccountType = null,
     string? BankAccountNumber = null,
     string? Notes = null,
+    Guid? DefaultExpenseTypeId = null,
     Guid? CreatedBy = null,
     bool ReturnExistingIfExists = false) : ICommand<SupplierResponse>;

@@ -586,3 +586,52 @@ html.sf-dark-mode .ecu-audit-alert--warning {
 .ecu-import-batch-bar__text strong {
   color: var(--shell-primary, #3b82f6);
 }
+
+/* Editable inputs inside table */
+.ecu-table-input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--shell-border, rgba(255, 255, 255, 0.12));
+  background: var(--glb-surface, #0f172a);
+  color: var(--glb-text, #f8fafc);
+  font-size: 0.82rem;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ecu-table-input:focus {
+  outline: none;
+  border-color: var(--shell-primary, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.ecu-table-input--number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+html:not(.sf-dark-mode) .ecu-table-input {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+/* Edit Card Grid */
+.ecu-edit-invoice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.875rem;
+}
+
+@media (max-width: 900px) {
+  .ecu-edit-invoice-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .ecu-edit-invoice-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -14,7 +14,8 @@ import {
   FileText,
   Info,
   Package,
-  Sliders,
+  Pencil,
+  Plus,
   Trash2,
   UploadCloud,
   XCircle,
@@ -33,6 +34,7 @@ import {
 } from '@/services/purchasesApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
+import { computeInvoiceTotalsFromLines, computeLineValues } from '@/utils/purchaseCalculations'
 import type { CatalogItemListItemDto } from '@/types/catalogApi'
 import type { WarehouseListItemDto } from '@/types/inventoryApi'
 import type {
@@ -74,7 +76,25 @@ export interface QueuedInvoice {
   lines: EditableQueuedLineItem[]
   notes: string
   selected: boolean
+  isEdited?: boolean
 }
+
+export const SRI_PAYMENT_METHODS = [
+  { value: '01', label: '01 — Sin utilización del sistema financiero (Efectivo)' },
+  { value: '20', label: '20 — Otros con utilización del sistema financiero (Transferencia/Cheque)' },
+  { value: '16', label: '16 — Tarjeta de débito' },
+  { value: '19', label: '19 — Tarjeta de crédito' },
+  { value: '17', label: '17 — Dinero electrónico' },
+  { value: '18', label: '18 — Tarjeta prepago' },
+  { value: '21', label: '21 — Endoso de títulos' },
+]
+
+export const SRI_TAX_RATES = [
+  { value: '15', label: '15%' },
+  { value: '5', label: '5%' },
+  { value: '0', label: '0%' },
+]
+
 
 /**
  * Detecta automáticamente si el proveedor es de servicios o encomiendas
@@ -322,12 +342,14 @@ export function ImportPurchasesPage() {
           skippedDbDuplicates.push(parsed.invoiceNumber)
         }
 
-        // 3. Detección inteligente de tipo de gasto (Flete, Bienes, etc.)
-        const expId = detectDefaultExpenseType(
-          parsed.supplier.businessName,
-          parsed.supplier.taxId,
-          expenseTypes
-        )
+        // 3. Detección inteligente de tipo de gasto (Predeterminado del proveedor o heurística)
+        const expId =
+          parsed.supplier.defaultExpenseTypeId ||
+          detectDefaultExpenseType(
+            parsed.supplier.businessName,
+            parsed.supplier.taxId,
+            expenseTypes
+          )
         const expObj = expenseTypes.find((et) => et.id === expId)
         const isService = expObj ? !expObj.affectsInventory : false
 
@@ -424,11 +446,13 @@ export function ImportPurchasesPage() {
       const defaultWhId = warehouses[0]?.id ?? ''
       const isAlreadyRegisteredInDb = Boolean(parsed.isAlreadyRegistered)
 
-      const expId = detectDefaultExpenseType(
-        parsed.supplier.businessName,
-        parsed.supplier.taxId,
-        expenseTypes
-      )
+      const expId =
+        parsed.supplier.defaultExpenseTypeId ||
+        detectDefaultExpenseType(
+          parsed.supplier.businessName,
+          parsed.supplier.taxId,
+          expenseTypes
+        )
       const expObj = expenseTypes.find((et) => et.id === expId)
       const isService = expObj ? !expObj.affectsInventory : false
 
@@ -737,6 +761,170 @@ export function ImportPurchasesPage() {
             ? (l.selectedWarehouseId || inv.defaultWarehouseId || defaultWhId)
             : '',
         })),
+      }
+    })
+  }
+
+  // Actualizar datos del encabezado o proveedor de la factura activa
+  const handleUpdateInvoiceHeader = (
+    field:
+      | 'invoiceNumber'
+      | 'issueDate'
+      | 'authorizationNumber'
+      | 'supplierTaxId'
+      | 'supplierBusinessName'
+      | 'supplierTradeName'
+      | 'supplierAddress'
+      | 'paymentMethodCode'
+      | 'creditDays',
+    value: string | number
+  ) => {
+    updateActiveInvoice((inv) => {
+      const parsed = { ...inv.parsedData }
+      const supp = { ...parsed.supplier }
+
+      if (field === 'invoiceNumber') {
+        parsed.invoiceNumber = String(value)
+      } else if (field === 'issueDate') {
+        parsed.issueDate = String(value)
+      } else if (field === 'authorizationNumber') {
+        parsed.authorizationNumber = String(value)
+      } else if (field === 'supplierTaxId') {
+        supp.taxId = String(value)
+      } else if (field === 'supplierBusinessName') {
+        supp.businessName = String(value)
+      } else if (field === 'supplierTradeName') {
+        supp.tradeName = String(value)
+      } else if (field === 'supplierAddress') {
+        supp.address = String(value)
+      } else if (field === 'paymentMethodCode') {
+        parsed.paymentMethodCode = String(value)
+      } else if (field === 'creditDays') {
+        parsed.creditDays = Number(value) || 0
+      }
+
+      parsed.supplier = supp
+      return {
+        ...inv,
+        parsedData: parsed,
+        isEdited: true,
+      }
+    })
+  }
+
+  // Actualizar un campo de una línea y recalcular automáticamente totales en tiempo real
+  const handleUpdateLine = (
+    lineIdx: number,
+    field: 'itemCode' | 'description' | 'quantity' | 'unitPrice' | 'discount' | 'taxRate',
+    val: string | number
+  ) => {
+    updateActiveInvoice((inv) => {
+      const newLines = [...inv.lines]
+      const curr = { ...newLines[lineIdx] }
+
+      if (field === 'itemCode') curr.itemCode = String(val)
+      else if (field === 'description') curr.description = String(val)
+      else if (field === 'quantity') curr.quantity = parseFloat(String(val)) || 0
+      else if (field === 'unitPrice') curr.unitPrice = parseFloat(String(val)) || 0
+      else if (field === 'discount') curr.discount = parseFloat(String(val)) || 0
+      else if (field === 'taxRate') curr.taxRate = parseFloat(String(val)) || 0
+
+      const { subtotal, taxAmount, total } = computeLineValues(
+        curr.quantity,
+        curr.unitPrice,
+        curr.discount,
+        curr.taxRate
+      )
+      curr.subtotal = subtotal
+      curr.taxAmount = taxAmount
+      curr.total = total
+      newLines[lineIdx] = curr
+
+      const totals = computeInvoiceTotalsFromLines(newLines)
+
+      return {
+        ...inv,
+        lines: newLines,
+        parsedData: {
+          ...inv.parsedData,
+          ...totals,
+          validationReport: inv.parsedData.validationReport
+            ? {
+                ...inv.parsedData.validationReport,
+                calculatedTotal: totals.totalAmount,
+                declaredTotal: totals.totalAmount,
+                mathDiscrepancy: 0,
+                isMathConsistent: true,
+              }
+            : null,
+        },
+        isEdited: true,
+      }
+    })
+  }
+
+  // Agregar nueva línea editable a la factura activa
+  const handleAddLine = () => {
+    updateActiveInvoice((inv) => {
+      const isService = activeExpenseType ? !activeExpenseType.affectsInventory : false
+      const defaultWhId = warehouses[0]?.id ?? ''
+
+      const newLine: EditableQueuedLineItem = {
+        itemCode: '',
+        description: 'Nuevo producto / servicio',
+        quantity: 1,
+        unitPrice: 0,
+        discount: 0,
+        subtotal: 0,
+        taxRate: 15,
+        taxAmount: 0,
+        total: 0,
+        matchedCatalogItemId: null,
+        matchedCatalogItemName: null,
+        selectedCatalogItemId: '',
+        selectedWarehouseId: isService ? '' : (inv.defaultWarehouseId || defaultWhId),
+        affectsStock: !isService,
+        canAffectInventory: !isService,
+      }
+
+      const newLines = [...inv.lines, newLine]
+      const totals = computeInvoiceTotalsFromLines(newLines)
+
+      return {
+        ...inv,
+        lines: newLines,
+        parsedData: {
+          ...inv.parsedData,
+          ...totals,
+        },
+        isEdited: true,
+      }
+    })
+  }
+
+  // Eliminar línea de la factura activa
+  const handleDeleteLine = (lineIdx: number) => {
+    updateActiveInvoice((inv) => {
+      if (inv.lines.length <= 1) {
+        toast.show({
+          title: 'Línea requerida',
+          message: 'La factura debe tener al menos un ítem registrado.',
+          variant: 'warning',
+        })
+        return inv
+      }
+
+      const newLines = inv.lines.filter((_, idx) => idx !== lineIdx)
+      const totals = computeInvoiceTotalsFromLines(newLines)
+
+      return {
+        ...inv,
+        lines: newLines,
+        parsedData: {
+          ...inv.parsedData,
+          ...totals,
+        },
+        isEdited: true,
       }
     })
   }
@@ -1208,9 +1396,24 @@ export function ImportPurchasesPage() {
                           </td>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-                              <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--glb-text)' }}>
+                              <span
+                                style={{
+                                  fontWeight: 600,
+                                  fontSize: '0.9rem',
+                                  color: 'var(--glb-text)',
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline dotted',
+                                }}
+                                onClick={() => handleOpenDetail(inv.id)}
+                                title="Haz clic para editar los datos de esta factura"
+                              >
                                 {inv.parsedData.invoiceNumber}
                               </span>
+                              {inv.isEdited ? (
+                                <span className="ecu-tag ecu-tag--synced-warehouse" title="Comprobante editado manualmente">
+                                  Editada
+                                </span>
+                              ) : null}
                               {isAlreadyReg ? (
                                 <span className="ecu-tag ecu-tag--registered-sys" title="Ya registrada en la base de datos">
                                   Ya en Sistema
@@ -1293,10 +1496,10 @@ export function ImportPurchasesPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleOpenDetail(inv.id)}
-                                title="Ver auditoría SRI, líneas y configurar comprobante"
+                                title="Editar datos del comprobante, proveedor e ítems"
                               >
-                                <Sliders size={14} />
-                                Configurar
+                                <Pencil size={14} />
+                                Editar Factura
                               </Button>
                               <button
                                 type="button"
@@ -1403,7 +1606,122 @@ export function ImportPurchasesPage() {
                 </div>
               </div>
 
-              {/* 1. Auditoría Preventiva SRI */}
+              {/* 1. Datos Principales del Comprobante y Proveedor (Editables) */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <SectionCard
+                  title="Datos del Comprobante y Proveedor"
+                  subtitle="Ajusta o corrige los datos del comprobante, información del proveedor y condiciones comerciales."
+                  action={
+                    activeInvoice.isEdited ? (
+                      <StatusBadge tone="primary" withDot>
+                        Modificada manualmente
+                      </StatusBadge>
+                    ) : undefined
+                  }
+                >
+                  <div className="ecu-edit-invoice-grid">
+                    <TextBox
+                      label="Nº de Factura *"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={activeInvoice.parsedData.invoiceNumber}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        handleUpdateInvoiceHeader('invoiceNumber', e.target.value)
+                      }
+                      placeholder="001-001-000000123"
+                      fullWidth
+                    />
+                    <TextBox
+                      type="date"
+                      label="Fecha de Emisión *"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={activeInvoice.parsedData.issueDate}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        handleUpdateInvoiceHeader('issueDate', e.target.value)
+                      }
+                      fullWidth
+                    />
+                    <TextBox
+                      label="Clave de Acceso SRI"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={activeInvoice.parsedData.authorizationNumber}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        handleUpdateInvoiceHeader('authorizationNumber', e.target.value)
+                      }
+                      placeholder="49 dígitos o autorización física..."
+                      fullWidth
+                    />
+                    <TextBox
+                      label="RUC / Cédula Proveedor *"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={activeInvoice.parsedData.supplier.taxId}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        handleUpdateInvoiceHeader('supplierTaxId', e.target.value)
+                      }
+                      placeholder="RUC 13 dígitos o Cédula..."
+                      fullWidth
+                    />
+                    <TextBox
+                      label="Razón Social Proveedor *"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={activeInvoice.parsedData.supplier.businessName}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        handleUpdateInvoiceHeader('supplierBusinessName', e.target.value)
+                      }
+                      placeholder="Razón social del emisor..."
+                      fullWidth
+                    />
+                    <TextBox
+                      label="Nombre Comercial"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={activeInvoice.parsedData.supplier.tradeName ?? ''}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        handleUpdateInvoiceHeader('supplierTradeName', e.target.value)
+                      }
+                      placeholder="Nombre comercial (opcional)..."
+                      fullWidth
+                    />
+                    <TextBox
+                      label="Dirección Matriz"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={activeInvoice.parsedData.supplier.address ?? ''}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        handleUpdateInvoiceHeader('supplierAddress', e.target.value)
+                      }
+                      placeholder="Dirección fiscal matriz..."
+                      fullWidth
+                    />
+                    <Select
+                      label="Forma de Pago SRI"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={activeInvoice.parsedData.paymentMethodCode || '01'}
+                      options={SRI_PAYMENT_METHODS}
+                      onChange={(val) => handleUpdateInvoiceHeader('paymentMethodCode', val)}
+                      fullWidth
+                    />
+                    <TextBox
+                      type="number"
+                      label="Plazo / Días de Crédito"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={String(activeInvoice.parsedData.creditDays || 0)}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        handleUpdateInvoiceHeader('creditDays', e.target.value)
+                      }
+                      fullWidth
+                    />
+                  </div>
+                </SectionCard>
+              </div>
+
+              {/* 2. Auditoría Preventiva SRI */}
               <div style={{ marginBottom: '1.25rem' }}>
                 <SectionCard
                   title={`Auditoría SRI: Factura ${activeInvoice.parsedData.invoiceNumber}`}
@@ -1585,12 +1903,17 @@ export function ImportPurchasesPage() {
                     : 'Clasifica qué productos ingresan a stock y cuáles corresponden a insumos o gastos operativos.'
                 }
               >
-                {/* Barra de acciones masivas y aviso de sinergia con Bodega */}
+                {/* Barra de acciones masivas y agregar ítems */}
                 <div className="ecu-line-actions-strip">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.82rem', color: 'var(--glb-muted)', fontWeight: 500 }}>
-                      Acciones masivas de líneas:
-                    </span>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleAddLine}
+                    >
+                      <Plus size={14} />
+                      + Agregar Ítem a la Factura
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -1622,28 +1945,84 @@ export function ImportPurchasesPage() {
                     <thead>
                       <tr>
                         <th style={{ width: '90px' }}>Cód. SRI</th>
-                        <th>Descripción Proveedor</th>
-                        <th style={{ width: '60px', textAlign: 'center' }}>Cant.</th>
+                        <th style={{ minWidth: '220px' }}>Descripción</th>
+                        <th style={{ width: '70px', textAlign: 'right' }}>Cant.</th>
                         <th style={{ width: '85px', textAlign: 'right' }}>P. Unit</th>
-                        <th style={{ width: '60px', textAlign: 'center' }}>IVA</th>
-                        <th style={{ width: '90px', textAlign: 'right' }}>Total</th>
-                        <th style={{ width: '160px' }}>Destino / Tipo</th>
-                        <th style={{ minWidth: '260px' }}>Homologación & Sinergia con Bodega</th>
+                        <th style={{ width: '75px', textAlign: 'right' }}>Desc.</th>
+                        <th style={{ width: '75px', textAlign: 'center' }}>IVA</th>
+                        <th style={{ width: '85px', textAlign: 'right' }}>Total</th>
+                        <th style={{ width: '140px' }}>Destino</th>
+                        <th style={{ minWidth: '220px' }}>Homologación Catálogo</th>
+                        <th style={{ width: '36px', textAlign: 'center' }}></th>
                       </tr>
                     </thead>
                     <tbody>
                       {activeInvoice.lines.map((line, idx) => (
                         <tr key={idx}>
-                          <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                            {line.itemCode || '—'}
+                          <td>
+                            <input
+                              type="text"
+                              className="ecu-table-input"
+                              placeholder="Cód..."
+                              value={line.itemCode || ''}
+                              onChange={(e) => handleUpdateLine(idx, 'itemCode', e.target.value)}
+                            />
                           </td>
                           <td>
-                            <div style={{ fontWeight: 500, fontSize: '0.88rem' }}>{line.description}</div>
+                            <input
+                              type="text"
+                              className="ecu-table-input"
+                              placeholder="Descripción del ítem..."
+                              value={line.description}
+                              onChange={(e) => handleUpdateLine(idx, 'description', e.target.value)}
+                            />
                           </td>
-                          <td style={{ fontWeight: 600, textAlign: 'center' }}>{line.quantity}</td>
-                          <td style={{ textAlign: 'right' }}>${line.unitPrice.toFixed(2)}</td>
-                          <td style={{ textAlign: 'center' }}>{line.taxRate}%</td>
-                          <td style={{ fontWeight: 600, textAlign: 'right' }}>${line.total.toFixed(2)}</td>
+                          <td>
+                            <input
+                              type="number"
+                              className="ecu-table-input ecu-table-input--number"
+                              min="0"
+                              step="any"
+                              value={line.quantity}
+                              onChange={(e) => handleUpdateLine(idx, 'quantity', e.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              className="ecu-table-input ecu-table-input--number"
+                              min="0"
+                              step="any"
+                              value={line.unitPrice}
+                              onChange={(e) => handleUpdateLine(idx, 'unitPrice', e.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              className="ecu-table-input ecu-table-input--number"
+                              min="0"
+                              step="any"
+                              value={line.discount}
+                              onChange={(e) => handleUpdateLine(idx, 'discount', e.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <select
+                              className="ecu-table-input"
+                              value={String(line.taxRate)}
+                              onChange={(e) => handleUpdateLine(idx, 'taxRate', e.target.value)}
+                            >
+                              {SRI_TAX_RATES.map((t) => (
+                                <option key={t.value} value={t.value}>
+                                  {t.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td style={{ fontWeight: 700, textAlign: 'right', color: 'var(--glb-text)' }}>
+                            ${line.total.toFixed(2)}
+                          </td>
                           <td>
                             <Select
                               size="sm"
@@ -1651,8 +2030,8 @@ export function ImportPurchasesPage() {
                               disabled={isActiveService}
                               value={line.affectsStock ? 'stock' : 'expense'}
                               options={[
-                                { value: 'stock', label: '📦 Stock / Bodega' },
-                                { value: 'expense', label: '💼 Gasto Directo' },
+                                { value: 'stock', label: '📦 Stock' },
+                                { value: 'expense', label: '💼 Gasto' },
                               ]}
                               onChange={(val) => handleLineAffectsStockChange(idx, val === 'stock')}
                               fullWidth
@@ -1698,6 +2077,16 @@ export function ImportPurchasesPage() {
                               </div>
                             )}
                           </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className="ecu-grid-btn ecu-grid-btn--danger"
+                              title="Eliminar este ítem"
+                              onClick={() => handleDeleteLine(idx)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1713,6 +2102,10 @@ export function ImportPurchasesPage() {
                   <div className="ecu-import-totals-item">
                     <span>Subtotal Gravado ({activeInvoice.parsedData.taxRate}%):</span>
                     <strong>${activeInvoice.parsedData.subtotalTaxed.toFixed(2)}</strong>
+                  </div>
+                  <div className="ecu-import-totals-item">
+                    <span>Descuento Total:</span>
+                    <strong>${activeInvoice.parsedData.totalDiscount.toFixed(2)}</strong>
                   </div>
                   <div className="ecu-import-totals-item">
                     <span>IVA Liquidado:</span>

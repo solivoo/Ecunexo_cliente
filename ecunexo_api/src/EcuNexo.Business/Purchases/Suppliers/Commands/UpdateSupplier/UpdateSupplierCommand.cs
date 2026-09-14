@@ -23,5 +23,6 @@ public sealed record UpdateSupplierCommand(
     string? BankAccountType = null,
     string? BankAccountNumber = null,
     string? Notes = null,
+    Guid? DefaultExpenseTypeId = null,
     bool IsActive = true,
     Guid? UpdatedBy = null) : ICommand<SupplierResponse>;

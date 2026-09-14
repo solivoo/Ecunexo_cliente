@@ -20,6 +20,7 @@ public sealed record CreateSupplierApiRequest(
     string? BankAccountType = null,
     string? BankAccountNumber = null,
     string? Notes = null,
+    Guid? DefaultExpenseTypeId = null,
     bool ReturnExistingIfExists = false);
 
 public sealed record UpdateSupplierApiRequest(
@@ -40,6 +41,7 @@ public sealed record UpdateSupplierApiRequest(
     string? BankAccountType = null,
     string? BankAccountNumber = null,
     string? Notes = null,
+    Guid? DefaultExpenseTypeId = null,
     bool IsActive = true);
 
 public sealed record CreateExpenseTypeApiRequest(

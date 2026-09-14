@@ -22,6 +22,7 @@ import { readApiError } from '@/lib/readApiError'
 import {
   createSupplier,
   deleteSupplier,
+  listExpenseTypes,
   listSuppliers,
   updateSupplier,
 } from '@/services/purchasesApi'
@@ -30,6 +31,7 @@ import { useAppSelector } from '@/store/hooks'
 import { SupplierModal } from '@/pages/compras/SupplierModal'
 import type {
   CreateSupplierPayload,
+  ExpenseTypeDto,
   SupplierDto,
   SupplierTaxRegime,
   UpdateSupplierPayload,
@@ -64,6 +66,7 @@ export function SuppliersListPage() {
 
   const [loading, setLoading] = useState(true)
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([])
+  const [expenseTypes, setExpenseTypes] = useState<ExpenseTypeDto[]>([])
   const [activeOnly] = useState<boolean | undefined>(undefined)
 
   const [modalOpen, setModalOpen] = useState(false)
@@ -74,8 +77,12 @@ export function SuppliersListPage() {
     if (!tenantId) return
     setLoading(true)
     try {
-      const data = await listSuppliers(tenantId, { activeOnly })
-      setSuppliers(data)
+      const [suppliersData, expenseTypesData] = await Promise.all([
+        listSuppliers(tenantId, { activeOnly }),
+        listExpenseTypes(tenantId, true).catch(() => []),
+      ])
+      setSuppliers(suppliersData)
+      setExpenseTypes(expenseTypesData)
     } catch (err) {
       toast.show({
         title: 'Error de carga',
@@ -86,6 +93,14 @@ export function SuppliersListPage() {
       setLoading(false)
     }
   }, [tenantId, activeOnly, toast])
+
+  const expenseTypeMap = useMemo(() => {
+    const map = new Map<string, ExpenseTypeDto>()
+    for (const et of expenseTypes) {
+      map.set(et.id, et)
+    }
+    return map
+  }, [expenseTypes])
 
   useEffect(() => {
     void loadData()
@@ -251,6 +266,34 @@ export function SuppliersListPage() {
             {row.creditDays > 0 ? `${row.creditDays} días crédito` : 'Contado'}
           </span>
         ),
+      },
+      {
+        key: 'defaultExpenseTypeId',
+        header: 'Gasto / Servicio Predeterminado',
+        width: 210,
+        renderCell: (_value, row: SupplierRow) => {
+          if (!row.defaultExpenseTypeId) {
+            return (
+              <span style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #9ca3af)' }}>
+                Detección auto
+              </span>
+            )
+          }
+          const et = expenseTypeMap.get(row.defaultExpenseTypeId)
+          if (!et) {
+            return <span style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #9ca3af)' }}>—</span>
+          }
+          return (
+            <div>
+              <div style={{ fontWeight: 500, fontSize: '0.8rem', color: 'var(--glb-text, #111827)' }}>
+                {et.name}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--glb-muted, #6b7280)' }}>
+                {et.affectsInventory ? 'Inventario' : 'Gasto/Servicio'}
+              </div>
+            </div>
+          )
+        },
       },
       {
         key: 'isActive',
@@ -423,6 +466,7 @@ export function SuppliersListPage() {
           open={modalOpen}
           supplier={editingSupplier}
           saving={saving}
+          expenseTypes={expenseTypes}
           onClose={() => setModalOpen(false)}
           onSave={handleSave}
         />

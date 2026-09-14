@@ -13,7 +13,8 @@ public sealed record DetectedSupplierDto(
     string BusinessName,
     string? TradeName,
     string? Address,
-    bool IsRegistered);
+    bool IsRegistered,
+    Guid? DefaultExpenseTypeId = null);
 
 public sealed record ParsedLineWithMatchDto(
     string ItemCode,
@@ -99,7 +100,8 @@ public sealed class ParseSriPurchaseXmlHandler : ICommandHandler<ParseSriPurchas
             BusinessName: existingSupplier?.BusinessName ?? parsed.SupplierBusinessName,
             TradeName: existingSupplier?.TradeName ?? parsed.SupplierTradeName,
             Address: existingSupplier?.Address ?? parsed.SupplierAddress,
-            IsRegistered: existingSupplier is not null
+            IsRegistered: existingSupplier is not null,
+            DefaultExpenseTypeId: existingSupplier?.DefaultExpenseTypeId
         );
 
         // 2. Detectar si el comprobante ya está registrado previamente en el sistema (por clave de autorización o proveedor + número)
