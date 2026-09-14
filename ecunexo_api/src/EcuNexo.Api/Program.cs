@@ -159,7 +159,7 @@ app.MapRemisionGuideEndpointsV1();
 
 var migrateOnStartup = app.Configuration.GetValue(
     "Database:MigrateOnStartup",
-    defaultValue: app.Environment.IsDevelopment());
+    defaultValue: true);
 if (migrateOnStartup)
 {
     await using var scope = app.Services.CreateAsyncScope();
