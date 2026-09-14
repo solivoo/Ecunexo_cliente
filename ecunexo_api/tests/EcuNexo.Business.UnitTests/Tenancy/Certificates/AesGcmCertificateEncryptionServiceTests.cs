@@ -64,4 +64,20 @@ public sealed class AesGcmCertificateEncryptionServiceTests
         var act = () => service2.Decrypt(payload.Ciphertext, payload.Nonce, payload.Tag);
         act.Should().Throw<CryptographicException>();
     }
+
+    [Fact(DisplayName = "EncryptPacked y DecryptPacked recuperan exactamente la contraseña o payload original")]
+    public void EncryptPacked_And_DecryptPacked_ReturnsOriginalBytes()
+    {
+        var service = new AesGcmCertificateEncryptionService(TestKey);
+        var passwordBytes = Encoding.UTF8.GetBytes("SuperPassword123!");
+
+        var packed = service.EncryptPacked(passwordBytes);
+
+        packed.Should().NotBeNull();
+        packed.Length.Should().Be(12 + 16 + passwordBytes.Length);
+
+        var decrypted = service.DecryptPacked(packed);
+        decrypted.Should().Equal(passwordBytes);
+        Encoding.UTF8.GetString(decrypted).Should().Be("SuperPassword123!");
+    }
 }

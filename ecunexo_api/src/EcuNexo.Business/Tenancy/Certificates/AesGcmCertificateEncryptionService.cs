@@ -76,6 +76,34 @@ public sealed class AesGcmCertificateEncryptionService : ICertificateEncryptionS
         return plaintext;
     }
 
+    public byte[] EncryptPacked(byte[] plaintext)
+    {
+        var payload = Encrypt(plaintext);
+        var packed = new byte[NonceSizeBytes + TagSizeBytes + payload.Ciphertext.Length];
+        Buffer.BlockCopy(payload.Nonce, 0, packed, 0, NonceSizeBytes);
+        Buffer.BlockCopy(payload.Tag, 0, packed, NonceSizeBytes, TagSizeBytes);
+        Buffer.BlockCopy(payload.Ciphertext, 0, packed, NonceSizeBytes + TagSizeBytes, payload.Ciphertext.Length);
+        return packed;
+    }
+
+    public byte[] DecryptPacked(byte[] packed)
+    {
+        if (packed == null || packed.Length < NonceSizeBytes + TagSizeBytes)
+        {
+            throw new ArgumentException("El contenido cifrado empaquetado es inválido o está incompleto.", nameof(packed));
+        }
+
+        var nonce = new byte[NonceSizeBytes];
+        var tag = new byte[TagSizeBytes];
+        var ciphertext = new byte[packed.Length - NonceSizeBytes - TagSizeBytes];
+
+        Buffer.BlockCopy(packed, 0, nonce, 0, NonceSizeBytes);
+        Buffer.BlockCopy(packed, NonceSizeBytes, tag, 0, TagSizeBytes);
+        Buffer.BlockCopy(packed, NonceSizeBytes + TagSizeBytes, ciphertext, 0, ciphertext.Length);
+
+        return Decrypt(ciphertext, nonce, tag);
+    }
+
     private static byte[] ResolveMasterKey(IConfiguration configuration)
     {
         var rawKey = configuration["SigningCertificate:MasterKey"]

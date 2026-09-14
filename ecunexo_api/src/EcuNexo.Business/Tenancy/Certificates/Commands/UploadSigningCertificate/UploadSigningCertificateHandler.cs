@@ -52,7 +52,7 @@ public sealed class UploadSigningCertificateHandler
 
         // 2. Cifrar archivo y contraseña con AES-256-GCM
         var encryptedP12 = _encryptionService.Encrypt(command.P12Bytes);
-        var encryptedPassword = _encryptionService.Encrypt(Encoding.UTF8.GetBytes(command.Password));
+        var packedPassword = _encryptionService.EncryptPacked(Encoding.UTF8.GetBytes(command.Password));
 
         // 3. Persistir en repositorio
         var existing = await _certificateRepository.GetActiveByTenantIdAsync(command.TenantId, ct)
@@ -64,7 +64,7 @@ public sealed class UploadSigningCertificateHandler
         {
             existing.Update(
                 encryptedData: encryptedP12.Ciphertext,
-                encryptedPassword: encryptedPassword.Ciphertext,
+                encryptedPassword: packedPassword,
                 nonce: encryptedP12.Nonce,
                 tag: encryptedP12.Tag,
                 subject: certInfo.Subject,
@@ -83,7 +83,7 @@ public sealed class UploadSigningCertificateHandler
             certEntity = TenantSigningCertificate.Create(
                 tenantId: command.TenantId,
                 encryptedData: encryptedP12.Ciphertext,
-                encryptedPassword: encryptedPassword.Ciphertext,
+                encryptedPassword: packedPassword,
                 nonce: encryptedP12.Nonce,
                 tag: encryptedP12.Tag,
                 subject: certInfo.Subject,

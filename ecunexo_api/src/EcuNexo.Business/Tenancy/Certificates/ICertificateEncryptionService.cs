@@ -6,4 +6,6 @@ public interface ICertificateEncryptionService
 {
     EncryptedPayload Encrypt(byte[] plaintext);
     byte[] Decrypt(byte[] ciphertext, byte[] nonce, byte[] tag);
+    byte[] EncryptPacked(byte[] plaintext);
+    byte[] DecryptPacked(byte[] packed);
 }
