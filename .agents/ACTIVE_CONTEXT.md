@@ -9,6 +9,22 @@
 * **Rama Activa:** `main`.
 * **Última Versión Publicada:** `v0.25.2`.
 * **Hitos Recientes Completados:**
+  - **Preservación Estricta de Identidad Emisor, Corrección Estructura XML SRI (Error 35) y Secuencial Dinámico Centralizado:**
+    * **Blindaje de Identidad Emisor (`SriEmissionIdentityResolver` & `SriOptions`):**
+      - Desactivación de la sustitución automática de identidad de prueba (`Enabled: false` por defecto).
+      - Eliminación del secuestro de RUC (`0926398074001`), Razón Social (`ecunexo`), establecimiento (`002`) y punto (`025`), preservando siempre los datos reales del tenant (`everchic` / `0993397804001`) tanto en Producción como en Pruebas.
+      - Al no sustituir la identidad, el emisor propietario en `CreateInvoiceService` se mantiene en el tenant real, evitando que los secuenciales se asignen a emisores demo o se reinicien inesperadamente.
+    * **Estructura Oficial XML SRI Ficha Técnica v2.32 (Resolución de Error [35] DEVUELTA):**
+      - Incorporación de `<dirEstablecimiento>` inmediatamente posterior a `<fechaEmision>` en `<infoFactura>` y `<infoNotaCredito>`.
+      - Incorporación de `<obligadoContabilidad>` dinámico según ficha tributaria de la empresa.
+      - Formateo de precios unitarios con mínimo 2 decimales y hasta 6 (`0.00####`), evitando valores sin formato de moneda (`"50"`).
+      - Enriquecimiento de `InvoiceXmlEmitterContext` y `RideProviderResolver.ToXmlContext` para resolver y mapear la dirección del establecimiento emisor desde `emitter.Establishments`.
+    * **Secuencial Dinámico y Ajustes de Empresa (`EfEmitterRepository`):**
+      - Eliminación de la restricción de rebobinado en `SetNextSequentialAsync` (`requested < currentNext`), permitiendo al administrador configurar y corregir libremente el punto de partida (ej. `534`) en Ajustes de Empresa.
+      - Cálculo automático del siguiente secuencial (`LastSequential + 1`) tras cada emisión y sincronización reactiva inmediata con la vista del formulario.
+    * **Tests Unitarios & Build:**
+      - 100% de tests unitarios pasando en `Facturacion` (151 Core + 7 Business + 29 Infrastructure).
+      - Compilación de `Billing.Api` y build de `ecunexo_admin` verificados con 0 errores.
   - **Control Estricto de Ambiente SRI (Producción vs Pruebas) y RIDE PDF Sin Marcas de Prueba (`v0.25.2`):**
     * **Backend (`Facturacion` / `Billing.Api`):**
       - `BuildAccessKey`: Genera dinámicamente el dígito 24 (ambiente) de la clave de acceso de 49 dígitos según el ambiente resuelto (`'1'` para Pruebas, `'2'` para Producción).
