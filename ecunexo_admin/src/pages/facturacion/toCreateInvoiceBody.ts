@@ -55,13 +55,8 @@ export function toCreateInvoiceBody(
     emitterRuc: header.emitterRuc.trim(),
     establishment: normalizeEstablishmentCode(header.establishment),
     emissionPoint: header.emissionPoint.trim().padStart(3, '0').slice(-3),
-    // Si la UI cargó un secuencial válido desde configuración de emisor, se solicita explícitamente a Billing.
-    sequential:
-      header.sequential &&
-      header.sequential !== '—' &&
-      /^\d{1,9}$/.test(header.sequential.trim())
-        ? header.sequential.trim().padStart(9, '0')
-        : 'auto',
+    // La asignación del secuencial es responsabilidad atómica de Billing.Api en PostgreSQL.
+    sequential: 'auto',
     issueDate: header.issueDate,
     counterparty: {
       identificationType: buyer.identificationType,
