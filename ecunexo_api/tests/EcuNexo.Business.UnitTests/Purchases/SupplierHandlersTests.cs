@@ -3,6 +3,7 @@ using EcuNexo.Business.Purchases.Repositories;
 using EcuNexo.Business.Purchases.Suppliers.Commands.CreateSupplier;
 using EcuNexo.Business.Purchases.Suppliers.Commands.DeleteSupplier;
 using EcuNexo.Business.Purchases.Suppliers.Commands.UpdateSupplier;
+using EcuNexo.Business.Purchases.Suppliers.Queries.GetSupplierByTaxId;
 using EcuNexo.Business.Purchases.Suppliers.Queries.ListSuppliers;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Common;
@@ -165,5 +166,67 @@ public sealed class SupplierHandlersTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().HaveCount(1);
         result.Value![0].BusinessName.Should().Be("Proveedor 1");
+    }
+
+    [Fact(DisplayName = "CreateSupplierHandler con ReturnExistingIfExists retorna proveedor existente sin error ni duplicar")]
+    public async Task Handle_CreateSupplier_ReturnExistingIfExists_ReturnsExistingWithoutDuplicating()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var existingSupplierId = Guid.NewGuid();
+        var existingSupplier = Supplier.Create(
+            existingSupplierId,
+            tenantId,
+            "Distribuidora Andina S.A.",
+            "1790016919001",
+            contactEmail: "compras@andina.com.ec").Value!;
+
+        _suppliers.ExistsByTaxIdAsync(tenantId, "1790016919001", null, Arg.Any<CancellationToken>()).Returns(true);
+        _suppliers.GetByTaxIdAsync(tenantId, "1790016919001", Arg.Any<CancellationToken>()).Returns(existingSupplier);
+
+        var handler = new CreateSupplierHandler(_suppliers, _idGenerator, _unitOfWork);
+        var command = new CreateSupplierCommand(
+            tenantId,
+            "Distribuidora Andina S.A.",
+            "1790016919001",
+            ReturnExistingIfExists: true);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.Id.Should().Be(existingSupplierId);
+        result.Value.BusinessName.Should().Be("Distribuidora Andina S.A.");
+        await _suppliers.DidNotReceive().AddAsync(Arg.Any<Supplier>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact(DisplayName = "GetSupplierByTaxIdHandler retorna proveedor si existe por RUC/Cédula")]
+    public async Task Handle_GetSupplierByTaxId_ReturnsSupplierWhenExists()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var supplierId = Guid.NewGuid();
+        var existingSupplier = Supplier.Create(
+            supplierId,
+            tenantId,
+            "Corporación La Favorita",
+            "1790016919001").Value!;
+
+        _suppliers.GetByTaxIdAsync(tenantId, "1790016919001", Arg.Any<CancellationToken>()).Returns(existingSupplier);
+
+        var handler = new GetSupplierByTaxIdHandler(_suppliers);
+        var query = new GetSupplierByTaxIdQuery(tenantId, "1790016919001");
+
+        // Act
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.Id.Should().Be(supplierId);
+        result.Value.BusinessName.Should().Be("Corporación La Favorita");
     }
 }

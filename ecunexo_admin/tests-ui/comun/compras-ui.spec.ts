@@ -480,7 +480,20 @@ async function mockPurchasesSession(page: Page) {
 
   // Suppliers API routes
   await page.route(/\/api\/v1\/tenants\/[^/]+\/purchases\/suppliers(\/.*|\?.*)?$/, async (route) => {
+    const url = route.request().url()
     if (route.request().method() === 'GET') {
+      const byTaxMatch = url.match(/\/by-tax-id\/([^/?]+)/)
+      if (byTaxMatch) {
+        const taxId = decodeURIComponent(byTaxMatch[1]).trim()
+        const found = suppliers.find((s) => s.taxId.trim() === taxId)
+        if (found) {
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(found) })
+        } else {
+          await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ message: 'Not found' }) })
+        }
+        return
+      }
+
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -490,6 +503,16 @@ async function mockPurchasesSession(page: Page) {
     }
     if (route.request().method() === 'POST') {
       const data = route.request().postDataJSON()
+      const existing = suppliers.find((s) => s.taxId.trim() === (data.taxId || '').trim())
+      if (existing && data.returnExistingIfExists) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(existing),
+        })
+        return
+      }
+
       const created: SupplierDto = {
         id: `supp-${Date.now()}`,
         tenantId: 'tnt-purchases-1',
@@ -757,10 +780,20 @@ async function mockPurchasesSession(page: Page) {
   // Specific routes
   await page.route(/\/api\/v1\/tenants\/[^/]+\/purchases\/documents\/parse-xml$/, async (route) => {
     if (route.request().method() === 'POST') {
+      const data = route.request().postDataJSON()
+      const xmlStr = data?.xmlContent || ''
+      const invMatch = xmlStr.match(/numFactura="([^"]+)"/) || xmlStr.match(/<secuencial>([^<]+)<\/secuencial>/)
+      const invoiceNumber = invMatch ? `001-002-${invMatch[1].padStart(9, '0')}` : MOCK_PARSED_XML_RESPONSE.invoiceNumber
+      const authorizationNumber = invMatch ? `120920260117900169190012001002${invMatch[1].padStart(9, '0')}1234567818` : MOCK_PARSED_XML_RESPONSE.authorizationNumber
+
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(MOCK_PARSED_XML_RESPONSE),
+        body: JSON.stringify({
+          ...MOCK_PARSED_XML_RESPONSE,
+          invoiceNumber,
+          authorizationNumber,
+        }),
       })
       return
     }
@@ -1023,6 +1056,40 @@ test.describe('Compras UI — Documentos de Compra & Parseo XML SRI', () => {
     await page.getByRole('button', { name: /Registrar Facturas Seleccionadas/i }).click()
 
     // Toast de éxito
+    await expect(page.getByText(/Importación Exitosa/i)).toBeVisible()
+  })
+
+  test('Documentos: importar múltiples facturas del mismo proveedor en cola sin rechazo ni duplicidad de proveedor', async ({ page }) => {
+    await openPurchases(page)
+
+    // Navegar a vista de importación
+    const uploadBtn = page.getByRole('button', { name: /Importar Facturas SRI/i }).first()
+    await expect(uploadBtn).toBeVisible()
+    await uploadBtn.click()
+
+    await expect(page.getByRole('heading', { name: /Importación y Auditoría SRI de Compras/i })).toBeVisible()
+
+    // Cargar primera factura del proveedor TechPacific (789)
+    await page.getByRole('button', { name: /Pegar XML en texto/i }).click()
+    const xmlTextarea = page.locator('textarea')
+    await xmlTextarea.fill('<factura id="comprobante" version="1.1.0"><infoTributaria><secuencial>000000789</secuencial></infoTributaria></factura>')
+    await page.getByRole('button', { name: /Procesar XML/i }).click()
+
+    await expect(page.getByText('001-002-000000789', { exact: true })).toBeVisible()
+
+    // Cargar segunda factura DIFERENTE del MISMO proveedor TechPacific (790)
+    await page.getByRole('button', { name: /Pegar XML/i }).click()
+    await xmlTextarea.fill('<factura id="comprobante" version="1.1.0"><infoTributaria><secuencial>000000790</secuencial></infoTributaria></factura>')
+    await page.getByRole('button', { name: /Procesar XML/i }).click()
+
+    // Ambas facturas deben estar en la cola de importación sin haber sido rechazadas
+    await expect(page.getByText('001-002-000000789', { exact: true })).toBeVisible()
+    await expect(page.getByText('001-002-000000790', { exact: true })).toBeVisible()
+
+    // Registrar facturas seleccionadas
+    await page.getByRole('button', { name: /Registrar Facturas Seleccionadas/i }).click()
+
+    // Debe completar exitosamente sin rechazo por proveedor duplicado
     await expect(page.getByText(/Importación Exitosa/i)).toBeVisible()
   })
 

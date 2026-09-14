@@ -9,6 +9,7 @@ using EcuNexo.Business.Purchases.Suppliers.Commands.CreateSupplier;
 using EcuNexo.Business.Purchases.Suppliers.Commands.DeleteSupplier;
 using EcuNexo.Business.Purchases.Suppliers.Commands.UpdateSupplier;
 using EcuNexo.Business.Purchases.Suppliers.Queries.GetSupplierById;
+using EcuNexo.Business.Purchases.Suppliers.Queries.GetSupplierByTaxId;
 using EcuNexo.Business.Purchases.Suppliers.Queries.ListSuppliers;
 using Microsoft.AspNetCore.Mvc;
 
@@ -40,6 +41,13 @@ public static class SupplierEndpoints
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "purchases.suppliers.read",
                 "purchases.suppliers.manage"));
+
+        group.MapGet("/by-tax-id/{taxId}", GetByTaxIdAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "purchases.suppliers.read",
+                "purchases.suppliers.manage",
+                "purchases.documents.manage",
+                "inventory.documents.create"));
 
         group.MapPost("/", CreateAsync)
             .AddEndpointFilter(PermissionFilters.Require(
@@ -87,6 +95,28 @@ public static class SupplierEndpoints
         return result.ToHttpResult();
     }
 
+    private static async Task<IResult> GetByTaxIdAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] string taxId,
+        [FromServices] ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<GetSupplierByTaxIdQuery, SupplierResponse?>(
+                new GetSupplierByTaxIdQuery(tenantId, taxId),
+                ct)
+            .ConfigureAwait(false);
+
+        if (result.IsFailure)
+        {
+            return result.ToHttpResult();
+        }
+
+        return result.Value is not null
+            ? Results.Ok(result.Value)
+            : Results.NotFound();
+    }
+
     private static async Task<IResult> CreateAsync(
         [FromRoute] Guid tenantId,
         [FromBody] CreateSupplierApiRequest request,
@@ -111,7 +141,8 @@ public static class SupplierEndpoints
             request.BankName,
             request.BankAccountType,
             request.BankAccountNumber,
-            request.Notes);
+            request.Notes,
+            ReturnExistingIfExists: request.ReturnExistingIfExists);
 
         var result = await sender
             .SendAsync<CreateSupplierCommand, SupplierResponse>(command, ct)

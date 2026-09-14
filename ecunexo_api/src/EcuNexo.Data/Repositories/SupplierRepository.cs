@@ -27,9 +27,12 @@ public sealed class SupplierRepository : ISupplierRepository
         _db.Suppliers
             .FirstOrDefaultAsync(s => s.TenantId == tenantId && s.Id == supplierId && s.DeletedAt == null, ct);
 
-    public Task<Supplier?> GetByTaxIdAsync(Guid tenantId, string taxId, CancellationToken ct) =>
-        _db.Suppliers.AsNoTracking()
-            .FirstOrDefaultAsync(s => s.TenantId == tenantId && s.TaxId == taxId && s.DeletedAt == null, ct);
+    public Task<Supplier?> GetByTaxIdAsync(Guid tenantId, string taxId, CancellationToken ct)
+    {
+        var normalized = taxId.Trim();
+        return _db.Suppliers.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.TenantId == tenantId && s.TaxId == normalized && s.DeletedAt == null, ct);
+    }
 
     public async Task<IReadOnlyList<Supplier>> ListAsync(Guid tenantId, string? search, bool? activeOnly, CancellationToken ct)
     {

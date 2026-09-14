@@ -19,7 +19,8 @@ public sealed record CreateSupplierApiRequest(
     string? BankName = null,
     string? BankAccountType = null,
     string? BankAccountNumber = null,
-    string? Notes = null);
+    string? Notes = null,
+    bool ReturnExistingIfExists = false);
 
 public sealed record UpdateSupplierApiRequest(
     string BusinessName,

@@ -45,6 +45,7 @@ export interface CreateSupplierPayload {
   bankAccountType?: string | null
   bankAccountNumber?: string | null
   notes?: string | null
+  returnExistingIfExists?: boolean
 }
 
 export interface UpdateSupplierPayload extends CreateSupplierPayload {

@@ -59,6 +59,64 @@ export async function createSupplier(
   )
   return data
 }
+export async function getSupplierByTaxId(
+  tenantId: string,
+  taxId: string
+): Promise<SupplierDto | null> {
+  try {
+    const { data } = await api.get<SupplierDto>(
+      `/api/v1/tenants/${tenantId}/purchases/suppliers/by-tax-id/${encodeURIComponent(taxId.trim())}`
+    )
+    return data
+  } catch (err: any) {
+    if (err?.response?.status === 404) {
+      return null
+    }
+    throw err
+  }
+}
+
+export async function getOrCreateSupplier(
+  tenantId: string,
+  payload: CreateSupplierPayload
+): Promise<SupplierDto> {
+  const cleanTaxId = payload.taxId.trim()
+  try {
+    return await createSupplier(tenantId, {
+      ...payload,
+      taxId: cleanTaxId,
+      returnExistingIfExists: true,
+    })
+  } catch (err: any) {
+    const errCode = err?.response?.data?.code || err?.code || ''
+    const errMsg = (err?.response?.data?.message || err?.message || '').toLowerCase()
+    const isDuplicate =
+      err?.response?.status === 409 ||
+      errCode.includes('duplicate') ||
+      errMsg.includes('ya existe un proveedor') ||
+      errMsg.includes('identificación fiscal')
+
+    if (isDuplicate) {
+      try {
+        const found = await getSupplierByTaxId(tenantId, cleanTaxId)
+        if (found) return found
+      } catch {
+        // Fallback a listSuppliers
+      }
+
+      const list = await listSuppliers(tenantId, { search: cleanTaxId, activeOnly: false })
+      const matched = list.find((s) => s.taxId.trim().toLowerCase() === cleanTaxId.toLowerCase())
+      if (matched) return matched
+
+      const matchedByName = list.find(
+        (s) => s.businessName.trim().toLowerCase() === payload.businessName.trim().toLowerCase()
+      )
+      if (matchedByName) return matchedByName
+    }
+
+    throw err
+  }
+}
 
 export async function updateSupplier(
   tenantId: string,

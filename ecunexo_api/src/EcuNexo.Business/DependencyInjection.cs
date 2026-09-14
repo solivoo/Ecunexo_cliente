@@ -55,6 +55,7 @@ using EcuNexo.Business.Purchases.Suppliers.Commands.CreateSupplier;
 using EcuNexo.Business.Purchases.Suppliers.Commands.DeleteSupplier;
 using EcuNexo.Business.Purchases.Suppliers.Commands.UpdateSupplier;
 using EcuNexo.Business.Purchases.Suppliers.Queries.GetSupplierById;
+using EcuNexo.Business.Purchases.Suppliers.Queries.GetSupplierByTaxId;
 using EcuNexo.Business.Purchases.Suppliers.Queries.ListSuppliers;
 using EcuNexo.Business.Purchases.Commands.CreatePurchase;
 using EcuNexo.Business.Purchases.Commands.ParseSriPurchaseXml;
@@ -285,6 +286,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<DeleteSupplierCommand, bool>, DeleteSupplierHandler>();
         services.AddScoped<IQueryHandler<ListSuppliersQuery, IReadOnlyList<SupplierResponse>>, ListSuppliersHandler>();
         services.AddScoped<IQueryHandler<GetSupplierByIdQuery, SupplierResponse>, GetSupplierByIdHandler>();
+        services.AddScoped<IQueryHandler<GetSupplierByTaxIdQuery, SupplierResponse?>, GetSupplierByTaxIdHandler>();
 
         services.AddScoped<ICommandHandler<SeedDefaultExpenseTypesCommand, int>, SeedDefaultExpenseTypesHandler>();
         services.AddScoped<ICommandHandler<CreateExpenseTypeCommand, ExpenseTypeResponse>, CreateExpenseTypeHandler>();

@@ -27,7 +27,7 @@ import { listCatalogItems } from '@/services/catalogApi'
 import { listWarehouses } from '@/services/inventoryApi'
 import {
   createPurchase,
-  createSupplier,
+  getOrCreateSupplier,
   listExpenseTypes,
   parseSriPurchaseXml,
 } from '@/services/purchasesApi'
@@ -244,14 +244,31 @@ export function ImportPurchasesPage() {
     supplierTaxId: string,
     invoiceNumber: string
   ): boolean => {
+    const cleanAuth = authNumber?.trim()
+    const cleanTaxId = supplierTaxId?.trim()
+    const cleanInvoice = invoiceNumber?.trim()
+
     return list.some((item) => {
-      const sameAuth =
-        Boolean(authNumber) &&
-        Boolean(item.parsedData.authorizationNumber) &&
-        item.parsedData.authorizationNumber === authNumber
-      const sameSupplierAndNumber =
-        item.parsedData.supplier.taxId === supplierTaxId &&
-        item.parsedData.invoiceNumber === invoiceNumber
+      const itemAuth = item.parsedData.authorizationNumber?.trim()
+      const sameAuth = Boolean(
+        cleanAuth &&
+        cleanAuth.length >= 10 &&
+        itemAuth &&
+        itemAuth.length >= 10 &&
+        itemAuth === cleanAuth
+      )
+
+      const itemTaxId = item.parsedData.supplier.taxId?.trim()
+      const itemInvoice = item.parsedData.invoiceNumber?.trim()
+      const sameSupplierAndNumber = Boolean(
+        cleanTaxId &&
+        cleanInvoice &&
+        itemTaxId &&
+        itemInvoice &&
+        itemTaxId === cleanTaxId &&
+        itemInvoice === cleanInvoice
+      )
+
       return sameAuth || sameSupplierAndNumber
     })
   }
@@ -801,23 +818,53 @@ export function ImportPurchasesPage() {
     const successIds: string[] = []
     const registeredIds: string[] = []
     const errors: string[] = []
+    const resolvedSuppliersCache = new Map<string, string>()
 
     for (let i = 0; i < targets.length; i++) {
       const inv = targets[i]
+      const taxId = inv.parsedData.supplier.taxId?.trim() || ''
       setSaveProgress(`Procesando factura ${i + 1} de ${targets.length}: ${inv.parsedData.invoiceNumber}...`)
 
       try {
-        // 1. Crear o resolver proveedor
-        let supplierId = inv.parsedData.supplier.existingSupplierId
+        // 1. Crear o resolver proveedor evitando duplicidad
+        let supplierId = (taxId ? resolvedSuppliersCache.get(taxId) : null) || inv.parsedData.supplier.existingSupplierId
         if (!supplierId) {
-          const suppRes = await createSupplier(tenantId, {
+          const suppRes = await getOrCreateSupplier(tenantId, {
             taxId: inv.parsedData.supplier.taxId,
             businessName: inv.parsedData.supplier.businessName,
             tradeName: inv.parsedData.supplier.tradeName,
             address: inv.parsedData.supplier.address,
             identificationType: (inv.parsedData.supplier.taxId.length === 13 ? 1 : 2) as SupplierIdentificationType,
+            returnExistingIfExists: true,
           })
           supplierId = suppRes.id
+          if (taxId) {
+            resolvedSuppliersCache.set(taxId, supplierId)
+          }
+
+          // Actualizar en el estado de la cola todas las facturas que tengan este mismo taxId
+          if (taxId) {
+            setQueue((prev) =>
+              prev.map((q) => {
+                if (q.parsedData.supplier.taxId?.trim() === taxId) {
+                  return {
+                    ...q,
+                    parsedData: {
+                      ...q.parsedData,
+                      supplier: {
+                        ...q.parsedData.supplier,
+                        existingSupplierId: supplierId,
+                        isRegistered: true,
+                      },
+                    },
+                  }
+                }
+                return q
+              })
+            )
+          }
+        } else if (taxId) {
+          resolvedSuppliersCache.set(taxId, supplierId)
         }
 
         // 2. Preparar payload de compra

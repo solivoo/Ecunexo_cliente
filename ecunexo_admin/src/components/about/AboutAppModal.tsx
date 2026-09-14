@@ -110,9 +110,10 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Herencia de Credenciales Root en Creación de Empresa</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Resolución Idempotente de Proveedores en Importación de XML</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Resolución Idempotente de Proveedores en Importación de XML de Compras:</strong> Corrección en el registro masivo y en cola de facturas electrónicas XML que comparten un mismo proveedor. Al registrar la primera factura, el sistema crea o resuelve el proveedor automáticamente; para las subsiguientes facturas del mismo emisor, se reutiliza su identificador sin lanzar conflictos de duplicidad (409) ni rechazar los XMLs del lote.</li>
             <li><strong>Herencia Automática de Credenciales del Titular Root:</strong> Eliminada la exigencia forzada de crear una contraseña redundante al dar de alta una nueva empresa bajo la suscripción. El usuario titular asigna automáticamente sus credenciales de acceso globales con aviso visual claro y opción voluntaria para contraseñas específicas.</li>
             <li><strong>Matriz de Planes y Precios Sector Transporte:</strong> Documentación oficial de planes comerciales para el sector transporte ecuatoriano (Planes Local $428/año y Empresa $806/año) con auditoría integral de cumplimiento ante el SRI.</li>
             <li><strong>Blindaje de Permisos RBAC y Estado de Firma en Compras:</strong> Retiro de botones redundantes de configuración de firma en vistas operativas de Retenciones y Liquidaciones de Compra para respetar las restricciones de rol administrativo en Ajustes de Empresa, sustitución de términos técnicos crudos (.p12) por conceptos formales de negocio e incorporación de insignias informativas de ambiente SRI (Pruebas / Producción) y vigencia del certificado digital emisor.</li>

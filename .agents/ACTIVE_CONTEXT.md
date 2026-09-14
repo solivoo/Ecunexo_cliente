@@ -7,8 +7,18 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.23.1`.
+* **Última Versión Publicada:** `v0.24.1`.
 * **Hitos Recientes Completados:**
+  - **Resolución Idempotente de Proveedores en Importación de XML de Compras:**
+    * **Backend (`ecunexo_api`):**
+      - Endpoint REST V1 `GET /api/v1/tenants/{tenantId}/purchases/suppliers/by-tax-id/{taxId}` con handler `GetSupplierByTaxIdHandler` para consultar proveedores directamente por RUC/Cédula.
+      - Opción `ReturnExistingIfExists` en `CreateSupplierCommand` y `CreateSupplierApiRequest`. Si el proveedor ya existe en la base de datos por RUC o Razón Social, retorna el proveedor existente con HTTP 200/Success en lugar de fallar con error de conflicto 409 (`purchases.supplier.tax_id_duplicate`).
+      - Cobertura de tests unitarios: 312 tests pasando al 100% (208 Core + 104 Business).
+    * **Frontend (`ecunexo_admin`):**
+      - Funciones `getSupplierByTaxId` y `getOrCreateSupplier` en `purchasesApi.ts`. Resuelve proveedores automáticamente y captura conflictos 409 para consultar y vincular el proveedor existente sin error.
+      - Caché reactivo de proveedores por TaxId (`resolvedSuppliersCache`) en `ImportPurchasesPage.tsx` durante el procesamiento por lotes: si hay múltiples facturas en la cola del mismo proveedor, la primera lo registra/resuelve y las siguientes reutilizan el ID sin intentar duplicar al proveedor ni rechazar los XMLs subsiguientes.
+      - `ParseXmlModal.tsx` actualizado para usar `getOrCreateSupplier`.
+      - Pruebas E2E en Playwright: 22/22 tests pasando al 100% en `tests-ui/comun/compras-ui.spec.ts`.
   - **Módulo de Guías de Remisión Electrónicas SRI (Tipo 06) — Concluido al 100% (Backend, Frontend & E2E):**
     - **Backend (`ecunexo_api`):**
       * Dominio Core (`EcuNexo.Core`): Agregado raíz `RemisionGuide`, entidad `RemisionGuideItem`, enums `RemisionGuideStatus` (Draft, Issued, Authorized, InTransit, Delivered, Cancelled).
