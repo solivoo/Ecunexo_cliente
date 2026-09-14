@@ -493,6 +493,19 @@ export function ContabilidadSriConfigPage() {
           <SectionCard
             title="Emisión SRI"
             subtitle="Establecimiento, punto de emisión y próximo secuencial"
+            action={
+              canUpdate ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={formDisabled}
+                  loading={busy}
+                  onClick={() => void onSubmit()}
+                >
+                  {busy ? 'Guardando…' : 'Guardar'}
+                </Button>
+              ) : undefined
+            }
           >
             <SriEmissionFields
               values={{
@@ -525,6 +538,20 @@ export function ContabilidadSriConfigPage() {
           >
             <SriSoftwareProviderSection disabled={formDisabled} suggestedRuc={legal.ruc} embedded />
           </SectionCard>
+
+          {canUpdate ? (
+            <div className="ecu-companies-form__actions">
+              <Button
+                type="button"
+                variant="primary"
+                disabled={formDisabled}
+                loading={busy}
+                onClick={() => void onSubmit()}
+              >
+                {busy ? 'Guardando…' : 'Guardar configuración'}
+              </Button>
+            </div>
+          ) : null}
         </div>
       </PageLoadState>
     </div>

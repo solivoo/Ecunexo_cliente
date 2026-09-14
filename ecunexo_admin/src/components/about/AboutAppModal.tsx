@@ -110,9 +110,10 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Tipo de Gasto Predeterminado en Proveedores y Edición en Compras</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Ergonomía de Guardado en Facturación Electrónica</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Acciones de Guardado Accesibles en Facturación Electrónica:</strong> Incorporación de botón directo «Guardar» en la tarjeta de «Emisión SRI» (establecimiento, punto de emisión y próximo secuencial) y barra de acciones persistente al pie del formulario completo, evitando desplazamientos innecesarios y garantizando confirmación visual inmediata de la configuración.</li>
             <li><strong>Tipo de Gasto / Servicio Predeterminado en Proveedores:</strong> Asociación directa del tipo de compra o gasto habitual en el Directorio de Proveedores (ej. Mercadería para inventario, Flete de courier o Servicios profesionales). Al importar facturas electrónicas XML de compras, el sistema adopta automáticamente la clasificación del proveedor agilizando la gestión sin selección manual repetitiva.</li>
             <li><strong>Edición Interactiva de Líneas de Factura en Cola de Compras:</strong> Capacidad completa para editar cantidades, precios unitarios, descuentos, tasas de IVA, destino de inventario vs. gasto y bodega asignada en cada ítem de facturas en cola, con recálculo centesimal automático de subtotales e impuestos SRI en tiempo real.</li>
             <li><strong>Secuencial de Facturación Centralizado en Ajustes de Empresa:</strong> Centralización de parámetros de establecimiento, punto de emisión y secuenciales exclusivamente en Facturación Electrónica de la empresa, eliminando duplicidad y garantizando que las emisiones respeten el secuencial asignado.</li>
