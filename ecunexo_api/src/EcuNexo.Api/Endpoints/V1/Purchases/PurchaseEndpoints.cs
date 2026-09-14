@@ -56,10 +56,29 @@ public static class PurchaseEndpoints
                 "purchases.documents.manage",
                 "purchases.manage"));
 
+        // Grupo dedicado para Liquidaciones de Compra (SRI Tipo 03)
+        RouteGroupBuilder settlementsGroup = app
+            .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/purchases/settlements")
+            .WithApiVersionSet(versionSet)
+            .WithTags("Purchases - Settlements")
+            .RequireAuthorization();
+
+        settlementsGroup.MapGet("/", ListSettlementsAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "facturacion.liquidacion.compra.read",
+                "purchases.documents.read",
+                "facturacion.read"));
+
+        settlementsGroup.MapPost("/", CreateSettlementAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "facturacion.liquidacion.compra.issue",
+                "purchases.documents.manage",
+                "purchases.manage"));
+
         return app;
     }
 
-    private static async Task<IResult> ListAsync(
+    private static async Task<IResult> ListSettlementsAsync(
         [FromRoute] Guid tenantId,
         [FromQuery] Guid? supplierId,
         [FromQuery] PurchaseStatus? status,
@@ -69,7 +88,72 @@ public static class PurchaseEndpoints
         [FromServices] IQueryHandler<ListPurchasesQuery, ListPurchasesResponse> handler,
         CancellationToken ct)
     {
-        var result = await handler.Handle(new ListPurchasesQuery(tenantId, supplierId, status, from, to, search), ct);
+        var result = await handler.Handle(new ListPurchasesQuery(tenantId, supplierId, status, from, to, search, "03"), ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> CreateSettlementAsync(
+        [FromRoute] Guid tenantId,
+        [FromBody] CreatePurchaseApiRequest request,
+        [FromServices] ICommandHandler<CreatePurchaseCommand, CreatePurchaseResponse> handler,
+        [FromServices] ICallerContext callerContext,
+        CancellationToken ct)
+    {
+        var userId = callerContext.UserId ?? Guid.Empty;
+        var lines = request.Items?.Select(i => new CreatePurchaseLineInput(
+            Description: i.Description,
+            Quantity: i.Quantity,
+            UnitPrice: i.UnitPrice,
+            Discount: i.Discount,
+            TaxRate: i.TaxRate,
+            ItemCode: i.ItemCode,
+            CatalogItemId: i.CatalogItemId,
+            WarehouseId: i.WarehouseId,
+            AffectsInventory: i.AffectsInventory
+        )).ToList();
+
+        var cmd = new CreatePurchaseCommand(
+            TenantId: tenantId,
+            SupplierId: request.SupplierId,
+            InvoiceNumber: request.InvoiceNumber,
+            IssueDate: request.IssueDate,
+            DocumentType: "03",
+            AuthorizationNumber: request.AuthorizationNumber,
+            ExpenseTypeId: request.ExpenseTypeId,
+            SriSustentoCode: string.IsNullOrWhiteSpace(request.SriSustentoCode) ? "01" : request.SriSustentoCode,
+            SubtotalZero: request.SubtotalZero,
+            SubtotalTaxed: request.SubtotalTaxed,
+            SubtotalNoSubject: request.SubtotalNoSubject,
+            SubtotalExempt: request.SubtotalExempt,
+            TaxRate: request.TaxRate,
+            TaxAmount: request.TaxAmount,
+            TotalDiscount: request.TotalDiscount,
+            TotalAmount: request.TotalAmount,
+            PaymentMethodCode: request.PaymentMethodCode,
+            CreditDays: request.CreditDays,
+            ProformaId: request.ProformaId,
+            RawXml: null,
+            Notes: request.Notes,
+            Lines: lines,
+            CreatedBy: userId != Guid.Empty ? userId : null
+        );
+
+        var result = await handler.Handle(cmd, ct);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> ListAsync(
+        [FromRoute] Guid tenantId,
+        [FromQuery] Guid? supplierId,
+        [FromQuery] PurchaseStatus? status,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] string? search,
+        [FromQuery] string? documentType,
+        [FromServices] IQueryHandler<ListPurchasesQuery, ListPurchasesResponse> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.Handle(new ListPurchasesQuery(tenantId, supplierId, status, from, to, search, documentType), ct);
         return result.ToHttpResult();
     }
 

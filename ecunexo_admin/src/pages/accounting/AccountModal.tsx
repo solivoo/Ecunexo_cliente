@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Button, CheckButton, Popup, Select, TextBox } from 'glubox'
-import { AlertCircle } from 'lucide-react'
+import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { CheckButton, Popup, Select, TextBox } from 'glubox'
+import { AlertCircle, Info } from 'lucide-react'
+import '@/pages/repairs/ecu-customer-form.css'
 import type {
   AccountDto,
   CreateAccountPayload,
@@ -95,183 +96,214 @@ export function AccountModal({
     }
   }
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setFormError(null)
+  const handleSubmit = useCallback(
+    async (e?: FormEvent) => {
+      if (e) e.preventDefault()
+      setFormError(null)
 
-    if (!account && !code.trim()) {
-      setFormError('El código contable es obligatorio.')
-      return
-    }
-
-    if (!name.trim()) {
-      setFormError('El nombre o denominación de la cuenta es obligatorio.')
-      return
-    }
-
-    try {
-      if (account) {
-        await onSave({
-          name: name.trim(),
-          description: description.trim() || null,
-          allowsMovement,
-          isActive,
-          nature: Number(nature),
-        })
-      } else {
-        await onSave({
-          code: code.trim(),
-          name: name.trim(),
-          accountType: Number(accountType),
-          nature: Number(nature),
-          parentAccountId: parentAccount?.id || null,
-          parentCode: parentAccount?.code || null,
-          allowsMovement,
-          description: description.trim() || null,
-        })
+      if (!account && !code.trim()) {
+        setFormError('El código contable es obligatorio.')
+        return
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al guardar la cuenta contable.'
-      setFormError(msg)
-    }
-  }
 
-  const isEditing = !!account
+      if (!name.trim()) {
+        setFormError('El nombre o denominación de la cuenta es obligatorio.')
+        return
+      }
+
+      try {
+        if (account) {
+          await onSave({
+            name: name.trim(),
+            description: description.trim() || null,
+            allowsMovement,
+            isActive,
+            nature: Number(nature),
+          })
+        } else {
+          await onSave({
+            code: code.trim(),
+            name: name.trim(),
+            accountType: Number(accountType),
+            nature: Number(nature),
+            parentAccountId: parentAccount?.id || null,
+            parentCode: parentAccount?.code || null,
+            allowsMovement,
+            description: description.trim() || null,
+          })
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error al guardar la cuenta contable.'
+        setFormError(msg)
+      }
+    },
+    [account, code, name, description, allowsMovement, isActive, nature, accountType, parentAccount, onSave]
+  )
+
+  const isEditing = Boolean(account)
 
   return (
     <Popup
       open={open}
       onClose={onClose}
-      title={isEditing ? `Editar Cuenta: ${account.code}` : 'Nueva Cuenta Contable'}
-      width="600px"
-      footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', width: '100%' }}>
-          <Button variant="outline" onClick={onClose} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={saving}>
-            {saving ? 'Guardando...' : isEditing ? 'Actualizar Cuenta' : 'Crear Cuenta'}
-          </Button>
-        </div>
-      }
+      title={isEditing ? `Editar Cuenta: ${account?.code}` : 'Nueva Cuenta Contable'}
+      width="min(92vw, 42rem)"
+      actions={[
+        {
+          id: 'cancel',
+          label: 'Cancelar',
+          variant: 'outline',
+          onClick: onClose,
+          disabled: saving,
+        },
+        {
+          id: 'save',
+          label: saving ? 'Guardando...' : isEditing ? 'Actualizar Cuenta' : 'Crear Cuenta',
+          variant: 'primary',
+          onClick: () => void handleSubmit(),
+          disabled: saving || !name.trim() || (!account && !code.trim()),
+          loading: saving,
+        },
+      ]}
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        {formError && (
+      <form onSubmit={handleSubmit} className="ecu-customer-form" noValidate>
+        {formError ? (
+          <div className="ecu-form-error-banner" role="alert">
+            <AlertCircle size={16} />
+            <span>{formError}</span>
+          </div>
+        ) : null}
+
+        {account?.isSystem ? (
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              padding: '0.75rem 1rem',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid var(--glb-danger, #ef4444)',
-              borderRadius: '8px',
-              color: 'var(--glb-danger, #ef4444)',
-              fontSize: '0.875rem',
+              padding: '0.625rem 0.875rem',
+              borderRadius: '0.5rem',
+              background: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              color: 'var(--shell-primary, #2563eb)',
+              fontSize: '0.8rem',
             }}
           >
-            <AlertCircle size={18} />
-            <span>{formError}</span>
+            <Info size={16} style={{ flexShrink: 0 }} />
+            <span>
+              <strong>Cuenta Maestra SCVS:</strong> El código contable y grupo NIIF están protegidos para preservar la estructura financiera oficial de la Superintendencia de Compañías.
+            </span>
           </div>
-        )}
+        ) : null}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-              Código Contable *
-            </label>
+        <div className="ecu-customer-form__grid">
+          <div className="ecu-customer-form__field">
             <TextBox
-              value={code}
-              onChange={(e) => handleCodeChange(e.target.value)}
+              id="account-code"
+              label="Código Contable *"
+              labelPosition="outlined"
+              variant="outline"
               placeholder="Ej: 1.1.01.05"
+              value={code}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => handleCodeChange(e.target.value)}
+              fullWidth
               disabled={isEditing || saving}
-              required
             />
-            <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #94a3b8)', marginTop: '0.25rem', display: 'block' }}>
-              Puntos para subniveles.
+            <span className="ecu-customer-form__hint">
+              Puntos para subniveles jerárquicos (ej: 5.2.03.02).
             </span>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-              Nombre de la Cuenta *
-            </label>
+          <div className="ecu-customer-form__field">
             <TextBox
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              id="account-name"
+              label="Nombre de la Cuenta *"
+              labelPosition="outlined"
+              variant="outline"
               placeholder="Ej: Caja Moneda Extranjera"
+              value={name}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+              fullWidth
               disabled={saving}
-              required
             />
           </div>
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-              Grupo NIIF (Tipo)
-            </label>
+          <div className="ecu-customer-form__field">
             <Select
+              id="account-type"
+              label="Grupo NIIF (Tipo) *"
+              labelPosition="outlined"
+              variant="outline"
               value={accountType}
-              onChange={(val) => setAccountType(val || '1')}
+              onChange={(val: string) => setAccountType(val || '1')}
               options={ACCOUNT_TYPES.map((t) => ({ value: String(t.id), label: t.label }))}
+              fullWidth
               disabled={isEditing || saving}
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-              Naturaleza Contable
-            </label>
+          <div className="ecu-customer-form__field">
             <Select
+              id="account-nature"
+              label="Naturaleza Contable *"
+              labelPosition="outlined"
+              variant="outline"
               value={nature}
-              onChange={(val) => setNature(val || '1')}
+              onChange={(val: string) => setNature(val || '1')}
               options={ACCOUNT_NATURES.map((n) => ({ value: String(n.id), label: n.label }))}
+              fullWidth
               disabled={saving}
             />
           </div>
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: 'var(--glb-surface-2, rgba(255,255,255,0.03))', padding: '0.875rem', borderRadius: '8px', border: '1px solid var(--shell-border, rgba(255,255,255,0.08))' }}>
-          <div>
+          {/* Opciones booleanas de comportamiento */}
+          <div
+            className="ecu-customer-form__field"
+            style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
+          >
             <CheckButton
               checked={allowsMovement}
-              onChange={(checked) => setAllowsMovement(checked)}
+              onChange={(checked: boolean) => setAllowsMovement(checked)}
               disabled={saving}
             >
               Cuenta de Movimiento Transaccional
             </CheckButton>
-            <p style={{ margin: '0.25rem 0 0 1.75rem', fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+            <span className="ecu-customer-form__hint">
               Permite imputar asientos, compras y facturación directamente.
-            </p>
+            </span>
           </div>
 
-          {isEditing && (
-            <div>
+          {isEditing ? (
+            <div
+              className="ecu-customer-form__field"
+              style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
+            >
               <CheckButton
                 checked={isActive}
-                onChange={(checked) => setIsActive(checked)}
+                onChange={(checked: boolean) => setIsActive(checked)}
                 disabled={saving || account?.isSystem}
               >
                 Cuenta Activa
               </CheckButton>
-              <p style={{ margin: '0.25rem 0 0 1.75rem', fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+              <span className="ecu-customer-form__hint">
                 Disponible para selección en módulos operativos.
-              </p>
+              </span>
             </div>
-          )}
-        </div>
+          ) : null}
 
-        <div>
-          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-            Descripción / Notas Contables (Opcional)
-          </label>
-          <TextBox
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Propósito contable o reglas de aplicación..."
-            disabled={saving}
-          />
+          {/* Descripción / Notas */}
+          <div className="ecu-customer-form__field ecu-customer-form__field--span">
+            <TextBox
+              id="account-description"
+              label="Descripción / Notas Contables (Opcional)"
+              labelPosition="outlined"
+              variant="outline"
+              placeholder="Propósito contable o reglas de aplicación..."
+              value={description}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+              fullWidth
+              disabled={saving}
+            />
+          </div>
         </div>
       </form>
     </Popup>

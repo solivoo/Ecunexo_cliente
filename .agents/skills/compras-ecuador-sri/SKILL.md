@@ -172,3 +172,41 @@ El comprobante de retención electrónico emitido por EcuNexo (`version="2.0.0"`
 * **Código 2 (70%):** Adquisición de servicios o derechos a personas naturales o sociedades.
 * **Código 3 (100%):** Adquisición de servicios profesionales (personas naturales), liquidaciones de compra, o cuando el comprador es Sector Público / Exportador habitual.
 * **Código 7 (0%):** Operaciones exentas o no sujetas a retención (RIMPE Negocio Popular, etc.).
+
+---
+
+## 6. Liquidaciones de Compra de Bienes y Servicios (SRI Tipo 03)
+
+### Casos de Emisión Legal (Art. 48 RCVR)
+La liquidación de compra es un comprobante de venta emitido por el propio **comprador**:
+1. **Personas naturales sin RUC:**
+   - Prestación de servicios eventuales por personas que por su nivel cultural o rusticidad no poseen RUC.
+   - Adquisición de bienes a pequeños recolectores o productores agropecuarios informales.
+2. **Servicios prestados por no residentes:**
+   - Contratación de servicios de consultoría, asesoría o software a extranjeros sin establecimiento en Ecuador (importación de servicios).
+3. **Invariante Crítica:**
+   - **PROHIBIDO** emitir liquidación de compra a personas o sociedades que posean RUC activo en el SRI. En ese caso el proveedor está obligado por ley a entregar su propia factura.
+
+### Retenciones Obligatorias en Liquidaciones
+* **IVA:** Aplica obligatoriamente retención del **100% del IVA** generado (Código 3).
+* **IR:** Aplica el porcentaje de retención en la fuente respectivo según la naturaleza del bien o servicio (1.75% bienes, 2.75% mano de obra, 10% servicios profesionales o pagos al exterior).
+
+---
+
+## 7. Sinergia Contable NIIF y Cierre Tributario para Sociedades S.A.S.
+
+Para una empresa S.A.S. en Ecuador:
+1. **Asiento Contable Automático de Compra:**
+   - **Debe:** Cuenta de Gasto Operativo (5.2.*) o Inventario/Kárdex (1.1.04.01).
+   - **Debe:** Crédito Tributario IVA Compras (1.1.05.01).
+   - **Haber:** Retenciones en la Fuente por Pagar (2.1.04.02).
+   - **Haber:** Retención IVA por Pagar (2.1.04.03).
+   - **Haber:** Cuentas por Pagar Proveedores (2.1.01.01).
+2. **Cruce Mensual de IVA (Pre-declaración Formulario 104):**
+   $$\text{Impuesto Causado} = \text{IVA Ventas (2.1.04.01)} - \text{IVA Compras/Liquidaciones (1.1.05.01)}$$
+   $$\text{Total a Pagar o Saldo a Favor} = \text{Impuesto Causado} - \text{Retenciones IVA Recibidas}$$
+3. **Anexo Transaccional Simplificado (ATS XML v2.0):**
+   - Agrupa compras del mes (facturas y liquidaciones), ventas del mes y retenciones emitidas/recibidas para carga mensual en el portal del SRI.
+4. **Estados Financieros para Superintendencia de Compañías (SCVS):**
+   - **P&G:** Ventas Netas (4.1) - Costo de Ventas (5.1) = Utilidad Bruta - Gastos Operativos (5.2) = Utilidad del Ejercicio.
+   - **Balance General:** $\text{Activo (1)} = \text{Pasivo (2)} + \text{Patrimonio (3)}$.

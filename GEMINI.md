@@ -40,3 +40,8 @@ When creating or modifying UI components, views, layouts, or styles in this repo
    - ONLY lowercase ASCII letters `a-z`, digits `0-9`, and dot separators `.` are permitted.
    - NEVER use underscores (`_`), hyphens (`-`), spaces, or uppercase characters in permission codes (e.g. use `purchases.expenses.read`, NEVER `purchases.expense_types.read`).
    - Every addition or modification to `MenuCatalogSeedData.cs` MUST be verified to prevent boot/startup crashes (`permission.code.format` -> `InvalidOperationException` -> Cloudflare 502).
+9. **Prioritize Dedicated Views Over Modals (UI/UX Ergonomics)**:
+   - AVOID creating modal popups (`Popup`) for primary business forms or operational workflows (creation, editing, or multi-step processes with 3+ fields, sub-item grids, or calculations).
+   - ALWAYS build dedicated full pages (`PageHeader`, `SectionCard`, 'Back' action, and dedicated RESTful routes like `/modulo/entidad/nueva` or `/modulo/entidad/:id`) following the skill `ui-vistas-sobre-modales`.
+   - Reserve modals (`Popup`) STRICTLY for low-content micro-interactions: 1-click destructive action confirmations, brief alerts, or 1-2 field quick prompts (e.g. rejection reasons or quick tags).
+

@@ -46,6 +46,7 @@ public sealed class PurchaseRepository : IPurchaseRepository
         DateOnly? from,
         DateOnly? to,
         string? search,
+        string? documentType,
         CancellationToken ct)
     {
         var query = _db.Purchases.AsNoTracking()
@@ -53,6 +54,11 @@ public sealed class PurchaseRepository : IPurchaseRepository
             .Include(p => p.ExpenseType)
             .Include(p => p.Items)
             .Where(p => p.TenantId == tenantId);
+
+        if (!string.IsNullOrWhiteSpace(documentType))
+        {
+            query = query.Where(p => p.DocumentType == documentType.Trim());
+        }
 
         if (supplierId.HasValue)
         {

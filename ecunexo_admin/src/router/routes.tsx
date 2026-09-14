@@ -54,6 +54,7 @@ import { ComprasDocumentosPage } from '@/pages/compras/ComprasDocumentosPage'
 import { ImportPurchasesPage } from '@/pages/compras/ImportPurchasesPage'
 import { PurchaseWithholdingsListPage } from '@/pages/compras/PurchaseWithholdingsListPage'
 import { PurchaseSettlementsListPage } from '@/pages/compras/PurchaseSettlementsListPage'
+import { PurchaseSettlementCreatePage } from '@/pages/compras/PurchaseSettlementCreatePage'
 import { SuppliersListPage } from '@/pages/compras/SuppliersListPage'
 import { PurchaseProformasListPage } from '@/pages/compras/PurchaseProformasListPage'
 import { PurchaseProformaCreatePage } from '@/pages/compras/PurchaseProformaCreatePage'
@@ -73,6 +74,10 @@ import { EcommerceOrdersListPage } from '@/pages/ecommerce/EcommerceOrdersListPa
 import { EcommerceOrderDetailPage } from '@/pages/ecommerce/EcommerceOrderDetailPage'
 import { LegalPublicPage } from '@/pages/legal/LegalPublicPage'
 import { ChartOfAccountsPage } from '@/pages/accounting/ChartOfAccountsPage'
+import JournalEntriesListPage from '@/pages/accounting/JournalEntriesListPage'
+import JournalEntryCreatePage from '@/pages/accounting/JournalEntryCreatePage'
+import TaxDeclarationsPage from '@/pages/accounting/TaxDeclarationsPage'
+import FinancialStatementsPage from '@/pages/accounting/FinancialStatementsPage'
 import { DashboardLayout } from '@/shell/DashboardLayout'
 
 const placeholder = (title: string): RouteObject => ({
@@ -161,6 +166,7 @@ export const routes: RouteObject[] = [
           { path: 'compras/importar', element: <Navigate to="/compras/documentos/importar" replace /> },
           { path: 'compras/retenciones', element: <PurchaseWithholdingsListPage /> },
           { path: 'compras/liquidaciones', element: <PurchaseSettlementsListPage /> },
+          { path: 'compras/liquidaciones/nueva', element: <PurchaseSettlementCreatePage /> },
           { path: 'compras/proveedores', element: <SuppliersListPage /> },
           { path: 'compras/proformas', element: <PurchaseProformasListPage /> },
           { path: 'compras/proformas/nueva', element: <PurchaseProformaCreatePage /> },
@@ -221,11 +227,12 @@ export const routes: RouteObject[] = [
             path: 'facturacion/catalogos/retenciones',
             element: <Navigate to="/facturacion/comprobantes" replace />,
           },
-          { path: 'contabilidad/asientos', ...placeholder('Asientos') },
+          { path: 'contabilidad/asientos', element: <JournalEntriesListPage /> },
+          { path: 'contabilidad/asientos/nuevo', element: <JournalEntryCreatePage /> },
           { path: 'contabilidad/ejercicios', ...placeholder('Ejercicios') },
           { path: 'contabilidad/plan-contable', element: <ChartOfAccountsPage /> },
-          { path: 'contabilidad/balances', ...placeholder('Balances') },
-          { path: 'contabilidad/declaraciones', ...placeholder('Declaraciones') },
+          { path: 'contabilidad/balances', element: <FinancialStatementsPage /> },
+          { path: 'contabilidad/declaraciones', element: <TaxDeclarationsPage /> },
           { path: 'contabilidad/cuentas', element: <ChartOfAccountsPage /> },
           { path: 'contabilidad/reportes', ...placeholder('Reportes') },
           {

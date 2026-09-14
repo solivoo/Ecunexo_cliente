@@ -1,10 +1,16 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Accounting;
 using EcuNexo.Business.Accounting.Commands.CreateAccount;
+using EcuNexo.Business.Accounting.Commands.CreateJournalEntry;
 using EcuNexo.Business.Accounting.Commands.DeleteAccount;
+using EcuNexo.Business.Accounting.Commands.GeneratePurchaseJournalEntry;
 using EcuNexo.Business.Accounting.Commands.SeedStandardEcuadorPlan;
 using EcuNexo.Business.Accounting.Commands.UpdateAccount;
+using EcuNexo.Business.Accounting.Queries.GetJournalEntryById;
+using EcuNexo.Business.Accounting.Queries.GetMonthlyTaxDeclaration;
+using EcuNexo.Business.Accounting.Queries.GetFinancialStatements;
 using EcuNexo.Business.Accounting.Queries.ListAccounts;
+using EcuNexo.Business.Accounting.Queries.ListJournalEntries;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
@@ -300,12 +306,18 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<UploadSigningCertificateCommand, SigningCertificateStatusResponse>, UploadSigningCertificateHandler>();
         services.AddScoped<IQueryHandler<GetSigningCertificateStatusQuery, SigningCertificateStatusResponse>, GetSigningCertificateStatusHandler>();
 
-        // Accounting (Plan General de Cuentas NIIF / SCVS Ecuador)
+        // Accounting (Plan General de Cuentas NIIF / SCVS Ecuador y Libro Diario)
         services.AddScoped<ICommandHandler<SeedStandardEcuadorPlanCommand, int>, SeedStandardEcuadorPlanHandler>();
         services.AddScoped<ICommandHandler<CreateAccountCommand, AccountResponse>, CreateAccountHandler>();
         services.AddScoped<ICommandHandler<UpdateAccountCommand, AccountResponse>, UpdateAccountHandler>();
         services.AddScoped<ICommandHandler<DeleteAccountCommand, bool>, DeleteAccountHandler>();
         services.AddScoped<IQueryHandler<ListAccountsQuery, IReadOnlyList<AccountResponse>>, ListAccountsHandler>();
+        services.AddScoped<IQueryHandler<ListJournalEntriesQuery, ListJournalEntriesResponse>, ListJournalEntriesHandler>();
+        services.AddScoped<IQueryHandler<GetJournalEntryByIdQuery, JournalEntryResponse>, GetJournalEntryByIdHandler>();
+        services.AddScoped<ICommandHandler<CreateJournalEntryCommand, JournalEntryResponse>, CreateJournalEntryHandler>();
+        services.AddScoped<ICommandHandler<GeneratePurchaseJournalEntryCommand, JournalEntryResponse>, GeneratePurchaseJournalEntryHandler>();
+        services.AddScoped<IQueryHandler<GetMonthlyTaxDeclarationQuery, MonthlyTaxDeclarationResponse>, GetMonthlyTaxDeclarationHandler>();
+        services.AddScoped<IQueryHandler<GetFinancialStatementsQuery, FinancialStatementsResponse>, GetFinancialStatementsHandler>();
 
         return services;
     }

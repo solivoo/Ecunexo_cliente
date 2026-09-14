@@ -1,5 +1,6 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Purchases.Repositories;
+using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Purchases;
@@ -54,6 +55,7 @@ public sealed class CreatePurchaseHandler : ICommandHandler<CreatePurchaseComman
     private readonly ISupplierRepository _suppliers;
     private readonly IPurchaseProformaRepository _proformas;
     private readonly IExpenseTypeRepository _expenseTypes;
+    private readonly ITenantRepository _tenants;
     private readonly IIdGenerator _idGenerator;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -62,6 +64,7 @@ public sealed class CreatePurchaseHandler : ICommandHandler<CreatePurchaseComman
         ISupplierRepository suppliers,
         IPurchaseProformaRepository proformas,
         IExpenseTypeRepository expenseTypes,
+        ITenantRepository tenants,
         IIdGenerator idGenerator,
         IUnitOfWork unitOfWork)
     {
@@ -69,6 +72,7 @@ public sealed class CreatePurchaseHandler : ICommandHandler<CreatePurchaseComman
         _suppliers = suppliers;
         _proformas = proformas;
         _expenseTypes = expenseTypes;
+        _tenants = tenants;
         _idGenerator = idGenerator;
         _unitOfWork = unitOfWork;
     }
@@ -85,6 +89,22 @@ public sealed class CreatePurchaseHandler : ICommandHandler<CreatePurchaseComman
                 new Error("purchases.supplier.not_found", "El proveedor especificado no existe.", ErrorType.NotFound));
         }
 
+        // 1.1 Invariante Legal SRI Tipo 03 (Art. 48 RCVR):
+        // No es legal emitir Liquidación de Compra a proveedores que posean RUC activo.
+        if (command.DocumentType == "03")
+        {
+            var cleanTaxId = supplier.TaxId.Trim();
+            var hasRuc = supplier.IdentificationType == SupplierIdentificationType.Ruc ||
+                         (cleanTaxId.Length == 13 && cleanTaxId.EndsWith("001", StringComparison.Ordinal));
+            if (hasRuc)
+            {
+                return Result.Failure<CreatePurchaseResponse>(
+                    new Error("purchases.settlement.supplier_has_ruc",
+                        $"No es legal emitir Liquidación de Compra al proveedor '{supplier.BusinessName}' porque posee RUC registrado ({cleanTaxId}). Conforme al Art. 48 del RCVR del SRI, el proveedor está obligado a emitir su propia Factura.",
+                        ErrorType.Validation));
+            }
+        }
+
         // 2. Validar que no exista ya la misma factura registrada para este proveedor ni clave de autorización duplicada
         if (!string.IsNullOrWhiteSpace(command.AuthorizationNumber))
         {
@@ -96,7 +116,7 @@ public sealed class CreatePurchaseHandler : ICommandHandler<CreatePurchaseComman
             if (existingByAuth is not null)
             {
                 return Result.Failure<CreatePurchaseResponse>(
-                    new Error("purchases.authorization_number.duplicate", $"Ya existe una factura registrada con la clave de acceso / autorización '{command.AuthorizationNumber.Trim()}'.", ErrorType.Conflict));
+                    new Error("purchases.authorization_number.duplicate", $"Ya existe un comprobante registrado con la clave de acceso / autorización '{command.AuthorizationNumber.Trim()}'.", ErrorType.Conflict));
             }
         }
 
@@ -116,7 +136,28 @@ public sealed class CreatePurchaseHandler : ICommandHandler<CreatePurchaseComman
         if (exists)
         {
             return Result.Failure<CreatePurchaseResponse>(
-                new Error("purchases.invoice_number.duplicate", $"Ya existe una factura registrada con el número '{normalizedInvoiceNumber}' para este proveedor.", ErrorType.Conflict));
+                new Error("purchases.invoice_number.duplicate", $"Ya existe un comprobante registrado con el número '{normalizedInvoiceNumber}' para este proveedor.", ErrorType.Conflict));
+        }
+
+        // 2.1 Generación automática de Clave de Acceso SRI de 49 dígitos para Liquidación de Compra (03) si no fue provista
+        var authNumber = command.AuthorizationNumber?.Trim();
+        if (command.DocumentType == "03" && string.IsNullOrWhiteSpace(authNumber))
+        {
+            var tenant = await _tenants.GetByIdAsync(command.TenantId, ct).ConfigureAwait(false);
+            var tenantRuc = tenant?.TaxId?.Trim() ?? "1790016919001";
+            var parts = normalizedInvoiceNumber.Split('-');
+            var estab = parts.Length > 0 ? parts[0] : "001";
+            var pto = parts.Length > 1 ? parts[1] : "001";
+            var seq = parts.Length > 2 ? parts[2] : "1";
+
+            authNumber = EcuNexo.Core.Purchases.Services.SriAccessKeyGenerator.Generate(
+                issueDate: command.IssueDate,
+                documentType: "03",
+                emitterRuc: tenantRuc,
+                environment: "1",
+                establishment: estab,
+                emissionPoint: pto,
+                sequential: seq);
         }
 
         // 3. Validar tipo de gasto / sustento si se envió
@@ -136,10 +177,10 @@ public sealed class CreatePurchaseHandler : ICommandHandler<CreatePurchaseComman
             id: purchaseId,
             tenantId: command.TenantId,
             supplierId: command.SupplierId,
-            invoiceNumber: command.InvoiceNumber,
+            invoiceNumber: normalizedInvoiceNumber,
             issueDate: command.IssueDate,
             documentType: command.DocumentType,
-            authorizationNumber: command.AuthorizationNumber,
+            authorizationNumber: authNumber,
             expenseTypeId: command.ExpenseTypeId,
             sriSustentoCode: sustento,
             subtotalZero: command.SubtotalZero,

@@ -287,10 +287,12 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
-    // Accounting — Contabilidad y Plan General de Cuentas NIIF / SCVS
+    // Accounting — Contabilidad NIIF, Pre-declaración SRI & Balances SCVS
     // ──────────────────────────────────────────────
+    public const string LimitMaxAccountsInChart = "max_accounts_in_chart";
     public const string LimitMaxChartAccounts = "max_chart_accounts";
     public const string LimitMaxMonthlyJournalEntries = "max_monthly_journal_entries";
+    public const string LimitAllowFinancialStatementsExport = "allow_financial_statements_export";
     public const string LimitEnableCustomSubaccounts = "enable_custom_subaccounts";
     public const string LimitAllowCustomSubaccounts = "allow_custom_subaccounts";
 
@@ -298,29 +300,37 @@ public static class ModuleTierCatalog
     {
         [ModuleTier.Small] = new Dictionary<string, int>
         {
-            [LimitMaxChartAccounts] = 100,
-            [LimitMaxMonthlyJournalEntries] = 0,
+            [LimitMaxMonthlyJournalEntries] = 50,
+            [LimitMaxAccountsInChart] = 60,
+            [LimitMaxChartAccounts] = 60,
+            [LimitAllowFinancialStatementsExport] = 0,
             [LimitEnableCustomSubaccounts] = 0,
             [LimitAllowCustomSubaccounts] = 0,
         },
         [ModuleTier.Medium] = new Dictionary<string, int>
         {
-            [LimitMaxChartAccounts] = 500,
             [LimitMaxMonthlyJournalEntries] = 500,
+            [LimitMaxAccountsInChart] = 250,
+            [LimitMaxChartAccounts] = 250,
+            [LimitAllowFinancialStatementsExport] = 1,
             [LimitEnableCustomSubaccounts] = 1,
             [LimitAllowCustomSubaccounts] = 1,
         },
         [ModuleTier.Big] = new Dictionary<string, int>
         {
-            [LimitMaxChartAccounts] = 2_000,
-            [LimitMaxMonthlyJournalEntries] = 2_500,
+            [LimitMaxMonthlyJournalEntries] = 5_000,
+            [LimitMaxAccountsInChart] = 1_000,
+            [LimitMaxChartAccounts] = 1_000,
+            [LimitAllowFinancialStatementsExport] = 1,
             [LimitEnableCustomSubaccounts] = 1,
             [LimitAllowCustomSubaccounts] = 1,
         },
         [ModuleTier.Enterprise] = new Dictionary<string, int>
         {
-            [LimitMaxChartAccounts] = int.MaxValue,
             [LimitMaxMonthlyJournalEntries] = int.MaxValue,
+            [LimitMaxAccountsInChart] = int.MaxValue,
+            [LimitMaxChartAccounts] = int.MaxValue,
+            [LimitAllowFinancialStatementsExport] = 1,
             [LimitEnableCustomSubaccounts] = 1,
             [LimitAllowCustomSubaccounts] = 1,
         },

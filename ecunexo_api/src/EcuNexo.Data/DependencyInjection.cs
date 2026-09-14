@@ -74,6 +74,7 @@ public static class DependencyInjection
         services.AddScoped<IPurchaseProformaRepository, PurchaseProformaRepository>();
         services.AddScoped<IPurchaseRepository, PurchaseRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
+        services.AddScoped<IJournalEntryRepository, JournalEntryRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
         return services;

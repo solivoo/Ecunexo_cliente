@@ -45,7 +45,8 @@ public sealed record ListPurchasesQuery(
     PurchaseStatus? Status = null,
     DateOnly? From = null,
     DateOnly? To = null,
-    string? Search = null) : IQuery<ListPurchasesResponse>;
+    string? Search = null,
+    string? DocumentType = null) : IQuery<ListPurchasesResponse>;
 
 public sealed class ListPurchasesHandler : IQueryHandler<ListPurchasesQuery, ListPurchasesResponse>
 {
@@ -67,6 +68,7 @@ public sealed class ListPurchasesHandler : IQueryHandler<ListPurchasesQuery, Lis
             from: query.From,
             to: query.To,
             search: query.Search,
+            documentType: query.DocumentType,
             ct: ct).ConfigureAwait(false);
 
         var total = list.Count;

@@ -22,6 +22,7 @@ public sealed class PurchaseHandlersTests
     private readonly ISupplierRepository _suppliers = Substitute.For<ISupplierRepository>();
     private readonly IPurchaseProformaRepository _proformas = Substitute.For<IPurchaseProformaRepository>();
     private readonly IExpenseTypeRepository _expenseTypes = Substitute.For<IExpenseTypeRepository>();
+    private readonly EcuNexo.Business.Tenancy.ITenantRepository _tenants = Substitute.For<EcuNexo.Business.Tenancy.ITenantRepository>();
     private readonly ICatalogItemRepository _catalogItems = Substitute.For<ICatalogItemRepository>();
     private readonly ICommandHandler<CreateInventoryDocumentCommand, CreateInventoryDocumentResponse> _createInventoryDoc = Substitute.For<ICommandHandler<CreateInventoryDocumentCommand, CreateInventoryDocumentResponse>>();
     private readonly ICommandHandler<ApproveInventoryDocumentCommand, ApproveInventoryDocumentResponse> _approveInventoryDoc = Substitute.For<ICommandHandler<ApproveInventoryDocumentCommand, ApproveInventoryDocumentResponse>>();
@@ -214,7 +215,7 @@ public sealed class PurchaseHandlersTests
             Guid.NewGuid(), tenantId, supplierId, "001-001-000000099", new DateOnly(2026, 9, 10), authorizationNumber: existingAuth).Value!;
         _purchases.GetByAuthorizationNumberAsync(tenantId, existingAuth, Arg.Any<CancellationToken>()).Returns(existingPurchase);
 
-        var handler = new CreatePurchaseHandler(_purchases, _suppliers, _proformas, _expenseTypes, _idGenerator, _unitOfWork);
+        var handler = new CreatePurchaseHandler(_purchases, _suppliers, _proformas, _expenseTypes, _tenants, _idGenerator, _unitOfWork);
         var command = new CreatePurchaseCommand(
             TenantId: tenantId,
             SupplierId: supplierId,
@@ -247,7 +248,7 @@ public sealed class PurchaseHandlersTests
         _suppliers.GetByIdAsync(tenantId, supplierId, Arg.Any<CancellationToken>()).Returns(supplier);
         _purchases.ExistsByInvoiceNumberAsync(tenantId, supplierId, "001-001-000000001", null, Arg.Any<CancellationToken>()).Returns(false);
 
-        var handler = new CreatePurchaseHandler(_purchases, _suppliers, _proformas, _expenseTypes, _idGenerator, _unitOfWork);
+        var handler = new CreatePurchaseHandler(_purchases, _suppliers, _proformas, _expenseTypes, _tenants, _idGenerator, _unitOfWork);
         var command = new CreatePurchaseCommand(
             TenantId: tenantId,
             SupplierId: supplierId,
@@ -284,7 +285,7 @@ public sealed class PurchaseHandlersTests
 
         _idGenerator.NewId().Returns(purchaseId, Guid.NewGuid());
 
-        var handler = new CreatePurchaseHandler(_purchases, _suppliers, _proformas, _expenseTypes, _idGenerator, _unitOfWork);
+        var handler = new CreatePurchaseHandler(_purchases, _suppliers, _proformas, _expenseTypes, _tenants, _idGenerator, _unitOfWork);
         var command = new CreatePurchaseCommand(
             TenantId: tenantId,
             SupplierId: supplierId,
@@ -301,6 +302,90 @@ public sealed class PurchaseHandlersTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         await _purchases.Received(1).AddAsync(Arg.Is<Purchase>(p => p.Status == PurchaseStatus.Invoiced && !p.AffectsInventory), Arg.Any<CancellationToken>());
+    }
+
+    [Fact(DisplayName = "CreatePurchaseHandler para Liquidación de Compra (03) rechaza si el proveedor tiene RUC activo")]
+    public async Task CreatePurchaseHandler_SettlementWithRucSupplier_FailsWithDomainError()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var supplierId = Guid.NewGuid();
+        var supplierWithRuc = Supplier.Create(supplierId, tenantId, "Empresa Proveedora S.A.", "1790016919001", identificationType: SupplierIdentificationType.Ruc).Value!;
+        _suppliers.GetByIdAsync(tenantId, supplierId, Arg.Any<CancellationToken>()).Returns(supplierWithRuc);
+
+        var handler = new CreatePurchaseHandler(_purchases, _suppliers, _proformas, _expenseTypes, _tenants, _idGenerator, _unitOfWork);
+        var command = new CreatePurchaseCommand(
+            TenantId: tenantId,
+            SupplierId: supplierId,
+            InvoiceNumber: "001-001-000000005",
+            IssueDate: new DateOnly(2026, 9, 10),
+            DocumentType: "03"
+        );
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("purchases.settlement.supplier_has_ruc");
+        result.Error.Message.Should().Contain("Art. 48 del RCVR");
+    }
+
+    [Fact(DisplayName = "CreatePurchaseHandler para Liquidación de Compra (03) con proveedor cédula genera clave de acceso SRI 49 dígitos")]
+    public async Task CreatePurchaseHandler_SettlementWithCedulaSupplier_GeneratesAccessKeyAndSucceeds()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var supplierId = Guid.NewGuid();
+        var purchaseId = Guid.NewGuid();
+        var naturalPerson = Supplier.Create(supplierId, tenantId, "Juan Perez Pintor", "1710034065", identificationType: SupplierIdentificationType.Cedula).Value!;
+        _suppliers.GetByIdAsync(tenantId, supplierId, Arg.Any<CancellationToken>()).Returns(naturalPerson);
+        _purchases.ExistsByInvoiceNumberAsync(tenantId, supplierId, "001-001-000000001", null, Arg.Any<CancellationToken>()).Returns(false);
+        _idGenerator.NewId().Returns(purchaseId, Guid.NewGuid());
+
+        var tenant = EcuNexo.Core.Tenancy.Tenant.Create(
+            tenantId,
+            "Mi Empresa S.A.S.",
+            new EcuNexo.Core.Tenancy.ServicePlan("Empresa", 10, 5)).Value!;
+        tenant.UpdateSriLegalProfile(
+            taxId: "1790016919001",
+            legalName: "Mi Empresa S.A.S.",
+            city: "Quito",
+            establishmentCode: "001",
+            address: "Av. Amazonas",
+            accountingRequired: true,
+            rimpeKind: EcuNexo.Core.Tenancy.RimpeKind.None,
+            preferElectronicInvoice: true,
+            isExporter: false,
+            isLargeTaxpayer: false,
+            isSpecialTaxpayer: false,
+            isWithholdingAgent: false);
+        _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(tenant);
+
+        var handler = new CreatePurchaseHandler(_purchases, _suppliers, _proformas, _expenseTypes, _tenants, _idGenerator, _unitOfWork);
+        var command = new CreatePurchaseCommand(
+            TenantId: tenantId,
+            SupplierId: supplierId,
+            InvoiceNumber: "001-001-000000001",
+            IssueDate: new DateOnly(2026, 9, 10),
+            DocumentType: "03",
+            Lines:
+            [
+                new CreatePurchaseLineInput("Servicio de Pintura de Oficina", Quantity: 1, UnitPrice: 100m, TaxRate: 15m, AffectsInventory: false)
+            ]
+        );
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        await _purchases.Received(1).AddAsync(Arg.Is<Purchase>(p =>
+            p.DocumentType == "03" &&
+            p.AuthorizationNumber != null &&
+            p.AuthorizationNumber.Length == 49 &&
+            p.AuthorizationNumber.Substring(8, 2) == "03"),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact(DisplayName = "ReceivePurchaseHandler genera ingreso de inventario, lo aprueba y marca compra como recibida")]
@@ -367,7 +452,7 @@ public sealed class PurchaseHandlersTests
         var p2 = Purchase.Create(Guid.NewGuid(), tenantId, supplierId, "001-001-000000002", new DateOnly(2026, 9, 11), totalAmount: 200m).Value!;
         p2.MarkAsReceived(Guid.NewGuid());
 
-        _purchases.ListAsync(tenantId, null, null, null, null, null, Arg.Any<CancellationToken>())
+        _purchases.ListAsync(tenantId, null, null, null, null, null, null, Arg.Any<CancellationToken>())
             .Returns(new List<Purchase> { p1, p2 });
 
         var handler = new ListPurchasesHandler(_purchases);

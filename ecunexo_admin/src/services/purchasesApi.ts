@@ -285,3 +285,45 @@ export async function receivePurchase(
   )
   return data
 }
+
+// ======================== LIQUIDACIONES DE COMPRA (SRI 03) ========================
+
+export async function listPurchaseSettlements(
+  tenantId: string,
+  params?: PurchaseFilterParams
+): Promise<ListPurchasesResponse> {
+  const queryParams: Record<string, string> = {}
+  if (params?.supplierId) {
+    queryParams.supplierId = params.supplierId
+  }
+  if (params?.status !== undefined) {
+    queryParams.status = String(params.status)
+  }
+  if (params?.from) {
+    queryParams.from = params.from
+  }
+  if (params?.to) {
+    queryParams.to = params.to
+  }
+  if (params?.search?.trim()) {
+    queryParams.search = params.search.trim()
+  }
+
+  const { data } = await api.get<ListPurchasesResponse>(
+    `/api/v1/tenants/${tenantId}/purchases/settlements`,
+    { params: queryParams }
+  )
+  return data
+}
+
+export async function createPurchaseSettlement(
+  tenantId: string,
+  payload: CreatePurchasePayload
+): Promise<{ purchaseId: string; invoiceNumber: string }> {
+  const { data } = await api.post<{ purchaseId: string; invoiceNumber: string }>(
+    `/api/v1/tenants/${tenantId}/purchases/settlements`,
+    payload
+  )
+  return data
+}
+

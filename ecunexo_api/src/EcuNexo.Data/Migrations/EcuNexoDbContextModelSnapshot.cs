@@ -133,6 +133,158 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("accounts", "accounting");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Accounting.JournalEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("EntryNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("entry_number");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("integer")
+                        .HasColumnName("source");
+
+                    b.Property<Guid?>("SourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("source_reference");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("TotalCredit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_credit");
+
+                    b.Property<decimal>("TotalDebit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_debit");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_journal_entries");
+
+                    b.HasIndex("TenantId", "Date")
+                        .HasDatabaseName("ix_journal_entries_tenant_id_date")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.HasIndex("TenantId", "EntryNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_journal_entries_tenant_id_entry_number")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.HasIndex("TenantId", "Source", "SourceId")
+                        .HasDatabaseName("ix_journal_entries_tenant_id_source_source_id")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.ToTable("journal_entries", "accounting");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Accounting.JournalEntryLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccountCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("account_code");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<string>("AccountName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("account_name");
+
+                    b.Property<decimal>("Credit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("credit");
+
+                    b.Property<decimal>("Debit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("debit");
+
+                    b.Property<Guid>("JournalEntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("reference");
+
+                    b.HasKey("Id")
+                        .HasName("pk_journal_entry_lines");
+
+                    b.HasIndex("AccountCode")
+                        .HasDatabaseName("ix_journal_entry_lines_account_code");
+
+                    b.HasIndex("AccountId")
+                        .HasDatabaseName("ix_journal_entry_lines_account_id");
+
+                    b.HasIndex("JournalEntryId")
+                        .HasDatabaseName("ix_journal_entry_lines_journal_entry_id");
+
+                    b.ToTable("journal_entry_lines", "accounting");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Catalog.CatalogItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3820,6 +3972,16 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("warehouses", "warehousing");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Accounting.JournalEntryLine", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Accounting.JournalEntry", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_journal_entry_lines_journal_entries_journal_entry_id");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Catalog.CatalogItem", b =>
                 {
                     b.HasOne("EcuNexo.Core.Catalog.Category", "Category")
@@ -4349,6 +4511,11 @@ namespace EcuNexo.Data.Migrations
                         .HasConstraintName("fk_warehouses_tenants_tenant_id");
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Accounting.JournalEntry", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Catalog.CatalogItem", b =>

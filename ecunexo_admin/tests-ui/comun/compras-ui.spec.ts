@@ -120,6 +120,25 @@ const MOCK_SUPPLIERS: SupplierDto[] = [
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
+  {
+    id: 'supp-003',
+    tenantId: 'tnt-test-1',
+    businessName: 'María Carmen Guanoluisa',
+    tradeName: 'Servicios de Artesanía y Limpieza',
+    taxId: '1710034065',
+    identificationType: 2,
+    taxRegime: 1,
+    isRetentionAgent: false,
+    address: 'Calderón, Quito',
+    contactEmail: 'maria.guanoluisa@test.ec',
+    contactPhone: '0987654321',
+    creditDays: 0,
+    creditLimit: 0,
+    isActive: true,
+    notes: 'Persona natural sin RUC',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
 ]
 
 const MOCK_EXPENSES: ExpenseTypeDto[] = [
@@ -368,6 +387,8 @@ async function mockPurchasesSession(page: Page) {
     'purchases.documents.manage',
     'purchases.read',
     'purchases.manage',
+    'facturacion.liquidacion.compra.read',
+    'facturacion.liquidacion.compra.issue',
   ]
 
   await page.route('**/api/v1/auth/login', async (route) => {
@@ -440,6 +461,12 @@ async function mockPurchasesSession(page: Page) {
                 id: 'compras-gastos',
                 label: 'Tipos de Gasto SRI',
                 route: '/compras/gastos',
+                children: [],
+              },
+              {
+                id: 'compras-liquidaciones',
+                label: 'Liquidaciones de Compra',
+                route: '/compras/liquidaciones',
                 children: [],
               },
             ],
@@ -629,6 +656,104 @@ async function mockPurchasesSession(page: Page) {
     await route.fallback()
   })
 
+  // Purchases Settlements (SRI Tipo 03) routes
+  await page.route(/\/api\/v1\/tenants\/[^/]+\/purchases\/settlements(\?.*)?$/, async (route) => {
+    if (route.request().method() === 'GET') {
+      const settlements = purchases.filter((p) => p.documentType === '03')
+      const kpis = {
+        totalPurchases: settlements.length,
+        totalReceived: settlements.filter((p) => p.status === 2).length,
+        totalDraft: settlements.filter((p) => p.status === 1).length,
+        totalBilledAmount: settlements.reduce((acc, curr) => acc + curr.totalAmount, 0),
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ kpis, purchases: settlements }),
+      })
+      return
+    }
+    if (route.request().method() === 'POST') {
+      const data = route.request().postDataJSON()
+      const created: PurchaseSummaryDto = {
+        id: `settle-${Date.now()}`,
+        tenantId: 'tnt-purchases-1',
+        supplierId: data.supplierId || 'supp-003',
+        supplierBusinessName: 'María Carmen Guanoluisa',
+        supplierTaxId: '1710034065',
+        documentType: '03',
+        invoiceNumber: data.invoiceNumber || '001-001-000000001',
+        authorizationNumber: '1309202603179001691900110010010000000011234567812',
+        issueDate: data.issueDate || '2026-09-13',
+        sriSustentoCode: data.sriSustentoCode || '01',
+        subtotalZero: data.subtotalZero || 0,
+        subtotalTaxed: data.subtotalTaxed || 100,
+        taxRate: 15,
+        taxAmount: data.taxAmount || 15,
+        totalDiscount: 0,
+        totalAmount: data.totalAmount || 115,
+        status: 1,
+        inventoryDocumentId: null,
+        itemsCount: (data.items || []).length || 1,
+        createdAt: new Date().toISOString(),
+      }
+      purchases.push(created)
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          purchaseId: created.id,
+          invoiceNumber: created.invoiceNumber,
+        }),
+      })
+      return
+    }
+    await route.fallback()
+  })
+
+  // Signing Certificate Status and Tenant details
+  await page.route(/\/api\/v1\/tenants\/[^/]+\/signing-certificate\/status$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        isConfigured: true,
+        subject: 'CN=ECUNEXO S.A.S., O=SECURITY DATA S.A.',
+        issuer: 'SECURITY DATA S.A.',
+        validFrom: '2026-01-01T00:00:00Z',
+        validTo: '2028-01-01T00:00:00Z',
+        isExpired: false,
+        daysRemaining: 475,
+      }),
+    })
+  })
+
+  await page.route(/\/api\/v1\/tenants\/[^/]+$/, async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'tnt-purchases-1',
+          name: 'EcuNexo Retail E2E',
+          legalName: 'ECUNEXO RETAIL S.A.S.',
+          taxId: '1790016919001',
+          establishmentCode: '001',
+          address: 'Av. 10 de Agosto y Colón, Quito',
+          phone: '022998877',
+          email: 'info@ecunexo.test',
+          timeZoneId: 'America/Guayaquil',
+          locale: 'es-EC',
+          currency: 'USD',
+          status: 1,
+          createdAt: new Date().toISOString(),
+        }),
+      })
+      return
+    }
+    await route.fallback()
+  })
+
   // Specific routes
   await page.route(/\/api\/v1\/tenants\/[^/]+\/purchases\/documents\/parse-xml$/, async (route) => {
     if (route.request().method() === 'POST') {
@@ -726,6 +851,22 @@ async function openExpenseTypes(page: Page) {
   }
   await page.getByRole('button', { name: /Tipos de Gasto SRI/i }).click()
   await expect(page.getByRole('heading', { name: /Categorías de Compra|Tipos de Gasto/i })).toBeVisible({
+    timeout: 15_000,
+  })
+}
+
+async function openSettlements(page: Page) {
+  const comprasBtn = page.getByRole('button', { name: /^Compras$/i })
+  if (await comprasBtn.isVisible()) {
+    await comprasBtn.click()
+  }
+  const btn = page.getByRole('button', { name: /Liquidaciones de Compra/i })
+  if (await btn.isVisible()) {
+    await btn.click()
+  } else {
+    await page.goto('/compras/liquidaciones')
+  }
+  await expect(page.getByRole('heading', { name: /Liquidaciones de Compra SRI/i })).toBeVisible({
     timeout: 15_000,
   })
 }
@@ -920,4 +1061,79 @@ test.describe('Compras UI — Documentos de Compra & Parseo XML SRI', () => {
     // Cerrar modal
     await page.getByLabel('Cerrar', { exact: true }).click()
   })
+
+  // -------------------------------------------------------------------------
+  // LIQUIDACIONES DE COMPRA (SRI TIPO 03) — ART. 48 RCVR & RETENCIÓN 100% IVA
+  // -------------------------------------------------------------------------
+
+  test('Liquidaciones: renderizar vista con KPIs, emisor fiscal y firma electrónica activa', async ({ page }) => {
+    await openSettlements(page)
+    await expect(page.getByRole('heading', { name: /Liquidaciones de Compra SRI/i })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('SRI Tipo 03')).toBeVisible()
+    await expect(page.getByText('ECUNEXO RETAIL S.A.S.')).toBeVisible()
+    await expect(page.getByText('Firma Digital Activa')).toBeVisible()
+    await expect(page.getByText('Total Liquidaciones')).toBeVisible()
+    await expect(page.getByText('Monto Liquidado')).toBeVisible()
+  })
+
+  test('Liquidaciones: validación preventiva Art. 48 RCVR bloquea emisión si proveedor tiene RUC', async ({ page }) => {
+    await openSettlements(page)
+
+    const createBtn = page.getByRole('button', { name: 'Nueva Liquidación' })
+    await expect(createBtn).toBeVisible()
+    await createBtn.click()
+
+    await expect(page.getByRole('heading', { name: /Nueva Liquidación de Compra/i })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('1. Sujeto Pasivo / Proveedor (Art. 48 RCVR)')).toBeVisible()
+
+    // Si seleccionamos a un proveedor con RUC (TechPacific)
+    const select = page.locator('select')
+    if (await select.count() > 0) {
+      await select.first().selectOption({ label: /Distribuidora Tecnológica del Pacífico/i })
+      // Debe aparecer el aviso de incompatibilidad legal Art. 48 RCVR
+      await expect(page.getByText(/Incompatibilidad Legal - Art. 48 RCVR/i)).toBeVisible()
+      // El botón de emitir debe estar deshabilitado
+      const emitBtn = page.getByRole('button', { name: /Emitir Liquidación/i })
+      await expect(emitBtn).toBeDisabled()
+    }
+  })
+
+  test('Liquidaciones: cálculo de retención 100% IVA y emisión exitosa para persona natural sin RUC', async ({ page }) => {
+    await openSettlements(page)
+
+    const createBtn = page.getByRole('button', { name: 'Nueva Liquidación' })
+    await expect(createBtn).toBeVisible()
+    await createBtn.click()
+
+    await expect(page.getByRole('heading', { name: /Nueva Liquidación de Compra/i })).toBeVisible({ timeout: 15_000 })
+
+    // Seleccionar proveedor sin RUC (María Carmen Guanoluisa)
+    const select = page.locator('select')
+    if (await select.count() > 0) {
+      await select.first().selectOption({ label: /María Carmen Guanoluisa/i })
+      await expect(page.getByText(/Proveedor habilitado para Liquidación Tipo 03/i)).toBeVisible()
+    }
+
+    // Llenar descripción de la línea
+    const descInput = page.locator('input[placeholder*="Servicio de albañilería"]').first()
+    await descInput.fill('Mantenimiento y pintura de oficinas')
+
+    // Llenar precio
+    const priceInput = page.locator('input[type="number"][step="0.01"]').first()
+    await priceInput.fill('100.00')
+
+    // Verificar desglose económico y retención 100% IVA ($15.00)
+    await expect(page.getByText('Retención de IVA (Art. 48 RCVR):')).toBeVisible()
+    await expect(page.getByText('100% IVA', { exact: true })).toBeVisible()
+
+    // Emitir liquidación
+    const emitBtn = page.getByRole('button', { name: /Emitir Liquidación/i })
+    await expect(emitBtn).toBeEnabled()
+    await emitBtn.click()
+
+    // Toast de éxito y redirección a la lista
+    await expect(page.getByText(/Liquidación Registrada/i)).toBeVisible({ timeout: 10_000 })
+    await expect(page).toHaveURL(/.*\/compras\/liquidaciones/)
+  })
 })
+

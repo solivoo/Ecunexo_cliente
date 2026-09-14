@@ -117,9 +117,17 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<Account> Accounts => Set<Account>();
 
+    public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
+
+    public DbSet<JournalEntryLine> JournalEntryLines => Set<JournalEntryLine>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(EcuNexoDbContext).Assembly);
+
+        modelBuilder.Entity<JournalEntry>().HasQueryFilter(
+            j => (!_tenantContext.CurrentTenantId.HasValue || j.TenantId == _tenantContext.CurrentTenantId)
+                 && j.DeletedAt == null);
 
         modelBuilder.Entity<Account>().HasQueryFilter(
             a => (!_tenantContext.CurrentTenantId.HasValue || a.TenantId == _tenantContext.CurrentTenantId)

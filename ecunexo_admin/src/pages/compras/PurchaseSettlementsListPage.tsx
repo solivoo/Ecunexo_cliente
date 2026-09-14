@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button } from 'glubox'
+import { Button, DataGrid, useToast, type ColumnDef } from 'glubox'
 import {
   EmptyState,
   PageHeader,
@@ -14,18 +14,25 @@ import {
   FilePlus,
   RefreshCw,
   ShieldCheck,
-  UserCheck,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
+import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
+import { readApiError } from '@/lib/readApiError'
+import { listPurchaseSettlements } from '@/services/purchasesApi'
 import { getSigningCertificateStatus, getTenant, type SigningCertificateStatusDto } from '@/services/tenantApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
+import type { PurchaseSummaryDto } from '@/types/purchasesApi'
 import type { GetTenantByIdDto } from '@/types/tenantApi'
 import { getBillingEmitProfile, readBillingEmitProfile } from '@/lib/billingEmitProfile'
 
+type SettlementRow = PurchaseSummaryDto & Record<string, unknown>
+
 export function PurchaseSettlementsListPage() {
   const navigate = useNavigate()
+  const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
 
   const canRead =
@@ -39,41 +46,173 @@ export function PurchaseSettlementsListPage() {
   const [tenant, setTenant] = useState<GetTenantByIdDto | null>(null)
   const [certStatus, setCertStatus] = useState<SigningCertificateStatusDto | null>(null)
   const [loading, setLoading] = useState(false)
+  const [settlements, setSettlements] = useState<PurchaseSummaryDto[]>([])
 
   const emitProfile = useMemo(() => {
     return getBillingEmitProfile(readBillingEmitProfile(tenantId))
   }, [tenantId])
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!tenantId) return
-    let active = true
     setLoading(true)
-    Promise.all([
-      getTenant(tenantId).catch(() => null),
-      getSigningCertificateStatus(tenantId).catch(() => null),
-    ])
-      .then(([tenantData, certData]) => {
-        if (active) {
-          if (tenantData) setTenant(tenantData)
-          if (certData) setCertStatus(certData)
-        }
+    try {
+      const [tenantData, certData, settlementsData] = await Promise.all([
+        getTenant(tenantId).catch(() => null),
+        getSigningCertificateStatus(tenantId).catch(() => null),
+        listPurchaseSettlements(tenantId).catch(() => null),
+      ])
+
+      if (tenantData) setTenant(tenantData)
+      if (certData) setCertStatus(certData)
+      if (settlementsData?.purchases) {
+        setSettlements(settlementsData.purchases)
+      } else {
+        setSettlements([])
+      }
+    } catch (err) {
+      toast.show({
+        title: 'Error de carga',
+        message: readApiError(err, 'No se pudieron cargar las liquidaciones de compra.'),
+        variant: 'error',
       })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
+    } finally {
+      setLoading(false)
     }
-  }, [tenantId])
+  }, [tenantId, toast])
+
+  useEffect(() => {
+    void loadData()
+  }, [loadData])
 
   const stats = useMemo(() => {
+    const total = settlements.length
+    const authorized = settlements.filter(
+      (s) => !!s.authorizationNumber || s.status === 2 || s.status === 3
+    ).length
+    const draft = settlements.filter((s) => s.status === 1).length
+    const totalAmount = settlements.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0)
+
     return {
-      total: 0,
-      authorized: 0,
-      draft: 0,
-      totalAmount: 0,
+      total,
+      authorized,
+      draft,
+      totalAmount,
     }
-  }, [])
+  }, [settlements])
+
+  const {
+    paging,
+    pageSizeOptions,
+    onPageChange,
+    onPageSizeChange,
+  } = useGluDataGridPaging(settlements.length)
+
+  const messages = useMemo(
+    () => createSpanishDataGridMessages('liquidación', 'liquidaciones'),
+    []
+  )
+
+  const columns = useMemo((): ColumnDef<SettlementRow>[] => [
+    {
+      key: 'issueDate',
+      header: 'Fecha',
+      width: 110,
+      renderCell: (_value, row: SettlementRow) => (
+        <span style={{ fontSize: '0.85rem' }}>
+          {row.issueDate ? String(row.issueDate).substring(0, 10) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'invoiceNumber',
+      header: 'Secuencial',
+      width: 170,
+      renderCell: (_value, row: SettlementRow) => (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.85rem' }}>
+            {row.invoiceNumber}
+          </span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+            SRI Tipo 03
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'supplierBusinessName',
+      header: 'Sujeto Pasivo / Proveedor',
+      width: 240,
+      renderCell: (_value, row: SettlementRow) => (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontWeight: 500, fontSize: '0.85rem' }}>
+            {row.supplierBusinessName}
+          </span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)', fontFamily: 'monospace' }}>
+            Doc: {row.supplierTaxId}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'sriSustentoCode',
+      header: 'Sustento SRI',
+      width: 120,
+      renderCell: (_value, row: SettlementRow) => (
+        <span style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>
+          {row.sriSustentoCode || '01'}
+        </span>
+      ),
+    },
+    {
+      key: 'subtotalTaxed',
+      header: 'Subtotal 15%',
+      width: 120,
+      renderCell: (_value, row: SettlementRow) => (
+        <span style={{ fontSize: '0.85rem' }}>
+          ${(row.subtotalTaxed || 0).toFixed(2)}
+        </span>
+      ),
+    },
+    {
+      key: 'taxAmount',
+      header: 'IVA (Ret. 100%)',
+      width: 130,
+      renderCell: (_value, row: SettlementRow) => (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+            ${(row.taxAmount || 0).toFixed(2)}
+          </span>
+          <span style={{ fontSize: '0.7rem', color: '#10b981' }}>
+            Retenido 100%
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'totalAmount',
+      header: 'Total Bruto',
+      width: 120,
+      renderCell: (_value, row: SettlementRow) => (
+        <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--shell-primary, #4f46e5)' }}>
+          ${(row.totalAmount || 0).toFixed(2)}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      width: 140,
+      renderCell: (_value, row: SettlementRow) => {
+        if (row.authorizationNumber || row.status === 2 || row.status === 3) {
+          return <StatusBadge tone="success" withDot>Emitida / SRI</StatusBadge>
+        }
+        if (row.status === 4) {
+          return <StatusBadge tone="danger" withDot>Anulada</StatusBadge>
+        }
+        return <StatusBadge tone="warning" withDot>Borrador</StatusBadge>
+      },
+    },
+  ], [])
 
   if (!canRead) {
     return (
@@ -109,7 +248,7 @@ export function PurchaseSettlementsListPage() {
                 <Button
                   variant="outline"
                   size="md"
-                  onClick={() => {}}
+                  onClick={loadData}
                   disabled={loading}
                 >
                   <RefreshCw size={15} className={loading ? 'ecu-spin' : ''} />
@@ -118,7 +257,7 @@ export function PurchaseSettlementsListPage() {
                 <Button
                   variant="primary"
                   size="md"
-                  onClick={() => {}}
+                  onClick={() => navigate('/compras/liquidaciones/nueva')}
                 >
                   <FilePlus size={16} />
                   Nueva Liquidación
@@ -262,19 +401,38 @@ export function PurchaseSettlementsListPage() {
           title="Liquidaciones de Compra Emitidas"
           subtitle="Comprobantes autorizados ante el SRI conforme al Art. 48 del Reglamento de Comprobantes de Venta y Retención"
         >
-          <EmptyState
-            icon="receipt_long"
-            title="No hay liquidaciones de compra registradas"
-            description="Emite una liquidación de compra (Tipo 03) cuando adquieras productos o contrates servicios a personas naturales que por disposición legal no poseen RUC ni emiten facturas."
-            action={
-              canIssue ? (
-                <Button variant="primary" onClick={() => navigate('/compras/proveedores')}>
-                  <UserCheck size={16} />
-                  Ver Proveedores Registrados
-                </Button>
-              ) : undefined
-            }
-          />
+          {!loading && settlements.length === 0 ? (
+            <EmptyState
+              icon="receipt_long"
+              title="No hay liquidaciones de compra registradas"
+              description="Emite una liquidación de compra (Tipo 03) cuando adquieras productos o contrates servicios a personas naturales que por disposición legal no poseen RUC ni emiten facturas."
+              action={
+                canIssue ? (
+                  <Button variant="primary" onClick={() => navigate('/compras/liquidaciones/nueva')}>
+                    <FilePlus size={16} />
+                    Emitir Primera Liquidación
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <DataGrid
+              dataSource={settlements as SettlementRow[]}
+              keyExpr="id"
+              columns={columns}
+              selectionMode="none"
+              showSearch
+              searchPosition="left"
+              searchWidth={300}
+              searchPlaceholder="Buscar por secuencial, proveedor..."
+              loading={loading}
+              paging={paging}
+              pageSizeOptions={pageSizeOptions}
+              onPageChange={onPageChange}
+              onPageSizeChange={onPageSizeChange}
+              messages={messages}
+            />
+          )}
         </SectionCard>
       </div>
     </TenantSessionGate>

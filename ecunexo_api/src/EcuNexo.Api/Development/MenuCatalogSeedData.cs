@@ -70,6 +70,7 @@ internal static class MenuCatalogSeedData
 
         ("contabilidad.read", "Contabilidad — acceso", "Ver módulo contabilidad", "contabilidad", 90),
         ("contabilidad.asientos.read", "Asientos — lectura", "Ver asientos contables", "contabilidad", 91),
+        ("contabilidad.asientos.manage", "Asientos — gestionar", "Crear y contabilizar asientos contables", "contabilidad", 91),
         ("contabilidad.ejercicios.read", "Ejercicios — lectura", "Ver ejercicios contables", "contabilidad", 92),
         ("contabilidad.plan.contable.read", "Plan contable — lectura", "Ver plan de cuentas", "contabilidad", 93),
         ("contabilidad.plan.contable.manage", "Plan contable — gestionar", "Crear y editar cuentas en el plan", "contabilidad", 94),

@@ -15,6 +15,7 @@ public interface IPurchaseRepository
         DateOnly? from,
         DateOnly? to,
         string? search,
+        string? documentType,
         CancellationToken ct);
     Task<bool> ExistsByInvoiceNumberAsync(Guid tenantId, Guid supplierId, string invoiceNumber, Guid? excludeId, CancellationToken ct);
     Task<bool> ExistsByExpenseTypeIdAsync(Guid tenantId, Guid expenseTypeId, CancellationToken ct);

@@ -501,5 +501,30 @@ public sealed class PurchaseAndXmlParserTests
         report.OverallStatus.Should().Be("danger");
         report.Alerts.Should().Contain(a => a.Code == "MATH_TOTAL_MISMATCH");
     }
+
+    [Fact(DisplayName = "SriAccessKeyGenerator genera clave válida de 49 dígitos con Módulo 11 para Liquidación Tipo 03")]
+    public void SriAccessKeyGenerator_GeneratesValidKey_WithModulo11()
+    {
+        var issueDate = new DateOnly(2026, 9, 13);
+        var accessKey = SriAccessKeyGenerator.Generate(
+            issueDate: issueDate,
+            documentType: "03",
+            emitterRuc: "1790016919001",
+            environment: "1",
+            establishment: "001",
+            emissionPoint: "001",
+            sequential: "000000025");
+
+        accessKey.Should().HaveLength(49);
+        accessKey.Substring(8, 2).Should().Be("03"); // Tipo documento 03
+        accessKey.Substring(10, 13).Should().Be("1790016919001"); // RUC
+        accessKey.Substring(23, 1).Should().Be("1"); // Ambiente pruebas
+        accessKey.Substring(24, 6).Should().Be("001001"); // Serie
+        accessKey.Substring(30, 9).Should().Be("000000025"); // Secuencial
+
+        // Verificar validez algorítmica con Módulo 11
+        var (isValid, _, error) = SriPurchaseAuditor.ValidateAccessKeyModulo11(accessKey);
+        isValid.Should().BeTrue(because: error ?? string.Empty);
+    }
 }
 

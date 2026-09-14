@@ -9,6 +9,69 @@
 * **Rama Activa:** `main`.
 * **Última Versión Publicada:** `v0.22.4`.
 * **Hitos Recientes Completados:**
+  - **Fase 4: Estados Financieros Oficiales NIIF para PYMES y SuperCompañías Ecuador (Balance General y Estado de Resultados Integral P&G) — Concluida al 100%:**
+    - **Backend (`ecunexo_api`):**
+      * Query `GetFinancialStatementsQuery` con agregación de saldos por grupos contables oficiales (Activo 1, Pasivo 2, Patrimonio 3, Ingresos 4, Costos y Gastos 5).
+      * Cálculo de Estado de Situación Financiera (Balance General): Activo Corriente y No Corriente, Pasivo Corriente y No Corriente, Patrimonio Neto, verificación de ecuación contable fundamental ($\text{Activo} = \text{Pasivo} + \text{Patrimonio}$) y cálculo de diferencia de cuadre.
+      * Cálculo de Estado de Resultados Integral (P&G): Ingresos operacionales ordinarios (Ventas 15% y 0%), Costo de ventas, Utilidad Bruta, Gastos operacionales (Administración y Ventas/Marketing), Utilidad Operativa (EBITDA), 15% de Participación de Trabajadores (Art. 97 Código de Trabajo Ecuador), 25% de Provisión de Impuesto a la Renta Sociedades (SRI) y Utilidad Neta del Ejercicio.
+      * Integración de la Utilidad Neta en el Balance General (Patrimonio cuenta 3.5.01) cerrando el ciclo contable de partida doble.
+      * Endpoint REST V1 en `GET /api/v1/tenants/{tenantId}/accounting/financial-statements` con permisos RBAC conformes a regex (`contabilidad.balances.read`).
+      * Tests unitarios exhaustivos en `FinancialStatementsTests.cs`: 298 tests backend pasando al 100% (203 Core + 95 Business).
+    - **Frontend (`ecunexo_admin`):**
+      * Vista dedicada [`FinancialStatementsPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/accounting/FinancialStatementsPage.tsx) bajo `/contabilidad/balances` con selector de Año/Mes, 4 StatCards en `.ecu-stat-grid` (Total Activos, Total Pasivos, Patrimonio Neto y Utilidad Neta), banner de verificación de la ecuación fundamental NIIF, pestañas para Balance General y P&G con formato oficial, botón de impresión / PDF.
+      * Servicios API y tipos TypeScript estrictos en `financialStatementsApi.ts`.
+      * Registro de ruta en `routes.tsx` y menú en `MenuCatalogSeedData.cs`.
+      * Tests E2E en Playwright: 8/8 tests pasando al 100% en `tests-ui/comun/contabilidad-ui.spec.ts`.
+  - **Fase 3: Motor de Pre-declaración Tributaria SRI F104 / F103 y Conciliación S.A.S. — Concluida al 100%:**
+    - **Backend (`ecunexo_api`):**
+      * Query `GetMonthlyTaxDeclarationQuery` con cálculo de casilleros oficiales SRI para Formulario 104 (Ventas 401, 411, 403, 429, 499; Compras 500, 510, 507, 529, 564, 569; Liquidación 601, 609, 615 y saldo neto a pagar/favor).
+      * Cálculo de casilleros de Retenciones en la Fuente F103 (Bienes 312 [1.75%], Liquidaciones de compra 343 [1%]).
+      * Conciliación S.A.S. para gerencia y contadora (Ventas netas, compras netas, margen bruto operativo, flujo tributario neto acumulado y auditoría de cuadre NIIF de asientos).
+      * Endpoint REST V1 en `GET /api/v1/tenants/{tenantId}/accounting/tax-declarations/monthly` con permisos RBAC (`contabilidad.declaraciones.read`).
+      * Tests unitarios exhaustivos en `TaxDeclarationsTests.cs`: 296 tests backend pasando al 100% (203 Core + 93 Business).
+    - **Frontend (`ecunexo_admin`):**
+      * Vista dedicada [`TaxDeclarationsPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/accounting/TaxDeclarationsPage.tsx) bajo `/contabilidad/declaraciones` con selector de Año/Mes, 4 StatCards en `.ecu-stat-grid` (IVA Cobrado, IVA Soportado, Retenciones F103 y Saldo Neto), pestañas interactivas para F104 (desglose oficial SRI por casilleros), F103 y Ajuste de Cuentas Integral S.A.S. con auditoría de cuadre del Libro Diario.
+      * Servicios API y tipos TypeScript estrictos en `taxDeclarationsApi.ts`.
+      * Ruta configurada en `routes.tsx` y build limpio con `npm run build`.
+      * Pruebas E2E de Playwright: 7/7 tests pasando al 100% en `tests-ui/comun/contabilidad-ui.spec.ts`.
+  - **Fase 2: Motor de Asientos Contables Automáticos NIIF / Libro Diario / Partida Doble — Concluida al 100%:**
+    - **Backend (`ecunexo_api`):**
+      * Dominio Core: Entidades `JournalEntry`, `JournalEntryLine`, enums `JournalEntrySource` (Manual, SalesInvoice, PurchaseInvoice, PurchaseSettlement, etc.) y `JournalEntryStatus` (Draft, Posted, Cancelled).
+      * Invariante estricta de partida doble: $\sum \text{Debe} == \sum \text{Haber}$ validada en tiempo de compilación y ejecución (`ValidatePostingInvariants()`), impidiendo contabilizar asientos descuadrados.
+      * Persistencia EF Core: Configuraciones mapeadas al esquema `accounting` (`accounting.journal_entries`, `accounting.journal_entry_lines`), migraciones aplicadas (`AddJournalEntriesAndLinesModule`), repositorio `IJournalEntryRepository` / `JournalEntryRepository` con secuenciador anual `AS-{year}-000001`.
+      * CQRS en `EcuNexo.Business`:
+        - `ListJournalEntriesQuery` con cálculo en memoria de KPIs (Total Asientos, Contabilizados, Borradores, Volumen Debe acumulado).
+        - `GetJournalEntryByIdQuery` para detalle de asientos con líneas.
+        - `CreateJournalEntryCommand` para creación de asientos manuales con validación de cuentas imputables activas.
+        - `GeneratePurchaseJournalEntryCommand` para contabilización automática de facturas de compra y liquidaciones SRI (Tipo 03), asignando Inventario/Gasto, Crédito Tributario IVA (15%) y Pasivo de Proveedores Locales.
+      * Endpoints REST V1 en `/api/v1/tenants/{tenantId}/accounting/journal-entries` con RBAC conforme a regex (`contabilidad.asientos.read`, `contabilidad.asientos.manage`).
+      * Tests backend: 294 pruebas pasando al 100% (203 Core + 91 Business incluyendo DI y Handlers).
+    - **Frontend (`ecunexo_admin`):**
+      * Nueva Skill creada: [`.agents/skills/ui-vistas-sobre-modales/SKILL.md`](file:///home/solivo/Documentos/ecunexo/Cliente/.agents/skills/ui-vistas-sobre-modales/SKILL.md) y Regla 9 en `GEMINI.md` priorizando páginas dedicadas sobre popups para formularios de 3+ campos o procesos operativos.
+      * Vista de listado [`JournalEntriesListPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/accounting/JournalEntriesListPage.tsx): Conectada a la API real bajo `/contabilidad/asientos`, 4 StatCards en `.ecu-stat-grid`, filtros por estado/búsqueda y tabla responsive con verificación de cuadre.
+      * Vista dedicada de creación [`JournalEntryCreatePage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/accounting/JournalEntryCreatePage.tsx): Página completa bajo `/contabilidad/asientos/nuevo` (sin modal), selector de cuentas auxiliares imputables, grilla dinámica de apuntes Debe/Haber y cálculo reactivo de cuadre en tiempo real.
+      * Rutas enlazadas en [`routes.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/router/routes.tsx).
+      * Suite E2E Playwright: 6/6 tests pasando en `tests-ui/comun/contabilidad-ui.spec.ts` y 21/21 en `compras-ui.spec.ts`.
+  - **Fase 1: Emisión y Registro de Liquidaciones de Compra SRI (Tipo 03) — Concluida con Testing 100%:**
+    - **Backend (`ecunexo_api`):**
+      * Generador algorítmico de Clave de Acceso SRI de 49 dígitos Módulo 11 (`SriAccessKeyGenerator.cs`).
+      * Invariante legal estricta Art. 48 RCVR: Rechazo y validación bloqueante si el sujeto pasivo emisor posee RUC activo (error `purchases.settlement.supplier_has_ruc`). Solo autorizada para personas naturales sin RUC (Cédula) o extranjeros sin residencia.
+      * Endpoints dedicados `GET` y `POST` en `/api/v1/tenants/{tenantId}/purchases/settlements` protegidos con permisos RBAC conformes a regex (`facturacion.liquidacion.compra.read`, `facturacion.liquidacion.compra.issue`, `purchases.documents.read`, `purchases.documents.manage`).
+      * Filtrado de comprobantes por `documentType = "03"` en `IPurchaseRepository` y persistencia con clave de acceso autogenerada.
+      * Cobertura de tests unitarios: 283 tests pasando al 100% (197 Core + 86 Business).
+    - **Frontend (`ecunexo_admin`):**
+      * Vista de emisión [`PurchaseSettlementCreatePage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/PurchaseSettlementCreatePage.tsx): Formulario M3 con validación preventiva inmediata Art. 48 RCVR (banner de bloqueo si el proveedor tiene RUC y deshabilitación del botón emitir), desglose de ítems, cálculo reactivo de retención obligatoria del **100% de IVA** y porcentaje de Impuesto a la Renta (AIR 0%, 1%, 1.75%, 2%, 8%, 10%), y resumen económico con neto a desembolsar.
+      * Vista de listado [`PurchaseSettlementsListPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/compras/PurchaseSettlementsListPage.tsx): Conectada a la API real con DataGrid de Glubox, 4 KPIs automáticos (Total, Autorizadas, Borrador, Monto Liquidado) y botón "Nueva Liquidación".
+      * Registro de ruta `/compras/liquidaciones/nueva` en [`routes.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/router/routes.tsx).
+      * Suite E2E Playwright: 21 tests pasando al 100% en `tests-ui/comun/compras-ui.spec.ts`.
+  - **Plan de Arquitectura Contable NIIF, Cierre Tributario SAS y Liquidaciones SRI Tipo 03:**
+    - Elaboración del plan minucioso en 4 fases: Emisión de Liquidaciones (Tipo 03 SRI), Asientos Contables Automáticos (Libro Diario), Pre-declaración mensual F104/F103/ATS y Estados Financieros oficiales SCVS (P&G y Balance General).
+    - Actualización del skill `.agents/skills/compras-ecuador-sri/SKILL.md` integrando normativa del Art. 48 RCVR, retención del 100% de IVA y sincronización con el catálogo NIIF.
+  - **Refactor UI de Formularios y Modales en Contabilidad (`AccountModal.tsx`):**
+    - Corrección de anomalías visuales en el modal de cuentas: eliminación de contenedores y estilos inline rígidos, integración de `.ecu-customer-form` y `.ecu-customer-form__grid`.
+    - Estandarización de componentes Glubox (`TextBox`, `Select`) con `labelPosition="outlined"` y `variant="outline"`.
+    - Eliminación de cajas toscas en checkboxes sustituyéndolas por `CheckButton` y `.ecu-customer-form__hint`.
+    - Estandarización de acciones nativas del `<Popup>` con la prop `actions` y banner informativo para cuentas protegidas SCVS.
   - **Blindaje de Permisos RBAC y Estado de Firma SRI en Compras:**
     - Retiro de botones redundantes de configuración de firma en vistas operativas de Retenciones y Liquidaciones de Compra (`PurchaseWithholdingsListPage.tsx`, `PurchaseSettlementsListPage.tsx`), preservando la seguridad y segregación de funciones (la configuración de firma electrónica es potestad exclusiva de Ajustes de Empresa con permisos de rol de administración).
     - Eliminación completa de términos técnicos crudos `.p12` de la interfaz de emisión de facturas (`FacturaEmitirPage.tsx`).
