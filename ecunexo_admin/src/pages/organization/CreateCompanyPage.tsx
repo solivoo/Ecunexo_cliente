@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, CheckButton, TextBox, useToast, type PageActionItem } from 'glubox'
-import { ShieldCheck } from 'lucide-react'
 import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { CompanyBrandingFields } from '@/features/organization/components/CompanyBrandingFields'
@@ -222,16 +221,10 @@ export function CreateCompanyPage() {
         />
 
         <SectionCard
-          title="Administrador Principal (Titular Root)"
-          subtitle="Tu usuario titular administrará esta empresa automáticamente con tus mismas credenciales de acceso globales."
+          title="Administrador Principal"
+          subtitle="Tu usuario titular administrará esta empresa con tus mismas credenciales de acceso."
+          action={<StatusBadge tone="primary">Misma contraseña del titular</StatusBadge>}
         >
-          <div className="p-3.5 mb-4 rounded-xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/20 text-xs text-indigo-900 dark:text-indigo-200 flex items-center gap-3">
-            <ShieldCheck className="w-5 h-5 text-indigo-600 flex-shrink-0" />
-            <div>
-              <strong>Acceso Unificado del Titular:</strong> Se vinculará tu cuenta de titular como Administrador con tu misma contraseña de acceso. No es necesario crear ni recordar una contraseña adicional.
-            </div>
-          </div>
-
           <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
             <div className="ecu-companies-form__field">
               <TextBox
@@ -274,7 +267,7 @@ export function CreateCompanyPage() {
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--glb-border, rgba(255, 255, 255, 0.08))' }}>
             <CheckButton
               checked={customPassword}
               onChange={setCustomPassword}
@@ -284,7 +277,7 @@ export function CreateCompanyPage() {
             </CheckButton>
 
             {customPassword && (
-              <div className="ecu-companies-form__grid ecu-companies-form__grid--2 mt-3">
+              <div className="ecu-companies-form__grid ecu-companies-form__grid--2" style={{ marginTop: '0.75rem' }}>
                 <div className="ecu-companies-form__field">
                   <TextBox
                     id="cc-password"
