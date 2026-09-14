@@ -180,13 +180,13 @@ export async function saveInvoiceDraft(args: {
   })
   const created = await createInvoice(
     emitterId,
-    toCreateInvoiceBody(header, args.counterparty, args.lines),
+    toCreateInvoiceBody(header, args.counterparty, args.lines, args.sriEnvironment),
     args.tenantId
   )
 
   let xmlNote = ''
   try {
-    const preview = await previewInvoiceXml(emitterId, created.invoiceId)
+    const preview = await previewInvoiceXml(emitterId, created.invoiceId, args.sriEnvironment)
     xmlNote = preview.isValid
       ? ' XML válido contra XSD.'
       : ` XML con ${preview.errors.length} error(es) XSD.`
@@ -207,7 +207,7 @@ export async function saveInvoiceDraft(args: {
     }
   }
 
-  const signed = await signInvoice(emitterId, created.invoiceId)
+  const signed = await signInvoice(emitterId, created.invoiceId, args.sriEnvironment)
   const keyHint = signed.accessKey ? ` Clave ${signed.accessKey.slice(0, 10)}…` : ''
 
   if (mode === 'sign') {
@@ -345,10 +345,13 @@ export type ResendInvoiceResult = {
 export async function resendInvoiceAndWait(
   emitterId: string,
   invoiceId: string,
-  opts?: { readonly sequentialHint?: string | null }
+  opts?: {
+    readonly sequentialHint?: string | null
+    readonly environment?: 'Test' | 'Production' | null
+  }
 ): Promise<ResendInvoiceResult> {
   const before = await getInvoiceSriStatus(emitterId, invoiceId)
-  await retryInvoiceSri(emitterId, invoiceId)
+  await retryInvoiceSri(emitterId, invoiceId, opts?.environment)
 
   const polled = await waitForSriTerminalState(emitterId, invoiceId, {
     timeoutMs: 90_000,
@@ -396,10 +399,11 @@ export async function voidInvoiceAndWait(
   emitterId: string,
   invoiceId: string,
   motivo: string,
-  tenantId?: string | null
+  tenantId?: string | null,
+  environment?: 'Test' | 'Production' | null
 ): Promise<ResendInvoiceResult> {
   const created = await createCreditNote(emitterId, invoiceId, { motivo }, tenantId)
-  await signInvoice(emitterId, created.creditNoteId)
+  await signInvoice(emitterId, created.creditNoteId, environment)
   const polled = await waitForSriTerminalState(emitterId, created.creditNoteId, {
     timeoutMs: 90_000,
     intervalMs: 2_000,

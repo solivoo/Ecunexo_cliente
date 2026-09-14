@@ -61,6 +61,7 @@ export type CreateInvoiceBody = {
   readonly paymentFormCode?: string | null
   readonly additionalNote?: string | null
   readonly paymentTermDays?: number
+  readonly environment?: string | null
   readonly lines: readonly CreateInvoiceLineBody[]
 }
 

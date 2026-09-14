@@ -97,10 +97,13 @@ export async function createInvoice(
 
 export async function previewInvoiceXml(
   emitterId: string,
-  invoiceId: string
+  invoiceId: string,
+  environment?: 'Test' | 'Production' | null
 ): Promise<PreviewXmlResponse> {
   const { data } = await billingApi.post<PreviewXmlResponse>(
-    `/api/v1/emitters/${emitterId}/invoices/${invoiceId}/preview-xml`
+    `/api/v1/emitters/${emitterId}/invoices/${invoiceId}/preview-xml`,
+    null,
+    { params: environment ? { environment } : undefined }
   )
   return data
 }
@@ -121,10 +124,13 @@ export async function createCreditNote(
 
 export async function signInvoice(
   emitterId: string,
-  invoiceId: string
+  invoiceId: string,
+  environment?: 'Test' | 'Production' | null
 ): Promise<InvoiceActionResponse> {
   const { data } = await billingApi.post<InvoiceActionResponse>(
-    `/api/v1/emitters/${emitterId}/invoices/${invoiceId}/sign`
+    `/api/v1/emitters/${emitterId}/invoices/${invoiceId}/sign`,
+    null,
+    { params: environment ? { environment } : undefined }
   )
   return data
 }
@@ -204,10 +210,13 @@ export async function getInvoiceXml(
 
 export async function retryInvoiceSri(
   emitterId: string,
-  invoiceId: string
+  invoiceId: string,
+  environment?: 'Test' | 'Production' | null
 ): Promise<InvoiceActionResponse> {
   const { data } = await billingApi.post<InvoiceActionResponse>(
-    `/api/v1/emitters/${emitterId}/invoices/${invoiceId}/sri/retry`
+    `/api/v1/emitters/${emitterId}/invoices/${invoiceId}/sri/retry`,
+    null,
+    { params: environment ? { environment } : undefined }
   )
   return data
 }

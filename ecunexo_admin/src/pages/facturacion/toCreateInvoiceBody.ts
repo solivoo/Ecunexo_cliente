@@ -20,7 +20,8 @@ export function ivaRateCode(rate: number): string {
 export function toCreateInvoiceBody(
   header: InvoiceHeaderValues,
   counterparty: InvoiceCounterpartyValues,
-  lines: readonly InvoiceLineDraft[]
+  lines: readonly InvoiceLineDraft[],
+  environment?: 'Test' | 'Production' | null
 ): CreateInvoiceBody {
   const buyer = normalizeCounterpartyForEmit(counterparty)
   const mappedLines = lines
@@ -75,6 +76,7 @@ export function toCreateInvoiceBody(
     paymentTermDays: Number.isFinite(header.paymentTermDays)
       ? Math.max(0, Math.trunc(header.paymentTermDays))
       : 0,
+    environment: environment ?? null,
     lines: mappedLines,
   }
 }

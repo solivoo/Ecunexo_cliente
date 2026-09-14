@@ -7,8 +7,23 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.25.0`.
+* **Última Versión Publicada:** `v0.25.2`.
 * **Hitos Recientes Completados:**
+  - **Control Estricto de Ambiente SRI (Producción vs Pruebas) y RIDE PDF Sin Marcas de Prueba (`v0.25.2`):**
+    * **Backend (`Facturacion` / `Billing.Api`):**
+      - `BuildAccessKey`: Genera dinámicamente el dígito 24 (ambiente) de la clave de acceso de 49 dígitos según el ambiente resuelto (`'1'` para Pruebas, `'2'` para Producción).
+      - `XmlEmitter`: Emite `<ambiente>2</ambiente>` en producción y `<ambiente>1</ambiente>` en pruebas.
+      - `ISriEmissionIdentityResolver` / `SriEmissionIdentityResolver`: Acepta `environmentOverride` garantizando que en modo Producción no se sustituya la identidad ni el certificado del emisor por las credenciales de prueba Celcer.
+      - Endpoints `Sign`, `PreviewXml`, `DownloadXml` y `RetrySri`: Toman en cuenta el query param `environment` y preservan el ambiente si la clave de acceso ya contiene `'2'` en posición 24.
+      - Encolamiento Outbox: Encola operaciones con `Production` dirigiendo el worker a los endpoints reales del SRI (`cel.sri.gob.ec`) en lugar de pruebas (`celcer.sri.gob.ec`).
+      - Tests unitarios: 100% pasando (151 Core + 7 Business + 29 Infrastructure).
+    * **Frontend (`ecunexo_admin`):**
+      - `useInvoiceEmitForm`: Toma el ambiente directamente desde la configuración de la empresa (`emitProfile.sriEnvironment`, configurado en Ajustes de Empresa → Facturación electrónica) y lo envía a `saveInvoiceDraft`.
+      - `invoiceEmitApi`: Pasa `sriEnvironment` a `toCreateInvoiceBody`, `previewInvoiceXml` y `signInvoice`.
+      - `billingApi`: Métodos `signInvoice`, `previewInvoiceXml` y `retryInvoiceSri` reciben y transmiten `environment`.
+      - `FacturasGrid`: Detección reactiva de ambiente (`rowEnv`) por dígito 24 (`accessKey[23] === '2'`) para reenvío y anulación con nota de crédito.
+      - `RideFacturaDocument`: Al recibir clave de acceso con dígito 24 `'2'`, `isTest` evalúa a `false`, mostrando `Ambiente: PRODUCCIÓN` y eliminando por completo el banner superior de pruebas y la marca de agua `PRUEBAS — SIN VALIDEZ TRIBUTARIA`.
+      - Build verificado: Compilación TypeScript y Vite exitosa con 0 errores.
   - **Tipo de Gasto Predeterminado en Proveedores, Edición Interactiva en Cola de Compras y Secuencial Centralizado (`v0.25.0`):**
     * **Backend (`ecunexo_api` & `Facturacion`):**
       - Entidad `Supplier`: propiedad `DefaultExpenseTypeId`, configuración EF Core con columna `default_expense_type_id` y migración `20260914040000_AddDefaultExpenseTypeIdToSuppliers.cs`.

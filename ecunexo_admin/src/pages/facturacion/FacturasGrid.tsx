@@ -277,8 +277,15 @@ export function FacturasGrid({
                     if (!emitterId || !canResend) return
                     setBusyId(row.invoiceId)
                     setBusyAction('resend')
+                    const rowEnv =
+                      row.accessKey && row.accessKey.length >= 24
+                        ? row.accessKey[23] === '2'
+                          ? 'Production'
+                          : 'Test'
+                        : null
                     void resendInvoiceAndWait(emitterId, row.invoiceId, {
                       sequentialHint: row.sequential,
+                      environment: rowEnv,
                     })
                       .then((r) => {
                         toast.show({
@@ -368,7 +375,13 @@ export function FacturasGrid({
     const target = voidTarget
     setBusyId(target.invoiceId)
     setBusyAction('void')
-    void voidInvoiceAndWait(emitterId, target.invoiceId, motivo)
+    const targetEnv =
+      target.accessKey && target.accessKey.length >= 24
+        ? target.accessKey[23] === '2'
+          ? 'Production'
+          : 'Test'
+        : null
+    void voidInvoiceAndWait(emitterId, target.invoiceId, motivo, null, targetEnv)
       .then((r) => {
         toast.show({
           title:

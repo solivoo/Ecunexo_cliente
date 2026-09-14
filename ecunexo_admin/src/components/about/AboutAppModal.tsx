@@ -110,9 +110,10 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Ergonomía de Guardado en Facturación Electrónica</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Control de Ambiente de Producción SRI y RIDE PDF</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Garantía Estricta de Ambiente SRI de Producción y RIDE Sin Marcas de Prueba:</strong> Sincronización directa del ambiente de emisión configurado en Ajustes de Empresa (Producción vs. Pruebas) con el generador de Clave de Acceso SRI (dígito 24 en «2» para producción y «1» para pruebas), el XML emitido (&lt;ambiente&gt;2&lt;/ambiente&gt;) y el enrutamiento del worker a los servidores oficiales del SRI (cel.sri.gob.ec). En modo Producción, el PDF (RIDE) se genera automáticamente sin la leyenda de pruebas ni marcas de agua, reflejando fielmente «Ambiente: PRODUCCIÓN».</li>
             <li><strong>Acciones de Guardado Accesibles en Facturación Electrónica:</strong> Incorporación de botón directo «Guardar» en la tarjeta de «Emisión SRI» (establecimiento, punto de emisión y próximo secuencial) y barra de acciones persistente al pie del formulario completo, evitando desplazamientos innecesarios y garantizando confirmación visual inmediata de la configuración.</li>
             <li><strong>Tipo de Gasto / Servicio Predeterminado en Proveedores:</strong> Asociación directa del tipo de compra o gasto habitual en el Directorio de Proveedores (ej. Mercadería para inventario, Flete de courier o Servicios profesionales). Al importar facturas electrónicas XML de compras, el sistema adopta automáticamente la clasificación del proveedor agilizando la gestión sin selección manual repetitiva.</li>
             <li><strong>Edición Interactiva de Líneas de Factura en Cola de Compras:</strong> Capacidad completa para editar cantidades, precios unitarios, descuentos, tasas de IVA, destino de inventario vs. gasto y bodega asignada en cada ítem de facturas en cola, con recálculo centesimal automático de subtotales e impuestos SRI en tiempo real.</li>
