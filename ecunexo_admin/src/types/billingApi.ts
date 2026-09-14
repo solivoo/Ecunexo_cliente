@@ -21,6 +21,7 @@ export type SetSequentialNextBody = {
   readonly establishment?: string | null
   readonly emissionPoint?: string | null
   readonly address?: string | null
+  readonly environment?: 'Test' | 'Production' | string | null
 }
 
 export type CreateInvoiceLineTaxBody = {

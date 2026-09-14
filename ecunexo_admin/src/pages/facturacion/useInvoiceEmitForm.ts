@@ -8,6 +8,7 @@ import { readBillingEmissionPoint } from '@/lib/billingSriEmission'
 import {
   emitErrorTitle,
   emitToastTitle,
+  getLastSriEmitTrace,
   loadIssuerDefaults,
   peekBillingNextSequential,
   readLoadError,
@@ -15,6 +16,7 @@ import {
   saveInvoiceDraft,
   type CompanyDefaults,
   type InvoiceEmitMode,
+  type SriEmitTrace,
 } from '@/pages/facturacion/invoiceEmitApi'
 import {
   buildRidePdfFromDetail,
@@ -107,6 +109,8 @@ export function useInvoiceEmitForm({
   const [previewPrinting, setPreviewPrinting] = useState(false)
   const [certStatus, setCertStatus] = useState<SigningCertificateStatusDto | null>(null)
   const [loadingCert, setLoadingCert] = useState(Boolean(tenantId))
+  const [lastTrace, setLastTrace] = useState<SriEmitTrace | null>(() => getLastSriEmitTrace())
+  const [traceOpen, setTraceOpen] = useState(false)
 
   const [emitProfileId, setEmitProfileId] = useState(() =>
     readBillingEmitProfile(tenantId)
@@ -187,6 +191,7 @@ export function useInvoiceEmitForm({
               establishment: defaults.establishment,
               emissionPoint,
               tenantId,
+              environment: emitProfile.sriEnvironment ?? 'Production',
             })
           } catch {
             sequential = '—'
@@ -212,7 +217,7 @@ export function useInvoiceEmitForm({
     return () => {
       cancelled = true
     }
-  }, [tenantId])
+  }, [tenantId, emitProfile.sriEnvironment])
 
   const refreshSequentialPreview = useCallback(async () => {
     const ruc = company?.taxId.trim() || header.emitterRuc.trim()
@@ -225,6 +230,7 @@ export function useInvoiceEmitForm({
         establishment: company?.establishment || header.establishment,
         emissionPoint: header.emissionPoint,
         tenantId,
+        environment: emitProfile.sriEnvironment ?? 'Production',
       })
       setHeader((prev) => ({ ...prev, sequential: next }))
     } catch {
@@ -237,6 +243,7 @@ export function useInvoiceEmitForm({
     company,
     companyLabel,
     tenantId,
+    emitProfile.sriEnvironment,
   ])
 
   useEffect(() => {
@@ -491,6 +498,7 @@ export function useInvoiceEmitForm({
           sriEnvironment: emitProfile.sriEnvironment,
           tenantId,
         })
+        setLastTrace(result.trace ?? getLastSriEmitTrace())
         toast.show({
           title: emitToastTitle(result.mode, result.outcome),
           message: result.message,
@@ -505,6 +513,7 @@ export function useInvoiceEmitForm({
           })
         }
       } catch (err: unknown) {
+        setLastTrace(getLastSriEmitTrace())
         toast.show({
           title: emitErrorTitle(mode),
           message: readSaveError(err),
@@ -570,6 +579,9 @@ export function useInvoiceEmitForm({
     certStatus,
     loadingCert,
     hasValidCertificate,
+    lastTrace,
+    traceOpen,
+    setTraceOpen,
     formDisabled:
       busy ||
       previewing ||

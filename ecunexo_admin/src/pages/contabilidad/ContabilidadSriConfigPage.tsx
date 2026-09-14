@@ -218,9 +218,11 @@ export function ContabilidadSriConfigPage() {
             companyLabel: tenant.legalName?.trim() || tenant.name,
             tenantId,
           })
+          const activeProfile = getBillingEmitProfile(readBillingEmitProfile(tenantId))
           const peeked = await peekNextSequential(emitterId, {
             establishment: normalizeEstablishmentCode(tenant.establishmentCode),
             emissionPoint,
+            environment: activeProfile.sriEnvironment ?? 'Production',
           })
           nextSequential = peeked.nextSequential
         } catch (billingErr: unknown) {
@@ -355,14 +357,14 @@ export function ContabilidadSriConfigPage() {
         tenantId,
       })
 
+      const profile = getBillingEmitProfile(signature.emitProfile)
       const savedSeq = await setNextSequential(emitterId, {
         nextSequential,
         establishment,
         emissionPoint,
         address: address || null,
+        environment: profile.sriEnvironment ?? 'Production',
       })
-
-      const profile = getBillingEmitProfile(signature.emitProfile)
       toast.show({
         title,
         message: companySynced

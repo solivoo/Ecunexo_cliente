@@ -58,6 +58,54 @@ export type LoadedIssuerDefaults = {
 /** draft = create+XSD | sign = +XAdES | sri = +recepción+autorización */
 export type InvoiceEmitMode = 'draft' | 'sign' | 'sri'
 
+export type SriEmitTrace = {
+  readonly timestamp: string
+  readonly mode: InvoiceEmitMode
+  readonly environment: 'Test' | 'Production'
+  readonly environmentCode: '1' | '2'
+  readonly emitterRuc: string
+  readonly establishment: string
+  readonly emissionPoint: string
+  readonly sequentialRequested: string
+  requestPayload?: unknown
+  createdInvoice?: {
+    readonly invoiceId: string
+    readonly state: string
+    readonly grandTotal: number
+    readonly sequential?: string
+  } | null
+  previewXml?: {
+    readonly accessKey: string
+    readonly environmentDigit: string
+    readonly isValid: boolean
+    readonly errors: readonly string[]
+    readonly xmlText?: string
+  } | null
+  signResult?: {
+    readonly accessKey: string | null
+    readonly environmentDigit: string | null
+    readonly state: string
+    readonly message: string
+  } | null
+  sriResult?: {
+    readonly state: string
+    readonly sriTransmissionState: string | null
+    readonly accessKey: string | null
+    readonly messages: readonly { identifier: string; text: string; detail?: string | null }[]
+  } | null
+  rawError?: string | null
+}
+
+let lastSriEmitTrace: SriEmitTrace | null = null
+
+export function getLastSriEmitTrace(): SriEmitTrace | null {
+  return lastSriEmitTrace
+}
+
+export function setLastSriEmitTrace(trace: SriEmitTrace | null): void {
+  lastSriEmitTrace = trace
+}
+
 export type SaveInvoiceResult = {
   readonly invoiceId: string
   readonly emitterId: string
@@ -68,6 +116,7 @@ export type SaveInvoiceResult = {
   readonly sriTransmissionState: string | null
   /** success | warning | error — para el toast de la UI */
   readonly outcome: 'success' | 'warning' | 'error'
+  readonly trace?: SriEmitTrace | null
 }
 
 export async function loadIssuerDefaults(tenantId: string): Promise<LoadedIssuerDefaults> {
@@ -141,6 +190,7 @@ export async function peekBillingNextSequential(args: {
   readonly establishment: string
   readonly emissionPoint: string
   readonly tenantId?: string | null
+  readonly environment?: 'Test' | 'Production' | string | null
 }): Promise<string> {
   const emitterId = await ensureBillingEmitter({
     emitterRuc: args.emitterRuc,
@@ -151,6 +201,7 @@ export async function peekBillingNextSequential(args: {
   const peeked = await peekNextSequential(emitterId, {
     establishment: normalizeEstablishmentCode(args.establishment),
     emissionPoint: normalizeEmissionPoint(args.emissionPoint),
+    environment: args.environment ?? 'Production',
   })
   return peeked.nextSequential
 }
@@ -172,106 +223,204 @@ export async function saveInvoiceDraft(args: {
     emitterRuc,
     establishment: args.company?.establishment || args.header.establishment,
   }
-  const emitterId = await ensureBillingEmitter({
-    emitterRuc,
-    company: args.company,
-    companyLabel: args.companyLabel,
-    tenantId: args.tenantId,
-  })
-  const created = await createInvoice(
-    emitterId,
-    toCreateInvoiceBody(header, args.counterparty, args.lines, args.sriEnvironment),
-    args.tenantId
-  )
+  const env: 'Test' | 'Production' = args.sriEnvironment === 'Test' ? 'Test' : 'Production'
+  const envCode = env === 'Production' ? '2' : '1'
 
-  let xmlNote = ''
-  try {
-    const preview = await previewInvoiceXml(emitterId, created.invoiceId, args.sriEnvironment)
-    xmlNote = preview.isValid
-      ? ' XML válido contra XSD.'
-      : ` XML con ${preview.errors.length} error(es) XSD.`
-  } catch {
-    xmlNote = ' (preview XML no disponible aún).'
-  }
+  const requestedSeq =
+    header.sequential &&
+    header.sequential !== '—' &&
+    /^\d{1,9}$/.test(header.sequential.trim())
+      ? header.sequential.trim().padStart(9, '0')
+      : 'auto'
 
-  if (mode === 'draft') {
-    return {
-      invoiceId: created.invoiceId,
-      emitterId,
-      mode,
-      accessKey: null,
-      state: created.state,
-      sriTransmissionState: null,
-      outcome: 'success',
-      message: `Factura ${created.invoiceId.slice(0, 8)}… — total ${created.grandTotal.toFixed(2)}.${xmlNote}`,
-    }
-  }
+  const body = toCreateInvoiceBody(header, args.counterparty, args.lines, env)
 
-  const signed = await signInvoice(emitterId, created.invoiceId, args.sriEnvironment)
-  const keyHint = signed.accessKey ? ` Clave ${signed.accessKey.slice(0, 10)}…` : ''
-
-  if (mode === 'sign') {
-    return {
-      invoiceId: created.invoiceId,
-      emitterId,
-      mode,
-      accessKey: signed.accessKey,
-      state: signed.state,
-      sriTransmissionState: signed.sriTransmissionState,
-      outcome: 'success',
-      message: `${signed.message} Estado ${signed.state}.${keyHint}${xmlNote}`,
-    }
-  }
-
-  const env = args.sriEnvironment ?? 'Test'
-  // Firma encola recepción/autorización; la UI espera el resultado terminal.
-  const polled = await waitForSriTerminalState(emitterId, created.invoiceId, {
-    timeoutMs: 90_000,
-    intervalMs: 2_000,
-  })
-
-  const outcome =
-    polled.state === 'Authorized'
-      ? 'success'
-      : polled.state === 'Processing' || polled.state === 'Received' || polled.state === 'Signed'
-        ? 'warning'
-        : 'error'
-
-  const msgSummary =
-    polled.messages.length > 0
-      ? polled.messages.map((m) => `[${m.identifier}] ${m.text}`).join(' | ')
-      : null
-
-  const resultLead =
-    polled.state === 'Authorized'
-      ? 'Factura autorizada por el SRI.'
-      : polled.state === 'Returned'
-        ? 'El SRI devolvió el comprobante (DEVUELTA). No se reintentará el mismo XML.'
-        : polled.state === 'NotAuthorized'
-          ? 'El SRI no autorizó el comprobante.'
-          : polled.state === 'Processing' || polled.state === 'Received' || polled.state === 'Signed'
-            ? 'Envío al SRI en curso; aún sin resultado definitivo.'
-            : 'No se obtuvo un resultado definitivo del SRI a tiempo.'
-
-  return {
-    invoiceId: created.invoiceId,
-    emitterId,
+  const trace: SriEmitTrace = {
+    timestamp: new Date().toISOString(),
     mode,
-    accessKey: polled.accessKey ?? signed.accessKey,
-    state: polled.state,
-    sriTransmissionState: polled.sriTransmissionState,
-    outcome,
-    message: [
-      resultLead,
-      `Estado ${polled.state}`,
-      polled.sriTransmissionState ? `(transmisión ${polled.sriTransmissionState})` : null,
-      msgSummary,
-      `Ambiente ${env}.`,
-      keyHint.trim() || null,
-      xmlNote.trim() || null,
-    ]
-      .filter(Boolean)
-      .join(' '),
+    environment: env,
+    environmentCode: envCode,
+    emitterRuc,
+    establishment: header.establishment,
+    emissionPoint: header.emissionPoint,
+    sequentialRequested: requestedSeq,
+    requestPayload: body,
+    createdInvoice: null,
+    previewXml: null,
+    signResult: null,
+    sriResult: null,
+    rawError: null,
+  }
+
+  console.group(`🚀 [EcuNexo SRI Emisión] Factura -> ${env} (Ambiente ${envCode})`)
+  console.log('📌 Configuración & Destino:', {
+    ambiente: env,
+    codigoAmbiente: envCode,
+    modo: mode,
+    emisorRuc: emitterRuc,
+    serie: `${header.establishment}-${header.emissionPoint}`,
+    secuencialSolicitado: requestedSeq,
+  })
+  console.log('📦 Request Payload (createInvoice):', body)
+
+  try {
+    const emitterId = await ensureBillingEmitter({
+      emitterRuc,
+      company: args.company,
+      companyLabel: args.companyLabel,
+      tenantId: args.tenantId,
+    })
+
+    const created = await createInvoice(emitterId, body, args.tenantId)
+    trace.createdInvoice = {
+      invoiceId: created.invoiceId,
+      state: created.state,
+      grandTotal: created.grandTotal,
+      sequential: created.sequential,
+    }
+    console.log('✅ Factura Creada en Billing.Api:', created)
+
+    let xmlNote = ''
+    try {
+      const preview = await previewInvoiceXml(emitterId, created.invoiceId, env)
+      const envDigit = preview.accessKey ? preview.accessKey.charAt(23) : ''
+      trace.previewXml = {
+        accessKey: preview.accessKey,
+        environmentDigit: envDigit,
+        isValid: preview.isValid,
+        errors: preview.errors,
+        xmlText: preview.xml,
+      }
+      xmlNote = preview.isValid
+        ? ' XML válido contra XSD.'
+        : ` XML con ${preview.errors.length} error(es) XSD.`
+      console.log(
+        `📄 Preview XML (Clave: ${preview.accessKey}, Dígito 24 = '${envDigit}', Válido XSD: ${preview.isValid}):`,
+        preview
+      )
+    } catch (previewErr: unknown) {
+      xmlNote = ' (preview XML no disponible aún).'
+      console.warn('⚠️ Preview XML no disponible:', previewErr)
+    }
+
+    if (mode === 'draft') {
+      setLastSriEmitTrace(trace)
+      console.log('🏁 Modo Borrador finalizado con éxito.')
+      console.groupEnd()
+      return {
+        invoiceId: created.invoiceId,
+        emitterId,
+        mode,
+        accessKey: null,
+        state: created.state,
+        sriTransmissionState: null,
+        outcome: 'success',
+        message: `Factura ${created.invoiceId.slice(0, 8)}… — total ${created.grandTotal.toFixed(2)}.${xmlNote}`,
+        trace,
+      }
+    }
+
+    const signed = await signInvoice(emitterId, created.invoiceId, env)
+    const signEnvDigit = signed.accessKey ? signed.accessKey.charAt(23) : null
+    trace.signResult = {
+      accessKey: signed.accessKey,
+      environmentDigit: signEnvDigit,
+      state: signed.state,
+      message: signed.message,
+    }
+    const keyHint = signed.accessKey ? ` Clave ${signed.accessKey.slice(0, 10)}…` : ''
+    console.log(
+      `🔏 Factura Firmada (Estado: ${signed.state}, Clave: ${signed.accessKey}, Dígito 24 = '${signEnvDigit}'):`,
+      signed
+    )
+
+    if (mode === 'sign') {
+      setLastSriEmitTrace(trace)
+      console.log('🏁 Modo Firmar finalizado con éxito.')
+      console.groupEnd()
+      return {
+        invoiceId: created.invoiceId,
+        emitterId,
+        mode,
+        accessKey: signed.accessKey,
+        state: signed.state,
+        sriTransmissionState: signed.sriTransmissionState,
+        outcome: 'success',
+        message: `${signed.message} Estado ${signed.state}.${keyHint}${xmlNote}`,
+        trace,
+      }
+    }
+
+    // Firma encola recepción/autorización; la UI espera el resultado terminal.
+    console.log('⏳ Esperando respuesta terminal del SRI...')
+    const polled = await waitForSriTerminalState(emitterId, created.invoiceId, {
+      timeoutMs: 90_000,
+      intervalMs: 2_000,
+    })
+
+    trace.sriResult = {
+      state: polled.state,
+      sriTransmissionState: polled.sriTransmissionState,
+      accessKey: polled.accessKey ?? signed.accessKey,
+      messages: polled.messages,
+    }
+    console.log('🏛️ Resultado SRI Terminal:', polled)
+
+    const outcome =
+      polled.state === 'Authorized'
+        ? 'success'
+        : polled.state === 'Processing' || polled.state === 'Received' || polled.state === 'Signed'
+          ? 'warning'
+          : 'error'
+
+    const msgSummary =
+      polled.messages.length > 0
+        ? polled.messages.map((m) => `[${m.identifier}] ${m.text}`).join(' | ')
+        : null
+
+    const resultLead =
+      polled.state === 'Authorized'
+        ? 'Factura autorizada por el SRI.'
+        : polled.state === 'Returned'
+          ? 'El SRI devolvió el comprobante (DEVUELTA). No se reintentará el mismo XML.'
+          : polled.state === 'NotAuthorized'
+            ? 'El SRI no autorizó el comprobante.'
+            : polled.state === 'Processing' || polled.state === 'Received' || polled.state === 'Signed'
+              ? 'Envío al SRI en curso; aún sin resultado definitivo.'
+              : 'No se obtuvo un resultado definitivo del SRI a tiempo.'
+
+    setLastSriEmitTrace(trace)
+    console.log(`🏁 Fin de emisión SRI con resultado: ${outcome} (${polled.state})`)
+    console.groupEnd()
+
+    return {
+      invoiceId: created.invoiceId,
+      emitterId,
+      mode,
+      accessKey: polled.accessKey ?? signed.accessKey,
+      state: polled.state,
+      sriTransmissionState: polled.sriTransmissionState,
+      outcome,
+      message: [
+        resultLead,
+        `Estado ${polled.state}`,
+        polled.sriTransmissionState ? `(transmisión ${polled.sriTransmissionState})` : null,
+        msgSummary,
+        `Ambiente ${env}.`,
+        keyHint.trim() || null,
+        xmlNote.trim() || null,
+      ]
+        .filter(Boolean)
+        .join(' '),
+      trace,
+    }
+  } catch (err: unknown) {
+    const errorMsg = readApiError(err, 'Error en emisión de factura')
+    trace.rawError = errorMsg
+    setLastSriEmitTrace(trace)
+    console.error('❌ [EcuNexo SRI Emisión] Error en proceso de emisión:', err)
+    console.groupEnd()
+    throw err
   }
 }
 

@@ -11,7 +11,8 @@
   min-width: 0;
 }
 
-.factura-emitir__cert-alert {
+.factura-emitir__cert-alert,
+.factura-emitir__trace-alert {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

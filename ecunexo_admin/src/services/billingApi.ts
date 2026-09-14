@@ -62,6 +62,7 @@ export async function peekNextSequential(
   params?: {
     readonly establishment?: string
     readonly emissionPoint?: string
+    readonly environment?: 'Test' | 'Production' | string | null
   }
 ): Promise<SequentialNextResponse> {
   const { data } = await billingApi.get<SequentialNextResponse>(

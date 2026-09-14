@@ -7,6 +7,7 @@ import { InvoiceLinesSection } from '@/pages/facturacion/InvoiceLinesSection'
 import { InvoiceMetaFields } from '@/pages/facturacion/InvoiceMetaFields'
 import { InvoiceNotesFields } from '@/pages/facturacion/InvoiceNotesFields'
 import { InvoiceRidePreviewPopup } from '@/pages/facturacion/InvoiceRidePreviewPopup'
+import { InvoiceEmitTraceModal } from '@/pages/facturacion/InvoiceEmitTraceModal'
 import { RidePrintConfirmPopup } from '@/pages/facturacion/RidePrintConfirmPopup'
 import { computeTotals, formatMoney } from '@/pages/facturacion/invoiceFormTypes'
 import { useInvoiceEmitForm } from '@/pages/facturacion/useInvoiceEmitForm'
@@ -61,14 +62,26 @@ export function FacturaEmitirPage() {
           </StatusBadge>
         }
         actions={
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/facturacion/comprobantes')}
-          >
-            Volver a comprobantes
-          </Button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {form.lastTrace && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => form.setTraceOpen(true)}
+              >
+                Diagnóstico SRI
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/facturacion/comprobantes')}
+            >
+              Volver a comprobantes
+            </Button>
+          </div>
         }
       />
 
@@ -107,6 +120,35 @@ export function FacturaEmitirPage() {
               </Button>
             </div>
           )}
+
+          {form.lastTrace &&
+            (form.lastTrace.rawError ||
+              form.lastTrace.sriResult?.state === 'Returned' ||
+              form.lastTrace.sriResult?.state === 'NotAuthorized') && (
+              <div className="factura-emitir__trace-alert" role="alert">
+                <div className="factura-emitir__cert-alert-main">
+                  <span className="factura-emitir__cert-alert-badge" style={{ color: '#b91c1c' }}>
+                    Respuesta Técnica SRI ({form.lastTrace.environment === 'Production' ? 'Producción' : 'Pruebas'})
+                  </span>
+                  <p className="factura-emitir__cert-alert-text">
+                    {form.lastTrace.rawError ||
+                      (form.lastTrace.sriResult?.messages?.length
+                        ? form.lastTrace.sriResult.messages
+                            .map((m) => `[${m.identifier}] ${m.text}`)
+                            .join(' | ')
+                        : `Estado: ${form.lastTrace.sriResult?.state}`)}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => form.setTraceOpen(true)}
+                >
+                  Ver Diagnóstico y XML
+                </Button>
+              </div>
+            )}
 
           <div className="factura-emitir__sections">
             <SectionCard
@@ -235,6 +277,12 @@ export function FacturaEmitirPage() {
         onConfirmPrint={() => {
           void form.confirmRidePrint()
         }}
+      />
+
+      <InvoiceEmitTraceModal
+        open={form.traceOpen}
+        trace={form.lastTrace}
+        onClose={() => form.setTraceOpen(false)}
       />
     </div>
   )

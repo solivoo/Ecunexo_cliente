@@ -9,6 +9,26 @@
 * **Rama Activa:** `main`.
 * **Última Versión Publicada:** `v0.25.2`.
 * **Hitos Recientes Completados:**
+  - **Aislamiento Total de Contadores SRI (Producción vs Pruebas), Garantía Estricta de Clave/XML y Diagnóstico Técnico en el SPA:**
+    * **Aislamiento de Contadores en Base de Datos (`billing.emission_point_configs`):**
+      - Separación estricta de contadores en PostgreSQL: columna `LastSequential` (Producción, Ambiente 2) y columna `LastTestSequential` (Pruebas, Ambiente 1).
+      - Las emisiones en entorno de pruebas jamás incrementan, alteran ni consumen el secuencial real de producción del cliente (`everchic`).
+      - Actualización del índice único en `billing.electronic_invoices` a `(EmitterId, Environment, Establishment, EmissionPoint, DocumentType, Sequential)` para permitir coexistencia sin colisiones entre ambientes.
+      - Métodos `AllocateNextSequentialAsync`, `PeekNextSequentialAsync` y `SetNextSequentialAsync` en `EfEmitterRepository` ramifican según el ambiente activo.
+    * **Garantía Estricta de Clave de Acceso (49 dígitos) y XML Firmado:**
+      - Posición 24 (índice 23) de la clave de acceso estrictamente `'2'` para Producción y `'1'` para Pruebas.
+      - Nodo `<ambiente>2</ambiente>` en XML de producción y `<ambiente>1</ambiente>` en pruebas.
+      - Servicios `Sign` y `PreviewXml` regeneran automáticamente clave y nodo XML si el comprobante fue generado previamente con un ambiente distinto al solicitado.
+    * **Diagnóstico Técnico y Trazabilidad en el SPA (`ecunexo_admin`):**
+      - `SriEmitTrace`: captura y preserva datos completos de la emisión (timestamp, modo, ambiente, RUC emisor, serie, secuencial solicitado, payload JSON enviado, factura creada, XML generado, resultado de firma, estado terminal SRI y mensaje de error crudo).
+      - Salida en consola enriquecida con `console.group` (`🚀 [EcuNexo SRI Emisión] Factura -> Producción/Pruebas`) mostrando el objeto exacto enviado y devuelto en cada etapa del pipeline.
+      - Modal interactivo de diagnóstico [`InvoiceEmitTraceModal.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/facturacion/InvoiceEmitTraceModal.tsx) accesible desde la cabecera («Diagnóstico SRI») o ante respuestas DEVUELTA del SRI (error [35] u otros).
+      - Visualizador interactivo de los 49 dígitos de la clave con desglose en chips (Fecha, Doc, RUC, Ambiente P24 resaltado, Serie, Secuencial resaltado, Código, Emisión, DV), botones para copiar clave, copiar XML y copiar payload JSON.
+      - Sincronización del ambiente en `ContabilidadSriConfigPage.tsx` y `useInvoiceEmitForm.ts` para que `peekNextSequential` y `setNextSequential` operen sobre el contador correcto según el perfil de emisión activo.
+    * **Tests Automatizados:**
+      - 190 tests unitarios backend pasando al 100% en `Facturacion` (152 Core, 9 Business, 29 Infrastructure).
+      - Tests Playwright de desglose de clave de acceso y diagnóstico en `tests-ui/comun/facturacion-trace-diagnostico.spec.ts` pasando al 100%.
+      - Build de producción Vite/TypeScript en `ecunexo_admin` verificado con 0 errores.
   - **Preservación Estricta de Identidad Emisor, Corrección Estructura XML SRI (Error 35) y Secuencial Dinámico Centralizado:**
     * **Blindaje de Identidad Emisor (`SriEmissionIdentityResolver` & `SriOptions`):**
       - Desactivación de la sustitución automática de identidad de prueba (`Enabled: false` por defecto).
