@@ -5,9 +5,9 @@ namespace EcuNexo.Business.Tenancy.Commands.ProvisionSubscriptionCompany;
 public sealed record ProvisionSubscriptionCompanyCommand(
     Guid SubscriptionAccountId,
     string TenantName,
-    string OwnerEmail,
-    string OwnerName,
-    string OwnerPassword,
+    string? OwnerEmail = null,
+    string? OwnerName = null,
+    string? OwnerPassword = null,
     string? TimeZoneId = null,
     string? Locale = null,
     string? LogoUrl = null,

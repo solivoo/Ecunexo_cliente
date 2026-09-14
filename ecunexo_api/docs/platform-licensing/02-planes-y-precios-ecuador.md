@@ -63,3 +63,4 @@ Códigos retirados (inactivos en seed): `services-starter`, `starter-cloud`, `bu
 - [[07-mapeo-modulos-permisos]]
 - [[04-api-licencias-diseno]]
 - [`15-catalogo-vs-inventario-y-planes.md`](../15-catalogo-vs-inventario-y-planes.md)
+- [`18-planes-y-precios-sector-transporte-ecuador.md`](../18-planes-y-precios-sector-transporte-ecuador.md)

@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.22.4`.
+* **Última Versión Publicada:** `v0.23.1`.
 * **Hitos Recientes Completados:**
+  - **Herencia de Credenciales Root en Creación de Empresa & Planes Transporte (`v0.23.1`):**
+    - **Backend (`ecunexo_api`):** `ProvisionSubscriptionCompanyHandler` permite omitir `OwnerPassword` heredando automáticamente el hash de contraseña del usuario titular root (`account.PasswordHash`). `OwnerEmail`, `OwnerName` y `OwnerPhone` heredan también por defecto los datos del titular si no son provistos. `ProvisionSubscriptionCompanyValidator` condiciona la longitud de contraseña a su presencia. Tests unitarios en `ProvisionSubscriptionCompanyHandlerTests.cs` (300 tests backend pasando al 100%).
+    - **Frontend (`ecunexo_admin`):** Actualización de `CreateCompanyPage.tsx` eliminando la obligatoriedad de crear y confirmar una nueva contraseña para la empresa. Incorporación de banner informativo M3 confirmando el acceso unificado del titular con sus credenciales actuales y toggle opcional `CheckButton` para asignar contraseñas diferenciadas si el usuario lo desea.
+    - **Documentación de Planes Sector Transporte:** Redacción de `18-planes-y-precios-sector-transporte-ecuador.md` con matriz comercial (Plan Local $428/año vs Plan Empresa $806/año) y auditoría de cumplimiento funcional ante el SRI.
   - **Fase 4: Estados Financieros Oficiales NIIF para PYMES y SuperCompañías Ecuador (Balance General y Estado de Resultados Integral P&G) — Concluida al 100%:**
     - **Backend (`ecunexo_api`):**
       * Query `GetFinancialStatementsQuery` con agregación de saldos por grupos contables oficiales (Activo 1, Pasivo 2, Patrimonio 3, Ingresos 4, Costos y Gastos 5).

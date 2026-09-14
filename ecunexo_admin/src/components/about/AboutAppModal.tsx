@@ -110,9 +110,11 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
         <div className="ecu-about-modal__changelog">
           <div className="ecu-about-modal__changelog-header">
             <Sparkles size={15} aria-hidden />
-            <span>Novedades v{APP_VERSION_INFO.version} — Limpieza de Accesos RBAC y Estado de Firma SRI</span>
+            <span>Novedades v{APP_VERSION_INFO.version} — Herencia de Credenciales Root en Creación de Empresa</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Herencia Automática de Credenciales del Titular Root:</strong> Eliminada la exigencia forzada de crear una contraseña redundante al dar de alta una nueva empresa bajo la suscripción. El usuario titular asigna automáticamente sus credenciales de acceso globales con aviso visual claro y opción voluntaria para contraseñas específicas.</li>
+            <li><strong>Matriz de Planes y Precios Sector Transporte:</strong> Documentación oficial de planes comerciales para el sector transporte ecuatoriano (Planes Local $428/año y Empresa $806/año) con auditoría integral de cumplimiento ante el SRI.</li>
             <li><strong>Blindaje de Permisos RBAC y Estado de Firma en Compras:</strong> Retiro de botones redundantes de configuración de firma en vistas operativas de Retenciones y Liquidaciones de Compra para respetar las restricciones de rol administrativo en Ajustes de Empresa, sustitución de términos técnicos crudos (.p12) por conceptos formales de negocio e incorporación de insignias informativas de ambiente SRI (Pruebas / Producción) y vigencia del certificado digital emisor.</li>
             <li><strong>Sincronización Criptográfica de Licenciamiento de Producción:</strong> Actualización de la clave pública RSA en el backend del Cliente (license-public.pem y appsettings.json) sincronizada directamente con la clave privada de producción de license.ecunexo.com, habilitando la verificación y renovación de licencias oficiales sin fallos de firma.</li>
             <li><strong>Unificación de Módulo de Compras:</strong> Normalización de la nomenclatura en catálogos y menús del sistema consolidando «Compras, Gastos & Recepción SRI» bajo la denominación estándar «Compras», manteniendo integrada de forma nativa la recepción de comprobantes electrónicos 01 del SRI y la clasificación de compras y gastos operativos.</li>

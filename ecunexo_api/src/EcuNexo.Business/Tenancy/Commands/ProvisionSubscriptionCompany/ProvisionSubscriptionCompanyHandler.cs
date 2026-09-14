@@ -86,10 +86,14 @@ public sealed class ProvisionSubscriptionCompanyHandler
                     ErrorType.Conflict));
         }
 
+        var rawEmail = !string.IsNullOrWhiteSpace(command.OwnerEmail)
+            ? command.OwnerEmail.Trim()
+            : account.Email;
+
         Email email;
         try
         {
-            email = new Email(command.OwnerEmail);
+            email = new Email(rawEmail);
         }
         catch (ArgumentException ex)
         {
@@ -149,14 +153,21 @@ public sealed class ProvisionSubscriptionCompanyHandler
         }
 
         var department = departmentCreated.Value!;
+        var ownerName = !string.IsNullOrWhiteSpace(command.OwnerName)
+            ? command.OwnerName.Trim()
+            : account.Name;
+        var ownerPhone = !string.IsNullOrWhiteSpace(command.OwnerPhone)
+            ? command.OwnerPhone.Trim()
+            : account.Phone;
+
         var userId = _idGenerator.NewId();
         var userCreated = User.Create(
             userId,
             tenantId,
             email,
-            command.OwnerName,
+            ownerName,
             department.Name,
-            command.OwnerPhone,
+            ownerPhone,
             command.OwnerJobTitle ?? "Administrador",
             department.Id);
         if (userCreated.IsFailure)
@@ -165,7 +176,17 @@ public sealed class ProvisionSubscriptionCompanyHandler
         }
 
         var user = userCreated.Value!;
-        var passwordHash = _passwordHasher.Hash(command.OwnerPassword);
+        string passwordHash;
+        if (!string.IsNullOrWhiteSpace(command.OwnerPassword))
+        {
+            passwordHash = _passwordHasher.Hash(command.OwnerPassword);
+        }
+        else
+        {
+            // Hereda automáticamente el hash de contraseña del usuario titular root
+            passwordHash = account.PasswordHash;
+        }
+
         var setPassword = user.SetPasswordHash(passwordHash);
         if (setPassword.IsFailure)
         {

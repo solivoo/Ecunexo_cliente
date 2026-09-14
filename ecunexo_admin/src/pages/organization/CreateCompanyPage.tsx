@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Button, CheckButton, TextBox, useToast, type PageActionItem } from 'glubox'
+import { ShieldCheck } from 'lucide-react'
 import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { CompanyBrandingFields } from '@/features/organization/components/CompanyBrandingFields'
@@ -30,6 +31,7 @@ export function CreateCompanyPage() {
   const [primaryColorHex, setPrimaryColorHex] = useState('#3B82F6')
   const [ownerEmail, setOwnerEmail] = useState('')
   const [ownerName, setOwnerName] = useState('')
+  const [customPassword, setCustomPassword] = useState(false)
   const [ownerPassword, setOwnerPassword] = useState('')
   const [ownerPasswordConfirm, setOwnerPasswordConfirm] = useState('')
   const [ownerPhone, setOwnerPhone] = useState('')
@@ -93,9 +95,12 @@ export function CreateCompanyPage() {
       if (!tenantName.trim()) throw new Error('El nombre de la empresa es obligatorio.')
       if (!email) throw new Error('No hay correo del titular en la sesión. Vuelve a iniciar sesión.')
       if (!ownerName.trim()) throw new Error('El nombre del administrador es obligatorio.')
-      if (ownerPassword.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.')
-      if (ownerPassword !== ownerPasswordConfirm) {
-        throw new Error('La contraseña y su confirmación no coinciden.')
+
+      if (customPassword) {
+        if (ownerPassword.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.')
+        if (ownerPassword !== ownerPasswordConfirm) {
+          throw new Error('La contraseña y su confirmación no coinciden.')
+        }
       }
 
       const color = primaryColorHex.trim()
@@ -115,7 +120,7 @@ export function CreateCompanyPage() {
         primaryColorHex: color || null,
         ownerEmail: email,
         ownerName: ownerName.trim(),
-        ownerPassword,
+        ownerPassword: customPassword ? ownerPassword : null,
         ownerDepartment: null,
         ownerPhone: ownerPhone.trim() || null,
         ownerJobTitle: null,
@@ -137,6 +142,7 @@ export function CreateCompanyPage() {
     }
   }, [
     checkQuota,
+    customPassword,
     defaultEmail,
     locale,
     logoUrl,
@@ -216,10 +222,17 @@ export function CreateCompanyPage() {
         />
 
         <SectionCard
-          title="Administrador (Titular)"
-          subtitle="El correo queda fijado al del titular. Define la contraseña inicial del usuario en esta empresa."
+          title="Administrador Principal (Titular Root)"
+          subtitle="Tu usuario titular administrará esta empresa automáticamente con tus mismas credenciales de acceso globales."
         >
-          <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
+          <div className="p-3.5 mb-4 rounded-xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/20 text-xs text-indigo-900 dark:text-indigo-200 flex items-center gap-3">
+            <ShieldCheck className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+            <div>
+              <strong>Acceso Unificado del Titular:</strong> Se vinculará tu cuenta de titular como Administrador con tu misma contraseña de acceso. No es necesario crear ni recordar una contraseña adicional.
+            </div>
+          </div>
+
+          <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
             <div className="ecu-companies-form__field">
               <TextBox
                 id="cc-email"
@@ -249,44 +262,6 @@ export function CreateCompanyPage() {
             </div>
             <div className="ecu-companies-form__field">
               <TextBox
-                id="cc-password"
-                label="Contraseña inicial"
-                labelPosition="outlined"
-                variant="outline"
-                type="password"
-                value={ownerPassword}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setOwnerPassword(e.target.value)}
-                required
-                disabled={busy}
-                fullWidth
-              />
-            </div>
-            <div className="ecu-companies-form__field">
-              <TextBox
-                id="cc-password-confirm"
-                label="Confirmar contraseña"
-                labelPosition="outlined"
-                variant="outline"
-                type="password"
-                value={ownerPasswordConfirm}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setOwnerPasswordConfirm(e.target.value)
-                }
-                required
-                disabled={busy}
-                fullWidth
-                error={
-                  ownerPasswordConfirm.length > 0 && ownerPassword !== ownerPasswordConfirm
-                }
-                errorMessage={
-                  ownerPasswordConfirm.length > 0 && ownerPassword !== ownerPasswordConfirm
-                    ? 'No coincide con la contraseña'
-                    : undefined
-                }
-              />
-            </div>
-            <div className="ecu-companies-form__field">
-              <TextBox
                 id="cc-phone"
                 label="Teléfono"
                 labelPosition="outlined"
@@ -297,6 +272,59 @@ export function CreateCompanyPage() {
                 fullWidth
               />
             </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <CheckButton
+              checked={customPassword}
+              onChange={setCustomPassword}
+              disabled={busy}
+            >
+              Asignar una contraseña diferente para esta empresa (Opcional)
+            </CheckButton>
+
+            {customPassword && (
+              <div className="ecu-companies-form__grid ecu-companies-form__grid--2 mt-3">
+                <div className="ecu-companies-form__field">
+                  <TextBox
+                    id="cc-password"
+                    label="Contraseña específica"
+                    labelPosition="outlined"
+                    variant="outline"
+                    type="password"
+                    value={ownerPassword}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setOwnerPassword(e.target.value)}
+                    required={customPassword}
+                    disabled={busy}
+                    fullWidth
+                  />
+                </div>
+                <div className="ecu-companies-form__field">
+                  <TextBox
+                    id="cc-password-confirm"
+                    label="Confirmar contraseña específica"
+                    labelPosition="outlined"
+                    variant="outline"
+                    type="password"
+                    value={ownerPasswordConfirm}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setOwnerPasswordConfirm(e.target.value)
+                    }
+                    required={customPassword}
+                    disabled={busy}
+                    fullWidth
+                    error={
+                      ownerPasswordConfirm.length > 0 && ownerPassword !== ownerPasswordConfirm
+                    }
+                    errorMessage={
+                      ownerPasswordConfirm.length > 0 && ownerPassword !== ownerPasswordConfirm
+                        ? 'No coincide con la contraseña'
+                        : undefined
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </SectionCard>
 

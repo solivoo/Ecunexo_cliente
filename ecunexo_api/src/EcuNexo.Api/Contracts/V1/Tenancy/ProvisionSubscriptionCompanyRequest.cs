@@ -4,9 +4,9 @@ namespace EcuNexo.Api.Contracts.V1.Tenancy;
 
 public sealed record ProvisionSubscriptionCompanyRequest(
     string TenantName,
-    string OwnerEmail,
-    string OwnerName,
-    string OwnerPassword,
+    string? OwnerEmail = null,
+    string? OwnerName = null,
+    string? OwnerPassword = null,
     string? TimeZoneId = null,
     string? Locale = null,
     string? LogoUrl = null,

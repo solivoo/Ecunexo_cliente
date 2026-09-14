@@ -13,14 +13,14 @@ public sealed class ProvisionSubscriptionCompanyValidator : AbstractValidator<Pr
             .NotEmpty().WithMessage("El nombre de la empresa es obligatorio.")
             .MaximumLength(Tenant.MaxNameLength).WithMessage($"El nombre de la empresa no puede superar {Tenant.MaxNameLength} caracteres.");
         RuleFor(c => c.OwnerEmail)
-            .NotEmpty().WithMessage("El correo del administrador es obligatorio.")
-            .EmailAddress().WithMessage("El correo del administrador no es una dirección válida.");
+            .EmailAddress().WithMessage("El correo del administrador no es una dirección válida.")
+            .When(c => !string.IsNullOrWhiteSpace(c.OwnerEmail));
         RuleFor(c => c.OwnerName)
-            .NotEmpty().WithMessage("El nombre del administrador es obligatorio.")
-            .MaximumLength(User.NameMaxLength).WithMessage($"El nombre del administrador no puede superar {User.NameMaxLength} caracteres.");
+            .MaximumLength(User.NameMaxLength).WithMessage($"El nombre del administrador no puede superar {User.NameMaxLength} caracteres.")
+            .When(c => !string.IsNullOrWhiteSpace(c.OwnerName));
         RuleFor(c => c.OwnerPassword)
-            .NotEmpty().WithMessage("La contraseña del administrador es obligatoria.")
-            .MinimumLength(8).WithMessage("La contraseña debe tener al menos 8 caracteres.");
+            .MinimumLength(8).WithMessage("La contraseña debe tener al menos 8 caracteres.")
+            .When(c => !string.IsNullOrWhiteSpace(c.OwnerPassword));
         RuleFor(c => c.TimeZoneId).MaximumLength(Tenant.TimeZoneIdMaxLength);
         RuleFor(c => c.Locale).MaximumLength(Tenant.LocaleMaxLength);
         RuleFor(c => c.LogoUrl).MaximumLength(Tenant.LogoUrlMaxLength);

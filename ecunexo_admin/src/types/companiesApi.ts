@@ -18,9 +18,9 @@ export type ListSubscriptionCompaniesDto = {
 
 export type ProvisionCompanyBody = {
   tenantName: string
-  ownerEmail: string
-  ownerName: string
-  ownerPassword: string
+  ownerEmail?: string | null
+  ownerName?: string | null
+  ownerPassword?: string | null
   timeZoneId?: string | null
   locale?: string | null
   logoUrl?: string | null
