@@ -16,7 +16,7 @@ export const BILLING_EMIT_PROFILES = [
     label: 'Desarrollo — solo firmar',
     shortLabel: 'Solo firmar',
     description:
-      'Valida XSD y firma XAdES con el certificado (Infisical). No envía a recepción ni autorización del SRI.',
+      'Valida XSD y firma XAdES con el certificado digital de la empresa. No envía a recepción ni autorización del SRI.',
     isDevelopment: true,
     emitMode: 'sign',
     sriEnvironment: null,
