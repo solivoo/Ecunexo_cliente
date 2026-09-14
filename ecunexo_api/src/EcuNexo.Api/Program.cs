@@ -3,6 +3,7 @@ using EcuNexo.Api.Configuration;
 using EcuNexo.Api.Development;
 using EcuNexo.Api.Endpoints.V1.Accounting;
 using EcuNexo.Api.Endpoints.V1.Auth;
+using EcuNexo.Api.Endpoints.V1.Billing;
 using EcuNexo.Api.Endpoints.V1.Catalog;
 using EcuNexo.Api.Endpoints.V1.Customers;
 using EcuNexo.Api.Endpoints.V1.Ecommerce;
@@ -154,6 +155,7 @@ app.MapAccountEndpointsV1();
 app.MapJournalEntryEndpointsV1();
 app.MapTaxDeclarationEndpointsV1();
 app.MapFinancialStatementsEndpointsV1();
+app.MapRemisionGuideEndpointsV1();
 
 var migrateOnStartup = app.Configuration.GetValue(
     "Database:MigrateOnStartup",

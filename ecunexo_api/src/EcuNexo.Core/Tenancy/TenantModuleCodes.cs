@@ -31,8 +31,10 @@ public static class TenantModuleCodes
 
     public const string Purchases = "purchases";
 
+    public const string RemisionGuides = "billing.remision_guides";
+
     public static readonly IReadOnlyList<string> All =
-        [Identity, Catalog, Warehousing, Inventory, Invoicing, Accounting, Training, Support, Repairs, Customers, Ecommerce, Purchases];
+        [Identity, Catalog, Warehousing, Inventory, Invoicing, Accounting, Training, Support, Repairs, Customers, Ecommerce, Purchases, RemisionGuides];
 
     public static bool IsKnown(string code)
     {
@@ -66,6 +68,7 @@ public static class TenantModuleCodes
         {
             "invoicing" => Invoicing,
             "accounting" => Accounting,
+            "remision_guides" or "guias_remision" or "guias-remision" => RemisionGuides,
             _ => normalized,
         };
     }

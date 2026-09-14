@@ -84,8 +84,12 @@ using EcuNexo.Business.Repairs.Excel;
 using EcuNexo.Business.Repairs.Queries.GetDispatchInvoicePreview;
 using EcuNexo.Business.Repairs.Queries.ListBatches;
 using EcuNexo.Business.Repairs.Queries.VerifyDispatchPublic;
-using EcuNexo.Business.Repairs.Storage;
 using EcuNexo.Business.Repairs;
+using EcuNexo.Business.Repairs.Storage;
+using EcuNexo.Business.RemisionGuides.Commands.CreateRemisionGuide;
+using EcuNexo.Business.RemisionGuides.Commands.UpdateRemisionGuideStatus;
+using EcuNexo.Business.RemisionGuides.Queries.GetRemisionGuideById;
+using EcuNexo.Business.RemisionGuides.Queries.ListRemisionGuides;
 using EcuNexo.Business.Identity.Authorization;
 using EcuNexo.Business.Identity.Commands;
 using EcuNexo.Business.Identity.Commands.Login;
@@ -318,6 +322,12 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<GeneratePurchaseJournalEntryCommand, JournalEntryResponse>, GeneratePurchaseJournalEntryHandler>();
         services.AddScoped<IQueryHandler<GetMonthlyTaxDeclarationQuery, MonthlyTaxDeclarationResponse>, GetMonthlyTaxDeclarationHandler>();
         services.AddScoped<IQueryHandler<GetFinancialStatementsQuery, FinancialStatementsResponse>, GetFinancialStatementsHandler>();
+
+        // Guías de Remisión SRI (Tipo 06)
+        services.AddScoped<ICommandHandler<CreateRemisionGuideCommand, CreateRemisionGuideResponse>, CreateRemisionGuideHandler>();
+        services.AddScoped<ICommandHandler<UpdateRemisionGuideStatusCommand, bool>, UpdateRemisionGuideStatusHandler>();
+        services.AddScoped<IQueryHandler<ListRemisionGuidesQuery, ListRemisionGuidesResponse>, ListRemisionGuidesHandler>();
+        services.AddScoped<IQueryHandler<GetRemisionGuideByIdQuery, RemisionGuideDetailDto>, GetRemisionGuideByIdHandler>();
 
         return services;
     }

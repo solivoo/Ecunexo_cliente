@@ -46,9 +46,10 @@ internal static class MenuCatalogSeedData
         ("facturacion.notas.credito.read", "NC — lectura", "Notas de crédito SRI 04", "facturacion", 79),
         ("facturacion.notas.debito.read", "ND — lectura", "Notas de débito SRI 05", "facturacion", 80),
         ("facturacion.guias.remision.read", "Guías — lectura", "Guías de remisión SRI 06", "facturacion", 81),
-        ("facturacion.retenciones.read", "Retenciones — lectura", "Comprobantes retención SRI 07", "facturacion", 82),
-        ("facturacion.liquidacion.compra.read", "Liquidación — lectura", "Liquidación compra SRI 03", "facturacion", 83),
-        ("facturacion.emisor.write", "Emisor — escritura", "Registrar emisor", "facturacion", 84),
+        ("facturacion.guias.remision.create", "Guías — emisión", "Emitir y gestionar guías de remisión SRI 06", "facturacion", 82),
+        ("facturacion.retenciones.read", "Retenciones — lectura", "Comprobantes retención SRI 07", "facturacion", 83),
+        ("facturacion.liquidacion.compra.read", "Liquidación — lectura", "Liquidación compra SRI 03", "facturacion", 84),
+        ("facturacion.emisor.write", "Emisor — escritura", "Registrar emisor", "facturacion", 85),
 
         ("catalog.read", "Catálogo — acceso", "Ver módulo catálogo", "catalog", 60),
         ("catalog.item.read", "Ítems — consultar", "Listar ítems del catálogo", "catalog", 61),
@@ -163,8 +164,9 @@ internal static class MenuCatalogSeedData
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Comprobantes", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
-        Item("facturacion-sri", "facturacion", "Monitoreo SRI", "shield-check", "facturacion/sri", 2, MenuContextKind.Operational, "facturacion", ["facturacion.sri.read"]),
-        Item("facturacion-catalogos", "facturacion", "Catálogos", "library", null, 3, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
+        Item("facturacion-guias", "facturacion", "Guías de Remisión", "truck", "facturacion/guias-remision", 2, MenuContextKind.Operational, "facturacion", ["facturacion.guias.remision.read"]),
+        Item("facturacion-sri", "facturacion", "Monitoreo SRI", "shield-check", "facturacion/sri", 3, MenuContextKind.Operational, "facturacion", ["facturacion.sri.read"]),
+        Item("facturacion-catalogos", "facturacion", "Catálogos", "library", null, 4, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
         Item("facturacion-catalogos-reglas", "facturacion-catalogos", "Reglas SRI", null, "facturacion/catalogos/reglas", 1, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
 
         // Compras: Compras, Proveedores y Retenciones SRI

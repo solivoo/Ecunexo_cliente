@@ -52,9 +52,9 @@ export const SALE_DOCUMENT_TYPES: readonly SriDocumentType[] = [
     sriCode: '06',
     label: 'Guía de remisión',
     shortLabel: 'Guía',
-    hint: 'Traslado de mercadería vendida (SRI 06). El ingreso a bodega irá en Inventario.',
-    available: false,
-    emitPath: null,
+    hint: 'Traslado de mercadería y fletes (SRI 06).',
+    available: true,
+    emitPath: '/facturacion/guias-remision/nueva',
   },
 ]
 

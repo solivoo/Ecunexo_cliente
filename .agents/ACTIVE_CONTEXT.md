@@ -9,6 +9,21 @@
 * **Rama Activa:** `main`.
 * **Última Versión Publicada:** `v0.23.1`.
 * **Hitos Recientes Completados:**
+  - **Módulo de Guías de Remisión Electrónicas SRI (Tipo 06) — Concluido al 100% (Backend, Frontend & E2E):**
+    - **Backend (`ecunexo_api`):**
+      * Dominio Core (`EcuNexo.Core`): Agregado raíz `RemisionGuide`, entidad `RemisionGuideItem`, enums `RemisionGuideStatus` (Draft, Issued, Authorized, InTransit, Delivered, Cancelled).
+      * Generador oficial de XML SRI `<guiaRemision version="1.1.0">` (`SriRemisionGuideXmlGenerator.cs`) con soporte para datos de transportista, placa vehicular, fechas de inicio/fin de traslado, destinatario, motivo de traslado, documento de sustento tributario y desglose de mercadería.
+      * Clave de Acceso SRI de 49 dígitos con algoritmo Módulo 11 para tipo comprobante `06`.
+      * Persistencia EF Core: `RemisionGuideConfiguration` y `RemisionGuideItemConfiguration` en esquema `billing` (`billing.remision_guides`, `billing.remision_guide_items`). Migración `20260914013818_AddRemisionGuidesModule`. Repositorio `IRemisionGuideRepository` / `RemisionGuideRepository`.
+      * CQRS Handlers: `CreateRemisionGuideCommand` (autonumeración secuencial, generación de clave y XML), `UpdateRemisionGuideStatusCommand` (transiciones logísticas a `InTransit`, `Delivered`, `Cancelled`), `ListRemisionGuidesQuery` (filtros y cálculo reactivo de KPIs), `GetRemisionGuideByIdQuery` (detalle y descarga XML). Registro explícito en `DependencyInjection.cs`.
+      * Endpoints REST V1: `GET /api/v1/tenants/{tenantId}/billing/remision-guides`, `POST`, `PATCH /{id}/status`, `GET /{id}`, `GET /{id}/xml`. Permisos RBAC conformes a regex (`facturacion.guias.remision.read`, `facturacion.guias.remision.create`) y menú con icono `truck` en `MenuCatalogSeedData.cs`.
+      * Tests Unitarios Backend: 308/308 tests pasando al 100% (208 Core + 100 Business).
+    - **Frontend (`ecunexo_admin`):**
+      * Servicios API y tipos TypeScript estrictos en `remisionGuidesApi.ts`.
+      * Vista canónica Enterprise M3 [`RemisionGuidesListPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/facturacion/RemisionGuidesListPage.tsx) bajo `/facturacion/guias-remision` con PageHeader, 4 KPIs en `.ecu-stat-grid` (Total Registradas, Autorizadas SRI, En Tránsito, Entregadas), filtros `OptionGroup`, DataGrid Glubox, acciones logísticas y modal de inspección RIDE.
+      * Vista dedicada de emisión [`RemisionGuideCreatePage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/facturacion/RemisionGuideCreatePage.tsx) bajo `/facturacion/guias-remision/nueva` (Regla 9 sin modales) con 5 secciones de `SectionCard` (Emisión y Logística, Transportista, Destinatario y Ruta, Documento Sustento, Mercadería Transportada), banner de firma digital y validaciones preventivas.
+      * Prevención de duplicidad de botones en `ComprobantesPage.tsx` (Regla 3).
+      * Tests E2E en Playwright: 5/5 tests pasando al 100% en `tests-ui/comun/guias-remision-ui.spec.ts`.
   - **Herencia de Credenciales Root en Creación de Empresa & Planes Transporte (`v0.23.1`):**
     - **Backend (`ecunexo_api`):** `ProvisionSubscriptionCompanyHandler` permite omitir `OwnerPassword` heredando automáticamente el hash de contraseña del usuario titular root (`account.PasswordHash`). `OwnerEmail`, `OwnerName` y `OwnerPhone` heredan también por defecto los datos del titular si no son provistos. `ProvisionSubscriptionCompanyValidator` condiciona la longitud de contraseña a su presencia. Tests unitarios en `ProvisionSubscriptionCompanyHandlerTests.cs` (300 tests backend pasando al 100%).
     - **Frontend (`ecunexo_admin`):** Actualización de `CreateCompanyPage.tsx` eliminando la obligatoriedad de crear y confirmar una nueva contraseña para la empresa. Incorporación de banner informativo M3 confirmando el acceso unificado del titular con sus credenciales actuales y toggle opcional `CheckButton` para asignar contraseñas diferenciadas si el usuario lo desea.

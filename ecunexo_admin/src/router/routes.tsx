@@ -48,6 +48,8 @@ import { ModulePlaceholderPage } from '@/pages/placeholder/ModulePlaceholderPage
 import { CompanyElectronicBillingPage } from '@/pages/organization/CompanyElectronicBillingPage'
 import { FacturaEmitirPage } from '@/pages/facturacion/FacturaEmitirPage'
 import { ComprobantesPage } from '@/pages/facturacion/ComprobantesPage'
+import { RemisionGuidesListPage } from '@/pages/facturacion/RemisionGuidesListPage'
+import { RemisionGuideCreatePage } from '@/pages/facturacion/RemisionGuideCreatePage'
 import { SriMonitorPage } from '@/pages/facturacion/SriMonitorPage'
 import { TaxRulesCatalogPage } from '@/pages/facturacion/TaxRulesCatalogPage'
 import { ComprasDocumentosPage } from '@/pages/compras/ComprasDocumentosPage'
@@ -191,10 +193,8 @@ export const routes: RouteObject[] = [
             path: 'facturacion/notas-debito',
             element: <Navigate to="/facturacion/comprobantes?tipo=05" replace />,
           },
-          {
-            path: 'facturacion/guias-remision',
-            element: <Navigate to="/facturacion/comprobantes?tipo=06" replace />,
-          },
+          { path: 'facturacion/guias-remision', element: <RemisionGuidesListPage /> },
+          { path: 'facturacion/guias-remision/nueva', element: <RemisionGuideCreatePage /> },
           {
             path: 'facturacion/retenciones',
             element: <Navigate to="/compras/retenciones" replace />,

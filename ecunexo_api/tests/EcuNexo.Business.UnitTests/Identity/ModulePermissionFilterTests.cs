@@ -77,4 +77,40 @@ public sealed class ModulePermissionFilterTests
         ModulePermissionFilter.IsPermittedForModules("purchases.withholdings.issue", enabledModules, entitlements)
             .Should().BeFalse();
     }
+
+    [Fact]
+    public void IsPermittedForModules_ShouldAllowRemisionGuidesPermissions_WhenRemisionGuidesInLicense()
+    {
+        var enabledModules = new List<string> { "identity", "catalog", "facturacion", TenantModuleCodes.RemisionGuides };
+        var entitlements = new List<ModuleEntitlement>
+        {
+            new() { ModuleCode = "identity", Tier = ModuleTier.Small },
+            new() { ModuleCode = "catalog", Tier = ModuleTier.Big },
+            new() { ModuleCode = "facturacion", Tier = ModuleTier.Small },
+            new() { ModuleCode = TenantModuleCodes.RemisionGuides, Tier = ModuleTier.Medium },
+        };
+
+        ModulePermissionFilter.IsPermittedForModules("facturacion.guias.remision.read", enabledModules, entitlements)
+            .Should().BeTrue();
+        ModulePermissionFilter.IsPermittedForModules("facturacion.guias.remision.create", enabledModules, entitlements)
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsPermittedForModules_ShouldBlockRemisionGuidesPermissions_WhenRemisionGuidesNotInLicense()
+    {
+        var enabledModules = new List<string> { "identity", "catalog", "facturacion" };
+        var entitlements = new List<ModuleEntitlement>
+        {
+            new() { ModuleCode = "identity", Tier = ModuleTier.Small },
+            new() { ModuleCode = "catalog", Tier = ModuleTier.Big },
+            new() { ModuleCode = "facturacion", Tier = ModuleTier.Small },
+        };
+
+        ModulePermissionFilter.IsPermittedForModules("facturacion.guias.remision.read", enabledModules, entitlements)
+            .Should().BeFalse();
+        ModulePermissionFilter.IsPermittedForModules("facturacion.guias.remision.create", enabledModules, entitlements)
+            .Should().BeFalse();
+    }
 }
+

@@ -337,6 +337,36 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
+    // RemisionGuides — Guías de Remisión Electrónicas SRI (Tipo 06) & Logística
+    // ──────────────────────────────────────────────
+    public const string LimitMaxMonthlyRemisionGuides = "max_monthly_remision_guides";
+    public const string LimitMaxActiveCarriers = "max_active_carriers";
+
+    private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> RemisionGuidesLimits = new()
+    {
+        [ModuleTier.Small] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyRemisionGuides] = 50,
+            [LimitMaxActiveCarriers] = 5,
+        },
+        [ModuleTier.Medium] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyRemisionGuides] = 250,
+            [LimitMaxActiveCarriers] = 20,
+        },
+        [ModuleTier.Big] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyRemisionGuides] = 1_000,
+            [LimitMaxActiveCarriers] = 100,
+        },
+        [ModuleTier.Enterprise] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyRemisionGuides] = int.MaxValue,
+            [LimitMaxActiveCarriers] = int.MaxValue,
+        },
+    };
+
+    // ──────────────────────────────────────────────
     // Resolución
     // ──────────────────────────────────────────────
 
@@ -359,6 +389,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Ecommerce => EcommerceLimits,
             TenantModuleCodes.Purchases => PurchasesLimits,
             TenantModuleCodes.Accounting or "accounting" => AccountingLimits,
+            TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => RemisionGuidesLimits,
             _ => null,
         };
 
@@ -389,6 +420,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Ecommerce => EcommerceLimits,
             TenantModuleCodes.Purchases => PurchasesLimits,
             TenantModuleCodes.Accounting or "accounting" => AccountingLimits,
+            TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => RemisionGuidesLimits,
             _ => null,
         };
 

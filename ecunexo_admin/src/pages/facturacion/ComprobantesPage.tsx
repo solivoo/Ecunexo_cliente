@@ -70,7 +70,7 @@ export function ComprobantesPage() {
       },
     ]
     for (const doc of SALE_DOCUMENT_TYPES) {
-      if (!doc.sriCode) continue
+      if (!doc.sriCode || doc.code === FACTURA_CODE) continue
       items.push({
         id: `nuevo-${doc.code}`,
         label: doc.available ? `Nueva ${doc.label.toLowerCase()}` : `${doc.label} · pronto`,

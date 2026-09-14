@@ -14,6 +14,12 @@ public static class PermissionModuleMapper
             return null;
         }
 
+        var normalized = permissionCode.Trim().ToLowerInvariant();
+        if (normalized.StartsWith("facturacion.guias.remision.", StringComparison.OrdinalIgnoreCase))
+        {
+            return TenantModuleCodes.RemisionGuides;
+        }
+
         var dot = permissionCode.IndexOf('.');
         if (dot <= 0)
         {

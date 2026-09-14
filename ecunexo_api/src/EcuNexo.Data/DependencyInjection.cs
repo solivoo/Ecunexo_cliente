@@ -75,6 +75,7 @@ public static class DependencyInjection
         services.AddScoped<IPurchaseRepository, PurchaseRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IJournalEntryRepository, JournalEntryRepository>();
+        services.AddScoped<EcuNexo.Business.RemisionGuides.IRemisionGuideRepository, RemisionGuideRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
         return services;

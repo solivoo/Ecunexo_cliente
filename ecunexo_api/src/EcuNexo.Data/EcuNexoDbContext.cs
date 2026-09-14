@@ -8,6 +8,7 @@ using EcuNexo.Core.Inventory;
 using EcuNexo.Core.Platform;
 using EcuNexo.Core.Platform.Navigation;
 using EcuNexo.Core.Purchases;
+using EcuNexo.Core.RemisionGuides;
 using EcuNexo.Core.Repairs;
 using EcuNexo.Core.Tenancy;
 using EcuNexo.Core.Warehousing;
@@ -121,9 +122,17 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<JournalEntryLine> JournalEntryLines => Set<JournalEntryLine>();
 
+    public DbSet<RemisionGuide> RemisionGuides => Set<RemisionGuide>();
+
+    public DbSet<RemisionGuideItem> RemisionGuideItems => Set<RemisionGuideItem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(EcuNexoDbContext).Assembly);
+
+        modelBuilder.Entity<RemisionGuide>().HasQueryFilter(
+            g => (!_tenantContext.CurrentTenantId.HasValue || g.TenantId == _tenantContext.CurrentTenantId)
+                 && g.DeletedAt == null);
 
         modelBuilder.Entity<JournalEntry>().HasQueryFilter(
             j => (!_tenantContext.CurrentTenantId.HasValue || j.TenantId == _tenantContext.CurrentTenantId)
