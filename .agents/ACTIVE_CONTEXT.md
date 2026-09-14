@@ -7,7 +7,7 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.25.2`.
+* **Última Versión Publicada:** `v0.26.0`.
 * **Hitos Recientes Completados:**
   - **Aislamiento Total de Contadores SRI (Producción vs Pruebas), Garantía Estricta de Clave/XML y Diagnóstico Técnico en el SPA:**
     * **Aislamiento de Contadores en Base de Datos (`billing.emission_point_configs`):**
