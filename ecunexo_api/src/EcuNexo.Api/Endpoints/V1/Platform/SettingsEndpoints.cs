@@ -335,6 +335,7 @@ public static class SettingsEndpoints
     private static async Task<IResult> TestEmailSettingsAsync(
         TestEmailSettingsRequest request,
         SmtpEmailSender smtpSender,
+        ISysSettingRepository repository,
         ITenantContext tenant,
         ICallerContext caller,
         CancellationToken ct)
@@ -345,17 +346,49 @@ public static class SettingsEndpoints
         }
 
         var tenantId = tenant.CurrentTenantId ?? caller.ExplicitTenantId;
-        var savedConfig = await smtpSender.GetEffectiveConfigAsync(ct, tenantId).ConfigureAwait(false);
 
-        var host = !string.IsNullOrWhiteSpace(request.Host) ? request.Host.Trim() : savedConfig?.Host ?? "smtp.zoho.com";
-        var port = (request.Port.HasValue && request.Port.Value > 0) ? request.Port.Value : savedConfig?.Port ?? 465;
-        var useSsl = request.UseSsl ?? savedConfig?.UseSsl ?? true;
-        var userName = !string.IsNullOrWhiteSpace(request.UserName) ? request.UserName.Trim() : savedConfig?.UserName ?? string.Empty;
+        // 1. Leer directamente el setting persistido del tenant para obtener las credenciales reales
+        //    independientemente de si el motor está habilitado o no (la prueba siempre debe poder ejecutarse
+        //    con las credenciales guardadas aunque el motor esté deshabilitado).
+        EmailSmtpConfig? persistedTenantConfig = null;
+        if (tenantId is { } effectiveTid && effectiveTid != Guid.Empty)
+        {
+            var tenantRaw = await repository
+                .GetAsync(EmailSettingCodes.SmtpConfig, SettingScope.Tenant, effectiveTid.ToString("D"), ct)
+                .ConfigureAwait(false);
+
+            if (tenantRaw is not null && !string.IsNullOrWhiteSpace(tenantRaw.ValueJson))
+            {
+                try
+                {
+                    persistedTenantConfig = JsonSerializer.Deserialize<EmailSmtpConfig>(tenantRaw.ValueJson, EmailJsonOpts);
+                }
+                catch
+                {
+                    /* si el JSON está corrupto, continuar al fallback */
+                }
+            }
+        }
+
+        // 2. Si no hay config persistida del tenant, usar el motor efectivo (global/env).
+        var savedConfig = persistedTenantConfig ?? await smtpSender.GetEffectiveConfigAsync(ct, tenantId).ConfigureAwait(false);
+
+        if (savedConfig is null)
+        {
+            return Results.Ok(new TestEmailSettingsResponse(
+                false,
+                "No hay una configuración SMTP guardada. Ingresa y guarda el servidor, usuario y contraseña antes de probar."));
+        }
+
+        var host = !string.IsNullOrWhiteSpace(request.Host) ? request.Host.Trim() : savedConfig.Host;
+        var port = (request.Port.HasValue && request.Port.Value > 0) ? request.Port.Value : savedConfig.Port;
+        var useSsl = request.UseSsl ?? savedConfig.UseSsl;
+        var userName = !string.IsNullOrWhiteSpace(request.UserName) ? request.UserName.Trim() : savedConfig.UserName;
         var password = (!string.IsNullOrWhiteSpace(request.Password) && !request.Password.All(c => c == '*'))
             ? request.Password.Trim()
-            : savedConfig?.Password ?? string.Empty;
-        var senderEmail = !string.IsNullOrWhiteSpace(request.SenderEmail) ? request.SenderEmail.Trim() : savedConfig?.SenderEmail ?? userName;
-        var senderName = !string.IsNullOrWhiteSpace(request.SenderName) ? request.SenderName.Trim() : savedConfig?.SenderName ?? "EcuNexo";
+            : savedConfig.Password;
+        var senderEmail = !string.IsNullOrWhiteSpace(request.SenderEmail) ? request.SenderEmail.Trim() : savedConfig.SenderEmail;
+        var senderName = !string.IsNullOrWhiteSpace(request.SenderName) ? request.SenderName.Trim() : savedConfig.SenderName;
 
         if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
         {

@@ -57,7 +57,7 @@ export function CompanyEmailSettingsPage() {
       />
 
       {/* KPI / StatCard Strip */}
-      <div className="ecu-companies-kpi-grid">
+      <div className="ecu-stat-grid">
         <StatCard
           label="Servidor SMTP"
           value="smtp.zoho.com"

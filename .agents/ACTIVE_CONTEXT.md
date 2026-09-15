@@ -9,6 +9,11 @@
 * **Rama Activa:** `main`.
 * **Última Versión Publicada:** `v0.28.0`.
 * **Hitos Recientes Completados:**
+  - **Fix: Prueba de Correo SMTP Falla con Credenciales Guardadas (`SettingsEndpoints.cs` + `CompanyEmailSettingsPage.tsx`):**
+    * **Causa raíz:** `TestEmailSettingsAsync` llamaba `GetEffectiveConfigAsync` que descarta configs del tenant con `IsEnabled=false`, cayendo al motor global (sin credenciales) y retornando "Se requieren las credenciales SMTP" aunque la empresa tenía sus datos guardados.
+    * **Fix backend (`SettingsEndpoints.cs`):** El endpoint `/settings/email/test` ahora lee **directamente** la config del tenant desde el repositorio (sin filtrar por `IsEnabled`) antes de recurrir al fallback global. Así la prueba siempre tiene acceso a las credenciales reales persistidas.
+    * **Fix UI (`CompanyEmailSettingsPage.tsx`):** `ecu-companies-kpi-grid` → `ecu-stat-grid` para cumplir la Regla 2 de diseño (StatCards siempre dentro de `ecu-stat-grid`).
+    * **Verificación:** Build frontend 0 errores, build .NET 0 errores/advertencias.
   - **Aislamiento y Resolución de Firma Electrónica Multi-Empresa (`DbTenantSigningCertificateProvider` & `InvoicesController`):**
     * **Desbloqueo de Validación en Memoria (`InvoicesController.cs`):** Eliminación del bloqueo prematuro `EmitterSigningValidator.EnsureReadyToSign(emitter)` que lanzaba `emitter.signing_certificate_missing_or_invalid` cuando la empresa no tenía certificado en columnas legacy de `billing.emitters`. Ahora delega de manera transparente la resolución y verificación al proveedor desacoplado `signatureService.SignXmlAsync`.
     * **Resolución Multi-Tenant de Firma por TenantId y Cédula/RUC (`DbTenantSigningCertificateProvider.cs`):** En la consulta SQL de `tenancy.tenant_signing_certificates`, se prioriza por `tenant_id` (`ORDER BY CASE WHEN tenant_id = @tenantId THEN 0 ELSE 1 END`) y se añade compatibilidad para personas naturales cuya cédula (10 dígitos en Security Data u otras ACs) coincide con los primeros 10 dígitos del RUC emisor (13 dígitos, ej. `0926398074` <-> `0926398074001`).

@@ -157,6 +157,7 @@ app.MapJournalEntryEndpointsV1();
 app.MapTaxDeclarationEndpointsV1();
 app.MapFinancialStatementsEndpointsV1();
 app.MapRemisionGuideEndpointsV1();
+app.MapInvoiceEmailEndpointsV1();
 
 var migrateOnStartup = app.Configuration.GetValue(
     "Database:MigrateOnStartup",

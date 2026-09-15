@@ -158,7 +158,10 @@ export function AppSettingsEmailSection({
 
       toast.show({
         title: 'Configuración guardada',
-        message: 'Los parámetros del motor de correo se guardaron en la base de datos para todas las empresas.',
+        message:
+          scope === 'Tenant'
+            ? 'Los parámetros del motor de correo se guardaron para esta empresa.'
+            : 'Los parámetros del motor de correo se guardaron como configuración global de plataforma.',
         variant: 'success',
       })
     } catch (err: unknown) {
@@ -406,7 +409,9 @@ export function AppSettingsEmailSection({
             disabled={disabled || loading}
             size={size}
           >
-            Habilitar motor de correos para todas las empresas
+            {scope === 'Tenant'
+              ? 'Habilitar motor de correos para esta empresa'
+              : 'Habilitar motor de correos para todas las empresas'}
           </CheckButton>
         </div>
       </div>
