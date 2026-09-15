@@ -251,16 +251,30 @@ export function useCommandPaletteItems({
     traverseNavigation(navigation)
 
     // Páginas institucionales clave
-    if (!seenPaths.has('/app/configuracion') && hasPerm('platform.settings.read')) {
+    if (!seenPaths.has('/organizacion/correo') && (hasPerm('platform.settings.read') || hasPerm('tenancy.tenant.read'))) {
+      seenPaths.add('/organizacion/correo')
+      items.push({
+        id: 'nav-email-settings',
+        title: 'Correo Electrónico (Zoho Mail SMTP)',
+        subtitle: 'Configuración de servidor SMTP, credenciales y prueba de envío',
+        category: 'Navegación',
+        icon: 'mail',
+        badge: 'Correo',
+        keywords: ['correo', 'email', 'zoho', 'smtp', 'notificaciones', 'envio', 'configuracion'],
+        onSelect: () => navigate('/organizacion/correo'),
+      })
+    }
+
+    if (!seenPaths.has('/app/configuracion') && (hasPerm('platform.settings.read') || hasPerm('tenancy.tenant.read'))) {
       seenPaths.add('/app/configuracion')
       items.push({
         id: 'nav-app-settings',
         title: 'Preferencias del Sistema',
-        subtitle: 'Configuración general de interfaz y plataforma',
+        subtitle: 'Configuración general de interfaz, motor de correo y plataforma',
         category: 'Navegación',
         icon: 'sliders-horizontal',
         badge: 'Ajustes',
-        keywords: ['preferencias', 'ajustes', 'configuracion', 'apariencia', 'plataforma'],
+        keywords: ['preferencias', 'ajustes', 'configuracion', 'apariencia', 'plataforma', 'correo'],
         onSelect: () => navigate('/app/configuracion'),
       })
     }

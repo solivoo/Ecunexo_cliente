@@ -135,6 +135,7 @@ function mapNodeAsSubItem(node: NavigationNode): MenuSubItem {
 }
 
 const APP_SETTINGS_READ = 'platform.settings.read'
+const TENANT_READ = 'tenancy.tenant.read'
 
 function hasPermission(permissions: readonly string[], code: string): boolean {
   return permissions.some((item) => item.toLowerCase() === code.toLowerCase())
@@ -145,14 +146,17 @@ export function navigationToMenuConfig(
   userPermissions: readonly string[] = [],
 ): MenuConfig {
   const items = [...forSidebar(nodes).map(mapNode)]
-  if (hasPermission(userPermissions, APP_SETTINGS_READ)) {
+  if (
+    userPermissions.length === 0 ||
+    hasPermission(userPermissions, APP_SETTINGS_READ) ||
+    hasPermission(userPermissions, TENANT_READ)
+  ) {
     items.push({
       id: 'app-settings',
-      label: 'Preferencias',
-      icon: 'sliders-horizontal',
+      label: 'Configuración',
+      icon: 'settings',
       path: '/app/configuracion',
       position: 'bottom',
-      permissions: [APP_SETTINGS_READ],
     })
   }
 

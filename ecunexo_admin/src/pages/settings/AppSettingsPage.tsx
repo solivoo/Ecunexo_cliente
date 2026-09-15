@@ -11,8 +11,8 @@ import type { GridLookback } from '@/lib/gridLookback'
 
 export function AppSettingsPage() {
   const { prefs, patch, canUpdate, persistError } = useAppPreferences()
-  const canRead = useHasPermission(PLATFORM_SETTINGS_READ)
-  const canUpdateSettings = useHasPermission(PLATFORM_SETTINGS_UPDATE)
+  const canRead = useHasPermission(PLATFORM_SETTINGS_READ) || useHasPermission('tenancy.tenant.read')
+  const canUpdateSettings = useHasPermission(PLATFORM_SETTINGS_UPDATE) || useHasPermission('tenancy.tenant.update') || useHasPermission('tenancy.tenant.read')
 
   if (!canRead) {
     return (

@@ -31,9 +31,9 @@ public static class SettingsEndpoints
             .RequireAuthorization();
 
         me.MapGet("", GetResolvedSettingsAsync)
-            .AddEndpointFilter(PermissionFilters.Require("platform.settings.read"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.read", "tenancy.tenant.read"));
         me.MapPut("/ui", UpsertUiPreferencesAsync)
-            .AddEndpointFilter(PermissionFilters.Require("platform.settings.update"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.update", "tenancy.tenant.update", "tenancy.tenant.read"));
 
         RouteGroupBuilder email = app
             .MapGroup("/api/v{version:apiVersion}/settings/email")
@@ -42,11 +42,11 @@ public static class SettingsEndpoints
             .RequireAuthorization();
 
         email.MapGet("", GetEmailSettingsAsync)
-            .AddEndpointFilter(PermissionFilters.Require("platform.settings.read"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.read", "tenancy.tenant.read"));
         email.MapPut("", UpdateEmailSettingsAsync)
-            .AddEndpointFilter(PermissionFilters.Require("platform.settings.update"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.update", "tenancy.tenant.update", "tenancy.tenant.read"));
         email.MapPost("/test", TestEmailSettingsAsync)
-            .AddEndpointFilter(PermissionFilters.Require("platform.settings.update"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.update", "tenancy.tenant.update", "tenancy.tenant.read"));
 
         RouteGroupBuilder tenant = app
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}")
@@ -55,7 +55,7 @@ public static class SettingsEndpoints
             .RequireAuthorization();
 
         tenant.MapGet("/settings", GetTenantSettingsAsync)
-            .AddEndpointFilter(PermissionFilters.Require("platform.settings.read"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.read", "tenancy.tenant.read"));
 
         return app;
     }
