@@ -10,4 +10,5 @@ public sealed record EmailMessage(
     string ToAddress,
     string ToDisplayName,
     string Subject,
-    string PlainTextBody);
+    string PlainTextBody,
+    string? HtmlBody = null);

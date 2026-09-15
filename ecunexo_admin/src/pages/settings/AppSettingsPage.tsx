@@ -1,9 +1,10 @@
 import { useAppPreferences } from '@/features/settings/AppPreferencesProvider'
 import { PageHeader, StatusBadge } from '@/components/ui'
 import { AppSettingsAppearanceSection } from '@/pages/settings/AppSettingsAppearanceSection'
+import { AppSettingsEmailSection } from '@/pages/settings/AppSettingsEmailSection'
 import { AppSettingsListsSection } from '@/pages/settings/AppSettingsListsSection'
 import { AppSettingsSystemSection } from '@/pages/settings/AppSettingsSystemSection'
-import { PLATFORM_SETTINGS_READ } from '@/services/settingsApi'
+import { PLATFORM_SETTINGS_READ, PLATFORM_SETTINGS_UPDATE } from '@/services/settingsApi'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import type { GluboxThemeId, MaxRecords, ToastPositionId, UiDensity } from '@/lib/appPreferences'
 import type { GridLookback } from '@/lib/gridLookback'
@@ -11,6 +12,7 @@ import type { GridLookback } from '@/lib/gridLookback'
 export function AppSettingsPage() {
   const { prefs, patch, canUpdate, persistError } = useAppPreferences()
   const canRead = useHasPermission(PLATFORM_SETTINGS_READ)
+  const canUpdateSettings = useHasPermission(PLATFORM_SETTINGS_UPDATE)
 
   if (!canRead) {
     return (
@@ -28,7 +30,7 @@ export function AppSettingsPage() {
     <div className="ecu-dashboard-layout">
       <PageHeader
         title="Preferencias del Sistema"
-        subtitle="Personaliza la apariencia, densidad, tema de interfaz, notificaciones y comportamiento de listados."
+        subtitle="Personaliza la apariencia, densidad, tema de interfaz, notificaciones, motor de correo y comportamiento de listados."
         badge={<StatusBadge tone="primary">Ajustes</StatusBadge>}
       />
       {persistError ? <p className="ecu-companies-form__hint" role="alert">{persistError}</p> : null}
@@ -56,6 +58,7 @@ export function AppSettingsPage() {
           onStartDarkModeChange={(startDarkMode: boolean) => patch({ startDarkMode })}
           onToastPositionChange={(toastPosition: ToastPositionId) => patch({ toastPosition })}
         />
+        <AppSettingsEmailSection disabled={!canUpdateSettings} />
         <AppSettingsSystemSection />
       </div>
     </div>

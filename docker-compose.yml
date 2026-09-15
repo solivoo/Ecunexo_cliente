@@ -37,8 +37,14 @@ services:
       ASPNETCORE_URLS: http://+:8080
       Database__MigrateOnStartup: ${DATABASE_MIGRATE_ON_STARTUP:-true}
       Database__SeedCatalogOnStartup: ${DATABASE_SEED_CATALOG_ON_STARTUP:-true}
-      ConnectionStrings__Default: >-
-        Host=postgres;Port=5432;Database=${POSTGRES_DB:-ecunexo};Username=${POSTGRES_USER:-ecunexo};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__Default: ${DATABASE_CONNECTION_STRING:-Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ecunexo};Username=${POSTGRES_USER:-ecunexo};Password=${POSTGRES_PASSWORD}}
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-}
+      Smtp__UseSsl: ${SMTP_USE_SSL:-}
+      Smtp__UserName: ${SMTP_USERNAME:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Smtp__SenderEmail: ${SMTP_SENDER_EMAIL:-}
+      Smtp__SenderName: ${SMTP_SENDER_NAME:-}
       Jwt__Issuer: ${JWT_ISSUER:-EcuNexo}
       Jwt__Audience: ${JWT_AUDIENCE:-EcuNexo.Api}
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-CAMBIA_ESTO_MINIMO_32_CARACTERES_ALEATORIOS!!}

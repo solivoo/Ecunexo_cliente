@@ -3,21 +3,25 @@
    Complemento de alto nivel para componentes glubox
    ========================================================================== */
 
+:root {
+  --ecu-layout-max-width: 1720px;
+}
+
 /* --- Contenedor Principal y Layout Base con Espaciado Generoso --- */
 .ecu-dashboard-layout {
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
-  max-width: 1400px;
+  max-width: min(100%, var(--ecu-layout-max-width, 1720px));
   margin: 0 auto;
   width: 100%;
   padding-bottom: 3rem;
   box-sizing: border-box;
 }
 
-/* Formularios operativos con tablas/previews anchos (importación de lotes, etc.) */
+/* Formularios operativos con tablas/previews anchos (importación de lotes, etc.) — Misma medida unificada */
 .ecu-dashboard-layout--fluid {
-  max-width: min(100%, 1680px);
+  max-width: min(100%, var(--ecu-layout-max-width, 1720px));
 }
 
 .ecu-import-batch-form {

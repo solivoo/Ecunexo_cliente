@@ -9,6 +9,30 @@
 * **Rama Activa:** `main`.
 * **Última Versión Publicada:** `v0.26.0`.
 * **Hitos Recientes Completados:**
+  - **Motor de Correos Electrónicos Transaccionales (Zoho Mail / SMTP) y Configuración Multi-Empresa Centralizada en BD:**
+    * **Motor de Envío SMTP con MailKit (`SmtpEmailSender` & `IEmailSender`):**
+      - Implementación completa de `SmtpEmailSender` sustituyendo el stub `LoggingEmailSender`, con soporte nativo de sockets seguros SSL (puerto 465) y STARTTLS (puerto 587) requeridos por Zoho Mail.
+      - Recuperación dinámica de parámetros desde la base de datos PostgreSQL (`platform.sys_settings`, código `system.email.smtp`, scope `Global`), permitiendo que cualquier cambio en caliente desde la interfaz surta efecto inmediato sin reiniciar servicios.
+      - Respaldo de variables de entorno (`Smtp:Host`, `Smtp:Port`, `Smtp:UserName`, etc.) para casos de configuración estática o inicialización.
+      - Enriquecimiento de `EmailMessage` con campo opcional `HtmlBody` preservando compatibilidad regresiva completa.
+    * **Endpoints REST de Configuración y Diagnóstico en `SettingsEndpoints.cs`:**
+      - `GET /api/v1/settings/email`: Devuelve los parámetros SMTP activos con máscara de seguridad en la contraseña (`HasPassword = true`).
+      - `PUT /api/v1/settings/email`: Persiste la configuración en `platform.sys_settings` preservando la contraseña existente si el usuario no la modifica.
+      - `POST /api/v1/settings/email/test`: Ejecuta handshake SMTP en tiempo real y envía un correo de verificación con plantilla HTML/texto al destinatario especificado, reportando diagnósticos claros ante credenciales inválidas o fallos de red.
+    * **Variables de Entorno para Base de Datos en Portainer / Docker:**
+      - Actualización de `docker-compose.yml` y `.env.example` con variables granulares (`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`) y soporte de cadena de conexión directa `DATABASE_CONNECTION_STRING`.
+    * **Apartado Frontend en Preferencias del Sistema (`AppSettingsEmailSection.tsx`):**
+      - Integración de sección empresarial en [`AppSettingsPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/settings/AppSettingsPage.tsx) (`/app/configuracion`).
+      - Botón de preajuste inteligente «Preajuste Zoho Mail» (`smtp.zoho.com`, puerto 465 SSL, remitente predeterminado).
+      - Controles de UI con `glubox` (`TextBox`, `CheckButton`, `Button`, `Toast`), badges de estado y panel integrado para prueba de envío en tiempo real.
+    * **Calidad y Tests Automatizados:**
+      - Tests unitarios en [`EmailSmtpConfigTests.cs`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/tests/EcuNexo.Core.UnitTests/Platform/EmailSmtpConfigTests.cs) verificando invariantes y serialización JSON.
+      - 316 tests unitarios pasando al 100% (211 Core + 105 Business).
+      - Build de producción Vite/TypeScript verificado con 0 errores.
+  - **Ampliación y Unificación del Layout Base para Monitores de 32" y Alta Resolución (`--ecu-layout-max-width: 1720px`):**
+    * **Unificación de Medida Global:** Sustitución del límite rígido de `1400px` por la variable CSS `--ecu-layout-max-width: 1720px` con `max-width: min(100%, var(--ecu-layout-max-width, 1720px))` en `.ecu-dashboard-layout` y `.ecu-dashboard-layout--fluid` dentro de `enterpriseUi.css` y `dashboardPage.css`.
+    * **Aprovechamiento de Grillas (DataGrid) y Secciones:** Incremento de +320px (+23%) en el ancho horizontal disponible para tablas y vistas (Compras, Facturación, Inventarios, Kardex, Clientes, Guías de Remisión), eliminando el espacio muerto en monitores 2K/4K de 32 pulgadas y manteniendo adaptabilidad fluida (100% de ancho) en pantallas 1080p sin scroll horizontal.
+    * **Build verificado:** Compilación TypeScript y Vite exitosa con 0 errores.
   - **Aislamiento Total de Contadores SRI (Producción vs Pruebas), Garantía Estricta de Clave/XML y Diagnóstico Técnico en el SPA:**
     * **Aislamiento de Contadores en Base de Datos (`billing.emission_point_configs`):**
       - Separación estricta de contadores en PostgreSQL: columna `LastSequential` (Producción, Ambiente 2) y columna `LastTestSequential` (Pruebas, Ambiente 1).

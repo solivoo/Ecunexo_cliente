@@ -128,7 +128,7 @@ api.interceptors.response.use(
     } else if (error.code === 'ECONNABORTED') {
       store.dispatch(setHttpMessage('La solicitud tardó demasiado. Revisa tu conexión.'))
     } else if (!error.response) {
-      store.dispatch(setHttpMessage('No hay conexión con el servidor. Comprueba la Api en el puerto 5088.'))
+      store.dispatch(setHttpMessage('No hay conexión con el servidor. Comprueba tu conexión o el estado de la API.'))
     } else if (status && status >= 500) {
       store.dispatch(setHttpMessage('Error en el servidor. Intenta más tarde.'))
     }

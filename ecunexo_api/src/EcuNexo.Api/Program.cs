@@ -72,7 +72,8 @@ builder.Services.AddHttpClient<ILicenseOnlineValidator, LicenseOnlineValidator>(
 
 builder.Services.AddSingleton<IPasswordHasher, EcuPasswordHasher>();
 builder.Services.AddSingleton<IJwtAccessTokenFactory, JwtAccessTokenFactory>();
-builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
+builder.Services.AddScoped<SmtpEmailSender>();
+builder.Services.AddScoped<IEmailSender>(sp => sp.GetRequiredService<SmtpEmailSender>());
 
 builder.Services.AddBusiness(builder.Configuration);
 builder.Services.AddData(connectionString);

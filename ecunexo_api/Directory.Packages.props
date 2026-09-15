@@ -24,6 +24,9 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.0" />
     <PackageVersion Include="Scrutor" Version="6.0.0" />
   </ItemGroup>
+  <ItemGroup Label="Email / SMTP">
+    <PackageVersion Include="MailKit" Version="4.18.0" />
+  </ItemGroup>
   <ItemGroup Label="API / Versioning / OpenAPI">
     <PackageVersion Include="Asp.Versioning.Http" Version="8.1.0" />
     <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
