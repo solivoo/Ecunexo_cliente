@@ -37,11 +37,13 @@ import {
   isConsumidorFinalType,
   normalizeCounterpartyForEmit,
   normalizeLineIvaRate,
+  sriTypeToCustomerIdentificationType,
   validateCounterpartyForEmit,
   type InvoiceCounterpartyValues,
   type InvoiceHeaderValues,
   type InvoiceLineDraft,
 } from '@/pages/facturacion/invoiceFormTypes'
+import { getOrCreateCustomer } from '@/services/customersApi'
 import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
 import type { TenantBranding } from '@/types/tenantBranding'
 import { readApiError } from '@/lib/readApiError'
@@ -64,6 +66,7 @@ const INITIAL_COUNTERPARTY: InvoiceCounterpartyValues = {
   identificationType: '04',
   identification: '',
   businessName: '',
+  customerType: 1,
   address: '',
   email: '',
   phone: '',
@@ -488,6 +491,25 @@ export function useInvoiceEmitForm({
 
       setBusy(true)
       try {
+        if (tenantId && !isConsumidorFinalType(counterpartyPayload.identificationType)) {
+          try {
+            await getOrCreateCustomer(tenantId, {
+              name: counterpartyPayload.businessName.trim(),
+              taxId: counterpartyPayload.identification.trim(),
+              customerType: (counterpartyPayload.customerType || 2) as any,
+              identificationType: sriTypeToCustomerIdentificationType(
+                counterpartyPayload.identificationType
+              ) as any,
+              contactEmail: counterpartyPayload.email.trim() || null,
+              contactPhone: counterpartyPayload.phone.trim() || null,
+              address: counterpartyPayload.address.trim() || null,
+              returnExistingIfExists: true,
+            })
+          } catch (syncErr: unknown) {
+            console.warn('[AutoCustomerSync] No se pudo sincronizar el cliente en el directorio:', syncErr)
+          }
+        }
+
         const result = await saveInvoiceDraft({
           header,
           counterparty: counterpartyPayload,

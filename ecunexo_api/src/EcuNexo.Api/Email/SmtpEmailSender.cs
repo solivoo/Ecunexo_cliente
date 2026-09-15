@@ -21,22 +21,25 @@ public sealed partial class SmtpEmailSender : IEmailSender
     };
 
     private readonly ISysSettingRepository _settingRepository;
+    private readonly ITenantContext _tenantContext;
     private readonly IConfiguration _configuration;
     private readonly ILogger<SmtpEmailSender> _logger;
 
     public SmtpEmailSender(
         ISysSettingRepository settingRepository,
+        ITenantContext tenantContext,
         IConfiguration configuration,
         ILogger<SmtpEmailSender> logger)
     {
         _settingRepository = settingRepository;
+        _tenantContext = tenantContext;
         _configuration = configuration;
         _logger = logger;
     }
 
     public async Task SendAsync(EmailMessage message, CancellationToken ct)
     {
-        var config = await GetEffectiveConfigAsync(ct).ConfigureAwait(false);
+        var config = await GetEffectiveConfigAsync(ct, message.TenantId).ConfigureAwait(false);
         if (config is null || !config.IsEnabled || string.IsNullOrWhiteSpace(config.Host))
         {
             LogSmtpSkipped(_logger, message.ToAddress, message.Subject);
@@ -47,19 +50,44 @@ public sealed partial class SmtpEmailSender : IEmailSender
             .ConfigureAwait(false);
     }
 
-    public async Task<EmailSmtpConfig?> GetEffectiveConfigAsync(CancellationToken ct)
+    public async Task<EmailSmtpConfig?> GetEffectiveConfigAsync(CancellationToken ct, Guid? tenantId = null)
     {
-        // 1. Consultar en la base de datos (sys_settings con scope Global para todas las empresas)
-        var setting = await _settingRepository
+        // 1. Si hay tenant activo (o explícito), buscar primero su motor de correo propio
+        var effectiveTenantId = tenantId ?? _tenantContext.CurrentTenantId;
+        if (effectiveTenantId is { } tid && tid != Guid.Empty)
+        {
+            var tenantSetting = await _settingRepository
+                .GetAsync(EmailSettingCodes.SmtpConfig, SettingScope.Tenant, tid.ToString("D"), ct)
+                .ConfigureAwait(false);
+
+            if (tenantSetting is not null && !string.IsNullOrWhiteSpace(tenantSetting.ValueJson))
+            {
+                try
+                {
+                    var parsed = JsonSerializer.Deserialize<EmailSmtpConfig>(tenantSetting.ValueJson, JsonOptions);
+                    if (parsed is not null && parsed.IsEnabled && !string.IsNullOrWhiteSpace(parsed.Host))
+                    {
+                        return parsed;
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    LogCorruptedSetting(_logger, $"{EmailSettingCodes.SmtpConfig}:tenant:{tid}", ex);
+                }
+            }
+        }
+
+        // 2. Fallback de plataforma: sys_settings con scope Global (motor universal EcuNexo)
+        var globalSetting = await _settingRepository
             .GetAsync(EmailSettingCodes.SmtpConfig, SettingScope.Global, null, ct)
             .ConfigureAwait(false);
 
-        if (setting is not null && !string.IsNullOrWhiteSpace(setting.ValueJson))
+        if (globalSetting is not null && !string.IsNullOrWhiteSpace(globalSetting.ValueJson))
         {
             try
             {
-                var parsed = JsonSerializer.Deserialize<EmailSmtpConfig>(setting.ValueJson, JsonOptions);
-                if (parsed is not null)
+                var parsed = JsonSerializer.Deserialize<EmailSmtpConfig>(globalSetting.ValueJson, JsonOptions);
+                if (parsed is not null && parsed.IsEnabled && !string.IsNullOrWhiteSpace(parsed.Host))
                 {
                     return parsed;
                 }

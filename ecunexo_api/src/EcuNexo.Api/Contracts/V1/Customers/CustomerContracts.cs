@@ -27,7 +27,8 @@ public sealed record CreateCustomerApiRequest(
     string? ContactPhone = null,
     string? Address = null,
     string? ContactPerson = null,
-    string? Notes = null);
+    string? Notes = null,
+    bool ReturnExistingIfExists = false);
 
 public sealed record UpdateCustomerApiRequest(
     string Name,

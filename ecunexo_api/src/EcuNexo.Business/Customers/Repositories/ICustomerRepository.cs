@@ -6,6 +6,7 @@ public interface ICustomerRepository
 {
     Task AddAsync(Customer customer, CancellationToken ct);
     Task<Customer?> GetByIdAsync(Guid tenantId, Guid customerId, CancellationToken ct);
+    Task<Customer?> GetByTaxIdAsync(Guid tenantId, string taxId, CancellationToken ct);
     Task<Customer?> GetTrackedByIdAsync(Guid tenantId, Guid customerId, CancellationToken ct);
     Task<IReadOnlyList<Customer>> ListByTenantAsync(Guid tenantId, CancellationToken ct);
     Task<IReadOnlyList<Customer>> ListAsync(

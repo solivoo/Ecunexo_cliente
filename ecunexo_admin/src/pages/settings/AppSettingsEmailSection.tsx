@@ -14,6 +14,7 @@ import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import { readApiError } from '@/lib/readApiError'
 import {
   getEmailSettings,
+  resetEmailSettings,
   testEmailSettings,
   updateEmailSettings,
   type EmailSettingsDto,
@@ -46,6 +47,9 @@ export function AppSettingsEmailSection({
 
   const [targetEmail, setTargetEmail] = useState('')
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [isCustom, setIsCustom] = useState(false)
+  const [scope, setScope] = useState<'Global' | 'Tenant'>('Global')
+  const [resetting, setResetting] = useState(false)
 
   const loadSettings = useCallback(async () => {
     setLoading(true)
@@ -59,6 +63,8 @@ export function AppSettingsEmailSection({
       setSenderEmail(data.senderEmail || '')
       setSenderName(data.senderName || 'EcuNexo')
       setHasPassword(data.hasPassword)
+      setIsCustom(Boolean(data.isCustom))
+      setScope(data.scope ?? 'Global')
       if (data.hasPassword) {
         setPassword('********')
       }
@@ -76,6 +82,37 @@ export function AppSettingsEmailSection({
   useEffect(() => {
     void loadSettings()
   }, [loadSettings])
+
+  const handleResetToUniversal = async () => {
+    setResetting(true)
+    try {
+      const data = await resetEmailSettings()
+      setIsEnabled(data.isEnabled)
+      setHost(data.host || ZOHO_DEFAULT_HOST)
+      setPort(data.port || ZOHO_DEFAULT_PORT)
+      setUseSsl(data.useSsl)
+      setUserName(data.userName || '')
+      setSenderEmail(data.senderEmail || '')
+      setSenderName(data.senderName || 'EcuNexo')
+      setHasPassword(data.hasPassword)
+      setIsCustom(false)
+      setScope('Global')
+      setPassword(data.hasPassword ? '********' : '')
+      toast.show({
+        title: 'Motor predeterminado restablecido',
+        message: 'Esta empresa volvió a utilizar el motor universal de EcuNexo.',
+        variant: 'info',
+      })
+    } catch (err: unknown) {
+      toast.show({
+        title: 'Error al restablecer',
+        message: readApiError(err, 'No se pudo restablecer la configuración de correo.'),
+        variant: 'error',
+      })
+    } finally {
+      setResetting(false)
+    }
+  }
 
   const handleApplyZohoDefaults = () => {
     setHost(ZOHO_DEFAULT_HOST)
@@ -181,27 +218,81 @@ export function AppSettingsEmailSection({
   return (
     <SectionCard
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <span>Motor de Correo Electrónico (Zoho Mail / SMTP)</span>
-          <StatusBadge tone={isEnabled ? 'success' : 'neutral'}>
-            {isEnabled ? 'Motor Activo' : 'Deshabilitado'}
+          <StatusBadge tone={isCustom ? 'success' : isEnabled ? 'info' : 'neutral'}>
+            {isCustom ? 'Motor Propio de la Empresa' : isEnabled ? 'Universal EcuNexo (Heredado)' : 'Deshabilitado'}
           </StatusBadge>
         </span>
       }
-      subtitle="Configuración centralizada en base de datos para el envío de comprobantes SRI, cotizaciones, órdenes de compra y alertas de todas las empresas."
+      subtitle={
+        scope === 'Tenant'
+          ? 'Personaliza el servidor SMTP exclusivo de esta empresa. Si no configuras uno propio, el sistema utiliza el motor universal de EcuNexo automáticamente.'
+          : 'Configuración global de plataforma que actúa como respaldo universal para todas las empresas sin correo propio.'
+      }
       action={
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={disabled || loading}
-          onClick={handleApplyZohoDefaults}
-        >
-          <Sparkles size={14} aria-hidden />
-          <span>Preajuste Zoho Mail</span>
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {isCustom && scope === 'Tenant' && !disabled ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={resetting || loading}
+              onClick={handleResetToUniversal}
+            >
+              <RotateCcw size={14} aria-hidden />
+              <span>{resetting ? 'Restableciendo…' : 'Restaurar motor EcuNexo'}</span>
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || loading}
+            onClick={handleApplyZohoDefaults}
+          >
+            <Sparkles size={14} aria-hidden />
+            <span>Preajuste Zoho Mail</span>
+          </Button>
+        </div>
       }
     >
+      {scope === 'Tenant' ? (
+        <div
+          style={{
+            marginBottom: '1.25rem',
+            padding: '0.875rem 1rem',
+            borderRadius: '8px',
+            border: isCustom ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(2, 132, 199, 0.3)',
+            background: isCustom ? 'rgba(16, 185, 129, 0.06)' : 'rgba(2, 132, 199, 0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {isCustom ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-sky-600 flex-shrink-0" />
+            )}
+            <div>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--glb-text)' }}>
+                {isCustom
+                  ? 'Motor de Correo Propio de esta Empresa'
+                  : 'Motor Universal EcuNexo (Por Defecto)'}
+              </p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--glb-muted)' }}>
+                {isCustom
+                  ? 'Esta empresa utiliza sus propias credenciales SMTP exclusivas para facturas y comprobantes. No afecta a las demás empresas.'
+                  : 'Esta empresa aún no tiene un correo propio configurado y está usando el motor universal de la plataforma. Si guardas datos aquí, se creará su propio motor sin afectar a las demás empresas.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
         <div className="ecu-companies-form__field">
           <TextBox

@@ -1,6 +1,7 @@
 import {
   DEFAULT_LINE_IVA_RATE,
   DEFAULT_PAYMENT_FORM_CODE,
+  defaultCustomerTypeForSriId,
   type InvoiceCounterpartyValues,
   type InvoiceHeaderValues,
   type InvoiceLineDraft,
@@ -30,10 +31,12 @@ export async function createAndLinkDispatchInvoice(
     paymentTermDays: 0,
   }
 
+  const idType = preview.counterparty.identificationType || '04'
   const counterparty: InvoiceCounterpartyValues = {
-    identificationType: preview.counterparty.identificationType || '04',
+    identificationType: idType,
     identification: preview.counterparty.identification,
     businessName: preview.counterparty.businessName,
+    customerType: defaultCustomerTypeForSriId(idType),
     address: preview.counterparty.address ?? '',
     email: preview.counterparty.email ?? '',
     phone: preview.counterparty.phone ?? '',

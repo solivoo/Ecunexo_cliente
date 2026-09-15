@@ -53,6 +53,27 @@ export async function getCustomerById(
 }
 
 /**
+ * Obtener un cliente específico por su RUC o Cédula (TaxId).
+ */
+export async function getCustomerByTaxId(
+  tenantId: string,
+  taxId: string
+): Promise<CustomerDto | null> {
+  try {
+    const { data } = await api.get<CustomerDto>(
+      `/api/v1/tenants/${tenantId}/customers/by-tax-id/${encodeURIComponent(taxId.trim())}`
+    )
+    return data
+  } catch (err: unknown) {
+    const axiosErr = err as { response?: { status?: number } }
+    if (axiosErr?.response?.status === 404) {
+      return null
+    }
+    throw err
+  }
+}
+
+/**
  * Crear un nuevo cliente en el directorio comercial.
  */
 export async function createCustomer(
@@ -64,6 +85,36 @@ export async function createCustomer(
     payload
   )
   return data
+}
+
+/**
+ * Asegurar que un cliente exista en el directorio: si existe por TaxId lo retorna,
+ * si no existe lo crea automáticamente.
+ */
+export async function getOrCreateCustomer(
+  tenantId: string,
+  payload: CreateCustomerPayload
+): Promise<CustomerDto> {
+  const cleanTaxId = payload.taxId?.trim()
+  if (cleanTaxId) {
+    const existing = await getCustomerByTaxId(tenantId, cleanTaxId)
+    if (existing) {
+      return existing
+    }
+  }
+  try {
+    return await createCustomer(tenantId, {
+      ...payload,
+      returnExistingIfExists: true,
+    })
+  } catch (err: unknown) {
+    const axiosErr = err as { response?: { status?: number } }
+    if (axiosErr?.response?.status === 409 && cleanTaxId) {
+      const found = await getCustomerByTaxId(tenantId, cleanTaxId)
+      if (found) return found
+    }
+    throw err
+  }
 }
 
 /**

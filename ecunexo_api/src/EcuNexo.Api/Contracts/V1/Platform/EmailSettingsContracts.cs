@@ -8,7 +8,9 @@ public sealed record EmailSettingsResponse(
     string UserName,
     string SenderEmail,
     string SenderName,
-    bool HasPassword);
+    bool HasPassword,
+    bool IsCustom = false,
+    string Scope = "Global");
 
 public sealed record UpdateEmailSettingsRequest(
     bool IsEnabled,

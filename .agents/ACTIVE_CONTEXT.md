@@ -7,8 +7,37 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.26.0`.
+* **Última Versión Publicada:** `v0.27.2`.
 * **Hitos Recientes Completados:**
+  - **Motor de Correos Jerárquico por Empresa con Fallback Universal de Plataforma EcuNexo (v0.27.2):**
+    * **Aislamiento Multi-Tenant Estricto de Correo:** Cada empresa cliente puede configurar su propio motor SMTP (Zoho Mail, Google Workspace, Outlook, etc.) de manera 100% aislada. La configuración se almacena en `platform.sys_settings` con `Scope = SettingScope.Tenant` y `ScopeId = tenantId`, impidiendo que ninguna empresa modifique o acceda a las credenciales de otras.
+    * **Fallback Universal EcuNexo:** Si una empresa no define un motor propio, el despachador de correos (`SmtpEmailSender`) recurre automáticamente a la configuración universal de la plataforma (`SettingScope.Global`) y, en su defecto, a las variables de entorno `Smtp:*`.
+    * **Endpoints REST Jerárquicos (`SettingsEndpoints.cs`):**
+      - `GET /api/v1/settings/email`: Devuelve la configuración efectiva de la empresa activa, indicando si es propia (`IsCustom = true, Scope = "Tenant"`) o si usa el motor universal (`IsCustom = false, Scope = "Global"`).
+      - `PUT /api/v1/settings/email`: Persiste la configuración con alcance `Tenant` si el usuario tiene empresa activa en sesión, o `Global` si es titular de plataforma.
+      - `DELETE /api/v1/settings/email`: Elimina el override de la empresa activa, revirtiendo instantáneamente al motor universal de EcuNexo.
+      - `POST /api/v1/settings/email/test`: Realiza prueba de conexión y envío SMTP en tiempo real utilizando las credenciales activas de la empresa.
+    * **UI/UX con glubox y Feedback Contextual (`AppSettingsEmailSection.tsx` & `CompanyEmailSettingsPage.tsx`):**
+      - Banners informativos claros que distinguen entre "Motor de Correo Propio de esta Empresa" y "Motor Universal EcuNexo (Por Defecto)".
+      - Botón de acción rápida "Restaurar motor EcuNexo" para volver al motor centralizado con un solo clic.
+      - Acceso directo desde `/organizacion/correo` y barra de configuración del sistema.
+    * **Calidad y Verificación:** 316 pruebas unitarias .NET superadas (Core y Business) y build frontend limpio (0 errores).
+  - **Auto-Aprovisionamiento de Clientes en Directorio, Selector de Tipo de Cliente y Validaciones Mínimas SRI en Core Facturación:**
+    * **Validaciones Mínimas de Factura y Contraparte en Core (`Billing.Core`):**
+      - `Counterparty.cs`: Validación estricta de tipo de identificación SRI (`04`: RUC 13 dígitos, `05`: Cédula 10 dígitos, `06`: Pasaporte, `07`: Consumidor Final `9999999999999`, `08`: Exterior). Validación de longitud de razón social (2 a 300 caracteres), dirección máxima 300 caracteres y formato de email.
+      - `ElectronicInvoice.cs`: Invariantes de fecha de emisión válida (no default), contraparte obligatoria, mínimo 1 ítem/línea, verificación de totales y regla SRI de límite máximo de USD 50.00 para facturas a Consumidor Final (`07`).
+      - Tests unitarios en `Billing.Core.Tests`: 169/169 tests pasando al 100% incluyendo casos positivos y negativos de RUC/Cédula, tipos inválidos y límite de $50 en Consumidor Final.
+    * **Backend de Clientes (`ecunexo_api`):**
+      - Repositorio `ICustomerRepository` y `CustomerRepository`: Método `GetByTaxIdAsync(tenantId, taxId, ct)` para búsqueda rápida de contrapartes.
+      - Endpoint `GET /api/v1/tenants/{tenantId}/customers/by-tax-id/{taxId}` habilitado con permisos de lectura y facturación (`facturacion.facturas.create`).
+      - Endpoint `POST /api/v1/tenants/{tenantId}/customers`: Parámetro `ReturnExistingIfExists = true` para aprovisionamiento idempotente seguro (evita 409 Conflict si fue registrado concurrentemente).
+      - Filtro de permisos extendido: usuarios con permiso `facturacion.facturas.create` pueden crear clientes en el directorio automáticamente al emitir facturas sin necesidad de rol administrativo de gestión de clientes.
+    * **Frontend Facturación (`ecunexo_admin`):**
+      - Campo y selector reactivo de **Tipo de Cliente** (`customerType`: Corporativo B2B, Persona Natural, Distribuidor Mayorista, Taller Aliado, Consumidor Final, Institución Pública) en la cabecera de emisión de facturas (`InvoiceClientFields.tsx`).
+      - Asignación inteligente por defecto al cambiar tipo de identificación SRI (`04`/`08` -> Corporativo B2B, `05`/`06` -> Persona Natural, `07` -> Consumidor Final).
+      - Flujo de emisión en `useInvoiceEmitForm.ts`: Al enviar la factura, si no es Consumidor Final, se auto-aprovisiona o verifica en el Directorio de Clientes (`getOrCreateCustomer`) antes de guardar el borrador, garantizando que todo cliente facturado quede registrado en el directorio con su tipo de cliente seleccionado.
+      - Rebalanceo visual en cuadrícula simétrica de 4x2 campos en pantallas de alta resolución.
+      - Cobertura de tests Playwright en `tests-ui/comun/facturacion-cliente-tipo.spec.ts` pasando al 100%.
   - **Motor de Correos Electrónicos Transaccionales (Zoho Mail / SMTP) y Configuración Multi-Empresa Centralizada en BD:**
     * **Motor de Envío SMTP con MailKit (`SmtpEmailSender` & `IEmailSender`):**
       - Implementación completa de `SmtpEmailSender` sustituyendo el stub `LoggingEmailSender`, con soporte nativo de sockets seguros SSL (puerto 465) y STARTTLS (puerto 587) requeridos por Zoho Mail.

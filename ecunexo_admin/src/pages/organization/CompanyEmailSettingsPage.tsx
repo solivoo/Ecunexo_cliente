@@ -42,7 +42,7 @@ export function CompanyEmailSettingsPage() {
     <div className="ecu-dashboard-layout">
       <PageHeader
         title="Configuración de Correo Electrónico"
-        subtitle="Servidor SMTP (Zoho Mail) para el envío de facturas electrónicas, comprobantes SRI y notificaciones automáticas para todas las empresas de la plataforma."
+        subtitle="Servidor SMTP (Zoho Mail u otro) para el envío de facturas electrónicas, comprobantes SRI y notificaciones de esta empresa, con respaldo universal de la plataforma."
         badge={<StatusBadge tone="primary">Zoho Mail SMTP</StatusBadge>}
         actions={
           <Button
@@ -72,8 +72,8 @@ export function CompanyEmailSettingsPage() {
         />
         <StatCard
           label="Alcance del Motor"
-          value="Todas las empresas"
-          footerText="Configuración global del sistema"
+          value="Por Empresa"
+          footerText="Con respaldo universal EcuNexo"
           icon={<Globe className="w-5 h-5" />}
         />
         <StatCard

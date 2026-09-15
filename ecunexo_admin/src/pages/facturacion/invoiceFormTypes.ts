@@ -13,6 +13,7 @@ export type InvoiceCounterpartyValues = {
   readonly identificationType: string
   readonly identification: string
   readonly businessName: string
+  readonly customerType: number
   readonly address: string
   readonly email: string
   readonly phone: string
@@ -64,6 +65,46 @@ export const ID_TYPE_OPTIONS = [
   { value: '08', label: 'Identificación del exterior' },
 ] as const
 
+export const CUSTOMER_TYPE_OPTIONS = [
+  { value: '1', label: 'Corporativo B2B / Empresa' },
+  { value: '2', label: 'Persona Natural / Particular' },
+  { value: '3', label: 'Distribuidor / Mayorista' },
+  { value: '4', label: 'Taller Aliado' },
+  { value: '5', label: 'Consumidor Final' },
+  { value: '6', label: 'Institución Pública / Gobierno' },
+] as const
+
+export function defaultCustomerTypeForSriId(sriType: string): number {
+  switch (sriType) {
+    case '04': // RUC
+    case '08': // Exterior
+      return 1 // CorporativoB2B
+    case '05': // Cédula
+    case '06': // Pasaporte
+      return 2 // PersonaNatural
+    case '07': // Consumidor final
+      return 5 // ConsumidorFinal
+    default:
+      return 2
+  }
+}
+
+export function sriTypeToCustomerIdentificationType(sriType: string): number {
+  switch (sriType) {
+    case '04':
+      return 1 // Ruc
+    case '05':
+      return 2 // Cedula
+    case '06':
+    case '08':
+      return 3 // Pasaporte / Exterior
+    case '07':
+      return 4 // ConsumidorFinal
+    default:
+      return 1
+  }
+}
+
 /** Formas de pago SRI (tabla 24) — códigos habituales. */
 export const PAYMENT_FORM_OPTIONS = [
   { value: '01', label: 'Efectivo / sin sistema financiero' },
@@ -110,12 +151,14 @@ export function applyCounterpartyIdType(
   prev: InvoiceCounterpartyValues,
   nextType: string
 ): InvoiceCounterpartyValues {
+  const suggestedType = defaultCustomerTypeForSriId(nextType)
   if (isConsumidorFinalType(nextType)) {
     return {
       ...prev,
       identificationType: nextType,
       identification: CONSUMIDOR_FINAL_IDENTIFICATION,
       businessName: CONSUMIDOR_FINAL_BUSINESS_NAME,
+      customerType: 5,
     }
   }
 
@@ -125,10 +168,15 @@ export function applyCounterpartyIdType(
       identificationType: nextType,
       identification: '',
       businessName: '',
+      customerType: suggestedType,
     }
   }
 
-  return { ...prev, identificationType: nextType }
+  return {
+    ...prev,
+    identificationType: nextType,
+    customerType: prev.customerType === 5 ? suggestedType : (prev.customerType || suggestedType),
+  }
 }
 
 /** Normaliza comprador antes de enviar (fuerza valores SRI si tipo 07). */

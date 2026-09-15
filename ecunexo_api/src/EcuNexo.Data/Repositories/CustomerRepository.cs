@@ -23,6 +23,10 @@ public sealed class CustomerRepository : ICustomerRepository
         _db.Customers.AsNoTracking()
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == customerId && c.DeletedAt == null, ct);
 
+    public Task<Customer?> GetByTaxIdAsync(Guid tenantId, string taxId, CancellationToken ct) =>
+        _db.Customers.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.TaxId == taxId && c.DeletedAt == null, ct);
+
     public Task<Customer?> GetTrackedByIdAsync(Guid tenantId, Guid customerId, CancellationToken ct) =>
         _db.Customers
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == customerId && c.DeletedAt == null, ct);

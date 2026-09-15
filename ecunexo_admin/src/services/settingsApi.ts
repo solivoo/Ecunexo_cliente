@@ -29,6 +29,8 @@ export type EmailSettingsDto = {
   senderEmail: string
   senderName: string
   hasPassword: boolean
+  isCustom?: boolean
+  scope?: 'Global' | 'Tenant'
 }
 
 export type UpdateEmailSettingsBody = {
@@ -67,6 +69,11 @@ export async function updateEmailSettings(
   body: UpdateEmailSettingsBody,
 ): Promise<EmailSettingsDto> {
   const { data } = await api.put<EmailSettingsDto>('/api/v1/settings/email', body)
+  return data
+}
+
+export async function resetEmailSettings(): Promise<EmailSettingsDto> {
+  const { data } = await api.delete<EmailSettingsDto>('/api/v1/settings/email')
   return data
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { Select, TextBox } from 'glubox'
 import {
   CONSUMIDOR_FINAL_MAX_TOTAL_USD,
+  CUSTOMER_TYPE_OPTIONS,
   ID_TYPE_OPTIONS,
   PAYMENT_FORM_OPTIONS,
   customerIdentificationToSriType,
@@ -36,6 +37,7 @@ function customerToCounterparty(
       identificationType,
       identification: '9999999999999',
       businessName: 'CONSUMIDOR FINAL',
+      customerType: 5,
       address: customer.address ?? '',
       email: customer.contactEmail ?? '',
       phone: customer.contactPhone ?? '',
@@ -47,6 +49,7 @@ function customerToCounterparty(
     identificationType,
     identification: customer.taxId?.trim() ?? '',
     businessName: customer.name,
+    customerType: customer.customerType ?? 1,
     address: customer.address ?? '',
     email: customer.contactEmail ?? '',
     phone: customer.contactPhone ?? '',
@@ -126,6 +129,7 @@ export function InvoiceClientFields({
     onCounterpartyChange('identificationType', next.identificationType)
     onCounterpartyChange('identification', next.identification)
     onCounterpartyChange('businessName', next.businessName)
+    onCounterpartyChange('customerType', next.customerType)
     onCounterpartyChange('address', next.address)
     onCounterpartyChange('email', next.email)
     onCounterpartyChange('phone', next.phone)
@@ -203,6 +207,19 @@ export function InvoiceClientFields({
               emitParty('businessName', e.target.value)
             }
             placeholder={consumidorFinal ? 'CONSUMIDOR FINAL' : 'Nombre del comprador'}
+            disabled={disabled || consumidorFinal}
+            fullWidth
+          />
+        </div>
+        <div className="factura-emitir__cell factura-emitir__cell--customer-type">
+          <Select
+            id="inv-customer-type"
+            label="Tipo de cliente"
+            labelPosition="outlined"
+            variant="outline"
+            options={[...CUSTOMER_TYPE_OPTIONS]}
+            value={String(counterparty.customerType ?? 1)}
+            onChange={(v) => emitParty('customerType', Number(v))}
             disabled={disabled || consumidorFinal}
             fullWidth
           />

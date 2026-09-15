@@ -45,6 +45,8 @@ public static class SettingsEndpoints
             .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.read", "tenancy.tenant.read"));
         email.MapPut("", UpdateEmailSettingsAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.update", "tenancy.tenant.update", "tenancy.tenant.read"));
+        email.MapDelete("", ResetEmailSettingsAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.update", "tenancy.tenant.update", "tenancy.tenant.read"));
         email.MapPost("/test", TestEmailSettingsAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.update", "tenancy.tenant.update", "tenancy.tenant.read"));
 
@@ -131,31 +133,73 @@ public static class SettingsEndpoints
 
     private static async Task<IResult> GetEmailSettingsAsync(
         SmtpEmailSender smtpSender,
+        ISysSettingRepository repository,
+        ITenantContext tenant,
+        ICallerContext caller,
         CancellationToken ct)
     {
-        var config = await smtpSender.GetEffectiveConfigAsync(ct).ConfigureAwait(false);
-        if (config is null)
+        var tenantId = tenant.CurrentTenantId ?? caller.ExplicitTenantId;
+        if (tenantId is { } tid && tid != Guid.Empty)
         {
+            // 1. Ver si la empresa activa tiene configurado su propio motor de correo
+            var tenantSetting = await repository
+                .GetAsync(EmailSettingCodes.SmtpConfig, SettingScope.Tenant, tid.ToString("D"), ct)
+                .ConfigureAwait(false);
+
+            if (tenantSetting is not null && !string.IsNullOrWhiteSpace(tenantSetting.ValueJson))
+            {
+                try
+                {
+                    var parsed = JsonSerializer.Deserialize<EmailSmtpConfig>(tenantSetting.ValueJson, EmailJsonOpts);
+                    if (parsed is not null)
+                    {
+                        return Results.Ok(new EmailSettingsResponse(
+                            IsEnabled: parsed.IsEnabled,
+                            Host: parsed.Host,
+                            Port: parsed.Port,
+                            UseSsl: parsed.UseSsl,
+                            UserName: parsed.UserName,
+                            SenderEmail: parsed.SenderEmail,
+                            SenderName: parsed.SenderName,
+                            HasPassword: !string.IsNullOrWhiteSpace(parsed.Password),
+                            IsCustom: true,
+                            Scope: "Tenant"));
+                    }
+                }
+                catch
+                {
+                    /* si falla deserialize, caer al fallback */
+                }
+            }
+
+            // 2. Si no tiene propio, devuelve el motor universal de EcuNexo como base heredada
+            var fallback = await smtpSender.GetEffectiveConfigAsync(ct, null).ConfigureAwait(false);
             return Results.Ok(new EmailSettingsResponse(
-                IsEnabled: true,
-                Host: "smtp.zoho.com",
-                Port: 465,
-                UseSsl: true,
-                UserName: string.Empty,
-                SenderEmail: string.Empty,
-                SenderName: "EcuNexo",
-                HasPassword: false));
+                IsEnabled: fallback?.IsEnabled ?? true,
+                Host: fallback?.Host ?? "smtp.zoho.com",
+                Port: fallback?.Port ?? 465,
+                UseSsl: fallback?.UseSsl ?? true,
+                UserName: fallback?.UserName ?? string.Empty,
+                SenderEmail: fallback?.SenderEmail ?? string.Empty,
+                SenderName: fallback?.SenderName ?? "EcuNexo",
+                HasPassword: !string.IsNullOrWhiteSpace(fallback?.Password),
+                IsCustom: false,
+                Scope: "Global"));
         }
 
+        // Modo sin tenant (titular global de plataforma)
+        var globalConfig = await smtpSender.GetEffectiveConfigAsync(ct, null).ConfigureAwait(false);
         return Results.Ok(new EmailSettingsResponse(
-            IsEnabled: config.IsEnabled,
-            Host: config.Host,
-            Port: config.Port,
-            UseSsl: config.UseSsl,
-            UserName: config.UserName,
-            SenderEmail: config.SenderEmail,
-            SenderName: config.SenderName,
-            HasPassword: !string.IsNullOrWhiteSpace(config.Password)));
+            IsEnabled: globalConfig?.IsEnabled ?? true,
+            Host: globalConfig?.Host ?? "smtp.zoho.com",
+            Port: globalConfig?.Port ?? 465,
+            UseSsl: globalConfig?.UseSsl ?? true,
+            UserName: globalConfig?.UserName ?? string.Empty,
+            SenderEmail: globalConfig?.SenderEmail ?? string.Empty,
+            SenderName: globalConfig?.SenderName ?? "EcuNexo",
+            HasPassword: !string.IsNullOrWhiteSpace(globalConfig?.Password),
+            IsCustom: false,
+            Scope: "Global"));
     }
 
     private static async Task<IResult> UpdateEmailSettingsAsync(
@@ -163,18 +207,23 @@ public static class SettingsEndpoints
         ISysSettingRepository repository,
         IIdGenerator idGen,
         IUnitOfWork uow,
+        ITenantContext tenant,
         ICallerContext caller,
         CancellationToken ct)
     {
+        var tenantId = tenant.CurrentTenantId ?? caller.ExplicitTenantId;
+        var scope = (tenantId is { } tid && tid != Guid.Empty) ? SettingScope.Tenant : SettingScope.Global;
+        var scopeId = scope == SettingScope.Tenant ? tenantId!.Value.ToString("D") : null;
+
         var existing = await repository
-            .GetAsync(EmailSettingCodes.SmtpConfig, SettingScope.Global, null, ct)
+            .GetAsync(EmailSettingCodes.SmtpConfig, scope, scopeId, ct)
             .ConfigureAwait(false);
 
         string passwordToSave = request.Password?.Trim() ?? string.Empty;
 
-        if (existing is not null)
+        if (string.IsNullOrWhiteSpace(passwordToSave) || passwordToSave.All(c => c == '*'))
         {
-            if (string.IsNullOrWhiteSpace(passwordToSave) || passwordToSave.All(c => c == '*'))
+            if (existing is not null)
             {
                 try
                 {
@@ -211,8 +260,8 @@ public static class SettingsEndpoints
                 idGen.NewId(),
                 EmailSettingCodes.SmtpConfig,
                 json,
-                SettingScope.Global,
-                null);
+                scope,
+                scopeId);
 
             if (created.IsFailure)
             {
@@ -233,19 +282,61 @@ public static class SettingsEndpoints
         await uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return Results.Ok(new EmailSettingsResponse(
-            newConfig.IsEnabled,
-            newConfig.Host,
-            newConfig.Port,
-            newConfig.UseSsl,
-            newConfig.UserName,
-            newConfig.SenderEmail,
-            newConfig.SenderName,
-            !string.IsNullOrWhiteSpace(newConfig.Password)));
+            IsEnabled: newConfig.IsEnabled,
+            Host: newConfig.Host,
+            Port: newConfig.Port,
+            UseSsl: newConfig.UseSsl,
+            UserName: newConfig.UserName,
+            SenderEmail: newConfig.SenderEmail,
+            SenderName: newConfig.SenderName,
+            HasPassword: !string.IsNullOrWhiteSpace(newConfig.Password),
+            IsCustom: scope == SettingScope.Tenant,
+            Scope: scope.ToString()));
+    }
+
+    private static async Task<IResult> ResetEmailSettingsAsync(
+        ISysSettingRepository repository,
+        IUnitOfWork uow,
+        ITenantContext tenant,
+        ICallerContext caller,
+        SmtpEmailSender smtpSender,
+        CancellationToken ct)
+    {
+        var tenantId = tenant.CurrentTenantId ?? caller.ExplicitTenantId;
+        if (tenantId is not { } tid || tid == Guid.Empty)
+        {
+            return Results.BadRequest(new { error = "Solo se puede restablecer la configuración de correo dentro del contexto de una empresa." });
+        }
+
+        var existing = await repository
+            .GetAsync(EmailSettingCodes.SmtpConfig, SettingScope.Tenant, tid.ToString("D"), ct)
+            .ConfigureAwait(false);
+
+        if (existing is not null)
+        {
+            repository.Remove(existing);
+            await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+
+        var fallback = await smtpSender.GetEffectiveConfigAsync(ct, null).ConfigureAwait(false);
+        return Results.Ok(new EmailSettingsResponse(
+            IsEnabled: fallback?.IsEnabled ?? true,
+            Host: fallback?.Host ?? "smtp.zoho.com",
+            Port: fallback?.Port ?? 465,
+            UseSsl: fallback?.UseSsl ?? true,
+            UserName: fallback?.UserName ?? string.Empty,
+            SenderEmail: fallback?.SenderEmail ?? string.Empty,
+            SenderName: fallback?.SenderName ?? "EcuNexo",
+            HasPassword: !string.IsNullOrWhiteSpace(fallback?.Password),
+            IsCustom: false,
+            Scope: "Global"));
     }
 
     private static async Task<IResult> TestEmailSettingsAsync(
         TestEmailSettingsRequest request,
         SmtpEmailSender smtpSender,
+        ITenantContext tenant,
+        ICallerContext caller,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.TargetEmail))
@@ -253,7 +344,8 @@ public static class SettingsEndpoints
             return Results.BadRequest(new TestEmailSettingsResponse(false, "El correo destinatario es obligatorio para la prueba."));
         }
 
-        var savedConfig = await smtpSender.GetEffectiveConfigAsync(ct).ConfigureAwait(false);
+        var tenantId = tenant.CurrentTenantId ?? caller.ExplicitTenantId;
+        var savedConfig = await smtpSender.GetEffectiveConfigAsync(ct, tenantId).ConfigureAwait(false);
 
         var host = !string.IsNullOrWhiteSpace(request.Host) ? request.Host.Trim() : savedConfig?.Host ?? "smtp.zoho.com";
         var port = (request.Port.HasValue && request.Port.Value > 0) ? request.Port.Value : savedConfig?.Port ?? 465;
@@ -286,8 +378,8 @@ public static class SettingsEndpoints
 
         try
         {
-            var subject = "Prueba de configuración de correo — EcuNexo";
-            var textBody = $"¡Hola!\n\nSi estás leyendo este mensaje, la configuración del motor de correo electrónico (Zoho Mail / SMTP) en EcuNexo está funcionando correctamente para todas las empresas del sistema.\n\nFecha y hora: {DateTimeOffset.UtcNow:u}\nServidor: {testConfig.Host}:{testConfig.Port}\nRemitente: {testConfig.SenderName} <{testConfig.SenderEmail}>";
+            var subject = $"Prueba de configuración de correo — {testConfig.SenderName}";
+            var textBody = $"¡Hola!\n\nSi estás leyendo este mensaje, la configuración del motor de correo electrónico (Zoho Mail / SMTP) en EcuNexo está funcionando correctamente.\n\nFecha y hora: {DateTimeOffset.UtcNow:u}\nServidor: {testConfig.Host}:{testConfig.Port}\nRemitente: {testConfig.SenderName} <{testConfig.SenderEmail}>";
             var htmlBody = $@"
 <div style=""font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;"">
     <h2 style=""color: #0284c7; margin-top: 0;"">EcuNexo — Verificación de Correo</h2>

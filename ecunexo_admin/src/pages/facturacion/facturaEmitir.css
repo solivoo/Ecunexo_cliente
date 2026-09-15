@@ -218,14 +218,12 @@
   .factura-emitir__meta-grid--client .factura-emitir__cell--id-type,
   .factura-emitir__meta-grid--client .factura-emitir__cell--id,
   .factura-emitir__meta-grid--client .factura-emitir__cell--name,
+  .factura-emitir__meta-grid--client .factura-emitir__cell--customer-type,
   .factura-emitir__meta-grid--client .factura-emitir__cell--payment,
+  .factura-emitir__meta-grid--client .factura-emitir__cell--addr,
   .factura-emitir__meta-grid--client .factura-emitir__cell--email,
   .factura-emitir__meta-grid--client .factura-emitir__cell--phone {
     grid-column: span 1;
-  }
-
-  .factura-emitir__meta-grid--client .factura-emitir__cell--addr {
-    grid-column: span 2;
   }
 
   .factura-emitir__meta-grid--notes .factura-emitir__cell--payment-term {

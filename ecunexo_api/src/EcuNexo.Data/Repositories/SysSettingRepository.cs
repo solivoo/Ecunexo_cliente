@@ -50,4 +50,9 @@ public sealed class SysSettingRepository : ISysSettingRepository
     {
         await _db.SysSettings.AddAsync(setting, ct).ConfigureAwait(false);
     }
+
+    public void Remove(SysSetting setting)
+    {
+        _db.SysSettings.Remove(setting);
+    }
 }

@@ -17,4 +17,6 @@ public interface ISysSettingRepository
         CancellationToken ct);
 
     Task AddAsync(SysSetting setting, CancellationToken ct);
+
+    void Remove(SysSetting setting);
 }

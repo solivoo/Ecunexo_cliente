@@ -102,6 +102,7 @@ export type CreateCustomerPayload = {
   contactPerson?: string | null
   notes?: string | null
   isActive?: boolean
+  returnExistingIfExists?: boolean
 }
 
 export type UpdateCustomerPayload = {

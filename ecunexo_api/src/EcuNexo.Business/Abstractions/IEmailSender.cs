@@ -11,4 +11,5 @@ public sealed record EmailMessage(
     string ToDisplayName,
     string Subject,
     string PlainTextBody,
-    string? HtmlBody = null);
+    string? HtmlBody = null,
+    Guid? TenantId = null);

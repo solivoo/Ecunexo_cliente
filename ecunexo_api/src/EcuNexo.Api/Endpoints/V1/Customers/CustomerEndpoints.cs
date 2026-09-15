@@ -44,8 +44,19 @@ public static class CustomerEndpoints
                 "facturacion.facturas.create",
                 "facturacion.comprobantes.read"));
 
+        group.MapGet("/by-tax-id/{taxId}", GetCustomerByTaxIdAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "customers.read",
+                "customers.manage",
+                "repairs.batches.read",
+                "facturacion.read",
+                "facturacion.facturas.create",
+                "facturacion.comprobantes.read"));
+
         group.MapPost("/", CreateCustomerAsync)
-            .AddEndpointFilter(PermissionFilters.Require("customers.manage"));
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "customers.manage",
+                "facturacion.facturas.create"));
 
         group.MapPut("/{customerId:guid}", UpdateCustomerAsync)
             .AddEndpointFilter(PermissionFilters.Require("customers.manage"));
@@ -96,6 +107,26 @@ public static class CustomerEndpoints
         return Results.Ok(customer);
     }
 
+    private static async Task<IResult> GetCustomerByTaxIdAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] string taxId,
+        [FromServices] ICustomerRepository customerRepo,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(taxId))
+        {
+            return Results.BadRequest(new { error = "La identificación fiscal o RUC es obligatoria." });
+        }
+
+        var customer = await customerRepo.GetByTaxIdAsync(tenantId, taxId.Trim(), ct).ConfigureAwait(false);
+        if (customer == null)
+        {
+            return Results.NotFound(new { message = "Cliente no encontrado para la identificación provista." });
+        }
+
+        return Results.Ok(customer);
+    }
+
     private static async Task<IResult> CreateCustomerAsync(
         [FromRoute] Guid tenantId,
         [FromBody] CreateCustomerApiRequest request,
@@ -119,14 +150,23 @@ public static class CustomerEndpoints
         var trimmedName = request.Name.Trim();
         var trimmedTaxId = string.IsNullOrWhiteSpace(request.TaxId) ? null : request.TaxId.Trim();
 
+        if (trimmedTaxId != null)
+        {
+            var existing = await customerRepo.GetByTaxIdAsync(tenantId, trimmedTaxId, ct).ConfigureAwait(false);
+            if (existing != null)
+            {
+                if (request.ReturnExistingIfExists)
+                {
+                    return Results.Ok(existing);
+                }
+
+                return Results.Conflict(new { error = "Ya existe un cliente registrado con esta identificación fiscal o RUC." });
+            }
+        }
+
         if (await customerRepo.ExistsByNameAsync(tenantId, trimmedName, null, ct).ConfigureAwait(false))
         {
             return Results.Conflict(new { error = "Ya existe un cliente registrado con esta razón social." });
-        }
-
-        if (trimmedTaxId != null && await customerRepo.ExistsByTaxIdAsync(tenantId, trimmedTaxId, null, ct).ConfigureAwait(false))
-        {
-            return Results.Conflict(new { error = "Ya existe un cliente registrado con esta identificación fiscal o RUC." });
         }
 
         var customerResult = Customer.Create(
