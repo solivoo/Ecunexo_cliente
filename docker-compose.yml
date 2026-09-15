@@ -84,7 +84,8 @@ services:
     ports:
       - "${CLIENTE_SPA_HOST_PORT:-5173}:80"
     networks:
-      - cliente
+      - cliente       # red interna del stack: spa ↔ api
+      - npm_network   # expone el contenedor al DNS de Nginx Proxy Manager
 
 volumes:
   cliente_pg_data:
@@ -92,3 +93,11 @@ volumes:
 networks:
   cliente:
     driver: bridge
+
+  # Red externa de Nginx Proxy Manager.
+  # Declarar aquí garantiza que la spa se una automáticamente en cada redeploy,
+  # sin necesitar 'docker network connect' manual post-deploy.
+  # Nombre exacto obtenido con: docker network ls | grep nginx
+  npm_network:
+    external: true
+    name: nginx_default
