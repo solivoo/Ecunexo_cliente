@@ -9,13 +9,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-ecunexo}
-      POSTGRES_USER: ${POSTGRES_USER:-ecunexo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${CLIENTE_POSTGRES_DB:-${POSTGRES_DB:-ecunexo}}
+      POSTGRES_USER: ${CLIENTE_POSTGRES_USER:-${POSTGRES_USER:-ecunexo}}
+      POSTGRES_PASSWORD: ${CLIENTE_POSTGRES_PASSWORD:-${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}}
     volumes:
       - cliente_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ecunexo} -d ${POSTGRES_DB:-ecunexo}"]
+      test: ["CMD-SHELL", "pg_isready -U ${CLIENTE_POSTGRES_USER:-${POSTGRES_USER:-ecunexo}} -d ${CLIENTE_POSTGRES_DB:-${POSTGRES_DB:-ecunexo}}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -37,7 +37,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
       Database__MigrateOnStartup: ${DATABASE_MIGRATE_ON_STARTUP:-true}
       Database__SeedCatalogOnStartup: ${DATABASE_SEED_CATALOG_ON_STARTUP:-true}
-      ConnectionStrings__Default: ${DATABASE_CONNECTION_STRING:-Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-ecunexo};Username=${POSTGRES_USER:-ecunexo};Password=${POSTGRES_PASSWORD}}
+      ConnectionStrings__Default: ${CLIENTE_DATABASE_CONNECTION_STRING:-${DATABASE_CONNECTION_STRING:-Host=${CLIENTE_POSTGRES_HOST:-${POSTGRES_HOST:-postgres}};Port=${CLIENTE_POSTGRES_PORT:-${POSTGRES_PORT:-5432}};Database=${CLIENTE_POSTGRES_DB:-${POSTGRES_DB:-ecunexo}};Username=${CLIENTE_POSTGRES_USER:-${POSTGRES_USER:-ecunexo}};Password=${CLIENTE_POSTGRES_PASSWORD:-${POSTGRES_PASSWORD}}}}
       Smtp__Host: ${SMTP_HOST:-}
       Smtp__Port: ${SMTP_PORT:-}
       Smtp__UseSsl: ${SMTP_USE_SSL:-}
