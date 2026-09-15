@@ -157,20 +157,6 @@ export function AppShellUserMenu({ onLogout, onOpenAbout }: AppShellUserMenuProp
             role="menuitem"
             onClick={() => {
               close()
-              void navigate('/organizacion/correo')
-            }}
-          >
-            <span className="material-symbols-outlined" aria-hidden>
-              mail
-            </span>
-            Correo electrónico (Zoho)
-          </button>
-          <button
-            type="button"
-            className="app-shell__user-menu-item"
-            role="menuitem"
-            onClick={() => {
-              close()
               void navigate('/app/configuracion')
             }}
           >

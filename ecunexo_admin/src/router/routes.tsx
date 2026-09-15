@@ -11,7 +11,6 @@ import { CreateCompanyPage } from '@/pages/organization/CreateCompanyPage'
 import { EditCompanyPage } from '@/pages/organization/EditCompanyPage'
 import { OrganizationProfilePage } from '@/pages/organization/OrganizationProfilePage'
 import { OrganizationSettingsPage } from '@/pages/organization/OrganizationSettingsPage'
-import { CompanyEmailSettingsPage } from '@/pages/organization/CompanyEmailSettingsPage'
 import { AppSettingsPage } from '@/pages/settings/AppSettingsPage'
 import { PermissionDetailPage } from '@/pages/security/PermissionDetailPage'
 import { PermissionsCatalogPage } from '@/pages/security/PermissionsCatalogPage'
@@ -115,7 +114,7 @@ export const routes: RouteObject[] = [
           { path: 'organizacion/empresas/:companyId/editar', element: <EditCompanyPage /> },
           { path: 'organizacion/plan', element: <OrganizationPlanPage /> },
           { path: 'organizacion/configuracion', element: <OrganizationSettingsPage /> },
-          { path: 'organizacion/correo', element: <CompanyEmailSettingsPage /> },
+          { path: 'organizacion/correo', element: <Navigate to="/app/configuracion" replace /> },
           { path: 'app/configuracion', element: <AppSettingsPage /> },
           { path: 'equipo/usuarios', element: <UsersListPage /> },
           { path: 'equipo/usuarios/nueva', element: <CreateUserPage /> },

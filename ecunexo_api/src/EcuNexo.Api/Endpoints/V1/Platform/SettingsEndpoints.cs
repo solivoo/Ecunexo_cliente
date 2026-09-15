@@ -209,6 +209,7 @@ public static class SettingsEndpoints
         IUnitOfWork uow,
         ITenantContext tenant,
         ICallerContext caller,
+        SmtpEmailSender smtpSender,
         CancellationToken ct)
     {
         var tenantId = tenant.CurrentTenantId ?? caller.ExplicitTenantId;
@@ -236,6 +237,14 @@ public static class SettingsEndpoints
                 catch
                 {
                     /* si falla deserialize, se conserva passwordToSave */
+                }
+            }
+            else if (scope == SettingScope.Tenant)
+            {
+                var fallbackConfig = await smtpSender.GetEffectiveConfigAsync(ct, null).ConfigureAwait(false);
+                if (fallbackConfig is not null && !string.IsNullOrWhiteSpace(fallbackConfig.Password))
+                {
+                    passwordToSave = fallbackConfig.Password;
                 }
             }
         }
@@ -373,28 +382,21 @@ public static class SettingsEndpoints
         // 2. Si no hay config persistida del tenant, usar el motor efectivo (global/env).
         var savedConfig = persistedTenantConfig ?? await smtpSender.GetEffectiveConfigAsync(ct, tenantId).ConfigureAwait(false);
 
-        if (savedConfig is null)
-        {
-            return Results.Ok(new TestEmailSettingsResponse(
-                false,
-                "No hay una configuración SMTP guardada. Ingresa y guarda el servidor, usuario y contraseña antes de probar."));
-        }
-
-        var host = !string.IsNullOrWhiteSpace(request.Host) ? request.Host.Trim() : savedConfig.Host;
-        var port = (request.Port.HasValue && request.Port.Value > 0) ? request.Port.Value : savedConfig.Port;
-        var useSsl = request.UseSsl ?? savedConfig.UseSsl;
-        var userName = !string.IsNullOrWhiteSpace(request.UserName) ? request.UserName.Trim() : savedConfig.UserName;
+        var host = !string.IsNullOrWhiteSpace(request.Host) ? request.Host.Trim() : (savedConfig?.Host ?? "smtp.zoho.com");
+        var port = (request.Port.HasValue && request.Port.Value > 0) ? request.Port.Value : (savedConfig?.Port ?? 465);
+        var useSsl = request.UseSsl ?? (savedConfig?.UseSsl ?? true);
+        var userName = !string.IsNullOrWhiteSpace(request.UserName) ? request.UserName.Trim() : (savedConfig?.UserName ?? string.Empty);
         var password = (!string.IsNullOrWhiteSpace(request.Password) && !request.Password.All(c => c == '*'))
             ? request.Password.Trim()
-            : savedConfig.Password;
-        var senderEmail = !string.IsNullOrWhiteSpace(request.SenderEmail) ? request.SenderEmail.Trim() : savedConfig.SenderEmail;
-        var senderName = !string.IsNullOrWhiteSpace(request.SenderName) ? request.SenderName.Trim() : savedConfig.SenderName;
+            : (savedConfig?.Password ?? string.Empty);
+        var senderEmail = !string.IsNullOrWhiteSpace(request.SenderEmail) ? request.SenderEmail.Trim() : (savedConfig?.SenderEmail ?? userName);
+        var senderName = !string.IsNullOrWhiteSpace(request.SenderName) ? request.SenderName.Trim() : (savedConfig?.SenderName ?? "EcuNexo");
 
-        if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
+        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
         {
             return Results.Ok(new TestEmailSettingsResponse(
                 false,
-                "Se requieren las credenciales SMTP (usuario y contraseña) para enviar el correo de prueba. Ingrésalas o guárdalas primero."));
+                "Se requieren las credenciales SMTP (servidor, usuario y contraseña) para enviar el correo de prueba. Ingrésalas en el formulario o guárdalas primero."));
         }
 
         var testConfig = new EmailSmtpConfig

@@ -3,6 +3,8 @@ import { Button, CheckButton, TextBox, useToast } from 'glubox'
 import {
   AlertCircle,
   CheckCircle2,
+  Eye,
+  EyeOff,
   Mail,
   RotateCcw,
   Save,
@@ -12,6 +14,7 @@ import {
 import { SectionCard, StatusBadge } from '@/components/ui'
 import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import { readApiError } from '@/lib/readApiError'
+import { useAppSelector } from '@/store/hooks'
 import {
   getEmailSettings,
   resetEmailSettings,
@@ -30,6 +33,7 @@ export function AppSettingsEmailSection({
 }) {
   const toast = useToast()
   const size = useGluComponentSize()
+  const activeTenantName = useAppSelector((state) => state.auth.tenant?.name)
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -41,6 +45,7 @@ export function AppSettingsEmailSection({
   const [useSsl, setUseSsl] = useState(true)
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [senderEmail, setSenderEmail] = useState('')
   const [senderName, setSenderName] = useState('EcuNexo')
   const [hasPassword, setHasPassword] = useState(false)
@@ -65,9 +70,7 @@ export function AppSettingsEmailSection({
       setHasPassword(data.hasPassword)
       setIsCustom(Boolean(data.isCustom))
       setScope(data.scope ?? 'Global')
-      if (data.hasPassword) {
-        setPassword('********')
-      }
+      setPassword('')
     } catch (err: unknown) {
       toast.show({
         title: 'Error al cargar ajustes de correo',
@@ -97,7 +100,7 @@ export function AppSettingsEmailSection({
       setHasPassword(data.hasPassword)
       setIsCustom(false)
       setScope('Global')
-      setPassword(data.hasPassword ? '********' : '')
+      setPassword('')
       toast.show({
         title: 'Motor predeterminado restablecido',
         message: 'Esta empresa volvió a utilizar el motor universal de EcuNexo.',
@@ -146,15 +149,13 @@ export function AppSettingsEmailSection({
         port: Number(port) || ZOHO_DEFAULT_PORT,
         useSsl,
         userName: userName.trim(),
-        password: password === '********' ? undefined : password,
+        password: password.trim() ? password.trim() : undefined,
         senderEmail: senderEmail.trim(),
         senderName: senderName.trim(),
       })
 
       setHasPassword(updated.hasPassword)
-      if (updated.hasPassword) {
-        setPassword('********')
-      }
+      setPassword('')
 
       toast.show({
         title: 'Configuración guardada',
@@ -194,7 +195,7 @@ export function AppSettingsEmailSection({
         port: Number(port) || ZOHO_DEFAULT_PORT,
         useSsl,
         userName: userName.trim(),
-        password: password === '********' ? undefined : password,
+        password: password.trim() ? password.trim() : undefined,
         senderEmail: senderEmail.trim(),
         senderName: senderName.trim(),
       })
@@ -284,13 +285,13 @@ export function AppSettingsEmailSection({
             <div>
               <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--glb-text)' }}>
                 {isCustom
-                  ? 'Motor de Correo Propio de esta Empresa'
-                  : 'Motor Universal EcuNexo (Por Defecto)'}
+                  ? `Motor de Correo Propio de ${activeTenantName || 'esta Empresa'}`
+                  : `Motor Universal EcuNexo — ${activeTenantName || 'Empresa Activa'}`}
               </p>
               <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--glb-muted)' }}>
                 {isCustom
-                  ? 'Esta empresa utiliza sus propias credenciales SMTP exclusivas para facturas y comprobantes. No afecta a las demás empresas.'
-                  : 'Esta empresa aún no tiene un correo propio configurado y está usando el motor universal de la plataforma. Si guardas datos aquí, se creará su propio motor sin afectar a las demás empresas.'}
+                  ? `Esta empresa (${activeTenantName || 'activa'}) utiliza sus propias credenciales SMTP exclusivas para emitir facturas y notificaciones. Los cambios no afectan a otras empresas.`
+                  : `Esta empresa (${activeTenantName || 'activa'}) aún no tiene credenciales propias configuradas y usa el motor universal de EcuNexo. Si guardas tu contraseña de aplicación aquí, quedará registrada exclusivamente para esta empresa.`}
               </p>
             </div>
           </div>
@@ -344,19 +345,55 @@ export function AppSettingsEmailSection({
         </div>
 
         <div className="ecu-companies-form__field">
-          <TextBox
-            id="smtp-password"
-            label="Contraseña o Clave de Aplicación"
-            labelPosition="outlined"
-            variant="outline"
-            type="password"
-            value={password}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-            disabled={disabled || loading}
-            placeholder={hasPassword ? '••••••••' : 'Clave de aplicación Zoho'}
-            fullWidth
-            size={size}
-          />
+          <div style={{ position: 'relative' }}>
+            <TextBox
+              id="smtp-password"
+              label={hasPassword ? 'Contraseña o Clave de Aplicación (Configurada)' : 'Contraseña o Clave de Aplicación'}
+              labelPosition="outlined"
+              variant="outline"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+              disabled={disabled || loading}
+              placeholder={
+                hasPassword
+                  ? '•••••••• (Guardada en servidor. Deja vacío para conservar)'
+                  : 'Clave de aplicación Zoho (16 letras sin espacios)'
+              }
+              fullWidth
+              size={size}
+            />
+            {password ? (
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  color: 'var(--glb-muted, #64748b)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  zIndex: 2,
+                }}
+                title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            ) : null}
+          </div>
+          {hasPassword && !password ? (
+            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.8rem', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <CheckCircle2 size={14} style={{ flexShrink: 0 }} />
+              <span>Contraseña protegida y configurada en el servidor. Deja este campo en blanco si deseas conservarla.</span>
+            </p>
+          ) : null}
         </div>
 
         <div className="ecu-companies-form__field">
@@ -416,11 +453,36 @@ export function AppSettingsEmailSection({
         </div>
       </div>
 
-      <p className="ecu-companies-form__hint" style={{ marginTop: '0.5rem' }}>
-        <strong>Nota sobre Zoho Mail:</strong> Si tu cuenta de Zoho tiene autenticación en dos pasos (2FA),
-        debes generar una <em>Contraseña de Aplicación</em> en tu panel de seguridad de Zoho (Seguridad &rarr; Contraseñas de aplicación)
-        y pegarla en este campo.
-      </p>
+      <div
+        style={{
+          marginTop: '0.75rem',
+          padding: '0.75rem 1rem',
+          borderRadius: '6px',
+          background: 'var(--shell-surface-alt, rgba(0,0,0,0.03))',
+          border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+          fontSize: '0.83rem',
+          lineHeight: '1.5',
+          color: 'var(--glb-text)',
+        }}
+      >
+        <p style={{ margin: '0 0 0.4rem 0', fontWeight: 600 }}>
+          💡 Requisitos clave para conectar Zoho Mail sin error de autenticación:
+        </p>
+        <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+          <li>
+            <strong>Contraseña de Aplicación (Obligatoria si tienes 2FA):</strong> Si tu cuenta Zoho tiene verificación en dos pasos (2FA/MFA), Zoho <em>rechaza la contraseña normal con error de clave incorrecta</em>. Debes entrar a <strong>accounts.zoho.com</strong> &rarr; <strong>Seguridad</strong> &rarr; <strong>Contraseñas de aplicación</strong> y generar una clave de 16 letras para EcuNexo.
+          </li>
+          <li>
+            <strong>Acceso SMTP activado en Zoho:</strong> En <strong>mail.zoho.com</strong> &rarr; Configuración (rueda dentada) &rarr; <strong>Cuentas de Correo</strong> &rarr; <strong>Acceso POP/IMAP y SMTP</strong>, comprueba que la casilla <em>Acceso SMTP</em> esté habilitada.
+          </li>
+          <li>
+            <strong>Usuario completo:</strong> En <em>Usuario de autenticación</em>, ingresa tu dirección completa (ej: <code>notificaciones@tudominio.com</code>).
+          </li>
+          <li>
+            <strong>Servidor regional:</strong> Si tu cuenta Zoho se creó en Europa, el servidor es <code>smtp.zoho.eu</code> (puerto 465 SSL). Para cuentas internacionales estándar, es <code>smtp.zoho.com</code>.
+          </li>
+        </ul>
+      </div>
 
       <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
         <Button

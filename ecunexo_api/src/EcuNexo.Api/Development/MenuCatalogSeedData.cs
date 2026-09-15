@@ -194,21 +194,21 @@ internal static class MenuCatalogSeedData
         Item("configuracion", null, "Configuración", "settings", null, 90, MenuContextKind.Operational, "identity", ["tenancy.tenant.read", "facturacion.emisor.read", "contabilidad.configuracion.read", "platform.settings.read"]),
         Item("configuracion-empresa", "configuracion", "Empresa", "domain", "organizacion/perfil", 1, MenuContextKind.Operational, "identity", ["tenancy.tenant.read"]),
         Item("configuracion-facturacion-electronica", "configuracion", "Facturación electrónica", "receipt", "organizacion/facturacion-electronica", 2, MenuContextKind.Operational, "facturacion", ["facturacion.emisor.read", "tenancy.tenant.read", "contabilidad.configuracion.read"]),
-        Item("configuracion-correo", "configuracion", "Correo electrónico", "mail", "organizacion/correo", 3, MenuContextKind.Operational, "identity", ["tenancy.tenant.read", "platform.settings.read"]),
-        Item("configuracion-sistema", "configuracion", "Preferencias y Sistema", "sliders-horizontal", "app/configuracion", 4, MenuContextKind.Operational, "identity", ["tenancy.tenant.read", "platform.settings.read"]),
+        Item("configuracion-sistema", "configuracion", "Preferencias y Sistema", "sliders-horizontal", "app/configuracion", 3, MenuContextKind.Operational, "identity", ["tenancy.tenant.read", "platform.settings.read"]),
 
         // —— Suscripción (titular de licencia, sin tenant operativo) ——
         Item("sub-home", null, "Inicio", "dashboard", "inicio", 10, MenuContextKind.Subscription, "identity", []),
         Item("sub-org", null, "Organización", "domain", null, 20, MenuContextKind.Subscription, "identity", []),
         Item("sub-companies", "sub-org", "Listado de empresas", "building-2", "organizacion/empresas", 1, MenuContextKind.Subscription, "identity", ["tenancy.tenants.read"]),
         Item("sub-plan", "sub-org", "Plan y licencia", "analytics", "organizacion/plan", 3, MenuContextKind.Subscription, "identity", ["tenancy.tenant.read"]),
-        Item("sub-correo", "sub-org", "Correo electrónico", "mail", "organizacion/correo", 4, MenuContextKind.Subscription, "identity", ["tenancy.tenant.read", "platform.settings.read"]),
-        Item("sub-settings", "sub-org", "Configuración del sistema", "settings", "app/configuracion", 5, MenuContextKind.Subscription, "identity", ["tenancy.tenant.read", "platform.settings.read"]),
+        Item("sub-settings", "sub-org", "Configuración del sistema", "settings", "app/configuracion", 4, MenuContextKind.Subscription, "identity", ["tenancy.tenant.read", "platform.settings.read"]),
     ];
 
     /// <summary>Ítems retirados del menú SPA; el seeder los desactiva en Development.</summary>
     public static IReadOnlyList<string> RetiredMenuItemIds { get; } =
     [
+        "configuracion-correo",
+        "sub-correo",
         "org",
         "org-profile",
         "org-companies",

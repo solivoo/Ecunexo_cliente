@@ -9,6 +9,15 @@
 * **Rama Activa:** `main`.
 * **Última Versión Publicada:** `v0.28.0`.
 * **Hitos Recientes Completados:**
+  - **Unificación de Configuración de Correo en Preferencias del Sistema y Diagnóstico SMTP (`SettingsEndpoints.cs`, `MenuCatalogSeedData.cs`, `AppSettingsEmailSection.tsx`):**
+    * **Consolidación en Vista Única:** Eliminación de la duplicidad entre "Ajustes de Empresa / Correo" (`/organizacion/correo`) y "Preferencias del Sistema" (`/app/configuracion`). Se retiraron `configuracion-correo` y `sub-correo` del catálogo de menús (`MenuCatalogSeedData.cs`), se quitó el enlace redundante del menú de usuario (`AppShellUserMenu.tsx`) y se estableció redirección automática desde `/organizacion/correo` hacia `/app/configuracion`.
+    * **Diagnóstico de Clave Incorrecta en Zoho Mail (2FA / Application Password):** La clave SMTP no se encripta ni se hashea (se guarda como texto plano en la BD). El error de "clave incorrecta" en Zoho se produce porque con 2FA activo Zoho rechaza la contraseña normal y exige obligatoriamente una *Contraseña de Aplicación* (16 caracteres) generada en `accounts.zoho.com`. Se añadieron guías y validaciones en la interfaz para advertir sobre 2FA, acceso SMTP en Zoho y dominios regionales (`smtp.zoho.eu` vs `smtp.zoho.com`).
+    * **Prueba Inmediata sin Guardado Previo Obligatorio:** En `SettingsEndpoints.cs`, `TestEmailSettingsAsync` ahora permite ejecutar la prueba directamente con los datos ingresados en el formulario en tiempo real, sin bloquear al usuario si aún no había guardado en base de datos.
+    * **Preservación Segura de Contraseña y UX de Asteriscos:**
+      - Se eliminó la inyección artificial de `'********'` en el valor del input, la cual confundía al usuario y corrompía la clave si se editaba parcialmente.
+      - El input muestra placeholder `'•••••••• (Guardada en el servidor)'` y un badge verde de estado cuando existe contraseña en el servidor.
+      - Se añadió botón de alternancia de visibilidad (ojo Mostrar/Ocultar) para verificar la contraseña tipeada antes de guardar o probar.
+      - `UpdateEmailSettingsAsync` hereda de forma segura la contraseña del motor universal si una empresa personaliza sus datos por primera vez dejando la contraseña vacía.
   - **Fix: Prueba de Correo SMTP Falla con Credenciales Guardadas (`SettingsEndpoints.cs` + `CompanyEmailSettingsPage.tsx`):**
     * **Causa raíz:** `TestEmailSettingsAsync` llamaba `GetEffectiveConfigAsync` que descarta configs del tenant con `IsEnabled=false`, cayendo al motor global (sin credenciales) y retornando "Se requieren las credenciales SMTP" aunque la empresa tenía sus datos guardados.
     * **Fix backend (`SettingsEndpoints.cs`):** El endpoint `/settings/email/test` ahora lee **directamente** la config del tenant desde el repositorio (sin filtrar por `IsEnabled`) antes de recurrir al fallback global. Así la prueba siempre tiene acceso a las credenciales reales persistidas.
