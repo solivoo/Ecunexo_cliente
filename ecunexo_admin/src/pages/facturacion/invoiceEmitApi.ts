@@ -320,7 +320,7 @@ export async function saveInvoiceDraft(args: {
       }
     }
 
-    const signed = await signInvoice(emitterId, created.invoiceId, env)
+    const signed = await signInvoice(emitterId, created.invoiceId, env, args.tenantId)
     const signEnvDigit = signed.accessKey ? signed.accessKey.charAt(23) : null
     trace.signResult = {
       accessKey: signed.accessKey,

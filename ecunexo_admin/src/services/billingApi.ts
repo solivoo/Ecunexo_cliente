@@ -126,12 +126,16 @@ export async function createCreditNote(
 export async function signInvoice(
   emitterId: string,
   invoiceId: string,
-  environment?: 'Test' | 'Production' | null
+  environment?: 'Test' | 'Production' | null,
+  tenantId?: string | null
 ): Promise<InvoiceActionResponse> {
   const { data } = await billingApi.post<InvoiceActionResponse>(
     `/api/v1/emitters/${emitterId}/invoices/${invoiceId}/sign`,
     null,
-    { params: environment ? { environment } : undefined }
+    {
+      params: environment ? { environment } : undefined,
+      headers: tenantId ? { 'X-Tenant-Id': tenantId } : undefined,
+    }
   )
   return data
 }

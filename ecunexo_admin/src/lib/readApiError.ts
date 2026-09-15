@@ -5,6 +5,7 @@ type ProblemBody = {
   detail?: string
   title?: string
   error?: string
+  message?: string
 }
 
 export function readApiError(error: unknown, fallback = 'Ocurrió un error inesperado.'): string {
@@ -19,6 +20,7 @@ export function readApiError(error: unknown, fallback = 'Ocurrió un error inesp
       return data
     }
     if (data && typeof data === 'object') {
+      if (data.message?.trim()) return data.message
       if (data.detail?.trim()) return data.detail
       if (data.error?.trim()) return data.error
       if (data.title?.trim()) return data.title

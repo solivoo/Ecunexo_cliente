@@ -7,8 +7,13 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.27.2`.
+* **Última Versión Publicada:** `v0.28.0`.
 * **Hitos Recientes Completados:**
+  - **Aislamiento y Resolución de Firma Electrónica Multi-Empresa (`DbTenantSigningCertificateProvider` & `InvoicesController`):**
+    * **Desbloqueo de Validación en Memoria (`InvoicesController.cs`):** Eliminación del bloqueo prematuro `EmitterSigningValidator.EnsureReadyToSign(emitter)` que lanzaba `emitter.signing_certificate_missing_or_invalid` cuando la empresa no tenía certificado en columnas legacy de `billing.emitters`. Ahora delega de manera transparente la resolución y verificación al proveedor desacoplado `signatureService.SignXmlAsync`.
+    * **Resolución Multi-Tenant de Firma por TenantId y Cédula/RUC (`DbTenantSigningCertificateProvider.cs`):** En la consulta SQL de `tenancy.tenant_signing_certificates`, se prioriza por `tenant_id` (`ORDER BY CASE WHEN tenant_id = @tenantId THEN 0 ELSE 1 END`) y se añade compatibilidad para personas naturales cuya cédula (10 dígitos en Security Data u otras ACs) coincide con los primeros 10 dígitos del RUC emisor (13 dígitos, ej. `0926398074` <-> `0926398074001`).
+    * **Propagación de `X-Tenant-Id` en Firma de Facturas:** `billingApi.ts` y `invoiceEmitApi.ts` transmiten el header `X-Tenant-Id` en `POST /invoices/{id}/sign`, permitiendo asociar de forma transparente el tenant al emisor en `InvoicesController` y aislar las firmas de cada empresa (`everchic` vs `ecunexo`).
+    * **Mensajería de Error Humana en Frontend (`readApiError.ts`):** `readApiError` ahora prioriza `data.message` sobre códigos crudos como `emitter.signing_certificate_missing_or_invalid`, desplegando al usuario la razón exacta en español.
   - **Motor de Correos Jerárquico por Empresa con Fallback Universal de Plataforma EcuNexo (v0.27.2):**
     * **Aislamiento Multi-Tenant Estricto de Correo:** Cada empresa cliente puede configurar su propio motor SMTP (Zoho Mail, Google Workspace, Outlook, etc.) de manera 100% aislada. La configuración se almacena en `platform.sys_settings` con `Scope = SettingScope.Tenant` y `ScopeId = tenantId`, impidiendo que ninguna empresa modifique o acceda a las credenciales de otras.
     * **Fallback Universal EcuNexo:** Si una empresa no define un motor propio, el despachador de correos (`SmtpEmailSender`) recurre automáticamente a la configuración universal de la plataforma (`SettingScope.Global`) y, en su defecto, a las variables de entorno `Smtp:*`.
