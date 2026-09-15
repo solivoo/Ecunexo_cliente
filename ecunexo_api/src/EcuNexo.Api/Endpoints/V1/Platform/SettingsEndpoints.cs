@@ -438,7 +438,8 @@ public static class SettingsEndpoints
                 subject,
                 textBody,
                 htmlBody,
-                ct).ConfigureAwait(false);
+                ct,
+                logProtocol: true).ConfigureAwait(false);
 
             return Results.Ok(new TestEmailSettingsResponse(
                 true,

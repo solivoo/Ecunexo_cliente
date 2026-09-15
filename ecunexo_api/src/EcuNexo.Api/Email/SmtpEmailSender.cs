@@ -1,7 +1,9 @@
+using System.Text;
 using System.Text.Json;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Platform;
 using EcuNexo.Core.Platform;
+using MailKit;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
@@ -46,7 +48,8 @@ public sealed partial class SmtpEmailSender : IEmailSender
             return;
         }
 
-        await SendMimeMessageAsync(config, message.ToAddress, message.ToDisplayName, message.Subject, message.PlainTextBody, message.HtmlBody, ct)
+        var logProtocol = _configuration.GetValue("Smtp:ProtocolLogEnabled", false);
+        await SendMimeMessageAsync(config, message.ToAddress, message.ToDisplayName, message.Subject, message.PlainTextBody, message.HtmlBody, ct, logProtocol)
             .ConfigureAwait(false);
     }
 
@@ -135,49 +138,77 @@ public sealed partial class SmtpEmailSender : IEmailSender
         string subject,
         string plainTextBody,
         string? htmlBody,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool logProtocol = false)
     {
-        using var client = new SmtpClient();
+        // Logger temporal de protocolo SMTP para diagnosticar problemas de autenticación.
+        // En desarrollo se activa con Smtp:ProtocolLogEnabled=true.
+        MemoryStream? protocolStream = logProtocol ? new MemoryStream() : null;
+        ProtocolLogger? protocolLogger = protocolStream is not null ? new ProtocolLogger(protocolStream) : null;
 
-        // Opciones SSL/TLS:
-        // Puerto 465 -> SSL directo (SslOnConnect)
-        // Puerto 587 -> STARTTLS
-        // Otros puertos -> según UseSsl
-        var secureOption = ResolveSecureSocketOptions(config.Port, config.UseSsl);
-
-        await client.ConnectAsync(config.Host, config.Port, secureOption, ct).ConfigureAwait(false);
-
-        if (!string.IsNullOrWhiteSpace(config.UserName) && !string.IsNullOrWhiteSpace(config.Password))
+        try
         {
-            await client.AuthenticateAsync(config.UserName, config.Password, ct).ConfigureAwait(false);
-        }
+            using var client = protocolLogger is not null
+                ? new SmtpClient(protocolLogger)
+                : new SmtpClient();
 
-        var mime = new MimeMessage();
-        var fromEmail = !string.IsNullOrWhiteSpace(config.SenderEmail) ? config.SenderEmail : config.UserName;
-        var fromName = !string.IsNullOrWhiteSpace(config.SenderName) ? config.SenderName : "EcuNexo";
+            // Opciones SSL/TLS:
+            // Puerto 465 -> SSL directo (SslOnConnect)
+            // Puerto 587 -> STARTTLS
+            // Otros puertos -> según UseSsl
+            var secureOption = ResolveSecureSocketOptions(config.Port, config.UseSsl);
 
-        mime.From.Add(new MailboxAddress(fromName, fromEmail));
-        mime.To.Add(new MailboxAddress(toDisplayName, toAddress));
-        mime.Subject = subject;
+            await client.ConnectAsync(config.Host, config.Port, secureOption, ct).ConfigureAwait(false);
 
-        var bodyBuilder = new BodyBuilder();
-        if (!string.IsNullOrWhiteSpace(htmlBody))
-        {
-            bodyBuilder.HtmlBody = htmlBody;
-            if (!string.IsNullOrWhiteSpace(plainTextBody))
+            if (!string.IsNullOrWhiteSpace(config.UserName) && !string.IsNullOrWhiteSpace(config.Password))
+            {
+                await client.AuthenticateAsync(config.UserName, config.Password, ct).ConfigureAwait(false);
+            }
+
+            var mime = new MimeMessage();
+            var fromEmail = !string.IsNullOrWhiteSpace(config.SenderEmail) ? config.SenderEmail : config.UserName;
+            var fromName = !string.IsNullOrWhiteSpace(config.SenderName) ? config.SenderName : "EcuNexo";
+
+            mime.From.Add(new MailboxAddress(fromName, fromEmail));
+            mime.To.Add(new MailboxAddress(toDisplayName, toAddress));
+            mime.Subject = subject;
+
+            var bodyBuilder = new BodyBuilder();
+            if (!string.IsNullOrWhiteSpace(htmlBody))
+            {
+                bodyBuilder.HtmlBody = htmlBody;
+                if (!string.IsNullOrWhiteSpace(plainTextBody))
+                {
+                    bodyBuilder.TextBody = plainTextBody;
+                }
+            }
+            else
             {
                 bodyBuilder.TextBody = plainTextBody;
             }
+
+            mime.Body = bodyBuilder.ToMessageBody();
+
+            await client.SendAsync(mime, ct).ConfigureAwait(false);
+            await client.DisconnectAsync(true, ct).ConfigureAwait(false);
         }
-        else
+        finally
         {
-            bodyBuilder.TextBody = plainTextBody;
+            protocolLogger?.Dispose();
+
+            if (protocolStream is not null)
+            {
+                protocolStream.Position = 0;
+                var logText = Encoding.ASCII.GetString(protocolStream.ToArray());
+                if (!string.IsNullOrWhiteSpace(logText))
+                {
+                    Console.WriteLine("[SMTP PROTOCOL LOG]");
+                    Console.WriteLine(logText);
+                }
+
+                await protocolStream.DisposeAsync().ConfigureAwait(false);
+            }
         }
-
-        mime.Body = bodyBuilder.ToMessageBody();
-
-        await client.SendAsync(mime, ct).ConfigureAwait(false);
-        await client.DisconnectAsync(true, ct).ConfigureAwait(false);
     }
 
     public static SecureSocketOptions ResolveSecureSocketOptions(int port, bool useSsl)
