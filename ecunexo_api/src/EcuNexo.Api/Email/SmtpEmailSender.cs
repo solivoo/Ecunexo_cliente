@@ -144,7 +144,7 @@ public sealed partial class SmtpEmailSender : IEmailSender
         // Logger temporal de protocolo SMTP para diagnosticar problemas de autenticación.
         // En desarrollo se activa con Smtp:ProtocolLogEnabled=true.
         MemoryStream? protocolStream = logProtocol ? new MemoryStream() : null;
-        ProtocolLogger? protocolLogger = protocolStream is not null ? new ProtocolLogger(protocolStream) : null;
+        ProtocolLogger? protocolLogger = protocolStream is not null ? new ProtocolLogger(protocolStream, leaveOpen: true) : null;
 
         try
         {
