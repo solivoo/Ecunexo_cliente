@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.28.0`.
+* **Última Versión Publicada:** `v0.29.2`.
 * **Hitos Recientes Completados:**
+  - **Flexibilización de RUC en Carga de Certificado Digital (`UploadSigningCertificateHandler.cs`) [v0.29.2]:**
+    * Se removió el bloqueo estricto que comparaba el RUC de la empresa con el RUC en los metadatos del certificado `.p12`. Esto permite habilitar firmas digitales emitidas a personas naturales o representantes cuyo RUC no coincide carácter por carácter con la empresa en la BD.
+    * Pruebas unitarias backend (316/316) y build de producción Vite/TypeScript verificados sin errores. Commit y push realizados a `origin/main`.
   - **Unificación de Configuración de Correo en Preferencias del Sistema y Diagnóstico SMTP (`SettingsEndpoints.cs`, `MenuCatalogSeedData.cs`, `AppSettingsEmailSection.tsx`):**
     * **Consolidación en Vista Única:** Eliminación de la duplicidad entre "Ajustes de Empresa / Correo" (`/organizacion/correo`) y "Preferencias del Sistema" (`/app/configuracion`). Se retiraron `configuracion-correo` y `sub-correo` del catálogo de menús (`MenuCatalogSeedData.cs`), se quitó el enlace redundante del menú de usuario (`AppShellUserMenu.tsx`) y se estableció redirección automática desde `/organizacion/correo` hacia `/app/configuracion`.
     * **Diagnóstico de Clave Incorrecta en Zoho Mail (2FA / Application Password):** La clave SMTP no se encripta ni se hashea (se guarda como texto plano en la BD). El error de "clave incorrecta" en Zoho se produce porque con 2FA activo Zoho rechaza la contraseña normal y exige obligatoriamente una *Contraseña de Aplicación* (16 caracteres) generada en `accounts.zoho.com`. Se añadieron guías y validaciones en la interfaz para advertir sobre 2FA, acceso SMTP en Zoho y dominios regionales (`smtp.zoho.eu` vs `smtp.zoho.com`).
