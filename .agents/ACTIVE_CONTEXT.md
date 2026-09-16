@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.29.3`.
+* **Última Versión Publicada:** `v0.29.4`.
 * **Hitos Recientes Completados:**
+  - **Eliminación Segura de Facturas Borrador (`InvoicesController.cs`, `EfInvoiceRepository.cs`, `FacturasGrid.tsx`) [v0.29.4]:**
+    * **Endpoint REST DELETE (`Billing.Api` & `Billing.Infrastructure`):** `DELETE /api/v1/emitters/{emitterId}/invoices/{invoiceId}` y método `DeleteDraftAsync` en repositorio, restringido a comprobantes en estado `Draft` (no emitidos ni firmados).
+    * **Frontend UX (`FacturasGrid.tsx` & `billingApi.ts`):** Botón de papelera (`Trash2`) para filas en borrador con modal de confirmación destructiva Glubox (`<Popup>`) y refresco automático de la grilla.
+    * **Verificación:** 223/223 tests en `Facturacion` en verde, 316/316 en `ecunexo_api` en verde, `npm run build` sin errores.
   - **Habilitación de Envío de Comprobantes en Borrador al SRI desde DataGrid (`FacturasGrid.tsx`, `InvoicesController.cs`, `InvoiceSriResendRules.cs`) [v0.29.3]:**
     * **Integración en Backend (`Billing.Core` & `Billing.Api`):** Incorporación de `SriDocumentState.Draft` en `InvoiceSriResendRules.IsResendableState` y delegación transparente de `RetrySri` hacia `Sign` si la factura se encuentra en estado borrador.
     * **Frontend UX (`FacturasGrid.tsx`):** Actualización dinámica de etiqueta ("Enviar al SRI") y tooltip informativo ("Enviar borrador al SRI (firmar y transmitir)") en la grilla de comprobantes para facturas en estado `Draft`.

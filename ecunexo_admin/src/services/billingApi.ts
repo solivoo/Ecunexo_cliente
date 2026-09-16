@@ -226,6 +226,13 @@ export async function retryInvoiceSri(
   return data
 }
 
+export async function deleteDraftInvoice(
+  emitterId: string,
+  invoiceId: string
+): Promise<void> {
+  await billingApi.delete(`/api/v1/emitters/${emitterId}/invoices/${invoiceId}`)
+}
+
 export async function getRideProvider(): Promise<RideProviderSettings> {
   const { data } = await billingApi.get<RideProviderSettings>('/api/v1/ride-provider')
   return data

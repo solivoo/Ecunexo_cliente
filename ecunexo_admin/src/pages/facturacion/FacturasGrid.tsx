@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { DataGrid, useToast, type ColumnDef } from 'glubox'
-import { Ban, Eye, FileCode, FileText, Send } from 'lucide-react'
+import { DataGrid, Popup, useToast, type ColumnDef } from 'glubox'
+import { Ban, Eye, FileCode, FileText, Send, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
@@ -24,6 +24,7 @@ import {
 } from '@/pages/facturacion/invoiceStateLabels'
 import { RidePrintConfirmPopup } from '@/pages/facturacion/RidePrintConfirmPopup'
 import { VoidInvoicePopup } from '@/pages/facturacion/VoidInvoicePopup'
+import { deleteDraftInvoice } from '@/services/billingApi'
 import type { InvoiceListItem } from '@/types/billingApi'
 
 export type InvoiceGridRow = InvoiceListItem & {
@@ -63,13 +64,14 @@ export function FacturasGrid({
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
   const [busyId, setBusyId] = useState<string | null>(null)
   const [busyAction, setBusyAction] = useState<
-    'preview' | 'xml' | 'ride' | 'resend' | 'void' | null
+    'preview' | 'xml' | 'ride' | 'resend' | 'void' | 'delete' | null
   >(null)
   const [ridePrint, setRidePrint] = useState<RidePdfResult | null>(null)
   const [previewRide, setPreviewRide] = useState<RidePdfResult | null>(null)
   const [previewRow, setPreviewRow] = useState<InvoiceListItem | null>(null)
   const [printing, setPrinting] = useState(false)
   const [voidTarget, setVoidTarget] = useState<InvoiceListItem | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<InvoiceListItem | null>(null)
 
   const columns = useMemo((): ColumnDef<InvoiceGridRow>[] => {
     return [
@@ -323,6 +325,16 @@ export function FacturasGrid({
                   }}
                 />
               ) : null}
+              {canOperateInvoice && isDraft ? (
+                <GridIconButton
+                  label="Eliminar borrador"
+                  icon={Trash2}
+                  disabled={busy || !emitterId}
+                  loading={busy && busyAction === 'delete'}
+                  title="Eliminar borrador de factura (no emitida al SRI)"
+                  onClick={() => setDeleteTarget(row)}
+                />
+              ) : null}
               {canOperateInvoice ? (
                 <GridIconButton
                   label="Anular con nota de crédito"
@@ -405,6 +417,34 @@ export function FacturasGrid({
         toast.show({
           title: 'Anular',
           message: readApiError(err, 'No se pudo emitir la nota de crédito.'),
+          variant: 'error',
+        })
+      })
+      .finally(() => {
+        setBusyId(null)
+        setBusyAction(null)
+      })
+  }
+
+  const onConfirmDelete = () => {
+    if (!deleteTarget || !emitterId || busyAction === 'delete') return
+    const target = deleteTarget
+    setBusyId(target.invoiceId)
+    setBusyAction('delete')
+    void deleteDraftInvoice(emitterId, target.invoiceId)
+      .then(() => {
+        toast.show({
+          title: 'Borrador eliminado',
+          message: 'El borrador de la factura fue eliminado correctamente.',
+          variant: 'success',
+        })
+        setDeleteTarget(null)
+        onResent?.()
+      })
+      .catch((err: unknown) => {
+        toast.show({
+          title: 'Eliminar borrador',
+          message: readApiError(err, 'No se pudo eliminar el borrador.'),
           variant: 'error',
         })
       })
@@ -503,6 +543,36 @@ export function FacturasGrid({
         }}
         onConfirm={onConfirmVoid}
       />
+      <Popup
+        open={deleteTarget !== null}
+        title="Eliminar borrador de factura"
+        onClose={() => {
+          if (busyAction !== 'delete') setDeleteTarget(null)
+        }}
+        width="min(92vw, 26rem)"
+        actions={[
+          {
+            id: 'cancel',
+            label: 'Cancelar',
+            variant: 'secondary',
+            onClick: () => setDeleteTarget(null),
+            disabled: busyAction === 'delete',
+          },
+          {
+            id: 'confirm',
+            label: busyAction === 'delete' ? 'Eliminando…' : 'Eliminar borrador',
+            variant: 'danger',
+            onClick: onConfirmDelete,
+            disabled: busyAction === 'delete',
+          },
+        ]}
+      >
+        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--glb-text)', lineHeight: 1.5 }}>
+          ¿Está seguro de eliminar este borrador de factura para el cliente{' '}
+          <strong>{deleteTarget?.counterpartyName}</strong> por un total de{' '}
+          <strong>{formatMoney(deleteTarget?.grandTotal ?? 0)}</strong>? Esta acción borrará el registro de la base de datos y no se podrá deshacer.
+        </p>
+      </Popup>
     </>
   )
 }
