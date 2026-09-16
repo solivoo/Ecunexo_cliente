@@ -50,23 +50,6 @@ public sealed class UploadSigningCertificateHandler
 
         var certInfo = validationResult.Value!;
 
-        if (!string.IsNullOrWhiteSpace(tenant.TaxId))
-        {
-            var tenantTaxId = new string(tenant.TaxId.Where(char.IsDigit).ToArray());
-            var certTaxId = !string.IsNullOrWhiteSpace(certInfo.SubjectTaxId)
-                ? new string(certInfo.SubjectTaxId.Where(char.IsDigit).ToArray())
-                : null;
-
-            if (certTaxId != null && certTaxId.Length == 13 && tenantTaxId.Length == 13 && certTaxId != tenantTaxId)
-            {
-                return Result.Failure<SigningCertificateStatusResponse>(
-                    new Error(
-                        "certificate.tax_id_mismatch",
-                        $"El RUC del certificado digital subido ({certTaxId}) no coincide con el RUC de la empresa ({tenantTaxId}). Verifique el archivo .p12.",
-                        ErrorType.Validation));
-            }
-        }
-
         // 2. Cifrar archivo y contraseña con AES-256-GCM
         var encryptedP12 = _encryptionService.Encrypt(command.P12Bytes);
         var packedPassword = _encryptionService.EncryptPacked(Encoding.UTF8.GetBytes(command.Password));
