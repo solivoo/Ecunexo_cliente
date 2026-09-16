@@ -7,8 +7,15 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.29.4`.
+* **Última Versión Publicada:** `v0.29.6`.
 * **Hitos Recientes Completados:**
+  - **Eliminación Definitiva de Excepción por Mismatch de RUC en Firma Electrónica (`SriCertificateTaxIdentityValidator.cs`) [v0.29.6]:**
+    * **Desbloqueo Total de Certificados en Facturación:** Se modificó `SriCertificateTaxIdentityValidator.EnsureCertificateMatchesEmitter` e `IsCertificateValidForRuc` en `Facturacion` para no lanzar excepciones `InvalidOperationException` por disparidad de RUC/Cédula entre la empresa y el titular del archivo `.p12` (permitiendo certificados de Apoderados / Representantes Legales).
+    * **Diagnóstico de Migración Faltante en Compras:** Se identificó la columna faltante `purchases.suppliers.default_expense_type_id` (`PostgresException 42703`) causada por la migración `20260914040000_AddDefaultExpenseTypeIdToSuppliers` no ejecutada en la BD del entorno.
+    * **Pruebas y Verificación:** 223/223 tests en `Facturacion` pasadas, 316/316 tests en `ecunexo_api` pasadas, build de producción en verde con 0 errores.
+  - **Eliminación Total de Bloqueo por RUC en Firma Electrónica (`SigningCertificate.cs`, `SriCertificateTaxIdentityValidator.cs`, `DbTenantSigningCertificateProvider.cs`, `XadesElectronicSignatureService.cs`) [v0.29.5]:**
+    * **Flexibilización Criptográfica en Microservicio de Facturación:** Se eliminó la excepción de rechazo en `SigningCertificate.EnsureValidFor`, `SriCertificateTaxIdentityValidator.IsCertificateValidForRuc` y `XadesElectronicSignatureService.SignXmlAsync` que bloqueaba el timbrado XAdES-BES cuando el certificado digital pertenece a un Representante Legal o Apoderado cuyo RUC/Cédula difiere del RUC de la empresa emisor.
+    * **Pruebas y Compilación:** 223/223 pruebas unitarias en `Facturacion` pasadas al 100%, 316/316 pruebas en `ecunexo_api` pasadas y `npm run build` verificado con 0 errores TypeScript.
   - **Eliminación Segura de Facturas Borrador (`InvoicesController.cs`, `EfInvoiceRepository.cs`, `FacturasGrid.tsx`) [v0.29.4]:**
     * **Endpoint REST DELETE (`Billing.Api` & `Billing.Infrastructure`):** `DELETE /api/v1/emitters/{emitterId}/invoices/{invoiceId}` y método `DeleteDraftAsync` en repositorio, restringido a comprobantes en estado `Draft` (no emitidos ni firmados).
     * **Frontend UX (`FacturasGrid.tsx` & `billingApi.ts`):** Botón de papelera (`Trash2`) para filas en borrador con modal de confirmación destructiva Glubox (`<Popup>`) y refresco automático de la grilla.
