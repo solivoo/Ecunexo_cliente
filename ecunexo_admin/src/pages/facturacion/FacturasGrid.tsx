@@ -173,11 +173,15 @@ export function FacturasGrid({
           const busy = busyId === row.invoiceId
           const canResend = Boolean(canOperateInvoice && row.canResend && emitterId)
           const canVoid = Boolean(canOperateInvoice && row.canVoid && emitterId)
+          const isDraft = row.state === 'Draft'
           const resendTitle = !canOperateInvoice
             ? 'Se requiere permiso para emitir (facturacion.facturas.create)'
             : row.canResend
-              ? 'Reenviar al SRI (siguiente en secuencia)'
-              : 'Solo el comprobante pendiente con el secuencial más bajo puede reenviarse'
+              ? isDraft
+                ? 'Enviar borrador al SRI (firmar y transmitir)'
+                : 'Reenviar al SRI (siguiente en secuencia)'
+              : 'Solo el comprobante pendiente con el secuencial más bajo puede enviarse al SRI'
+          const resendLabel = isDraft ? 'Enviar al SRI' : 'Reenviar al SRI'
           return (
             <div className="ecu-companies-grid__actions">
               <GridIconButton
@@ -268,7 +272,7 @@ export function FacturasGrid({
               />
               {canOperateInvoice ? (
                 <GridIconButton
-                  label="Reenviar al SRI"
+                  label={resendLabel}
                   icon={Send}
                   disabled={busy || !canResend}
                   loading={busy && busyAction === 'resend'}

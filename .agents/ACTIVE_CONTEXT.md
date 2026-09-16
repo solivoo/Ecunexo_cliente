@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.29.2`.
+* **Última Versión Publicada:** `v0.29.3`.
 * **Hitos Recientes Completados:**
+  - **Habilitación de Envío de Comprobantes en Borrador al SRI desde DataGrid (`FacturasGrid.tsx`, `InvoicesController.cs`, `InvoiceSriResendRules.cs`) [v0.29.3]:**
+    * **Integración en Backend (`Billing.Core` & `Billing.Api`):** Incorporación de `SriDocumentState.Draft` en `InvoiceSriResendRules.IsResendableState` y delegación transparente de `RetrySri` hacia `Sign` si la factura se encuentra en estado borrador.
+    * **Frontend UX (`FacturasGrid.tsx`):** Actualización dinámica de etiqueta ("Enviar al SRI") y tooltip informativo ("Enviar borrador al SRI (firmar y transmitir)") en la grilla de comprobantes para facturas en estado `Draft`.
+    * **Verificación:** 223 pruebas unitarias backend en `Facturacion` pasadas, 316 pruebas en `ecunexo_api` pasadas y `npm run build` en verde con 0 errores TypeScript.
   - **Flexibilización de RUC en Carga de Certificado Digital (`UploadSigningCertificateHandler.cs`) [v0.29.2]:**
     * Se removió el bloqueo estricto que comparaba el RUC de la empresa con el RUC en los metadatos del certificado `.p12`. Esto permite habilitar firmas digitales emitidas a personas naturales o representantes cuyo RUC no coincide carácter por carácter con la empresa en la BD.
     * Pruebas unitarias backend (316/316) y build de producción Vite/TypeScript verificados sin errores. Commit y push realizados a `origin/main`.
