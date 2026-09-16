@@ -38,6 +38,7 @@ internal static class MenuCatalogSeedData
         ("facturacion.facturas.read", "Facturas — consultar propias", "Listar las facturas que emitió el usuario", "facturacion", 72),
         ("facturacion.facturas.read.all", "Facturas — consultar todas", "Ver todas las facturas del emisor, no solo las propias", "facturacion", 85),
         ("facturacion.facturas.create", "Facturas — crear", "Emitir factura", "facturacion", 73),
+        ("facturacion.facturas.delete", "Facturas — eliminar borrador", "Eliminar borradores de facturas no emitidos", "facturacion", 86),
         ("facturacion.catalogos.read", "Catálogos — lectura", "Ver tarifas y reglas SRI", "facturacion", 74),
         ("facturacion.catalogos.write", "Catálogos — escritura", "Administrar tarifas y reglas SRI", "facturacion", 75),
         ("facturacion.emisor.read", "Emisor — lectura", "Ver datos del emisor", "facturacion", 76),
