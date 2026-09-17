@@ -7,13 +7,13 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.29.7`.
+* **Última Versión Publicada:** `v0.30.0`.
 * **Hitos Recientes Completados:**
-  - **Corrección de Migración EF Core, Bloqueo de Fecha de Facturación y Ampliación de Modal Catálogo [v0.29.7]:**
-    * **Formalización de Migración EF Core (`20260917041213_AddDefaultExpenseTypeIdToSuppliers`):** Se integró el archivo de anotaciones metadata `.Designer.cs` y se actualizó `EcuNexoDbContextModelSnapshot.cs` registrando la migración oficialmente en el ensamblado de EF Core para su ejecución automática en arranque (`db.Database.MigrateAsync()`).
-    * **Bloqueo de Fecha de Emisión (`InvoiceIssuerFields.tsx`):** Se desactivó el campo `DateBox` (`disabled={true}`) impidiendo la modificación manual de la fecha de emisión en el comprobante.
-    * **Ampliación de Modal Catálogo de Productos (`InvoiceStockCatalogModal.tsx`):** Se amplió el ancho del modal de `58rem` a `78rem` (`min(96vw, 78rem)`) y el buscador a `320px` mejorando la visualización de existencias y precios.
-    * **Verificación:** Pruebas unitarias backend (316/316) y build de producción Vite/TypeScript verificados sin errores.
+  - **Módulo de Analítica de Gestión, Grillas Compactas de 4 Indicadores y Rutas de Atajos [v0.30.0]:**
+    * **Endpoint REST & Handler CQRS Real PostgreSQL (`DashboardEndpoints.cs`, `GetDashboardAnalyticsHandler.cs`):** Cómputo dinámico desde la BD para 9 indicadores (Ventas Mensuales, Comprobantes SRI, Clientes por Categoría, Compras vs Gastos, Stock por Bodega, Guías de Remisión, Taller N1/N2, Balances NIIF y Declaraciones SRI F104), con inyección obligatoria de todos los repositorios para eliminar datos estáticos/mock.
+    * **Vista Analítica de Alta Densidad M3 (4 por línea) (`DashboardChartsSection.tsx`, `dashboardPage.css`):** Formateador compacto de números (`formatCompactNumber` $1k, $10k, $80k), abreviaturas legibles en ejes X/Y, alineación `margin-top: auto` pegada al bottom de las cards y grid responsive simétrico de 4 columnas en escritorios.
+    * **Corrección de Enlaces de Atajos Rápidos (`DashboardPage.tsx`):** Corrección de rutas para `+ Nueva Factura` (`/facturacion/facturas/emitir`) y `Directorio Clientes` (`/clientes`), agregando el atajo `+ Nuevo Ítem` (`/catalogo/items/nuevo`).
+    * **Verificación:** 317/317 pruebas unitarias backend pasadas (`dotnet test`) y compilación frontend limpia sin errores (`npm run build`).
   - **Eliminación Total de Bloqueo por RUC en Firma Electrónica (`SigningCertificate.cs`, `SriCertificateTaxIdentityValidator.cs`, `DbTenantSigningCertificateProvider.cs`, `XadesElectronicSignatureService.cs`) [v0.29.5]:**
     * **Flexibilización Criptográfica en Microservicio de Facturación:** Se eliminó la excepción de rechazo en `SigningCertificate.EnsureValidFor`, `SriCertificateTaxIdentityValidator.IsCertificateValidForRuc` y `XadesElectronicSignatureService.SignXmlAsync` que bloqueaba el timbrado XAdES-BES cuando el certificado digital pertenece a un Representante Legal o Apoderado cuyo RUC/Cédula difiere del RUC de la empresa emisor.
     * **Pruebas y Compilación:** 223/223 pruebas unitarias en `Facturacion` pasadas al 100%, 316/316 pruebas en `ecunexo_api` pasadas y `npm run build` verificado con 0 errores TypeScript.

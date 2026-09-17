@@ -1,6 +1,6 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from 'glubox'
-import { useHasPermission } from '@/hooks/useHasPermission'
 import {
   selectIsSubscriptionHolder,
   selectTenantId,
@@ -9,7 +9,6 @@ import {
   selectSubscription,
   selectUserName,
   selectUserEmail,
-  selectEnabledModules,
   selectPermissions,
 } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
@@ -19,8 +18,8 @@ import {
   SectionCard,
   StatusBadge,
   QuickActionCard,
-  EmptyState,
 } from '@/components/ui'
+import { DashboardChartsSection } from './DashboardChartsSection'
 import './css/dashboardPage.css'
 
 type DashboardTile = {
@@ -30,40 +29,60 @@ type DashboardTile = {
   readonly desc: string
   readonly permission: string
   readonly badge?: string
+  readonly isPrimary?: boolean
 }
 
+// Accesos Rápidos Esenciales (Top Operaciones de Alta Frecuencia)
 const COMPANY_TILES: readonly DashboardTile[] = [
   {
-    to: '/equipo/usuarios',
-    icon: 'group',
-    title: 'Usuarios y Accesos',
-    desc: 'Administración de colaboradores, credenciales y perfiles.',
-    permission: 'identity.users.read',
-    badge: 'Equipo',
+    to: '/facturacion/facturas/emitir',
+    icon: 'add_notes',
+    title: '+ Nueva Factura',
+    desc: 'Emisión rápida de comprobante electrónico al SRI.',
+    permission: 'facturacion.facturas.create|facturacion.facturas.read|billing.invoices.read',
+    badge: 'Facturación',
+    isPrimary: true,
   },
   {
-    to: '/equipo/roles',
-    icon: 'admin_panel_settings',
-    title: 'Roles y Privilegios',
-    desc: 'Matriz de permisos granulares por departamento.',
-    permission: 'identity.roles.read',
-    badge: 'Seguridad',
+    to: '/catalogo/items/nuevo',
+    icon: 'add_box',
+    title: '+ Nuevo Ítem',
+    desc: 'Registro rápido de producto o servicio.',
+    permission: 'catalog.items.create|catalog.items.read',
+    badge: 'Catálogo',
+    isPrimary: true,
   },
   {
-    to: '/organizacion/perfil',
-    icon: 'domain',
-    title: 'Perfil y Branding',
-    desc: 'Identidad corporativa, logotipos y configuración legal.',
-    permission: 'tenancy.tenant.read',
-    badge: 'Empresa',
+    to: '/facturacion/comprobantes',
+    icon: 'receipt_long',
+    title: 'Comprobantes Emitidos',
+    desc: 'Bandeja de facturas, notas de crédito y RIDE PDF.',
+    permission: 'facturacion.facturas.read|billing.invoices.read',
+    badge: 'Facturación',
   },
   {
-    to: '/seguridad/permisos',
-    icon: 'key',
-    title: 'Catálogo de Permisos',
-    desc: 'Auditoría de directivas y políticas del sistema.',
-    permission: 'identity.permissions.read',
-    badge: 'Global',
+    to: '/facturacion/guias-remision/nueva',
+    icon: 'local_shipping',
+    title: 'Guía de Remisión',
+    desc: 'Documento logístico de traslado de mercadería (Tipo 06).',
+    permission: 'facturacion.guias.remision.create|facturacion.guias.remision.read',
+    badge: 'Logística',
+  },
+  {
+    to: '/catalogo/items',
+    icon: 'inventory_2',
+    title: 'Productos y Precios',
+    desc: 'Catálogo de ítems físicos y servicios.',
+    permission: 'catalog.items.read',
+    badge: 'Catálogo',
+  },
+  {
+    to: '/clientes',
+    icon: 'contacts',
+    title: 'Directorio Clientes',
+    desc: 'Gestión B2B/B2C, RUC y Cédulas.',
+    permission: 'facturacion.facturas.read|customers.read|clientes.read',
+    badge: 'Clientes',
   },
 ]
 
@@ -76,15 +95,25 @@ export function DashboardPage() {
   const subscription = useAppSelector(selectSubscription)
   const userName = useAppSelector(selectUserName)
   const userEmail = useAppSelector(selectUserEmail)
-  const enabledModules = useAppSelector(selectEnabledModules)
   const permissions = useAppSelector(selectPermissions)
 
-  const canUsers = useHasPermission('identity.users.read')
-  const canRoles = useHasPermission('identity.roles.read')
-  const canTenant = useHasPermission('tenancy.tenant.read')
-  const canPermissions = useHasPermission('identity.permissions.read')
-
   const holderOnly = isSubscriptionHolder && !tenantId
+
+  const userPermissionsSet = useMemo(() => {
+    const set = new Set<string>()
+    for (const p of permissions) {
+      set.add(p.toLowerCase())
+    }
+    return set
+  }, [permissions])
+
+  const tiles = useMemo(() => {
+    return COMPANY_TILES.filter((tile) => {
+      if (isSubscriptionHolder) return true
+      const reqPerms = tile.permission.toLowerCase().split('|')
+      return reqPerms.some((p) => userPermissionsSet.has(p.trim()))
+    })
+  }, [isSubscriptionHolder, userPermissionsSet])
 
   // --- MODO TITULAR (Gestión global de la suscripción) ---
   if (holderOnly) {
@@ -231,21 +260,12 @@ export function DashboardPage() {
 
   // --- MODO EMPRESA (Operando en un tenant concreto) ---
   const orgLabel = tenant.name || 'Tu Organización'
-  const granted = new Set(
-    [
-      canUsers ? 'identity.users.read' : null,
-      canRoles ? 'identity.roles.read' : null,
-      canTenant ? 'tenancy.tenant.read' : null,
-      canPermissions ? 'identity.permissions.read' : null,
-    ].filter((p): p is string => p !== null),
-  )
-  const tiles = COMPANY_TILES.filter((tile) => granted.has(tile.permission))
 
   return (
     <div className="ecu-dashboard-layout">
       <PageHeader
         title={orgLabel}
-        subtitle="Entorno de operación activo. El menú lateral y todas las transacciones aplican únicamente a esta empresa."
+        subtitle={`Entorno de operación activo · Usuario: ${userName || 'Colaborador'}${userEmail ? ` (${userEmail})` : ''} · ${permissions.length} permisos`}
         badge={
           <StatusBadge tone="success" withDot>
             Empresa Activa
@@ -264,65 +284,32 @@ export function DashboardPage() {
         }
       />
 
-      {/* Indicadores de Entorno */}
-      <div className="ecu-stat-grid">
-        <StatCard
-          label="Empresa"
-          value={orgLabel}
-          icon="domain"
-          toneColor="#4f46e5"
-          badge={<StatusBadge tone="primary">En Línea</StatusBadge>}
-          footerText="Sede en operación"
-        />
-        <StatCard
-          label="Módulos Habilitados"
-          value={`${enabledModules?.length ?? 'Todos'}`}
-          icon="apps"
-          toneColor="#0284c7"
-          footerText="Capacidades de la empresa"
-        />
-        <StatCard
-          label="Sesión Activa"
-          value={userName || 'Colaborador'}
-          icon="badge"
-          toneColor="#059669"
-          footerText={userEmail || 'Cuenta autenticada'}
-        />
-        <StatCard
-          label="Nivel de Acceso"
-          value={`${permissions.length} permisos`}
-          icon="verified_user"
-          toneColor="#7c3aed"
-          footerText="Privilegios asignados"
-        />
-      </div>
-
-      {/* Accesos de Configuración y Administración */}
-      <SectionCard
-        title="Administración de la Empresa"
-        subtitle="Accesos directos para la gestión del equipo, permisos y configuración corporativa"
-      >
-        {tiles.length > 0 ? (
-          <div className="ecu-action-grid">
+      {/* Accesos Rápidos Principales (5 Atajos Esenciales de Alta Frecuencia) */}
+      {tiles.length > 0 && (
+        <div className="ecu-dashboard-quick-strip">
+          <div className="ecu-dashboard-quick-strip__label">Atajos Rápidos:</div>
+          <div className="ecu-dashboard-quick-strip__items">
             {tiles.map((tile) => (
-              <QuickActionCard
+              <a
                 key={tile.to}
-                to={tile.to}
-                icon={tile.icon}
-                title={tile.title}
-                description={tile.desc}
-                badge={tile.badge ? <StatusBadge tone="neutral">{tile.badge}</StatusBadge> : undefined}
-              />
+                href={tile.to}
+                onClick={(e) => {
+                  e.preventDefault()
+                  void navigate(tile.to)
+                }}
+                className={`ecu-dashboard-quick-pill ${tile.isPrimary ? 'ecu-dashboard-quick-pill--primary' : ''}`}
+              >
+                <span className="material-symbols-outlined ecu-dashboard-quick-pill__icon">{tile.icon}</span>
+                <span className="ecu-dashboard-quick-pill__title">{tile.title}</span>
+                {tile.badge && <span className="ecu-dashboard-quick-pill__badge">{tile.badge}</span>}
+              </a>
             ))}
           </div>
-        ) : (
-          <EmptyState
-            icon="lock_open"
-            title="Funciones operativas activas"
-            description="Tu rol tiene accesos enfocados en la operación diaria. Utiliza el menú lateral para acceder a facturación, inventario o catálogo."
-          />
-        )}
-      </SectionCard>
+        </div>
+      )}
+
+      {/* Sección de Indicadores Visuales y Gráficos según permisos RBAC/ABAC */}
+      <DashboardChartsSection />
     </div>
   )
 }

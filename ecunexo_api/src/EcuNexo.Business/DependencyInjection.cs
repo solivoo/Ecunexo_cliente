@@ -331,6 +331,9 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<ListRemisionGuidesQuery, ListRemisionGuidesResponse>, ListRemisionGuidesHandler>();
         services.AddScoped<IQueryHandler<GetRemisionGuideByIdQuery, RemisionGuideDetailDto>, GetRemisionGuideByIdHandler>();
 
+        // Dashboard Analytics
+        services.AddScoped<IQueryHandler<EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.GetDashboardAnalyticsQuery, EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.DashboardAnalyticsDto>, EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.GetDashboardAnalyticsHandler>();
+
         return services;
     }
 }
