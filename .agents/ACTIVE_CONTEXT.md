@@ -7,12 +7,13 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main`.
-* **Última Versión Publicada:** `v0.29.6`.
+* **Última Versión Publicada:** `v0.29.7`.
 * **Hitos Recientes Completados:**
-  - **Eliminación Definitiva de Excepción por Mismatch de RUC en Firma Electrónica (`SriCertificateTaxIdentityValidator.cs`) [v0.29.6]:**
-    * **Desbloqueo Total de Certificados en Facturación:** Se modificó `SriCertificateTaxIdentityValidator.EnsureCertificateMatchesEmitter` e `IsCertificateValidForRuc` en `Facturacion` para no lanzar excepciones `InvalidOperationException` por disparidad de RUC/Cédula entre la empresa y el titular del archivo `.p12` (permitiendo certificados de Apoderados / Representantes Legales).
-    * **Diagnóstico de Migración Faltante en Compras:** Se identificó la columna faltante `purchases.suppliers.default_expense_type_id` (`PostgresException 42703`) causada por la migración `20260914040000_AddDefaultExpenseTypeIdToSuppliers` no ejecutada en la BD del entorno.
-    * **Pruebas y Verificación:** 223/223 tests en `Facturacion` pasadas, 316/316 tests en `ecunexo_api` pasadas, build de producción en verde con 0 errores.
+  - **Corrección de Migración EF Core, Bloqueo de Fecha de Facturación y Ampliación de Modal Catálogo [v0.29.7]:**
+    * **Formalización de Migración EF Core (`20260917041213_AddDefaultExpenseTypeIdToSuppliers`):** Se integró el archivo de anotaciones metadata `.Designer.cs` y se actualizó `EcuNexoDbContextModelSnapshot.cs` registrando la migración oficialmente en el ensamblado de EF Core para su ejecución automática en arranque (`db.Database.MigrateAsync()`).
+    * **Bloqueo de Fecha de Emisión (`InvoiceIssuerFields.tsx`):** Se desactivó el campo `DateBox` (`disabled={true}`) impidiendo la modificación manual de la fecha de emisión en el comprobante.
+    * **Ampliación de Modal Catálogo de Productos (`InvoiceStockCatalogModal.tsx`):** Se amplió el ancho del modal de `58rem` a `78rem` (`min(96vw, 78rem)`) y el buscador a `320px` mejorando la visualización de existencias y precios.
+    * **Verificación:** Pruebas unitarias backend (316/316) y build de producción Vite/TypeScript verificados sin errores.
   - **Eliminación Total de Bloqueo por RUC en Firma Electrónica (`SigningCertificate.cs`, `SriCertificateTaxIdentityValidator.cs`, `DbTenantSigningCertificateProvider.cs`, `XadesElectronicSignatureService.cs`) [v0.29.5]:**
     * **Flexibilización Criptográfica en Microservicio de Facturación:** Se eliminó la excepción de rechazo en `SigningCertificate.EnsureValidFor`, `SriCertificateTaxIdentityValidator.IsCertificateValidForRuc` y `XadesElectronicSignatureService.SignXmlAsync` que bloqueaba el timbrado XAdES-BES cuando el certificado digital pertenece a un Representante Legal o Apoderado cuyo RUC/Cédula difiere del RUC de la empresa emisor.
     * **Pruebas y Compilación:** 223/223 pruebas unitarias en `Facturacion` pasadas al 100%, 316/316 pruebas en `ecunexo_api` pasadas y `npm run build` verificado con 0 errores TypeScript.

@@ -375,7 +375,7 @@ export function InvoiceStockCatalogModal({
       open={open}
       title="Catálogo de Productos y Disponibilidad de Stock"
       onClose={onClose}
-      width="min(96vw, 58rem)"
+      width="min(96vw, 78rem)"
       actions={[
         {
           id: 'close',
@@ -412,7 +412,7 @@ export function InvoiceStockCatalogModal({
             selectionMode="none"
             showSearch
             searchPosition="left"
-            searchWidth={260}
+            searchWidth={320}
             searchPlaceholder="Buscar SKU o nombre…"
             searchKeys={['searchKey']}
             toolbarRight={toolbarRight}

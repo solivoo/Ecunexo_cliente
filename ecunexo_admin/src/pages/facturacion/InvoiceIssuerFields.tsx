@@ -66,11 +66,10 @@ export function InvoiceIssuerFields({
             variant="outline"
             size="md"
             value={header.issueDate}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-              if (disabled) return
-              onHeaderChange('issueDate', e.target.value)
+            onChange={() => {
+              // Bloqueado: la fecha de emisión se fija a la fecha actual
             }}
-            disabled={disabled}
+            disabled={true}
             fullWidth
           />
         </div>
