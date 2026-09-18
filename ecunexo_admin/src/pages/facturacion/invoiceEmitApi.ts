@@ -1,5 +1,5 @@
 import { readApiError } from '@/lib/readApiError'
-import { normalizeEstablishmentCode } from '@/pages/facturacion/invoiceFormTypes'
+import { computeTotals, normalizeEstablishmentCode } from '@/pages/facturacion/invoiceFormTypes'
 import type {
   InvoiceCounterpartyValues,
   InvoiceHeaderValues,
@@ -16,6 +16,7 @@ import {
   retryInvoiceSri,
   signInvoice,
 } from '@/services/billingApi'
+import { sendInvoiceAuthorizedEmail } from '@/services/settingsApi'
 import { normalizeEmissionPoint } from '@/lib/billingSriEmission'
 import {
   parseRimpeKind,
@@ -388,6 +389,27 @@ export async function saveInvoiceDraft(args: {
             : polled.state === 'Processing' || polled.state === 'Received' || polled.state === 'Signed'
               ? 'Envío al SRI en curso; aún sin resultado definitivo.'
               : 'No se obtuvo un resultado definitivo del SRI a tiempo.'
+
+    const isAuthorized = signed.state === 'Authorized' || polled.state === 'Authorized'
+    if (isAuthorized && args.counterparty.email?.trim()) {
+      const currentTenantId = args.tenantId || emitterId
+      const grandTotal = computeTotals(args.lines).grandTotal
+      const seqStr = requestedSeq
+      const serieSecuencial = `${header.establishment}-${header.emissionPoint}-${seqStr}`
+      const accessKey = polled.accessKey ?? signed.accessKey
+
+      sendInvoiceAuthorizedEmail(currentTenantId, {
+        billingInvoiceId: created.invoiceId,
+        counterpartyEmail: args.counterparty.email.trim(),
+        counterpartyName: args.counterparty.businessName.trim() || 'Cliente',
+        documentType: '01',
+        serieSecuencial,
+        accessKey,
+        grandTotal,
+      }).catch((err: unknown) => {
+        console.warn('⚠️ No se pudo enviar el correo de la factura autorizada al cliente:', err)
+      })
+    }
 
     setLastSriEmitTrace(trace)
     console.log(`🏁 Fin de emisión SRI con resultado: ${outcome} (${polled.state})`)

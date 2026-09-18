@@ -138,3 +138,25 @@ export async function previewEmailTemplate(
   return data
 }
 
+export interface SendInvoiceAuthorizedEmailDto {
+  readonly billingInvoiceId: string
+  readonly counterpartyEmail: string
+  readonly counterpartyName: string
+  readonly documentType: string
+  readonly serieSecuencial: string
+  readonly accessKey?: string | null
+  readonly grandTotal: number
+}
+
+export async function sendInvoiceAuthorizedEmail(
+  tenantId: string,
+  body: SendInvoiceAuthorizedEmailDto,
+): Promise<{ sent: boolean; to: string }> {
+  const { data } = await api.post<{ sent: boolean; to: string }>(
+    `/api/v1/tenants/${tenantId}/billing/invoice-authorized-email`,
+    body,
+  )
+  return data
+}
+
+

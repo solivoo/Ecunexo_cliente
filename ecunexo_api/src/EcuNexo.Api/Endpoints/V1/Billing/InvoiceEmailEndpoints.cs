@@ -1,6 +1,12 @@
+using System.Globalization;
+using System.Text.Json;
 using Asp.Versioning;
 using Asp.Versioning.Builder;
+using EcuNexo.Api.Email;
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Platform;
+using EcuNexo.Business.Tenancy;
+using EcuNexo.Core.Platform;
 
 namespace EcuNexo.Api.Endpoints.V1.Billing;
 
@@ -40,12 +46,14 @@ public static class InvoiceEmailEndpoints
         Guid tenantId,
         InvoiceAuthorizedEmailRequest request,
         IEmailSender emailSender,
+        ISysSettingRepository settingRepository,
+        ITenantRepository tenantRepository,
         IConfiguration configuration,
         ILogger<Program> logger,
         HttpContext httpContext,
         CancellationToken ct)
     {
-        // Validar API key interna de billing
+        // Validar API key interna de billing si existe
         var expectedKey = configuration["InvoiceEmail:ApiKey"];
         if (!string.IsNullOrWhiteSpace(expectedKey))
         {
@@ -69,46 +77,70 @@ public static class InvoiceEmailEndpoints
             _ => "Comprobante Electrónico"
         };
 
-        var subject = $"{docTypeLabel} #{request.SerieSecuencial} — Autorizada por el SRI";
+        // Obtener datos del tenant para la plantilla
+        var tenantObj = await tenantRepository.GetByIdAsync(tenantId, ct).ConfigureAwait(false);
+        var tenantName = tenantObj?.Name ?? "EcuNexo";
+        var tenantRuc = tenantObj?.TaxId ?? string.Empty;
 
-        var accessKeyHtml = string.IsNullOrWhiteSpace(request.AccessKey)
-            ? ""
-            : $"<p style=\"margin:4px 0;font-size:11px;color:#64748b;\"><strong>Clave de Acceso:</strong> {request.AccessKey}</p>";
+        // 1. Obtener plantilla personalizada (o predeterminada) para sri.invoice.authorized
+        var templateSettingCode = EmailTemplateCatalog.GetSettingCode("sri.invoice.authorized");
+        var savedSetting = await settingRepository
+            .GetAsync(templateSettingCode, SettingScope.Tenant, tenantId.ToString("D"), ct)
+            .ConfigureAwait(false);
 
-        var htmlBody = $"""
-            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #e2e8f0;border-radius:8px;">
-              <h2 style="color:#0284c7;margin-top:0">Su {docTypeLabel} ha sido autorizada</h2>
-              <p style="font-size:15px;line-height:1.6;color:#334155;">
-                Estimado/a <strong>{request.CounterpartyName}</strong>,<br/>
-                Su comprobante electrónico ha sido procesado y autorizado exitosamente por el SRI de Ecuador.
-              </p>
-              <div style="background:#f8fafc;border-left:4px solid #0284c7;padding:12px 16px;margin:16px 0;border-radius:4px;">
-                <p style="margin:4px 0;font-size:13px;color:#475569;"><strong>Tipo:</strong> {docTypeLabel}</p>
-                <p style="margin:4px 0;font-size:13px;color:#475569;"><strong>Número:</strong> {request.SerieSecuencial}</p>
-                <p style="margin:4px 0;font-size:13px;color:#475569;"><strong>Total:</strong> $ {request.GrandTotal:N2}</p>
-                {accessKeyHtml}
-              </div>
-              <p style="font-size:13px;color:#64748b;">Este correo es generado automáticamente por el sistema EcuNexo. Si tiene alguna consulta, contáctenos.</p>
-            </div>
-            """;
+        var defaultTpl = EmailTemplateCatalog.DefaultTemplates.FirstOrDefault(t => t.ActionCode == "sri.invoice.authorized");
+        string subjectTpl = defaultTpl?.DefaultSubject ?? $"{docTypeLabel} #{{FacturaNumero}} — {{TenantName}}";
+        string bodyTpl = defaultTpl?.DefaultBodyHtml ?? $"<p>Estimado/a {{ClienteNombre}}, su comprobante #{{FacturaNumero}} por ${{MontoTotal}} ha sido autorizado por el SRI.</p>";
 
-        var plainBody = $"Estimado/a {request.CounterpartyName},\n\nSu {docTypeLabel} #{request.SerieSecuencial} ha sido autorizada por el SRI.\nTotal: $ {request.GrandTotal:N2}\nClave de Acceso: {request.AccessKey}\n\nEste correo es generado automáticamente por EcuNexo.";
+        if (savedSetting is not null && !string.IsNullOrWhiteSpace(savedSetting.ValueJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(savedSetting.ValueJson);
+                if (doc.RootElement.TryGetProperty("Subject", out var s) && !string.IsNullOrWhiteSpace(s.GetString()))
+                {
+                    subjectTpl = s.GetString()!;
+                }
+                if (doc.RootElement.TryGetProperty("BodyHtml", out var b) && !string.IsNullOrWhiteSpace(b.GetString()))
+                {
+                    bodyTpl = b.GetString()!;
+                }
+            }
+            catch
+            {
+                /* fallback a template default */
+            }
+        }
+
+        var placeholders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["{{ClienteNombre}}"] = !string.IsNullOrWhiteSpace(request.CounterpartyName) ? request.CounterpartyName.Trim() : "Cliente",
+            ["{{FacturaNumero}}"] = request.SerieSecuencial,
+            ["{{MontoTotal}}"] = request.GrandTotal.ToString("N2", CultureInfo.InvariantCulture),
+            ["{{FechaEmision}}"] = DateTime.UtcNow.ToString("dd/MMM/yyyy", CultureInfo.InvariantCulture),
+            ["{{ClaveAcceso}}"] = request.AccessKey ?? string.Empty,
+            ["{{TenantName}}"] = tenantName,
+            ["{{TenantRuc}}"] = tenantRuc,
+        };
+
+        var (renderedSubject, renderedBody) = EmailTemplateRenderer.Render("sri.invoice.authorized", subjectTpl, bodyTpl, placeholders);
+        var plainBody = $"Estimado/a {request.CounterpartyName},\n\nSu {docTypeLabel} #{request.SerieSecuencial} ha sido autorizada por el SRI.\nTotal: $ {request.GrandTotal.ToString("N2", CultureInfo.InvariantCulture)}\nClave de Acceso: {request.AccessKey}\n\nEste correo es generado automáticamente por {tenantName}.";
 
         try
         {
             await emailSender.SendAsync(
                 new EmailMessage(
-                    ToAddress: request.CounterpartyEmail,
-                    ToDisplayName: request.CounterpartyName,
-                    Subject: subject,
+                    ToAddress: request.CounterpartyEmail.Trim(),
+                    ToDisplayName: request.CounterpartyName.Trim(),
+                    Subject: renderedSubject,
                     PlainTextBody: plainBody,
-                    HtmlBody: htmlBody,
+                    HtmlBody: renderedBody,
                     TenantId: tenantId),
                 ct).ConfigureAwait(false);
 
-            LogEmailSent(logger, request.CounterpartyEmail, tenantId, request.BillingInvoiceId, null);
+            LogEmailSent(logger, request.CounterpartyEmail.Trim(), tenantId, request.BillingInvoiceId, null);
 
-            return Results.Ok(new { sent = true, to = request.CounterpartyEmail });
+            return Results.Ok(new { sent = true, to = request.CounterpartyEmail.Trim() });
         }
         catch (Exception ex)
         {
