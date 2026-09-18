@@ -150,7 +150,7 @@ public sealed partial class SmtpEmailSender : IEmailSender
         {
             await SendSingleMimeMessageAsync(config, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, ct).ConfigureAwait(false);
         }
-        catch (SmtpCommandException ex) when (ex.StatusCode == SmtpStatusCode.AuthenticationRequired || ex.Message.Contains("535", StringComparison.OrdinalIgnoreCase))
+        catch (Exception ex) when (ex is SmtpCommandException or AuthenticationException || ex.Message.Contains("535", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("Authentication", StringComparison.OrdinalIgnoreCase))
         {
             // Si el servidor configurado es smtp.zoho.com y falla la autenticación (535),
             // reintentar automáticamente con smtppro.zoho.com (servidor para cuentas corporativas/organizacionales Zoho).
