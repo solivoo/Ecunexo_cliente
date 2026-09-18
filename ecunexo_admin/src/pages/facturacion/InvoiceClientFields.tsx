@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { Button, Select, TextBox, useToast } from 'glubox'
+import { Button, Select, TextArea, TextBox, useToast } from 'glubox'
 import {
   CONSUMIDOR_FINAL_MAX_TOTAL_USD,
   CUSTOMER_TYPE_OPTIONS,
@@ -441,18 +441,15 @@ export function InvoiceClientFields({
           />
         </div>
 
-        <div className="factura-emitir__cell factura-emitir__cell--addr">
-          <TextBox
-            id="inv-addr"
-            label="Dirección de Facturación"
+        <div className="factura-emitir__cell factura-emitir__cell--payment">
+          <Select
+            id="inv-payment"
+            label="Forma de Pago SRI"
             labelPosition="outlined"
             variant="outline"
-            size="md"
-            value={counterparty.address}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              emitParty('address', e.target.value)
-            }
-            placeholder="Av. Principal y Secundaria"
+            options={[...PAYMENT_FORM_OPTIONS]}
+            value={paymentFormCode}
+            onChange={emitPayment}
             disabled={disabled}
             fullWidth
           />
@@ -475,15 +472,18 @@ export function InvoiceClientFields({
           />
         </div>
 
-        <div className="factura-emitir__cell factura-emitir__cell--payment">
-          <Select
-            id="inv-payment"
-            label="Forma de Pago SRI"
+        <div className="factura-emitir__cell factura-emitir__cell--addr">
+          <TextArea
+            id="inv-addr"
+            label="Dirección de Facturación"
             labelPosition="outlined"
             variant="outline"
-            options={[...PAYMENT_FORM_OPTIONS]}
-            value={paymentFormCode}
-            onChange={emitPayment}
+            rows={2}
+            value={counterparty.address}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+              emitParty('address', e.target.value)
+            }
+            placeholder="Av. Principal, calle secundaria y referencia de ubicación..."
             disabled={disabled}
             fullWidth
           />
