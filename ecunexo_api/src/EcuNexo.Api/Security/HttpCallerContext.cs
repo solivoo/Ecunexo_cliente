@@ -43,6 +43,8 @@ public sealed class HttpCallerContext(IHttpContextAccessor httpContextAccessor, 
                 {
                     return id;
                 }
+
+                return ParseGuid(http?.Request, TenantIdHeader);
             }
 
             return environment.IsDevelopment() ? ParseGuid(http?.Request, TenantIdHeader) : null;

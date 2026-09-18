@@ -76,4 +76,31 @@ public sealed class HttpCallerContextTests
         context.UserId.Should().Be(authUserId);
         context.ExplicitTenantId.Should().Be(authTenantId);
     }
+
+    [Fact(DisplayName = "Usuario autenticado en Producción sin claim 'tid' en JWT lee TenantId desde cabecera X-EcuNexo-Tenant-Id")]
+    public void Authenticated_InProduction_WithTenantHeader_ReturnsTenantIdFromHeader()
+    {
+        var authUserId = Guid.NewGuid();
+        var headerTenantId = Guid.NewGuid();
+
+        var claims = new[]
+        {
+            new Claim(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub, authUserId.ToString()),
+        };
+        var identity = new ClaimsIdentity(claims, "Bearer");
+        var principal = new ClaimsPrincipal(identity);
+
+        var httpContextAccessor = Substitute.For<IHttpContextAccessor>();
+        var httpContext = new DefaultHttpContext { User = principal };
+        httpContext.Request.Headers["X-EcuNexo-Tenant-Id"] = headerTenantId.ToString();
+        httpContextAccessor.HttpContext.Returns(httpContext);
+
+        var env = Substitute.For<IHostEnvironment>();
+        env.EnvironmentName.Returns(Environments.Production);
+
+        var context = new HttpCallerContext(httpContextAccessor, env);
+
+        context.UserId.Should().Be(authUserId);
+        context.ExplicitTenantId.Should().Be(headerTenantId);
+    }
 }
