@@ -209,8 +209,10 @@ export function InvoiceStockCatalogModal({
       ...prev,
       [itemId]: qty,
     }))
-    // Al modificar cantidad, seleccionar automáticamente si no estaba marcado
-    if (!selectedIds.has(itemId)) {
+    // Al modificar cantidad, seleccionar automáticamente si no estaba marcado y tiene stock
+    const targetRow = productsWithStock.find((p) => p.id === itemId)
+    const isNoStock = targetRow?.kind === 'physical' && (targetRow?.totalStock ?? 0) <= 0
+    if (!isNoStock && !selectedIds.has(itemId)) {
       setSelectedIds((prev) => new Set(prev).add(itemId))
     }
   }
@@ -233,6 +235,41 @@ export function InvoiceStockCatalogModal({
 
   const columns = useMemo(
     (): ColumnDef<ProductStockRow>[] => [
+      {
+        key: 'select',
+        header: '',
+        width: 48,
+        align: 'center',
+        renderCell: (_v: unknown, row: ProductStockRow) => {
+          const isNoStock = row.kind === 'physical' && (row.totalStock ?? 0) <= 0
+          const isSelected = selectedIds.has(row.id)
+          return (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              disabled={isNoStock}
+              onChange={() => {
+                if (isNoStock) return
+                setSelectedIds((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(row.id)) next.delete(row.id)
+                  else next.add(row.id)
+                  return next
+                })
+              }}
+              aria-label={`Seleccionar ${row.name}`}
+              title={isNoStock ? 'Sin existencia en stock (no disponible para facturar)' : `Seleccionar ${row.name}`}
+              style={{
+                cursor: isNoStock ? 'not-allowed' : 'pointer',
+                opacity: isNoStock ? 0.35 : 1,
+                width: 17,
+                height: 17,
+                accentColor: 'var(--shell-primary)',
+              }}
+            />
+          )
+        },
+      },
       {
         key: 'name',
         header: 'Ítem / Producto y Detalles',
@@ -396,22 +433,26 @@ export function InvoiceStockCatalogModal({
         header: 'Cant.',
         width: 90,
         align: 'center',
-        renderCell: (_v: unknown, row: ProductStockRow) => (
-          <div style={{ width: '64px', margin: '0 auto' }}>
-            <NumberBox
-              size="sm"
-              min={1}
-              step={1}
-              value={quantities[row.item.id] ?? 1}
-              onChange={(e) => handleQuantityChange(row.item.id, Number(e.target.value) || 1)}
-              fullWidth
-            />
-          </div>
-        ),
+        renderCell: (_v: unknown, row: ProductStockRow) => {
+          const isNoStock = row.kind === 'physical' && (row.totalStock ?? 0) <= 0
+          return (
+            <div style={{ width: '64px', margin: '0 auto', opacity: isNoStock ? 0.4 : 1 }}>
+              <NumberBox
+                size="sm"
+                min={1}
+                step={1}
+                disabled={isNoStock}
+                value={quantities[row.item.id] ?? 1}
+                onChange={(e) => handleQuantityChange(row.item.id, Number(e.target.value) || 1)}
+                fullWidth
+              />
+            </div>
+          )
+        },
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [quantities]
+    [quantities, selectedIds]
   )
 
   const toolbarRight = (
@@ -535,9 +576,7 @@ export function InvoiceStockCatalogModal({
             dataSource={filteredProducts}
             keyExpr="id"
             columns={columns}
-            selectionMode="multiple"
-            selectedRowIds={Array.from(selectedIds)}
-            onSelectionChange={(selectedRows) => setSelectedIds(new Set(selectedRows.map((r) => r.id)))}
+            selectionMode="none"
             showSearch
             searchPosition="left"
             searchWidth={340}
