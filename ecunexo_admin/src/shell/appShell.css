@@ -359,11 +359,21 @@
   min-height: 0;
   padding: 1.25rem 1.5rem;
   overflow: auto;
-  background: #fcfcff;
+  background-color: var(--glb-app-bg, #f8fafc);
+  background-image:
+    radial-gradient(at 0% 0%, color-mix(in srgb, var(--shell-primary, #6366f1) 4%, transparent) 0px, transparent 55%),
+    radial-gradient(at 100% 100%, color-mix(in srgb, #0284c7 3%, transparent) 0px, transparent 50%),
+    url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 32V0h32' stroke='%2364748b' stroke-opacity='0.05' stroke-width='0.75'/%3E%3Ccircle cx='32' cy='0' r='1' fill='%2364748b' fill-opacity='0.08'/%3E%3C/svg%3E");
+  background-attachment: local;
 }
 
-html[data-mode="dark"] .app-shell__content {
-  background: var(--glb-app-bg, var(--shell-bg));
+html[data-mode="dark"] .app-shell__content,
+html.sf-dark-mode .app-shell__content {
+  background-color: var(--glb-app-bg, #0b0f17);
+  background-image:
+    radial-gradient(at 50% 0%, color-mix(in srgb, var(--shell-primary, #6366f1) 12%, transparent) 0px, transparent 65%),
+    radial-gradient(at 100% 100%, color-mix(in srgb, #38bdf8 5%, transparent) 0px, transparent 50%),
+    url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 32V0h32' stroke='%2394a3b8' stroke-opacity='0.04' stroke-width='0.75'/%3E%3Ccircle cx='32' cy='0' r='1' fill='%2394a3b8' fill-opacity='0.07'/%3E%3C/svg%3E");
 }
 
 .ecu-session-banner {

@@ -14,7 +14,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
-import { Button, RangeDateBox, type DateRange } from 'glubox'
+import { Button } from 'glubox'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { SectionCard, StatusBadge } from '@/components/ui'
 import { selectTenantId } from '@/store/authSlice'
@@ -241,8 +241,8 @@ export type DashboardChartsSectionProps = {
 export function DashboardChartsSection({ isHolderOnly = false }: DashboardChartsSectionProps) {
   const activeTenantId = useAppSelector(selectTenantId)
   const [analyticsData, setAnalyticsData] = useState<DashboardAnalyticsResponseDto | null>(null)
-  const [salesPeriodPreset, setSalesPeriodPreset] = useState<'semanal' | 'mensual' | 'anual' | 'custom'>('mensual')
-  const [salesDateRange, setSalesDateRange] = useState<IsoDateRange>(() => getPresetDateRange('mensual'))
+  const [salesPeriodPreset, setSalesPeriodPreset] = useState<'semanal' | 'mensual' | 'anual'>('semanal')
+  const [salesDateRange, setSalesDateRange] = useState<IsoDateRange>(() => getPresetDateRange('semanal'))
   const [invoices, setInvoices] = useState<InvoiceListItem[]>([])
 
   const handleSelectSalesPreset = (preset: 'semanal' | 'mensual' | 'anual') => {
@@ -400,7 +400,7 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
               <div
                 style={{
                   display: 'flex',
-                  justifyContent: 'space-between',
+                  justifyContent: 'flex-start',
                   alignItems: 'center',
                   flexWrap: 'wrap',
                   gap: '0.5rem',
@@ -433,22 +433,6 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
                     Anual
                   </Button>
                 </div>
-
-                <RangeDateBox
-                  variant="outline"
-                  size="sm"
-                  startValue={salesDateRange.from}
-                  endValue={salesDateRange.to}
-                  max={toIsoDate(new Date())}
-                  width="17rem"
-                  separator="–"
-                  onChange={(next: DateRange) => {
-                    if (next.start && next.end) {
-                      setSalesPeriodPreset('custom')
-                      setSalesDateRange({ from: next.start, to: next.end })
-                    }
-                  }}
-                />
               </div>
 
               <div className="ecu-chart-header-kpi">
