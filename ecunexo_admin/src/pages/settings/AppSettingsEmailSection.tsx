@@ -120,8 +120,8 @@ export function AppSettingsEmailSection({
     }
   }
 
-  const handleApplyZohoDefaults = () => {
-    setHost(ZOHO_DEFAULT_HOST)
+  const handleApplyZohoOrgDefaults = () => {
+    setHost('smtppro.zoho.com')
     setPort(ZOHO_DEFAULT_PORT)
     setUseSsl(true)
     setEncryptionMode('SslTls')
@@ -129,8 +129,23 @@ export function AppSettingsEmailSection({
       setSenderName('EcuNexo')
     }
     toast.show({
-      title: 'Parámetros de Zoho Mail aplicados',
-      message: 'Host configurado a smtp.zoho.com (puerto 465 SSL/TLS). Ingresa tu usuario y clave de aplicación.',
+      title: 'Zoho Mail Corporativo (Dominio) aplicado',
+      message: 'Host configurado a smtppro.zoho.com (puerto 465 SSL/TLS) para correos con dominio propio (@ecunexo.com).',
+      variant: 'info',
+    })
+  }
+
+  const handleApplyZohoPersonalDefaults = () => {
+    setHost('smtp.zoho.com')
+    setPort(ZOHO_DEFAULT_PORT)
+    setUseSsl(true)
+    setEncryptionMode('SslTls')
+    if (!senderName) {
+      setSenderName('EcuNexo')
+    }
+    toast.show({
+      title: 'Zoho Mail Personal aplicado',
+      message: 'Host configurado a smtp.zoho.com (puerto 465 SSL/TLS) para cuentas de correo gratuitas (@zoho.com).',
       variant: 'info',
     })
   }
@@ -259,10 +274,22 @@ export function AppSettingsEmailSection({
             variant="outline"
             size="sm"
             disabled={disabled || loading}
-            onClick={handleApplyZohoDefaults}
+            onClick={handleApplyZohoOrgDefaults}
+            title="Usar smtppro.zoho.com (para correos corporativos como @ecunexo.com)"
           >
             <Sparkles size={14} aria-hidden />
-            <span>Preajuste Zoho Mail</span>
+            <span>Zoho Dominio (@ecunexo.com)</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || loading}
+            onClick={handleApplyZohoPersonalDefaults}
+            title="Usar smtp.zoho.com (para correos gratuitos @zoho.com)"
+          >
+            <Sparkles size={14} aria-hidden />
+            <span>Zoho Personal (@zoho.com)</span>
           </Button>
         </div>
       }

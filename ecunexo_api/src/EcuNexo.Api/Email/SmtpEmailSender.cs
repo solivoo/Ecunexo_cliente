@@ -148,49 +148,26 @@ public sealed partial class SmtpEmailSender : IEmailSender
 
         try
         {
-            using var client = protocolLogger is not null
-                ? new SmtpClient(protocolLogger)
-                : new SmtpClient();
-
-            // Opciones SSL/TLS:
-            // Puerto 465 -> SSL directo (SslOnConnect)
-            // Puerto 587 -> STARTTLS
-            // Otros puertos -> según UseSsl
-            var secureOption = ResolveSecureSocketOptions(config.Port, config.UseSsl, config.EncryptionMode);
-
-            await client.ConnectAsync(config.Host, config.Port, secureOption, ct).ConfigureAwait(false);
-
-            if (!string.IsNullOrWhiteSpace(config.UserName) && !string.IsNullOrWhiteSpace(config.Password))
+            await SendSingleMimeMessageAsync(config, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, ct).ConfigureAwait(false);
+        }
+        catch (SmtpCommandException ex) when (ex.StatusCode == SmtpStatusCode.AuthenticationRequired || ex.Message.Contains("535", StringComparison.OrdinalIgnoreCase))
+        {
+            // Si el servidor configurado es smtp.zoho.com y falla la autenticación (535),
+            // reintentar automáticamente con smtppro.zoho.com (servidor para cuentas corporativas/organizacionales Zoho).
+            if (string.Equals(config.Host, "smtp.zoho.com", StringComparison.OrdinalIgnoreCase))
             {
-                await client.AuthenticateAsync(config.UserName, config.Password, ct).ConfigureAwait(false);
+                var altConfig = config with { Host = "smtppro.zoho.com" };
+                await SendSingleMimeMessageAsync(altConfig, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, ct).ConfigureAwait(false);
             }
-
-            var mime = new MimeMessage();
-            var fromEmail = !string.IsNullOrWhiteSpace(config.SenderEmail) ? config.SenderEmail : config.UserName;
-            var fromName = !string.IsNullOrWhiteSpace(config.SenderName) ? config.SenderName : "EcuNexo";
-
-            mime.From.Add(new MailboxAddress(fromName, fromEmail));
-            mime.To.Add(new MailboxAddress(toDisplayName, toAddress));
-            mime.Subject = subject;
-
-            var bodyBuilder = new BodyBuilder();
-            if (!string.IsNullOrWhiteSpace(htmlBody))
+            else if (string.Equals(config.Host, "smtppro.zoho.com", StringComparison.OrdinalIgnoreCase))
             {
-                bodyBuilder.HtmlBody = htmlBody;
-                if (!string.IsNullOrWhiteSpace(plainTextBody))
-                {
-                    bodyBuilder.TextBody = plainTextBody;
-                }
+                var altConfig = config with { Host = "smtp.zoho.com" };
+                await SendSingleMimeMessageAsync(altConfig, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, ct).ConfigureAwait(false);
             }
             else
             {
-                bodyBuilder.TextBody = plainTextBody;
+                throw;
             }
-
-            mime.Body = bodyBuilder.ToMessageBody();
-
-            await client.SendAsync(mime, ct).ConfigureAwait(false);
-            await client.DisconnectAsync(true, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -209,6 +186,57 @@ public sealed partial class SmtpEmailSender : IEmailSender
                 await protocolStream.DisposeAsync().ConfigureAwait(false);
             }
         }
+    }
+
+    private static async Task SendSingleMimeMessageAsync(
+        EmailSmtpConfig config,
+        string toAddress,
+        string toDisplayName,
+        string subject,
+        string plainTextBody,
+        string? htmlBody,
+        ProtocolLogger? protocolLogger,
+        CancellationToken ct)
+    {
+        using var client = protocolLogger is not null
+            ? new SmtpClient(protocolLogger)
+            : new SmtpClient();
+
+        var secureOption = ResolveSecureSocketOptions(config.Port, config.UseSsl, config.EncryptionMode);
+
+        await client.ConnectAsync(config.Host, config.Port, secureOption, ct).ConfigureAwait(false);
+
+        if (!string.IsNullOrWhiteSpace(config.UserName) && !string.IsNullOrWhiteSpace(config.Password))
+        {
+            await client.AuthenticateAsync(config.UserName, config.Password, ct).ConfigureAwait(false);
+        }
+
+        var mime = new MimeMessage();
+        var fromEmail = !string.IsNullOrWhiteSpace(config.SenderEmail) ? config.SenderEmail : config.UserName;
+        var fromName = !string.IsNullOrWhiteSpace(config.SenderName) ? config.SenderName : "EcuNexo";
+
+        mime.From.Add(new MailboxAddress(fromName, fromEmail));
+        mime.To.Add(new MailboxAddress(toDisplayName, toAddress));
+        mime.Subject = subject;
+
+        var bodyBuilder = new BodyBuilder();
+        if (!string.IsNullOrWhiteSpace(htmlBody))
+        {
+            bodyBuilder.HtmlBody = htmlBody;
+            if (!string.IsNullOrWhiteSpace(plainTextBody))
+            {
+                bodyBuilder.TextBody = plainTextBody;
+            }
+        }
+        else
+        {
+            bodyBuilder.TextBody = plainTextBody;
+        }
+
+        mime.Body = bodyBuilder.ToMessageBody();
+
+        await client.SendAsync(mime, ct).ConfigureAwait(false);
+        await client.DisconnectAsync(true, ct).ConfigureAwait(false);
     }
 
     public static SecureSocketOptions ResolveSecureSocketOptions(int port, bool useSsl, SmtpEncryptionMode mode = SmtpEncryptionMode.Auto)
