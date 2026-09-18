@@ -2,7 +2,6 @@ using System.Globalization;
 using EcuNexo.Api.Email;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Platform;
-using EcuNexo.Core.Platform;
 using NSubstitute;
 using Xunit;
 
