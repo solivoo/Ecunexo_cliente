@@ -92,6 +92,16 @@ export type CustomerDto = {
   updatedAt?: string | null
 }
 
+export type CustomerLookupResponse = {
+  taxId: string
+  identificationType: CustomerIdentificationType
+  customerType: CustomerType
+  suggestedName: string
+  suggestedCity: string | null
+  foundInLocalDirectory: boolean
+  localCustomer: CustomerDto | null
+}
+
 export type CreateCustomerPayload = {
   name: string
   taxId?: string | null

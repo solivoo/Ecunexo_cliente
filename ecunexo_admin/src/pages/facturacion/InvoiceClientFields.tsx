@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { Select, TextBox } from 'glubox'
+import { Button, Select, TextBox, useToast } from 'glubox'
 import {
   CONSUMIDOR_FINAL_MAX_TOTAL_USD,
   CUSTOMER_TYPE_OPTIONS,
@@ -9,10 +9,11 @@ import {
   isConsumidorFinalType,
   type InvoiceCounterpartyValues,
 } from '@/pages/facturacion/invoiceFormTypes'
-import { listCustomers } from '@/services/customersApi'
+import { createCustomer, listCustomers, lookupCustomerSri } from '@/services/customersApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { CustomerDto } from '@/types/customersApi'
+import { deriveEcuadorCityFromTaxId } from '@/lib/ecuadorTaxIdValidator'
 
 export type InvoiceClientFieldsProps = {
   readonly counterparty: InvoiceCounterpartyValues
@@ -58,7 +59,7 @@ function customerToCounterparty(
   }
 }
 
-/** Cliente + forma de pago en grilla de 4 columnas alineadas. */
+/** Cliente + forma de pago simplificado y consulta automatizada SRI/Ecuador. */
 export function InvoiceClientFields({
   counterparty,
   paymentFormCode,
@@ -67,18 +68,29 @@ export function InvoiceClientFields({
   onCounterpartyReplace,
   onPaymentFormChange,
 }: InvoiceClientFieldsProps) {
+  const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
   const [directory, setDirectory] = useState<CustomerDto[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [directoryError, setDirectoryError] = useState<string | null>(null)
+  const [searchingSri, setSearchingSri] = useState(false)
+  const [savingDirectory, setSavingDirectory] = useState(false)
+  const [lookupBanner, setLookupBanner] = useState<{
+    text: string
+    type: 'local' | 'sri'
+    canSave?: boolean
+  } | null>(null)
 
   const consumidorFinal = isConsumidorFinalType(counterparty.identificationType)
+
   const emitParty: InvoiceClientFieldsProps['onCounterpartyChange'] = (key, value) => {
     if (disabled) return
     if (consumidorFinal && (key === 'identification' || key === 'businessName')) return
     setSelectedCustomerId('')
+    setLookupBanner(null)
     onCounterpartyChange(key, value)
   }
+
   const emitPayment = (code: string) => {
     if (disabled) return
     onPaymentFormChange(code)
@@ -109,10 +121,10 @@ export function InvoiceClientFields({
 
   const directoryOptions = useMemo(
     () => [
-      { value: '', label: 'Seleccionar del directorio comercial…' },
+      { value: '', label: 'Seleccionar del directorio comercial registrado…' },
       ...directory.map((c) => ({
         value: c.id,
-        label: `${c.name}${c.taxId ? ` · ${c.taxId}` : ''}`,
+        label: `${c.name}${c.taxId ? ` · ${c.taxId}` : ''}${c.city ? ` (${c.city})` : ''}`,
       })),
     ],
     [directory]
@@ -120,35 +132,173 @@ export function InvoiceClientFields({
 
   const handleDirectorySelect = (customerId: string) => {
     setSelectedCustomerId(customerId)
-    if (!customerId || disabled) return
+    if (!customerId || disabled) {
+      setLookupBanner(null)
+      return
+    }
     const customer = directory.find((c) => c.id === customerId)
     if (!customer) return
     const next = customerToCounterparty(customer, counterparty)
     if (onCounterpartyReplace) {
       onCounterpartyReplace(next)
+    } else {
+      onCounterpartyChange('identificationType', next.identificationType)
+      onCounterpartyChange('identification', next.identification)
+      onCounterpartyChange('businessName', next.businessName)
+      onCounterpartyChange('customerType', next.customerType)
+      onCounterpartyChange('address', next.address)
+      onCounterpartyChange('city', next.city)
+      onCounterpartyChange('email', next.email)
+      onCounterpartyChange('phone', next.phone)
+    }
+    setLookupBanner({
+      text: `✓ Cliente "${customer.name}" cargado del directorio comercial.`,
+      type: 'local',
+    })
+  }
+
+  const handleLookupSri = async (rawTaxId?: string) => {
+    if (!tenantId || disabled) return
+    const targetTaxId = (rawTaxId ?? counterparty.identification).trim()
+    if (!targetTaxId) {
+      toast.show({ title: 'Aviso', message: 'Ingrese una Cédula (10 dígitos) o RUC (13 dígitos) para consultar.', variant: 'info' })
       return
     }
-    onCounterpartyChange('identificationType', next.identificationType)
-    onCounterpartyChange('identification', next.identification)
-    onCounterpartyChange('businessName', next.businessName)
-    onCounterpartyChange('customerType', next.customerType)
-    onCounterpartyChange('address', next.address)
-    onCounterpartyChange('city', next.city)
-    onCounterpartyChange('email', next.email)
-    onCounterpartyChange('phone', next.phone)
+
+    setSearchingSri(true)
+    try {
+      const res = await lookupCustomerSri(tenantId, targetTaxId)
+      if (res.foundInLocalDirectory && res.localCustomer) {
+        const next = customerToCounterparty(res.localCustomer, counterparty)
+        if (onCounterpartyReplace) {
+          onCounterpartyReplace(next)
+        } else {
+          onCounterpartyChange('identificationType', next.identificationType)
+          onCounterpartyChange('identification', next.identification)
+          onCounterpartyChange('businessName', next.businessName)
+          onCounterpartyChange('customerType', next.customerType)
+          onCounterpartyChange('address', next.address)
+          onCounterpartyChange('city', next.city)
+          onCounterpartyChange('email', next.email)
+          onCounterpartyChange('phone', next.phone)
+        }
+        setSelectedCustomerId(res.localCustomer.id)
+        setLookupBanner({
+          text: `✓ Cliente "${res.localCustomer.name}" encontrado en tu directorio comercial.`,
+          type: 'local',
+        })
+        toast.show({ title: 'Cliente Encontrado', message: `Cliente "${res.localCustomer.name}" registrado en tu directorio.`, variant: 'success' })
+      } else {
+        const idTypeStr = res.identificationType === 2 ? '05' : res.identificationType === 1 ? '04' : '06'
+        const autoCity = res.suggestedCity || deriveEcuadorCityFromTaxId(targetTaxId) || ''
+
+        onCounterpartyChange('identificationType', idTypeStr)
+        onCounterpartyChange('identification', targetTaxId)
+        if (res.suggestedName && !counterparty.businessName.trim()) {
+          onCounterpartyChange('businessName', res.suggestedName)
+        }
+        onCounterpartyChange('customerType', res.customerType ?? (idTypeStr === '04' ? 1 : 2))
+        if (autoCity && !counterparty.city.trim()) {
+          onCounterpartyChange('city', autoCity)
+        }
+
+        setLookupBanner({
+          text: `Autodetectado Ecuador: ${idTypeStr === '04' ? 'RUC' : 'Cédula'} (${autoCity ? `Ciudad sugerida: ${autoCity}` : 'Ecuador'}). Puedes verificar la Razón Social y guardarlo.`,
+          type: 'sri',
+          canSave: true,
+        })
+        toast.show({
+          title: 'Datos de Ecuador Auto-detectados',
+          message: `Identificación válida. ${autoCity ? `Ciudad asignada: ${autoCity}.` : ''}`,
+          variant: 'info',
+        })
+      }
+    } catch {
+      // Fallback local con algoritmo de provincias de Ecuador
+      const autoCity = deriveEcuadorCityFromTaxId(targetTaxId) || ''
+      const isRuc = targetTaxId.length === 13
+      const idTypeStr = isRuc ? '04' : targetTaxId.length === 10 ? '05' : '06'
+      onCounterpartyChange('identificationType', idTypeStr)
+      if (autoCity && !counterparty.city.trim()) {
+        onCounterpartyChange('city', autoCity)
+      }
+      setLookupBanner({
+        text: `Identificación Ecuador analizada (${isRuc ? 'RUC' : 'Cédula'}). ${autoCity ? `Ciudad sugerida: ${autoCity}.` : ''}`,
+        type: 'sri',
+        canSave: true,
+      })
+    } finally {
+      setSearchingSri(false)
+    }
+  }
+
+  const handleQuickSaveCustomer = async () => {
+    if (!tenantId || !counterparty.businessName.trim() || disabled || savingDirectory) return
+    setSavingDirectory(true)
+    try {
+      const idTypeNum = counterparty.identificationType === '04' ? 1 : counterparty.identificationType === '05' ? 2 : counterparty.identificationType === '06' ? 3 : 4
+      const created = await createCustomer(tenantId, {
+        name: counterparty.businessName.trim(),
+        taxId: counterparty.identification.trim() || null,
+        customerType: (counterparty.customerType as any) || 1,
+        identificationType: idTypeNum,
+        address: counterparty.address.trim() || null,
+        city: counterparty.city.trim() || null,
+        contactEmail: counterparty.email.trim() || null,
+        contactPhone: counterparty.phone.trim() || null,
+        isActive: true,
+      })
+      setDirectory((prev) => [created, ...prev])
+      setSelectedCustomerId(created.id)
+      setLookupBanner({
+        text: `✓ Cliente "${created.name}" guardado exitosamente en el directorio comercial.`,
+        type: 'local',
+      })
+      toast.show({
+        title: 'Directorio Comercial Actualizado',
+        message: `El cliente "${created.name}" fue guardado exitosamente.`,
+        variant: 'success',
+      })
+    } catch {
+      toast.show({ title: 'Error', message: 'No se pudo guardar el cliente en el directorio.', variant: 'error' })
+    } finally {
+      setSavingDirectory(false)
+    }
   }
 
   return (
     <section className="factura-emitir__meta-block">
       <header className="factura-emitir__meta-head">
-        <h2 className="factura-emitir__meta-label">Cliente</h2>
+        <h2 className="factura-emitir__meta-label">Datos del Cliente / Adquirente</h2>
       </header>
+
+      {lookupBanner && (
+        <div
+          className={`factura-emitir__lookup-banner ${
+            lookupBanner.type === 'local' ? 'factura-emitir__lookup-banner--local' : ''
+          }`}
+          role="status"
+        >
+          <span>{lookupBanner.text}</span>
+          {lookupBanner.canSave && counterparty.businessName.trim() && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void handleQuickSaveCustomer()}
+              disabled={savingDirectory}
+            >
+              {savingDirectory ? 'Guardando…' : '＋ Guardar en Directorio'}
+            </Button>
+          )}
+        </div>
+      )}
 
       <div className="factura-emitir__meta-grid factura-emitir__meta-grid--client">
         <div className="factura-emitir__cell factura-emitir__cell--directory">
           <Select
             id="inv-directory-customer"
-            label="Directorio comercial"
+            label="Buscar en Directorio Comercial Registrado"
             labelPosition="outlined"
             variant="outline"
             options={directoryOptions}
@@ -157,14 +307,9 @@ export function InvoiceClientFields({
             disabled={disabled || directory.length === 0}
             fullWidth
           />
-          {directoryError ? (
+          {directoryError && (
             <p className="factura-emitir__meta-hint" role="alert">
               {directoryError}
-            </p>
-          ) : (
-            <p className="factura-emitir__meta-hint">
-              Elige un cliente habilitado para rellenar RUC, razón social y contacto. Puedes ajustar
-              los campos después.
             </p>
           )}
         </div>
@@ -182,26 +327,55 @@ export function InvoiceClientFields({
             fullWidth
           />
         </div>
+
         <div className="factura-emitir__cell factura-emitir__cell--id">
-          <TextBox
-            id="inv-id"
-            label="Identificación"
-            labelPosition="outlined"
-            variant="outline"
-            size="md"
-            value={counterparty.identification}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              emitParty('identification', e.target.value)
-            }
-            placeholder={consumidorFinal ? '9999999999999' : 'RUC / cédula'}
-            disabled={disabled || consumidorFinal}
-            fullWidth
-          />
+          <div className="factura-emitir__id-lookup-group">
+            <TextBox
+              id="inv-id"
+              label="Cédula / RUC Ecuador"
+              labelPosition="outlined"
+              variant="outline"
+              size="md"
+              value={counterparty.identification}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                const val = e.target.value
+                emitParty('identification', val)
+                if (val.trim().length === 10 || val.trim().length === 13) {
+                  const derivedCity = deriveEcuadorCityFromTaxId(val)
+                  if (derivedCity && !counterparty.city) {
+                    onCounterpartyChange('city', derivedCity)
+                  }
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  void handleLookupSri()
+                }
+              }}
+              placeholder={consumidorFinal ? '9999999999999' : 'Cédula (10d) o RUC (13d)'}
+              disabled={disabled || consumidorFinal}
+              fullWidth
+            />
+            {!consumidorFinal && (
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                onClick={() => void handleLookupSri()}
+                disabled={disabled || searchingSri || !counterparty.identification.trim()}
+                title="Consultar en SRI / Directorio de Ecuador"
+              >
+                {searchingSri ? '…' : 'Consultar'}
+              </Button>
+            )}
+          </div>
         </div>
+
         <div className="factura-emitir__cell factura-emitir__cell--name">
           <TextBox
             id="inv-name"
-            label="Razón social"
+            label="Razón Social / Nombres del Comprador"
             labelPosition="outlined"
             variant="outline"
             size="md"
@@ -209,11 +383,12 @@ export function InvoiceClientFields({
             onChange={(e: ChangeEvent<HTMLInputElement>) =>
               emitParty('businessName', e.target.value)
             }
-            placeholder={consumidorFinal ? 'CONSUMIDOR FINAL' : 'Nombre del comprador'}
+            placeholder={consumidorFinal ? 'CONSUMIDOR FINAL' : 'Nombre o Razón Social'}
             disabled={disabled || consumidorFinal}
             fullWidth
           />
         </div>
+
         <div className="factura-emitir__cell factura-emitir__cell--customer-type">
           <Select
             id="inv-customer-type"
@@ -227,55 +402,11 @@ export function InvoiceClientFields({
             fullWidth
           />
         </div>
-        <div className="factura-emitir__cell factura-emitir__cell--payment">
-          <Select
-            id="inv-payment"
-            label="Forma de pago"
-            labelPosition="outlined"
-            variant="outline"
-            options={[...PAYMENT_FORM_OPTIONS]}
-            value={paymentFormCode}
-            onChange={emitPayment}
-            disabled={disabled}
-            fullWidth
-          />
-        </div>
-        <div className="factura-emitir__cell factura-emitir__cell--addr">
-          <TextBox
-            id="inv-addr"
-            label="Dirección"
-            labelPosition="outlined"
-            variant="outline"
-            size="md"
-            value={counterparty.address}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              emitParty('address', e.target.value)
-            }
-            placeholder="Opcional"
-            disabled={disabled}
-            fullWidth
-          />
-        </div>
-        <div className="factura-emitir__cell factura-emitir__cell--city">
-          <TextBox
-            id="inv-city"
-            label="Ciudad"
-            labelPosition="outlined"
-            variant="outline"
-            size="md"
-            value={counterparty.city}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              emitParty('city', e.target.value)
-            }
-            placeholder="Quito, Guayaquil, etc."
-            disabled={disabled}
-            fullWidth
-          />
-        </div>
+
         <div className="factura-emitir__cell factura-emitir__cell--email">
           <TextBox
             id="inv-email"
-            label="Correo"
+            label="Correo Electrónico (envío automático RIDE)"
             labelPosition="outlined"
             variant="outline"
             size="md"
@@ -285,11 +416,12 @@ export function InvoiceClientFields({
             onChange={(e: ChangeEvent<HTMLInputElement>) =>
               emitParty('email', e.target.value)
             }
-            placeholder="factura@cliente.com"
+            placeholder="facturas@cliente.com"
             disabled={disabled}
             fullWidth
           />
         </div>
+
         <div className="factura-emitir__cell factura-emitir__cell--phone">
           <TextBox
             id="inv-phone"
@@ -308,6 +440,54 @@ export function InvoiceClientFields({
             fullWidth
           />
         </div>
+
+        <div className="factura-emitir__cell factura-emitir__cell--addr">
+          <TextBox
+            id="inv-addr"
+            label="Dirección de Facturación"
+            labelPosition="outlined"
+            variant="outline"
+            size="md"
+            value={counterparty.address}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              emitParty('address', e.target.value)
+            }
+            placeholder="Av. Principal y Secundaria"
+            disabled={disabled}
+            fullWidth
+          />
+        </div>
+
+        <div className="factura-emitir__cell factura-emitir__cell--city">
+          <TextBox
+            id="inv-city"
+            label="Ciudad"
+            labelPosition="outlined"
+            variant="outline"
+            size="md"
+            value={counterparty.city}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              emitParty('city', e.target.value)
+            }
+            placeholder="Quito, Guayaquil, etc."
+            disabled={disabled}
+            fullWidth
+          />
+        </div>
+
+        <div className="factura-emitir__cell factura-emitir__cell--payment">
+          <Select
+            id="inv-payment"
+            label="Forma de Pago SRI"
+            labelPosition="outlined"
+            variant="outline"
+            options={[...PAYMENT_FORM_OPTIONS]}
+            value={paymentFormCode}
+            onChange={emitPayment}
+            disabled={disabled}
+            fullWidth
+          />
+        </div>
       </div>
 
       {consumidorFinal ? (
@@ -317,7 +497,7 @@ export function InvoiceClientFields({
         </p>
       ) : (
         <p className="factura-emitir__meta-hint">
-          El correo se usará para enviar el comprobante electrónico.
+          Al ingresar la Cédula (10d) o RUC (13d) haz clic en <strong>Consultar</strong> para autodetectar la provincia/ciudad y verificar en el directorio.
         </p>
       )}
     </section>

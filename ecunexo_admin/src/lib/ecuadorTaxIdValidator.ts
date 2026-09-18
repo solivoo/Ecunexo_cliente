@@ -339,3 +339,39 @@ export function validatePhone(phone: string | null | undefined): { isValid: bool
     error: 'Teléfono inválido. Ingrese 10 dígitos para celular (09...), 9 para fijo (02...) o formato internacional (+593...).',
   }
 }
+
+export const ECUADOR_PROVINCES: Record<string, { province: string; mainCity: string }> = {
+  '01': { province: 'Azuay', mainCity: 'Cuenca' },
+  '02': { province: 'Bolívar', mainCity: 'Guaranda' },
+  '03': { province: 'Cañar', mainCity: 'Azogues' },
+  '04': { province: 'Carchi', mainCity: 'Tulcán' },
+  '05': { province: 'Cotopaxi', mainCity: 'Latacunga' },
+  '06': { province: 'Chimborazo', mainCity: 'Riobamba' },
+  '07': { province: 'El Oro', mainCity: 'Machala' },
+  '08': { province: 'Esmeraldas', mainCity: 'Esmeraldas' },
+  '09': { province: 'Guayas', mainCity: 'Guayaquil' },
+  '10': { province: 'Imbabura', mainCity: 'Ibarra' },
+  '11': { province: 'Loja', mainCity: 'Loja' },
+  '12': { province: 'Los Ríos', mainCity: 'Babahoyo' },
+  '13': { province: 'Manabí', mainCity: 'Portoviejo' },
+  '14': { province: 'Morona Santiago', mainCity: 'Macas' },
+  '15': { province: 'Napo', mainCity: 'Tena' },
+  '16': { province: 'Pastaza', mainCity: 'Puyo' },
+  '17': { province: 'Pichincha', mainCity: 'Quito' },
+  '18': { province: 'Tungurahua', mainCity: 'Ambato' },
+  '19': { province: 'Zamora Chinchipe', mainCity: 'Zamora' },
+  '20': { province: 'Galápagos', mainCity: 'Puerto Baquerizo Moreno' },
+  '21': { province: 'Sucumbíos', mainCity: 'Nueva Loja' },
+  '22': { province: 'Orellana', mainCity: 'Puerto Francisco de Orellana' },
+  '23': { province: 'Santo Domingo de los Tsáchilas', mainCity: 'Santo Domingo' },
+  '24': { province: 'Santa Elena', mainCity: 'Santa Elena' },
+  '30': { province: 'Exterior', mainCity: 'Exterior' },
+}
+
+export function deriveEcuadorCityFromTaxId(taxId: string | null | undefined): string | null {
+  if (!taxId) return null
+  const clean = taxId.trim().replace(/\D/g, '')
+  if (clean.length < 2) return null
+  const code = clean.substring(0, 2)
+  return ECUADOR_PROVINCES[code]?.mainCity ?? null
+}

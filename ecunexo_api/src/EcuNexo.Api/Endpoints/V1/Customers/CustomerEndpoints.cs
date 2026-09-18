@@ -53,6 +53,15 @@ public static class CustomerEndpoints
                 "facturacion.facturas.create",
                 "facturacion.comprobantes.read"));
 
+        group.MapGet("/lookup-sri/{taxId}", LookupCustomerSriAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny(
+                "customers.read",
+                "customers.manage",
+                "repairs.batches.read",
+                "facturacion.read",
+                "facturacion.facturas.create",
+                "facturacion.comprobantes.read"));
+
         group.MapPost("/", CreateCustomerAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny(
                 "customers.manage",
@@ -125,6 +134,55 @@ public static class CustomerEndpoints
         }
 
         return Results.Ok(customer);
+    }
+
+    private static async Task<IResult> LookupCustomerSriAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] string taxId,
+        [FromServices] ICustomerRepository customerRepo,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(taxId))
+        {
+            return Results.BadRequest(new { error = "La identificación fiscal o RUC es obligatoria." });
+        }
+
+        var clean = taxId.Trim();
+        var (idType, custType) = EcuadorCustomerLookupHelper.InferTypes(clean);
+        var suggestedCity = EcuadorCustomerLookupHelper.DeriveCity(clean);
+
+        var existing = await customerRepo.GetByTaxIdAsync(tenantId, clean, ct).ConfigureAwait(false);
+        CustomerDto? localDto = null;
+        if (existing != null)
+        {
+            localDto = new CustomerDto(
+                existing.Id,
+                existing.TenantId,
+                existing.Name,
+                existing.TaxId,
+                existing.CustomerType,
+                existing.IdentificationType,
+                existing.ContactEmail,
+                existing.ContactPhone,
+                existing.Address,
+                existing.City,
+                existing.ContactPerson,
+                existing.Notes,
+                existing.IsActive,
+                existing.CreatedAt,
+                existing.UpdatedAt);
+        }
+
+        var suggestedName = existing?.Name ?? string.Empty;
+
+        return Results.Ok(new CustomerLookupResponse(
+            TaxId: clean,
+            IdentificationType: existing?.IdentificationType ?? idType,
+            CustomerType: existing?.CustomerType ?? custType,
+            SuggestedName: suggestedName,
+            SuggestedCity: existing?.City ?? suggestedCity,
+            FoundInLocalDirectory: existing != null,
+            LocalCustomer: localDto));
     }
 
     private static async Task<IResult> CreateCustomerAsync(

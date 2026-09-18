@@ -47,6 +47,15 @@ public sealed record UpdateCustomerApiRequest(
 
 public sealed record ToggleCustomerStatusApiRequest(bool IsActive);
 
+public sealed record CustomerLookupResponse(
+    string TaxId,
+    CustomerIdentificationType IdentificationType,
+    CustomerType CustomerType,
+    string SuggestedName,
+    string? SuggestedCity,
+    bool FoundInLocalDirectory,
+    CustomerDto? LocalCustomer);
+
 public sealed record CustomerTypeDefinitionDto(
     Guid Id,
     int Code,

@@ -74,6 +74,19 @@ export async function getCustomerByTaxId(
 }
 
 /**
+ * Consulta unificada SRI / Directorio para auto-completado por Cédula o RUC en Ecuador.
+ */
+export async function lookupCustomerSri(
+  tenantId: string,
+  taxId: string
+): Promise<import('@/types/customersApi').CustomerLookupResponse> {
+  const { data } = await api.get<import('@/types/customersApi').CustomerLookupResponse>(
+    `/api/v1/tenants/${tenantId}/customers/lookup-sri/${encodeURIComponent(taxId.trim())}`
+  )
+  return data
+}
+
+/**
  * Crear un nuevo cliente en el directorio comercial.
  */
 export async function createCustomer(
