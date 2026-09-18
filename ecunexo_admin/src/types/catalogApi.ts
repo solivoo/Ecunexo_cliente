@@ -60,6 +60,7 @@ export type CatalogItemListItemDto = {
   createdAt: string
   mainImageThumbUrl?: string | null
   mainImageUrl?: string | null
+  customAttributesJson?: string | null
 }
 
 export type CatalogItemDetailDto = {

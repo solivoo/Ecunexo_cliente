@@ -131,6 +131,85 @@ public sealed class ApplyAuthorizedInvoiceEgressHandlerTests
         await unitOfWork.Received().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    [Fact(DisplayName = "Línea physical sin stock disponible falla al aplicar egreso de factura")]
+    public async Task Handle_PhysicalLine_WithoutStock_ReturnsInsufficientStockError()
+    {
+        // Preparar: ítem físico registrado pero con saldo stock en 0
+        var tenantId = Guid.CreateVersion7();
+        var item = CatalogItem.Create(
+            Guid.CreateVersion7(),
+            tenantId,
+            CatalogItemKind.Physical,
+            "Teclado Mecánico RGB",
+            description: null,
+            sku: "TEC-RGB-001",
+            basePrice: 45.00m,
+            categoryId: null,
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var (sut, _, egresses, unitOfWork) = CreateSut(
+            tenantId,
+            catalogItems: [item],
+            seedStockQuantity: 0m);
+
+        var command = new ApplyAuthorizedInvoiceEgressCommand(
+            tenantId,
+            Guid.CreateVersion7(),
+            [
+                new AuthorizedInvoiceEgressLineInput(item.Id, 2m, "physical", item.Name),
+            ]);
+
+        // Actuar
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        // Verificar
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("inventory.stock.insufficient");
+        result.Error.Message.Should().Contain("No hay stock suficiente");
+        await egresses.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        await unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
+    }
+
+    [Fact(DisplayName = "Línea physical con cantidad mayor al stock disponible falla con conflicto de stock")]
+    public async Task Handle_PhysicalLine_ExceedingStock_ReturnsInsufficientStockError()
+    {
+        // Preparar: ítem físico con stock = 2m, pero la factura solicita 5m
+        var tenantId = Guid.CreateVersion7();
+        var item = CatalogItem.Create(
+            Guid.CreateVersion7(),
+            tenantId,
+            CatalogItemKind.Physical,
+            "Mouse Inalámbrico Ultra",
+            description: null,
+            sku: "MOU-WL-002",
+            basePrice: 25.00m,
+            categoryId: null,
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var (sut, _, egresses, unitOfWork) = CreateSut(
+            tenantId,
+            catalogItems: [item],
+            seedStockQuantity: 2m);
+
+        var command = new ApplyAuthorizedInvoiceEgressCommand(
+            tenantId,
+            Guid.CreateVersion7(),
+            [
+                new AuthorizedInvoiceEgressLineInput(item.Id, 5m, "physical", item.Name),
+            ]);
+
+        // Actuar
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        // Verificar
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("inventory.stock.insufficient");
+        await egresses.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        await unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
+    }
+
     private static (
         ApplyAuthorizedInvoiceEgressHandler Sut,
         IInventoryDocumentRepository Documents,

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, DataGrid, NumberBox, Popup, type ColumnDef } from 'glubox'
 import { EmptyState, StatusBadge } from '@/components/ui'
-import { Check, Package, Plus } from 'lucide-react'
+import { Package, X } from 'lucide-react'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
+import { flattenAttributeEntries } from '@/lib/catalogAttributes'
 import { listCatalogItems } from '@/services/catalogApi'
 import { listStock } from '@/services/inventoryApi'
 import { CatalogItemKind, CatalogItemStatus, type CatalogItemListItemDto } from '@/types/catalogApi'
@@ -21,23 +22,59 @@ export type InvoiceStockCatalogModalProps = {
   ) => void
 }
 
+type AttributeChip = {
+  label: string
+  value: string
+}
+
 type ProductStockRow = {
   id: string
   name: string
   kind: string
+  select?: boolean
   stock: number
   price: number
   qty: number
-  action: string
   item: CatalogItemListItemDto
   totalStock: number | null
   isBelowMinimum: boolean
   warehouses: { readonly name: string; readonly qty: number }[]
+  attributes: AttributeChip[]
   searchKey: string
   [key: string]: unknown
 }
 
 const messages = createSpanishDataGridMessages('producto', 'productos')
+
+function parseDescriptionAttributes(description: string | null | undefined): AttributeChip[] {
+  if (!description?.trim()) return []
+
+  const chips: AttributeChip[] = []
+  // Si la descripción contiene pares tipo "Talla: L; Color: Negro; Marca: Nike" o líneas separadas
+  const parts = description.split(/[;\n]/)
+
+  for (const part of parts) {
+    const trimmed = part.trim()
+    if (!trimmed) continue
+
+    const colonIdx = trimmed.indexOf(':')
+    if (colonIdx > 0 && colonIdx < trimmed.length - 1) {
+      const label = trimmed.slice(0, colonIdx).trim()
+      const value = trimmed.slice(colonIdx + 1).trim()
+      if (label && value && label.length < 25 && value.length < 40) {
+        chips.push({ label, value })
+        continue
+      }
+    }
+
+    // Si es un atributo simple corto (ej. "Talla XL" o "Algodón 100%")
+    if (trimmed.length < 30) {
+      chips.push({ label: '', value: trimmed })
+    }
+  }
+
+  return chips
+}
 
 export function InvoiceStockCatalogModal({
   open,
@@ -51,12 +88,18 @@ export function InvoiceStockCatalogModal({
   const [loading, setLoading] = useState(false)
   const [filterMode, setFilterMode] = useState<'all' | 'physical' | 'service' | 'with_stock'>('all')
   const [quantities, setQuantities] = useState<Record<string, number>>({})
-  const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging(6)
 
   useEffect(() => {
-    if (!open || !tenantId) return
+    if (!open) {
+      setSelectedIds(new Set())
+      setQuantities({})
+      return
+    }
+
+    if (!tenantId) return
 
     let cancelled = false
 
@@ -92,6 +135,18 @@ export function InvoiceStockCatalogModal({
     }
 
     return catalogItems.map((item) => {
+      const customAttrEntries = flattenAttributeEntries(item.customAttributesJson)
+      const descAttrChips = parseDescriptionAttributes(item.description)
+
+      const mergedAttributes: AttributeChip[] = [
+        ...customAttrEntries.map((e) => ({ label: e.label, value: e.value })),
+        ...descAttrChips,
+      ].filter((chip, index, self) =>
+        index === self.findIndex((c) => c.label === chip.label && c.value === chip.value)
+      )
+
+      const attrSearchStr = mergedAttributes.map((a) => `${a.label} ${a.value}`).join(' ')
+
       if (item.kind === CatalogItemKind.Service) {
         return {
           id: item.id,
@@ -100,12 +155,12 @@ export function InvoiceStockCatalogModal({
           stock: 0,
           price: item.basePrice ?? 0,
           qty: 1,
-          action: '',
           item,
           totalStock: null,
           isBelowMinimum: false,
           warehouses: [],
-          searchKey: `${item.sku ?? ''} ${item.name} ${item.categoryName ?? ''}`.toLowerCase(),
+          attributes: mergedAttributes,
+          searchKey: `${item.sku ?? ''} ${item.name} ${item.categoryName ?? ''} ${item.description ?? ''} ${attrSearchStr}`.toLowerCase(),
         }
       }
 
@@ -124,12 +179,12 @@ export function InvoiceStockCatalogModal({
         stock: totalStock,
         price: item.basePrice ?? 0,
         qty: 1,
-        action: '',
         item,
         totalStock,
         isBelowMinimum,
         warehouses,
-        searchKey: `${item.sku ?? ''} ${item.name} ${item.categoryName ?? ''}`.toLowerCase(),
+        attributes: mergedAttributes,
+        searchKey: `${item.sku ?? ''} ${item.name} ${item.categoryName ?? ''} ${item.description ?? ''} ${attrSearchStr}`.toLowerCase(),
       }
     })
   }, [catalogItems, stockItems])
@@ -146,52 +201,106 @@ export function InvoiceStockCatalogModal({
     })
   }, [productsWithStock, filterMode])
 
-  const handleAdd = (row: ProductStockRow) => {
-    const qty = quantities[row.item.id] ?? 1
-    onSelectProduct(row.item, qty, targetLineId)
-    setRecentlyAddedId(row.item.id)
-    setTimeout(() => {
-      setRecentlyAddedId(null)
-    }, 1500)
-    if (targetLineId) {
-      onClose()
+
+
+  const handleQuantityChange = (itemId: string, val: number) => {
+    const qty = Math.max(1, val)
+    setQuantities((prev) => ({
+      ...prev,
+      [itemId]: qty,
+    }))
+    // Al modificar cantidad, seleccionar automáticamente si no estaba marcado
+    if (!selectedIds.has(itemId)) {
+      setSelectedIds((prev) => new Set(prev).add(itemId))
     }
   }
 
-  const handleQuantityChange = (itemId: string, val: number) => {
-    setQuantities((prev) => ({
-      ...prev,
-      [itemId]: Math.max(1, val),
-    }))
+  const handleConfirmSelection = () => {
+    if (selectedIds.size === 0) return
+
+    const itemsToProcess = productsWithStock.filter((p) => selectedIds.has(p.id))
+
+    // Si se especificó targetLineId (reemplazar una línea específica), procesamos la primera selección sobre targetLineId
+    // y el resto como nuevas líneas.
+    itemsToProcess.forEach((row, index) => {
+      const qty = quantities[row.id] ?? 1
+      const currentTargetLine = index === 0 ? targetLineId : null
+      onSelectProduct(row.item, qty, currentTargetLine)
+    })
+
+    onClose()
   }
 
   const columns = useMemo(
     (): ColumnDef<ProductStockRow>[] => [
       {
         key: 'name',
-        header: 'Ítem / Producto',
+        header: 'Ítem / Producto y Detalles',
         sortable: true,
         renderCell: (_v: unknown, row: ProductStockRow) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            {row.item.sku && (
-              <span
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', padding: '0.2rem 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {row.item.sku && (
+                <span
+                  style={{
+                    fontFamily: 'ui-monospace, monospace',
+                    fontWeight: 700,
+                    fontSize: '0.78rem',
+                    color: 'var(--shell-primary)',
+                    backgroundColor: 'rgba(var(--shell-primary-rgb), 0.08)',
+                    padding: '0.1rem 0.4rem',
+                    borderRadius: '4px',
+                  }}
+                >
+                  {row.item.sku}
+                </span>
+              )}
+              <strong style={{ color: 'var(--glb-text)', fontSize: '0.88rem' }}>
+                {row.item.name}
+              </strong>
+              {row.item.categoryName && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+                  ({row.item.categoryName})
+                </span>
+              )}
+            </div>
+
+            {row.item.description && (
+              <p
                 style={{
-                  fontFamily: 'ui-monospace, monospace',
-                  fontWeight: 700,
+                  margin: 0,
                   fontSize: '0.78rem',
-                  color: 'var(--shell-primary)',
+                  color: 'var(--glb-muted)',
+                  lineHeight: 1.35,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
                 }}
               >
-                {row.item.sku}
-              </span>
+                {row.item.description}
+              </p>
             )}
-            <strong style={{ color: 'var(--glb-text)', fontSize: '0.875rem' }}>
-              {row.item.name}
-            </strong>
-            {row.item.categoryName && (
-              <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
-                {row.item.categoryName}
-              </span>
+
+            {row.attributes.length > 0 && (
+              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+                {row.attributes.map((attr, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      fontSize: '0.72rem',
+                      padding: '0.08rem 0.45rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'var(--glb-surface-variant, rgba(255,255,255,0.06))',
+                      border: '1px solid var(--shell-border, rgba(255,255,255,0.1))',
+                      color: 'var(--glb-text)',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {attr.label ? `${attr.label}: ${attr.value}` : attr.value}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         ),
@@ -199,7 +308,7 @@ export function InvoiceStockCatalogModal({
       {
         key: 'kind',
         header: 'Tipo',
-        width: 100,
+        width: 95,
         align: 'center',
         renderCell: (_v: unknown, row: ProductStockRow) => (
           <StatusBadge tone={row.item.kind === CatalogItemKind.Service ? 'neutral' : 'primary'}>
@@ -210,7 +319,7 @@ export function InvoiceStockCatalogModal({
       {
         key: 'stock',
         header: 'Stock Disponible',
-        width: 180,
+        width: 170,
         renderCell: (_v: unknown, row: ProductStockRow) => {
           if (row.item.kind === CatalogItemKind.Service) {
             return (
@@ -267,7 +376,7 @@ export function InvoiceStockCatalogModal({
       {
         key: 'price',
         header: 'PVP / Base',
-        width: 110,
+        width: 105,
         align: 'right',
         renderCell: (_v: unknown, row: ProductStockRow) => (
           <span
@@ -300,37 +409,9 @@ export function InvoiceStockCatalogModal({
           </div>
         ),
       },
-      {
-        key: 'action',
-        header: 'Acción',
-        width: 110,
-        align: 'right',
-        renderCell: (_v: unknown, row: ProductStockRow) => {
-          const isRecent = recentlyAddedId === row.item.id
-          return (
-            <Button
-              type="button"
-              variant={isRecent ? 'outline' : 'primary'}
-              size="sm"
-              onClick={() => handleAdd(row)}
-            >
-              {isRecent ? (
-                <>
-                  <Check size={14} strokeWidth={2.5} aria-hidden /> Agregado
-                </>
-              ) : (
-                <>
-                  <Plus size={14} strokeWidth={2} aria-hidden />
-                  {targetLineId ? 'Elegir' : 'Agregar'}
-                </>
-              )}
-            </Button>
-          )
-        },
-      },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [quantities, recentlyAddedId, targetLineId]
+    [quantities]
   )
 
   const toolbarRight = (
@@ -370,27 +451,72 @@ export function InvoiceStockCatalogModal({
     </div>
   )
 
+  const selectedCount = selectedIds.size
+
   return (
     <Popup
       open={open}
-      title="Catálogo de Productos y Disponibilidad de Stock"
+      title="Selección Múltiple de Productos y Stock"
       onClose={onClose}
-      width="min(96vw, 78rem)"
+      width="min(96vw, 82rem)"
       actions={[
         {
           id: 'close',
-          label: 'Cerrar',
+          label: 'Cancelar',
           variant: 'outline',
           onClick: onClose,
+        },
+        {
+          id: 'apply',
+          label: selectedCount > 0 ? `Aceptar y agregar (${selectedCount})` : 'Aceptar',
+          variant: 'primary',
+          disabled: selectedCount === 0,
+          onClick: handleConfirmSelection,
         },
       ]}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <p className="ecu-modal-section-lead" style={{ margin: 0 }}>
-          {targetLineId
-            ? 'Selecciona un ítem para asignarlo a la línea del comprobante.'
-            : 'Consulta existencias por bodega y agrega uno o varios productos a la factura electrónica.'}
-        </p>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+          }}
+        >
+          <p className="ecu-modal-section-lead" style={{ margin: 0 }}>
+            {targetLineId
+              ? 'Selecciona uno o más ítems para agregarlos o reemplazar la línea actual.'
+              : 'Marca los casilleros de los productos que deseas facturar, ajusta cantidades y presiona Aceptar.'}
+          </p>
+
+          {selectedCount > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span
+                style={{
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  color: 'var(--shell-primary)',
+                  backgroundColor: 'rgba(var(--shell-primary-rgb), 0.1)',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '12px',
+                }}
+              >
+                {selectedCount} producto(s) seleccionado(s)
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedIds(new Set())}
+                title="Limpiar selección"
+              >
+                <X size={14} strokeWidth={2} aria-hidden /> Limpiar
+              </Button>
+            </div>
+          )}
+        </div>
 
         {loading ? (
           <p className="ecu-modal-section-lead" style={{ textAlign: 'center', padding: '3rem 0' }}>
@@ -401,7 +527,7 @@ export function InvoiceStockCatalogModal({
             className="ecu-empty-state--compact"
             icon={<Package size={24} strokeWidth={1.75} aria-hidden />}
             title="No se encontraron productos"
-            description="No hay ítems que coincidan con los filtros actuales."
+            description="No hay ítems que coincidan con los filtros o la búsqueda."
           />
         ) : (
           <DataGrid<ProductStockRow>
@@ -409,11 +535,13 @@ export function InvoiceStockCatalogModal({
             dataSource={filteredProducts}
             keyExpr="id"
             columns={columns}
-            selectionMode="none"
+            selectionMode="multiple"
+            selectedRowIds={Array.from(selectedIds)}
+            onSelectionChange={(selectedRows) => setSelectedIds(new Set(selectedRows.map((r) => r.id)))}
             showSearch
             searchPosition="left"
-            searchWidth={320}
-            searchPlaceholder="Buscar SKU o nombre…"
+            searchWidth={340}
+            searchPlaceholder="Buscar por SKU, nombre, descripción o talla…"
             searchKeys={['searchKey']}
             toolbarRight={toolbarRight}
             paging={paging}

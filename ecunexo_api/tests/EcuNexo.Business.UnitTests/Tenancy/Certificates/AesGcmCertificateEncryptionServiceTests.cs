@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using EcuNexo.Business.Tenancy.Certificates;
+using Microsoft.Extensions.Configuration;
 
 namespace EcuNexo.Business.UnitTests.Tenancy.Certificates;
 
@@ -79,5 +80,33 @@ public sealed class AesGcmCertificateEncryptionServiceTests
         var decrypted = service.DecryptPacked(packed);
         decrypted.Should().Equal(passwordBytes);
         Encoding.UTF8.GetString(decrypted).Should().Be("SuperPassword123!");
+    }
+
+    [Fact(DisplayName = "Constructor con IConfiguration lanza InvalidOperationException cuando no hay clave maestra configurada")]
+    public void Constructor_WithoutMasterKeyInConfig_ThrowsInvalidOperationException()
+    {
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
+        var act = () => new AesGcmCertificateEncryptionService(config);
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*SigningCertificate:MasterKey*");
+    }
+
+    [Fact(DisplayName = "Constructor con IConfiguration inicializa correctamente cuando existe clave maestra")]
+    public void Constructor_WithMasterKeyInConfig_EncryptsAndDecryptsSuccessfully()
+    {
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            {"SigningCertificate:MasterKey", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
+        };
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        var service = new AesGcmCertificateEncryptionService(config);
+        var originalData = Encoding.UTF8.GetBytes("Prueba de cifrado con clave de configuración");
+        var payload = service.Encrypt(originalData);
+        var decrypted = service.Decrypt(payload.Ciphertext, payload.Nonce, payload.Tag);
+
+        decrypted.Should().Equal(originalData);
     }
 }

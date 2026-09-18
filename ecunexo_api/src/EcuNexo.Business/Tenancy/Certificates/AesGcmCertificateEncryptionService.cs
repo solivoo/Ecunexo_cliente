@@ -134,7 +134,8 @@ public sealed class AesGcmCertificateEncryptionService : ICertificateEncryptionS
             return SHA256.HashData(Encoding.UTF8.GetBytes(rawKey));
         }
 
-        return SHA256.HashData(Encoding.UTF8.GetBytes("ecunexo-dev-signing-certificate-master-key-32bytes"));
+        throw new InvalidOperationException(
+            "Falta configurar 'SigningCertificate:MasterKey' o la variable de entorno 'SIGNING_CERTIFICATE_MASTER_KEY'. No se permite iniciar el servicio de cifrado de certificados sin clave maestra de cifrado.");
     }
 
     private static bool IsHexString(string s)

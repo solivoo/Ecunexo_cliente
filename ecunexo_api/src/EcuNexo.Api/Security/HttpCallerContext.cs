@@ -5,9 +5,9 @@ using System.Security.Claims;
 namespace EcuNexo.Api.Security;
 
 /// <summary>
-/// Identidad del llamante: primero JWT (<c>sub</c>, <see cref="JwtClaimTypes.TenantId"/>); si no hay usuario autenticado, cabeceras <c>X-EcuNexo-*</c> (compatibilidad local).
+/// Identidad del llamante: primero JWT (<c>sub</c>, <see cref="JwtClaimTypes.TenantId"/>); si no hay usuario autenticado, cabeceras <c>X-EcuNexo-*</c> solo en desarrollo local.
 /// </summary>
-public sealed class HttpCallerContext(IHttpContextAccessor httpContextAccessor) : ICallerContext
+public sealed class HttpCallerContext(IHttpContextAccessor httpContextAccessor, IHostEnvironment environment) : ICallerContext
 {
     private const string UserIdHeader = "X-EcuNexo-User-Id";
     private const string TenantIdHeader = "X-EcuNexo-Tenant-Id";
@@ -27,7 +27,7 @@ public sealed class HttpCallerContext(IHttpContextAccessor httpContextAccessor) 
                 }
             }
 
-            return ParseGuid(http?.Request, UserIdHeader);
+            return environment.IsDevelopment() ? ParseGuid(http?.Request, UserIdHeader) : null;
         }
     }
 
@@ -45,7 +45,7 @@ public sealed class HttpCallerContext(IHttpContextAccessor httpContextAccessor) 
                 }
             }
 
-            return ParseGuid(http?.Request, TenantIdHeader);
+            return environment.IsDevelopment() ? ParseGuid(http?.Request, TenantIdHeader) : null;
         }
     }
 
