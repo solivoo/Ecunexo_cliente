@@ -418,6 +418,8 @@ public static class SettingsEndpoints
                 "Se requieren las credenciales SMTP (servidor, usuario y contraseña) para enviar el correo de prueba. Ingrésalas en el formulario o guárdalas primero."));
         }
 
+        Console.WriteLine($"[SMTP TEST] Diagnóstico de credenciales: Host={host}:{port}, User={userName}, PasswordLength={password.Length}");
+
         var testEncMode = !string.IsNullOrWhiteSpace(request.EncryptionMode) && Enum.TryParse<SmtpEncryptionMode>(request.EncryptionMode, true, out var parsedTestMode)
             ? parsedTestMode
             : (savedConfig?.EncryptionMode ?? SmtpEncryptionMode.Auto);
