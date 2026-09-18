@@ -1,11 +1,8 @@
 using System.Globalization;
-using System.Text.Json;
 using EcuNexo.Api.Email;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Platform;
-using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Platform;
-using EcuNexo.Core.Tenancy;
 using NSubstitute;
 using Xunit;
 
@@ -25,10 +22,8 @@ public class InvoiceAuthorizedEmailBusinessRuleTests
         // Arrange
         var emailSender = Substitute.For<IEmailSender>();
         var settingRepository = Substitute.For<ISysSettingRepository>();
-        var tenantRepository = Substitute.For<ITenantRepository>();
 
         var tenantId = Guid.NewGuid();
-        var invoiceId = Guid.NewGuid();
 
         // Template default o mock
         settingRepository
@@ -38,6 +33,8 @@ public class InvoiceAuthorizedEmailBusinessRuleTests
         var messageCaptor = new List<EmailMessage>();
         await emailSender.SendAsync(Arg.Do<EmailMessage>(messageCaptor.Add), Arg.Any<CancellationToken>());
 
+        var docTypeLabel = docType == "04" ? "Nota de Crédito" : "Factura Electrónica";
+
         var placeholders = new Dictionary<string, string>
         {
             ["{{ClienteNombre}}"] = "Cliente Ejemplo S.A.",
@@ -45,7 +42,7 @@ public class InvoiceAuthorizedEmailBusinessRuleTests
             ["{{MontoTotal}}"] = (150.75m).ToString("N2", CultureInfo.InvariantCulture),
             ["{{FechaEmision}}"] = DateTime.UtcNow.ToString("dd/MMM/yyyy", CultureInfo.InvariantCulture),
             ["{{ClaveAcceso}}"] = "1809202601179234567800120010020000001231234567819",
-            ["{{TenantName}}"] = "EcuNexo Comercial",
+            ["{{TenantName}}"] = $"EcuNexo ({environment})",
             ["{{TenantRuc}}"] = "1792345678001"
         };
 
@@ -56,8 +53,8 @@ public class InvoiceAuthorizedEmailBusinessRuleTests
         var emailMsg = new EmailMessage(
             ToAddress: counterpartyEmail,
             ToDisplayName: "Cliente Ejemplo S.A.",
-            Subject: subject,
-            PlainTextBody: "Texto plano",
+            Subject: $"{docTypeLabel} - {subject}",
+            PlainTextBody: $"Texto plano {environment}",
             HtmlBody: bodyHtml,
             TenantId: tenantId);
 
