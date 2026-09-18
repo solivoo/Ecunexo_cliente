@@ -156,7 +156,7 @@ public sealed partial class SmtpEmailSender : IEmailSender
             // Puerto 465 -> SSL directo (SslOnConnect)
             // Puerto 587 -> STARTTLS
             // Otros puertos -> según UseSsl
-            var secureOption = ResolveSecureSocketOptions(config.Port, config.UseSsl);
+            var secureOption = ResolveSecureSocketOptions(config.Port, config.UseSsl, config.EncryptionMode);
 
             await client.ConnectAsync(config.Host, config.Port, secureOption, ct).ConfigureAwait(false);
 
@@ -211,24 +211,20 @@ public sealed partial class SmtpEmailSender : IEmailSender
         }
     }
 
-    public static SecureSocketOptions ResolveSecureSocketOptions(int port, bool useSsl)
+    public static SecureSocketOptions ResolveSecureSocketOptions(int port, bool useSsl, SmtpEncryptionMode mode = SmtpEncryptionMode.Auto)
     {
-        if (!useSsl)
+        return mode switch
         {
-            return SecureSocketOptions.None;
-        }
-
-        if (port == 465)
-        {
-            return SecureSocketOptions.SslOnConnect;
-        }
-
-        if (port == 587)
-        {
-            return SecureSocketOptions.StartTls;
-        }
-
-        return SecureSocketOptions.Auto;
+            SmtpEncryptionMode.SslTls => SecureSocketOptions.SslOnConnect,
+            SmtpEncryptionMode.StartTls => SecureSocketOptions.StartTls,
+            SmtpEncryptionMode.None => SecureSocketOptions.None,
+            _ => !useSsl ? SecureSocketOptions.None : port switch
+            {
+                465 => SecureSocketOptions.SslOnConnect,
+                587 => SecureSocketOptions.StartTls,
+                _ => SecureSocketOptions.Auto
+            }
+        };
     }
 
     [LoggerMessage(

@@ -25,6 +25,7 @@ export type EmailSettingsDto = {
   host: string
   port: number
   useSsl: boolean
+  encryptionMode?: 'Auto' | 'SslTls' | 'StartTls' | 'None'
   userName: string
   senderEmail: string
   senderName: string
@@ -38,6 +39,7 @@ export type UpdateEmailSettingsBody = {
   host: string
   port: number
   useSsl: boolean
+  encryptionMode?: string
   userName: string
   password?: string
   senderEmail: string
@@ -49,6 +51,7 @@ export type TestEmailSettingsBody = {
   host?: string
   port?: number
   useSsl?: boolean
+  encryptionMode?: string
   userName?: string
   password?: string
   senderEmail?: string
@@ -58,6 +61,32 @@ export type TestEmailSettingsBody = {
 export type TestEmailSettingsResponse = {
   success: boolean
   message: string
+}
+
+export type EmailTemplateDto = {
+  actionCode: string
+  actionName: string
+  description: string
+  subjectTemplate: string
+  bodyHtmlTemplate: string
+  isCustom: boolean
+  availablePlaceholders: string[]
+}
+
+export type UpdateEmailTemplateBody = {
+  subjectTemplate: string
+  bodyHtmlTemplate: string
+}
+
+export type PreviewEmailTemplateBody = {
+  actionCode: string
+  subjectTemplate?: string
+  bodyHtmlTemplate?: string
+}
+
+export type PreviewEmailTemplateResponse = {
+  renderedSubject: string
+  renderedHtmlBody: string
 }
 
 export async function getEmailSettings(): Promise<EmailSettingsDto> {
@@ -81,6 +110,31 @@ export async function testEmailSettings(
   body: TestEmailSettingsBody,
 ): Promise<TestEmailSettingsResponse> {
   const { data } = await api.post<TestEmailSettingsResponse>('/api/v1/settings/email/test', body)
+  return data
+}
+
+export async function getEmailTemplates(): Promise<EmailTemplateDto[]> {
+  const { data } = await api.get<EmailTemplateDto[]>('/api/v1/settings/email/templates')
+  return data
+}
+
+export async function updateEmailTemplate(
+  actionCode: string,
+  body: UpdateEmailTemplateBody,
+): Promise<EmailTemplateDto> {
+  const { data } = await api.put<EmailTemplateDto>(`/api/v1/settings/email/templates/${encodeURIComponent(actionCode)}`, body)
+  return data
+}
+
+export async function resetEmailTemplate(actionCode: string): Promise<EmailTemplateDto> {
+  const { data } = await api.delete<EmailTemplateDto>(`/api/v1/settings/email/templates/${encodeURIComponent(actionCode)}`)
+  return data
+}
+
+export async function previewEmailTemplate(
+  body: PreviewEmailTemplateBody,
+): Promise<PreviewEmailTemplateResponse> {
+  const { data } = await api.post<PreviewEmailTemplateResponse>('/api/v1/settings/email/templates/preview', body)
   return data
 }
 

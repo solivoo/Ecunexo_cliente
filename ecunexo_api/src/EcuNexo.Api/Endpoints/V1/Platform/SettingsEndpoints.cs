@@ -50,6 +50,15 @@ public static class SettingsEndpoints
         email.MapPost("/test", TestEmailSettingsAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.update", "tenancy.tenant.update", "tenancy.tenant.read"));
 
+        email.MapGet("/templates", GetEmailTemplatesAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.read", "tenancy.tenant.read"));
+        email.MapPut("/templates/{actionCode}", UpdateEmailTemplateAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.update", "tenancy.tenant.update", "tenancy.tenant.read"));
+        email.MapDelete("/templates/{actionCode}", ResetEmailTemplateAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.update", "tenancy.tenant.update", "tenancy.tenant.read"));
+        email.MapPost("/templates/preview", PreviewEmailTemplateAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("platform.settings.read", "tenancy.tenant.read"));
+
         RouteGroupBuilder tenant = app
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}")
             .WithApiVersionSet(versionSet)
@@ -158,6 +167,7 @@ public static class SettingsEndpoints
                             Host: parsed.Host,
                             Port: parsed.Port,
                             UseSsl: parsed.UseSsl,
+                            EncryptionMode: parsed.EncryptionMode.ToString(),
                             UserName: parsed.UserName,
                             SenderEmail: parsed.SenderEmail,
                             SenderName: parsed.SenderName,
@@ -179,6 +189,7 @@ public static class SettingsEndpoints
                 Host: fallback?.Host ?? "smtp.zoho.com",
                 Port: fallback?.Port ?? 465,
                 UseSsl: fallback?.UseSsl ?? true,
+                EncryptionMode: (fallback?.EncryptionMode ?? SmtpEncryptionMode.Auto).ToString(),
                 UserName: fallback?.UserName ?? string.Empty,
                 SenderEmail: fallback?.SenderEmail ?? string.Empty,
                 SenderName: fallback?.SenderName ?? "EcuNexo",
@@ -194,6 +205,7 @@ public static class SettingsEndpoints
             Host: globalConfig?.Host ?? "smtp.zoho.com",
             Port: globalConfig?.Port ?? 465,
             UseSsl: globalConfig?.UseSsl ?? true,
+            EncryptionMode: (globalConfig?.EncryptionMode ?? SmtpEncryptionMode.Auto).ToString(),
             UserName: globalConfig?.UserName ?? string.Empty,
             SenderEmail: globalConfig?.SenderEmail ?? string.Empty,
             SenderName: globalConfig?.SenderName ?? "EcuNexo",
@@ -249,12 +261,17 @@ public static class SettingsEndpoints
             }
         }
 
+        var encMode = Enum.TryParse<SmtpEncryptionMode>(request.EncryptionMode, true, out var parsedMode)
+            ? parsedMode
+            : SmtpEncryptionMode.Auto;
+
         var newConfig = new EmailSmtpConfig
         {
             IsEnabled = request.IsEnabled,
             Host = string.IsNullOrWhiteSpace(request.Host) ? "smtp.zoho.com" : request.Host.Trim(),
             Port = request.Port > 0 ? request.Port : 465,
             UseSsl = request.UseSsl,
+            EncryptionMode = encMode,
             UserName = request.UserName?.Trim() ?? string.Empty,
             Password = passwordToSave,
             SenderEmail = request.SenderEmail?.Trim() ?? string.Empty,
@@ -295,6 +312,7 @@ public static class SettingsEndpoints
             Host: newConfig.Host,
             Port: newConfig.Port,
             UseSsl: newConfig.UseSsl,
+            EncryptionMode: newConfig.EncryptionMode.ToString(),
             UserName: newConfig.UserName,
             SenderEmail: newConfig.SenderEmail,
             SenderName: newConfig.SenderName,
@@ -333,6 +351,7 @@ public static class SettingsEndpoints
             Host: fallback?.Host ?? "smtp.zoho.com",
             Port: fallback?.Port ?? 465,
             UseSsl: fallback?.UseSsl ?? true,
+            EncryptionMode: (fallback?.EncryptionMode ?? SmtpEncryptionMode.Auto).ToString(),
             UserName: fallback?.UserName ?? string.Empty,
             SenderEmail: fallback?.SenderEmail ?? string.Empty,
             SenderName: fallback?.SenderName ?? "EcuNexo",
@@ -399,12 +418,17 @@ public static class SettingsEndpoints
                 "Se requieren las credenciales SMTP (servidor, usuario y contraseña) para enviar el correo de prueba. Ingrésalas en el formulario o guárdalas primero."));
         }
 
+        var testEncMode = !string.IsNullOrWhiteSpace(request.EncryptionMode) && Enum.TryParse<SmtpEncryptionMode>(request.EncryptionMode, true, out var parsedTestMode)
+            ? parsedTestMode
+            : (savedConfig?.EncryptionMode ?? SmtpEncryptionMode.Auto);
+
         var testConfig = new EmailSmtpConfig
         {
             IsEnabled = true,
             Host = host,
             Port = port,
             UseSsl = useSsl,
+            EncryptionMode = testEncMode,
             UserName = userName,
             Password = password,
             SenderEmail = senderEmail,
@@ -451,5 +475,162 @@ public static class SettingsEndpoints
                 false,
                 $"Error de conexión SMTP con {testConfig.Host}:{testConfig.Port} — {ex.Message}"));
         }
+    }
+
+    private static async Task<IResult> GetEmailTemplatesAsync(
+        ISysSettingRepository repository,
+        ITenantContext tenant,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        var tenantId = tenant.CurrentTenantId ?? caller.ExplicitTenantId;
+        var list = new List<EmailTemplateDto>();
+
+        foreach (var sysDef in EmailTemplateCatalog.DefaultTemplates)
+        {
+            var code = EmailTemplateCatalog.GetSettingCode(sysDef.ActionCode);
+            var isCustom = false;
+            var subject = sysDef.DefaultSubject;
+            var body = sysDef.DefaultBodyHtml;
+
+            if (tenantId is { } tid && tid != Guid.Empty)
+            {
+                var setting = await repository.GetAsync(code, SettingScope.Tenant, tid.ToString("D"), ct).ConfigureAwait(false);
+                if (setting is not null && !string.IsNullOrWhiteSpace(setting.ValueJson))
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(setting.ValueJson);
+                        var root = doc.RootElement;
+                        if (root.TryGetProperty("subject", out var sProp) && !string.IsNullOrWhiteSpace(sProp.GetString()))
+                        {
+                            subject = sProp.GetString()!;
+                        }
+                        if (root.TryGetProperty("bodyHtml", out var bProp) && !string.IsNullOrWhiteSpace(bProp.GetString()))
+                        {
+                            body = bProp.GetString()!;
+                        }
+                        isCustom = true;
+                    }
+                    catch { }
+                }
+            }
+
+            list.Add(new EmailTemplateDto(
+                sysDef.ActionCode,
+                sysDef.ActionName,
+                sysDef.Description,
+                subject,
+                body,
+                isCustom,
+                sysDef.AvailablePlaceholders));
+        }
+
+        return Results.Ok(list);
+    }
+
+    private static async Task<IResult> UpdateEmailTemplateAsync(
+        string actionCode,
+        UpdateEmailTemplateRequest request,
+        ISysSettingRepository repository,
+        ITenantContext tenant,
+        ICallerContext caller,
+        IIdGenerator idGen,
+        IUnitOfWork uow,
+        CancellationToken ct)
+    {
+        var sysDef = EmailTemplateCatalog.GetByCode(actionCode);
+        if (sysDef is null)
+        {
+            return Results.NotFound(new { error = $"Código de acción de correo '{actionCode}' no reconocido." });
+        }
+
+        var tenantId = tenant.CurrentTenantId ?? caller.ExplicitTenantId;
+        var scope = (tenantId is { } tid && tid != Guid.Empty) ? SettingScope.Tenant : SettingScope.Global;
+        var scopeId = scope == SettingScope.Tenant ? tenantId?.ToString("D") : null;
+
+        var code = EmailTemplateCatalog.GetSettingCode(sysDef.ActionCode);
+        var existing = await repository.GetAsync(code, scope, scopeId, ct).ConfigureAwait(false);
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            subject = request.SubjectTemplate?.Trim() ?? sysDef.DefaultSubject,
+            bodyHtml = request.BodyHtmlTemplate?.Trim() ?? sysDef.DefaultBodyHtml,
+        }, EmailJsonOpts);
+
+        if (existing is null)
+        {
+            var created = SysSetting.Create(idGen.NewId(), code, payload, scope, scopeId);
+            if (created.IsFailure)
+            {
+                return Results.BadRequest(new { error = created.Error?.Message });
+            }
+            await repository.AddAsync(created.Value!, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            var updateRes = existing.SetValue(payload, caller.UserId);
+            if (updateRes.IsFailure)
+            {
+                return Results.BadRequest(new { error = updateRes.Error?.Message });
+            }
+        }
+
+        await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        return Results.Ok(new EmailTemplateDto(
+            sysDef.ActionCode,
+            sysDef.ActionName,
+            sysDef.Description,
+            request.SubjectTemplate?.Trim() ?? sysDef.DefaultSubject,
+            request.BodyHtmlTemplate?.Trim() ?? sysDef.DefaultBodyHtml,
+            true,
+            sysDef.AvailablePlaceholders));
+    }
+
+    private static async Task<IResult> ResetEmailTemplateAsync(
+        string actionCode,
+        ISysSettingRepository repository,
+        ITenantContext tenant,
+        ICallerContext caller,
+        IUnitOfWork uow,
+        CancellationToken ct)
+    {
+        var sysDef = EmailTemplateCatalog.GetByCode(actionCode);
+        if (sysDef is null)
+        {
+            return Results.NotFound(new { error = $"Código de acción '{actionCode}' no reconocido." });
+        }
+
+        var tenantId = tenant.CurrentTenantId ?? caller.ExplicitTenantId;
+        if (tenantId is { } tid && tid != Guid.Empty)
+        {
+            var code = EmailTemplateCatalog.GetSettingCode(sysDef.ActionCode);
+            var existing = await repository.GetAsync(code, SettingScope.Tenant, tid.ToString("D"), ct).ConfigureAwait(false);
+            if (existing is not null)
+            {
+                repository.Remove(existing);
+                await uow.SaveChangesAsync(ct).ConfigureAwait(false);
+            }
+        }
+
+        return Results.Ok(new EmailTemplateDto(
+            sysDef.ActionCode,
+            sysDef.ActionName,
+            sysDef.Description,
+            sysDef.DefaultSubject,
+            sysDef.DefaultBodyHtml,
+            false,
+            sysDef.AvailablePlaceholders));
+    }
+
+    private static IResult PreviewEmailTemplateAsync(PreviewEmailTemplateRequest request)
+    {
+        var sysDef = EmailTemplateCatalog.GetByCode(request.ActionCode);
+        var subjectTpl = !string.IsNullOrWhiteSpace(request.SubjectTemplate) ? request.SubjectTemplate : (sysDef?.DefaultSubject ?? string.Empty);
+        var bodyTpl = !string.IsNullOrWhiteSpace(request.BodyHtmlTemplate) ? request.BodyHtmlTemplate : (sysDef?.DefaultBodyHtml ?? string.Empty);
+
+        var (renderedSub, renderedHtml) = EmailTemplateRenderer.Render(request.ActionCode, subjectTpl, bodyTpl);
+        return Results.Ok(new PreviewEmailTemplateResponse(renderedSub, renderedHtml));
     }
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
-import { Button, CheckButton, TextBox, useToast } from 'glubox'
+import { Button, CheckButton, Select, TextBox, useToast } from 'glubox'
 import {
   AlertCircle,
   CheckCircle2,
@@ -43,6 +43,7 @@ export function AppSettingsEmailSection({
   const [host, setHost] = useState(ZOHO_DEFAULT_HOST)
   const [port, setPort] = useState<number>(ZOHO_DEFAULT_PORT)
   const [useSsl, setUseSsl] = useState(true)
+  const [encryptionMode, setEncryptionMode] = useState<'Auto' | 'SslTls' | 'StartTls' | 'None'>('Auto')
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -64,6 +65,7 @@ export function AppSettingsEmailSection({
       setHost(data.host || ZOHO_DEFAULT_HOST)
       setPort(data.port || ZOHO_DEFAULT_PORT)
       setUseSsl(data.useSsl)
+      setEncryptionMode(data.encryptionMode ?? 'Auto')
       setUserName(data.userName || '')
       setSenderEmail(data.senderEmail || '')
       setSenderName(data.senderName || 'EcuNexo')
@@ -94,6 +96,7 @@ export function AppSettingsEmailSection({
       setHost(data.host || ZOHO_DEFAULT_HOST)
       setPort(data.port || ZOHO_DEFAULT_PORT)
       setUseSsl(data.useSsl)
+      setEncryptionMode(data.encryptionMode ?? 'Auto')
       setUserName(data.userName || '')
       setSenderEmail(data.senderEmail || '')
       setSenderName(data.senderName || 'EcuNexo')
@@ -121,12 +124,13 @@ export function AppSettingsEmailSection({
     setHost(ZOHO_DEFAULT_HOST)
     setPort(ZOHO_DEFAULT_PORT)
     setUseSsl(true)
+    setEncryptionMode('SslTls')
     if (!senderName) {
       setSenderName('EcuNexo')
     }
     toast.show({
       title: 'Parámetros de Zoho Mail aplicados',
-      message: 'Host configurado a smtp.zoho.com (puerto 465 SSL). Ingresa tu usuario y clave de aplicación.',
+      message: 'Host configurado a smtp.zoho.com (puerto 465 SSL/TLS). Ingresa tu usuario y clave de aplicación.',
       variant: 'info',
     })
   }
@@ -148,6 +152,7 @@ export function AppSettingsEmailSection({
         host: host.trim(),
         port: Number(port) || ZOHO_DEFAULT_PORT,
         useSsl,
+        encryptionMode,
         userName: userName.trim(),
         password: password.trim() ? password.trim() : undefined,
         senderEmail: senderEmail.trim(),
@@ -194,6 +199,7 @@ export function AppSettingsEmailSection({
         host: host.trim(),
         port: Number(port) || ZOHO_DEFAULT_PORT,
         useSsl,
+        encryptionMode,
         userName: userName.trim(),
         password: password.trim() ? password.trim() : undefined,
         senderEmail: senderEmail.trim(),
@@ -421,6 +427,28 @@ export function AppSettingsEmailSection({
             onChange={(e: ChangeEvent<HTMLInputElement>) => setSenderName(e.target.value)}
             disabled={disabled || loading}
             placeholder="EcuNexo Notificaciones"
+            fullWidth
+            size={size}
+          />
+        </div>
+
+        <div className="ecu-companies-form__field">
+          <Select
+            id="smtp-encryption-mode"
+            label="Tipo de Cifrado / Encriptación SMTP"
+            labelPosition="outlined"
+            variant="outline"
+            value={encryptionMode}
+            onChange={(val: string) =>
+              setEncryptionMode(val as 'Auto' | 'SslTls' | 'StartTls' | 'None')
+            }
+            disabled={disabled || loading}
+            options={[
+              { value: 'Auto', label: 'Detección Automática (Auto)' },
+              { value: 'SslTls', label: 'SSL / TLS Implícito (Puerto 465)' },
+              { value: 'StartTls', label: 'STARTTLS Explícito (Puerto 587 / 25)' },
+              { value: 'None', label: 'Ninguno / Plaintext (Sin Cifrado)' },
+            ]}
             fullWidth
             size={size}
           />

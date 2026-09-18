@@ -2,6 +2,7 @@ import { useAppPreferences } from '@/features/settings/AppPreferencesProvider'
 import { PageHeader, StatusBadge } from '@/components/ui'
 import { AppSettingsAppearanceSection } from '@/pages/settings/AppSettingsAppearanceSection'
 import { AppSettingsEmailSection } from '@/pages/settings/AppSettingsEmailSection'
+import { AppSettingsEmailTemplatesSection } from '@/pages/settings/AppSettingsEmailTemplatesSection'
 import { AppSettingsListsSection } from '@/pages/settings/AppSettingsListsSection'
 import { AppSettingsSystemSection } from '@/pages/settings/AppSettingsSystemSection'
 import { PLATFORM_SETTINGS_READ, PLATFORM_SETTINGS_UPDATE } from '@/services/settingsApi'
@@ -59,6 +60,7 @@ export function AppSettingsPage() {
           onToastPositionChange={(toastPosition: ToastPositionId) => patch({ toastPosition })}
         />
         <AppSettingsEmailSection disabled={!canUpdateSettings} />
+        <AppSettingsEmailTemplatesSection disabled={!canUpdateSettings} />
         <AppSettingsSystemSection />
       </div>
     </div>

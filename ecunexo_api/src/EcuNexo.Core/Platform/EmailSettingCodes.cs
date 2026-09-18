@@ -6,6 +6,14 @@ public static class EmailSettingCodes
     public const string SmtpConfig = "system.email.smtp";
 }
 
+public enum SmtpEncryptionMode
+{
+    Auto = 0,
+    SslTls = 1,
+    StartTls = 2,
+    None = 3,
+}
+
 /// <summary>Parámetros de conexión y autenticación para el servidor SMTP (ej. Zoho Mail).</summary>
 public sealed record EmailSmtpConfig
 {
@@ -16,6 +24,8 @@ public sealed record EmailSmtpConfig
     public int Port { get; init; } = 465;
 
     public bool UseSsl { get; init; } = true;
+
+    public SmtpEncryptionMode EncryptionMode { get; init; } = SmtpEncryptionMode.Auto;
 
     public string UserName { get; init; } = string.Empty;
 
