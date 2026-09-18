@@ -30,7 +30,8 @@ export function RideFacturaBuyer({ invoice }: { readonly invoice: InvoiceDetail 
         <Field label="Razón social" value={buyer.businessName} full />
         <Field label="RUC / CI" value={buyer.identification} />
         <Field label="Teléfono" value={buyer.phone ?? ''} />
-        <Field label="Dirección" value={buyer.address ?? ''} full />
+        <Field label="Dirección" value={buyer.address ?? ''} />
+        <Field label="Ciudad" value={buyer.city ?? ''} />
         <Field label="Fecha de emisión" value={formatIssueDate(invoice.issueDate)} />
         <Field label="Correo" value={buyer.email ?? ''} />
       </View>

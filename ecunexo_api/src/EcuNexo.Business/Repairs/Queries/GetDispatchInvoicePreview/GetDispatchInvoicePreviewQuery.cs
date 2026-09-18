@@ -22,6 +22,7 @@ public sealed record DispatchInvoiceCounterparty(
     string Identification,
     string BusinessName,
     string? Address,
+    string? City,
     string? Email,
     string? Phone);
 

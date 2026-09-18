@@ -84,6 +84,7 @@ export type CustomerDto = {
   contactEmail: string | null
   contactPhone: string | null
   address: string | null
+  city: string | null
   contactPerson: string | null
   notes: string | null
   isActive: boolean
@@ -99,6 +100,7 @@ export type CreateCustomerPayload = {
   contactEmail?: string | null
   contactPhone?: string | null
   address?: string | null
+  city?: string | null
   contactPerson?: string | null
   notes?: string | null
   isActive?: boolean
@@ -113,6 +115,7 @@ export type UpdateCustomerPayload = {
   contactEmail?: string | null
   contactPhone?: string | null
   address?: string | null
+  city?: string | null
   contactPerson?: string | null
   notes?: string | null
   isActive?: boolean

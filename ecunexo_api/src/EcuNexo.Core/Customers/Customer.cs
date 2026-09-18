@@ -34,6 +34,8 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
 
     public string? Address { get; private set; }
 
+    public string? City { get; private set; }
+
     public string? ContactPerson { get; private set; }
 
     public string? Notes { get; private set; }
@@ -63,7 +65,8 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         string? contactPerson = null,
         string? notes = null,
         CustomerType customerType = CustomerType.CorporativoB2B,
-        CustomerIdentificationType identificationType = CustomerIdentificationType.Ruc)
+        CustomerIdentificationType identificationType = CustomerIdentificationType.Ruc,
+        string? city = null)
     {
         if (id == Guid.Empty)
         {
@@ -135,6 +138,7 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
             ContactEmail = contactEmail?.Trim(),
             ContactPhone = contactPhone?.Trim(),
             Address = address?.Trim(),
+            City = city?.Trim(),
             ContactPerson = contactPerson?.Trim(),
             Notes = notes?.Trim(),
             IsActive = true,
@@ -151,7 +155,8 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         string? contactPerson,
         string? notes,
         CustomerType? customerType = null,
-        CustomerIdentificationType? identificationType = null)
+        CustomerIdentificationType? identificationType = null,
+        string? city = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -211,6 +216,7 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         ContactEmail = contactEmail?.Trim();
         ContactPhone = contactPhone?.Trim();
         Address = address?.Trim();
+        City = city?.Trim();
         ContactPerson = contactPerson?.Trim();
         Notes = notes?.Trim();
         UpdatedAt = DateTimeOffset.UtcNow;

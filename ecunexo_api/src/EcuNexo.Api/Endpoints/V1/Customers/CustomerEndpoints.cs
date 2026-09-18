@@ -180,7 +180,8 @@ public static class CustomerEndpoints
             request.ContactPerson,
             request.Notes,
             request.CustomerType,
-            request.IdentificationType);
+            request.IdentificationType,
+            city: request.City);
 
         if (customerResult.IsFailure)
         {
@@ -245,7 +246,8 @@ public static class CustomerEndpoints
             request.ContactPerson,
             request.Notes,
             request.CustomerType,
-            request.IdentificationType);
+            request.IdentificationType,
+            city: request.City);
 
         if (updateResult.IsFailure)
         {

@@ -125,6 +125,7 @@ public sealed class GetDispatchInvoicePreviewHandler
             Identification: customer?.TaxId?.Trim() ?? string.Empty,
             BusinessName: customer?.Name?.Trim() ?? string.Empty,
             Address: customer?.Address,
+            City: customer?.City,
             Email: customer?.ContactEmail,
             Phone: customer?.ContactPhone);
 

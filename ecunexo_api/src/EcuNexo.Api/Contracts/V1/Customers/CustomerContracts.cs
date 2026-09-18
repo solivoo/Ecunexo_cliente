@@ -12,6 +12,7 @@ public sealed record CustomerDto(
     string? ContactEmail,
     string? ContactPhone,
     string? Address,
+    string? City,
     string? ContactPerson,
     string? Notes,
     bool IsActive,
@@ -26,6 +27,7 @@ public sealed record CreateCustomerApiRequest(
     string? ContactEmail = null,
     string? ContactPhone = null,
     string? Address = null,
+    string? City = null,
     string? ContactPerson = null,
     string? Notes = null,
     bool ReturnExistingIfExists = false);
@@ -38,6 +40,7 @@ public sealed record UpdateCustomerApiRequest(
     string? ContactEmail = null,
     string? ContactPhone = null,
     string? Address = null,
+    string? City = null,
     string? ContactPerson = null,
     string? Notes = null,
     bool? IsActive = null);

@@ -63,6 +63,7 @@ export function toCreateInvoiceBody(
       identification: buyer.identification.trim(),
       businessName: buyer.businessName.trim(),
       address: buyer.address.trim() || null,
+      city: buyer.city.trim() || null,
       email: buyer.email.trim() || null,
       phone: buyer.phone.trim() || null,
     },

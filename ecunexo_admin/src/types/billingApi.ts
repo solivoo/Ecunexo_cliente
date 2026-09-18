@@ -56,6 +56,7 @@ export type CreateInvoiceBody = {
     readonly identification: string
     readonly businessName: string
     readonly address?: string | null
+    readonly city?: string | null
     readonly email?: string | null
     readonly phone?: string | null
   }
@@ -197,6 +198,7 @@ export type InvoiceDetail = {
     readonly identification: string
     readonly businessName: string
     readonly address: string | null
+    readonly city?: string | null
     readonly email: string | null
     readonly phone: string | null
   }

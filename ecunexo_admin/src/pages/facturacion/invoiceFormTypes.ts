@@ -15,6 +15,7 @@ export type InvoiceCounterpartyValues = {
   readonly businessName: string
   readonly customerType: number
   readonly address: string
+  readonly city: string
   readonly email: string
   readonly phone: string
 }

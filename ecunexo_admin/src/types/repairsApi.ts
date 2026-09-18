@@ -274,6 +274,7 @@ export type DispatchInvoiceCounterpartyDto = {
   identification: string
   businessName: string
   address?: string | null
+  city?: string | null
   email?: string | null
   phone?: string | null
 }

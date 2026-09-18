@@ -68,6 +68,7 @@ const INITIAL_COUNTERPARTY: InvoiceCounterpartyValues = {
   businessName: '',
   customerType: 1,
   address: '',
+  city: '',
   email: '',
   phone: '',
 }

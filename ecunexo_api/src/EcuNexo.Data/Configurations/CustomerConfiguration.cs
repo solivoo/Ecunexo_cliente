@@ -48,6 +48,9 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.Address)
             .HasMaxLength(300);
 
+        builder.Property(c => c.City)
+            .HasMaxLength(100);
+
         builder.Property(c => c.ContactPerson)
             .HasMaxLength(120);
 

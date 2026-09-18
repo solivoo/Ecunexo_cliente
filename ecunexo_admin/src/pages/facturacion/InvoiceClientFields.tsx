@@ -39,6 +39,7 @@ function customerToCounterparty(
       businessName: 'CONSUMIDOR FINAL',
       customerType: 5,
       address: customer.address ?? '',
+      city: customer.city ?? '',
       email: customer.contactEmail ?? '',
       phone: customer.contactPhone ?? '',
     }
@@ -51,6 +52,7 @@ function customerToCounterparty(
     businessName: customer.name,
     customerType: customer.customerType ?? 1,
     address: customer.address ?? '',
+    city: customer.city ?? '',
     email: customer.contactEmail ?? '',
     phone: customer.contactPhone ?? '',
   }
@@ -131,6 +133,7 @@ export function InvoiceClientFields({
     onCounterpartyChange('businessName', next.businessName)
     onCounterpartyChange('customerType', next.customerType)
     onCounterpartyChange('address', next.address)
+    onCounterpartyChange('city', next.city)
     onCounterpartyChange('email', next.email)
     onCounterpartyChange('phone', next.phone)
   }
@@ -249,6 +252,22 @@ export function InvoiceClientFields({
               emitParty('address', e.target.value)
             }
             placeholder="Opcional"
+            disabled={disabled}
+            fullWidth
+          />
+        </div>
+        <div className="factura-emitir__cell factura-emitir__cell--city">
+          <TextBox
+            id="inv-city"
+            label="Ciudad"
+            labelPosition="outlined"
+            variant="outline"
+            size="md"
+            value={counterparty.city}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              emitParty('city', e.target.value)
+            }
+            placeholder="Quito, Guayaquil, etc."
             disabled={disabled}
             fullWidth
           />

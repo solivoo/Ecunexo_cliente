@@ -38,6 +38,7 @@ export async function createAndLinkDispatchInvoice(
     businessName: preview.counterparty.businessName,
     customerType: defaultCustomerTypeForSriId(idType),
     address: preview.counterparty.address ?? '',
+    city: preview.counterparty.city ?? '',
     email: preview.counterparty.email ?? '',
     phone: preview.counterparty.phone ?? '',
   }

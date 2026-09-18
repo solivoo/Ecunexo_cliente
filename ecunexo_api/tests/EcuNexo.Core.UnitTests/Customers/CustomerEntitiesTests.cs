@@ -214,4 +214,35 @@ public sealed class CustomerEntitiesTests
         customer.DeletedAt.Should().NotBeNull();
         customer.DeletedBy.Should().Be(userId);
     }
+
+    [Fact(DisplayName = "Customer.Create y Update persisten el campo Ciudad correctamente")]
+    public void Customer_Create_And_Update_WithCity_Succeeds()
+    {
+        var id = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+
+        var createResult = Customer.Create(
+            id,
+            tenantId,
+            "Comercial Quito S.A.",
+            taxId: "1792345678001",
+            address: "Av. 6 de Diciembre N34-120",
+            city: "Quito");
+
+        createResult.IsSuccess.Should().BeTrue();
+        createResult.Value!.City.Should().Be("Quito");
+
+        var updateResult = createResult.Value.Update(
+            "Comercial Quito S.A.",
+            "1792345678001",
+            "contacto@comercialquito.ec",
+            "022987654",
+            "Av. 6 de Diciembre N34-120",
+            "Juan Pérez",
+            "Notas de actualización",
+            city: "Guayaquil");
+
+        updateResult.IsSuccess.Should().BeTrue();
+        createResult.Value.City.Should().Be("Guayaquil");
+    }
 }

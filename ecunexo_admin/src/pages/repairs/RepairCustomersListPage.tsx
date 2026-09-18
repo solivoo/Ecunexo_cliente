@@ -111,6 +111,7 @@ export default function RepairCustomersListPage() {
   const [contactEmail, setContactEmail] = useState('')
   const [contactPhone, setContactPhone] = useState('')
   const [address, setAddress] = useState('')
+  const [city, setCity] = useState('')
   const [notes, setNotes] = useState('')
   const [isActive, setIsActive] = useState(true)
 
@@ -254,6 +255,7 @@ export default function RepairCustomersListPage() {
     setContactEmail('')
     setContactPhone('')
     setAddress('')
+    setCity('')
     setNotes('')
     setIsActive(true)
     setFormError(null)
@@ -271,6 +273,7 @@ export default function RepairCustomersListPage() {
     setContactEmail(customer.contactEmail ?? '')
     setContactPhone(customer.contactPhone ?? '')
     setAddress(customer.address ?? '')
+    setCity(customer.city ?? '')
     setNotes(customer.notes ?? '')
     setIsActive(customer.isActive)
     setFormError(null)
@@ -404,6 +407,7 @@ export default function RepairCustomersListPage() {
         contactEmail: contactEmail.trim() || null,
         contactPhone: contactPhone.trim() || null,
         address: address.trim() || null,
+        city: city.trim() || null,
         notes: notes.trim() || null,
         isActive,
       }
@@ -1095,7 +1099,7 @@ export default function RepairCustomersListPage() {
                 ) : null}
               </div>
 
-              <div className="ecu-customer-form__field ecu-customer-form__field--span">
+              <div className="ecu-customer-form__field">
                 <TextBox
                   id="customer-address"
                   label="Dirección Física o Planta"
@@ -1104,6 +1108,20 @@ export default function RepairCustomersListPage() {
                   value={address}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setAddress(e.target.value)}
                   placeholder="Dirección"
+                  fullWidth
+                  disabled={saving}
+                />
+              </div>
+
+              <div className="ecu-customer-form__field">
+                <TextBox
+                  id="customer-city"
+                  label="Ciudad"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={city}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setCity(e.target.value)}
+                  placeholder="Quito, Guayaquil, etc."
                   fullWidth
                   disabled={saving}
                 />

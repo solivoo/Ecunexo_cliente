@@ -43,6 +43,7 @@ export function toInvoiceDetailPreview(args: {
       identification: body.counterparty.identification,
       businessName: body.counterparty.businessName,
       address: body.counterparty.address ?? null,
+      city: body.counterparty.city ?? null,
       email: body.counterparty.email ?? null,
       phone: body.counterparty.phone ?? null,
     },
