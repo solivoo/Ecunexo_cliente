@@ -41,3 +41,4 @@ coverage/
 /playwright/.cache/
 /ecunexo_admin/tests-ui/.auth/
 .zip
+.doc
