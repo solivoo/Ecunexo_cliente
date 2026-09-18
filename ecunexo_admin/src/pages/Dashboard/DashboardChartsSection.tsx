@@ -14,6 +14,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
+import { Button, RangeDateBox, type DateRange } from 'glubox'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { SectionCard, StatusBadge } from '@/components/ui'
 import { selectTenantId } from '@/store/authSlice'
@@ -22,6 +23,11 @@ import {
   getDashboardAnalytics,
   type DashboardAnalyticsResponseDto,
 } from '@/services/dashboardApi'
+import { toIsoDate, type IsoDateRange } from '@/lib/gridLookback'
+import { listInvoices } from '@/services/billingApi'
+import type { InvoiceListItem } from '@/types/billingApi'
+import { ensureBillingEmitter, loadIssuerDefaults } from '@/pages/facturacion/invoiceEmitApi'
+import { roundMoney } from '@/pages/facturacion/invoiceFormTypes'
 
 // --- ESTRUCTURAS INICIALES SIN DATOS SINTÉTICOS (BASE CERO HASTA CARGAR BD) ---
 
@@ -121,6 +127,113 @@ function CustomTooltip({ active, payload, label, isCurrency = false }: any) {
   return null
 }
 
+function getPresetDateRange(preset: 'semanal' | 'mensual' | 'anual'): IsoDateRange {
+  const now = new Date()
+  const today = toIsoDate(now)
+  if (preset === 'semanal') {
+    const fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)
+    return { from: toIsoDate(fromDate), to: today }
+  }
+  if (preset === 'mensual') {
+    const fromDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+    return { from: toIsoDate(fromDate), to: today }
+  }
+  const fromDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+  return { from: toIsoDate(fromDate), to: today }
+}
+
+function computeSalesTrend(
+  invoices: InvoiceListItem[],
+  mode: 'semanal' | 'mensual' | 'anual' | 'custom',
+  fromIso: string
+): { mes: string; ventas: number; comprobantes: number }[] {
+  const activeInvoices = invoices.filter((i) => i.state === 'Authorized' && !i.isVoided)
+
+  if (mode === 'semanal') {
+    const points: { mes: string; dateStr: string; ventas: number; comprobantes: number }[] = []
+    const start = new Date(fromIso)
+    for (let i = 0; i <= 7; i++) {
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
+      const dateStr = toIsoDate(d)
+      const dayName = new Intl.DateTimeFormat('es-EC', { weekday: 'short', day: 'numeric' }).format(d)
+      points.push({ mes: dayName, dateStr, ventas: 0, comprobantes: 0 })
+    }
+
+    for (const inv of activeInvoices) {
+      const invDate = inv.issueDate.slice(0, 10)
+      const pt = points.find((p) => p.dateStr === invDate)
+      if (pt) {
+        pt.ventas += inv.grandTotal ?? 0
+        pt.comprobantes += 1
+      }
+    }
+
+    return points.map(({ mes, ventas, comprobantes }) => ({
+      mes,
+      ventas: roundMoney(ventas),
+      comprobantes,
+    }))
+  }
+
+  if (mode === 'mensual') {
+    const points: { mes: string; fromDay: string; toDay: string; ventas: number; comprobantes: number }[] = []
+    const start = new Date(fromIso)
+    for (let i = 0; i < 4; i++) {
+      const wStart = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i * 7)
+      const wEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate() + (i + 1) * 7 - 1)
+      const label = `Sem ${i + 1} (${wStart.getDate()}/${wStart.getMonth() + 1})`
+      points.push({
+        mes: label,
+        fromDay: toIsoDate(wStart),
+        toDay: toIsoDate(wEnd),
+        ventas: 0,
+        comprobantes: 0,
+      })
+    }
+
+    for (const inv of activeInvoices) {
+      const invDate = inv.issueDate.slice(0, 10)
+      const pt = points.find((p) => invDate >= p.fromDay && invDate <= p.toDay)
+      if (pt) {
+        pt.ventas += inv.grandTotal ?? 0
+        pt.comprobantes += 1
+      }
+    }
+
+    return points.map(({ mes, ventas, comprobantes }) => ({
+      mes,
+      ventas: roundMoney(ventas),
+      comprobantes,
+    }))
+  }
+
+  const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+  const now = new Date()
+  const points: { mes: string; yearMonth: string; ventas: number; comprobantes: number }[] = []
+
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const label = monthNames[d.getMonth()]
+    points.push({ mes: label, yearMonth: ym, ventas: 0, comprobantes: 0 })
+  }
+
+  for (const inv of activeInvoices) {
+    const ym = inv.issueDate.slice(0, 7)
+    const pt = points.find((p) => p.yearMonth === ym)
+    if (pt) {
+      pt.ventas += inv.grandTotal ?? 0
+      pt.comprobantes += 1
+    }
+  }
+
+  return points.map(({ mes, ventas, comprobantes }) => ({
+    mes,
+    ventas: roundMoney(ventas),
+    comprobantes,
+  }))
+}
+
 export type DashboardChartsSectionProps = {
   readonly isHolderOnly?: boolean
 }
@@ -128,6 +241,14 @@ export type DashboardChartsSectionProps = {
 export function DashboardChartsSection({ isHolderOnly = false }: DashboardChartsSectionProps) {
   const activeTenantId = useAppSelector(selectTenantId)
   const [analyticsData, setAnalyticsData] = useState<DashboardAnalyticsResponseDto | null>(null)
+  const [salesPeriodPreset, setSalesPeriodPreset] = useState<'semanal' | 'mensual' | 'anual' | 'custom'>('mensual')
+  const [salesDateRange, setSalesDateRange] = useState<IsoDateRange>(() => getPresetDateRange('mensual'))
+  const [invoices, setInvoices] = useState<InvoiceListItem[]>([])
+
+  const handleSelectSalesPreset = (preset: 'semanal' | 'mensual' | 'anual') => {
+    setSalesPeriodPreset(preset)
+    setSalesDateRange(getPresetDateRange(preset))
+  }
 
   useEffect(() => {
     if (!activeTenantId) return
@@ -158,6 +279,52 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
   const canRemision = useHasPermission('facturacion.guias.remision.read') || canBilling
   const canTax = useHasPermission('contabilidad.declaraciones.read') || canAccounting
 
+  useEffect(() => {
+    if (!activeTenantId || !canBilling) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const defaults = await loadIssuerDefaults(activeTenantId)
+        const emitterId = await ensureBillingEmitter({
+          emitterRuc: defaults.emitterRuc,
+          company: defaults.company,
+          companyLabel: defaults.company.legalName || '',
+          tenantId: activeTenantId,
+        })
+        const list = await listInvoices(emitterId, {
+          page: 1,
+          pageSize: 500,
+          from: salesDateRange.from,
+          to: salesDateRange.to,
+        })
+        if (!cancelled) {
+          setInvoices([...list.items])
+        }
+      } catch {
+        if (!cancelled) setInvoices([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [activeTenantId, canBilling, salesDateRange.from, salesDateRange.to])
+
+  const computedSalesTrend = useMemo(() => {
+    if (invoices.length > 0) {
+      return computeSalesTrend(invoices, salesPeriodPreset, salesDateRange.from)
+    }
+    return analyticsData?.salesMonthlyTrend ?? DEFAULT_SALES_TREND
+  }, [invoices, salesPeriodPreset, salesDateRange.from, analyticsData])
+
+  const totalPeriodSales = useMemo(() => {
+    if (invoices.length > 0) {
+      return invoices
+        .filter((i) => i.state === 'Authorized' && !i.isVoided)
+        .reduce((s, i) => s + (i.grandTotal ?? 0), 0)
+    }
+    return computedSalesTrend.reduce((s, d) => s + d.ventas, 0)
+  }, [invoices, computedSalesTrend])
+
   const hasAnyPermission = useMemo(() => {
     return (
       canBilling ||
@@ -171,7 +338,6 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
     )
   }, [canBilling, canPurchases, canInventory, canRepairs, canAccounting, canRemision, canTax, isHolderOnly])
 
-  const salesTrend = analyticsData?.salesMonthlyTrend ?? DEFAULT_SALES_TREND
   const sriStatus = analyticsData?.sriStatusDistribution ?? DEFAULT_SRI_STATUS
   const customerTypes = analyticsData?.customerTypeDistribution ?? DEFAULT_CUSTOMER_TYPES
   const purchasesExpenses = analyticsData?.purchasesExpensesTrend ?? DEFAULT_PURCHASES_EXPENSES
@@ -181,7 +347,6 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
   const financialBalance = analyticsData?.financialBalance ?? DEFAULT_FINANCIAL_BALANCE
   const taxDeclarations = analyticsData?.taxDeclarationsTrend ?? DEFAULT_TAX_DECLARATIONS
 
-  const latestSalesVal = salesTrend.length > 0 ? salesTrend[salesTrend.length - 1].ventas : 0
 
   // Etiquetas cortas para el gráfico de directorio de clientes
   const formattedCustomerTypes = useMemo(() => {
@@ -228,18 +393,74 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
         {canBilling && (
           <SectionCard
             title="Facturación y Ventas"
-            subtitle="Evolución mensual ($ USD)"
+            subtitle={`Evolución ${salesPeriodPreset === 'semanal' ? 'semanal' : salesPeriodPreset === 'mensual' ? 'mensual' : salesPeriodPreset === 'anual' ? 'anual' : 'personalizada'} ($ USD)`}
             action={<StatusBadge tone="success">SRI Facturas</StatusBadge>}
           >
             <div className="ecu-chart-wrapper">
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={salesPeriodPreset === 'semanal' ? 'primary' : 'outline'}
+                    onClick={() => handleSelectSalesPreset('semanal')}
+                  >
+                    Semanal
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={salesPeriodPreset === 'mensual' ? 'primary' : 'outline'}
+                    onClick={() => handleSelectSalesPreset('mensual')}
+                  >
+                    Mensual
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={salesPeriodPreset === 'anual' ? 'primary' : 'outline'}
+                    onClick={() => handleSelectSalesPreset('anual')}
+                  >
+                    Anual
+                  </Button>
+                </div>
+
+                <RangeDateBox
+                  variant="outline"
+                  size="sm"
+                  startValue={salesDateRange.from}
+                  endValue={salesDateRange.to}
+                  max={toIsoDate(new Date())}
+                  width="17rem"
+                  separator="–"
+                  onChange={(next: DateRange) => {
+                    if (next.start && next.end) {
+                      setSalesPeriodPreset('custom')
+                      setSalesDateRange({ from: next.start, to: next.end })
+                    }
+                  }}
+                />
+              </div>
+
               <div className="ecu-chart-header-kpi">
                 <span className="ecu-chart-kpi-val">
-                  ${latestSalesVal.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${totalPeriodSales.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
-                <span className="ecu-chart-kpi-sub">Total período actual</span>
+                <span className="ecu-chart-kpi-sub">
+                  Total período actual ({salesPeriodPreset === 'semanal' ? 'semanal' : salesPeriodPreset === 'mensual' ? 'mensual' : salesPeriodPreset === 'anual' ? 'anual' : 'personalizado'})
+                </span>
               </div>
               <ResponsiveContainer width="100%" height={175}>
-                <AreaChart data={salesTrend} margin={{ top: 5, right: 10, left: -15, bottom: 0 }}>
+                <AreaChart data={computedSalesTrend} margin={{ top: 5, right: 10, left: -15, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.35} />
