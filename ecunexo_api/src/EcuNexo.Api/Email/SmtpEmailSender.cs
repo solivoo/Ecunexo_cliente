@@ -141,6 +141,10 @@ public sealed partial class SmtpEmailSender : IEmailSender
         CancellationToken ct,
         bool logProtocol = false)
     {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(20));
+        var timeoutToken = cts.Token;
+
         // Logger temporal de protocolo SMTP para diagnosticar problemas de autenticación.
         // En desarrollo se activa con Smtp:ProtocolLogEnabled=true.
         MemoryStream? protocolStream = logProtocol ? new MemoryStream() : null;
@@ -148,21 +152,26 @@ public sealed partial class SmtpEmailSender : IEmailSender
 
         try
         {
-            await SendSingleMimeMessageAsync(config, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, ct).ConfigureAwait(false);
+            await SendSingleMimeMessageAsync(config, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, timeoutToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is SmtpCommandException or AuthenticationException || ex.Message.Contains("535", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("Authentication", StringComparison.OrdinalIgnoreCase))
+        catch (Exception ex) when (ex is SmtpCommandException or AuthenticationException or OperationCanceledException || ex.Message.Contains("535", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("Authentication", StringComparison.OrdinalIgnoreCase))
         {
-            // Si el servidor configurado es smtp.zoho.com y falla la autenticación (535),
+            if (timeoutToken.IsCancellationRequested && ct.IsCancellationRequested == false)
+            {
+                throw new TimeoutException($"Tiempo de espera agotado al conectar al servidor SMTP {config.Host}:{config.Port}.");
+            }
+
+            // Si el servidor configurado es smtp.zoho.com y falla la autenticación (535) o tiempo de espera,
             // reintentar automáticamente con smtppro.zoho.com (servidor para cuentas corporativas/organizacionales Zoho).
             if (string.Equals(config.Host, "smtp.zoho.com", StringComparison.OrdinalIgnoreCase))
             {
                 var altConfig = config with { Host = "smtppro.zoho.com" };
-                await SendSingleMimeMessageAsync(altConfig, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, ct).ConfigureAwait(false);
+                await SendSingleMimeMessageAsync(altConfig, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, timeoutToken).ConfigureAwait(false);
             }
             else if (string.Equals(config.Host, "smtppro.zoho.com", StringComparison.OrdinalIgnoreCase))
             {
                 var altConfig = config with { Host = "smtp.zoho.com" };
-                await SendSingleMimeMessageAsync(altConfig, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, ct).ConfigureAwait(false);
+                await SendSingleMimeMessageAsync(altConfig, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, timeoutToken).ConfigureAwait(false);
             }
             else
             {
@@ -201,6 +210,8 @@ public sealed partial class SmtpEmailSender : IEmailSender
         using var client = protocolLogger is not null
             ? new SmtpClient(protocolLogger)
             : new SmtpClient();
+
+        client.Timeout = 12000;
 
         var secureOption = ResolveSecureSocketOptions(config.Port, config.UseSsl, config.EncryptionMode);
 
