@@ -285,7 +285,8 @@
     grid-column: span 1;
   }
 
-  .factura-emitir__meta-grid--client .factura-emitir__cell--directory {
+  .factura-emitir__meta-grid--client .factura-emitir__cell--directory,
+  .factura-emitir__meta-grid--client .factura-emitir__cell--addr {
     grid-column: 1 / -1;
   }
 
@@ -294,7 +295,7 @@
   .factura-emitir__meta-grid--client .factura-emitir__cell--name,
   .factura-emitir__meta-grid--client .factura-emitir__cell--customer-type,
   .factura-emitir__meta-grid--client .factura-emitir__cell--payment,
-  .factura-emitir__meta-grid--client .factura-emitir__cell--addr,
+  .factura-emitir__meta-grid--client .factura-emitir__cell--city,
   .factura-emitir__meta-grid--client .factura-emitir__cell--email,
   .factura-emitir__meta-grid--client .factura-emitir__cell--phone {
     grid-column: span 1;

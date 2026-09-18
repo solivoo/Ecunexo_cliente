@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Button, Select, TextArea, TextBox, useToast } from 'glubox'
 import {
   CONSUMIDOR_FINAL_MAX_TOTAL_USD,
@@ -81,6 +81,7 @@ export function InvoiceClientFields({
     canSave?: boolean
   } | null>(null)
 
+  const lastSearchedTaxId = useRef<string>('')
   const consumidorFinal = isConsumidorFinalType(counterparty.identificationType)
 
   const emitParty: InvoiceClientFieldsProps['onCounterpartyChange'] = (key, value) => {
@@ -139,6 +140,7 @@ export function InvoiceClientFields({
     const customer = directory.find((c) => c.id === customerId)
     if (!customer) return
     const next = customerToCounterparty(customer, counterparty)
+    lastSearchedTaxId.current = next.identification.trim()
     if (onCounterpartyReplace) {
       onCounterpartyReplace(next)
     } else {
@@ -160,12 +162,10 @@ export function InvoiceClientFields({
   const handleLookupSri = async (rawTaxId?: string) => {
     if (!tenantId || disabled) return
     const targetTaxId = (rawTaxId ?? counterparty.identification).trim()
-    if (!targetTaxId) {
-      toast.show({ title: 'Aviso', message: 'Ingrese una Cédula (10 dígitos) o RUC (13 dígitos) para consultar.', variant: 'info' })
-      return
-    }
+    if (!targetTaxId) return
 
     setSearchingSri(true)
+    lastSearchedTaxId.current = targetTaxId
     try {
       const res = await lookupCustomerSri(tenantId, targetTaxId)
       if (res.foundInLocalDirectory && res.localCustomer) {
@@ -209,7 +209,7 @@ export function InvoiceClientFields({
         })
         toast.show({
           title: 'Datos de Ecuador Auto-detectados',
-          message: `Identificación válida. ${autoCity ? `Ciudad asignada: ${autoCity}.` : ''}`,
+          message: `Identificación válida (${idTypeStr === '04' ? 'RUC' : 'Cédula'}). ${autoCity ? `Ciudad asignada: ${autoCity}.` : ''}`,
           variant: 'info',
         })
       }
@@ -231,6 +231,19 @@ export function InvoiceClientFields({
       setSearchingSri(false)
     }
   }
+
+  useEffect(() => {
+    const taxId = counterparty.identification.trim()
+    if (disabled || consumidorFinal || !tenantId) return
+    if (taxId.length !== 10 && taxId.length !== 13) return
+    if (taxId === lastSearchedTaxId.current) return
+
+    const timer = setTimeout(() => {
+      void handleLookupSri(taxId)
+    }, 450)
+
+    return () => clearTimeout(timer)
+  }, [counterparty.identification, disabled, consumidorFinal, tenantId])
 
   const handleQuickSaveCustomer = async () => {
     if (!tenantId || !counterparty.businessName.trim() || disabled || savingDirectory) return
@@ -329,47 +342,27 @@ export function InvoiceClientFields({
         </div>
 
         <div className="factura-emitir__cell factura-emitir__cell--id">
-          <div className="factura-emitir__id-lookup-group">
-            <TextBox
-              id="inv-id"
-              label="Cédula / RUC Ecuador"
-              labelPosition="outlined"
-              variant="outline"
-              size="md"
-              value={counterparty.identification}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                const val = e.target.value
-                emitParty('identification', val)
-                if (val.trim().length === 10 || val.trim().length === 13) {
-                  const derivedCity = deriveEcuadorCityFromTaxId(val)
-                  if (derivedCity && !counterparty.city) {
-                    onCounterpartyChange('city', derivedCity)
-                  }
+          <TextBox
+            id="inv-id"
+            label={searchingSri ? 'Cédula / RUC (Buscando…)' : 'Cédula / RUC Ecuador'}
+            labelPosition="outlined"
+            variant="outline"
+            size="md"
+            value={counterparty.identification}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              const val = e.target.value
+              emitParty('identification', val)
+              if (val.trim().length === 10 || val.trim().length === 13) {
+                const derivedCity = deriveEcuadorCityFromTaxId(val)
+                if (derivedCity && !counterparty.city) {
+                  onCounterpartyChange('city', derivedCity)
                 }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  void handleLookupSri()
-                }
-              }}
-              placeholder={consumidorFinal ? '9999999999999' : 'Cédula (10d) o RUC (13d)'}
-              disabled={disabled || consumidorFinal}
-              fullWidth
-            />
-            {!consumidorFinal && (
-              <Button
-                type="button"
-                variant="outline"
-                size="md"
-                onClick={() => void handleLookupSri()}
-                disabled={disabled || searchingSri || !counterparty.identification.trim()}
-                title="Consultar en SRI / Directorio de Ecuador"
-              >
-                {searchingSri ? '…' : 'Consultar'}
-              </Button>
-            )}
-          </div>
+              }
+            }}
+            placeholder={consumidorFinal ? '9999999999999' : 'Cédula (10d) o RUC (13d)'}
+            disabled={disabled || consumidorFinal}
+            fullWidth
+          />
         </div>
 
         <div className="factura-emitir__cell factura-emitir__cell--name">
@@ -497,7 +490,7 @@ export function InvoiceClientFields({
         </p>
       ) : (
         <p className="factura-emitir__meta-hint">
-          Al ingresar la Cédula (10d) o RUC (13d) haz clic en <strong>Consultar</strong> para autodetectar la provincia/ciudad y verificar en el directorio.
+          Al ingresar la Cédula (10d) o RUC (13d) los datos de Ecuador y la provincia/ciudad se autodetectan automáticamente.
         </p>
       )}
     </section>
