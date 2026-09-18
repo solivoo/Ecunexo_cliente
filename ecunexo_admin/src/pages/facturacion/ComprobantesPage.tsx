@@ -21,6 +21,7 @@ import {
   sriDocumentTypeByCode,
   sriTypeFilterOptions,
 } from '@/pages/facturacion/sriDocumentTypes'
+import { formatMoney } from '@/pages/facturacion/invoiceFormTypes'
 import { useBillingInvoices } from '@/pages/facturacion/useBillingInvoices'
 
 const FACTURA_CODE = '01'
@@ -36,7 +37,7 @@ export function ComprobantesPage() {
     useHasPermission('facturacion.facturas.read') ||
     useHasPermission('facturacion.facturas.read.all')
   const { from, to, setRange, lookback } = useGridDateRange()
-  const { rows, loading, error, totalCount, emitterId, load } = useBillingInvoices({ from, to })
+  const { rows, loading, error, emitterId, load } = useBillingInvoices({ from, to })
 
   const typeCode = sriDocumentTypeByCode(params.get('tipo'), SALE_DOCUMENT_TYPES).code
 
@@ -58,6 +59,11 @@ export function ComprobantesPage() {
     (r) => r.accessKey && r.accessKey.length >= 24 && r.accessKey[23] === '1'
   ).length
   const voidedCount = visibleRows.filter((r) => r.isVoided).length
+  const totalSalesUsd = useMemo(() => {
+    return visibleRows
+      .filter((r) => r.state === 'Authorized' && !r.isVoided)
+      .reduce((acc, r) => acc + (r.grandTotal ?? 0), 0)
+  }, [visibleRows])
 
   const actionItems = useMemo((): PageActionItem[] => {
     const items: PageActionItem[] = [
@@ -157,13 +163,13 @@ export function ComprobantesPage() {
           }
         />
 
-        <div className="ecu-stat-grid" aria-label="Resumen de comprobantes">
+        <div className="ecu-stat-grid" aria-label="Resumen de comprobantes y ventas">
           <StatCard
-            label="En Listado"
-            value={visibleRows.length}
-            icon="receipt"
-            toneColor="#4f46e5"
-            footerText="Comprobantes filtrados"
+            label="Total Facturado ($)"
+            value={`$${formatMoney(totalSalesUsd)}`}
+            icon="payments"
+            toneColor="#059669"
+            footerText="Ventas en el período seleccionado"
           />
           <StatCard
             label="Autorizadas por SRI"
@@ -177,18 +183,18 @@ export function ComprobantesPage() {
             }
           />
           <StatCard
+            label="En Listado"
+            value={visibleRows.length}
+            icon="receipt"
+            toneColor="#4f46e5"
+            footerText="Comprobantes filtrados"
+          />
+          <StatCard
             label="Anuladas"
             value={voidedCount}
             icon="cancel"
             toneColor={voidedCount > 0 ? '#ef4444' : '#6b7280'}
             footerText="Comprobantes invalidados"
-          />
-          <StatCard
-            label="Total en Período"
-            value={totalCount}
-            icon="calendar_month"
-            toneColor="#8b5cf6"
-            footerText="Registros de facturación"
           />
         </div>
 

@@ -208,6 +208,10 @@ export function normalizeLineIvaRate(rate: number): number {
   return DEFAULT_LINE_IVA_RATE
 }
 
+export function isLineEmpty(line: InvoiceLineDraft): boolean {
+  return !line.productId && !line.description.trim()
+}
+
 export function computeLine(line: InvoiceLineDraft): InvoiceLineComputed {
   const gross = line.quantity * line.unitPrice
   const lineNet = roundMoney(Math.max(0, gross - line.discount))
@@ -217,9 +221,10 @@ export function computeLine(line: InvoiceLineDraft): InvoiceLineComputed {
 }
 
 export function computeTotals(lines: readonly InvoiceLineDraft[]): InvoiceTotals {
-  const computed = lines.map(computeLine)
+  const activeLines = lines.filter((l) => !isLineEmpty(l))
+  const computed = activeLines.map(computeLine)
   const subtotal = roundMoney(computed.reduce((s, l) => s + l.lineNet, 0))
-  const discountTotal = roundMoney(lines.reduce((s, l) => s + l.discount, 0))
+  const discountTotal = roundMoney(activeLines.reduce((s, l) => s + l.discount, 0))
 
   const byRate = new Map<number, { taxableBase: number; iva: number }>()
   for (const line of computed) {

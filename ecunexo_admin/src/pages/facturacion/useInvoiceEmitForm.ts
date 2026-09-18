@@ -295,17 +295,34 @@ export function useInvoiceEmitForm({
     setCounterparty(next)
   }, [])
 
-  const addLine = useCallback(() => {
-    setLines((prev) => [...prev, createEmptyLine(newLineId())])
+  const ensureTrailingEmptyLine = useCallback((currentLines: InvoiceLineDraft[]): InvoiceLineDraft[] => {
+    if (currentLines.length === 0) {
+      return [createEmptyLine(newLineId())]
+    }
+    const last = currentLines[currentLines.length - 1]
+    if (last.productId || last.description.trim()) {
+      return [...currentLines, createEmptyLine(newLineId())]
+    }
+    return currentLines
   }, [])
+
+  const addLine = useCallback(() => {
+    setLines((prev) => ensureTrailingEmptyLine([...prev, createEmptyLine(newLineId())]))
+  }, [ensureTrailingEmptyLine])
 
   const removeLine = useCallback((lineId: string) => {
-    setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.id !== lineId)))
-  }, [])
+    setLines((prev) => {
+      const filtered = prev.filter((l) => l.id !== lineId)
+      return ensureTrailingEmptyLine(filtered)
+    })
+  }, [ensureTrailingEmptyLine])
 
   const patchLine = useCallback((lineId: string, patch: Partial<InvoiceLineDraft>) => {
-    setLines((prev) => prev.map((l) => (l.id === lineId ? { ...l, ...patch } : l)))
-  }, [])
+    setLines((prev) => {
+      const updated = prev.map((l) => (l.id === lineId ? { ...l, ...patch } : l))
+      return ensureTrailingEmptyLine(updated)
+    })
+  }, [ensureTrailingEmptyLine])
 
   const addProductLine = useCallback(
     (item: CatalogItemListItemDto, quantity = 1, targetLineId?: string | null) => {
@@ -321,22 +338,25 @@ export function useInvoiceEmitForm({
           ivaRate: normalizeLineIvaRate(15),
         }
 
+        let updated: InvoiceLineDraft[]
         if (targetLineId) {
-          return prev.map((l) => (l.id === targetLineId ? { ...l, ...linePatch } : l))
+          updated = prev.map((l) => (l.id === targetLineId ? { ...l, ...linePatch } : l))
+        } else {
+          const emptyLine = prev.find((l) => !l.productId && !l.description.trim())
+          if (emptyLine) {
+            updated = prev.map((l) => (l.id === emptyLine.id ? { ...l, ...linePatch } : l))
+          } else {
+            const newLine: InvoiceLineDraft = {
+              ...createEmptyLine(newLineId()),
+              ...linePatch,
+            }
+            updated = [...prev, newLine]
+          }
         }
-
-        if (prev.length === 1 && !prev[0].productId && !prev[0].description.trim()) {
-          return [{ ...prev[0], ...linePatch }]
-        }
-
-        const newLine: InvoiceLineDraft = {
-          ...createEmptyLine(newLineId()),
-          ...linePatch,
-        }
-        return [...prev, newLine]
+        return ensureTrailingEmptyLine(updated)
       })
     },
-    []
+    [ensureTrailingEmptyLine]
   )
 
   /** Limpia cliente/líneas/notas tras crear comprobante; conserva emisor y punto de emisión. */
