@@ -286,7 +286,7 @@ export function CreditNoteCreatePage() {
       >
         <div className="ecu-dashboard-layout">
           <EmptyState
-            icon="shield-alert"
+            icon="gpp_bad"
             title="Sin permisos"
             description="No dispone de permisos para emitir notas de crédito electrónicas."
           />

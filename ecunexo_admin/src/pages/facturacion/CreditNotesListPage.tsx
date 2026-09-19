@@ -237,7 +237,7 @@ export function CreditNotesListPage() {
       >
         <div className="ecu-dashboard-layout">
           <EmptyState
-            icon="file-text"
+            icon="receipt"
             title="Sin permisos"
             description="No dispones de permisos para consultar el módulo de Notas de Crédito SRI."
           />
@@ -330,7 +330,7 @@ export function CreditNotesListPage() {
 
           {creditNotes.length === 0 && !loading ? (
             <EmptyState
-              icon="file-text"
+              icon="receipt"
               title="No hay notas de crédito"
               description="No se encontraron notas de crédito emitidas para el filtro seleccionado."
               action={

@@ -167,9 +167,10 @@ internal static class MenuCatalogSeedData
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Comprobantes", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
-        Item("facturacion-guias", "facturacion", "Guías de Remisión", "truck", "facturacion/guias-remision", 2, MenuContextKind.Operational, "facturacion", ["facturacion.guias.remision.read"]),
-        Item("facturacion-sri", "facturacion", "Monitoreo SRI", "shield-check", "facturacion/sri", 3, MenuContextKind.Operational, "facturacion", ["facturacion.sri.read"]),
-        Item("facturacion-catalogos", "facturacion", "Catálogos", "library", null, 4, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
+        Item("facturacion-notas-credito", "facturacion", "Notas de Crédito", "receipt", "facturacion/notas-credito", 2, MenuContextKind.Operational, "credit_notes", ["facturacion.notas.credito.read"]),
+        Item("facturacion-guias", "facturacion", "Guías de Remisión", "truck", "facturacion/guias-remision", 3, MenuContextKind.Operational, "facturacion", ["facturacion.guias.remision.read"]),
+        Item("facturacion-sri", "facturacion", "Monitoreo SRI", "shield-check", "facturacion/sri", 4, MenuContextKind.Operational, "facturacion", ["facturacion.sri.read"]),
+        Item("facturacion-catalogos", "facturacion", "Catálogos", "library", null, 5, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
         Item("facturacion-catalogos-reglas", "facturacion-catalogos", "Reglas SRI", null, "facturacion/catalogos/reglas", 1, MenuContextKind.Operational, "facturacion", ["facturacion.catalogos.read"]),
 
         // Compras: Compras, Proveedores y Retenciones SRI
@@ -228,7 +229,6 @@ internal static class MenuCatalogSeedData
         "facturacion-facturas",
         "facturacion-facturas-emitir",
         "facturacion-facturas-consultar",
-        "facturacion-notas-credito",
         "facturacion-notas-debito",
         "facturacion-guias-remision",
         "facturacion-retenciones",

@@ -14,7 +14,6 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
-import { Button } from 'glubox'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { SectionCard, StatusBadge } from '@/components/ui'
 import { selectTenantId } from '@/store/authSlice'
@@ -241,14 +240,9 @@ export type DashboardChartsSectionProps = {
 export function DashboardChartsSection({ isHolderOnly = false }: DashboardChartsSectionProps) {
   const activeTenantId = useAppSelector(selectTenantId)
   const [analyticsData, setAnalyticsData] = useState<DashboardAnalyticsResponseDto | null>(null)
-  const [salesPeriodPreset, setSalesPeriodPreset] = useState<'semanal' | 'mensual' | 'anual'>('semanal')
-  const [salesDateRange, setSalesDateRange] = useState<IsoDateRange>(() => getPresetDateRange('semanal'))
+  const [salesPeriodPreset] = useState<'semanal' | 'mensual' | 'anual'>('semanal')
+  const [salesDateRange] = useState<IsoDateRange>(() => getPresetDateRange('semanal'))
   const [invoices, setInvoices] = useState<InvoiceListItem[]>([])
-
-  const handleSelectSalesPreset = (preset: 'semanal' | 'mensual' | 'anual') => {
-    setSalesPeriodPreset(preset)
-    setSalesDateRange(getPresetDateRange(preset))
-  }
 
   useEffect(() => {
     if (!activeTenantId) return
@@ -393,54 +387,16 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
         {canBilling && (
           <SectionCard
             title="Facturación y Ventas"
-            subtitle={`Evolución ${salesPeriodPreset === 'semanal' ? 'semanal' : salesPeriodPreset === 'mensual' ? 'mensual' : salesPeriodPreset === 'anual' ? 'anual' : 'personalizada'} ($ USD)`}
+            subtitle="Evolución de ventas ($ USD)"
             action={<StatusBadge tone="success">SRI Facturas</StatusBadge>}
           >
             <div className="ecu-chart-wrapper">
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-start',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                  marginBottom: '0.75rem',
-                }}
-              >
-                <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={salesPeriodPreset === 'semanal' ? 'primary' : 'outline'}
-                    onClick={() => handleSelectSalesPreset('semanal')}
-                  >
-                    Semanal
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={salesPeriodPreset === 'mensual' ? 'primary' : 'outline'}
-                    onClick={() => handleSelectSalesPreset('mensual')}
-                  >
-                    Mensual
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={salesPeriodPreset === 'anual' ? 'primary' : 'outline'}
-                    onClick={() => handleSelectSalesPreset('anual')}
-                  >
-                    Anual
-                  </Button>
-                </div>
-              </div>
-
               <div className="ecu-chart-header-kpi">
                 <span className="ecu-chart-kpi-val">
                   ${totalPeriodSales.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
                 <span className="ecu-chart-kpi-sub">
-                  Total período actual ({salesPeriodPreset === 'semanal' ? 'semanal' : salesPeriodPreset === 'mensual' ? 'mensual' : salesPeriodPreset === 'anual' ? 'anual' : 'personalizado'})
+                  Total acumulado en el período
                 </span>
               </div>
               <ResponsiveContainer width="100%" height={175}>

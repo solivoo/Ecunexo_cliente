@@ -33,7 +33,7 @@ export function TenantSessionGate({ children, title, lead }: TenantSessionGatePr
         subtitle="Esta funcionalidad requiere operar dentro del contexto de una empresa de la suscripción."
       >
         <EmptyState
-          icon="building-2"
+          icon="domain"
           title="No hay empresa activa en la sesión"
           description={
             isSubscriptionHolder
