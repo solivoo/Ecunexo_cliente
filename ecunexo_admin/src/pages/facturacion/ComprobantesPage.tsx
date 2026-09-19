@@ -30,7 +30,15 @@ export function ComprobantesPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const canCreate = useHasPermission('facturacion.facturas.create')
+  const canCreateInvoice = useHasPermission('facturacion.facturas.create')
+  const canCreateNC =
+    useHasPermission('facturacion.notas.credito.create') ||
+    useHasPermission('facturacion.notascredito.create') ||
+    useHasPermission('facturacion.read')
+  const canCreateRemision =
+    useHasPermission('facturacion.guias.remision.create') ||
+    useHasPermission('facturacion.guiasremision.create') ||
+    useHasPermission('facturacion.read')
   const canRead =
     useHasPermission('facturacion.comprobantes.read') ||
     useHasPermission('facturacion.facturas.read') ||
@@ -74,18 +82,26 @@ export function ComprobantesPage() {
         disabled: loading,
       },
     ]
+
     for (const doc of SALE_DOCUMENT_TYPES) {
-      if (!doc.sriCode || doc.code === FACTURA_CODE) continue
-      items.push({
-        id: `nuevo-${doc.code}`,
-        label: doc.available ? `Nueva ${doc.label.toLowerCase()}` : `${doc.label} · pronto`,
-        icon: 'plus',
-        route: doc.available && canCreate ? doc.emitPath : null,
-        disabled: loading || (doc.available && !canCreate),
-      })
+      if (!doc.sriCode || doc.code === FACTURA_CODE || !doc.available) continue
+
+      let hasDocPermission = false
+      if (doc.code === NC_CODE) hasDocPermission = canCreateNC
+      else if (doc.code === '06') hasDocPermission = canCreateRemision
+
+      if (hasDocPermission) {
+        items.push({
+          id: `nuevo-${doc.code}`,
+          label: `Nueva ${doc.label.toLowerCase()}`,
+          icon: 'plus',
+          route: doc.emitPath,
+          disabled: loading,
+        })
+      }
     }
     return items
-  }, [canCreate, loading])
+  }, [canCreateNC, canCreateRemision, loading])
 
   const handleActionSelect = useCallback(
     (item: PageActionItem) => {
@@ -111,7 +127,7 @@ export function ComprobantesPage() {
     [load, toast]
   )
 
-  if (!canRead && !canCreate) {
+  if (!canRead && !canCreateInvoice) {
     return (
       <TenantSessionGate title="Comprobantes" lead="Comprobantes de venta electrónicos.">
         <div className="ecu-dashboard-layout">
@@ -141,7 +157,7 @@ export function ComprobantesPage() {
           }
           actions={
             <>
-              {canCreate && (
+              {canCreateInvoice && (
                 <Button
                   type="button"
                   variant="primary"
@@ -240,7 +256,7 @@ export function ComprobantesPage() {
               title="Sin comprobantes de venta en este período"
               description="No se registran comprobantes emitidos con los filtros actuales. Ajusta el rango de fechas o emite una nueva factura electrónica."
               action={
-                canCreate ? (
+                canCreateInvoice ? (
                   <Button
                     type="button"
                     variant="primary"
@@ -256,7 +272,7 @@ export function ComprobantesPage() {
               rows={visibleRows}
               loading={loading}
               emitterId={emitterId}
-              canOperateInvoice={canCreate}
+              canOperateInvoice={canCreateInvoice}
               onResent={() => void load({ silent: true })}
             />
           )}

@@ -123,17 +123,7 @@ export function StockListPage() {
   )
 
   const actionItems = useMemo<PageActionItem[]>(() => {
-    const items: PageActionItem[] = []
-    if (canCreateDoc) {
-      items.push({
-        id: 'receive',
-        label: 'Nueva recepción',
-        icon: 'plus',
-        route: '/inventario/documentos/nuevo?tipo=0',
-        disabled: false,
-      })
-    }
-    items.push(
+    const items: PageActionItem[] = [
       {
         id: 'toggle-low',
         label: belowOnly ? 'Ver todos' : 'Solo bajo mínimo',
@@ -161,10 +151,10 @@ export function StockListPage() {
         icon: 'refresh-cw',
         route: null,
         disabled: loading,
-      }
-    )
+      },
+    ]
     return items
-  }, [belowOnly, canCreateDoc, loading])
+  }, [belowOnly, loading])
 
   const columns = useMemo(
     (): ColumnDef<Row>[] => [
