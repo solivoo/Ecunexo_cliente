@@ -367,6 +367,31 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
+    // CreditNotes — Notas de Crédito y Anulaciones SRI (Comprobante 04)
+    // ──────────────────────────────────────────────
+    public const string LimitMaxMonthlyCreditNotes = "max_monthly_credit_notes";
+
+    private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> CreditNotesLimits = new()
+    {
+        [ModuleTier.Small] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyCreditNotes] = 20,
+        },
+        [ModuleTier.Medium] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyCreditNotes] = 100,
+        },
+        [ModuleTier.Big] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyCreditNotes] = 500,
+        },
+        [ModuleTier.Enterprise] = new Dictionary<string, int>
+        {
+            [LimitMaxMonthlyCreditNotes] = int.MaxValue,
+        },
+    };
+
+    // ──────────────────────────────────────────────
     // Resolución
     // ──────────────────────────────────────────────
 
@@ -390,6 +415,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Purchases => PurchasesLimits,
             TenantModuleCodes.Accounting or "accounting" => AccountingLimits,
             TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => RemisionGuidesLimits,
+            TenantModuleCodes.CreditNotes or "credit_notes" or "notas_credito" or "notas-credito" or "billing.credit_notes" => CreditNotesLimits,
             _ => null,
         };
 
@@ -421,6 +447,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Purchases => PurchasesLimits,
             TenantModuleCodes.Accounting or "accounting" => AccountingLimits,
             TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => RemisionGuidesLimits,
+            TenantModuleCodes.CreditNotes or "credit_notes" or "notas_credito" or "notas-credito" or "billing.credit_notes" => CreditNotesLimits,
             _ => null,
         };
 

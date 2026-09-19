@@ -70,6 +70,7 @@ export type CreateInvoiceBody = {
 export type CreateCreditNoteBody = {
   readonly motivo: string
   readonly issueDate?: string | null
+  readonly lines?: readonly CreateInvoiceLineBody[] | null
 }
 
 export type CreateCreditNoteResponse = {

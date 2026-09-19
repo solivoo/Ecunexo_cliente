@@ -50,6 +50,8 @@ import { FacturaEmitirPage } from '@/pages/facturacion/FacturaEmitirPage'
 import { ComprobantesPage } from '@/pages/facturacion/ComprobantesPage'
 import { RemisionGuidesListPage } from '@/pages/facturacion/RemisionGuidesListPage'
 import { RemisionGuideCreatePage } from '@/pages/facturacion/RemisionGuideCreatePage'
+import { CreditNotesListPage } from '@/pages/facturacion/CreditNotesListPage'
+import { CreditNoteCreatePage } from '@/pages/facturacion/CreditNoteCreatePage'
 import { SriMonitorPage } from '@/pages/facturacion/SriMonitorPage'
 import { TaxRulesCatalogPage } from '@/pages/facturacion/TaxRulesCatalogPage'
 import { ComprasDocumentosPage } from '@/pages/compras/ComprasDocumentosPage'
@@ -176,6 +178,8 @@ export const routes: RouteObject[] = [
           { path: 'compras/gastos', element: <ExpenseTypesListPage /> },
           { path: 'facturacion/comprobantes', element: <ComprobantesPage /> },
           { path: 'facturacion/facturas/emitir', element: <FacturaEmitirPage /> },
+          { path: 'facturacion/notas-credito', element: <CreditNotesListPage /> },
+          { path: 'facturacion/notas-credito/nueva', element: <CreditNoteCreatePage /> },
           {
             path: 'facturacion/emisor',
             element: <Navigate to="/organizacion/facturacion-electronica" replace />,

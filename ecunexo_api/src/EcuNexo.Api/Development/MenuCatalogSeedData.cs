@@ -44,8 +44,9 @@ internal static class MenuCatalogSeedData
         ("facturacion.emisor.read", "Emisor — lectura", "Ver datos del emisor", "facturacion", 76),
         ("facturacion.emisor.certificates", "Emisor — certificado", "Certificado digital", "facturacion", 77),
         ("facturacion.sri.read", "SRI — monitoreo", "Estados SRI", "facturacion", 78),
-        ("facturacion.notas.credito.read", "NC — lectura", "Notas de crédito SRI 04", "facturacion", 79),
-        ("facturacion.notas.debito.read", "ND — lectura", "Notas de débito SRI 05", "facturacion", 80),
+        ("facturacion.notas.credito.read", "NC — lectura", "Notas de crédito SRI 04", "credit_notes", 79),
+        ("facturacion.notas.credito.create", "NC — emisión", "Emitir y gestionar notas de crédito SRI 04", "credit_notes", 80),
+        ("facturacion.notas.debito.read", "ND — lectura", "Notas de débito SRI 05", "facturacion", 81),
         ("facturacion.guias.remision.read", "Guías — lectura", "Guías de remisión SRI 06", "facturacion", 81),
         ("facturacion.guias.remision.create", "Guías — emisión", "Emitir y gestionar guías de remisión SRI 06", "facturacion", 82),
         ("facturacion.retenciones.read", "Retenciones — lectura", "Comprobantes retención SRI 07", "facturacion", 83),
@@ -126,6 +127,7 @@ internal static class MenuCatalogSeedData
         ("customers", "Clientes"),
         ("ecommerce", "Comercio Electrónico"),
         ("purchases", "Compras"),
+        ("credit_notes", "Notas de Crédito y Anulaciones SRI (Comprobante 04)"),
     ];
 
     public static IReadOnlyList<MenuItem> MenuItems =>

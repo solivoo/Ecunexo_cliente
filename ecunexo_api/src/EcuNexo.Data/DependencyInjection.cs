@@ -12,6 +12,7 @@ using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
 using EcuNexo.Business.Tenancy.Licensing;
 using EcuNexo.Core.Abstractions;
+using EcuNexo.Core.CreditNotes;
 using EcuNexo.Data.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -76,6 +77,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IJournalEntryRepository, JournalEntryRepository>();
         services.AddScoped<EcuNexo.Business.RemisionGuides.IRemisionGuideRepository, RemisionGuideRepository>();
+        services.AddScoped<ICreditNoteRepository, CreditNoteRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
         return services;

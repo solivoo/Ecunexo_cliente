@@ -1,5 +1,8 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Accounting;
+using EcuNexo.Business.CreditNotes.Commands.CreateCreditNote;
+using EcuNexo.Business.CreditNotes.Queries.GetCreditNoteById;
+using EcuNexo.Business.CreditNotes.Queries.ListCreditNotes;
 using EcuNexo.Business.Accounting.Commands.CreateAccount;
 using EcuNexo.Business.Accounting.Commands.CreateJournalEntry;
 using EcuNexo.Business.Accounting.Commands.DeleteAccount;
@@ -330,6 +333,11 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<UpdateRemisionGuideStatusCommand, bool>, UpdateRemisionGuideStatusHandler>();
         services.AddScoped<IQueryHandler<ListRemisionGuidesQuery, ListRemisionGuidesResponse>, ListRemisionGuidesHandler>();
         services.AddScoped<IQueryHandler<GetRemisionGuideByIdQuery, RemisionGuideDetailDto>, GetRemisionGuideByIdHandler>();
+
+        // Notas de Crédito SRI (Tipo 04)
+        services.AddScoped<ICommandHandler<CreateCreditNoteCommand, CreateCreditNoteResponse>, CreateCreditNoteHandler>();
+        services.AddScoped<IQueryHandler<ListCreditNotesQuery, ListCreditNotesResponse>, ListCreditNotesHandler>();
+        services.AddScoped<IQueryHandler<GetCreditNoteByIdQuery, CreditNoteDetailDto>, GetCreditNoteByIdHandler>();
 
         // Dashboard Analytics
         services.AddScoped<IQueryHandler<EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.GetDashboardAnalyticsQuery, EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.DashboardAnalyticsDto>, EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.GetDashboardAnalyticsHandler>();

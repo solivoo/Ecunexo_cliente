@@ -20,6 +20,12 @@ public static class PermissionModuleMapper
             return TenantModuleCodes.RemisionGuides;
         }
 
+        if (normalized.StartsWith("facturacion.notas.credito.", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("facturacion.notas_credito.", StringComparison.OrdinalIgnoreCase))
+        {
+            return TenantModuleCodes.CreditNotes;
+        }
+
         var dot = permissionCode.IndexOf('.');
         if (dot <= 0)
         {

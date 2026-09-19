@@ -36,7 +36,7 @@ export const SALE_DOCUMENT_TYPES: readonly SriDocumentType[] = [
     shortLabel: 'NC',
     hint: 'Anula o descuenta una factura autorizada (SRI 04).',
     available: true,
-    emitPath: null,
+    emitPath: '/facturacion/notas-credito/nueva',
   },
   {
     code: '05',

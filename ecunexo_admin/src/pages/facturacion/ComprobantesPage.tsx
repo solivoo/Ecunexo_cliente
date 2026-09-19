@@ -10,7 +10,6 @@ import {
   EmptyState,
 } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
-import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { useGridDateRange } from '@/hooks/useGridDateRange'
@@ -36,7 +35,7 @@ export function ComprobantesPage() {
     useHasPermission('facturacion.comprobantes.read') ||
     useHasPermission('facturacion.facturas.read') ||
     useHasPermission('facturacion.facturas.read.all')
-  const { from, to, setRange, lookback } = useGridDateRange()
+  const { from, to } = useGridDateRange()
   const { rows, loading, error, emitterId, load } = useBillingInvoices({ from, to })
 
   const typeCode = sriDocumentTypeByCode(params.get('tipo'), SALE_DOCUMENT_TYPES).code
@@ -206,13 +205,13 @@ export function ComprobantesPage() {
               className="ecu-comprobantes-filters"
               style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}
             >
-              <GridDateRangeBox
-                from={from}
-                to={to}
-                lookback={lookback}
-                disabled={loading}
-                onChange={setRange}
-              />
+                {/* <GridDateRangeBox
+                  from={from}
+                  to={to}
+                  lookback={lookback}
+                  disabled={loading}
+                  onChange={setRange}
+                /> */}
               <ComprobantesTypeFilters
                 value={typeCode}
                 options={sriTypeFilterOptions(SALE_DOCUMENT_TYPES)}

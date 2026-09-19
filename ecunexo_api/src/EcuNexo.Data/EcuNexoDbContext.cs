@@ -1,6 +1,7 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Core.Accounting;
 using EcuNexo.Core.Catalog;
+using EcuNexo.Core.CreditNotes;
 using EcuNexo.Core.Customers;
 using EcuNexo.Core.Ecommerce;
 using EcuNexo.Core.Identity;
@@ -126,9 +127,17 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<RemisionGuideItem> RemisionGuideItems => Set<RemisionGuideItem>();
 
+    public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
+
+    public DbSet<CreditNoteItem> CreditNoteItems => Set<CreditNoteItem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(EcuNexoDbContext).Assembly);
+
+        modelBuilder.Entity<CreditNote>().HasQueryFilter(
+            c => (!_tenantContext.CurrentTenantId.HasValue || c.TenantId == _tenantContext.CurrentTenantId)
+                 && c.DeletedAt == null);
 
         modelBuilder.Entity<RemisionGuide>().HasQueryFilter(
             g => (!_tenantContext.CurrentTenantId.HasValue || g.TenantId == _tenantContext.CurrentTenantId)
