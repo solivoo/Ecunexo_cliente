@@ -438,25 +438,26 @@ export function CreditNoteCreatePage() {
                 <table
                   style={{
                     width: '100%',
-                    borderCollapse: 'collapse',
+                    borderCollapse: 'separate',
+                    borderSpacing: 0,
                     fontSize: '0.9rem',
                     marginBottom: '1rem',
                   }}
                 >
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--shell-border)', textAlign: 'left' }}>
-                      <th style={{ padding: '0.5rem', width: '40px' }}>Incluir</th>
-                      <th style={{ padding: '0.5rem' }}>Ítem / Descripción</th>
-                      <th style={{ padding: '0.5rem', width: '120px', textAlign: 'right' }}>
+                      <th style={{ padding: '0.65rem 0.75rem', width: '65px', textAlign: 'center' }}>Incluir</th>
+                      <th style={{ padding: '0.65rem 0.75rem' }}>Ítem / Descripción</th>
+                      <th style={{ padding: '0.65rem 0.75rem', width: '130px', textAlign: 'right' }}>
                         Cant. Facturada
                       </th>
-                      <th style={{ padding: '0.5rem', width: '140px', textAlign: 'right' }}>
+                      <th style={{ padding: '0.65rem 0.75rem', width: '140px', textAlign: 'right' }}>
                         Cant. a Devolver
                       </th>
-                      <th style={{ padding: '0.5rem', width: '120px', textAlign: 'right' }}>
+                      <th style={{ padding: '0.65rem 0.75rem', width: '120px', textAlign: 'right' }}>
                         Precio Unit.
                       </th>
-                      <th style={{ padding: '0.5rem', width: '120px', textAlign: 'right' }}>
+                      <th style={{ padding: '0.65rem 0.75rem', width: '130px', textAlign: 'right' }}>
                         Subtotal Dev.
                       </th>
                     </tr>
@@ -471,30 +472,37 @@ export function CreditNoteCreatePage() {
                           key={line.lineNumber}
                           style={{
                             borderBottom: '1px solid var(--shell-border)',
-                            opacity: line.selected ? 1 : 0.4,
+                            opacity: line.selected ? 1 : 0.45,
+                            transition: 'opacity 0.15s ease',
                           }}
                         >
-                          <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                          <td style={{ padding: '0.65rem 0.75rem', textAlign: 'center' }}>
                             <input
                               type="checkbox"
                               checked={line.selected}
                               disabled={submitting}
                               onChange={() => handleToggleLine(idx)}
-                              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                              style={{
+                                width: '18px',
+                                height: '18px',
+                                cursor: 'pointer',
+                                accentColor: 'var(--shell-primary)',
+                                verticalAlign: 'middle',
+                              }}
                             />
                           </td>
-                          <td style={{ padding: '0.5rem' }}>
-                            <strong>{line.description}</strong>
+                          <td style={{ padding: '0.65rem 0.75rem' }}>
+                            <strong style={{ color: 'var(--glb-text)' }}>{line.description}</strong>
                             {line.mainCode ? (
-                              <span className="app-shell__muted" style={{ marginLeft: '0.5rem' }}>
+                              <span className="app-shell__muted" style={{ marginLeft: '0.5rem', fontSize: '0.85rem' }}>
                                 ({line.mainCode})
                               </span>
                             ) : null}
                           </td>
-                          <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                          <td style={{ padding: '0.65rem 0.75rem', textAlign: 'right', fontWeight: 500 }}>
                             {line.originalQty}
                           </td>
-                          <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                          <td style={{ padding: '0.65rem 0.75rem', textAlign: 'right' }}>
                             <input
                               type="number"
                               step="any"
@@ -504,21 +512,24 @@ export function CreditNoteCreatePage() {
                               disabled={!line.selected || submitting}
                               onChange={(e) => handleQtyChange(idx, e.target.value)}
                               style={{
-                                width: '100px',
+                                width: '85px',
                                 textAlign: 'right',
-                                padding: '0.25rem 0.5rem',
+                                padding: '0.35rem 0.5rem',
+                                fontSize: '0.875rem',
+                                fontWeight: 600,
                                 border: '1px solid var(--shell-border)',
-                                borderRadius: '4px',
-                                background: 'var(--glb-surface)',
+                                borderRadius: '6px',
+                                background: line.selected ? 'var(--glb-surface)' : 'rgba(255,255,255,0.03)',
                                 color: 'var(--glb-text)',
+                                outline: 'none',
                               }}
                             />
                           </td>
-                          <td style={{ padding: '0.5rem', textAlign: 'right' }}>
-                            {formatMoney(line.unitPrice)}
+                          <td style={{ padding: '0.65rem 0.75rem', textAlign: 'right', color: 'var(--glb-muted)' }}>
+                            ${formatMoney(line.unitPrice)}
                           </td>
-                          <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 600 }}>
-                            {formatMoney(lineTotal)}
+                          <td style={{ padding: '0.65rem 0.75rem', textAlign: 'right', fontWeight: 600, color: 'var(--glb-text)' }}>
+                            ${formatMoney(lineTotal)}
                           </td>
                         </tr>
                       )
@@ -532,33 +543,48 @@ export function CreditNoteCreatePage() {
                 style={{
                   display: 'flex',
                   justifyContent: 'flex-end',
-                  marginTop: '1rem',
-                  paddingTop: '1rem',
-                  borderTop: '2px solid var(--shell-border)',
+                  marginTop: '1.25rem',
+                  paddingTop: '1.25rem',
+                  borderTop: '1px solid var(--shell-border)',
                 }}
               >
-                <div style={{ width: '280px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div
+                  style={{
+                    width: '360px',
+                    maxWidth: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.6rem',
+                    padding: '1rem 1.25rem',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--glb-surface)',
+                    border: '1px solid var(--shell-border)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                     <span className="app-shell__muted">Subtotal sin impuestos:</span>
-                    <span>{formatMoney(totals.subtotalWithoutTax)}</span>
+                    <span style={{ fontWeight: 500, color: 'var(--glb-text)' }}>${formatMoney(totals.subtotalWithoutTax)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                     <span className="app-shell__muted">IVA Calculado:</span>
-                    <span>{formatMoney(totals.vatSum)}</span>
+                    <span style={{ fontWeight: 500, color: 'var(--glb-text)' }}>${formatMoney(totals.vatSum)}</span>
                   </div>
                   <div
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
-                      fontSize: '1.2rem',
+                      alignItems: 'center',
+                      fontSize: '1.05rem',
                       fontWeight: 700,
-                      color: 'var(--shell-primary)',
-                      paddingTop: '0.5rem',
+                      paddingTop: '0.6rem',
+                      marginTop: '0.2rem',
                       borderTop: '1px solid var(--shell-border)',
                     }}
                   >
-                    <span>Monto Modificado Total:</span>
-                    <span>{formatMoney(totals.grandTotal)}</span>
+                    <span style={{ color: 'var(--glb-text)' }}>Total Modificado:</span>
+                    <span style={{ color: 'var(--shell-primary)', fontSize: '1.25rem' }}>
+                      ${formatMoney(totals.grandTotal)}
+                    </span>
                   </div>
                 </div>
               </div>
