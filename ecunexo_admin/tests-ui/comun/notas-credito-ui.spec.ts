@@ -97,4 +97,54 @@ test.describe('Módulo de Notas de Crédito Electrónicas SRI (Tipo 04)', () => 
     await expect(page.getByText('1. Factura de Sustento (Documento Modificado)')).toBeVisible()
     await expect(page.getByText('← Volver al listado')).toBeVisible()
   })
+
+  test('Oculta el botón "+ Nueva Nota de Crédito" cuando el usuario sólo tiene permiso de LECTURA (sin creación)', async ({ page }) => {
+    // Configurar sesión sólo con permiso de lectura (facturacion.notas.credito.read)
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        'auth-storage',
+        JSON.stringify({
+          state: {
+            token: 'mock-jwt-token',
+            user: { id: 'user-read-only', email: 'viewer@empresa.com', name: 'Lector Audit' },
+            tenantId: 'tenant-demo-id',
+            userId: 'user-read-only',
+            emitterId: 'emitter-demo-id',
+            permissions: ['facturacion.notas.credito.read', 'facturacion.read'],
+          },
+          version: 0,
+        })
+      )
+    })
+
+    await page.route('**/api/v1/emitters/**/invoices*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [], totalCount: 0, page: 1, pageSize: 50 }),
+      })
+    })
+
+    await page.goto('/facturacion/notas-credito')
+
+    // El listado debe renderizarse pero el botón de creación debe estar oculto
+    await expect(page.locator('h1')).toContainText('Notas de Crédito SRI')
+    await expect(page.getByRole('button', { name: /Nueva Nota de Crédito/i })).toHaveCount(0)
+  })
+
+  test('Muestra el botón "+ Nueva Nota de Crédito" cuando el usuario posee permiso de CREACIÓN (facturacion.notas.credito.create)', async ({ page }) => {
+    // La sesión beforeEach incluye facturacion.notas.credito.create
+    await page.route('**/api/v1/emitters/**/invoices*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [], totalCount: 0, page: 1, pageSize: 50 }),
+      })
+    })
+
+    await page.goto('/facturacion/notas-credito')
+
+    await expect(page.locator('h1')).toContainText('Notas de Crédito SRI')
+    await expect(page.getByRole('button', { name: /Nueva Nota de Crédito/i })).toBeVisible()
+  })
 })

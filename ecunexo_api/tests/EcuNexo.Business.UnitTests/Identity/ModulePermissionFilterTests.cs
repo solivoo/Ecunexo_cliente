@@ -97,7 +97,7 @@ public sealed class ModulePermissionFilterTests
     }
 
     [Fact]
-    public void IsPermittedForModules_ShouldBlockRemisionGuidesPermissions_WhenRemisionGuidesNotInLicense()
+    public void IsPermittedForModules_ShouldAllowCreditNotesPermissions_WhenFacturacionInEntitlements()
     {
         var enabledModules = new List<string> { "identity", "catalog", "facturacion" };
         var entitlements = new List<ModuleEntitlement>
@@ -107,10 +107,63 @@ public sealed class ModulePermissionFilterTests
             new() { ModuleCode = "facturacion", Tier = ModuleTier.Small },
         };
 
-        ModulePermissionFilter.IsPermittedForModules("facturacion.guias.remision.read", enabledModules, entitlements)
+        ModulePermissionFilter.IsPermittedForModules("facturacion.notas.credito.read", enabledModules, entitlements)
+            .Should().BeTrue();
+        ModulePermissionFilter.IsPermittedForModules("facturacion.notas.credito.create", enabledModules, entitlements)
+            .Should().BeTrue();
+        ModulePermissionFilter.IsPermittedForModules("facturacion.notascredito.read", enabledModules, entitlements)
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsPermittedForModules_ShouldBlockCreditNotesPermissions_WhenFacturacionNotInLicense()
+    {
+        var enabledModules = new List<string> { "identity", "catalog" };
+        var entitlements = new List<ModuleEntitlement>
+        {
+            new() { ModuleCode = "identity", Tier = ModuleTier.Small },
+            new() { ModuleCode = "catalog", Tier = ModuleTier.Big },
+        };
+
+        ModulePermissionFilter.IsPermittedForModules("facturacion.notas.credito.read", enabledModules, entitlements)
             .Should().BeFalse();
-        ModulePermissionFilter.IsPermittedForModules("facturacion.guias.remision.create", enabledModules, entitlements)
+        ModulePermissionFilter.IsPermittedForModules("facturacion.notas.credito.create", enabledModules, entitlements)
             .Should().BeFalse();
+    }
+
+    [Fact]
+    public void FilterPermissionCodes_ShouldDynamicallyIncludeAndExcludePermissions_WhenGrantingAndRevoking()
+    {
+        string[] allPermissions =
+        [
+            "facturacion.facturas.read",
+            "facturacion.facturas.create",
+            "facturacion.notas.credito.read",
+            "facturacion.notas.credito.create",
+            "purchases.documents.read",
+            "purchases.documents.manage",
+        ];
+
+        // Scenario 1: Facturación enabled, Purchases disabled
+        var modulesFacturacion = new List<string> { "identity", "facturacion" };
+        var filteredFacturacion = ModulePermissionFilter.FilterPermissionCodes(allPermissions, modulesFacturacion);
+
+        filteredFacturacion.Should().Contain(["facturacion.facturas.read", "facturacion.facturas.create", "facturacion.notas.credito.read", "facturacion.notas.credito.create"]);
+        filteredFacturacion.Should().NotContain(["purchases.documents.read", "purchases.documents.manage"]);
+
+        // Scenario 2: Add Purchases module
+        var modulesBoth = new List<string> { "identity", "facturacion", "purchases" };
+        var filteredBoth = ModulePermissionFilter.FilterPermissionCodes(allPermissions, modulesBoth);
+
+        filteredBoth.Should().HaveCount(6);
+        filteredBoth.Should().Contain("purchases.documents.read");
+
+        // Scenario 3: Revoke Facturación module (only Purchases remains)
+        var modulesPurchasesOnly = new List<string> { "identity", "purchases" };
+        var filteredPurchases = ModulePermissionFilter.FilterPermissionCodes(allPermissions, modulesPurchasesOnly);
+
+        filteredPurchases.Should().NotContain(["facturacion.facturas.read", "facturacion.notas.credito.read"]);
+        filteredPurchases.Should().Contain(["purchases.documents.read", "purchases.documents.manage"]);
     }
 }
 

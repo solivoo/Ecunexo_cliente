@@ -21,9 +21,10 @@ public static class PermissionModuleMapper
         }
 
         if (normalized.StartsWith("facturacion.notas.credito.", StringComparison.OrdinalIgnoreCase)
-            || normalized.StartsWith("facturacion.notas_credito.", StringComparison.OrdinalIgnoreCase))
+            || normalized.StartsWith("facturacion.notas_credito.", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("facturacion.notascredito.", StringComparison.OrdinalIgnoreCase))
         {
-            return TenantModuleCodes.CreditNotes;
+            return TenantModuleCodes.Invoicing;
         }
 
         var dot = permissionCode.IndexOf('.');
