@@ -166,7 +166,7 @@ internal static class MenuCatalogSeedData
         Item("ecommerce-orders", "ecommerce", "Pedidos", "shopping-bag", "ecommerce/pedidos", 1, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
-        Item("facturacion-comprobantes", "facturacion", "Comprobantes", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
+        Item("facturacion-comprobantes", "facturacion", "Facturas", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
         Item("facturacion-notas-credito", "facturacion", "Notas de Crédito", "receipt", "facturacion/notas-credito", 2, MenuContextKind.Operational, "facturacion", ["facturacion.notas.credito.read", "facturacion.notascredito.read", "facturacion.comprobantes.read", "facturacion.read"]),
         Item("facturacion-guias", "facturacion", "Guías de Remisión", "truck", "facturacion/guias-remision", 3, MenuContextKind.Operational, "facturacion", ["facturacion.guias.remision.read"]),
         Item("facturacion-sri", "facturacion", "Monitoreo SRI", "shield-check", "facturacion/sri", 4, MenuContextKind.Operational, "facturacion", ["facturacion.sri.read"]),

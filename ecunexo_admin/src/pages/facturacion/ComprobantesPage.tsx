@@ -129,11 +129,11 @@ export function ComprobantesPage() {
 
   if (!canRead && !canCreateInvoice) {
     return (
-      <TenantSessionGate title="Comprobantes" lead="Comprobantes de venta electrónicos.">
+      <TenantSessionGate title="Facturas" lead="Facturas de venta electrónicas.">
         <div className="ecu-dashboard-layout">
           <PageHeader
             title="Acceso Restringido"
-            subtitle="Sin permiso para consultar comprobantes de venta electrónicos."
+            subtitle="Sin permiso para consultar facturas de venta electrónicas."
             badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
           />
         </div>
@@ -143,16 +143,16 @@ export function ComprobantesPage() {
 
   return (
     <TenantSessionGate
-      title="Comprobantes"
-      lead="Emisión y consulta de comprobantes electrónicos autorizados ante el SRI."
+      title="Facturas"
+      lead="Emisión y consulta de facturas electrónicas autorizadas ante el SRI."
     >
       <div className="ecu-dashboard-layout">
         <PageHeader
-          title="Comprobantes Electrónicos"
-          subtitle="Comprobantes de venta autorizados ante el SRI. Para retenciones en compras y liquidaciones, consulta el módulo de Compras."
+          title="Facturas Electrónicas"
+          subtitle="Facturas de venta autorizadas ante el SRI. Para retenciones en compras y liquidaciones, consulta el módulo de Compras."
           badge={
             <StatusBadge tone="primary" withDot>
-              {visibleRows.length} {visibleRows.length === 1 ? 'Comprobante' : 'Comprobantes'}
+              {visibleRows.length} {visibleRows.length === 1 ? 'Factura' : 'Facturas'}
             </StatusBadge>
           }
           actions={
