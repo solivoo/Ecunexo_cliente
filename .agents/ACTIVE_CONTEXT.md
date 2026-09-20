@@ -7,8 +7,13 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.34.0`.
+* **Última Versión Publicada:** `v0.35.0`.
 * **Hitos Recientes Completados:**
+  - **Optimización de Consultas y Alto Rendimiento en PostgreSQL (`CatalogItemConfiguration.cs`, `CatalogItemRepository.cs`, Migración `AddCatalogJsonbAndVariantIndexes`):**
+    * **Índices Invertidos GIN en `jsonb`:** Agregados índices GIN nativos (`ix_items_custom_attributes_json` e `ix_items_variant_dimensions_json`) para búsquedas en tiempo logarítmico $O(\log N)$ con operadores de contención `@>` sobre atributos dinámicos y dimensiones de variantes.
+    * **Índice Compuesto B-Tree Multi-Tenant:** Creado índice `ix_items_tenant_id_parent_id` con filtro `"deleted_at" IS NULL` para resolución instantánea tanto de productos raíz (`parent_id IS NULL`) como de variantes asociadas a un producto matriz (`parent_id = @id`).
+    * **Verificación de SKU en BD:** Optimizado `SkuExistsIgnoreCaseAsync` en `CatalogItemRepository.cs` para utilizar `EF.Functions.ILike(i.Sku, trimmed)` y `AnyAsync()`, delegando la búsqueda a PostgreSQL y erradicando la carga completa de SKUs en la memoria de .NET.
+    * **Pruebas y Verificación:** 381/381 tests unitarios superados en `dotnet test` y migración EF Core generada limpiamente.
   - **Diccionario Maestro de Atributos y Escalas Reutilizables (`CatalogAttributesListPage.tsx`, `ItemCustomAttributesEditor.tsx`, `MenuCatalogSeedData.cs`):**
     * **Vista Dedicada en Menú (`/catalogo/atributos`):** Nueva página bajo el módulo de Catálogo (con ícono `tags`) para consultar y gestionar el diccionario corporativo de atributos, escalas y dimensiones. Incluye `PageHeader`, KPIs `StatCard` en `.ecu-stat-grid` (Total de atributos, Escalas de sistema, Personalizadas, Valores normalizados), buscador y filtros por tipo, y `DataGrid` de glubox con chips visuales de valores y protección de inmutabilidad en escalas base del sistema.
     * **Modal de Gestión de Atributos:** Permite a la empresa registrar nuevos atributos normalizados (ej. *Tipo de Caña*, *Material*, *Grosor*) con sus opciones predefinidas organizadas por chips removibles.

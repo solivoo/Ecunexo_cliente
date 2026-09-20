@@ -84,7 +84,7 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
         Guid? excludeId,
         CancellationToken ct)
     {
-        var trimmed = sku.Trim().ToUpperInvariant();
+        var trimmed = sku.Trim();
         var query = _db.CatalogItems.AsNoTracking()
             .Where(i => i.TenantId == tenantId && i.DeletedAt == null && i.Sku != null);
         if (excludeId.HasValue)
@@ -92,8 +92,7 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
             query = query.Where(i => i.Id != excludeId.Value);
         }
 
-        var skus = await query.Select(i => i.Sku).ToListAsync(ct).ConfigureAwait(false);
-        return skus.Exists(s => string.Equals(s, trimmed, StringComparison.OrdinalIgnoreCase));
+        return await query.AnyAsync(i => EF.Functions.ILike(i.Sku!, trimmed), ct).ConfigureAwait(false);
     }
 
     public Task<bool> ExistsForCategoryAsync(Guid tenantId, Guid categoryId, CancellationToken ct) =>

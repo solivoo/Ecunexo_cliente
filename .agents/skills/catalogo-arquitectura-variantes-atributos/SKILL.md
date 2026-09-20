@@ -113,3 +113,17 @@ Cuando un producto físico tiene combinaciones que generan un SKU independiente 
    - Rejilla responsiva M3: `ecu-stat-grid` para métricas y layouts fluidos a `1720px` max-width.
 3. **No Duplicidad de Acciones (Regla 3):**
    - Acciones que ya aparecen como botones en `PageHeader.actions` nunca deben duplicarse en `actionItems` de `EcuPageActions`.
+
+---
+
+## 7. Arquitectura de Alto Rendimiento en PostgreSQL
+
+1. **Almacenamiento Binario Descompuesto (`jsonb`):**
+   - `custom_attributes_json` y `variant_dimensions_json` se almacenan como `jsonb`. Permiten navegación binaria en $O(1)$ sin parsear cadenas de texto.
+2. **Índices Invertidos GIN (`Npgsql:IndexMethod = gin`):**
+   - `ix_items_custom_attributes_json` e `ix_items_variant_dimensions_json` permiten búsquedas y filtros por contención `@>` en tiempo logarítmico $O(\log N)$.
+3. **Índices Parciales B-Tree Multi-Tenant:**
+   - `ix_items_tenant_id_parent_id` con filtro `"deleted_at" IS NULL` optimiza tanto la resolución de raíces (`parent_id IS NULL`) como de variantes de un padre (`parent_id = @id`).
+   - `ix_items_tenant_id_sku` único con filtro `"deleted_at" IS NULL AND sku IS NOT NULL`.
+4. **Verificación de SKU en BD:**
+   - Evaluación en base de datos mediante `EF.Functions.ILike(i.Sku, trimmed)` y `AnyAsync()`, evitando cargar listas de SKUs a la memoria del servidor.

@@ -99,6 +99,15 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
 
         builder.HasIndex(i => new { i.TenantId, i.Kind, i.Name });
 
+        builder.HasIndex(i => new { i.TenantId, i.ParentId })
+            .HasFilter("\"deleted_at\" IS NULL");
+
+        builder.HasIndex(i => i.CustomAttributesJson)
+            .HasMethod("gin");
+
+        builder.HasIndex(i => i.VariantDimensionsJson)
+            .HasMethod("gin");
+
         builder.HasMany(i => i.Images)
             .WithOne(img => img.CatalogItem)
             .HasForeignKey(img => img.CatalogItemId)
