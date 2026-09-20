@@ -113,6 +113,11 @@ Cuando un producto físico tiene combinaciones que generan un SKU independiente 
    - Rejilla responsiva M3: `ecu-stat-grid` para métricas y layouts fluidos a `1720px` max-width.
 3. **No Duplicidad de Acciones (Regla 3):**
    - Acciones que ya aparecen como botones en `PageHeader.actions` nunca deben duplicarse en `actionItems` de `EcuPageActions`.
+4. **UX Copywriting de Negocio (Regla Anti-Lenguaje Técnico de Programador):**
+   - Redactar siempre pensando en el usuario comercial/empresarial (ej. *«Administra las opciones de tallas, colores y medidas para tus productos»*).
+   - Prohibido utilizar explicaciones técnicas de programación o base de datos en subtítulos y etiquetas (ej. jamás poner *«evitar inconsistencias en variantes y especificaciones»* ni *«producto cartesiano multidimensional»*).
+5. **Limpieza Proactiva de Código Muerto y Funcionalidad Obsoleta (Regla 10):**
+   - Cada vez que se evolucione o refactorice una capacidad en el catálogo (ej. matrices, atributos o plantillas), se debe auditar y purgar de inmediato cualquier componente huérfano, código comentado, importaciones no utilizadas o lógica legacy redundante para mantener el catálogo limpio y sin residuos técnicos.
 
 ---
 

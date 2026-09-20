@@ -184,3 +184,36 @@ export type AddCatalogItemVariantResponseDto = {
   sku: string
   name: string
 }
+
+export type ProductTemplateLevel = {
+  id: string
+  name: string
+  hasColor: boolean
+  hasImages: boolean
+  attributes: string[]
+}
+
+export type ProductTemplateDto = {
+  id: string
+  tenantId: string
+  name: string
+  description?: string | null
+  hierarchyTreeJson: string
+  isActive: boolean
+  createdAt: string
+  updatedAt?: string | null
+}
+
+export type CreateProductTemplateBody = {
+  name: string
+  description?: string | null
+  hierarchyTreeJson: string
+  isActive?: boolean
+}
+
+export type UpdateProductTemplateBody = CreateProductTemplateBody
+
+export type CreateProductTemplateResponseDto = {
+  id: string
+  tenantId: string
+}

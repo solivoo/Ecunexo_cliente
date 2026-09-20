@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Layers } from 'lucide-react'
 import {
   EcuPageActions,
   PageHeader,
@@ -22,6 +23,7 @@ import {
   createCatalogItem,
   createCatalogItemMatrix,
   listCatalogCategories,
+  listProductTemplates,
   uploadCatalogItemImage,
 } from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
@@ -29,6 +31,8 @@ import { useAppSelector } from '@/store/hooks'
 import {
   CatalogItemKind,
   type CategoryListItemDto,
+  type ProductTemplateDto,
+  type ProductTemplateLevel,
 } from '@/types/catalogApi'
 import {
   VariantMatrixBuilder,
@@ -45,6 +49,8 @@ export function CreateCatalogItemPage() {
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [categories, setCategories] = useState<CategoryListItemDto[]>([])
+  const [productTemplates, setProductTemplates] = useState<ProductTemplateDto[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [kind, setKind] = useState(String(CatalogItemKind.Service))
   const [hasVariants, setHasVariants] = useState(false)
   const [matrixData, setMatrixData] = useState<{
@@ -86,15 +92,98 @@ export function CreateCatalogItemPage() {
     return parseAttributeSchema(category?.attributeSchemaJson).map((f) => f.label || f.key)
   }, [categories, categoryId])
 
+  const appliedTemplate = useMemo(
+    () => productTemplates.find((t) => t.id === selectedTemplateId),
+    [productTemplates, selectedTemplateId]
+  )
+
+  const appliedTemplateLevels = useMemo<ProductTemplateLevel[]>(() => {
+    if (!appliedTemplate) return []
+    try {
+      const parsed = JSON.parse(appliedTemplate.hierarchyTreeJson)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }, [appliedTemplate])
+
+  const handleApplyTemplate = useCallback(
+    (templateId: string) => {
+      setSelectedTemplateId(templateId)
+      if (!templateId) return
+      const tpl = productTemplates.find((t) => t.id === templateId)
+      if (!tpl) return
+
+      let parsedLevels: ProductTemplateLevel[] = []
+      try {
+        parsedLevels = JSON.parse(tpl.hierarchyTreeJson)
+      } catch {
+        parsedLevels = []
+      }
+
+      if (parsedLevels.some((l) => l.hasColor || l.hasImages || l.attributes.length > 0)) {
+        setKind(String(CatalogItemKind.Physical))
+      }
+
+      const terminalLevel = parsedLevels[parsedLevels.length - 1]
+      if (
+        terminalLevel &&
+        (terminalLevel.hasColor || terminalLevel.hasImages || terminalLevel.attributes.length > 0)
+      ) {
+        setHasVariants(true)
+      }
+
+      const macroAttributes: string[] = []
+      parsedLevels.forEach((l) => {
+        l.attributes.forEach((attr) => {
+          if (!macroAttributes.includes(attr)) macroAttributes.push(attr)
+        })
+      })
+
+      if (macroAttributes.length > 0) {
+        setCustomAttributes((prev) => {
+          const existingKeys = new Set(prev.map((r) => r.key.toLowerCase()))
+          const newRows: CustomAttributeRow[] = [...prev]
+          macroAttributes.forEach((attr) => {
+            if (!existingKeys.has(attr.toLowerCase())) {
+              newRows.push({
+                id: `attr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                key: attr,
+                value: '',
+              })
+            }
+          })
+          return newRows
+        })
+      }
+
+      toast.show({
+        title: 'Plantilla aplicada',
+        message: `Se ha cargado la jerarquía y atributos de «${tpl.name}».`,
+        variant: 'success',
+      })
+    },
+    [productTemplates, toast]
+  )
+
   useEffect(() => {
     if (!tenantId || !canCreate) return
     let cancelled = false
     void (async () => {
       try {
-        const list = await listCatalogCategories(tenantId)
-        if (!cancelled) setCategories(list)
+        const [catList, tplList] = await Promise.all([
+          listCatalogCategories(tenantId),
+          listProductTemplates(tenantId),
+        ])
+        if (!cancelled) {
+          setCategories(catList)
+          setProductTemplates(tplList.filter((t) => t.isActive))
+        }
       } catch {
-        if (!cancelled) setCategories([])
+        if (!cancelled) {
+          setCategories([])
+          setProductTemplates([])
+        }
       }
     })()
     return () => {
@@ -120,6 +209,13 @@ export function CreateCatalogItemPage() {
         label: 'Categorías',
         icon: 'folder-tree',
         route: '/catalogo/categorias',
+        disabled: false,
+      },
+      {
+        id: 'templates',
+        label: 'Plantillas de producto',
+        icon: 'layers',
+        route: '/catalogo/plantillas',
         disabled: false,
       },
     ],
@@ -328,6 +424,68 @@ export function CreateCatalogItemPage() {
                 <span>{error}</span>
               </div>
             ) : null}
+
+            {/* Template Arquetipo Selector */}
+            {productTemplates.length > 0 && (
+              <div
+                style={{
+                  marginBottom: '1.25rem',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '8px',
+                  background: 'var(--shell-surface-subtle, rgba(255,255,255,0.03))',
+                  border: '1px solid var(--shell-border, rgba(255,255,255,0.08))',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: '1 1 320px' }}>
+                  <Layers size={20} color="var(--shell-primary, #3b82f6)" />
+                  <div style={{ flex: 1, maxWidth: '380px' }}>
+                    <Select
+                      id="ci-template"
+                      label="Cargar estructura desde Plantilla"
+                      labelPosition="outlined"
+                      variant="outline"
+                      options={[
+                        { value: '', label: 'Sin plantilla (creación manual libre)' },
+                        ...productTemplates.map((t) => ({ value: t.id, label: t.name })),
+                      ]}
+                      value={selectedTemplateId}
+                      onChange={handleApplyTemplate}
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                </div>
+
+                {appliedTemplate && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--glb-muted)' }}>
+                      Jerarquía activa:
+                    </span>
+                    {appliedTemplateLevels.map((lvl, idx) => (
+                      <span
+                        key={lvl.id || idx}
+                        style={{
+                          fontSize: '0.75rem',
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '4px',
+                          background: 'rgba(59, 130, 246, 0.15)',
+                          color: 'var(--shell-primary, #60a5fa)',
+                          border: '1px solid rgba(59, 130, 246, 0.25)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        N{idx + 1}: {lvl.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
               <div className="ecu-companies-form__field">

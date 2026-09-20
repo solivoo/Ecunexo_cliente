@@ -67,6 +67,8 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<VariantDimensionTemplate> VariantDimensionTemplates => Set<VariantDimensionTemplate>();
 
+    public DbSet<ProductTemplate> ProductTemplates => Set<ProductTemplate>();
+
     public DbSet<CatalogItemImage> CatalogItemImages => Set<CatalogItemImage>();
 
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();

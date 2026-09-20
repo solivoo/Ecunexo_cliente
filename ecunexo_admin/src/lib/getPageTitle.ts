@@ -34,6 +34,9 @@ function staticTitle(pathname: string, search: string): string | null {
   if (/^\/catalogo\/items\/[^/]+$/.test(pathname)) return 'Editar ítem'
   if (pathname === '/catalogo/categorias/nueva') return 'Nueva categoría'
   if (/^\/catalogo\/categorias\/[^/]+\/editar$/.test(pathname)) return 'Editar categoría'
+  if (pathname === '/catalogo/plantillas') return 'Plantillas de producto'
+  if (pathname === '/catalogo/plantillas/nueva') return 'Nueva plantilla'
+  if (/^\/catalogo\/plantillas\/[^/]+$/.test(pathname)) return 'Editar plantilla'
   if (pathname === '/bodegas/nueva') return 'Nueva bodega'
   if (/^\/bodegas\/[^/]+$/.test(pathname)) return 'Editar bodega'
   if (pathname === '/inventario/documentos/nuevo') return inventoryNewTitle(search)

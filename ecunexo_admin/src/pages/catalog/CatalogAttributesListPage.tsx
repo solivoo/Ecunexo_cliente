@@ -418,12 +418,12 @@ export function CatalogAttributesListPage() {
   return (
     <TenantSessionGate
       title="Atributos"
-      lead="Diccionario corporativo de atributos y valores estandarizados para el catálogo."
+      lead="Administra las opciones de tallas, colores y medidas para tus productos."
     >
       <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
         <PageHeader
           title="Atributos"
-          subtitle="Estandariza los nombres y valores de atributos (tallas, caña, colores, materiales) para evitar inconsistencias en variantes y especificaciones."
+          subtitle="Administra las opciones de tallas, colores y medidas para tus productos."
           badge={
             <StatusBadge tone="info">
               {rows.length} {rows.length === 1 ? 'Atributo' : 'Atributos'}

@@ -14,6 +14,10 @@ import type {
   UpdateCategoryBody,
   AddCatalogItemVariantBody,
   AddCatalogItemVariantResponseDto,
+  ProductTemplateDto,
+  CreateProductTemplateBody,
+  UpdateProductTemplateBody,
+  CreateProductTemplateResponseDto,
 } from '@/types/catalogApi'
 
 export async function listCatalogCategories(tenantId: string): Promise<CategoryListItemDto[]> {
@@ -233,5 +237,54 @@ export async function addCatalogItemVariant(
     body
   )
   return data
+}
+
+export async function listProductTemplates(tenantId: string): Promise<ProductTemplateDto[]> {
+  const { data } = await api.get<ProductTemplateDto[]>(
+    `/api/v1/tenants/${tenantId}/catalog/product-templates`
+  )
+  return data
+}
+
+export async function getProductTemplateById(
+  tenantId: string,
+  templateId: string
+): Promise<ProductTemplateDto> {
+  const { data } = await api.get<ProductTemplateDto>(
+    `/api/v1/tenants/${tenantId}/catalog/product-templates/${templateId}`
+  )
+  return data
+}
+
+export async function createProductTemplate(
+  tenantId: string,
+  body: CreateProductTemplateBody
+): Promise<CreateProductTemplateResponseDto> {
+  const { data } = await api.post<CreateProductTemplateResponseDto>(
+    `/api/v1/tenants/${tenantId}/catalog/product-templates`,
+    body
+  )
+  return data
+}
+
+export async function updateProductTemplate(
+  tenantId: string,
+  templateId: string,
+  body: UpdateProductTemplateBody
+): Promise<CreateProductTemplateResponseDto> {
+  const { data } = await api.put<CreateProductTemplateResponseDto>(
+    `/api/v1/tenants/${tenantId}/catalog/product-templates/${templateId}`,
+    body
+  )
+  return data
+}
+
+export async function deleteProductTemplate(
+  tenantId: string,
+  templateId: string
+): Promise<void> {
+  await api.delete(
+    `/api/v1/tenants/${tenantId}/catalog/product-templates/${templateId}`
+  )
 }
 

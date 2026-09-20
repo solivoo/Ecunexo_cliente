@@ -121,6 +121,7 @@ public static class ModuleTierCatalog
     public const string AllowedItemKindsFull = "service,physical";
     public const string LimitMaxActiveVariants = "max_active_variants";
     public const string LimitMaxVariants = "max_variants";
+    public const string LimitMaxProductTemplates = "max_product_templates";
 
     private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> CatalogLimits = new()
     {
@@ -128,21 +129,25 @@ public static class ModuleTierCatalog
         {
             [LimitMaxActiveVariants] = 100,
             [LimitMaxVariants] = 100,
+            [LimitMaxProductTemplates] = 10,
         },
         [ModuleTier.Medium] = new Dictionary<string, int>
         {
             [LimitMaxActiveVariants] = 1_000,
             [LimitMaxVariants] = 1_000,
+            [LimitMaxProductTemplates] = 50,
         },
         [ModuleTier.Big] = new Dictionary<string, int>
         {
             [LimitMaxActiveVariants] = 10_000,
             [LimitMaxVariants] = 10_000,
+            [LimitMaxProductTemplates] = 200,
         },
         [ModuleTier.Enterprise] = new Dictionary<string, int>
         {
             [LimitMaxActiveVariants] = int.MaxValue,
             [LimitMaxVariants] = int.MaxValue,
+            [LimitMaxProductTemplates] = int.MaxValue,
         },
     };
 

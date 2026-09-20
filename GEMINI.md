@@ -44,4 +44,7 @@ When creating or modifying UI components, views, layouts, or styles in this repo
    - AVOID creating modal popups (`Popup`) for primary business forms or operational workflows (creation, editing, or multi-step processes with 3+ fields, sub-item grids, or calculations).
    - ALWAYS build dedicated full pages (`PageHeader`, `SectionCard`, 'Back' action, and dedicated RESTful routes like `/modulo/entidad/nueva` or `/modulo/entidad/:id`) following the skill `ui-vistas-sobre-modales`.
    - Reserve modals (`Popup`) STRICTLY for low-content micro-interactions: 1-click destructive action confirmations, brief alerts, or 1-2 field quick prompts (e.g. rejection reasons or quick tags).
+10. **Proactive Dead Code & Garbage Cleanup (Zero Remnants)**:
+   - Whenever adding new functionality, evolving existing flows, or refactoring architecture: PROACTIVELY detect and purge obsolete logic, dead functions, orphan components, unused DTO fields, legacy routes, and redundant duplicate code.
+   - NEVER leave commented-out blocks of legacy code, unused imports, obsolete mocks, or parallel abandoned implementations behind. Keep the codebase unified, cohesive, and completely free of residual garbage.
 

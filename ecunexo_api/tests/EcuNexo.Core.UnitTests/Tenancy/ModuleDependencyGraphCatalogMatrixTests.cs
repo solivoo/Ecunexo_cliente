@@ -39,5 +39,12 @@ public sealed class ModuleDependencyGraphCatalogMatrixTests
 
         var defaults = ModuleTierCatalog.GetDefaultsForTier(TenantModuleCodes.Catalog, ModuleTier.Small);
         defaults.Should().ContainKey(ModuleTierCatalog.LimitMaxActiveVariants).WhoseValue.Should().Be(100);
+        defaults.Should().ContainKey(ModuleTierCatalog.LimitMaxProductTemplates).WhoseValue.Should().Be(10);
+
+        // Product Templates por tier
+        ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Catalog, ModuleTier.Small, ModuleTierCatalog.LimitMaxProductTemplates).Should().Be(10);
+        ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Catalog, ModuleTier.Medium, ModuleTierCatalog.LimitMaxProductTemplates).Should().Be(50);
+        ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Catalog, ModuleTier.Big, ModuleTierCatalog.LimitMaxProductTemplates).Should().Be(200);
+        ModuleTierCatalog.GetDefaultLimit(TenantModuleCodes.Catalog, ModuleTier.Enterprise, ModuleTierCatalog.LimitMaxProductTemplates).Should().Be(int.MaxValue);
     }
 }

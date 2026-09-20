@@ -207,7 +207,33 @@ Acceso rápido universal montado en el header del layout principal:
 
 ---
 
-## 5. Historial de Versiones & Features
+## 5. Estándares de UX Copywriting & Lenguaje de Interfaz
+
+> [!IMPORTANT]
+> **REGLA ANTI-LENGUAJE TÉCNICO DE PROGRAMACIÓN:**
+> Los usuarios de EcuNexo son comerciantes, administradores, bodegueros y contadores, **NO ingenieros de software ni arquitectos de base de datos**.
+> Todos los títulos, subtítulos, textos de ayuda (`lead`, `subtitle`, `footerText`, `placeholder`) deben redactarse en lenguaje de negocio claro, breve y orientado a la acción, **NUNCA con explicaciones técnicas de programación**.
+
+### 5.1. Comparativa de Anti-Patrones vs. Redacción Correcta
+
+| Elemento UI | ❌ Anti-patrón (Técnico / Programador) | ✅ Patrón Correcto (Negocio / Usuario) |
+| :--- | :--- | :--- |
+| **Cabecera Atributos** | *"Estandariza los nombres y valores de atributos para evitar inconsistencias en variantes y especificaciones."* | **"Administra las opciones de tallas, colores y medidas para tus productos."** |
+| **Configurador Variantes** | *"Configurador de Producto Matriz Parent-Child con producto cartesiano multidimensional."* | **"Configura las combinaciones de tu producto (tallas, colores, etc.)."** |
+| **Guardar Producto** | *"Persiste la entidad agregada validando invariantes de categoría."* | **"Guardar producto"** |
+| **Estados / Badges** | *"Registro inmutable por restricción de integridad referencial."* | **"En uso (asociado a productos)"** |
+| **Subtítulo de Tabla** | *"Selecciona o gestiona los atributos que se reutilizan en variantes y campos adicionales."* | **"Opciones y medidas disponibles para asignar a tus productos."** |
+| **Mensajes de Error** | *"Error de deserialización JSON en CustomAttributesJson."* | **"Verifica los datos ingresados en las especificaciones del producto."** |
+
+### 5.2. Reglas de Oro de Redacción en UI:
+1. **Comenzar con verbos de acción sencillos:** *Administra*, *Gestiona*, *Crea*, *Consulta*, *Configura*.
+2. **Enfocarse en el objeto cotidiano de la empresa:** *tus productos*, *tus facturas*, *tus clientes*, *tus bodegas*, *las medidas*.
+3. **Prohibido el vocabulario de ingeniería en la vista:** Eliminar términos como *inconsistencias*, *esquemas*, *entidades*, *padre-hijo*, *invariantes*, *payloads*, *deserializar*, *endpoints*, *inmutabilidad interna*.
+4. **Claridad en 1 línea:** Los subtítulos de `PageHeader` deben poder leerse y entenderse en menos de 2 segundos.
+
+---
+
+## 6. Historial de Versiones & Features
 
 ### v0.3.0 — Global Command Palette & Comprehensive UI Test Suite
 - **Buscador Global & Command Palette (`Ctrl + K` / `Cmd + K`)**:

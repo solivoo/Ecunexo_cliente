@@ -9,6 +9,20 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.35.1`.
 * **Hitos Recientes Completados:**
+  - **Fábrica de Plantillas Jerárquicas de Producto y Arquetipos Multinivel (`ProductTemplate.cs`, `ProductTemplatesListPage.tsx`, `ProductTemplateBuilderPage.tsx`, `HierarchyTemplateTreeBuilder.tsx`):**
+    * **Modelo de Dominio y Persistencia Eficiente:** Entidad `ProductTemplate` (`AggregateRoot<Guid>`) en `EcuNexo.Core/Catalog` con estructura de niveles almacenada en columna `jsonb` (`HierarchyTreeJson`) e indexada con método `gin` en PostgreSQL para consultas ultrarrápidas sin alterar el esquema relacional ante cualquier profundidad ($N$ niveles).
+    * **Capa de Negocio CQRS y Validación:** Comandos `CreateProductTemplate`, `UpdateProductTemplate`, `DeleteProductTemplate` y queries `ListProductTemplates`, `GetProductTemplateById` con validadores FluentValidation, unicidad por nombre insensible a mayúsculas con `EF.Functions.ILike` y 11 tests unitarios nuevos (5 Core + 6 Business, total 392 tests en verde).
+    * **Endpoints REST y Menú Sembrado:** Rutas `/api/v1/tenants/{tenantId}/catalog/product-templates` protegidas por permisos RBAC canónicos (`catalog.item.read`, `catalog.item.create`), e ítem de menú `catalog-templates` ("Plantillas", ícono `layers`) en `MenuCatalogSeedData.cs`.
+    * **Directorio de Plantillas (`/catalogo/plantillas`):** Vista de gestión con layout M3 SaaS, tarjetas KPI en `.ecu-stat-grid` (Total Plantillas, Activas, Máximo de Niveles), filtros por estado/búsqueda y `DataGrid` de Glubox con renderizado de badges para cada nivel, colores y fotografías.
+    * **Constructor Visual Dedicado (`/catalogo/plantillas/nueva` y `.../:id`):** Vista completa (siguiendo Rule 9) con `HierarchyTemplateTreeBuilder` para componer niveles jerárquicos modulares:
+      - Nivel 1 (Colección / Familia): atributos macro (ej. Material, Composición).
+      - Nivel 2 (Modelo / Estilo): fotos o acabados intermedios.
+      - Nivel 3 (Variantes Físicas): tallas, colores con `ColorPicker` de Glubox y fotos por SKU.
+      - Soporta productos simples (2 niveles, ej. tazas con color y foto en Nivel 2) y colecciones complejas. Conectado al Diccionario Maestro de Atributos (`listVariantDimensionTemplates`).
+      - Vista previa interactiva en tiempo real de la jerarquía resultante.
+    * **Carga en 1 Clic en Alta de Ítems (`CreateCatalogItemPage.tsx`):** Selector superior para precargar la estructura de cualquier plantilla activa, activando variantes y autocompletando atributos técnicos automáticamente.
+    * **Suite de Pruebas UI:** Nueva prueba Playwright en `plantillas-producto-ui.spec.ts`.
+    * **Auditoría de Residuos (Regla 10):** Limpieza proactiva de variables no usadas y cero código huérfano.
   - **Refinamiento de Atributos, Corrección de Íconos SVG e Inmutabilidad Dinámica Condicional (`CatalogAttributesListPage.tsx`, `VariantDimensionTemplate.cs`, `CatalogItemRepository.cs`):**
     * **Unificación de Nombre a "Atributos":** Nombre de página simplificado a *Atributos* en cabecera, navegación lateral (`MenuCatalogSeedData.cs`), breadcrumbs y subtítulo corporativo.
     * **Corrección de Glifos en Tarjetas KPI (`StatCard`):** Sustitución de identificadores de texto de fuentes que provocaban ligaduras rotas (`#S`, `RKLE`) por componentes nativos vectoriales SVG de Lucide (`SlidersHorizontal`, `Lock`, `Tag`, `Sparkles`).

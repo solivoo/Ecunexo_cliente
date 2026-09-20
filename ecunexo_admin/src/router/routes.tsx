@@ -37,6 +37,8 @@ import { CreateCategoryPage } from '@/pages/catalog/CreateCategoryPage'
 import { EditCatalogItemPage } from '@/pages/catalog/EditCatalogItemPage'
 import { EditCategoryPage } from '@/pages/catalog/EditCategoryPage'
 import { CatalogAttributesListPage } from '@/pages/catalog/CatalogAttributesListPage'
+import { ProductTemplatesListPage } from '@/pages/catalog/ProductTemplatesListPage'
+import { ProductTemplateBuilderPage } from '@/pages/catalog/ProductTemplateBuilderPage'
 import { CreateInventoryDocumentPage } from '@/pages/inventory/CreateInventoryDocumentPage'
 import { InventoryDocumentDetailPage } from '@/pages/inventory/InventoryDocumentDetailPage'
 import { InventoryDocumentsListPage } from '@/pages/inventory/InventoryDocumentsListPage'
@@ -145,6 +147,9 @@ export const routes: RouteObject[] = [
           { path: 'catalogo/categorias/nueva', element: <CreateCategoryPage /> },
           { path: 'catalogo/categorias/:categoryId/editar', element: <EditCategoryPage /> },
           { path: 'catalogo/atributos', element: <CatalogAttributesListPage /> },
+          { path: 'catalogo/plantillas', element: <ProductTemplatesListPage /> },
+          { path: 'catalogo/plantillas/nueva', element: <ProductTemplateBuilderPage /> },
+          { path: 'catalogo/plantillas/:templateId', element: <ProductTemplateBuilderPage /> },
           { path: 'bodegas', element: <WarehousesListPage /> },
           { path: 'bodegas/nueva', element: <CreateWarehousePage /> },
           { path: 'bodegas/:warehouseId', element: <EditWarehousePage /> },

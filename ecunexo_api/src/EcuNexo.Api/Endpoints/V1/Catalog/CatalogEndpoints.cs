@@ -9,8 +9,10 @@ using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItemMatrix;
 using EcuNexo.Business.Catalog.Commands.AddCatalogItemVariant;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
+using EcuNexo.Business.Catalog.Commands.CreateProductTemplate;
 using EcuNexo.Business.Catalog.Commands.CreateVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.DeleteCatalogItemImage;
+using EcuNexo.Business.Catalog.Commands.DeleteProductTemplate;
 using EcuNexo.Business.Catalog.Commands.DeleteVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.ReorderCatalogItemImages;
 using EcuNexo.Business.Catalog.Commands.SetCatalogItemMainImage;
@@ -19,11 +21,14 @@ using EcuNexo.Business.Catalog.Commands.SoftDeleteCategory;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItemImageAltText;
 using EcuNexo.Business.Catalog.Commands.UpdateCategory;
+using EcuNexo.Business.Catalog.Commands.UpdateProductTemplate;
 using EcuNexo.Business.Catalog.Commands.UpdateVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.UploadCatalogItemImage;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
+using EcuNexo.Business.Catalog.Queries.GetProductTemplateById;
 using EcuNexo.Business.Catalog.Queries.ListCatalogItems;
 using EcuNexo.Business.Catalog.Queries.ListCategories;
+using EcuNexo.Business.Catalog.Queries.ListProductTemplates;
 using EcuNexo.Business.Catalog.Queries.ListVariantDimensionTemplates;
 using EcuNexo.Core.Catalog;
 using Microsoft.AspNetCore.Mvc;
@@ -103,6 +108,23 @@ public static class CatalogEndpoints
         variantTemplates.MapPut("/{templateId:guid}", UpdateVariantTemplateAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
         variantTemplates.MapDelete("/{templateId:guid}", DeleteVariantTemplateAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+
+        RouteGroupBuilder productTemplates = app
+            .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/product-templates")
+            .WithApiVersionSet(versionSet)
+            .WithTags("Catalog")
+            .RequireAuthorization();
+
+        productTemplates.MapGet("/", ListProductTemplatesAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.read", "catalog.item.create"));
+        productTemplates.MapGet("/{templateId:guid}", GetProductTemplateByIdAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.read", "catalog.item.create"));
+        productTemplates.MapPost("/", CreateProductTemplateAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+        productTemplates.MapPut("/{templateId:guid}", UpdateProductTemplateAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+        productTemplates.MapDelete("/{templateId:guid}", DeleteProductTemplateAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
 
         return app;
@@ -343,6 +365,94 @@ public static class CatalogEndpoints
 
         var result = await sender
             .SendAsync<DeleteVariantDimensionTemplateCommand, DeleteVariantDimensionTemplateResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> ListProductTemplatesAsync(
+        Guid tenantId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<ListProductTemplatesQuery, IReadOnlyList<ProductTemplateResponse>>(
+                new ListProductTemplatesQuery(tenantId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetProductTemplateByIdAsync(
+        Guid tenantId,
+        Guid templateId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<GetProductTemplateByIdQuery, ProductTemplateResponse>(
+                new GetProductTemplateByIdQuery(templateId, tenantId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> CreateProductTemplateAsync(
+        Guid tenantId,
+        CreateProductTemplateRequest body,
+        ISender sender,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        var command = new CreateProductTemplateCommand(
+            tenantId,
+            body.Name,
+            body.Description,
+            body.HierarchyTreeJson,
+            body.IsActive,
+            caller.UserId);
+
+        var result = await sender
+            .SendAsync<CreateProductTemplateCommand, CreateProductTemplateResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> UpdateProductTemplateAsync(
+        Guid tenantId,
+        Guid templateId,
+        UpdateProductTemplateRequest body,
+        ISender sender,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        var command = new UpdateProductTemplateCommand(
+            templateId,
+            tenantId,
+            body.Name,
+            body.Description,
+            body.HierarchyTreeJson,
+            body.IsActive,
+            caller.UserId);
+
+        var result = await sender
+            .SendAsync<UpdateProductTemplateCommand, UpdateProductTemplateResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> DeleteProductTemplateAsync(
+        Guid tenantId,
+        Guid templateId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var command = new DeleteProductTemplateCommand(templateId, tenantId);
+
+        var result = await sender
+            .SendAsync<DeleteProductTemplateCommand, DeleteProductTemplateResponse>(command, ct)
             .ConfigureAwait(false);
 
         return result.ToHttpResult();
