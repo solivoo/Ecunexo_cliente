@@ -28,12 +28,9 @@ public static class ModuleDependencyGraph
             [TenantModuleCodes.Invoicing] = [TenantModuleCodes.Catalog],
             [TenantModuleCodes.Repairs] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.Customers] = [TenantModuleCodes.Identity],
-            [TenantModuleCodes.Ecommerce] = [TenantModuleCodes.Catalog, TenantModuleCodes.Inventory],
+            [TenantModuleCodes.Ecommerce] = [TenantModuleCodes.Catalog, TenantModuleCodes.Warehousing, TenantModuleCodes.Inventory],
             [TenantModuleCodes.Purchases] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.Accounting] = [TenantModuleCodes.Identity],
-            [TenantModuleCodes.RemisionGuides] = [TenantModuleCodes.Identity, TenantModuleCodes.Invoicing],
-            [TenantModuleCodes.CreditNotes] = [TenantModuleCodes.Identity, TenantModuleCodes.Invoicing],
-            [TenantModuleCodes.CatalogMatrix] = [TenantModuleCodes.Identity, TenantModuleCodes.Catalog],
         };
 
     /// <summary>
@@ -42,8 +39,8 @@ public static class ModuleDependencyGraph
     /// </summary>
     public static IReadOnlyList<string> GetRequiredModules(string moduleCode)
     {
-        var normalized = moduleCode.Trim().ToLowerInvariant();
-        return RequiredModules.TryGetValue(normalized, out var required)
+        var canonical = TenantModuleCodes.Canonicalize(moduleCode);
+        return RequiredModules.TryGetValue(canonical, out var required)
             ? required
             : [];
     }

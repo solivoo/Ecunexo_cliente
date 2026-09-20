@@ -24,11 +24,21 @@ El objetivo es que el usuario pueda copiar directamente el bloque de prompt gene
 
 ---
 
-## 2. Componentes que Requiere el Subsistema de Licencias
+## 2. Taxonomía Obligatoria y Razonamiento Previo
 
-Para que un módulo sea comercializado, emitido en archivos de licencia `.lic` criptográficos y habilitado en las empresas (`tenants.enabled_modules`), el módulo de licencias necesita 6 datos clave (la asignación a planes comerciales se define y administra exclusivamente en el repositorio de licencias):
+> [!CAUTION]
+> **REGLA DE TAXONOMÍA CANÓNICA (skill `ecunexo-module-taxonomy-reasoning`)**:
+> En EcuNexo existen **únicamente 12 módulos raíz**: `identity`, `catalog`, `warehousing`, `inventory`, `facturacion`, `purchases`, `contabilidad`, `customers`, `ecommerce`, `repairs`, `training`, `support`.
+> **NUNCA** registrar submódulos artificiales como `catalog.matrix`, `credit_notes` o `billing.remision_guides`.
+> - Las variantes, escalas y producto matriz pertenecen a **`catalog`**.
+> - Las notas de crédito (04), guías de remisión (06) y notas de débito (05) pertenecen a **`facturacion`**.
+> Si se crea una subcapacidad, el prompt debe solicitar una **actualización de límites/permisos del módulo raíz correspondiente**, no un módulo nuevo.
 
-1. **`ModuleCode` Canónico:** Identificador en minúsculas (ej: `purchases`, `repairs`, `ecommerce`). Debe agregarse a `TenantModuleCodes.cs`.
+## 3. Componentes que Requiere el Subsistema de Licencias
+
+Para que un módulo o extensión sea comercializado, emitido en archivos de licencia `.lic` criptográficos y habilitado en las empresas (`tenants.enabled_modules`), el módulo de licencias necesita:
+
+1. **`ModuleCode` Canónico:** Uno de los 12 módulos raíz (`TenantModuleCodes.cs`). Si es una extensión, indicar el módulo raíz al que pertenece.
 2. **Nombre Comercial & Descripción:** Nombre para el panel de ventas y portal de licencias.
 3. **Dependencias del Módulo (`ModuleDependencyGraph`):**
    * Módulos requeridos obligatorios (ej: `identity`, `catalog`).

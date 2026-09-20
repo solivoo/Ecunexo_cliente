@@ -114,14 +114,37 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
-    // Catalog (tipo catálogo — services-only vs full)
+    // Catalog (tipo catálogo, producto matriz y variantes multidimensionales)
     // ──────────────────────────────────────────────
     public const string LimitAllowedItemKinds = "allowed_item_kinds";
     public const string AllowedItemKindsServicesOnly = "service";
     public const string AllowedItemKindsFull = "service,physical";
+    public const string LimitMaxActiveVariants = "max_active_variants";
+    public const string LimitMaxVariants = "max_variants";
 
-    // Catalog no tiene límites numéricos; usa policies ABAC.
-    // Se incluye aquí para que el entitlement exista y el guard de módulo lo reconozca.
+    private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> CatalogLimits = new()
+    {
+        [ModuleTier.Small] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveVariants] = 100,
+            [LimitMaxVariants] = 100,
+        },
+        [ModuleTier.Medium] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveVariants] = 1_000,
+            [LimitMaxVariants] = 1_000,
+        },
+        [ModuleTier.Big] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveVariants] = 10_000,
+            [LimitMaxVariants] = 10_000,
+        },
+        [ModuleTier.Enterprise] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveVariants] = int.MaxValue,
+            [LimitMaxVariants] = int.MaxValue,
+        },
+    };
 
     // ──────────────────────────────────────────────
     // Training — sesiones y horas de capacitación anual
@@ -404,36 +427,6 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
-    // CatalogMatrix — Matriz de Tallas, Colores y Variantes Multidimensionales
-    // ──────────────────────────────────────────────
-    public const string LimitMaxActiveVariants = "max_active_variants";
-    public const string LimitMaxVariants = "max_variants";
-
-    private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> CatalogMatrixLimits = new()
-    {
-        [ModuleTier.Small] = new Dictionary<string, int>
-        {
-            [LimitMaxActiveVariants] = 100,
-            [LimitMaxVariants] = 100,
-        },
-        [ModuleTier.Medium] = new Dictionary<string, int>
-        {
-            [LimitMaxActiveVariants] = 1_000,
-            [LimitMaxVariants] = 1_000,
-        },
-        [ModuleTier.Big] = new Dictionary<string, int>
-        {
-            [LimitMaxActiveVariants] = 10_000,
-            [LimitMaxVariants] = 10_000,
-        },
-        [ModuleTier.Enterprise] = new Dictionary<string, int>
-        {
-            [LimitMaxActiveVariants] = int.MaxValue,
-            [LimitMaxVariants] = int.MaxValue,
-        },
-    };
-
-    // ──────────────────────────────────────────────
     // Resolución
     // ──────────────────────────────────────────────
 
@@ -448,6 +441,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Inventory => InventoryLimits,
             TenantModuleCodes.Warehousing => WarehousingLimits,
             TenantModuleCodes.Invoicing => InvoicingLimits,
+            TenantModuleCodes.Catalog or "catalog" or "catalog.matrix" or "catalog_matrix" or "matrix" or "catalog-matrix" => CatalogLimits,
             TenantModuleCodes.Identity => IdentityLimits,
             TenantModuleCodes.Training => TrainingLimits,
             TenantModuleCodes.Support => SupportLimits,
@@ -456,9 +450,8 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Ecommerce => EcommerceLimits,
             TenantModuleCodes.Purchases => PurchasesLimits,
             TenantModuleCodes.Accounting or "accounting" => AccountingLimits,
-            TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => RemisionGuidesLimits,
-            TenantModuleCodes.CreditNotes or "credit_notes" or "notas_credito" or "notas-credito" or "billing.credit_notes" => CreditNotesLimits,
-            TenantModuleCodes.CatalogMatrix or "catalog.matrix" or "catalog_matrix" or "matrix" or "catalog-matrix" => CatalogMatrixLimits,
+            TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => InvoicingLimits,
+            TenantModuleCodes.CreditNotes or "credit_notes" or "notas_credito" or "notas-credito" or "billing.credit_notes" => InvoicingLimits,
             _ => null,
         };
 
@@ -481,6 +474,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Inventory => InventoryLimits,
             TenantModuleCodes.Warehousing => WarehousingLimits,
             TenantModuleCodes.Invoicing => InvoicingLimits,
+            TenantModuleCodes.Catalog or "catalog" or "catalog.matrix" or "catalog_matrix" or "matrix" or "catalog-matrix" => CatalogLimits,
             TenantModuleCodes.Identity => IdentityLimits,
             TenantModuleCodes.Training => TrainingLimits,
             TenantModuleCodes.Support => SupportLimits,
@@ -489,9 +483,8 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Ecommerce => EcommerceLimits,
             TenantModuleCodes.Purchases => PurchasesLimits,
             TenantModuleCodes.Accounting or "accounting" => AccountingLimits,
-            TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => RemisionGuidesLimits,
-            TenantModuleCodes.CreditNotes or "credit_notes" or "notas_credito" or "notas-credito" or "billing.credit_notes" => CreditNotesLimits,
-            TenantModuleCodes.CatalogMatrix or "catalog.matrix" or "catalog_matrix" or "matrix" or "catalog-matrix" => CatalogMatrixLimits,
+            TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => InvoicingLimits,
+            TenantModuleCodes.CreditNotes or "credit_notes" or "notas_credito" or "notas-credito" or "billing.credit_notes" => InvoicingLimits,
             _ => null,
         };
 
