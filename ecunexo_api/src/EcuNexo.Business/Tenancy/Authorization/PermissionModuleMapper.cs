@@ -15,14 +15,7 @@ public static class PermissionModuleMapper
         }
 
         var normalized = permissionCode.Trim().ToLowerInvariant();
-        if (normalized.StartsWith("facturacion.guias.remision.", StringComparison.OrdinalIgnoreCase))
-        {
-            return TenantModuleCodes.RemisionGuides;
-        }
-
-        if (normalized.StartsWith("facturacion.notas.credito.", StringComparison.OrdinalIgnoreCase)
-            || normalized.StartsWith("facturacion.notas_credito.", StringComparison.OrdinalIgnoreCase)
-            || normalized.StartsWith("facturacion.notascredito.", StringComparison.OrdinalIgnoreCase))
+        if (normalized.StartsWith("facturacion.", StringComparison.OrdinalIgnoreCase))
         {
             return TenantModuleCodes.Invoicing;
         }

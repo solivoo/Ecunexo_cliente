@@ -59,7 +59,7 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
-    // Invoicing
+    // Invoicing (Facturación Electrónica SRI: Facturas, Notas de Crédito, Guías de Remisión)
     // ──────────────────────────────────────────────
     public const string LimitMaxInvoicesPerMonth = "max_invoices_per_month";
     public const string LimitInvoiceHistoryMonths = "invoice_history_months";
@@ -70,21 +70,33 @@ public static class ModuleTierCatalog
         {
             [LimitMaxInvoicesPerMonth] = 50,
             [LimitInvoiceHistoryMonths] = 3,
+            [LimitMaxMonthlyCreditNotes] = 20,
+            [LimitMaxMonthlyRemisionGuides] = 50,
+            [LimitMaxActiveCarriers] = 5,
         },
         [ModuleTier.Medium] = new Dictionary<string, int>
         {
             [LimitMaxInvoicesPerMonth] = 200,
             [LimitInvoiceHistoryMonths] = 6,
+            [LimitMaxMonthlyCreditNotes] = 100,
+            [LimitMaxMonthlyRemisionGuides] = 250,
+            [LimitMaxActiveCarriers] = 20,
         },
         [ModuleTier.Big] = new Dictionary<string, int>
         {
             [LimitMaxInvoicesPerMonth] = 1_000,
             [LimitInvoiceHistoryMonths] = 12,
+            [LimitMaxMonthlyCreditNotes] = 500,
+            [LimitMaxMonthlyRemisionGuides] = 1_000,
+            [LimitMaxActiveCarriers] = 100,
         },
         [ModuleTier.Enterprise] = new Dictionary<string, int>
         {
             [LimitMaxInvoicesPerMonth] = int.MaxValue,
             [LimitInvoiceHistoryMonths] = int.MaxValue,
+            [LimitMaxMonthlyCreditNotes] = int.MaxValue,
+            [LimitMaxMonthlyRemisionGuides] = int.MaxValue,
+            [LimitMaxActiveCarriers] = int.MaxValue,
         },
     };
 
