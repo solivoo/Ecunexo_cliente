@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Select, TextBox, useToast } from 'glubox'
-import { Copy, Layers, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { Button, ColorPicker, Select, TextBox, useToast } from 'glubox'
+import { Camera, Copy, Layers, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import {
   createVariantDimensionTemplate,
   deleteVariantDimensionTemplate,
@@ -15,10 +15,21 @@ import type {
 import type { WarehouseListItemDto } from '@/types/inventoryApi'
 import './variantMatrixBuilder.css'
 
+export type DimensionState = {
+  id: string
+  name: string
+  dimensionType: string
+  selectedTemplateId: string
+  values: string[]
+  activeValues: string[]
+  newValInput: string
+  newColorHex: string
+}
+
 export type VariantRowState = {
   id: string
-  dim1Value: string
-  dim2Value?: string
+  dimensionValues: Record<string, string>
+  variationLabel: string
   variantTitle: string
   sku: string
   isManualSku?: boolean
@@ -27,6 +38,12 @@ export type VariantRowState = {
   isManualPrice?: boolean
   initialStock: string
   warehouseId: string
+  stagedImage?: File | null
+  stagedImagePreview?: string | null
+}
+
+export type MatrixVariantPayloadWithImage = CreateVariantChildPayload & {
+  stagedImage?: File | null
 }
 
 export type VariantMatrixBuilderProps = {
@@ -36,8 +53,9 @@ export type VariantMatrixBuilderProps = {
   basePrice: string
   disabled?: boolean
   onChange: (data: {
-    variants: CreateVariantChildPayload[]
+    variants: MatrixVariantPayloadWithImage[]
     variantDimensionsJson: string
+    dimensionNames: string[]
     isValid: boolean
   }) => void
 }
@@ -46,9 +64,17 @@ const DEFAULT_FALLBACK_TEMPLATES: VariantDimensionTemplateDto[] = [
   {
     id: 'system-socks',
     tenantId: 'system',
-    name: 'Medias / Calcetines',
+    name: 'Medias / Calcetines (Tallas)',
     dimensionType: 'Talla',
     predefinedValuesJson: '["35-38","39-41","42-44"]',
+    isSystemDefault: true,
+  },
+  {
+    id: 'system-sock-height',
+    tenantId: 'system',
+    name: 'Tipo de Caña / Altura (Calcetines)',
+    dimensionType: 'Caña / Altura',
+    predefinedValuesJson: '["Invisible / Talonera","Tobillero / Corto","Media Caña / Crew","Caña Alta / Largo"]',
     isSystemDefault: true,
   },
   {
@@ -57,6 +83,14 @@ const DEFAULT_FALLBACK_TEMPLATES: VariantDimensionTemplateDto[] = [
     name: 'Ropa Adulto (Tallas)',
     dimensionType: 'Talla',
     predefinedValuesJson: '["XS","S","M","L","XL","XXL"]',
+    isSystemDefault: true,
+  },
+  {
+    id: 'system-sleeve',
+    tenantId: 'system',
+    name: 'Largo de Manga (Camisas)',
+    dimensionType: 'Manga',
+    predefinedValuesJson: '["Manga Corta","Manga Larga","Tres Cuartos (3/4)","Sin Mangas"]',
     isSystemDefault: true,
   },
   {
@@ -70,7 +104,7 @@ const DEFAULT_FALLBACK_TEMPLATES: VariantDimensionTemplateDto[] = [
   {
     id: 'system-pants',
     tenantId: 'system',
-    name: 'Pantalones / Jeans',
+    name: 'Pantalones / Jeans (Cintura)',
     dimensionType: 'Talla',
     predefinedValuesJson: '["28","30","32","34","36","38"]',
     isSystemDefault: true,
@@ -85,6 +119,22 @@ const DEFAULT_FALLBACK_TEMPLATES: VariantDimensionTemplateDto[] = [
   },
 ]
 
+const DEFAULT_COLOR_MAP: Record<string, string> = {
+  Negro: '#1e293b',
+  Blanco: '#ffffff',
+  Azul: '#2563eb',
+  Rojo: '#dc2626',
+  Gris: '#64748b',
+  Verde: '#16a34a',
+  Amarillo: '#eab308',
+  Naranja: '#f97316',
+  Morado: '#9333ea',
+  Rosa: '#ec4899',
+  Beige: '#d4b996',
+  Café: '#78350f',
+  Marrón: '#78350f',
+}
+
 function sanitizeSkuPart(value: string): string {
   return value
     .trim()
@@ -92,6 +142,32 @@ function sanitizeSkuPart(value: string): string {
     .replace(/[^A-Z0-9]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
+}
+
+function cartesianProduct(arrays: string[][]): string[][] {
+  if (arrays.length === 0) return []
+  return arrays.reduce<string[][]>(
+    (acc, curr) => {
+      const res: string[][] = []
+      acc.forEach((a) => {
+        curr.forEach((b) => {
+          res.push([...a, b])
+        })
+      })
+      return res
+    },
+    [[]]
+  )
+}
+
+function isColorDimension(name: string, type?: string, tplId?: string): boolean {
+  const nameLower = (name || '').toLowerCase().trim()
+  const typeLower = (type || '').toLowerCase().trim()
+  return (
+    nameLower.includes('color') ||
+    typeLower.includes('color') ||
+    tplId === 'system-colors'
+  )
 }
 
 export function VariantMatrixBuilder({
@@ -108,20 +184,22 @@ export function VariantMatrixBuilder({
   const [templates, setTemplates] = useState<VariantDimensionTemplateDto[]>([])
   const [warehouses, setWarehouses] = useState<WarehouseListItemDto[]>([])
 
-  // Dimension 1 State
-  const [selectedTemplateId1, setSelectedTemplateId1] = useState<string>('system-socks')
-  const [dim1Name, setDim1Name] = useState<string>('Talla')
-  const [dim1Values, setDim1Values] = useState<string[]>(['35-38', '39-41', '42-44'])
-  const [activeDim1Values, setActiveDim1Values] = useState<string[]>(['35-38', '39-41', '42-44'])
-  const [newValInput1, setNewValInput1] = useState<string>('')
+  // Color Hex Map
+  const [colorHexMap, setColorHexMap] = useState<Record<string, string>>(DEFAULT_COLOR_MAP)
 
-  // Dimension 2 State (Optional)
-  const [enableDim2, setEnableDim2] = useState<boolean>(false)
-  const [selectedTemplateId2, setSelectedTemplateId2] = useState<string>('system-colors')
-  const [dim2Name, setDim2Name] = useState<string>('Color')
-  const [dim2Values, setDim2Values] = useState<string[]>(['Negro', 'Blanco', 'Azul'])
-  const [activeDim2Values, setActiveDim2Values] = useState<string[]>(['Negro', 'Blanco', 'Azul'])
-  const [newValInput2, setNewValInput2] = useState<string>('')
+  // Dynamic Dimensions Array (N dimensions)
+  const [dimensions, setDimensions] = useState<DimensionState[]>([
+    {
+      id: 'dim-1',
+      name: 'Talla',
+      dimensionType: 'Talla',
+      selectedTemplateId: 'system-socks',
+      values: ['35-38', '39-41', '42-44'],
+      activeValues: ['35-38', '39-41', '42-44'],
+      newValInput: '',
+      newColorHex: '#2563eb',
+    },
+  ])
 
   // Custom template creation state
   const [savingTemplate, setSavingTemplate] = useState<boolean>(false)
@@ -165,118 +243,204 @@ export function VariantMatrixBuilder({
     const lower = (type || '').toLowerCase().trim()
     if (lower === 'size' || lower === 'talla') return 'Tallas'
     if (lower === 'color') return 'Colores'
+    if (lower.includes('caña') || lower.includes('altura')) return 'Caña / Altura'
+    if (lower.includes('manga')) return 'Manga'
     return type || 'Personalizada'
   }
 
   // Template options for selects
-  const templateOptions1 = useMemo(() => {
+  const templateOptions = useMemo(() => {
     return [
-      ...templates.map((t) => ({ value: t.id, label: `${t.name} (${formatDimTypeLabel(t.dimensionType)})` })),
+      ...templates.map((t) => ({
+        value: t.id,
+        label: `${t.name} (${formatDimTypeLabel(t.dimensionType)})`,
+      })),
       { value: 'custom', label: 'Personalizada (definir valores manualmente)' },
     ]
   }, [templates])
 
-  const templateOptions2 = useMemo(() => {
-    return [
-      ...templates.map((t) => ({ value: t.id, label: `${t.name} (${formatDimTypeLabel(t.dimensionType)})` })),
-      { value: 'custom', label: 'Personalizada (definir valores manualmente)' },
-    ]
-  }, [templates])
+  // Add new dimension (up to 4)
+  const handleAddDimension = useCallback(() => {
+    if (dimensions.length >= 4) {
+      toast.show({
+        variant: 'warning',
+        title: 'Límite de dimensiones',
+        message: 'Se permiten hasta 4 dimensiones simultáneas para evitar una saturación combinatoria de inventario.',
+      })
+      return
+    }
 
-  // When template 1 changes
-  const handleTemplateChange1 = useCallback(
-    (templateId: string) => {
-      setSelectedTemplateId1(templateId)
-      if (templateId === 'custom') return
-      const tpl = templates.find((t) => t.id === templateId)
-      if (tpl) {
+    const hasColor = dimensions.some((d) => isColorDimension(d.name, d.dimensionType, d.selectedTemplateId))
+    const hasHeight = dimensions.some((d) => d.name.toLowerCase().includes('caña') || d.name.toLowerCase().includes('altura'))
+
+    let nextTplId = 'custom'
+    let nextName = `Dimensión ${dimensions.length + 1}`
+    let nextType = 'Personalizada'
+    let nextValues: string[] = []
+
+    if (!hasHeight && dimensions[0]?.name.toLowerCase().includes('talla')) {
+      const heightTpl = templates.find((t) => t.id === 'system-sock-height')
+      if (heightTpl) {
+        nextTplId = heightTpl.id
+        nextName = 'Caña / Altura'
+        nextType = 'Caña / Altura'
         try {
-          const parsed = JSON.parse(tpl.predefinedValuesJson) as string[]
-          if (Array.isArray(parsed)) {
-            const rawType = (tpl.dimensionType || '').toLowerCase()
-            const dimLabel = rawType === 'size' ? 'Talla' : rawType === 'color' ? 'Color' : (tpl.dimensionType || 'Talla')
-            setDim1Name(dimLabel)
-            setDim1Values(parsed)
-            setActiveDim1Values(parsed)
-          }
+          nextValues = JSON.parse(heightTpl.predefinedValuesJson) as string[]
         } catch {
-          // ignore
+          nextValues = ['Invisible', 'Tobillero', 'Media Caña', 'Caña Alta']
         }
       }
+    } else if (!hasColor) {
+      const colorTpl = templates.find((t) => t.id === 'system-colors')
+      if (colorTpl) {
+        nextTplId = colorTpl.id
+        nextName = 'Color'
+        nextType = 'Color'
+        try {
+          nextValues = JSON.parse(colorTpl.predefinedValuesJson) as string[]
+        } catch {
+          nextValues = ['Negro', 'Blanco', 'Azul']
+        }
+      }
+    }
+
+    const newDim: DimensionState = {
+      id: `dim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: nextName,
+      dimensionType: nextType,
+      selectedTemplateId: nextTplId,
+      values: nextValues,
+      activeValues: nextValues,
+      newValInput: '',
+      newColorHex: '#2563eb',
+    }
+
+    setDimensions((prev) => [...prev, newDim])
+  }, [dimensions, templates, toast])
+
+  // Remove a dimension
+  const handleRemoveDimension = useCallback((dimId: string) => {
+    setDimensions((prev) => {
+      if (prev.length <= 1) return prev
+      return prev.filter((d) => d.id !== dimId)
+    })
+  }, [])
+
+  // Template change in a dimension
+  const handleTemplateChange = useCallback(
+    (dimId: string, templateId: string) => {
+      setDimensions((prev) =>
+        prev.map((d) => {
+          if (d.id !== dimId) return d
+          if (templateId === 'custom') {
+            return { ...d, selectedTemplateId: 'custom' }
+          }
+          const tpl = templates.find((t) => t.id === templateId)
+          if (!tpl) return { ...d, selectedTemplateId: templateId }
+          try {
+            const parsed = JSON.parse(tpl.predefinedValuesJson) as string[]
+            if (Array.isArray(parsed)) {
+              const rawType = (tpl.dimensionType || '').toLowerCase()
+              const dimLabel =
+                rawType === 'size'
+                  ? 'Talla'
+                  : rawType === 'color'
+                  ? 'Color'
+                  : (tpl.dimensionType || d.name)
+              return {
+                ...d,
+                selectedTemplateId: templateId,
+                name: dimLabel,
+                dimensionType: tpl.dimensionType || 'Personalizada',
+                values: parsed,
+                activeValues: parsed,
+              }
+            }
+          } catch {
+            // ignore
+          }
+          return { ...d, selectedTemplateId: templateId }
+        })
+      )
     },
     [templates]
   )
 
-  // When template 2 changes
-  const handleTemplateChange2 = useCallback(
-    (templateId: string) => {
-      setSelectedTemplateId2(templateId)
-      if (templateId === 'custom') return
-      const tpl = templates.find((t) => t.id === templateId)
-      if (tpl) {
-        try {
-          const parsed = JSON.parse(tpl.predefinedValuesJson) as string[]
-          if (Array.isArray(parsed)) {
-            const rawType = (tpl.dimensionType || '').toLowerCase()
-            const dimLabel = rawType === 'color' ? 'Color' : rawType === 'size' ? 'Talla' : (tpl.dimensionType || 'Color')
-            setDim2Name(dimLabel)
-            setDim2Values(parsed)
-            setActiveDim2Values(parsed)
+  // Update dimension name
+  const handleUpdateDimensionName = useCallback((dimId: string, newName: string) => {
+    setDimensions((prev) =>
+      prev.map((d) => (d.id === dimId ? { ...d, name: newName } : d))
+    )
+  }, [])
+
+  // Toggle active value in dimension
+  const handleToggleValue = useCallback((dimId: string, val: string) => {
+    setDimensions((prev) =>
+      prev.map((d) => {
+        if (d.id !== dimId) return d
+        const nextActive = d.activeValues.includes(val)
+          ? d.activeValues.filter((v) => v !== val)
+          : [...d.activeValues, val]
+        return { ...d, activeValues: nextActive }
+      })
+    )
+  }, [])
+
+  // Add custom value to dimension
+  const handleAddValue = useCallback(
+    (dimId: string) => {
+      setDimensions((prev) =>
+        prev.map((d) => {
+          if (d.id !== dimId) return d
+          const trimmed = d.newValInput.trim()
+          if (!trimmed) return d
+
+          const isColor = isColorDimension(d.name, d.dimensionType, d.selectedTemplateId)
+          if (isColor && d.newColorHex) {
+            setColorHexMap((cPrev) => ({ ...cPrev, [trimmed]: d.newColorHex }))
           }
-        } catch {
-          // ignore
-        }
-      }
+
+          const nextValues = d.values.includes(trimmed) ? d.values : [...d.values, trimmed]
+          const nextActive = d.activeValues.includes(trimmed) ? d.activeValues : [...d.activeValues, trimmed]
+
+          return {
+            ...d,
+            values: nextValues,
+            activeValues: nextActive,
+            newValInput: '',
+          }
+        })
+      )
     },
-    [templates]
+    []
   )
 
-  // Toggle value in Dimension 1
-  const toggleDim1Value = useCallback((val: string) => {
-    setActiveDim1Values((prev) =>
-      prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]
+  // Remove value from dimension
+  const handleRemoveValue = useCallback((dimId: string, val: string) => {
+    setDimensions((prev) =>
+      prev.map((d) => {
+        if (d.id !== dimId) return d
+        return {
+          ...d,
+          values: d.values.filter((v) => v !== val),
+          activeValues: d.activeValues.filter((v) => v !== val),
+        }
+      })
     )
   }, [])
 
-  // Add custom value to Dimension 1
-  const addVal1 = useCallback(() => {
-    const trimmed = newValInput1.trim()
-    if (!trimmed) return
-    if (!dim1Values.includes(trimmed)) {
-      setDim1Values((prev) => [...prev, trimmed])
-      setActiveDim1Values((prev) => [...prev, trimmed])
-    }
-    setNewValInput1('')
-  }, [dim1Values, newValInput1])
-
-  // Remove value from Dimension 1
-  const removeVal1 = useCallback((val: string) => {
-    setDim1Values((prev) => prev.filter((v) => v !== val))
-    setActiveDim1Values((prev) => prev.filter((v) => v !== val))
-  }, [])
-
-  // Toggle value in Dimension 2
-  const toggleDim2Value = useCallback((val: string) => {
-    setActiveDim2Values((prev) =>
-      prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]
+  // Update input text in dimension
+  const handleNewValInputChange = useCallback((dimId: string, text: string) => {
+    setDimensions((prev) =>
+      prev.map((d) => (d.id === dimId ? { ...d, newValInput: text } : d))
     )
   }, [])
 
-  // Add custom value to Dimension 2
-  const addVal2 = useCallback(() => {
-    const trimmed = newValInput2.trim()
-    if (!trimmed) return
-    if (!dim2Values.includes(trimmed)) {
-      setDim2Values((prev) => [...prev, trimmed])
-      setActiveDim2Values((prev) => [...prev, trimmed])
-    }
-    setNewValInput2('')
-  }, [dim2Values, newValInput2])
-
-  // Remove value from Dimension 2
-  const removeVal2 = useCallback((val: string) => {
-    setDim2Values((prev) => prev.filter((v) => v !== val))
-    setActiveDim2Values((prev) => prev.filter((v) => v !== val))
+  // Update color hex in dimension
+  const handleColorHexChange = useCallback((dimId: string, hex: string) => {
+    setDimensions((prev) =>
+      prev.map((d) => (d.id === dimId ? { ...d, newColorHex: hex } : d))
+    )
   }, [])
 
   // Generate Cartesian combinations when active dimensions change
@@ -284,42 +448,38 @@ export function VariantMatrixBuilder({
     const prefix = sanitizeSkuPart(baseSku) || 'ITEM'
     const defaultPrice = basePrice.trim() ? basePrice.trim() : ''
 
-    const combinations: Array<{ dim1: string; dim2?: string }> = []
-
-    if (!enableDim2 || activeDim2Values.length === 0) {
-      activeDim1Values.forEach((d1) => {
-        combinations.push({ dim1: d1 })
-      })
-    } else {
-      activeDim1Values.forEach((d1) => {
-        activeDim2Values.forEach((d2) => {
-          combinations.push({ dim1: d1, dim2: d2 })
-        })
-      })
+    const activeDims = dimensions.filter((d) => d.activeValues.length > 0)
+    if (activeDims.length === 0) {
+      setRows([])
+      return
     }
+
+    const arraysToMultiply = activeDims.map((d) => d.activeValues)
+    const combinations = cartesianProduct(arraysToMultiply)
 
     setRows((prev) => {
       return combinations.map((comb) => {
-        const id = comb.dim2 ? `${comb.dim1}_${comb.dim2}` : comb.dim1
+        const id = comb.map(sanitizeSkuPart).join('_')
         const existing = prev.find((r) => r.id === id)
 
-        const variationLabel = comb.dim2 ? `${comb.dim1} / ${comb.dim2}` : comb.dim1
+        const variationLabel = comb.join(' / ')
         const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
 
-        const generatedSku = comb.dim2
-          ? `${prefix}-${sanitizeSkuPart(comb.dim1)}-${sanitizeSkuPart(comb.dim2)}`
-          : `${prefix}-${sanitizeSkuPart(comb.dim1)}`
+        const generatedSku = `${prefix}-${comb.map(sanitizeSkuPart).join('-')}`
+
+        const dimensionValues: Record<string, string> = {}
+        activeDims.forEach((dim, idx) => {
+          dimensionValues[dim.name] = comb[idx]
+        })
 
         if (existing) {
-          // Si el usuario no sobreescribió manualmente este SKU en la grilla, sincroniza con el prefijo actual
           const finalSku = existing.isManualSku ? existing.sku : generatedSku
-          // Si el usuario no modificó manualmente el precio en la grilla, hereda el precio base actual
           const finalPrice = existing.isManualPrice ? existing.basePrice : (defaultPrice || existing.basePrice)
 
           return {
             ...existing,
-            dim1Value: comb.dim1,
-            dim2Value: comb.dim2,
+            dimensionValues,
+            variationLabel,
             variantTitle: existing.variantTitle || autoTitle,
             sku: finalSku,
             basePrice: finalPrice,
@@ -328,8 +488,8 @@ export function VariantMatrixBuilder({
 
         return {
           id,
-          dim1Value: comb.dim1,
-          dim2Value: comb.dim2,
+          dimensionValues,
+          variationLabel,
           variantTitle: autoTitle,
           sku: generatedSku,
           isManualSku: false,
@@ -338,10 +498,12 @@ export function VariantMatrixBuilder({
           isManualPrice: false,
           initialStock: '',
           warehouseId: bulkWarehouseId,
+          stagedImage: null,
+          stagedImagePreview: null,
         }
       })
     })
-  }, [activeDim1Values, activeDim2Values, enableDim2, baseSku, basePrice, baseName, bulkWarehouseId])
+  }, [dimensions, baseSku, basePrice, baseName, bulkWarehouseId])
 
   // Bulk actions
   const handleCopyBasePrice = useCallback(() => {
@@ -371,9 +533,10 @@ export function VariantMatrixBuilder({
     const prefix = sanitizeSkuPart(baseSku) || 'ITEM'
     setRows((prev) =>
       prev.map((r) => {
-        const sku = r.dim2Value
-          ? `${prefix}-${sanitizeSkuPart(r.dim1Value)}-${sanitizeSkuPart(r.dim2Value)}`
-          : `${prefix}-${sanitizeSkuPart(r.dim1Value)}`
+        const activeVals = Object.values(r.dimensionValues || {})
+        const sku = activeVals.length > 0
+          ? `${prefix}-${activeVals.map(sanitizeSkuPart).join('-')}`
+          : `${prefix}-${sanitizeSkuPart(r.variantTitle)}`
         return { ...r, sku, isManualSku: false }
       })
     )
@@ -402,108 +565,170 @@ export function VariantMatrixBuilder({
 
   // Delete row
   const deleteRow = useCallback((id: string) => {
-    setRows((prev) => prev.filter((r) => r.id !== id))
+    setRows((prev) => {
+      const target = prev.find((r) => r.id === id)
+      if (target?.stagedImagePreview) {
+        URL.revokeObjectURL(target.stagedImagePreview)
+      }
+      return prev.filter((r) => r.id !== id)
+    })
   }, [])
 
-  // Save current dimension as custom template
-  const handleSaveAsTemplate = useCallback(async () => {
-    if (!tenantId || dim1Values.length === 0) return
-    setSavingTemplate(true)
-    try {
-      const templateName = `${dim1Name} (${dim1Values.slice(0, 3).join(', ')}...)`
-      const res = await createVariantDimensionTemplate(tenantId, {
-        name: templateName,
-        dimensionType: dim1Name.trim() || 'Talla',
-        predefinedValuesJson: JSON.stringify(dim1Values),
+  // Row image handlers
+  const handleRowImageSelect = useCallback((id: string, file: File) => {
+    const previewUrl = URL.createObjectURL(file)
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r
+        if (r.stagedImagePreview) {
+          URL.revokeObjectURL(r.stagedImagePreview)
+        }
+        return {
+          ...r,
+          stagedImage: file,
+          stagedImagePreview: previewUrl,
+        }
       })
-      toast.show({
-        variant: 'success',
-        title: 'Plantilla guardada',
-        message: `Escala «${templateName}» guardada como plantilla reutilizable.`,
-      })
-      const refreshed = await listVariantDimensionTemplates(tenantId).catch(() => [])
-      setTemplates(refreshed.length > 0 ? refreshed : DEFAULT_FALLBACK_TEMPLATES)
-      setSelectedTemplateId1(res.id)
-    } catch {
-      toast.show({
-        variant: 'error',
-        title: 'Error',
-        message: 'No se pudo guardar la plantilla de escala.',
-      })
-    } finally {
-      setSavingTemplate(false)
-    }
-  }, [dim1Name, dim1Values, tenantId, toast])
+    )
+  }, [])
 
-  const currentTemplate1 = useMemo(
-    () => templates.find((t) => t.id === selectedTemplateId1),
-    [templates, selectedTemplateId1]
+  const handleRemoveRowImage = useCallback((id: string) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r
+        if (r.stagedImagePreview) {
+          URL.revokeObjectURL(r.stagedImagePreview)
+        }
+        return {
+          ...r,
+          stagedImage: null,
+          stagedImagePreview: null,
+        }
+      })
+    )
+  }, [])
+
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => {
+      rows.forEach((r) => {
+        if (r.stagedImagePreview) {
+          URL.revokeObjectURL(r.stagedImagePreview)
+        }
+      })
+    }
+  }, [rows])
+
+  // Save dimension as custom template
+  const handleSaveDimensionAsTemplate = useCallback(
+    async (dim: DimensionState) => {
+      if (!tenantId || dim.values.length === 0) return
+      setSavingTemplate(true)
+      try {
+        const templateName = `${dim.name} (${dim.values.slice(0, 3).join(', ')}...)`
+        const res = await createVariantDimensionTemplate(tenantId, {
+          name: templateName,
+          dimensionType: dim.name.trim() || 'Personalizada',
+          predefinedValuesJson: JSON.stringify(dim.values),
+        })
+        toast.show({
+          variant: 'success',
+          title: 'Plantilla guardada',
+          message: `Escala «${templateName}» guardada como plantilla reutilizable.`,
+        })
+        const refreshed = await listVariantDimensionTemplates(tenantId).catch(() => [])
+        setTemplates(refreshed.length > 0 ? refreshed : DEFAULT_FALLBACK_TEMPLATES)
+        setDimensions((prev) =>
+          prev.map((d) => (d.id === dim.id ? { ...d, selectedTemplateId: res.id } : d))
+        )
+      } catch {
+        toast.show({
+          variant: 'error',
+          title: 'Error',
+          message: 'No se pudo guardar la plantilla de escala.',
+        })
+      } finally {
+        setSavingTemplate(false)
+      }
+    },
+    [tenantId, toast]
   )
 
-  const handleUpdateTemplate1 = useCallback(async () => {
-    if (!tenantId || !currentTemplate1 || currentTemplate1.isSystemDefault) return
-    setSavingTemplate(true)
-    try {
-      await updateVariantDimensionTemplate(tenantId, currentTemplate1.id, {
-        name: currentTemplate1.name,
-        dimensionType: dim1Name.trim() || 'Talla',
-        predefinedValuesJson: JSON.stringify(dim1Values),
-      })
-      toast.show({
-        variant: 'success',
-        title: 'Plantilla actualizada',
-        message: `Los cambios en «${currentTemplate1.name}» se guardaron.`,
-      })
-      const refreshed = await listVariantDimensionTemplates(tenantId).catch(() => [])
-      setTemplates(refreshed.length > 0 ? refreshed : DEFAULT_FALLBACK_TEMPLATES)
-    } catch {
-      toast.show({
-        variant: 'error',
-        title: 'Error',
-        message: 'No se pudo actualizar la plantilla.',
-      })
-    } finally {
-      setSavingTemplate(false)
-    }
-  }, [currentTemplate1, dim1Name, dim1Values, tenantId, toast])
+  // Update existing custom template
+  const handleUpdateTemplate = useCallback(
+    async (dim: DimensionState) => {
+      const curTpl = templates.find((t) => t.id === dim.selectedTemplateId)
+      if (!tenantId || !curTpl || curTpl.isSystemDefault) return
+      setSavingTemplate(true)
+      try {
+        await updateVariantDimensionTemplate(tenantId, curTpl.id, {
+          name: curTpl.name,
+          dimensionType: dim.name.trim() || curTpl.dimensionType,
+          predefinedValuesJson: JSON.stringify(dim.values),
+        })
+        toast.show({
+          variant: 'success',
+          title: 'Plantilla actualizada',
+          message: `Los cambios en «${curTpl.name}» se guardaron.`,
+        })
+        const refreshed = await listVariantDimensionTemplates(tenantId).catch(() => [])
+        setTemplates(refreshed.length > 0 ? refreshed : DEFAULT_FALLBACK_TEMPLATES)
+      } catch {
+        toast.show({
+          variant: 'error',
+          title: 'Error',
+          message: 'No se pudo actualizar la plantilla.',
+        })
+      } finally {
+        setSavingTemplate(false)
+      }
+    },
+    [templates, tenantId, toast]
+  )
 
-  const handleDeleteTemplate1 = useCallback(async () => {
-    if (!tenantId || !currentTemplate1 || currentTemplate1.isSystemDefault) return
-    if (!window.confirm(`¿Estás seguro de eliminar la escala personalizada «${currentTemplate1.name}»?`)) return
-    setSavingTemplate(true)
-    try {
-      await deleteVariantDimensionTemplate(tenantId, currentTemplate1.id)
-      toast.show({
-        variant: 'success',
-        title: 'Plantilla eliminada',
-        message: `La escala «${currentTemplate1.name}» fue eliminada.`,
-      })
-      const refreshed = await listVariantDimensionTemplates(tenantId).catch(() => [])
-      setTemplates(refreshed.length > 0 ? refreshed : DEFAULT_FALLBACK_TEMPLATES)
-      setSelectedTemplateId1('system-socks')
-    } catch {
-      toast.show({
-        variant: 'error',
-        title: 'Error',
-        message: 'No se pudo eliminar la plantilla.',
-      })
-    } finally {
-      setSavingTemplate(false)
-    }
-  }, [currentTemplate1, tenantId, toast])
+  // Delete existing custom template
+  const handleDeleteTemplate = useCallback(
+    async (dim: DimensionState) => {
+      const curTpl = templates.find((t) => t.id === dim.selectedTemplateId)
+      if (!tenantId || !curTpl || curTpl.isSystemDefault) return
+      if (!window.confirm(`¿Estás seguro de eliminar la escala personalizada «${curTpl.name}»?`)) return
+      setSavingTemplate(true)
+      try {
+        await deleteVariantDimensionTemplate(tenantId, curTpl.id)
+        toast.show({
+          variant: 'success',
+          title: 'Plantilla eliminada',
+          message: `La escala «${curTpl.name}» fue eliminada.`,
+        })
+        const refreshed = await listVariantDimensionTemplates(tenantId).catch(() => [])
+        setTemplates(refreshed.length > 0 ? refreshed : DEFAULT_FALLBACK_TEMPLATES)
+        setDimensions((prev) =>
+          prev.map((d) => (d.id === dim.id ? { ...d, selectedTemplateId: 'custom' } : d))
+        )
+      } catch {
+        toast.show({
+          variant: 'error',
+          title: 'Error',
+          message: 'No se pudo eliminar la plantilla.',
+        })
+      } finally {
+        setSavingTemplate(false)
+      }
+    },
+    [templates, tenantId, toast]
+  )
 
   // Synchronize with parent
   useEffect(() => {
-    const dimensionsConfig: Array<{ name: string; values: string[] }> = [
-      { name: dim1Name.trim() || 'Talla', values: activeDim1Values },
-    ]
-    if (enableDim2 && activeDim2Values.length > 0) {
-      dimensionsConfig.push({ name: dim2Name.trim() || 'Color', values: activeDim2Values })
-    }
+    const dimensionsConfig = dimensions.map((d) => ({
+      name: d.name.trim() || 'Dimensión',
+      values: d.activeValues,
+    }))
 
     const variantDimensionsJson = JSON.stringify({ dimensions: dimensionsConfig })
+    const dimensionNames = dimensions.map((d) => d.name.trim())
 
-    const payloadVariants: CreateVariantChildPayload[] = rows.map((r) => {
+    const payloadVariants: MatrixVariantPayloadWithImage[] = rows.map((r) => {
       const parsedPrice = r.basePrice.trim() ? Number(r.basePrice.replace(',', '.')) : null
       const parsedStock = r.initialStock.trim() ? Number(r.initialStock) : null
 
@@ -514,6 +739,7 @@ export function VariantMatrixBuilder({
         basePrice: parsedPrice != null && !Number.isNaN(parsedPrice) ? parsedPrice : null,
         initialStock: parsedStock != null && !Number.isNaN(parsedStock) && parsedStock > 0 ? parsedStock : null,
         initialStockWarehouseId: r.warehouseId || (bulkWarehouseId || null),
+        stagedImage: r.stagedImage,
       }
     })
 
@@ -524,15 +750,12 @@ export function VariantMatrixBuilder({
     onChange({
       variants: payloadVariants,
       variantDimensionsJson,
+      dimensionNames,
       isValid,
     })
   }, [
     rows,
-    dim1Name,
-    activeDim1Values,
-    enableDim2,
-    dim2Name,
-    activeDim2Values,
+    dimensions,
     bulkWarehouseId,
     onChange,
   ])
@@ -547,12 +770,12 @@ export function VariantMatrixBuilder({
           </div>
           <div>
             <h4 className="ecu-matrix-builder__header-title">
-              Configurador de Variantes (Producto Matriz)
+              Variantes
             </h4>
             <p className="ecu-matrix-builder__header-desc">
               {baseName.trim()
-                ? `Configura las variantes físicas para «${baseName.trim()}» con sus tallas y códigos SKU hijos.`
-                : 'Selecciona una escala de tallas o dimensiones para generar los SKUs físicos hijos automáticamente.'}
+                ? `Configura las variantes para «${baseName.trim()}» con sus tallas, caña/largo, colores y fotos independientes.`
+                : 'Configura las variantes con sus tallas, caña/largo, colores y fotos independientes.'}
             </p>
           </div>
         </div>
@@ -561,266 +784,238 @@ export function VariantMatrixBuilder({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setEnableDim2((prev) => !prev)}
-            disabled={disabled}
+            onClick={handleAddDimension}
+            disabled={disabled || dimensions.length >= 4}
+            title={dimensions.length >= 4 ? 'Máximo 4 dimensiones alcanzado' : 'Añadir un nuevo eje de variación (ej. Caña, Color, Grosor)'}
           >
-            {enableDim2 ? '✕ Quitar Colores (2da Dimensión)' : '+ Añadir Color (2da Dimensión)'}
+            <Plus size={14} style={{ marginRight: '0.35rem' }} />
+            Añadir Dimensión ({dimensions.length}/4)
           </Button>
         </div>
       </div>
 
-      {/* Dimensions Configuration */}
+      {/* Dynamic Dimensions Configuration Cards */}
       <div
         className={`ecu-matrix-builder__dimensions ${
-          enableDim2 ? 'ecu-matrix-builder__dimensions--dual' : ''
+          dimensions.length > 1 ? 'ecu-matrix-builder__dimensions--grid' : ''
         }`}
       >
-        {/* Dimension 1 Card - Tallas / Medidas */}
-        <div className="ecu-matrix-dim-card">
-          <div className="ecu-matrix-dim-card__top">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span className="ecu-matrix-dim-card__badge">Tallas / Medidas (Dimensión 1)</span>
-              {currentTemplate1 && (
-                <span
-                  style={{
-                    fontSize: '0.725rem',
-                    color: currentTemplate1.isSystemDefault ? 'var(--glb-muted)' : '#10b981',
-                    fontWeight: currentTemplate1.isSystemDefault ? 400 : 600,
-                  }}
-                >
-                  {currentTemplate1.isSystemDefault
-                    ? 'Molde del sistema (base)'
-                    : 'Plantilla personalizada (editable)'}
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              {selectedTemplateId1 === 'custom' && dim1Values.length > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  loading={savingTemplate}
-                  onClick={() => void handleSaveAsTemplate()}
-                  disabled={disabled || savingTemplate}
-                  title="Guardar como plantilla reutilizable"
-                >
-                  Guardar como escala
-                </Button>
-              )}
-              {currentTemplate1 && !currentTemplate1.isSystemDefault && (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    loading={savingTemplate}
-                    onClick={() => void handleUpdateTemplate1()}
-                    disabled={disabled || savingTemplate}
-                    title="Actualizar valores modificados en esta plantilla"
-                  >
-                    Guardar cambios
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    loading={savingTemplate}
-                    onClick={() => void handleDeleteTemplate1()}
-                    disabled={disabled || savingTemplate}
-                    title="Eliminar esta plantilla personalizada"
-                  >
-                    <Trash2 size={13} style={{ color: '#ef4444' }} />
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
+        {dimensions.map((dim, idx) => {
+          const isColor = isColorDimension(dim.name, dim.dimensionType, dim.selectedTemplateId)
+          const curTpl = templates.find((t) => t.id === dim.selectedTemplateId)
 
-          <div className="ecu-matrix-dim-card__fields">
-            <Select
-              id="mat-tpl-1"
-              label="Plantilla de Tallas / Escala"
-              labelPosition="outlined"
-              variant="outline"
-              options={templateOptions1}
-              value={selectedTemplateId1}
-              onChange={handleTemplateChange1}
-              disabled={disabled}
-              fullWidth
-            />
-            <TextBox
-              id="mat-dim-name-1"
-              label="Tipo de Atributo"
-              labelPosition="outlined"
-              variant="outline"
-              value={dim1Name}
-              onChange={(e) => setDim1Name(e.target.value)}
-              placeholder="Ej. Talla, Medida"
-              disabled={disabled}
-              fullWidth
-            />
-          </div>
-
-          <div className="ecu-matrix-pills-wrap">
-            <span className="ecu-matrix-pills-label">
-              Tallas activas (haz clic para activar o excluir):
-            </span>
-            <div className="ecu-matrix-pills-list">
-              {dim1Values.map((val) => {
-                const isActive = activeDim1Values.includes(val)
-                return (
+          return (
+            <div key={dim.id} className="ecu-matrix-dim-card">
+              <div className="ecu-matrix-dim-card__top">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <span
-                    key={val}
-                    className={`ecu-matrix-pill ${isActive ? 'ecu-matrix-pill--active' : ''}`}
-                    onClick={() => toggleDim1Value(val)}
+                    className="ecu-matrix-dim-card__badge"
+                    style={{
+                      color: idx === 0 ? 'var(--shell-primary, #4f46e5)' : idx === 1 ? '#0284c7' : '#10b981',
+                      background: idx === 0 ? 'rgba(79, 70, 229, 0.08)' : idx === 1 ? 'rgba(2, 132, 199, 0.08)' : 'rgba(16, 185, 129, 0.08)',
+                    }}
                   >
-                    <span>{val}</span>
-                    <span
-                      className="ecu-matrix-pill__remove"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removeVal1(val)
-                      }}
-                      title="Eliminar valor"
-                    >
-                      <X size={12} />
-                    </span>
+                    Dimensión {idx + 1}: {dim.name || 'Personalizada'}
                   </span>
-                )
-              })}
-            </div>
-            <div className="ecu-matrix-add-val">
-              <TextBox
-                id="mat-add-val-1"
-                placeholder="Añadir talla (ej. 45-47, Única, 3XL)…"
-                variant="outline"
-                value={newValInput1}
-                onChange={(e) => setNewValInput1(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    addVal1()
-                  }
-                }}
-                disabled={disabled}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addVal1}
-                disabled={disabled || !newValInput1.trim()}
-              >
-                <Plus size={14} /> Añadir
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Dimension 2 Card (Optional) - Colores */}
-        {enableDim2 && (
-          <div className="ecu-matrix-dim-card">
-            <div className="ecu-matrix-dim-card__top">
-              <span
-                className="ecu-matrix-dim-card__badge"
-                style={{ color: '#0284c7', background: 'rgba(2,132,199,0.08)' }}
-              >
-                Colores / Combinación (Dimensión 2)
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setEnableDim2(false)}
-                disabled={disabled}
-                title="Quitar segunda dimensión"
-              >
-                ✕ Quitar
-              </Button>
-            </div>
-
-            <div className="ecu-matrix-dim-card__fields">
-              <Select
-                id="mat-tpl-2"
-                label="Plantilla de Colores"
-                labelPosition="outlined"
-                variant="outline"
-                options={templateOptions2}
-                value={selectedTemplateId2}
-                onChange={handleTemplateChange2}
-                disabled={disabled}
-                fullWidth
-              />
-              <TextBox
-                id="mat-dim-name-2"
-                label="Tipo de Atributo"
-                labelPosition="outlined"
-                variant="outline"
-                value={dim2Name}
-                onChange={(e) => setDim2Name(e.target.value)}
-                placeholder="Ej. Color, Acabado"
-                disabled={disabled}
-                fullWidth
-              />
-            </div>
-
-            <div className="ecu-matrix-pills-wrap">
-              <span className="ecu-matrix-pills-label">
-                Colores activos (haz clic para activar o excluir):
-              </span>
-              <div className="ecu-matrix-pills-list">
-                {dim2Values.map((val) => {
-                  const isActive = activeDim2Values.includes(val)
-                  return (
+                  {curTpl && (
                     <span
-                      key={val}
-                      className={`ecu-matrix-pill ${isActive ? 'ecu-matrix-pill--active' : ''}`}
-                      onClick={() => toggleDim2Value(val)}
+                      style={{
+                        fontSize: '0.725rem',
+                        color: curTpl.isSystemDefault ? 'var(--glb-muted)' : '#10b981',
+                        fontWeight: curTpl.isSystemDefault ? 400 : 600,
+                      }}
                     >
-                      <span>{val}</span>
-                      <span
-                        className="ecu-matrix-pill__remove"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          removeVal2(val)
-                        }}
-                        title="Eliminar valor"
-                      >
-                        <X size={12} />
-                      </span>
+                      {curTpl.isSystemDefault ? 'Base del sistema' : 'Personalizada'}
                     </span>
-                  )
-                })}
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {dim.selectedTemplateId === 'custom' && dim.values.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      loading={savingTemplate}
+                      onClick={() => void handleSaveDimensionAsTemplate(dim)}
+                      disabled={disabled || savingTemplate}
+                      title="Guardar como plantilla reutilizable para la empresa"
+                    >
+                      Guardar escala
+                    </Button>
+                  )}
+                  {curTpl && !curTpl.isSystemDefault && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        loading={savingTemplate}
+                        onClick={() => void handleUpdateTemplate(dim)}
+                        disabled={disabled || savingTemplate}
+                        title="Actualizar valores en esta plantilla"
+                      >
+                        Guardar cambios
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        loading={savingTemplate}
+                        onClick={() => void handleDeleteTemplate(dim)}
+                        disabled={disabled || savingTemplate}
+                        title="Eliminar esta plantilla personalizada"
+                      >
+                        <Trash2 size={13} style={{ color: '#ef4444' }} />
+                      </Button>
+                    </>
+                  )}
+                  {dimensions.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRemoveDimension(dim.id)}
+                      disabled={disabled}
+                      title="Quitar esta dimensión"
+                    >
+                      ✕ Quitar
+                    </Button>
+                  )}
+                </div>
               </div>
-              <div className="ecu-matrix-add-val">
-                <TextBox
-                  id="mat-add-val-2"
-                  placeholder="Añadir color (ej. Azul Marino, Rojo, Gris)…"
+
+              <div className="ecu-matrix-dim-card__fields">
+                <Select
+                  id={`mat-tpl-${dim.id}`}
+                  label="Plantilla de Escala"
+                  labelPosition="outlined"
                   variant="outline"
-                  value={newValInput2}
-                  onChange={(e) => setNewValInput2(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      addVal2()
-                    }
-                  }}
+                  options={templateOptions}
+                  value={dim.selectedTemplateId}
+                  onChange={(tplId) => handleTemplateChange(dim.id, tplId)}
                   disabled={disabled}
+                  fullWidth
                 />
-                <Button
-                  type="button"
+                <TextBox
+                  id={`mat-dim-name-${dim.id}`}
+                  label="Nombre / Tipo de Atributo"
+                  labelPosition="outlined"
                   variant="outline"
-                  size="sm"
-                  onClick={addVal2}
-                  disabled={disabled || !newValInput2.trim()}
-                >
-                  <Plus size={14} /> Añadir
-                </Button>
+                  value={dim.name}
+                  onChange={(e) => handleUpdateDimensionName(dim.id, e.target.value)}
+                  placeholder="Ej. Talla, Caña / Altura, Color, Grosor"
+                  disabled={disabled}
+                  fullWidth
+                />
+              </div>
+
+              <div className="ecu-matrix-pills-wrap">
+                <span className="ecu-matrix-pills-label">
+                  Valores activos (haz clic para activar o excluir):
+                </span>
+                <div className="ecu-matrix-pills-list">
+                  {dim.values.map((val) => {
+                    const isActive = dim.activeValues.includes(val)
+                    const colorHex = colorHexMap[val]
+                    return (
+                      <span
+                        key={val}
+                        className={`ecu-matrix-pill ${isActive ? 'ecu-matrix-pill--active' : ''}`}
+                        onClick={() => handleToggleValue(dim.id, val)}
+                      >
+                        {(isColor || colorHex) && (
+                          <span
+                            className="ecu-color-swatch-dot"
+                            style={{ backgroundColor: colorHex || '#94a3b8' }}
+                          />
+                        )}
+                        <span>{val}</span>
+                        <span
+                          className="ecu-matrix-pill__remove"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRemoveValue(dim.id, val)
+                          }}
+                          title="Eliminar valor"
+                        >
+                          <X size={12} />
+                        </span>
+                      </span>
+                    )
+                  })}
+                </div>
+
+                {isColor ? (
+                  <div className="ecu-matrix-color-add-row">
+                    <div style={{ width: 140 }}>
+                      <ColorPicker
+                        id={`mat-color-picker-${dim.id}`}
+                        label="Color"
+                        labelPosition="outlined"
+                        variant="outline"
+                        size="sm"
+                        value={dim.newColorHex}
+                        onChange={(hex) => handleColorHexChange(dim.id, hex)}
+                        disabled={disabled}
+                        fullWidth
+                      />
+                    </div>
+                    <TextBox
+                      id={`mat-add-val-${dim.id}`}
+                      placeholder="Nombre del color (ej. Azul Marino, Rojo)…"
+                      variant="outline"
+                      value={dim.newValInput}
+                      onChange={(e) => handleNewValInputChange(dim.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleAddValue(dim.id)
+                        }
+                      }}
+                      disabled={disabled}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAddValue(dim.id)}
+                      disabled={disabled || !dim.newValInput.trim()}
+                    >
+                      <Plus size={14} /> Añadir Color
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="ecu-matrix-add-val">
+                    <TextBox
+                      id={`mat-add-val-${dim.id}`}
+                      placeholder={`Añadir valor a ${dim.name} (ej. Corto, Largo, 3XL)…`}
+                      variant="outline"
+                      value={dim.newValInput}
+                      onChange={(e) => handleNewValInputChange(dim.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleAddValue(dim.id)
+                        }
+                      }}
+                      disabled={disabled}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAddValue(dim.id)}
+                      disabled={disabled || !dim.newValInput.trim()}
+                    >
+                      <Plus size={14} /> Añadir
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        )}
+          )
+        })}
       </div>
 
       {/* Bulk Actions & Count Bar */}
@@ -864,7 +1059,7 @@ export function VariantMatrixBuilder({
             size="sm"
             onClick={handleRegenerateSkus}
             disabled={disabled || rows.length === 0}
-            title="Regenera SKUs con el formato [BASE]-[TALLA]"
+            title="Regenera SKUs con la combinación de dimensiones"
           >
             <RefreshCw size={13} /> Regenerar SKUs
           </Button>
@@ -875,29 +1070,81 @@ export function VariantMatrixBuilder({
       <div className="ecu-matrix-table-wrap">
         {rows.length === 0 ? (
           <div className="ecu-matrix-empty">
-            No hay variantes activas. Selecciona al menos un valor de la escala para generar filas.
+            No hay variantes activas. Selecciona al menos un valor en cada dimensión para generar combinaciones.
           </div>
         ) : (
           <table className="ecu-matrix-table">
             <thead>
               <tr>
-                <th style={{ width: 40 }}>#</th>
-                <th style={{ width: 140 }}>Variación</th>
+                <th style={{ width: 36 }}>#</th>
+                <th style={{ width: 70, textAlign: 'center' }}>Foto</th>
+                <th style={{ width: 180 }}>Variación</th>
                 <th style={{ width: 180 }}>Título Variante</th>
                 <th style={{ width: 170 }}>SKU (Obligatorio)</th>
-                <th style={{ width: 140 }}>Cód. Barras (EAN)</th>
+                <th style={{ width: 130 }}>Cód. Barras (EAN)</th>
                 <th style={{ width: 110 }}>Precio Base ($)</th>
-                <th style={{ width: 100 }}>Stock Inicial</th>
-                <th style={{ width: 48, textAlign: 'center' }}></th>
+                <th style={{ width: 95 }}>Stock Inicial</th>
+                <th style={{ width: 44, textAlign: 'center' }}></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, idx) => (
                 <tr key={row.id}>
                   <td style={{ color: 'var(--glb-muted)' }}>{idx + 1}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    {row.stagedImagePreview ? (
+                      <div className="ecu-var-img-preview" title="Foto de la variante">
+                        <img src={row.stagedImagePreview} alt={row.variantTitle} />
+                        <button
+                          type="button"
+                          className="ecu-var-img-remove"
+                          title="Quitar foto"
+                          onClick={() => handleRemoveRowImage(row.id)}
+                          disabled={disabled}
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="ecu-var-img-btn" title="Adjuntar foto de esta variante">
+                        <Camera size={13} />
+                        <span>Foto</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          disabled={disabled}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              handleRowImageSelect(row.id, file)
+                            }
+                            e.target.value = ''
+                          }}
+                        />
+                      </label>
+                    )}
+                  </td>
                   <td>
-                    <strong>{row.dim1Value}</strong>
-                    {row.dim2Value && <span style={{ color: 'var(--glb-muted)' }}> / {row.dim2Value}</span>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      {Object.entries(row.dimensionValues || {}).map(([dimName, val], i, arr) => {
+                        const isColor = isColorDimension(dimName)
+                        const hex = colorHexMap[val]
+                        return (
+                          <span key={dimName} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                            {(isColor || hex) && (
+                              <span
+                                className="ecu-color-swatch-dot"
+                                style={{ backgroundColor: hex || '#94a3b8' }}
+                                title={val}
+                              />
+                            )}
+                            <strong>{val}</strong>
+                            {i < arr.length - 1 && <span style={{ color: 'var(--glb-muted)' }}>/</span>}
+                          </span>
+                        )
+                      })}
+                    </div>
                   </td>
                   <td>
                     <input

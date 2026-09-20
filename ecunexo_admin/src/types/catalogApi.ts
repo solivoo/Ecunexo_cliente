@@ -74,6 +74,7 @@ export type CatalogItemVariantSummaryDto = {
   basePrice: number | null
   customAttributesJson: string
   status: CatalogItemStatus
+  mainImageThumbUrl?: string | null
 }
 
 export type CatalogItemDetailDto = {
@@ -92,6 +93,7 @@ export type CatalogItemDetailDto = {
   images: CatalogItemImageDto[]
   isMatrixParent?: boolean
   parentId?: string | null
+  parentName?: string | null
   variantDimensionsJson?: string | null
   variants?: CatalogItemVariantSummaryDto[] | null
 }
@@ -163,4 +165,20 @@ export type CreateCatalogItemMatrixResponseDto = {
   parentItemId: string
   createdVariantsCount: number
   variantItemIds: string[]
+}
+
+export type AddCatalogItemVariantBody = {
+  variantTitle: string
+  sku: string
+  basePrice?: number | null
+  customAttributesJson?: string | null
+  initialStock?: number | null
+  initialStockWarehouseId?: string | null
+}
+
+export type AddCatalogItemVariantResponseDto = {
+  variantItemId: string
+  parentItemId: string
+  sku: string
+  name: string
 }

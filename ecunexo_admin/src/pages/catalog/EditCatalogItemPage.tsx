@@ -18,6 +18,8 @@ import {
 } from '@/lib/catalogAttributes'
 import { CatalogExtraAttributeFields } from '@/pages/catalog/CatalogExtraAttributeFields'
 import { CatalogItemImageGallery } from '@/pages/catalog/CatalogItemImageGallery'
+import { EditCatalogItemVariantsSection } from '@/pages/catalog/EditCatalogItemVariantsSection'
+import { ArrowLeft, Layers } from 'lucide-react'
 import { readApiError } from '@/lib/readApiError'
 import { getCatalogItem, listCatalogCategories, softDeleteCatalogItem, updateCatalogItem } from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
@@ -255,12 +257,24 @@ export function EditCatalogItemPage() {
           }
           badge={
             item ? (
-              <StatusBadge
-                tone={Number(status) === CatalogItemStatus.Active ? 'success' : 'neutral'}
-                withDot={Number(status) === CatalogItemStatus.Active}
-              >
-                {Number(status) === CatalogItemStatus.Active ? 'Activo' : 'Inactivo'}
-              </StatusBadge>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                {item.isMatrixParent && (
+                  <StatusBadge tone="primary" withDot>
+                    Variantes ({item.variants?.length ?? 0})
+                  </StatusBadge>
+                )}
+                {item.parentId && (
+                  <StatusBadge tone="neutral">
+                    Variante Física
+                  </StatusBadge>
+                )}
+                <StatusBadge
+                  tone={Number(status) === CatalogItemStatus.Active ? 'success' : 'neutral'}
+                  withDot={Number(status) === CatalogItemStatus.Active}
+                >
+                  {Number(status) === CatalogItemStatus.Active ? 'Activo' : 'Inactivo'}
+                </StatusBadge>
+              </div>
             ) : undefined
           }
           actions={
@@ -280,6 +294,101 @@ export function EditCatalogItemPage() {
           </SectionCard>
         ) : (
           <>
+            {/* Banner contextual si es una variante individual (hijo) */}
+            {item?.parentId && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.25rem',
+                  borderRadius: '0.75rem',
+                  border: '1px solid color-mix(in srgb, var(--shell-primary, #4f46e5) 25%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
+                  backgroundColor: 'color-mix(in srgb, var(--shell-primary, #4f46e5) 6%, var(--glb-surface, transparent))',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      backgroundColor: 'color-mix(in srgb, var(--shell-primary, #4f46e5) 15%, transparent)',
+                      color: 'var(--shell-primary, #4f46e5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Layers size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>Variante Física Individual</span>
+                      <StatusBadge tone="primary">Hijo</StatusBadge>
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--glb-muted, #64748b)', marginTop: '0.125rem' }}>
+                      Pertenece al ítem principal:{' '}
+                      <strong style={{ color: 'var(--glb-text, #1e293b)' }}>«{item.parentName || 'Ítem Principal'}»</strong>
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/catalogo/items/${item.parentId}`)}
+                >
+                  <ArrowLeft size={14} style={{ marginRight: '0.375rem' }} />
+                  Ver Ítem Principal
+                </Button>
+              </div>
+            )}
+
+            {/* Banner informativo si es un producto matriz (padre) */}
+            {item?.isMatrixParent && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.875rem',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.25rem',
+                  borderRadius: '0.75rem',
+                  border: '1px solid color-mix(in srgb, #3b82f6 25%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
+                  backgroundColor: 'color-mix(in srgb, #3b82f6 6%, var(--glb-surface, transparent))',
+                }}
+              >
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '50%',
+                    backgroundColor: 'color-mix(in srgb, #3b82f6 15%, transparent)',
+                    color: '#3b82f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Layers size={20} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
+                    Ítem con Variantes (Tallas / Colores)
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--glb-muted, #64748b)', marginTop: '0.125rem' }}>
+                    Este ítem agrupa la vitrina comercial. Las variantes gestionan el inventario independiente, fotos, códigos de barras y ventas en la sección inferior.
+                  </div>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={(e) => void onSubmit(e)} noValidate>
             <SectionCard
               title="Ficha del Ítem"
@@ -354,14 +463,20 @@ export function EditCatalogItemPage() {
                 <div className="ecu-companies-form__field">
                   <TextBox
                     id="ei-sku"
-                    label={Number(kind) === CatalogItemKind.Physical ? 'Código SKU (obligatorio)' : 'Código SKU (opcional)'}
+                    label={
+                      item?.isMatrixParent
+                        ? 'Código Modelo / Prefijo SKU (obligatorio)'
+                        : Number(kind) === CatalogItemKind.Physical
+                          ? 'Código SKU (obligatorio)'
+                          : 'Código SKU (opcional)'
+                    }
                     labelPosition="outlined"
                     variant="outline"
                     value={sku}
                     onChange={(e: ChangeEvent<HTMLInputElement>) =>
                       setSku(e.target.value.toUpperCase())
                     }
-                    required={Number(kind) === CatalogItemKind.Physical}
+                    required={Number(kind) === CatalogItemKind.Physical || Boolean(item?.isMatrixParent)}
                     disabled={busy}
                     fullWidth
                   />
@@ -369,7 +484,7 @@ export function EditCatalogItemPage() {
                 <div className="ecu-companies-form__field">
                   <TextBox
                     id="ei-price"
-                    label="Precio base"
+                    label={item?.isMatrixParent ? 'Precio base de referencia' : 'Precio base'}
                     labelPosition="outlined"
                     variant="outline"
                     value={basePrice}
@@ -432,6 +547,18 @@ export function EditCatalogItemPage() {
               </div>
             </SectionCard>
           </form>
+
+          {tenantId && item?.isMatrixParent && (
+            <EditCatalogItemVariantsSection
+              tenantId={tenantId}
+              parentItem={item}
+              canEdit={canEdit}
+              onRefreshRequired={async () => {
+                const fresh = await getCatalogItem(tenantId, item.id)
+                setItem(fresh)
+              }}
+            />
+          )}
 
           {tenantId && item && (
             <div className="mt-6">

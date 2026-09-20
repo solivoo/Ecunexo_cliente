@@ -48,6 +48,7 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
         _db.CatalogItems.AsNoTracking()
             .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
             .Include(i => i.Variants.Where(v => v.DeletedAt == null))
+                .ThenInclude(v => v.Images.OrderBy(img => img.DisplayOrder))
             .FirstOrDefaultAsync(
                 i => i.TenantId == tenantId && i.Id == itemId && i.DeletedAt == null,
                 ct);
@@ -56,6 +57,7 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
         _db.CatalogItems
             .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
             .Include(i => i.Variants.Where(v => v.DeletedAt == null))
+                .ThenInclude(v => v.Images.OrderBy(img => img.DisplayOrder))
             .FirstOrDefaultAsync(
                 i => i.TenantId == tenantId && i.Id == itemId && i.DeletedAt == null,
                 ct);

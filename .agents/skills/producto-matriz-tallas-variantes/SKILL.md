@@ -44,7 +44,7 @@ Cada rubro comercial maneja formas distintas de representar sus dimensiones:
 
 ### Invariantes de Plantillas:
 1. **Plantillas del Sistema (`IsSystemDefault = true`):**
-   - Se precargan automáticamente en el primer acceso del tenant (`Medias / Calcetines`, `Ropa Adulto`, `Calzado Adulto`, `Pantalones / Jeans`, `Ropa Bebé / Niños`, `Colores Básicos`).
+   - Se precargan automáticamente en el primer acceso del tenant (`Medias / Calcetines (Tallas)`, `Tipo de Caña / Altura (Calcetines)`, `Ropa Adulto`, `Largo de Manga (Camisas)`, `Calzado Adulto`, `Pantalones / Jeans`, `Colores Básicos`).
    - Son **inmutables** (`catalog.variant_template.system.immutable`) y **no eliminables** (`catalog.variant_template.system.cannot_delete`).
 2. **Plantillas Personalizadas del Tenant (`IsSystemDefault = false`):**
    - El usuario puede crearlas desde el configurador o guardar una escala modificada.
@@ -52,19 +52,24 @@ Cada rubro comercial maneja formas distintas de representar sus dimensiones:
 
 ---
 
-## 3. Generación Cartesiana & Reglas de Negocio
+## 3. Generación Cartesiana Multidimensional (N-Dimensiones) & Sinergia con Categorías
 
-El constructor de matrices (`VariantMatrixBuilder.tsx`) opera reactivamente:
-1. **Dimensión 1 (Principal):** Escala de tallas o medidas.
-2. **Dimensión 2 (Opcional):** Escala complementaria (ej. Color).
-3. **Producto Cartesiano:**
-   - Con 1 dimensión: genera $N$ filas de variantes correspondientes a los valores activos.
-   - Con 2 dimensiones: genera $N \times M$ combinaciones (ej. 3 tallas $\times$ 2 colores = 6 variantes).
-4. **Validación de SKUs:**
-   - Todo ítem físico debe tener SKU no vacío.
-   - Unicidad estricta entre todos los elementos del lote enviado.
-   - Unicidad contra todos los SKUs existentes en la base de datos del tenant (`SkuExistsIgnoreCaseAsync`).
-   - El código de modelo del padre (`ModelCode`) no puede duplicar un SKU de ítem físico existente.
+El constructor de variantes ([`VariantMatrixBuilder.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/catalog/VariantMatrixBuilder.tsx)) opera de forma completamente dinámica:
+1. **Soporte para N-Dimensiones Arbitrarias:**
+   - Permite agregar hasta 4 dimensiones dinámicas (`+ Añadir Dimensión`) para cubrir cualquier rubro:
+     * Calcetería: `Talla` × `Caña / Altura` × `Color`.
+     * Confección: `Talla` × `Largo de Manga` × `Color`.
+     * Sastrería/Pantalones: `Cintura` × `Largo Inseam` × `Color`.
+2. **Producto Cartesiano Dinámico:**
+   - Multiplica iterativamente los valores activos de cada dimensión:
+     $$D_1 \times D_2 \times \dots \times D_n$$
+   - Cada combinación genera un SKU normalizado: `[PREFIJO]-[SAN(D1)]-[SAN(D2)]-[SAN(D3)]`.
+3. **Fotografía / Imagen Independiente por Variante:**
+   - Cada fila física mantiene su propia miniatura y carga de archivo, preservando la apariencia real de cada combinación.
+4. **Sinergia con Atributos de Categoría (`attributeSchemaJson`):**
+   - **Atributos de Categoría:** Modelan datos comerciales globales de la familia (ej. `Material`, `Género`, `Temporada`, `Marca`).
+   - **Exclusión Dinámica Inteligente:** Cuando un ítem activa variantes, cualquier campo de la categoría cuyo nombre o clave coincida con las dimensiones configuradas en la matriz se excluye automáticamente del formulario del ítem principal. Así se evita exigir un color o talla única en el padre, dejando que cada variante gobierne sus valores independientes.
+   - **Atributos No Variantes:** Permanecen en el formulario del ítem principal y aplican a toda la familia.
 
 ---
 

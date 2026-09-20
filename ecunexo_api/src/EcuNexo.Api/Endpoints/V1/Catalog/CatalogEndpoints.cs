@@ -7,6 +7,7 @@ using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItemMatrix;
+using EcuNexo.Business.Catalog.Commands.AddCatalogItemVariant;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
 using EcuNexo.Business.Catalog.Commands.CreateVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.DeleteCatalogItemImage;
@@ -64,6 +65,8 @@ public static class CatalogEndpoints
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
         items.MapPost("/matrix", CreateItemMatrixAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+        items.MapPost("/{itemId:guid}/variants", AddItemVariantAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.create", "catalog.item.update"));
         items.MapGet("/", ListItemsAsync)
             .AddEndpointFilter(
                 PermissionFilters.RequireAny("catalog.item.read", "catalog.product.read"));
@@ -225,6 +228,38 @@ public static class CatalogEndpoints
         var value = result.Value!;
         return Results.Created(
             $"/api/v1/tenants/{tenantId}/catalog/items/{value.ParentItemId}",
+            value);
+    }
+
+    private static async Task<IResult> AddItemVariantAsync(
+        Guid tenantId,
+        Guid itemId,
+        AddCatalogItemVariantRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var command = new AddCatalogItemVariantCommand(
+            tenantId,
+            itemId,
+            body.VariantTitle,
+            body.Sku,
+            body.BasePrice,
+            body.CustomAttributesJson,
+            body.InitialStock,
+            body.InitialStockWarehouseId);
+
+        var result = await sender
+            .SendAsync<AddCatalogItemVariantCommand, AddCatalogItemVariantResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        if (!result.IsSuccess)
+        {
+            return result.ToHttpResult();
+        }
+
+        var value = result.Value!;
+        return Results.Created(
+            $"/api/v1/tenants/{tenantId}/catalog/items/{value.VariantItemId}",
             value);
     }
 

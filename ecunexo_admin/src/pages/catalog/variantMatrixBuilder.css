@@ -59,9 +59,10 @@
   gap: 1rem;
 }
 
-@media (min-width: 900px) {
-  .ecu-matrix-builder__dimensions--dual {
-    grid-template-columns: 1fr 1fr;
+@media (min-width: 850px) {
+  .ecu-matrix-builder__dimensions--dual,
+  .ecu-matrix-builder__dimensions--grid {
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   }
 }
 
@@ -333,3 +334,83 @@ html.sf-dark-mode .ecu-matrix-table input[type="number"] {
   border-color: rgba(255, 255, 255, 0.12);
   color: #f1f5f9;
 }
+
+/* Variant Images & Color Swatches */
+.ecu-var-img-preview {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--glb-border, #e2e8f0);
+  display: inline-block;
+}
+
+.ecu-var-img-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ecu-var-img-remove {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 16px;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: background 0.15s ease;
+}
+
+.ecu-var-img-remove:hover {
+  background: #ef4444;
+}
+
+.ecu-var-img-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border: 1px dashed var(--glb-border, #cbd5e1);
+  background: var(--glb-surface-variant, rgba(0, 0, 0, 0.02));
+  color: var(--glb-muted, #64748b);
+  font-size: 0.725rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ecu-var-img-btn:hover {
+  border-color: var(--shell-primary, #4f46e5);
+  color: var(--shell-primary, #4f46e5);
+  background: rgba(79, 70, 229, 0.04);
+}
+
+.ecu-color-swatch-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.ecu-matrix-color-add-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+

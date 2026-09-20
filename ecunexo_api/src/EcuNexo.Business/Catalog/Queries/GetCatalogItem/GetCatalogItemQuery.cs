@@ -22,7 +22,8 @@ public sealed record CatalogItemDetailResponse(
     bool IsMatrixParent = false,
     Guid? ParentId = null,
     string? VariantDimensionsJson = null,
-    IReadOnlyList<CatalogItemVariantDto>? Variants = null);
+    IReadOnlyList<CatalogItemVariantDto>? Variants = null,
+    string? ParentName = null);
 
 public sealed record CatalogItemVariantDto(
     Guid Id,
@@ -30,4 +31,5 @@ public sealed record CatalogItemVariantDto(
     string? Sku,
     decimal? BasePrice,
     string CustomAttributesJson,
-    CatalogItemStatus Status);
+    CatalogItemStatus Status,
+    string? MainImageThumbUrl = null);

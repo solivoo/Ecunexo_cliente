@@ -66,5 +66,34 @@ test.describe('Catálogo UI — Productos y Categorías', () => {
     await expect(page.getByText(/Sin fotografías anexadas todavía/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /Añadir Fotos/i })).toBeVisible()
   })
+
+  test('Nuevo Ítem: activa sección de Variantes con selector de color y foto por variante', async ({ page }) => {
+    const session = await readPersistedSession(page)
+    test.skip(!hasRoute(session.routes, '/catalogo'), 'Este plan no incluye Catálogo.')
+
+    await page.goto('/catalogo/items/nuevo')
+    await expect(page.locator('.app-shell')).toBeVisible()
+
+    // Cambiar a producto físico
+    await page.selectOption('#ci-kind', '0')
+
+    // Verificar sección Variantes
+    await expect(page.getByText('¿Tiene variantes (tallas, colores, etc.)?')).toBeVisible()
+    await page.locator('#ci-has-variants').check()
+
+    // Constructor de Variantes
+    await expect(page.locator('.ecu-matrix-builder')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Variantes' })).toBeVisible()
+
+    // Añadir segunda dimensión (Color)
+    const addColorBtn = page.getByRole('button', { name: /Añadir Color/i })
+    if (await addColorBtn.isVisible()) {
+      await addColorBtn.click()
+      await expect(page.locator('#mat-color-picker-2')).toBeVisible()
+    }
+
+    // Columna de Foto en la tabla de variantes
+    await expect(page.locator('.ecu-matrix-table th', { hasText: 'Foto' })).toBeVisible()
+  })
 })
 

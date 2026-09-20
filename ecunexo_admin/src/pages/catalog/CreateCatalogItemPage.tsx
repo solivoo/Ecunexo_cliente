@@ -30,9 +30,11 @@ import {
   CatalogItemKind,
   type CatalogAttributeField,
   type CategoryListItemDto,
-  type CreateVariantChildPayload,
 } from '@/types/catalogApi'
-import { VariantMatrixBuilder } from '@/pages/catalog/VariantMatrixBuilder'
+import {
+  VariantMatrixBuilder,
+  type MatrixVariantPayloadWithImage,
+} from '@/pages/catalog/VariantMatrixBuilder'
 
 export function CreateCatalogItemPage() {
   const toast = useToast()
@@ -47,12 +49,14 @@ export function CreateCatalogItemPage() {
   const [kind, setKind] = useState(String(CatalogItemKind.Service))
   const [hasVariants, setHasVariants] = useState(false)
   const [matrixData, setMatrixData] = useState<{
-    variants: CreateVariantChildPayload[]
+    variants: MatrixVariantPayloadWithImage[]
     variantDimensionsJson: string
+    dimensionNames: string[]
     isValid: boolean
   }>({
     variants: [],
     variantDimensionsJson: '',
+    dimensionNames: [],
     isValid: false,
   })
   const [name, setName] = useState('')
@@ -83,15 +87,22 @@ export function CreateCatalogItemPage() {
     return parseAttributeSchema(category?.attributeSchemaJson)
   }, [categories, categoryId])
 
-  // Si tiene variantes activas, las dimensiones de talla y color se gestionan en las variantes
-  // evitando duplicar campos y exigencias obligatorias en el producto padre.
+  // Si tiene variantes activas, las dimensiones configuradas en la matriz
+  // se gestionan en las variantes físicas hijas, evitando duplicar campos y
+  // exigencias obligatorias en el producto padre.
   const effectiveSchemaFields = useMemo<CatalogAttributeField[]>(() => {
     if (!hasVariants) return schemaFields
+    const activeDimKeys = (matrixData.dimensionNames || []).map((n) => n.toLowerCase().trim())
     return schemaFields.filter((f) => {
       const k = f.key.toLowerCase().trim()
-      return !['talla', 'tallas', 'size', 'color', 'colores'].includes(k)
+      const label = (f.label || '').toLowerCase().trim()
+      return (
+        !activeDimKeys.includes(k) &&
+        !activeDimKeys.includes(label) &&
+        !['talla', 'tallas', 'size', 'color', 'colores'].includes(k)
+      )
     })
-  }, [hasVariants, schemaFields])
+  }, [hasVariants, matrixData.dimensionNames, schemaFields])
 
   useEffect(() => {
     if (!tenantId || !canCreate) return
@@ -174,7 +185,7 @@ export function CreateCatalogItemPage() {
 
         if (hasVariants && kindNum === CatalogItemKind.Physical) {
           if (!matrixData.isValid || matrixData.variants.length === 0) {
-            throw new Error('Debes configurar al menos una variante con SKU para el producto matriz.')
+            throw new Error('Debes configurar al menos una variante con SKU.')
           }
 
           const createdMatrix = await createCatalogItemMatrix(tenantId, {
@@ -189,6 +200,28 @@ export function CreateCatalogItemPage() {
           })
 
           targetItemId = createdMatrix.parentItemId
+
+          // Subir fotos específicas por cada variante física si fueron seleccionadas
+          if (createdMatrix.variantItemIds && createdMatrix.variantItemIds.length > 0) {
+            for (let i = 0; i < matrixData.variants.length; i++) {
+              const v = matrixData.variants[i]
+              const variantItemId = createdMatrix.variantItemIds[i]
+              if (v.stagedImage && variantItemId) {
+                setUploadStatus(`Subiendo imagen de variante «${v.variantTitle}»...`)
+                try {
+                  await uploadCatalogItemImage(
+                    tenantId,
+                    variantItemId,
+                    v.stagedImage,
+                    v.variantTitle,
+                    true
+                  )
+                } catch (imgErr) {
+                  console.error('Error al subir imagen de variante', imgErr)
+                }
+              }
+            }
+          }
         } else {
           const created = await createCatalogItem(tenantId, {
             kind: kindNum,
@@ -228,7 +261,7 @@ export function CreateCatalogItemPage() {
           }
 
           toast.show({
-            title: hasVariants ? 'Producto Matriz creado con imágenes' : 'Ítem creado con imágenes',
+            title: hasVariants ? 'Ítem con variantes creado con imágenes' : 'Ítem creado con imágenes',
             message: `«${name.trim()}» se registró con ${uploadedCount} ${
               uploadedCount === 1 ? 'fotografía' : 'fotografías'
             }${hasVariants ? ` y ${matrixData.variants.length} variantes.` : '.'}`,
@@ -236,7 +269,7 @@ export function CreateCatalogItemPage() {
           })
         } else {
           toast.show({
-            title: hasVariants ? 'Producto Matriz creado' : 'Ítem creado',
+            title: hasVariants ? 'Ítem con variantes creado' : 'Ítem creado',
             message: hasVariants
               ? `«${name.trim()}» se registró con ${matrixData.variants.length} variantes físicas.`
               : `«${name.trim()}» ya está en el catálogo.`,
@@ -438,8 +471,8 @@ export function CreateCatalogItemPage() {
           {kind === String(CatalogItemKind.Physical) && (
             <div style={{ marginTop: '1.25rem' }}>
               <SectionCard
-                title="Variantes y Tallas (Producto Matriz)"
-                subtitle="Activa esta opción si el producto tiene tallas (ej. 35-38, M, 38), colores o combinaciones múltiples con stock independiente"
+                title="Variantes"
+                subtitle="Activa esta opción si el producto tiene variantes (tallas, colores, fotos individuales, etc.) con stock independiente"
                 action={
                   <label
                     htmlFor="ci-has-variants"
@@ -465,7 +498,7 @@ export function CreateCatalogItemPage() {
                       disabled={busy}
                       style={{ cursor: 'pointer', width: 16, height: 16 }}
                     />
-                    <span>¿Tiene tallas o colores?</span>
+                    <span>¿Tiene variantes (tallas, colores, etc.)?</span>
                   </label>
                 }
               >
@@ -481,8 +514,8 @@ export function CreateCatalogItemPage() {
                 ) : (
                   <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.875rem' }}>
                     Producto simple estándar (un solo ítem con su propio SKU directo). Si este producto
-                    es una prenda, calzado, medias u otro artículo con múltiples tallas o colores,
-                    marca la casilla superior <strong>«¿Tiene tallas o colores?»</strong>.
+                    tiene múltiples variantes (tallas, colores, fotos individuales),
+                    marca la casilla superior <strong>«¿Tiene variantes (tallas, colores, etc.)?»</strong>.
                   </p>
                 )}
               </SectionCard>
@@ -514,7 +547,7 @@ export function CreateCatalogItemPage() {
               }}
             >
               <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-                {uploadStatus || (hasVariants ? 'Guardar Producto Matriz' : 'Guardar Ítem')}
+                {uploadStatus || (hasVariants ? 'Guardar con Variantes' : 'Guardar Ítem')}
               </Button>
               <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
                 Cancelar

@@ -40,14 +40,28 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
 
         var variants = item.Variants
             .Where(v => v.DeletedAt == null)
-            .Select(v => new CatalogItemVariantDto(
-                v.Id,
-                v.Name,
-                v.Sku,
-                v.BasePrice,
-                v.CustomAttributesJson,
-                v.Status))
+            .Select(v =>
+            {
+                var mainImg = v.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault(i => i.IsMain)
+                    ?? v.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault();
+                return new CatalogItemVariantDto(
+                    v.Id,
+                    v.Name,
+                    v.Sku,
+                    v.BasePrice,
+                    v.CustomAttributesJson,
+                    v.Status,
+                    mainImg?.ThumbUrl ?? mainImg?.MediumUrl ?? mainImg?.LargeUrl);
+            })
             .ToList();
+
+        string? parentName = null;
+        if (item.ParentId is { } parentId)
+        {
+            var parent = await _items.GetActiveByIdAsync(query.TenantId, parentId, ct)
+                .ConfigureAwait(false);
+            parentName = parent?.Name;
+        }
 
         return Result.Success(
             new CatalogItemDetailResponse(
@@ -67,6 +81,7 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 item.IsMatrixParent,
                 item.ParentId,
                 item.VariantDimensionsJson,
-                variants.Count > 0 ? variants : null));
+                variants.Count > 0 ? variants : null,
+                parentName));
     }
 }

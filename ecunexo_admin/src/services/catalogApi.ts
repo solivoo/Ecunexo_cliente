@@ -12,6 +12,8 @@ import type {
   CreateCategoryResponseDto,
   UpdateCatalogItemBody,
   UpdateCategoryBody,
+  AddCatalogItemVariantBody,
+  AddCatalogItemVariantResponseDto,
 } from '@/types/catalogApi'
 
 export async function listCatalogCategories(tenantId: string): Promise<CategoryListItemDto[]> {
@@ -220,3 +222,16 @@ export async function deleteVariantDimensionTemplate(
     `/api/v1/tenants/${tenantId}/catalog/variant-templates/${templateId}`
   )
 }
+
+export async function addCatalogItemVariant(
+  tenantId: string,
+  parentId: string,
+  body: AddCatalogItemVariantBody
+): Promise<AddCatalogItemVariantResponseDto> {
+  const { data } = await api.post<AddCatalogItemVariantResponseDto>(
+    `/api/v1/tenants/${tenantId}/catalog/items/${parentId}/variants`,
+    body
+  )
+  return data
+}
+

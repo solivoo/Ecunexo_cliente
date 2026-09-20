@@ -160,8 +160,7 @@ export function CatalogItemsGrid({
               >
                 <Layers size={13} />
                 <span>
-                  Matriz · {row.variantCount ?? 0}{' '}
-                  {row.variantCount === 1 ? 'talla/variante' : 'tallas/variantes'}
+                  Variantes ({row.variantCount ?? 0})
                 </span>
               </span>
             ) : null}
@@ -322,8 +321,7 @@ export function CatalogItemsGrid({
                 >
                   <Layers size={13} />
                   <span>
-                    Matriz ({row.variantCount ?? 0}{' '}
-                    {row.variantCount === 1 ? 'talla/variante' : 'tallas/variantes'})
+                    Variantes ({row.variantCount ?? 0})
                   </span>
                 </span>
               </div>

@@ -85,4 +85,29 @@ test.describe('Catálogo UI — Producto Matriz y Configurador de Variantes', ()
     await expect(page.getByRole('button', { name: /Copiar precio base/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /Regenerar SKUs/i })).toBeVisible()
   })
+
+  test('Visualiza ficha de ítem y reconoce componentes de producto matriz o variantes', async ({
+    page,
+  }) => {
+    const session = await readPersistedSession(page)
+    test.skip(!hasRoute(session.routes, '/catalogo'), 'Este plan no incluye Catálogo.')
+
+    await page.goto('/catalogo/items')
+    await expect(page.locator('.app-shell')).toBeVisible()
+
+    await expect(page.getByRole('heading', { name: /Ítems de Catálogo/i })).toBeVisible({
+      timeout: 20_000,
+    })
+
+    // Si existen filas en el catálogo, hacer click en la primera fila para inspeccionar edición
+    const firstRow = page.locator('.glb-datagrid__row, .glb-datagrid__card').first()
+    if (await firstRow.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await firstRow.click()
+      await expect(page.getByRole('heading', { name: /Ficha del Ítem/i })).toBeVisible({
+        timeout: 10_000,
+      })
+      await expect(page.locator('#ei-name')).toBeVisible()
+    }
+  })
 })
+
