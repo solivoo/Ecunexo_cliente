@@ -180,4 +180,116 @@ public sealed class ProductMatrixItemTests
 
         grandchildResult.IsFailure.Should().BeTrue();
     }
+
+    [Fact(DisplayName = "CreateVariantChild hereda precio del producto matriz y permite sobreescritura")]
+    public void CreateVariantChild_InheritsParentBasePrice_AndAllowsOverride()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var parent = CatalogItem.CreateMatrixParent(
+            Guid.CreateVersion7(),
+            tenantId,
+            CatalogItemKind.Physical,
+            "Camiseta",
+            null,
+            "CAM-01",
+            25.00m,
+            null,
+            "[{\"name\": \"Talla\", \"values\": [\"S\", \"XL\"]}]",
+            null,
+            CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        // Variante 1: hereda precio del padre
+        var child1 = CatalogItem.CreateVariantChild(
+            Guid.CreateVersion7(),
+            parent,
+            "S",
+            "CAM-01-0001",
+            basePrice: null,
+            customAttributesJson: null,
+            CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        child1.BasePrice.Should().Be(25.00m);
+
+        // Variante 2: sobreescribe precio por talla especial
+        var child2 = CatalogItem.CreateVariantChild(
+            Guid.CreateVersion7(),
+            parent,
+            "XL",
+            "CAM-01-0002",
+            basePrice: 28.50m,
+            customAttributesJson: null,
+            CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        child2.BasePrice.Should().Be(28.50m);
+    }
+
+    [Fact(DisplayName = "CreateVariantChild hereda atributos y descuentos del padre cuando el campo se llama igual")]
+    public void CreateVariantChild_InheritsParentCustomAttributesAndDiscounts_WhenChildHasAdditionalAttributes()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var parentAttributes = """{"material":"Algodon Peinado","descuento":10,"marca":"Nike"}""";
+        var parent = CatalogItem.CreateMatrixParent(
+            Guid.CreateVersion7(),
+            tenantId,
+            CatalogItemKind.Physical,
+            "Calcetines Nike",
+            null,
+            "NIK-001",
+            15.00m,
+            null,
+            "[{\"name\": \"Caña\", \"values\": [\"Corta\"]}]",
+            parentAttributes,
+            CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        // Variante hija agrega "actividad": "Running" sin sobreescribir descuento
+        var childAttributes = """{"actividad":"Running","cana":"Corta"}""";
+        var child = CatalogItem.CreateVariantChild(
+            Guid.CreateVersion7(),
+            parent,
+            "Caña corta",
+            "NIK-001-0001",
+            basePrice: null,
+            childAttributes,
+            CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        child.CustomAttributesJson.Should().Contain("\"material\":\"Algodon Peinado\"");
+        child.CustomAttributesJson.Should().Contain("\"descuento\":10");
+        child.CustomAttributesJson.Should().Contain("\"marca\":\"Nike\"");
+        child.CustomAttributesJson.Should().Contain("\"actividad\":\"Running\"");
+    }
+
+    [Fact(DisplayName = "CreateVariantChild sobreescribe descuento o atributo del padre si el campo se llama igual")]
+    public void CreateVariantChild_OverridesParentAttribute_WhenFieldNameMatches()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var parentAttributes = """{"material":"Algodon","descuento":10,"marca":"Adidas"}""";
+        var parent = CatalogItem.CreateMatrixParent(
+            Guid.CreateVersion7(),
+            tenantId,
+            CatalogItemKind.Physical,
+            "Calcetines Adidas",
+            null,
+            "ADI-001",
+            12.00m,
+            null,
+            "[{\"name\": \"Caña\", \"values\": [\"Larga\"]}]",
+            parentAttributes,
+            CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        // Variante define su propio descuento de 20 en lugar de 10
+        var childAttributes = """{"descuento":20,"actividad":"Skater"}""";
+        var child = CatalogItem.CreateVariantChild(
+            Guid.CreateVersion7(),
+            parent,
+            "Caña Larga",
+            "ADI-001-0002",
+            basePrice: null,
+            childAttributes,
+            CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        child.CustomAttributesJson.Should().Contain("\"descuento\":20");
+        child.CustomAttributesJson.Should().NotContain("\"descuento\":10");
+        child.CustomAttributesJson.Should().Contain("\"marca\":\"Adidas\"");
+        child.CustomAttributesJson.Should().Contain("\"actividad\":\"Skater\"");
+    }
 }

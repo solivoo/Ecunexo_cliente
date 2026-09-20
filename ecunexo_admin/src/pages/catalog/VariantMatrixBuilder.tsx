@@ -40,6 +40,7 @@ export type VariantRowState = {
   warehouseId: string
   stagedImage?: File | null
   stagedImagePreview?: string | null
+  secondaryAttributeValue?: string
 }
 
 export type MatrixVariantPayloadWithImage = CreateVariantChildPayload & {
@@ -209,6 +210,9 @@ export function VariantMatrixBuilder({
 
   // Global warehouse selection for bulk
   const [bulkWarehouseId, setBulkWarehouseId] = useState<string>('')
+
+  // SKU Generation Format: hierarchical sequential (e.g. NIK-001-0001) vs attribute slug (e.g. NIK-001-CANA-CORTA)
+  const [skuFormat, setSkuFormat] = useState<'hierarchical' | 'name'>('hierarchical')
 
   // Fetch templates and warehouses on mount
   useEffect(() => {
@@ -458,14 +462,17 @@ export function VariantMatrixBuilder({
     const combinations = cartesianProduct(arraysToMultiply)
 
     setRows((prev) => {
-      return combinations.map((comb) => {
+      return combinations.map((comb, combIdx) => {
         const id = comb.map(sanitizeSkuPart).join('_')
         const existing = prev.find((r) => r.id === id)
 
         const variationLabel = comb.join(' / ')
         const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
 
-        const generatedSku = `${prefix}-${comb.map(sanitizeSkuPart).join('-')}`
+        const identifier = String(combIdx + 1).padStart(4, '0')
+        const generatedSku = skuFormat === 'hierarchical'
+          ? `${prefix}-${identifier}`
+          : `${prefix}-${comb.map(sanitizeSkuPart).join('-')}`
 
         const dimensionValues: Record<string, string> = {}
         activeDims.forEach((dim, idx) => {
@@ -500,10 +507,11 @@ export function VariantMatrixBuilder({
           warehouseId: bulkWarehouseId,
           stagedImage: null,
           stagedImagePreview: null,
+          secondaryAttributeValue: '',
         }
       })
     })
-  }, [dimensions, baseSku, basePrice, baseName, bulkWarehouseId])
+  }, [dimensions, baseSku, basePrice, baseName, bulkWarehouseId, skuFormat])
 
   // Bulk actions
   const handleCopyBasePrice = useCallback(() => {
@@ -524,28 +532,33 @@ export function VariantMatrixBuilder({
     )
     toast.show({
       variant: 'success',
-      title: 'Precios actualizados',
-      message: `Se aplicó $${basePrice.trim()} a todas las variantes.`,
+      title: 'Precios sincronizados',
+      message: `Se aplicó y heredó el precio de $${basePrice.trim()} a todas las variantes.`,
     })
   }, [basePrice, toast])
 
-  const handleRegenerateSkus = useCallback(() => {
+  const handleRegenerateSkus = useCallback((format?: 'hierarchical' | 'name') => {
+    const targetFormat = format ?? skuFormat
     const prefix = sanitizeSkuPart(baseSku) || 'ITEM'
     setRows((prev) =>
-      prev.map((r) => {
+      prev.map((r, idx) => {
         const activeVals = Object.values(r.dimensionValues || {})
-        const sku = activeVals.length > 0
-          ? `${prefix}-${activeVals.map(sanitizeSkuPart).join('-')}`
-          : `${prefix}-${sanitizeSkuPart(r.variantTitle)}`
+        const sku = targetFormat === 'hierarchical'
+          ? `${prefix}-${String(idx + 1).padStart(4, '0')}`
+          : activeVals.length > 0
+            ? `${prefix}-${activeVals.map(sanitizeSkuPart).join('-')}`
+            : `${prefix}-${sanitizeSkuPart(r.variantTitle)}`
         return { ...r, sku, isManualSku: false }
       })
     )
     toast.show({
       variant: 'success',
       title: 'SKUs regenerados',
-      message: `Los códigos SKU se sincronizaron con el prefijo «${prefix}».`,
+      message: targetFormat === 'hierarchical'
+        ? `Se generaron los códigos jerárquicos secuenciales «${prefix}-0001», etc.`
+        : `Los códigos SKU se sincronizaron con los nombres de dimensión.`,
     })
-  }, [baseSku, toast])
+  }, [baseSku, skuFormat, toast])
 
   // Row field update
   const updateRow = useCallback((id: string, field: keyof VariantRowState, value: string) => {
@@ -732,11 +745,17 @@ export function VariantMatrixBuilder({
       const parsedPrice = r.basePrice.trim() ? Number(r.basePrice.replace(',', '.')) : null
       const parsedStock = r.initialStock.trim() ? Number(r.initialStock) : null
 
+      const customAttrs: Record<string, string> = {}
+      if (r.secondaryAttributeValue?.trim()) {
+        customAttrs['actividad'] = r.secondaryAttributeValue.trim()
+      }
+
       return {
         variantTitle: r.variantTitle.trim(),
         sku: r.sku.trim(),
         barcode: r.barcode.trim() || null,
         basePrice: parsedPrice != null && !Number.isNaN(parsedPrice) ? parsedPrice : null,
+        customAttributesJson: Object.keys(customAttrs).length > 0 ? JSON.stringify(customAttrs) : null,
         initialStock: parsedStock != null && !Number.isNaN(parsedStock) && parsedStock > 0 ? parsedStock : null,
         initialStockWarehouseId: r.warehouseId || (bulkWarehouseId || null),
         stagedImage: r.stagedImage,
@@ -1043,23 +1062,67 @@ export function VariantMatrixBuilder({
         </div>
 
         <div className="ecu-matrix-bulk-bar__actions">
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'var(--shell-surface-subtle, rgba(255,255,255,0.04))', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid var(--shell-border, rgba(255,255,255,0.08))' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>Formato SKU:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setSkuFormat('hierarchical')
+                handleRegenerateSkus('hierarchical')
+              }}
+              style={{
+                background: skuFormat === 'hierarchical' ? 'rgba(59,130,246,0.2)' : 'transparent',
+                color: skuFormat === 'hierarchical' ? 'var(--shell-primary, #60a5fa)' : 'var(--glb-muted)',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '0.2rem 0.4rem',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                fontWeight: skuFormat === 'hierarchical' ? 600 : 400,
+              }}
+              title="Formato jerárquico secuencial: PADRE-0001, PADRE-0002"
+            >
+              Jerárquico (0001)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSkuFormat('name')
+                handleRegenerateSkus('name')
+              }}
+              style={{
+                background: skuFormat === 'name' ? 'rgba(59,130,246,0.2)' : 'transparent',
+                color: skuFormat === 'name' ? 'var(--shell-primary, #60a5fa)' : 'var(--glb-muted)',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '0.2rem 0.4rem',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                fontWeight: skuFormat === 'name' ? 600 : 400,
+              }}
+              title="Formato por nombres de atributos: PADRE-CORTA-BLA"
+            >
+              Por Atributos
+            </button>
+          </div>
+
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleCopyBasePrice}
             disabled={disabled || !basePrice.trim() || rows.length === 0}
-            title="Aplica el precio base a todas las variantes"
+            title="Aplica y hereda el precio base a todas las variantes"
           >
-            <Copy size={13} /> Copiar precio base ({basePrice.trim() ? `$${basePrice.trim()}` : '$0.00'})
+            <Copy size={13} /> Heredar precio base ({basePrice.trim() ? `$${basePrice.trim()}` : '$0.00'})
           </Button>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleRegenerateSkus}
+            onClick={() => handleRegenerateSkus()}
             disabled={disabled || rows.length === 0}
-            title="Regenera SKUs con la combinación de dimensiones"
+            title="Regenera SKUs con el formato seleccionado"
           >
             <RefreshCw size={13} /> Regenerar SKUs
           </Button>
@@ -1078,11 +1141,12 @@ export function VariantMatrixBuilder({
               <tr>
                 <th style={{ width: 36 }}>#</th>
                 <th style={{ width: 70, textAlign: 'center' }}>Foto</th>
-                <th style={{ width: 180 }}>Variación</th>
-                <th style={{ width: 180 }}>Título Variante</th>
-                <th style={{ width: 170 }}>SKU (Obligatorio)</th>
-                <th style={{ width: 130 }}>Cód. Barras (EAN)</th>
-                <th style={{ width: 110 }}>Precio Base ($)</th>
+                <th style={{ width: 160 }}>Variación</th>
+                <th style={{ width: 160 }}>Título Variante</th>
+                <th style={{ width: 160 }}>SKU (Obligatorio)</th>
+                <th style={{ width: 140 }}>Actividad / Uso</th>
+                <th style={{ width: 120 }}>Cód. Barras</th>
+                <th style={{ width: 120 }}>Precio Base ($)</th>
                 <th style={{ width: 95 }}>Stock Inicial</th>
                 <th style={{ width: 44, textAlign: 'center' }}></th>
               </tr>
@@ -1098,22 +1162,21 @@ export function VariantMatrixBuilder({
                         <button
                           type="button"
                           className="ecu-var-img-remove"
-                          title="Quitar foto"
                           onClick={() => handleRemoveRowImage(row.id)}
                           disabled={disabled}
+                          title="Quitar foto"
                         >
-                          <X size={10} />
+                          ✕
                         </button>
                       </div>
                     ) : (
-                      <label className="ecu-var-img-btn" title="Adjuntar foto de esta variante">
-                        <Camera size={13} />
-                        <span>Foto</span>
+                      <label className="ecu-var-img-upload-btn" title="Subir foto de esta variante (.jpg/.png)">
+                        <Camera size={15} />
                         <input
                           type="file"
-                          accept="image/*"
-                          style={{ display: 'none' }}
+                          accept="image/jpeg,image/png,image/webp"
                           disabled={disabled}
+                          style={{ display: 'none' }}
                           onChange={(e) => {
                             const file = e.target.files?.[0]
                             if (file) {
@@ -1170,6 +1233,17 @@ export function VariantMatrixBuilder({
                   <td>
                     <input
                       type="text"
+                      value={row.secondaryAttributeValue ?? ''}
+                      onChange={(e) => updateRow(row.id, 'secondaryAttributeValue', e.target.value)}
+                      placeholder="Ej. Running, Skater..."
+                      disabled={disabled}
+                      style={{ fontSize: '0.82rem' }}
+                      title="Especificación o actividad para esta variante"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
                       value={row.barcode}
                       onChange={(e) => updateRow(row.id, 'barcode', e.target.value)}
                       placeholder="786..."
@@ -1177,15 +1251,24 @@ export function VariantMatrixBuilder({
                     />
                   </td>
                   <td>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={row.basePrice}
-                      onChange={(e) => updateRow(row.id, 'basePrice', e.target.value)}
-                      placeholder="0.00"
-                      disabled={disabled}
-                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={row.basePrice}
+                        onChange={(e) => {
+                          updateRow(row.id, 'basePrice', e.target.value)
+                        }}
+                        placeholder={basePrice.trim() ? `${basePrice.trim()}` : '0.00'}
+                        disabled={disabled}
+                      />
+                      {!row.isManualPrice && basePrice.trim() && (
+                        <span style={{ fontSize: '0.68rem', color: '#10b981', fontStyle: 'italic' }}>
+                          Heredado (${basePrice.trim()})
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <input

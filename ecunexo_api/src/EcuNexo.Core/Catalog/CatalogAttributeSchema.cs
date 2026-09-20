@@ -143,6 +143,62 @@ public static class CatalogAttributeSchema
         }
     }
 
+    /// <summary>
+    /// Fusiona los atributos del producto matriz padre con los de la variante hija.
+    /// Cualquier atributo o descuento del padre se hereda por defecto a la variante hija.
+    /// Si la variante hija define un atributo con el mismo nombre (insensible a mayúsculas),
+    /// el valor de la hija tiene precedencia (sobreescritura).
+    /// </summary>
+    public static string MergeAttributes(string? parentJson, string? childJson)
+    {
+        var dict = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(parentJson) && parentJson != EmptyObjectJson)
+        {
+            try
+            {
+                using var parentDoc = JsonDocument.Parse(parentJson);
+                if (parentDoc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in parentDoc.RootElement.EnumerateObject())
+                    {
+                        dict[prop.Name] = prop.Value.Clone();
+                    }
+                }
+            }
+            catch
+            {
+                // Ignorar JSON malformado
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(childJson) && childJson != EmptyObjectJson)
+        {
+            try
+            {
+                using var childDoc = JsonDocument.Parse(childJson);
+                if (childDoc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in childDoc.RootElement.EnumerateObject())
+                    {
+                        dict[prop.Name] = prop.Value.Clone();
+                    }
+                }
+            }
+            catch
+            {
+                // Ignorar JSON malformado
+            }
+        }
+
+        if (dict.Count == 0)
+        {
+            return EmptyObjectJson;
+        }
+
+        return JsonSerializer.Serialize(dict);
+    }
+
     public static Result ValidateAgainstSchema(string schemaJson, string attributesJson)
     {
         var schema = NormalizeSchema(schemaJson);

@@ -81,8 +81,16 @@ test.describe('Catálogo UI — Producto Matriz y Configurador de Variantes', ()
     const dualRowsCount = await matrixBuilder.locator('.ecu-matrix-table tbody tr').count()
     expect(dualRowsCount).toBeGreaterThan(1)
 
-    // Botones de acción masiva
-    await expect(page.getByRole('button', { name: /Copiar precio base/i })).toBeVisible()
+    // Columna de Actividad / Uso y entrada de especificación secundaria por variante
+    await expect(page.getByRole('columnheader', { name: /Actividad \/ Uso/i })).toBeVisible()
+    const activityInput = matrixBuilder.locator('tbody tr input[placeholder*="Running"]').first()
+    await expect(activityInput).toBeVisible()
+    await activityInput.fill('Running')
+    await expect(activityInput).toHaveValue('Running')
+
+    // Botones de formato y acción masiva
+    await expect(page.getByRole('button', { name: /Jerárquico \(0001\)/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /precio base/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /Regenerar SKUs/i })).toBeVisible()
   })
 

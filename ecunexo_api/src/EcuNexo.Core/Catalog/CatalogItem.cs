@@ -261,7 +261,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(priceResult.Error!);
         }
 
-        var attrs = CatalogAttributeSchema.NormalizeAttributes(customAttributesJson);
+        var mergedAttrsJson = CatalogAttributeSchema.MergeAttributes(parent.CustomAttributesJson, customAttributesJson);
+        var attrs = CatalogAttributeSchema.NormalizeAttributes(mergedAttrsJson);
         if (attrs.IsFailure)
         {
             return Result.Failure<CatalogItem>(attrs.Error!);
