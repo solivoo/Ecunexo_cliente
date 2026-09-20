@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.35.1`.
+* **Última Versión Publicada:** `v0.36.0`.
 * **Hitos Recientes Completados:**
+  - **Corrección de Eliminación de Atributos en PostgreSQL (`CatalogItemRepository.cs`):**
+    * **Resolución de Error 500 en Eliminación de Atributos:** Se corrigió `IsAttributeTemplateInUseAsync` para delegar la verificación en `GetInUseAttributeTemplateNamesAsync`, eliminando el uso inválido de `EF.Functions.ILike` sobre columnas `jsonb` (`custom_attributes_json` y `variant_dimensions_json`) que provocaba la excepción de PostgreSQL `42883: operator does not exist: jsonb ~~* unknown`.
+    * **Consistencia 100% UI y Backend:** La lógica de validación previa al borrado ahora utiliza exactamente la misma inspección que alimenta los badges "Sin Registros / Base" y "En Uso" en la interfaz (`/catalogo/atributos`).
+    * **Suite de Pruebas:** 392/392 tests unitarios en verde en `dotnet test` y compilación de frontend verificada con `npm run build`.
   - **Fábrica de Plantillas Jerárquicas de Producto y Arquetipos Multinivel (`ProductTemplate.cs`, `ProductTemplatesListPage.tsx`, `ProductTemplateBuilderPage.tsx`, `HierarchyTemplateTreeBuilder.tsx`):**
     * **Modelo de Dominio y Persistencia Eficiente:** Entidad `ProductTemplate` (`AggregateRoot<Guid>`) en `EcuNexo.Core/Catalog` con estructura de niveles almacenada en columna `jsonb` (`HierarchyTreeJson`) e indexada con método `gin` en PostgreSQL para consultas ultrarrápidas sin alterar el esquema relacional ante cualquier profundidad ($N$ niveles).
     * **Capa de Negocio CQRS y Validación:** Comandos `CreateProductTemplate`, `UpdateProductTemplate`, `DeleteProductTemplate` y queries `ListProductTemplates`, `GetProductTemplateById` con validadores FluentValidation, unicidad por nombre insensible a mayúsculas con `EF.Functions.ILike` y 11 tests unitarios nuevos (5 Core + 6 Business, total 392 tests en verde).

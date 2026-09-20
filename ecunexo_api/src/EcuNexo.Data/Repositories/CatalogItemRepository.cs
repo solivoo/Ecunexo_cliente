@@ -50,13 +50,8 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
         CancellationToken ct)
     {
         var trimmed = templateName.Trim();
-        var pattern = $"%\"{trimmed}\"%";
-        return await _db.CatalogItems.AsNoTracking()
-            .AnyAsync(i => i.TenantId == tenantId && i.DeletedAt == null &&
-                (EF.Functions.ILike(i.CustomAttributesJson, pattern) ||
-                 (i.VariantDimensionsJson != null && EF.Functions.ILike(i.VariantDimensionsJson, pattern))),
-                ct)
-            .ConfigureAwait(false);
+        var inUseNames = await GetInUseAttributeTemplateNamesAsync(tenantId, ct).ConfigureAwait(false);
+        return inUseNames.Contains(trimmed);
     }
 
     public async Task<HashSet<string>> GetInUseAttributeTemplateNamesAsync(
