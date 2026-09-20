@@ -21,8 +21,10 @@ export type VariantRowState = {
   dim2Value?: string
   variantTitle: string
   sku: string
+  isManualSku?: boolean
   barcode: string
   basePrice: string
+  isManualPrice?: boolean
   initialStock: string
   warehouseId: string
 }
@@ -158,17 +160,25 @@ export function VariantMatrixBuilder({
     }
   }, [tenantId])
 
+  // Helper para mostrar el tipo de escala en español legible
+  const formatDimTypeLabel = (type?: string) => {
+    const lower = (type || '').toLowerCase().trim()
+    if (lower === 'size' || lower === 'talla') return 'Tallas'
+    if (lower === 'color') return 'Colores'
+    return type || 'Personalizada'
+  }
+
   // Template options for selects
   const templateOptions1 = useMemo(() => {
     return [
-      ...templates.map((t) => ({ value: t.id, label: `${t.name} (${t.dimensionType})` })),
+      ...templates.map((t) => ({ value: t.id, label: `${t.name} (${formatDimTypeLabel(t.dimensionType)})` })),
       { value: 'custom', label: 'Personalizada (definir valores manualmente)' },
     ]
   }, [templates])
 
   const templateOptions2 = useMemo(() => {
     return [
-      ...templates.map((t) => ({ value: t.id, label: `${t.name} (${t.dimensionType})` })),
+      ...templates.map((t) => ({ value: t.id, label: `${t.name} (${formatDimTypeLabel(t.dimensionType)})` })),
       { value: 'custom', label: 'Personalizada (definir valores manualmente)' },
     ]
   }, [templates])
@@ -183,7 +193,9 @@ export function VariantMatrixBuilder({
         try {
           const parsed = JSON.parse(tpl.predefinedValuesJson) as string[]
           if (Array.isArray(parsed)) {
-            setDim1Name(tpl.dimensionType || 'Talla')
+            const rawType = (tpl.dimensionType || '').toLowerCase()
+            const dimLabel = rawType === 'size' ? 'Talla' : rawType === 'color' ? 'Color' : (tpl.dimensionType || 'Talla')
+            setDim1Name(dimLabel)
             setDim1Values(parsed)
             setActiveDim1Values(parsed)
           }
@@ -205,7 +217,9 @@ export function VariantMatrixBuilder({
         try {
           const parsed = JSON.parse(tpl.predefinedValuesJson) as string[]
           if (Array.isArray(parsed)) {
-            setDim2Name(tpl.dimensionType || 'Color')
+            const rawType = (tpl.dimensionType || '').toLowerCase()
+            const dimLabel = rawType === 'color' ? 'Color' : rawType === 'size' ? 'Talla' : (tpl.dimensionType || 'Color')
+            setDim2Name(dimLabel)
             setDim2Values(parsed)
             setActiveDim2Values(parsed)
           }
@@ -289,18 +303,26 @@ export function VariantMatrixBuilder({
         const id = comb.dim2 ? `${comb.dim1}_${comb.dim2}` : comb.dim1
         const existing = prev.find((r) => r.id === id)
 
-        const title = comb.dim2 ? `${comb.dim1} / ${comb.dim2}` : comb.dim1
+        const variationLabel = comb.dim2 ? `${comb.dim1} / ${comb.dim2}` : comb.dim1
+        const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
+
         const generatedSku = comb.dim2
           ? `${prefix}-${sanitizeSkuPart(comb.dim1)}-${sanitizeSkuPart(comb.dim2)}`
           : `${prefix}-${sanitizeSkuPart(comb.dim1)}`
 
         if (existing) {
+          // Si el usuario no sobreescribió manualmente este SKU en la grilla, sincroniza con el prefijo actual
+          const finalSku = existing.isManualSku ? existing.sku : generatedSku
+          // Si el usuario no modificó manualmente el precio en la grilla, hereda el precio base actual
+          const finalPrice = existing.isManualPrice ? existing.basePrice : (defaultPrice || existing.basePrice)
+
           return {
             ...existing,
             dim1Value: comb.dim1,
             dim2Value: comb.dim2,
-            variantTitle: existing.variantTitle || title,
-            sku: existing.sku || generatedSku,
+            variantTitle: existing.variantTitle || autoTitle,
+            sku: finalSku,
+            basePrice: finalPrice,
           }
         }
 
@@ -308,16 +330,18 @@ export function VariantMatrixBuilder({
           id,
           dim1Value: comb.dim1,
           dim2Value: comb.dim2,
-          variantTitle: title,
+          variantTitle: autoTitle,
           sku: generatedSku,
+          isManualSku: false,
           barcode: '',
           basePrice: defaultPrice,
+          isManualPrice: false,
           initialStock: '',
           warehouseId: bulkWarehouseId,
         }
       })
     })
-  }, [activeDim1Values, activeDim2Values, enableDim2, baseSku, basePrice, bulkWarehouseId])
+  }, [activeDim1Values, activeDim2Values, enableDim2, baseSku, basePrice, baseName, bulkWarehouseId])
 
   // Bulk actions
   const handleCopyBasePrice = useCallback(() => {
@@ -333,6 +357,7 @@ export function VariantMatrixBuilder({
       prev.map((r) => ({
         ...r,
         basePrice: basePrice.trim(),
+        isManualPrice: false,
       }))
     )
     toast.show({
@@ -349,20 +374,29 @@ export function VariantMatrixBuilder({
         const sku = r.dim2Value
           ? `${prefix}-${sanitizeSkuPart(r.dim1Value)}-${sanitizeSkuPart(r.dim2Value)}`
           : `${prefix}-${sanitizeSkuPart(r.dim1Value)}`
-        return { ...r, sku }
+        return { ...r, sku, isManualSku: false }
       })
     )
     toast.show({
       variant: 'success',
       title: 'SKUs regenerados',
-      message: 'Los códigos SKU se actualizaron según el código base del producto.',
+      message: `Los códigos SKU se sincronizaron con el prefijo «${prefix}».`,
     })
   }, [baseSku, toast])
 
   // Row field update
   const updateRow = useCallback((id: string, field: keyof VariantRowState, value: string) => {
     setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+      prev.map((r) => {
+        if (r.id !== id) return r
+        const updated = { ...r, [field]: value }
+        if (field === 'sku') {
+          updated.isManualSku = true
+        } else if (field === 'basePrice') {
+          updated.isManualPrice = true
+        }
+        return updated
+      })
     )
   }, [])
 
@@ -530,7 +564,7 @@ export function VariantMatrixBuilder({
             onClick={() => setEnableDim2((prev) => !prev)}
             disabled={disabled}
           >
-            {enableDim2 ? 'Quitar 2da Dimensión' : '+ 2da Dimensión (ej. Color)'}
+            {enableDim2 ? '✕ Quitar Colores (2da Dimensión)' : '+ Añadir Color (2da Dimensión)'}
           </Button>
         </div>
       </div>
@@ -541,11 +575,11 @@ export function VariantMatrixBuilder({
           enableDim2 ? 'ecu-matrix-builder__dimensions--dual' : ''
         }`}
       >
-        {/* Dimension 1 Card */}
+        {/* Dimension 1 Card - Tallas / Medidas */}
         <div className="ecu-matrix-dim-card">
           <div className="ecu-matrix-dim-card__top">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span className="ecu-matrix-dim-card__badge">Dimensión 1 (Principal)</span>
+              <span className="ecu-matrix-dim-card__badge">Tallas / Medidas (Dimensión 1)</span>
               {currentTemplate1 && (
                 <span
                   style={{
@@ -606,7 +640,7 @@ export function VariantMatrixBuilder({
           <div className="ecu-matrix-dim-card__fields">
             <Select
               id="mat-tpl-1"
-              label="Escala o Molde"
+              label="Plantilla de Tallas / Escala"
               labelPosition="outlined"
               variant="outline"
               options={templateOptions1}
@@ -617,7 +651,7 @@ export function VariantMatrixBuilder({
             />
             <TextBox
               id="mat-dim-name-1"
-              label="Nombre de la dimensión"
+              label="Tipo de Atributo"
               labelPosition="outlined"
               variant="outline"
               value={dim1Name}
@@ -630,7 +664,7 @@ export function VariantMatrixBuilder({
 
           <div className="ecu-matrix-pills-wrap">
             <span className="ecu-matrix-pills-label">
-              Valores activos (haz clic para activar/desactivar):
+              Tallas activas (haz clic para activar o excluir):
             </span>
             <div className="ecu-matrix-pills-list">
               {dim1Values.map((val) => {
@@ -659,7 +693,7 @@ export function VariantMatrixBuilder({
             <div className="ecu-matrix-add-val">
               <TextBox
                 id="mat-add-val-1"
-                placeholder="Añadir valor (ej. 45-47 o 3XL)…"
+                placeholder="Añadir talla (ej. 45-47, Única, 3XL)…"
                 variant="outline"
                 value={newValInput1}
                 onChange={(e) => setNewValInput1(e.target.value)}
@@ -684,12 +718,15 @@ export function VariantMatrixBuilder({
           </div>
         </div>
 
-        {/* Dimension 2 Card (Optional) */}
+        {/* Dimension 2 Card (Optional) - Colores */}
         {enableDim2 && (
           <div className="ecu-matrix-dim-card">
             <div className="ecu-matrix-dim-card__top">
-              <span className="ecu-matrix-dim-card__badge" style={{ color: '#0284c7', background: 'rgba(2,132,199,0.08)' }}>
-                Dimensión 2 (Combinación)
+              <span
+                className="ecu-matrix-dim-card__badge"
+                style={{ color: '#0284c7', background: 'rgba(2,132,199,0.08)' }}
+              >
+                Colores / Combinación (Dimensión 2)
               </span>
               <Button
                 type="button"
@@ -697,15 +734,16 @@ export function VariantMatrixBuilder({
                 size="sm"
                 onClick={() => setEnableDim2(false)}
                 disabled={disabled}
+                title="Quitar segunda dimensión"
               >
-                Cerrar
+                ✕ Quitar
               </Button>
             </div>
 
             <div className="ecu-matrix-dim-card__fields">
               <Select
                 id="mat-tpl-2"
-                label="Escala 2"
+                label="Plantilla de Colores"
                 labelPosition="outlined"
                 variant="outline"
                 options={templateOptions2}
@@ -716,7 +754,7 @@ export function VariantMatrixBuilder({
               />
               <TextBox
                 id="mat-dim-name-2"
-                label="Nombre dimensión 2"
+                label="Tipo de Atributo"
                 labelPosition="outlined"
                 variant="outline"
                 value={dim2Name}
@@ -729,7 +767,7 @@ export function VariantMatrixBuilder({
 
             <div className="ecu-matrix-pills-wrap">
               <span className="ecu-matrix-pills-label">
-                Valores activos dimensión 2:
+                Colores activos (haz clic para activar o excluir):
               </span>
               <div className="ecu-matrix-pills-list">
                 {dim2Values.map((val) => {
@@ -758,7 +796,7 @@ export function VariantMatrixBuilder({
               <div className="ecu-matrix-add-val">
                 <TextBox
                   id="mat-add-val-2"
-                  placeholder="Añadir valor (ej. Azul Marino)…"
+                  placeholder="Añadir color (ej. Azul Marino, Rojo, Gris)…"
                   variant="outline"
                   value={newValInput2}
                   onChange={(e) => setNewValInput2(e.target.value)}
@@ -818,7 +856,7 @@ export function VariantMatrixBuilder({
             disabled={disabled || !basePrice.trim() || rows.length === 0}
             title="Aplica el precio base a todas las variantes"
           >
-            <Copy size={13} /> Copiar precio base (${basePrice || '0.00'})
+            <Copy size={13} /> Copiar precio base ({basePrice.trim() ? `$${basePrice.trim()}` : '$0.00'})
           </Button>
           <Button
             type="button"

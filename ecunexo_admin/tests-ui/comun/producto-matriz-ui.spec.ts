@@ -45,7 +45,7 @@ test.describe('Catálogo UI — Producto Matriz y Configurador de Variantes', ()
     ).toBeVisible()
 
     // Comprobar la presencia de la Dimensión 1 y sus píldoras de valores (ej. Medias)
-    await expect(page.getByText(/Dimensión 1 \(Principal\)/i)).toBeVisible()
+    await expect(page.getByText(/Tallas \/ Medidas \(Dimensión 1\)/i)).toBeVisible()
     const pills = matrixBuilder.locator('.ecu-matrix-pill')
     expect(await pills.count()).toBeGreaterThanOrEqual(1)
 
@@ -53,13 +53,29 @@ test.describe('Catálogo UI — Producto Matriz y Configurador de Variantes', ()
     const rows = matrixBuilder.locator('.ecu-matrix-table tbody tr')
     expect(await rows.count()).toBeGreaterThanOrEqual(1)
 
-    // Probar activación de 2da dimensión (ej. Color)
-    const dualDimBtn = page.getByRole('button', { name: /\+ 2da Dimensión/i })
+    // Probar herencia reactiva del SKU: escribir SKU base en el producto padre
+    const skuInput = page.locator('#ci-sku')
+    await skuInput.fill('AND-001')
+
+    // El SKU de la primera variante debe heredar AND-001 automáticamente
+    const firstRowSku = matrixBuilder.locator('.ecu-table-sku').first()
+    await expect(firstRowSku).toHaveValue(/AND-001-/i)
+
+    // Probar herencia reactiva del precio: escribir precio base en el producto padre
+    const priceInput = page.locator('#ci-price')
+    await priceInput.fill('1.50')
+
+    // El precio de la primera variante debe heredar 1.50 automáticamente
+    const firstRowPrice = matrixBuilder.locator('tbody tr input[type="number"]').first()
+    await expect(firstRowPrice).toHaveValue('1.50')
+
+    // Probar activación de 2da dimensión (Colores)
+    const dualDimBtn = page.getByRole('button', { name: /\+ Añadir Color/i })
     await expect(dualDimBtn).toBeVisible()
     await dualDimBtn.click()
 
-    // Debe desplegarse la tarjeta de Dimensión 2
-    await expect(page.getByText(/Dimensión 2 \(Combinación\)/i)).toBeVisible()
+    // Debe desplegarse la tarjeta de Dimensión 2 (Colores)
+    await expect(page.getByText(/Colores \/ Combinación \(Dimensión 2\)/i)).toBeVisible()
 
     // El conteo de filas debe incrementarse por el producto cartesiano
     const dualRowsCount = await matrixBuilder.locator('.ecu-matrix-table tbody tr').count()

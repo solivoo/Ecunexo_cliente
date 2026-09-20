@@ -83,6 +83,16 @@ export function CreateCatalogItemPage() {
     return parseAttributeSchema(category?.attributeSchemaJson)
   }, [categories, categoryId])
 
+  // Si tiene variantes activas, las dimensiones de talla y color se gestionan en las variantes
+  // evitando duplicar campos y exigencias obligatorias en el producto padre.
+  const effectiveSchemaFields = useMemo<CatalogAttributeField[]>(() => {
+    if (!hasVariants) return schemaFields
+    return schemaFields.filter((f) => {
+      const k = f.key.toLowerCase().trim()
+      return !['talla', 'tallas', 'size', 'color', 'colores'].includes(k)
+    })
+  }, [hasVariants, schemaFields])
+
   useEffect(() => {
     if (!tenantId || !canCreate) return
     let cancelled = false
@@ -147,7 +157,7 @@ export function CreateCatalogItemPage() {
         if (kindNum === CatalogItemKind.Physical && !hasVariants && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
         }
-        const missingAttr = missingRequiredAttributeLabel(schemaFields, attrValues)
+        const missingAttr = missingRequiredAttributeLabel(effectiveSchemaFields, attrValues)
         if (missingAttr) {
           throw new Error(`Completa el campo obligatorio «${missingAttr}».`)
         }
@@ -357,7 +367,11 @@ export function CreateCatalogItemPage() {
                   variant="outline"
                   value={name}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                  placeholder="Ej. Soporte Técnico Mensual"
+                  placeholder={
+                    kind === String(CatalogItemKind.Physical)
+                      ? 'Ej. Calcetines Antideslizantes, Camiseta Deportiva'
+                      : 'Ej. Consultoría, Soporte Técnico Mensual'
+                  }
                   required
                   disabled={busy}
                   fullWidth
@@ -379,7 +393,7 @@ export function CreateCatalogItemPage() {
                   onChange={(e: ChangeEvent<HTMLInputElement>) =>
                     setSku(e.target.value.toUpperCase())
                   }
-                  placeholder={hasVariants ? 'CALC-DEP' : 'PROD-001'}
+                  placeholder={hasVariants ? 'Ej. AND-001 o CALC-DEP' : 'PROD-001'}
                   required={!hasVariants && kind === String(CatalogItemKind.Physical)}
                   disabled={busy}
                   fullWidth
@@ -413,7 +427,7 @@ export function CreateCatalogItemPage() {
               </div>
               <CatalogExtraAttributeFields
                 idPrefix="ci"
-                fields={schemaFields}
+                fields={effectiveSchemaFields}
                 values={attrValues}
                 disabled={busy}
                 onChange={(key, next) => setAttrValues((prev) => ({ ...prev, [key]: next }))}
