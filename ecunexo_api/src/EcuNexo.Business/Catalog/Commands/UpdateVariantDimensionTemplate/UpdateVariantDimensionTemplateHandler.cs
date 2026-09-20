@@ -11,17 +11,20 @@ public sealed class UpdateVariantDimensionTemplateHandler
     private readonly IValidator<UpdateVariantDimensionTemplateCommand> _validator;
     private readonly ITenantRepository _tenants;
     private readonly IVariantDimensionTemplateRepository _templates;
+    private readonly ICatalogItemRepository _items;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateVariantDimensionTemplateHandler(
         IValidator<UpdateVariantDimensionTemplateCommand> validator,
         ITenantRepository tenants,
         IVariantDimensionTemplateRepository templates,
+        ICatalogItemRepository items,
         IUnitOfWork unitOfWork)
     {
         _validator = validator;
         _tenants = tenants;
         _templates = templates;
+        _items = items;
         _unitOfWork = unitOfWork;
     }
 
@@ -50,6 +53,20 @@ public sealed class UpdateVariantDimensionTemplateHandler
         {
             return Result.Failure<UpdateVariantDimensionTemplateResponse>(
                 new Error("catalog.variant_template.not_found", "La plantilla de variantes no existe.", ErrorType.NotFound));
+        }
+
+        if (!string.Equals(template.Name, command.Name.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            var isInUse = await _items.IsAttributeTemplateInUseAsync(command.TenantId, template.Name, ct)
+                .ConfigureAwait(false);
+            if (isInUse)
+            {
+                return Result.Failure<UpdateVariantDimensionTemplateResponse>(
+                    new Error(
+                        "catalog.variant_template.name.in_use",
+                        $"No se puede renombrar el atributo «{template.Name}» porque ya está asociado a productos del catálogo.",
+                        ErrorType.Conflict));
+            }
         }
 
         var updateResult = template.Update(

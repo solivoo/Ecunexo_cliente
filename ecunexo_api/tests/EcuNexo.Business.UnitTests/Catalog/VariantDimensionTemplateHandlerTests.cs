@@ -12,17 +12,18 @@ public sealed class VariantDimensionTemplateHandlerTests
 {
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IVariantDimensionTemplateRepository _templates = Substitute.For<IVariantDimensionTemplateRepository>();
+    private readonly ICatalogItemRepository _items = Substitute.For<ICatalogItemRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly UpdateVariantDimensionTemplateValidator _validator = new();
 
     private UpdateVariantDimensionTemplateHandler CreateUpdateSut() =>
-        new(_validator, _tenants, _templates, _unitOfWork);
+        new(_validator, _tenants, _templates, _items, _unitOfWork);
 
     private DeleteVariantDimensionTemplateHandler CreateDeleteSut() =>
-        new(_tenants, _templates, _unitOfWork);
+        new(_tenants, _templates, _items, _unitOfWork);
 
-    [Fact(DisplayName = "Actualizar escala del sistema falla por ser inmutable")]
-    public async Task Update_SystemDefaultTemplate_FailsWithConflict()
+    [Fact(DisplayName = "Renombrar plantilla que está en uso en catálogo falla con conflicto")]
+    public async Task Update_WhenInUseAndRenamed_FailsWithConflict()
     {
         var tenantId = Guid.CreateVersion7();
         var templateId = Guid.CreateVersion7();
@@ -39,6 +40,9 @@ public sealed class VariantDimensionTemplateHandlerTests
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(systemTemplate);
 
+        _items.IsAttributeTemplateInUseAsync(tenantId, "Medias / Calcetines", Arg.Any<CancellationToken>())
+            .Returns(true);
+
         var command = new UpdateVariantDimensionTemplateCommand(
             templateId,
             tenantId,
@@ -50,7 +54,7 @@ public sealed class VariantDimensionTemplateHandlerTests
         var result = await sut.Handle(command, CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal("catalog.variant_template.system.immutable", result.Error!.Code);
+        Assert.Equal("catalog.variant_template.name.in_use", result.Error!.Code);
     }
 
     [Fact(DisplayName = "Actualizar escala personalizada propia actualiza datos y persiste")]
@@ -87,8 +91,8 @@ public sealed class VariantDimensionTemplateHandlerTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    [Fact(DisplayName = "Eliminar escala del sistema falla por conflicto")]
-    public async Task Delete_SystemDefaultTemplate_FailsWithConflict()
+    [Fact(DisplayName = "Eliminar plantilla que está en uso en catálogo falla por conflicto")]
+    public async Task Delete_WhenInUse_FailsWithConflict()
     {
         var tenantId = Guid.CreateVersion7();
         var templateId = Guid.CreateVersion7();
@@ -105,16 +109,19 @@ public sealed class VariantDimensionTemplateHandlerTests
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(systemTemplate);
 
+        _items.IsAttributeTemplateInUseAsync(tenantId, "Calzado", Arg.Any<CancellationToken>())
+            .Returns(true);
+
         var sut = CreateDeleteSut();
         var result = await sut.Handle(new DeleteVariantDimensionTemplateCommand(templateId, tenantId), CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal("catalog.variant_template.system.cannot_delete", result.Error!.Code);
+        Assert.Equal("catalog.variant_template.in_use", result.Error!.Code);
         await _templates.DidNotReceive().DeleteAsync(Arg.Any<VariantDimensionTemplate>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact(DisplayName = "Eliminar escala personalizada propia la remueve y persiste")]
-    public async Task Delete_CustomTemplate_Succeeds()
+    [Fact(DisplayName = "Eliminar escala sin registros asociados la remueve y persiste")]
+    public async Task Delete_WhenNotInUse_Succeeds()
     {
         var tenantId = Guid.CreateVersion7();
         var templateId = Guid.CreateVersion7();
@@ -126,10 +133,13 @@ public sealed class VariantDimensionTemplateHandlerTests
             "Escala Temporal",
             "Talla",
             "[\"1\",\"2\"]",
-            isSystemDefault: false).Value!;
+            isSystemDefault: true).Value!;
 
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(customTemplate);
+
+        _items.IsAttributeTemplateInUseAsync(tenantId, "Escala Temporal", Arg.Any<CancellationToken>())
+            .Returns(false);
 
         var sut = CreateDeleteSut();
         var result = await sut.Handle(new DeleteVariantDimensionTemplateCommand(templateId, tenantId), CancellationToken.None);

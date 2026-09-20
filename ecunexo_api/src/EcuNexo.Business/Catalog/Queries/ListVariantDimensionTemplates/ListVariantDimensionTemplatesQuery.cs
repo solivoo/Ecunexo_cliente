@@ -11,4 +11,5 @@ public sealed record VariantDimensionTemplateResponse(
     string Name,
     string DimensionType,
     string PredefinedValuesJson,
-    bool IsSystemDefault);
+    bool IsSystemDefault,
+    bool IsInUse = false);

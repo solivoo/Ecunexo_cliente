@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.35.0`.
+* **Última Versión Publicada:** `v0.35.1`.
 * **Hitos Recientes Completados:**
+  - **Refinamiento de Atributos, Corrección de Íconos SVG e Inmutabilidad Dinámica Condicional (`CatalogAttributesListPage.tsx`, `VariantDimensionTemplate.cs`, `CatalogItemRepository.cs`):**
+    * **Unificación de Nombre a "Atributos":** Nombre de página simplificado a *Atributos* en cabecera, navegación lateral (`MenuCatalogSeedData.cs`), breadcrumbs y subtítulo corporativo.
+    * **Corrección de Glifos en Tarjetas KPI (`StatCard`):** Sustitución de identificadores de texto de fuentes que provocaban ligaduras rotas (`#S`, `RKLE`) por componentes nativos vectoriales SVG de Lucide (`SlidersHorizontal`, `Lock`, `Tag`, `Sparkles`).
+    * **Inmutabilidad Condicional a Registros Asociados:** Los atributos del sistema y de empresa son 100% editables y eliminables siempre que no tengan productos vinculados en el catálogo. Si un atributo tiene ítems asociados, se protege automáticamente contra eliminación y renombramiento (`isInUse = true`) con candado e indicación clara para el usuario, manteniendo la integridad referencial.
   - **Optimización de Consultas y Alto Rendimiento en PostgreSQL (`CatalogItemConfiguration.cs`, `CatalogItemRepository.cs`, Migración `AddCatalogJsonbAndVariantIndexes`):**
     * **Índices Invertidos GIN en `jsonb`:** Agregados índices GIN nativos (`ix_items_custom_attributes_json` e `ix_items_variant_dimensions_json`) para búsquedas en tiempo logarítmico $O(\log N)$ con operadores de contención `@>` sobre atributos dinámicos y dimensiones de variantes.
     * **Índice Compuesto B-Tree Multi-Tenant:** Creado índice `ix_items_tenant_id_parent_id` con filtro `"deleted_at" IS NULL` para resolución instantánea tanto de productos raíz (`parent_id IS NULL`) como de variantes asociadas a un producto matriz (`parent_id = @id`).

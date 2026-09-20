@@ -43,8 +43,8 @@ public sealed class VariantDimensionTemplateTests
         result.Error!.Code.Should().Be("catalog.variant_template.values.empty");
     }
 
-    [Fact(DisplayName = "Plantillas del sistema no pueden modificarse")]
-    public void Update_SystemDefaultTemplate_ReturnsConflict()
+    [Fact(DisplayName = "Actualización de plantilla actualiza nombre y valores")]
+    public void Update_Template_Succeeds()
     {
         var id = Guid.CreateVersion7();
         var tenantId = Guid.CreateVersion7();
@@ -61,8 +61,8 @@ public sealed class VariantDimensionTemplateTests
 
         var result = template.Update("Calzado Modificado", "size", "[\"40\"]");
 
-        result.IsFailure.Should().BeTrue();
-        result.Error!.Code.Should().Be("catalog.variant_template.system.immutable");
+        result.IsSuccess.Should().BeTrue();
+        template.Name.Should().Be("Calzado Modificado");
     }
 
     [Fact(DisplayName = "Plantillas por defecto del sistema incluyen medias, ropa y calzado")]

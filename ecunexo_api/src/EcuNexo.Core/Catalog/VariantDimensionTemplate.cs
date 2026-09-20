@@ -100,12 +100,6 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
         string predefinedValuesJson,
         Guid? updatedBy = null)
     {
-        if (IsSystemDefault)
-        {
-            return Result.Failure(
-                new Error("catalog.variant_template.system.immutable", "Las plantillas del sistema no pueden modificarse.", ErrorType.Conflict));
-        }
-
         var nameNorm = NormalizeName(name);
         if (nameNorm.IsFailure)
         {

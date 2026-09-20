@@ -138,6 +138,7 @@ export type VariantDimensionTemplateDto = {
   dimensionType: string
   predefinedValuesJson: string
   isSystemDefault: boolean
+  isInUse?: boolean
 }
 
 export type CreateVariantChildPayload = {

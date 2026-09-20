@@ -9,15 +9,18 @@ public sealed class DeleteVariantDimensionTemplateHandler
 {
     private readonly ITenantRepository _tenants;
     private readonly IVariantDimensionTemplateRepository _templates;
+    private readonly ICatalogItemRepository _items;
     private readonly IUnitOfWork _unitOfWork;
 
     public DeleteVariantDimensionTemplateHandler(
         ITenantRepository tenants,
         IVariantDimensionTemplateRepository templates,
+        ICatalogItemRepository items,
         IUnitOfWork unitOfWork)
     {
         _tenants = tenants;
         _templates = templates;
+        _items = items;
         _unitOfWork = unitOfWork;
     }
 
@@ -46,10 +49,13 @@ public sealed class DeleteVariantDimensionTemplateHandler
                 new Error("catalog.variant_template.not_found", "La plantilla de variantes no existe.", ErrorType.NotFound));
         }
 
-        if (template.IsSystemDefault)
+        var isInUse = await _items.IsAttributeTemplateInUseAsync(command.TenantId, template.Name, ct)
+            .ConfigureAwait(false);
+
+        if (isInUse)
         {
             return Result.Failure<DeleteVariantDimensionTemplateResponse>(
-                new Error("catalog.variant_template.system.cannot_delete", "Las plantillas predeterminadas del sistema no pueden eliminarse.", ErrorType.Conflict));
+                new Error("catalog.variant_template.in_use", $"No se puede eliminar «{template.Name}»: el atributo está en uso por ítems del catálogo.", ErrorType.Conflict));
         }
 
         await _templates.DeleteAsync(template, ct).ConfigureAwait(false);

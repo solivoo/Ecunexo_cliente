@@ -44,6 +44,80 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
             .ConfigureAwait(false);
     }
 
+    public async Task<bool> IsAttributeTemplateInUseAsync(
+        Guid tenantId,
+        string templateName,
+        CancellationToken ct)
+    {
+        var trimmed = templateName.Trim();
+        var pattern = $"%\"{trimmed}\"%";
+        return await _db.CatalogItems.AsNoTracking()
+            .AnyAsync(i => i.TenantId == tenantId && i.DeletedAt == null &&
+                (EF.Functions.ILike(i.CustomAttributesJson, pattern) ||
+                 (i.VariantDimensionsJson != null && EF.Functions.ILike(i.VariantDimensionsJson, pattern))),
+                ct)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<HashSet<string>> GetInUseAttributeTemplateNamesAsync(
+        Guid tenantId,
+        CancellationToken ct)
+    {
+        var activeItems = await _db.CatalogItems.AsNoTracking()
+            .Where(i => i.TenantId == tenantId && i.DeletedAt == null)
+            .Select(i => new { i.CustomAttributesJson, i.VariantDimensionsJson })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in activeItems)
+        {
+            if (!string.IsNullOrWhiteSpace(item.CustomAttributesJson) && item.CustomAttributesJson != "{}")
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(item.CustomAttributesJson);
+                    foreach (var prop in doc.RootElement.EnumerateObject())
+                    {
+                        set.Add(prop.Name);
+                    }
+                }
+                catch
+                {
+                    // Ignorar json malformado
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(item.VariantDimensionsJson) && item.VariantDimensionsJson != "[]")
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(item.VariantDimensionsJson);
+                    if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        foreach (var el in doc.RootElement.EnumerateArray())
+                        {
+                            if (el.TryGetProperty("Name", out var nameProp) || el.TryGetProperty("name", out nameProp))
+                            {
+                                var n = nameProp.GetString();
+                                if (!string.IsNullOrWhiteSpace(n))
+                                {
+                                    set.Add(n);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignorar json malformado
+                }
+            }
+        }
+
+        return set;
+    }
+
     public Task<CatalogItem?> GetActiveByIdAsync(Guid tenantId, Guid itemId, CancellationToken ct) =>
         _db.CatalogItems.AsNoTracking()
             .Include(i => i.Images.OrderBy(img => img.DisplayOrder))

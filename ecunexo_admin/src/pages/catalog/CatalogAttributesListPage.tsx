@@ -15,6 +15,8 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  SlidersHorizontal,
+  Sparkles,
   Tag,
   Trash2,
   X,
@@ -118,14 +120,6 @@ export function CatalogAttributesListPage() {
   }, [])
 
   const openEditModal = useCallback((template: VariantDimensionTemplateDto) => {
-    if (template.isSystemDefault) {
-      toast.show({
-        title: 'Escala protegida',
-        message: 'Las escalas base del sistema no pueden modificarse para preservar la integridad.',
-        variant: 'warning',
-      })
-      return
-    }
     setEditingTemplate(template)
     setFormName(template.name)
     setFormType(template.dimensionType || 'custom')
@@ -137,7 +131,7 @@ export function CatalogAttributesListPage() {
     }
     setNewValueInput('')
     setEditModalOpen(true)
-  }, [toast])
+  }, [])
 
   const handleAddValueToForm = useCallback(() => {
     const trimmed = newValueInput.trim()
@@ -232,12 +226,12 @@ export function CatalogAttributesListPage() {
 
   const stats = useMemo(() => {
     let totalValues = 0
-    let systemCount = 0
-    let customCount = 0
+    let inUseCount = 0
+    let availableCount = 0
 
     for (const r of rows) {
-      if (r.isSystemDefault) systemCount++
-      else customCount++
+      if (r.isInUse) inUseCount++
+      else availableCount++
       try {
         const parsed = JSON.parse(r.predefinedValuesJson)
         if (Array.isArray(parsed)) totalValues += parsed.length
@@ -247,8 +241,8 @@ export function CatalogAttributesListPage() {
     }
     return {
       total: rows.length,
-      system: systemCount,
-      custom: customCount,
+      inUse: inUseCount,
+      available: availableCount,
       values: totalValues,
     }
   }, [rows])
@@ -282,18 +276,18 @@ export function CatalogAttributesListPage() {
     return [
       {
         key: 'name',
-        header: 'Atributo / Escala',
+        header: 'Atributo',
         width: 240,
         sortable: true,
         renderCell: (_val: unknown, row: TemplateGridRow) => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-              {row.isSystemDefault ? (
-                <span title="Escala base de sistema">
-                  <Lock size={13} style={{ color: 'var(--glb-muted, #64748b)' }} />
+              {row.isInUse ? (
+                <span title="Inmutable: asociado a productos en el catálogo">
+                  <Lock size={13} style={{ color: '#f59e0b', flexShrink: 0 }} />
                 </span>
               ) : (
-                <Tag size={13} style={{ color: 'var(--shell-primary, #4f46e5)' }} />
+                <Tag size={13} style={{ color: 'var(--shell-primary, #4f46e5)', flexShrink: 0 }} />
               )}
               <strong>{row.name}</strong>
             </div>
@@ -353,15 +347,21 @@ export function CatalogAttributesListPage() {
       },
       {
         key: 'isSystemDefault',
-        header: 'Origen',
-        width: 140,
+        header: 'Estado / Registros',
+        width: 170,
         sortable: true,
-        renderCell: (_val: unknown, row: TemplateGridRow) =>
-          row.isSystemDefault ? (
-            <StatusBadge tone="neutral">Sistema (Base)</StatusBadge>
-          ) : (
-            <StatusBadge tone="success">Empresa</StatusBadge>
-          ),
+        renderCell: (_val: unknown, row: TemplateGridRow) => (
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            {row.isInUse ? (
+              <StatusBadge tone="warning">En Uso</StatusBadge>
+            ) : (
+              <StatusBadge tone="neutral">Sin Registros</StatusBadge>
+            )}
+            <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
+              {row.isSystemDefault ? 'Base' : 'Empresa'}
+            </span>
+          </div>
+        ),
       },
       {
         key: 'id',
@@ -369,19 +369,6 @@ export function CatalogAttributesListPage() {
         width: 110,
         align: 'center',
         renderCell: (_val: unknown, row: TemplateGridRow) => {
-          if (row.isSystemDefault) {
-            return (
-              <span
-                style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--glb-muted, #94a3b8)',
-                  fontStyle: 'italic',
-                }}
-              >
-                Inmutable
-              </span>
-            )
-          }
           return (
             <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
               <GridIconButton
@@ -392,10 +379,14 @@ export function CatalogAttributesListPage() {
               />
               <GridIconButton
                 icon={Trash2}
-                label={`Eliminar «${row.name}»`}
+                label={
+                  row.isInUse
+                    ? `Inmutable: «${row.name}» tiene productos asociados`
+                    : `Eliminar «${row.name}»`
+                }
                 danger
                 onClick={() => setConfirmDelete(row)}
-                disabled={!canManage}
+                disabled={!canManage || Boolean(row.isInUse)}
               />
             </div>
           )
@@ -426,12 +417,12 @@ export function CatalogAttributesListPage() {
 
   return (
     <TenantSessionGate
-      title="Atributos y Escalas"
-      lead="Diccionario corporativo de atributos, escalas de tallas y valores estandarizados para el catálogo."
+      title="Atributos"
+      lead="Diccionario corporativo de atributos y valores estandarizados para el catálogo."
     >
       <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
         <PageHeader
-          title="Atributos y Escalas"
+          title="Atributos"
           subtitle="Estandariza los nombres y valores de atributos (tallas, caña, colores, materiales) para evitar inconsistencias en variantes y especificaciones."
           badge={
             <StatusBadge tone="info">
@@ -471,35 +462,35 @@ export function CatalogAttributesListPage() {
           <StatCard
             label="Total Atributos"
             value={stats.total}
-            icon="tags"
+            icon={<SlidersHorizontal size={20} />}
             toneColor="#4f46e5"
-            footerText="Atributos y escalas disponibles"
+            footerText="Atributos disponibles"
           />
           <StatCard
-            label="Escalas del Sistema"
-            value={stats.system}
-            icon="lock"
-            toneColor="#64748b"
-            footerText="Plantillas base protegidas para Ecuador"
+            label="En Uso"
+            value={stats.inUse}
+            icon={<Lock size={20} />}
+            toneColor="#f59e0b"
+            footerText="Asociados a productos (Inmutables)"
           />
           <StatCard
-            label="Personalizadas"
-            value={stats.custom}
-            icon="tag"
+            label="Disponibles"
+            value={stats.available}
+            icon={<Tag size={20} />}
             toneColor="#0ea5e9"
-            footerText="Creadas por tu empresa"
+            footerText="Sin registros asociados (Editables)"
           />
           <StatCard
             label="Valores Normalizados"
             value={stats.values}
-            icon="sparkles"
+            icon={<Sparkles size={20} />}
             toneColor="#10b981"
             footerText="Opciones precargadas para 1 clic"
           />
         </div>
 
         <SectionCard
-          title="Diccionario Maestro de Atributos"
+          title="Directorio de Atributos"
           subtitle="Selecciona o gestiona los atributos que se reutilizan en variantes (tallas, colores) y campos adicionales de productos."
         >
           <div
@@ -560,22 +551,27 @@ export function CatalogAttributesListPage() {
         <Popup
           open={editModalOpen}
           onClose={() => !saving && setEditModalOpen(false)}
-          title={editingTemplate ? `Editar Atributo «${editingTemplate.name}»` : 'Nuevo Atributo o Escala'}
+          title={editingTemplate ? `Editar Atributo «${editingTemplate.name}»` : 'Nuevo Atributo'}
           width={560}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
             <TextBox
               id="template-name"
-              label="Nombre del Atributo o Escala"
+              label="Nombre del Atributo"
               labelPosition="outlined"
               variant="outline"
-              placeholder="Ej. Tipo de Caña / Altura, Material, Grosor de Hilo"
+              placeholder="Ej. Tipo de Caña, Material, Grosor de Hilo"
               value={formName}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setFormName(e.target.value)}
-              disabled={saving}
+              disabled={saving || Boolean(editingTemplate?.isInUse)}
               required
               fullWidth
             />
+            {editingTemplate?.isInUse && (
+              <p style={{ fontSize: '0.78rem', color: '#b45309', margin: '-0.5rem 0 0.5rem', fontWeight: 500 }}>
+                * El nombre está protegido porque tiene productos asociados en el catálogo. Puedes agregar más opciones estandarizadas.
+              </p>
+            )}
 
             <Select
               id="template-type"
@@ -739,11 +735,11 @@ export function CatalogAttributesListPage() {
         >
           <div style={{ padding: '0.5rem 0' }}>
             <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--glb-text, #1e293b)' }}>
-              ¿Estás seguro de eliminar el atributo personalizado{' '}
+              ¿Estás seguro de eliminar el atributo{' '}
               <strong>«{confirmDelete?.name}»</strong>?
             </p>
             <p className="app-shell__muted" style={{ margin: '0 0 1.25rem 0', fontSize: '0.82rem' }}>
-              Los productos y variantes ya creados con estos valores conservarán su información intacta.
+              Este atributo no tiene registros asociados actualmente. Dejará de sugerirse en la creación de productos.
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <Button
