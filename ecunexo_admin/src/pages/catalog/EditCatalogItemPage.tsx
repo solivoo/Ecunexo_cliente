@@ -10,13 +10,13 @@ import {
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { parseAttributeSchema } from '@/lib/catalogAttributes'
 import {
-  missingRequiredAttributeLabel,
-  parseAttributeSchema,
-  parseAttributeValues,
-  serializeAttributeValues,
-} from '@/lib/catalogAttributes'
-import { CatalogExtraAttributeFields } from '@/pages/catalog/CatalogExtraAttributeFields'
+  ItemCustomAttributesEditor,
+  deserializeCustomAttributes,
+  serializeCustomAttributes,
+  type CustomAttributeRow,
+} from '@/pages/catalog/ItemCustomAttributesEditor'
 import { CatalogItemImageGallery } from '@/pages/catalog/CatalogItemImageGallery'
 import { EditCatalogItemVariantsSection } from '@/pages/catalog/EditCatalogItemVariantsSection'
 import { ArrowLeft, Layers } from 'lucide-react'
@@ -27,7 +27,6 @@ import { useAppSelector } from '@/store/hooks'
 import {
   CatalogItemKind,
   CatalogItemStatus,
-  type CatalogAttributeField,
   type CatalogItemDetailDto,
   type CategoryListItemDto,
 } from '@/types/catalogApi'
@@ -54,11 +53,11 @@ export function EditCatalogItemPage() {
   const [basePrice, setBasePrice] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [status, setStatus] = useState(String(CatalogItemStatus.Active))
-  const [attrValues, setAttrValues] = useState<Record<string, string>>({})
+  const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
 
-  const schemaFields = useMemo<CatalogAttributeField[]>(() => {
+  const categorySuggestions = useMemo<string[]>(() => {
     const category = categories.find((c) => c.id === categoryId)
-    return parseAttributeSchema(category?.attributeSchemaJson)
+    return parseAttributeSchema(category?.attributeSchemaJson).map((f) => f.label || f.key)
   }, [categories, categoryId])
 
   useEffect(() => {
@@ -81,7 +80,7 @@ export function EditCatalogItemPage() {
         setBasePrice(detail.basePrice == null ? '' : String(detail.basePrice))
         setCategoryId(detail.categoryId ?? '')
         setStatus(String(detail.status))
-        setAttrValues(parseAttributeValues(detail.customAttributesJson))
+        setCustomAttributes(deserializeCustomAttributes(detail.customAttributesJson))
         setError(null)
       } catch (err: unknown) {
         if (!cancelled) {
@@ -140,10 +139,6 @@ export function EditCatalogItemPage() {
         if (kindNum === CatalogItemKind.Physical && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
         }
-        const missingAttr = missingRequiredAttributeLabel(schemaFields, attrValues)
-        if (missingAttr) {
-          throw new Error(`Completa el campo obligatorio «${missingAttr}».`)
-        }
         let price: number | null = null
         if (basePrice.trim()) {
           const parsed = Number(basePrice.replace(',', '.'))
@@ -160,7 +155,7 @@ export function EditCatalogItemPage() {
           sku: sku.trim() || null,
           basePrice: price,
           categoryId: categoryId || null,
-          customAttributesJson: serializeAttributeValues(schemaFields, attrValues),
+          customAttributesJson: serializeCustomAttributes(customAttributes),
           status: Number(status) as typeof CatalogItemStatus.Active,
         })
 
@@ -180,16 +175,15 @@ export function EditCatalogItemPage() {
       }
     },
     [
-      attrValues,
       basePrice,
       categoryId,
+      customAttributes,
       description,
       item,
       itemId,
       kind,
       name,
       navigate,
-      schemaFields,
       sku,
       status,
       tenantId,
@@ -505,12 +499,28 @@ export function EditCatalogItemPage() {
                     fullWidth
                   />
                 </div>
-                <CatalogExtraAttributeFields
-                  idPrefix="ei"
-                  fields={schemaFields}
-                  values={attrValues}
+              </div>
+
+              <div
+                style={{
+                  marginTop: '1.25rem',
+                  paddingTop: '1.25rem',
+                  borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+                }}
+              >
+                <div style={{ marginBottom: '1rem' }}>
+                  <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem', fontWeight: 600 }}>
+                    Especificaciones y Atributos Adicionales
+                  </h4>
+                  <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.85rem' }}>
+                    Define propiedades técnicas, comerciales o informativas propias de este producto (ej. Material, Marca, Garantía, etc.).
+                  </p>
+                </div>
+                <ItemCustomAttributesEditor
+                  attributes={customAttributes}
+                  onChange={setCustomAttributes}
+                  categorySuggestions={categorySuggestions}
                   disabled={busy}
-                  onChange={(key, next) => setAttrValues((prev) => ({ ...prev, [key]: next }))}
                 />
               </div>
 

@@ -122,12 +122,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(attrs.Error!);
         }
 
-        var againstSchema = CatalogAttributeSchema.ValidateAgainstSchema(categorySchemaJson, attrs.Value!);
-        if (againstSchema.IsFailure)
-        {
-            return Result.Failure<CatalogItem>(againstSchema.Error!);
-        }
-
         return new CatalogItem
         {
             Id = id,
@@ -206,12 +200,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(attrs.Error!);
         }
 
-        var againstSchema = CatalogAttributeSchema.ValidateAgainstSchema(categorySchemaJson, attrs.Value!);
-        if (againstSchema.IsFailure)
-        {
-            return Result.Failure<CatalogItem>(againstSchema.Error!);
-        }
-
         return new CatalogItem
         {
             Id = id,
@@ -277,12 +265,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         if (attrs.IsFailure)
         {
             return Result.Failure<CatalogItem>(attrs.Error!);
-        }
-
-        var againstSchema = CatalogAttributeSchema.ValidateAgainstSchema(categorySchemaJson, attrs.Value!);
-        if (againstSchema.IsFailure)
-        {
-            return Result.Failure<CatalogItem>(againstSchema.Error!);
         }
 
         var combinedName = $"{parent.Name} - {variantTitle.Trim()}";
@@ -461,12 +443,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         if (attrs.IsFailure)
         {
             return Result.Failure(attrs.Error!);
-        }
-
-        var againstSchema = CatalogAttributeSchema.ValidateAgainstSchema(categorySchemaJson, attrs.Value!);
-        if (againstSchema.IsFailure)
-        {
-            return Result.Failure(againstSchema.Error!);
         }
 
         Name = nameResult.Value!;

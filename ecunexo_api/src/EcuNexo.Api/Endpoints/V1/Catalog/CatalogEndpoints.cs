@@ -214,7 +214,8 @@ public static class CatalogEndpoints
             body.BasePrice,
             body.CategoryId,
             body.VariantDimensionsJson,
-            variants);
+            variants,
+            body.CustomAttributesJson);
 
         var result = await sender
             .SendAsync<CreateCatalogItemMatrixCommand, CreateCatalogItemMatrixResponse>(command, ct)

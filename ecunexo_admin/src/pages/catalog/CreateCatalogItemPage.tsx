@@ -10,12 +10,12 @@ import {
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { parseAttributeSchema } from '@/lib/catalogAttributes'
 import {
-  missingRequiredAttributeLabel,
-  parseAttributeSchema,
-  serializeAttributeValues,
-} from '@/lib/catalogAttributes'
-import { CatalogExtraAttributeFields } from '@/pages/catalog/CatalogExtraAttributeFields'
+  ItemCustomAttributesEditor,
+  serializeCustomAttributes,
+  type CustomAttributeRow,
+} from '@/pages/catalog/ItemCustomAttributesEditor'
 import { StagedCatalogItemImages, type StagedItemImage } from '@/pages/catalog/StagedCatalogItemImages'
 import { readApiError } from '@/lib/readApiError'
 import {
@@ -28,7 +28,6 @@ import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
   CatalogItemKind,
-  type CatalogAttributeField,
   type CategoryListItemDto,
 } from '@/types/catalogApi'
 import {
@@ -64,7 +63,7 @@ export function CreateCatalogItemPage() {
   const [sku, setSku] = useState('')
   const [basePrice, setBasePrice] = useState('')
   const [categoryId, setCategoryId] = useState('')
-  const [attrValues, setAttrValues] = useState<Record<string, string>>({})
+  const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
   const [stagedImages, setStagedImages] = useState<StagedItemImage[]>([])
 
   const stagedImagesRef = useRef<StagedItemImage[]>([])
@@ -82,27 +81,10 @@ export function CreateCatalogItemPage() {
     }
   }, [])
 
-  const schemaFields = useMemo<CatalogAttributeField[]>(() => {
+  const categorySuggestions = useMemo<string[]>(() => {
     const category = categories.find((c) => c.id === categoryId)
-    return parseAttributeSchema(category?.attributeSchemaJson)
+    return parseAttributeSchema(category?.attributeSchemaJson).map((f) => f.label || f.key)
   }, [categories, categoryId])
-
-  // Si tiene variantes activas, las dimensiones configuradas en la matriz
-  // se gestionan en las variantes físicas hijas, evitando duplicar campos y
-  // exigencias obligatorias en el producto padre.
-  const effectiveSchemaFields = useMemo<CatalogAttributeField[]>(() => {
-    if (!hasVariants) return schemaFields
-    const activeDimKeys = (matrixData.dimensionNames || []).map((n) => n.toLowerCase().trim())
-    return schemaFields.filter((f) => {
-      const k = f.key.toLowerCase().trim()
-      const label = (f.label || '').toLowerCase().trim()
-      return (
-        !activeDimKeys.includes(k) &&
-        !activeDimKeys.includes(label) &&
-        !['talla', 'tallas', 'size', 'color', 'colores'].includes(k)
-      )
-    })
-  }, [hasVariants, matrixData.dimensionNames, schemaFields])
 
   useEffect(() => {
     if (!tenantId || !canCreate) return
@@ -119,10 +101,6 @@ export function CreateCatalogItemPage() {
       cancelled = true
     }
   }, [canCreate, tenantId])
-
-  useEffect(() => {
-    setAttrValues({})
-  }, [categoryId])
 
   const goToList = useCallback(() => {
     void navigate('/catalogo/items')
@@ -168,10 +146,6 @@ export function CreateCatalogItemPage() {
         if (kindNum === CatalogItemKind.Physical && !hasVariants && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
         }
-        const missingAttr = missingRequiredAttributeLabel(effectiveSchemaFields, attrValues)
-        if (missingAttr) {
-          throw new Error(`Completa el campo obligatorio «${missingAttr}».`)
-        }
         let price: number | null = null
         if (basePrice.trim()) {
           const parsed = Number(basePrice.replace(',', '.'))
@@ -197,6 +171,7 @@ export function CreateCatalogItemPage() {
             categoryId: categoryId || null,
             variantDimensionsJson: matrixData.variantDimensionsJson,
             variants: matrixData.variants,
+            customAttributesJson: serializeCustomAttributes(customAttributes),
           })
 
           targetItemId = createdMatrix.parentItemId
@@ -230,7 +205,7 @@ export function CreateCatalogItemPage() {
             sku: sku.trim() || null,
             basePrice: price,
             categoryId: categoryId || null,
-            customAttributesJson: serializeAttributeValues(schemaFields, attrValues),
+            customAttributesJson: serializeCustomAttributes(customAttributes),
           })
 
           targetItemId = created.itemId
@@ -250,33 +225,26 @@ export function CreateCatalogItemPage() {
                 img.isMain
               )
               uploadedCount++
-            } catch (uploadErr) {
-              console.error('Error al subir imagen', uploadErr)
-              toast.show({
-                variant: 'warning',
-                title: 'Aviso de imagen',
-                message: `No se pudo anexar «${img.file.name}». Puedes subirla editando el ítem.`,
-              })
+            } catch (imgErr) {
+              console.error('Error al subir imagen de ítem', imgErr)
             }
           }
-
-          toast.show({
-            title: hasVariants ? 'Ítem con variantes creado con imágenes' : 'Ítem creado con imágenes',
-            message: `«${name.trim()}» se registró con ${uploadedCount} ${
-              uploadedCount === 1 ? 'fotografía' : 'fotografías'
-            }${hasVariants ? ` y ${matrixData.variants.length} variantes.` : '.'}`,
-            variant: 'success',
-          })
-        } else {
-          toast.show({
-            title: hasVariants ? 'Ítem con variantes creado' : 'Ítem creado',
-            message: hasVariants
-              ? `«${name.trim()}» se registró con ${matrixData.variants.length} variantes físicas.`
-              : `«${name.trim()}» ya está en el catálogo.`,
-            variant: 'success',
-          })
+          if (uploadedCount > 0) {
+            toast.show({
+              title: 'Imágenes vinculadas',
+              message: `Se subieron ${uploadedCount} imágenes al ítem con éxito.`,
+              variant: 'success',
+            })
+          }
         }
 
+        toast.show({
+          title: hasVariants ? 'Producto matriz creado' : 'Ítem creado',
+          message: hasVariants
+            ? `«${name.trim()}» con ${matrixData.variants.length} variantes físicas quedó registrado en el catálogo.`
+            : `«${name.trim()}» quedó registrado en el catálogo.`,
+          variant: 'success',
+        })
         void navigate('/catalogo/items', { replace: true })
       } catch (err: unknown) {
         const message =
@@ -289,16 +257,15 @@ export function CreateCatalogItemPage() {
       }
     },
     [
-      attrValues,
       basePrice,
       categoryId,
+      customAttributes,
       description,
       hasVariants,
       kind,
       matrixData,
       name,
       navigate,
-      schemaFields,
       sku,
       stagedImages,
       tenantId,
@@ -458,15 +425,22 @@ export function CreateCatalogItemPage() {
                   fullWidth
                 />
               </div>
-              <CatalogExtraAttributeFields
-                idPrefix="ci"
-                fields={effectiveSchemaFields}
-                values={attrValues}
-                disabled={busy}
-                onChange={(key, next) => setAttrValues((prev) => ({ ...prev, [key]: next }))}
-              />
             </div>
           </SectionCard>
+
+          <div style={{ marginTop: '1.25rem' }}>
+            <SectionCard
+              title="Especificaciones y Atributos Adicionales"
+              subtitle="Define propiedades técnicas, comerciales o informativas propias de este producto (ej. Material, Marca, Garantía, Procedencia, etc.)."
+            >
+              <ItemCustomAttributesEditor
+                attributes={customAttributes}
+                onChange={setCustomAttributes}
+                categorySuggestions={categorySuggestions}
+                disabled={busy}
+              />
+            </SectionCard>
+          </div>
 
           {kind === String(CatalogItemKind.Physical) && (
             <div style={{ marginTop: '1.25rem' }}>

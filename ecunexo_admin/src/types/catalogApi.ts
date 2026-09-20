@@ -159,6 +159,7 @@ export type CreateCatalogItemMatrixPayload = {
   categoryId?: string | null
   variantDimensionsJson: string
   variants: CreateVariantChildPayload[]
+  customAttributesJson?: string | null
 }
 
 export type CreateCatalogItemMatrixResponseDto = {

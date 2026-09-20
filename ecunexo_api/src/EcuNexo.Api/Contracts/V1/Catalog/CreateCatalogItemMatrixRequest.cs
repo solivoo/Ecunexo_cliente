@@ -8,7 +8,8 @@ public sealed record CreateCatalogItemMatrixRequest(
     decimal? BasePrice,
     Guid? CategoryId,
     string VariantDimensionsJson,
-    IReadOnlyList<CreateVariantChildRequest> Variants);
+    IReadOnlyList<CreateVariantChildRequest> Variants,
+    string? CustomAttributesJson = null);
 
 public sealed record CreateVariantChildRequest(
     string VariantTitle,

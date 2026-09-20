@@ -121,7 +121,7 @@ public sealed class CreateCatalogItemMatrixHandler
             command.BasePrice,
             command.CategoryId,
             command.VariantDimensionsJson,
-            customAttributesJson: null,
+            command.CustomAttributesJson,
             schemaJson);
 
         if (parentResult.IsFailure)
