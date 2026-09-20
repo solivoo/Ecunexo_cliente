@@ -64,34 +64,27 @@ export function ProductTemplateBuilderPage() {
 
   const applySocksPreset = (type: 'deportiva' | 'diseno' | 'packs') => {
     if (type === 'deportiva') {
-      setName('Calcetería Deportiva & Rendimiento')
-      setDescription('Arquetipo para medias deportivas (Nike, Adidas, Neltex) con control de caña, sujeción antideslizante, tallas y colores.')
+      setName('Calcetines Deportivos por Caña & Actividad')
+      setDescription('Arquetipo para calcetines deportivos (Nike NIK-001, Adidas ADI-001) con atributos base (Marca, Material, Tipo, Talla, Color) y variantes físicas por Caña (Corta, Mediana, Larga), Actividad, Foto y Tags.')
       setLevels([
         {
           id: 'lvl-socks-dep-1',
-          name: 'Colección / Marca',
-          hasColor: false,
+          name: 'Modelo Matriz (Comercial)',
+          hasColor: true,
           hasImages: false,
-          attributes: ['Marca', 'Material', 'Actividad'],
+          attributes: ['Marca', 'Material', 'Tipo', 'Talla'],
         },
         {
           id: 'lvl-socks-dep-2',
-          name: 'Modelo / Estilo de Caña',
+          name: 'Variantes Físicas (Caña & Actividad)',
           hasColor: false,
           hasImages: true,
-          attributes: ['Tipo de Caña', 'Antideslizante'],
-        },
-        {
-          id: 'lvl-socks-dep-3',
-          name: 'Variantes Físicas',
-          hasColor: true,
-          hasImages: true,
-          attributes: ['Talla'],
+          attributes: ['Caña', 'Actividad'],
         },
       ])
       toast.show({
         title: 'Preset cargado',
-        message: 'Estructura de Calcetería Deportiva aplicada con éxito.',
+        message: 'Estructura exacta del diagrama de Calcetines Deportivos aplicada.',
         variant: 'success',
       })
     } else if (type === 'diseno') {
