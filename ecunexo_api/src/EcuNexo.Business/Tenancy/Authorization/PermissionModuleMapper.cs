@@ -20,11 +20,6 @@ public static class PermissionModuleMapper
             return TenantModuleCodes.Invoicing;
         }
 
-        if (normalized.StartsWith("catalog.matrix.", StringComparison.OrdinalIgnoreCase))
-        {
-            return TenantModuleCodes.CatalogMatrix;
-        }
-
         var dot = permissionCode.IndexOf('.');
         if (dot <= 0)
         {

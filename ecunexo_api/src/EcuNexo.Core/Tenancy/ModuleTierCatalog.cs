@@ -88,7 +88,7 @@ public static class ModuleTierCatalog
             [LimitInvoiceHistoryMonths] = 12,
             [LimitMaxMonthlyCreditNotes] = 500,
             [LimitMaxMonthlyRemisionGuides] = 1_000,
-            [LimitMaxActiveCarriers] = 100,
+            [LimitMaxActiveCarriers] = 50,
         },
         [ModuleTier.Enterprise] = new Dictionary<string, int>
         {
@@ -392,7 +392,7 @@ public static class ModuleTierCatalog
         [ModuleTier.Big] = new Dictionary<string, int>
         {
             [LimitMaxMonthlyRemisionGuides] = 1_000,
-            [LimitMaxActiveCarriers] = 100,
+            [LimitMaxActiveCarriers] = 50,
         },
         [ModuleTier.Enterprise] = new Dictionary<string, int>
         {

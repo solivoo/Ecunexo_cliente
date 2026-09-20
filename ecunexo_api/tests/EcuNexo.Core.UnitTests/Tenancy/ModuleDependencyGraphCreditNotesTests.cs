@@ -12,12 +12,21 @@ public sealed class ModuleDependencyGraphCreditNotesTests
         TenantModuleCodes.Canonicalize("notas_credito").Should().Be(TenantModuleCodes.Invoicing);
     }
 
-    [Fact(DisplayName = "Invoicing requiere Catalog en ModuleDependencyGraph")]
-    public void Invoicing_Requires_Catalog()
+    [Fact(DisplayName = "Invoicing requiere Catalog e Identity en ModuleDependencyGraph")]
+    public void Invoicing_Requires_Catalog_And_Identity()
     {
         var required = ModuleDependencyGraph.GetRequiredModules(TenantModuleCodes.Invoicing);
+        required.Should().HaveCount(2)
+            .And.Contain(TenantModuleCodes.Catalog)
+            .And.Contain(TenantModuleCodes.Identity);
+    }
+
+    [Fact(DisplayName = "Catalog requiere únicamente Identity en ModuleDependencyGraph")]
+    public void Catalog_Requires_Identity()
+    {
+        var required = ModuleDependencyGraph.GetRequiredModules(TenantModuleCodes.Catalog);
         required.Should().HaveCount(1)
-            .And.Contain(TenantModuleCodes.Catalog);
+            .And.Contain(TenantModuleCodes.Identity);
     }
 
     [Fact(DisplayName = "ModuleTierCatalog resuelve límites de CreditNotes en todos los tiers")]

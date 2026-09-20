@@ -46,12 +46,15 @@ internal static class MenuCatalogSeedData
         ("facturacion.sri.read", "SRI — monitoreo", "Estados SRI", "facturacion", 78),
         ("facturacion.notas.credito.read", "NC — lectura", "Notas de crédito SRI 04", "facturacion", 79),
         ("facturacion.notas.credito.create", "NC — emisión", "Emitir y gestionar notas de crédito SRI 04", "facturacion", 80),
-        ("facturacion.notas.debito.read", "ND — lectura", "Notas de débito SRI 05", "facturacion", 81),
-        ("facturacion.guias.remision.read", "Guías — lectura", "Guías de remisión SRI 06", "facturacion", 81),
-        ("facturacion.guias.remision.create", "Guías — emisión", "Emitir y gestionar guías de remisión SRI 06", "facturacion", 82),
-        ("facturacion.retenciones.read", "Retenciones — lectura", "Comprobantes retención SRI 07", "facturacion", 83),
-        ("facturacion.liquidacion.compra.read", "Liquidación — lectura", "Liquidación compra SRI 03", "facturacion", 84),
-        ("facturacion.emisor.write", "Emisor — escritura", "Registrar emisor", "facturacion", 85),
+        ("facturacion.notas.credito.anular", "NC — anular", "Anular notas de crédito SRI 04", "facturacion", 81),
+        ("facturacion.notas.debito.read", "ND — lectura", "Notas de débito SRI 05", "facturacion", 82),
+        ("facturacion.guias.remision.read", "Guías — lectura", "Guías de remisión SRI 06", "facturacion", 83),
+        ("facturacion.guias.remision.create", "Guías — emisión", "Emitir y gestionar guías de remisión SRI 06", "facturacion", 84),
+        ("facturacion.guias.remision.autorizar", "Guías — autorizar", "Autorizar guías de remisión electrónicas SRI", "facturacion", 85),
+        ("facturacion.transportistas.manage", "Transportistas — administrar", "Administrar transportistas y vehículos para guías", "facturacion", 86),
+        ("facturacion.retenciones.read", "Retenciones — lectura", "Comprobantes retención SRI 07", "facturacion", 87),
+        ("facturacion.liquidacion.compra.read", "Liquidación — lectura", "Liquidación compra SRI 03", "facturacion", 88),
+        ("facturacion.emisor.write", "Emisor — escritura", "Registrar emisor", "facturacion", 89),
 
         ("catalog.read", "Catálogo — acceso", "Ver módulo catálogo", "catalog", 60),
         ("catalog.item.read", "Ítems — consultar", "Listar ítems del catálogo", "catalog", 61),
@@ -59,6 +62,11 @@ internal static class MenuCatalogSeedData
         ("catalog.item.update", "Ítems — editar", "Editar ítems del catálogo", "catalog", 63),
         ("catalog.item.delete", "Ítems — eliminar", "Baja lógica de ítems sin uso", "catalog", 64),
         ("catalog.category.manage", "Categorías — administrar", "Crear y editar categorías", "catalog", 65),
+        ("catalog.matrix.read", "Matriz — consultar", "Consultar matrices y variantes de productos", "catalog", 66),
+        ("catalog.matrix.create", "Matriz — crear", "Crear matrices y generar variantes", "catalog", 67),
+        ("catalog.matrix.update", "Matriz — editar", "Editar matrices y variantes", "catalog", 68),
+        ("catalog.matrix.delete", "Matriz — eliminar", "Eliminar matrices y variantes", "catalog", 69),
+        ("catalog.scale.manage", "Escalas — administrar", "Administrar plantillas y escalas de variantes", "catalog", 70),
 
         ("warehousing.read", "Bodegas — acceso", "Ver módulo bodegas", "warehousing", 100),
         ("warehousing.locations.manage", "Bodegas — administrar", "Crear y editar ubicaciones", "warehousing", 101),
@@ -127,7 +135,6 @@ internal static class MenuCatalogSeedData
         ("customers", "Clientes"),
         ("ecommerce", "Comercio Electrónico"),
         ("purchases", "Compras"),
-        ("credit_notes", "Notas de Crédito y Anulaciones SRI (Comprobante 04)"),
     ];
 
     public static IReadOnlyList<MenuItem> MenuItems =>

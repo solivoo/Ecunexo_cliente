@@ -90,7 +90,7 @@ Cuando una nueva funcionalidad requiere control de consumo (cupos, límites de a
 - En `Catalog`:
   - `LimitMaxActiveVariants`: Small = 100, Medium = 1.000, Big = 10.000, Enterprise = Ilimitado.
 - En `Invoicing` (`facturacion`):
-  - `LimitMaxMonthlyCreditNotes`: Small = 25, Medium = 100, Big = 500, Enterprise = Ilimitado.
+  - `LimitMaxMonthlyCreditNotes`: Small = 20, Medium = 100, Big = 500, Enterprise = Ilimitado.
   - `LimitMaxMonthlyRemisionGuides`: Small = 50, Medium = 250, Big = 1.000, Enterprise = Ilimitado.
   - `LimitMaxActiveCarriers`: Small = 5, Medium = 20, Big = 50, Enterprise = Ilimitado.
 

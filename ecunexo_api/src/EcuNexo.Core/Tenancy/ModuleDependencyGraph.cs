@@ -23,9 +23,10 @@ public static class ModuleDependencyGraph
     public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> RequiredModules =
         new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
         {
+            [TenantModuleCodes.Catalog] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.Inventory] = [TenantModuleCodes.Catalog, TenantModuleCodes.Warehousing],
             [TenantModuleCodes.Warehousing] = [TenantModuleCodes.Catalog],
-            [TenantModuleCodes.Invoicing] = [TenantModuleCodes.Catalog],
+            [TenantModuleCodes.Invoicing] = [TenantModuleCodes.Catalog, TenantModuleCodes.Identity],
             [TenantModuleCodes.Repairs] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.Customers] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.Ecommerce] = [TenantModuleCodes.Catalog, TenantModuleCodes.Warehousing, TenantModuleCodes.Inventory],

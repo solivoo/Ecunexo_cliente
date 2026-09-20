@@ -165,5 +165,49 @@ public sealed class ModulePermissionFilterTests
         filteredPurchases.Should().NotContain(["facturacion.facturas.read", "facturacion.notas.credito.read"]);
         filteredPurchases.Should().Contain(["purchases.documents.read", "purchases.documents.manage"]);
     }
+
+    [Fact]
+    public void PermissionModuleMapper_ShouldResolveToRootModules_ForCatalogMatrixAndInvoicingExtensions()
+    {
+        PermissionModuleMapper.ResolveProductModule("catalog.matrix.read").Should().Be(TenantModuleCodes.Catalog);
+        PermissionModuleMapper.ResolveProductModule("catalog.matrix.create").Should().Be(TenantModuleCodes.Catalog);
+        PermissionModuleMapper.ResolveProductModule("catalog.matrix.update").Should().Be(TenantModuleCodes.Catalog);
+        PermissionModuleMapper.ResolveProductModule("catalog.matrix.delete").Should().Be(TenantModuleCodes.Catalog);
+        PermissionModuleMapper.ResolveProductModule("catalog.scale.manage").Should().Be(TenantModuleCodes.Catalog);
+
+        PermissionModuleMapper.ResolveProductModule("facturacion.notas.credito.read").Should().Be(TenantModuleCodes.Invoicing);
+        PermissionModuleMapper.ResolveProductModule("facturacion.notas.credito.create").Should().Be(TenantModuleCodes.Invoicing);
+        PermissionModuleMapper.ResolveProductModule("facturacion.notas.credito.anular").Should().Be(TenantModuleCodes.Invoicing);
+        PermissionModuleMapper.ResolveProductModule("facturacion.guias.remision.read").Should().Be(TenantModuleCodes.Invoicing);
+        PermissionModuleMapper.ResolveProductModule("facturacion.guias.remision.create").Should().Be(TenantModuleCodes.Invoicing);
+        PermissionModuleMapper.ResolveProductModule("facturacion.guias.remision.autorizar").Should().Be(TenantModuleCodes.Invoicing);
+        PermissionModuleMapper.ResolveProductModule("facturacion.transportistas.manage").Should().Be(TenantModuleCodes.Invoicing);
+    }
+
+    [Fact]
+    public void IsPermittedForModules_ShouldAllowCatalogMatrixPermissions_WhenCatalogInEntitlements()
+    {
+        var enabledModules = new List<string> { "identity", "catalog" };
+        var entitlements = new List<ModuleEntitlement>
+        {
+            new() { ModuleCode = "identity", Tier = ModuleTier.Small },
+            new() { ModuleCode = "catalog", Tier = ModuleTier.Medium },
+        };
+
+        string[] matrixPermissions =
+        [
+            "catalog.matrix.read",
+            "catalog.matrix.create",
+            "catalog.matrix.update",
+            "catalog.matrix.delete",
+            "catalog.scale.manage",
+        ];
+
+        foreach (var perm in matrixPermissions)
+        {
+            ModulePermissionFilter.IsPermittedForModules(perm, enabledModules, entitlements)
+                .Should().BeTrue($"permission {perm} should be permitted when catalog is enabled");
+        }
+    }
 }
 
