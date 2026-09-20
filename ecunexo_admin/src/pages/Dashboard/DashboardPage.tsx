@@ -5,7 +5,6 @@ import {
   selectIsSubscriptionHolder,
   selectTenantId,
   selectTenantBranding,
-  selectCanReturnToCompanies,
   selectSubscription,
   selectUserName,
   selectUserEmail,
@@ -91,7 +90,6 @@ export function DashboardPage() {
   const isSubscriptionHolder = useAppSelector(selectIsSubscriptionHolder)
   const tenantId = useAppSelector(selectTenantId)
   const tenant = useAppSelector(selectTenantBranding)
-  const canReturn = useAppSelector(selectCanReturnToCompanies)
   const subscription = useAppSelector(selectSubscription)
   const userName = useAppSelector(selectUserName)
   const userEmail = useAppSelector(selectUserEmail)
@@ -270,17 +268,6 @@ export function DashboardPage() {
           <StatusBadge tone="success" withDot>
             Empresa Activa
           </StatusBadge>
-        }
-        actions={
-          canReturn ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void navigate('/organizacion/empresas')}
-            >
-              Cambiar de Empresa
-            </Button>
-          ) : undefined
         }
       />
 

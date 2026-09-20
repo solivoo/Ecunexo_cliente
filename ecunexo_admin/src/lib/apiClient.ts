@@ -32,8 +32,32 @@ function getStore(): Store<RootState> {
   return storeRef
 }
 
+function resolveApiBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+
+  if (typeof window !== 'undefined') {
+    const isLocalhost =
+      window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+
+    // Si se accede desde la red local (móviles, tablets en http://192.168.x.x:5173),
+    // cualquier petición absoluta hacia "localhost" fallará porque el celular se conectaría a sí mismo.
+    // Usamos ruta relativa '' para que el dev server de Vite en el host haga proxy hacia Kestrel (:5088).
+    if (!isLocalhost && (!envUrl || envUrl.includes('localhost') || envUrl.includes('127.0.0.1'))) {
+      return ''
+    }
+
+    // Si en local apunta al backend estándar de desarrollo (:5088), usar '' aprovecha el proxy de Vite
+    // evitando problemas de CORS en cualquier interfaz de red.
+    if (envUrl === 'http://localhost:5088' || envUrl === 'https://localhost:5088') {
+      return ''
+    }
+  }
+
+  return envUrl ?? ''
+}
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL?.trim() ?? '',
+  baseURL: resolveApiBaseUrl(),
   timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
 })

@@ -1,0 +1,6 @@
+namespace EcuNexo.Api.Contracts.V1.Catalog;
+
+public sealed record CreateVariantDimensionTemplateRequest(
+    string Name,
+    string DimensionType,
+    string PredefinedValuesJson);

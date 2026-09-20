@@ -61,6 +61,19 @@ export type CatalogItemListItemDto = {
   mainImageThumbUrl?: string | null
   mainImageUrl?: string | null
   customAttributesJson?: string | null
+  isMatrixParent?: boolean
+  parentId?: string | null
+  variantCount?: number
+  variantDimensionsJson?: string | null
+}
+
+export type CatalogItemVariantSummaryDto = {
+  id: string
+  name: string
+  sku: string | null
+  basePrice: number | null
+  customAttributesJson: string
+  status: CatalogItemStatus
 }
 
 export type CatalogItemDetailDto = {
@@ -77,6 +90,10 @@ export type CatalogItemDetailDto = {
   createdAt: string
   updatedAt: string | null
   images: CatalogItemImageDto[]
+  isMatrixParent?: boolean
+  parentId?: string | null
+  variantDimensionsJson?: string | null
+  variants?: CatalogItemVariantSummaryDto[] | null
 }
 
 export type CreateCategoryBody = {
@@ -110,4 +127,40 @@ export type CreateCatalogItemResponseDto = {
 
 export type UpdateCatalogItemBody = CreateCatalogItemBody & {
   status?: CatalogItemStatus | null
+}
+
+export type VariantDimensionTemplateDto = {
+  id: string
+  tenantId: string
+  name: string
+  dimensionType: string
+  predefinedValuesJson: string
+  isSystemDefault: boolean
+}
+
+export type CreateVariantChildPayload = {
+  variantTitle: string
+  sku: string
+  barcode?: string | null
+  basePrice?: number | null
+  customAttributesJson?: string | null
+  initialStock?: number | null
+  initialStockWarehouseId?: string | null
+}
+
+export type CreateCatalogItemMatrixPayload = {
+  kind: CatalogItemKind
+  name: string
+  description?: string | null
+  modelCode?: string | null
+  basePrice?: number | null
+  categoryId?: string | null
+  variantDimensionsJson: string
+  variants: CreateVariantChildPayload[]
+}
+
+export type CreateCatalogItemMatrixResponseDto = {
+  parentItemId: string
+  createdVariantsCount: number
+  variantItemIds: string[]
 }

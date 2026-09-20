@@ -358,7 +358,11 @@
   flex: 1;
   min-height: 0;
   padding: 1.25rem 1.5rem;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: auto;
   background-color: var(--glb-app-bg, #f8fafc);
   background-image:
     radial-gradient(at 0% 0%, color-mix(in srgb, var(--shell-primary, #6366f1) 4%, transparent) 0px, transparent 55%),
@@ -1356,4 +1360,99 @@ html.sf-dark-mode .app-shell__user-menu-trigger {
 
 .ecu-system-spec-card__link:hover {
   text-decoration: underline;
+}
+
+/* ==========================================================================
+   Responsive & Mobile Navigation Drawer (Tablet & Mobile Devices)
+   ========================================================================== */
+
+/* Botón hamburguesa en cabecera */
+.app-shell__hamburger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 0.5rem;
+  border: 1px solid var(--shell-border);
+  background: var(--shell-surface);
+  color: var(--shell-text);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.app-shell__hamburger-btn:hover {
+  border-color: var(--shell-primary);
+  color: var(--shell-primary);
+  background: color-mix(in srgb, var(--shell-primary) 8%, transparent);
+}
+
+.app-shell__hamburger-btn .material-symbols-outlined {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.app-shell__mobile-backdrop {
+  display: none;
+}
+
+@keyframes ecuBackdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Breakpoint para Tablets y Smartphones (<= 1024px) */
+@media (max-width: 1024px) {
+  .app-shell__hamburger-btn {
+    display: inline-flex;
+  }
+
+  .app-shell__sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1000;
+    width: 280px !important;
+    max-width: 85vw;
+    background: var(--shell-surface);
+    border-right: 1px solid var(--shell-border);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.28);
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1), visibility 0.28s ease;
+    visibility: hidden;
+  }
+
+  .app-shell--mobile-open .app-shell__sidebar {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .app-shell__mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    animation: ecuBackdropFadeIn 0.2s ease;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell__header {
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .app-shell__header-center {
+    display: none;
+  }
+
+  .app-shell__content {
+    padding: 0.75rem;
+  }
 }

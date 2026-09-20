@@ -38,6 +38,17 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
             .Select(CatalogItemImageResponse.FromEntity)
             .ToList();
 
+        var variants = item.Variants
+            .Where(v => v.DeletedAt == null)
+            .Select(v => new CatalogItemVariantDto(
+                v.Id,
+                v.Name,
+                v.Sku,
+                v.BasePrice,
+                v.CustomAttributesJson,
+                v.Status))
+            .ToList();
+
         return Result.Success(
             new CatalogItemDetailResponse(
                 item.Id,
@@ -52,6 +63,10 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 item.Status,
                 item.CreatedAt,
                 item.UpdatedAt,
-                images));
+                images,
+                item.IsMatrixParent,
+                item.ParentId,
+                item.VariantDimensionsJson,
+                variants.Count > 0 ? variants : null));
     }
 }

@@ -45,10 +45,20 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(buildTime),
   },
   server: {
+    // Expone el servidor en la red local (0.0.0.0) para probar en tablets y móviles vía WiFi/LAN
+    host: true,
     // Playwright E2E apunta aquí. strictPort evita caer en otra SPA si 5173 está ocupado.
     port: 5173,
     strictPort: true,
     proxy: {
+      '/api/v1/emitters': {
+        target: 'http://localhost:5203',
+        changeOrigin: true,
+      },
+      '/api/v1/ride-provider': {
+        target: 'http://localhost:5203',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:5088',
         changeOrigin: true,
@@ -58,6 +68,10 @@ export default defineConfig({
       usePolling: process.env.VITE_USE_POLLING === 'true',
       ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**'],
     },
+  },
+  preview: {
+    host: true,
+    port: 4173,
   },
   resolve: {
     alias: [

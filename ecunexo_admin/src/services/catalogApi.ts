@@ -49,12 +49,22 @@ export async function softDeleteCatalogCategory(
 
 export async function listCatalogItems(
   tenantId: string,
-  kind?: CatalogItemKind,
-  status?: CatalogItemStatus
+  kindOrOptions?:
+    | CatalogItemKind
+    | { kind?: CatalogItemKind; status?: CatalogItemStatus; onlyRoots?: boolean },
+  status?: CatalogItemStatus,
+  onlyRoots?: boolean
 ): Promise<CatalogItemListItemDto[]> {
   const params: Record<string, unknown> = {}
-  if (kind !== undefined) params.kind = kind
-  if (status !== undefined) params.status = status
+  if (kindOrOptions !== undefined && typeof kindOrOptions === 'object') {
+    if (kindOrOptions.kind !== undefined) params.kind = kindOrOptions.kind
+    if (kindOrOptions.status !== undefined) params.status = kindOrOptions.status
+    if (kindOrOptions.onlyRoots !== undefined) params.onlyRoots = kindOrOptions.onlyRoots
+  } else {
+    if (kindOrOptions !== undefined) params.kind = kindOrOptions
+    if (status !== undefined) params.status = status
+    if (onlyRoots !== undefined) params.onlyRoots = onlyRoots
+  }
 
   const { data } = await api.get<CatalogItemListItemDto[]>(
     `/api/v1/tenants/${tenantId}/catalog/items`,
@@ -157,4 +167,56 @@ export async function updateCatalogItemImageAltText(
   await api.put(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}/images/${imageId}/alt-text`, {
     altText,
   })
+}
+
+export async function createCatalogItemMatrix(
+  tenantId: string,
+  payload: import('@/types/catalogApi').CreateCatalogItemMatrixPayload
+): Promise<import('@/types/catalogApi').CreateCatalogItemMatrixResponseDto> {
+  const { data } = await api.post<import('@/types/catalogApi').CreateCatalogItemMatrixResponseDto>(
+    `/api/v1/tenants/${tenantId}/catalog/items/matrix`,
+    payload
+  )
+  return data
+}
+
+export async function listVariantDimensionTemplates(
+  tenantId: string
+): Promise<import('@/types/catalogApi').VariantDimensionTemplateDto[]> {
+  const { data } = await api.get<import('@/types/catalogApi').VariantDimensionTemplateDto[]>(
+    `/api/v1/tenants/${tenantId}/catalog/variant-templates`
+  )
+  return data
+}
+
+export async function createVariantDimensionTemplate(
+  tenantId: string,
+  payload: { name: string; dimensionType: string; predefinedValuesJson: string }
+): Promise<{ id: string; tenantId: string }> {
+  const { data } = await api.post<{ id: string; tenantId: string }>(
+    `/api/v1/tenants/${tenantId}/catalog/variant-templates`,
+    payload
+  )
+  return data
+}
+
+export async function updateVariantDimensionTemplate(
+  tenantId: string,
+  templateId: string,
+  payload: { name: string; dimensionType: string; predefinedValuesJson: string }
+): Promise<{ id: string; tenantId: string }> {
+  const { data } = await api.put<{ id: string; tenantId: string }>(
+    `/api/v1/tenants/${tenantId}/catalog/variant-templates/${templateId}`,
+    payload
+  )
+  return data
+}
+
+export async function deleteVariantDimensionTemplate(
+  tenantId: string,
+  templateId: string
+): Promise<void> {
+  await api.delete(
+    `/api/v1/tenants/${tenantId}/catalog/variant-templates/${templateId}`
+  )
 }

@@ -27,6 +27,7 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
     {
         var query = _db.CatalogItems.AsNoTracking()
             .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
+            .Include(i => i.Variants.Where(v => v.DeletedAt == null))
             .Where(i => i.TenantId == tenantId && i.DeletedAt == null);
         if (kind.HasValue)
         {
@@ -46,6 +47,7 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
     public Task<CatalogItem?> GetActiveByIdAsync(Guid tenantId, Guid itemId, CancellationToken ct) =>
         _db.CatalogItems.AsNoTracking()
             .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
+            .Include(i => i.Variants.Where(v => v.DeletedAt == null))
             .FirstOrDefaultAsync(
                 i => i.TenantId == tenantId && i.Id == itemId && i.DeletedAt == null,
                 ct);
@@ -53,6 +55,7 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
     public Task<CatalogItem?> GetTrackedByIdAsync(Guid tenantId, Guid itemId, CancellationToken ct) =>
         _db.CatalogItems
             .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
+            .Include(i => i.Variants.Where(v => v.DeletedAt == null))
             .FirstOrDefaultAsync(
                 i => i.TenantId == tenantId && i.Id == itemId && i.DeletedAt == null,
                 ct);
@@ -95,4 +98,17 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
         _db.CatalogItems.AsNoTracking().AnyAsync(
             i => i.TenantId == tenantId && i.CategoryId == categoryId && i.DeletedAt == null,
             ct);
+
+    public async Task<IReadOnlyList<CatalogItem>> ListVariantsByParentIdAsync(
+        Guid tenantId,
+        Guid parentId,
+        CancellationToken ct)
+    {
+        return await _db.CatalogItems.AsNoTracking()
+            .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
+            .Where(i => i.TenantId == tenantId && i.ParentId == parentId && i.DeletedAt == null)
+            .OrderBy(i => i.Name)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+    }
 }

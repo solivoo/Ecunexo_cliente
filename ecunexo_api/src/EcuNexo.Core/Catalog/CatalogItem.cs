@@ -14,6 +14,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
     public const int DescriptionMaxLength = 1000;
 
     private readonly List<CatalogItemImage> _images = [];
+    private readonly List<CatalogItem> _variants = [];
 
     private CatalogItem()
     {
@@ -22,6 +23,16 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
     }
 
     public IReadOnlyCollection<CatalogItemImage> Images => _images.AsReadOnly();
+
+    public IReadOnlyCollection<CatalogItem> Variants => _variants.AsReadOnly();
+
+    public Guid? ParentId { get; private set; }
+
+    public CatalogItem? Parent { get; private set; }
+
+    public bool IsMatrixParent { get; private set; }
+
+    public string? VariantDimensionsJson { get; private set; }
 
     public Guid TenantId { get; private set; }
 
@@ -133,6 +144,285 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         };
     }
 
+    public static Result<CatalogItem> CreateMatrixParent(
+        Guid id,
+        Guid tenantId,
+        CatalogItemKind kind,
+        string name,
+        string? description,
+        string? modelCode,
+        decimal? basePrice,
+        Guid? categoryId,
+        string variantDimensionsJson,
+        string? customAttributesJson,
+        string categorySchemaJson,
+        Guid? createdBy = null)
+    {
+        if (tenantId == Guid.Empty)
+        {
+            return Result.Failure<CatalogItem>(
+                new Error("catalog.item.tenant_id.invalid", "El tenant es obligatorio.", ErrorType.Validation));
+        }
+
+        if (!Enum.IsDefined(kind))
+        {
+            return Result.Failure<CatalogItem>(
+                new Error("catalog.item.kind.invalid", "El tipo de ítem no es válido.", ErrorType.Validation));
+        }
+
+        var nameResult = NormalizeName(name);
+        if (nameResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(nameResult.Error!);
+        }
+
+        var descResult = NormalizeDescription(description);
+        if (descResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(descResult.Error!);
+        }
+
+        var dimsResult = NormalizeVariantDimensions(variantDimensionsJson);
+        if (dimsResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(dimsResult.Error!);
+        }
+
+        var skuResult = NormalizeSku(kind, modelCode, isMatrixParent: true);
+        if (skuResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(skuResult.Error!);
+        }
+
+        var priceResult = NormalizePrice(basePrice);
+        if (priceResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(priceResult.Error!);
+        }
+
+        var attrs = CatalogAttributeSchema.NormalizeAttributes(customAttributesJson);
+        if (attrs.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(attrs.Error!);
+        }
+
+        var againstSchema = CatalogAttributeSchema.ValidateAgainstSchema(categorySchemaJson, attrs.Value!);
+        if (againstSchema.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(againstSchema.Error!);
+        }
+
+        return new CatalogItem
+        {
+            Id = id,
+            TenantId = tenantId,
+            CategoryId = categoryId,
+            Kind = kind,
+            Name = nameResult.Value!,
+            Description = descResult.Value,
+            Sku = skuResult.Value,
+            BasePrice = priceResult.Value,
+            CustomAttributesJson = attrs.Value!,
+            IsMatrixParent = true,
+            VariantDimensionsJson = dimsResult.Value!,
+            Status = CatalogItemStatus.Active,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = createdBy,
+        };
+    }
+
+    public static Result<CatalogItem> CreateVariantChild(
+        Guid id,
+        CatalogItem parent,
+        string variantTitle,
+        string sku,
+        decimal? basePrice,
+        string? customAttributesJson,
+        string categorySchemaJson,
+        Guid? createdBy = null)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+
+        if (!parent.IsMatrixParent)
+        {
+            return Result.Failure<CatalogItem>(
+                new Error("catalog.matrix.parent.invalid", "El ítem especificado no es un producto matriz.", ErrorType.Validation));
+        }
+
+        if (parent.ParentId.HasValue)
+        {
+            return Result.Failure<CatalogItem>(
+                new Error("catalog.matrix.hierarchy.depth", "No se permite anidar variantes a más de 1 nivel de jerarquía.", ErrorType.Validation));
+        }
+
+        if (string.IsNullOrWhiteSpace(variantTitle))
+        {
+            return Result.Failure<CatalogItem>(
+                new Error("catalog.variant.title.required", "El título de la variante es obligatorio (ej. Talla 35-38).", ErrorType.Validation));
+        }
+
+        var skuResult = NormalizeSku(parent.Kind, sku, isMatrixParent: false);
+        if (skuResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(skuResult.Error!);
+        }
+
+        var priceResult = NormalizePrice(basePrice ?? parent.BasePrice);
+        if (priceResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(priceResult.Error!);
+        }
+
+        var attrs = CatalogAttributeSchema.NormalizeAttributes(customAttributesJson);
+        if (attrs.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(attrs.Error!);
+        }
+
+        var againstSchema = CatalogAttributeSchema.ValidateAgainstSchema(categorySchemaJson, attrs.Value!);
+        if (againstSchema.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(againstSchema.Error!);
+        }
+
+        var combinedName = $"{parent.Name} - {variantTitle.Trim()}";
+        if (combinedName.Length > NameMaxLength)
+        {
+            combinedName = combinedName[..NameMaxLength];
+        }
+
+        return new CatalogItem
+        {
+            Id = id,
+            TenantId = parent.TenantId,
+            ParentId = parent.Id,
+            Parent = parent,
+            IsMatrixParent = false,
+            CategoryId = parent.CategoryId,
+            Kind = parent.Kind,
+            Name = combinedName,
+            Description = parent.Description,
+            Sku = skuResult.Value,
+            BasePrice = priceResult.Value,
+            CustomAttributesJson = attrs.Value!,
+            Status = CatalogItemStatus.Active,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = createdBy,
+        };
+    }
+
+    public Result AddVariantChild(CatalogItem variant)
+    {
+        ArgumentNullException.ThrowIfNull(variant);
+
+        if (!IsMatrixParent)
+        {
+            return Result.Failure(
+                new Error("catalog.matrix.not_parent", "Solo un producto matriz puede tener variantes.", ErrorType.Validation));
+        }
+
+        if (variant.ParentId != Id)
+        {
+            return Result.Failure(
+                new Error("catalog.matrix.child.mismatch", "La variante no pertenece a este producto matriz.", ErrorType.Validation));
+        }
+
+        _variants.Add(variant);
+        return Result.Success();
+    }
+
+    public Result UpdateMatrixDimensions(string variantDimensionsJson, Guid? updatedBy)
+    {
+        if (!IsMatrixParent)
+        {
+            return Result.Failure(
+                new Error("catalog.matrix.not_parent", "Solo un producto matriz posee dimensiones.", ErrorType.Validation));
+        }
+
+        var dims = NormalizeVariantDimensions(variantDimensionsJson);
+        if (dims.IsFailure)
+        {
+            return Result.Failure(dims.Error!);
+        }
+
+        VariantDimensionsJson = dims.Value!;
+        Touch(updatedBy);
+        return Result.Success();
+    }
+
+    public static Result<string> NormalizeVariantDimensions(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return Result.Failure<string>(
+                new Error("catalog.matrix.dimensions.required", "Debe configurar al menos una dimensión (ej. Talla) para el producto matriz.", ErrorType.Validation));
+        }
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(raw.Trim());
+            if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array)
+            {
+                return Result.Failure<string>(
+                    new Error("catalog.matrix.dimensions.array", "Las dimensiones de la matriz deben ser un arreglo JSON.", ErrorType.Validation));
+            }
+
+            var dimensions = new List<object>();
+            foreach (var dim in doc.RootElement.EnumerateArray())
+            {
+                if (dim.ValueKind != System.Text.Json.JsonValueKind.Object)
+                {
+                    return Result.Failure<string>(
+                        new Error("catalog.matrix.dimension.object", "Cada dimensión debe ser un objeto JSON.", ErrorType.Validation));
+                }
+
+                if (!dim.TryGetProperty("name", out var nameEl) || string.IsNullOrWhiteSpace(nameEl.GetString()))
+                {
+                    return Result.Failure<string>(
+                        new Error("catalog.matrix.dimension.name.required", "El nombre de la dimensión (ej. Talla) es obligatorio.", ErrorType.Validation));
+                }
+
+                var name = nameEl.GetString()!.Trim();
+                if (!dim.TryGetProperty("values", out var valuesEl) || valuesEl.ValueKind != System.Text.Json.JsonValueKind.Array)
+                {
+                    return Result.Failure<string>(
+                        new Error("catalog.matrix.dimension.values.required", $"La dimensión '{name}' debe contener un arreglo de valores.", ErrorType.Validation));
+                }
+
+                var values = new List<string>();
+                foreach (var v in valuesEl.EnumerateArray())
+                {
+                    var valStr = v.GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(valStr))
+                    {
+                        values.Add(valStr);
+                    }
+                }
+
+                if (values.Count == 0)
+                {
+                    return Result.Failure<string>(
+                        new Error("catalog.matrix.dimension.values.empty", $"La dimensión '{name}' debe tener al menos un valor.", ErrorType.Validation));
+                }
+
+                dimensions.Add(new { name, values });
+            }
+
+            if (dimensions.Count == 0)
+            {
+                return Result.Failure<string>(
+                    new Error("catalog.matrix.dimensions.empty", "Debe definir al menos una dimensión con valores.", ErrorType.Validation));
+            }
+
+            return Result.Success(System.Text.Json.JsonSerializer.Serialize(dimensions));
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return Result.Failure<string>(
+                new Error("catalog.matrix.dimensions.json", "El formato JSON de las dimensiones no es válido.", ErrorType.Validation));
+        }
+    }
+
     public Result Update(
         string name,
         string? description,
@@ -155,7 +445,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure(descResult.Error!);
         }
 
-        var skuResult = NormalizeSku(Kind, sku);
+        var skuResult = NormalizeSku(Kind, sku, IsMatrixParent);
         if (skuResult.IsFailure)
         {
             return Result.Failure(skuResult.Error!);
@@ -205,7 +495,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Success();
         }
 
-        var skuResult = NormalizeSku(kind, sku);
+        var skuResult = NormalizeSku(kind, sku, IsMatrixParent);
         if (skuResult.IsFailure)
         {
             return Result.Failure(skuResult.Error!);
@@ -463,11 +753,11 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         return Result.Success<string?>(trimmed.Length == 0 ? null : trimmed);
     }
 
-    private static Result<string?> NormalizeSku(CatalogItemKind kind, string? sku)
+    private static Result<string?> NormalizeSku(CatalogItemKind kind, string? sku, bool isMatrixParent = false)
     {
         if (string.IsNullOrWhiteSpace(sku))
         {
-            if (kind == CatalogItemKind.Physical)
+            if (kind == CatalogItemKind.Physical && !isMatrixParent)
             {
                 return Result.Failure<string?>(
                     new Error(

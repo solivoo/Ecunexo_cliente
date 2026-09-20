@@ -6,7 +6,8 @@ namespace EcuNexo.Business.Catalog.Queries.ListCatalogItems;
 public sealed record ListCatalogItemsQuery(
     Guid TenantId,
     CatalogItemKind? Kind = null,
-    CatalogItemStatus? Status = null)
+    CatalogItemStatus? Status = null,
+    bool OnlyRoots = false)
     : IQuery<IReadOnlyList<CatalogItemListItemResponse>>;
 
 public sealed record CatalogItemListItemResponse(
@@ -21,4 +22,8 @@ public sealed record CatalogItemListItemResponse(
     CatalogItemStatus Status,
     DateTimeOffset CreatedAt,
     string? MainImageThumbUrl = null,
-    string? MainImageUrl = null);
+    string? MainImageUrl = null,
+    bool IsMatrixParent = false,
+    Guid? ParentId = null,
+    int VariantCount = 0,
+    string? VariantDimensionsJson = null);

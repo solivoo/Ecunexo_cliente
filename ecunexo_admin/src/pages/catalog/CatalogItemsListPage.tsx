@@ -44,7 +44,7 @@ export function CatalogItemsListPage() {
       if (!tenantId) return
       setLoading(true)
       try {
-        setRows(await listCatalogItems(tenantId))
+        setRows(await listCatalogItems(tenantId, { onlyRoots: true }))
         setError(null)
         if (!opts?.silent) {
           toast.show({

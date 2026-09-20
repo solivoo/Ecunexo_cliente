@@ -9,6 +9,76 @@
 * **Rama Activa:** `main`.
 * **Última Versión Publicada:** `v0.30.0`.
 * **Hitos Recientes Completados:**
+  - **Módulo de Producto Matriz (Parent-Child) & Escalas Reutilizables de Tallas/Variantes:**
+    * **Arquitectura de Dominio (`CatalogItem.cs`, `VariantDimensionTemplate.cs`):**
+      - Modelo auto-referencial (`ParentId` -> `Parent` con borrado en cascada) donde el producto padre (`IsMatrixParent = true`) agrupa los datos comerciales y de vitrina, mientras que cada variante física (`ParentId != null`) es un `CatalogItem` independiente con SKU único, código de barras, precio propio y stock físico en bodega.
+      - Invariante físico: El producto padre nunca almacena stock directo; las existencias y movimientos de Kárdex pertenecen a las variantes físicas individuales.
+      - Catálogo de plantillas reutilizables de escalas de tallas y dimensiones (`VariantDimensionTemplate`) precargado con escalas estándar para Ecuador: *Medias / Calcetines* (`35-38`, `39-41`, `42-44`), *Ropa Adulto* (`XS` a `XXL`), *Calzado Adulto* (`36` a `44`), *Pantalones/Jeans* (`28` a `38`), *Ropa Bebé/Niños* y *Colores Básicos*.
+    * **Capa de Persistencia & Migraciones EF Core:**
+      - Nueva tabla `catalog.variant_dimension_templates` y columnas `parent_id`, `is_matrix_parent`, `variant_dimensions_json` en `catalog.items`.
+      - Migración `20260920155047_AddProductMatrixAndVariantTemplates` aplicada a PostgreSQL con `dotnet ef database update`.
+      - Repositorios `IVariantDimensionTemplateRepository` y extensiones en `ICatalogItemRepository` (`ListVariantsByParentIdAsync`).
+    * **Capa de Negocio CQRS (`EcuNexo.Business`):**
+      - Comando transaccional atómico `CreateCatalogItemMatrixCommand`: valida unicidad de SKUs en el payload y contra la BD, crea el padre y todas las variantes en una sola transacción e inicializa el stock en bodega si se especifica.
+      - CRUD completo de plantillas: `ListVariantDimensionTemplatesQuery`, `CreateVariantDimensionTemplateCommand`, `UpdateVariantDimensionTemplateCommand` y `DeleteVariantDimensionTemplateCommand` con protección estricta contra modificación o borrado de plantillas base del sistema (`IsSystemDefault`).
+      - Filtro `onlyRoots` en `ListCatalogItemsQuery` para evitar saturar el catálogo principal con filas hijas.
+    * **Frontend UI/UX con Material Design 3 & Glubox (`ecunexo_admin`):**
+      - Componente [`VariantMatrixBuilder.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/catalog/VariantMatrixBuilder.tsx) y estilos [`variantMatrixBuilder.css`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/catalog/variantMatrixBuilder.css) con selector de escalas, chips/pills interactivos activables/desactivables con un clic, agregación al vuelo de valores personalizados, soporte opcional para 2da dimensión (ej. Color) generando el producto cartesiano de variantes, botones de copia masiva de precio y regeneración de SKUs.
+      - Gestión directa de plantillas desde la interfaz: botones de «Guardar cambios» y «Eliminar» en escalas personalizadas, con indicadores visuales `Molde del sistema (base)` vs `Plantilla personalizada (editable)`.
+      - Integración en [`CreateCatalogItemPage.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/catalog/CreateCatalogItemPage.tsx) con casilla «¿Tiene tallas o colores?» y subida automática de fotografías al ítem padre.
+      - Visualización destacada en [`CatalogItemsGrid.tsx`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/catalog/CatalogItemsGrid.tsx) con insignia `Matriz · X variantes` e icono de capas tanto en tabla de escritorio como en tarjetas móviles.
+    * **Nueva Skill Oficial EcuNexo (`producto-matriz-tallas-variantes`):**
+      - Creación de `.agents/skills/producto-matriz-tallas-variantes/SKILL.md` documentando la arquitectura auto-referencial, invariantes físicos de stock, escalas estándar para Ecuador (calcetería, confección, calzado, pantalones, niños), producto cartesiano y flujos cruzados con Facturación SRI, Kárdex y Ecommerce.
+    * **Verificación y Pruebas:**
+      - 372/372 pruebas unitarias backend pasadas en verde (238 en `EcuNexo.Core.UnitTests` + 134 en `EcuNexo.Business.UnitTests` incluyendo `VariantDimensionTemplateHandlerTests`).
+      - Suite de pruebas de interfaz Playwright en [`producto-matriz-ui.spec.ts`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/tests-ui/comun/producto-matriz-ui.spec.ts).
+      - Compilación limpia de producción Vite/TypeScript (`tsc -b && vite build` con 0 errores).
+  - **Optimización de Tarjetas para Dispositivos Móviles y Tablets en DataGrid de Catálogo (`CatalogItemsGrid.tsx`, `catalogGrid.css`):**
+    * **Implementación de `renderCard` Personalizado en Glubox DataGrid:** Sustitución de la lista plana por defecto de pares clave-valor por una tarjeta de producto moderna, compacta y elegante estilo E-commerce / SaaS Enterprise.
+    * **Jerarquía Visual y Tipografía:**
+      - **Foto de Portada / Miniatura:** Contenedor de 60×60px con bordes suaves (`border-radius: 10px`), borde sutil y fallback elegante con degradado e icono de `<Package>` cuando el ítem no tiene foto.
+      - **Cabecera:** Categoría destacada en texto pequeño mayúscula (`--glb-muted`) y badge de estado con dot verde/gris (`StatusBadge`).
+      - **Título del Producto:** Tipografía robusta (`0.95rem`, `font-weight: 700`, line-clamp 2) con alto contraste para legibilidad en luz solar.
+      - **Etiquetas y Metadatos:** SKU en píldora monospace (`code.ecu-code`) y tipo de ítem (`Físico` / `Servicio`).
+      - **Barra de Precio Prominente:** Etiqueta "PRECIO BASE" con cifra en formato moneda grande (`font-size: 1.25rem`, `font-weight: 800`, color primario `--shell-primary`).
+      - **Acciones Táctiles Directas (Touch 44px):** Botón `[Editar]` con icono `Pencil` y etiqueta de texto, más botón `[Eliminar]` de peligro con `Trash2` (aislados con `e.stopPropagation()` para evitar clicks accidentales).
+      - **Pie Contextual:** Fecha de alta formateada en tipografía atenuada.
+    * **Interacción Táctil Global (`onCardSelect`):** Al tocar cualquier parte de la tarjeta fuera de los botones de acción, navega directamente a la vista de edición/detalle del ítem (`/catalogo/items/:id`).
+    * **Actualización a `glubox@0.1.24` & Eliminación de Parches CSS Temporales:**
+      - La versión `glubox@0.1.24` incorpora nativamente la corrección de scroll táctil (`.glb-datagrid--card-layout:not(.glb-datagrid--surface-sized) .glb-datagrid__viewport { overflow: visible; height: auto }`, `.glb-datagrid__scroll--cards { overscroll-behavior: auto; touch-action: pan-y }` y `touch-action: pan-y` en tarjetas e interactive cards).
+      - Se removieron limpiamente los parches CSS temporales en `ecu-companies-form.css` y `catalogGrid.css`, quedando la solución estandarizada directamente desde la librería.
+    * **Actualización de Skill EcuNexo (`optimizacion-mobile-responsive`):** Documentación del estándar `renderCard` y la regla de oro de desbloqueo de scroll táctil para DataGrids móviles en la skill oficial.
+    * **Ajuste de Etiqueta en Menú de Usuario (`AppShellUserMenu.tsx`):**
+      - Sustitución de «Acerca de EcuNexo» por «Información» para un layout más limpio, directo y compacto junto a la píldora de versión `v{APP_VERSION_INFO.version}`.
+    * **Control de Salto de Línea en Cabecera de `SectionCard` (`enterpriseUi.css`, `dashboardPage.css`):**
+      - Problema: En contenedores estrechos, tarjetas de 4 columnas en Dashboard o pantallas móviles/tablets, el título y la etiqueta/acción en `.ecu-section-card__action` no cabían en una sola línea, colisionando o desbordando el ancho.
+      - Solución: Se configuró `flex-wrap: wrap; gap: 0.625rem 1rem;` en `.ecu-section-card__header` con `flex: 1 1 auto` en el título para permitir que la etiqueta/acción salte a una línea propia sin comprimirse. En pantallas móviles (`<= 768px`) y en la cuadrícula de analítica del Dashboard (`ecu-dashboard-charts-grid`), se aplica diseño en columna para que la etiqueta/badge se posicione siempre de forma ordenada en su propia línea inferior.
+    * **Captura Directa con Cámara en Alta y Edición de Ítems (`CameraCaptureModal.tsx`, `StagedCatalogItemImages.tsx`, `CatalogItemImageGallery.tsx`):**
+      - Integración de botón «Tomar Foto» junto a «Añadir Fotos»:
+        1. En tablets y smartphones (dispositivos táctiles o sin contexto WebRTC seguro en LAN): Invoca un input nativo `<input type="file" accept="image/*" capture="environment" />` que abre directamente la cámara trasera/de producto con autoenfoque y resolución nativa sin fricción ni menús intermediarios.
+        2. En computadoras de escritorio/laptops con contexto seguro WebRTC: Despliega el modal [`CameraCaptureModal`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/src/pages/catalog/CameraCaptureModal.tsx) con visor de video en vivo, selector/giro de cámara (frontal/trasera), disparador de obturador y confirmación previa de captura.
+    * **Verificación:** Compilación TypeScript y Vite 100% limpia (`npm run build` con 0 errores).
+  - **Anexado de Imágenes en Alta de Ítem, Menú Hamburguesa Off-Canvas & Skill de Optimización Móvil:**
+    * **Anexado de Imágenes en Nuevo Ítem (`CreateCatalogItemPage.tsx`, `StagedCatalogItemImages.tsx`):**
+      - Soporte para previsualizar, reordenar y marcar imagen de "Portada" directamente al crear un ítem (`/catalogo/items/nuevo`).
+      - Zona interactiva Drag & Drop y botón de selección nativo (compatible con cámara y galería en dispositivos táctiles).
+      - Pipeline asíncrono en `onSubmit`: crea el ítem en PostgreSQL y sube secuencialmente cada fotografía con optimización WebP automática a través de `uploadCatalogItemImage`.
+      - Soporte de Alt Text para SEO en Google Imágenes y revocación segura de Object URLs para evitar fugas de memoria.
+    * **Sidebar Adaptable con Menú Hamburguesa para Tablets y Móviles (`DashboardLayout.tsx`, `appShell.css`):**
+      - En viewports `<= 1024px` (tablets y smartphones), el sidebar ya no ocupa espacio directamente: se oculta off-canvas (`transform: translateX(-100%)`).
+      - Botón hamburguesa en cabecera (`.app-shell__hamburger-btn`) que alterna el menú lateral como un drawer fluido con sombra M3 y backdrop táctil (`.app-shell__mobile-backdrop`) con desenfoque de fondo (`backdrop-filter: blur(3px)`).
+      - El drawer se cierra automáticamente al cambiar de ruta, al presionar `Escape` o al pulsar fuera en el backdrop.
+      - Al abrirse en tablet/móvil, el sidebar se renderiza siempre expandido (`collapsed={false}`) para máxima legibilidad táctil de los nombres de módulos.
+      - Eliminación del botón redundante «Cambiar de Empresa» en el `PageHeader` del dashboard de empresa activa (`DashboardPage.tsx`).
+    * **Nueva Skill Oficial EcuNexo (`optimizacion-mobile-responsive`):**
+      - Creación de `.agents/skills/optimizacion-mobile-responsive/SKILL.md` estableciendo la guía arquitectónica para agregar opciones en móviles (menú hamburguesa, `EcuPageActions`, touch targets mínimos de 44px, grids fluidas, inputs táctiles y DataGrids adaptables).
+    * **Configuración de Red Local WiFi/LAN y Enrutamiento Proxy API (`vite.config.ts`, `apiClient.ts`, `billingApi.ts`):**
+      - Habilitación de `host: true` en `server` y `preview` para enlazar a `0.0.0.0` (red local en `http://192.168.18.15:5173/`).
+      - Resolución dinámica de `baseURL` en `apiClient.ts` y `billingApi.ts`: cuando el usuario accede desde un celular o tablet en la red local (`hostname !== 'localhost'`), conmuta a ruta relativa `''` en lugar de `localhost:5088` (el cual apuntaría erróneamente al propio dispositivo móvil).
+      - Configuración de proxies en `vite.config.ts` para `/api` (Kestrel en `:5088`) y `/api/v1/emitters`, `/api/v1/ride-provider` (Billing en `:5203`), canalizando la autenticación y base de datos sin bloqueos de CORS.
+    * **Testing Automatizado UI (`enterprise-shell-ui.spec.ts`, `catalogo-ui.spec.ts`):**
+      - Pruebas Playwright para el botón hamburguesa y drawer en viewport tablet/móvil y para la nueva sección de fotos en el formulario de alta de ítems.
+      - Verificación de compilación limpia con `npm run build` (0 errores).
   - **Módulo Frontend & Alineación Microservicio de Notas de Crédito Electrónicas SRI (Tipo 04) — Cobertura 100%:**
     * **Vista de Listado M3 (`CreditNotesListPage.tsx`):** Implementación de `/facturacion/notas-credito` con `PageHeader` ("Notas de Crédito SRI", insignia `SRI 04`), 4 `StatCard` en `.ecu-stat-grid` (Total Registradas, Autorizadas SRI, Borradores, Monto Modificado Acumulado), barra de herramientas con `OptionGroup` (Todas, Autorizadas, Borradores) y `GridDateRangeBox`, grilla `DataGrid` de Glubox con acciones de descarga de RIDE PDF, XML y reenvío al SRI.
     * **Vista Dedicada de Emisión (`CreditNoteCreatePage.tsx`):** Formulario completo en `/facturacion/notas-credito/nueva` (Regla 9 sin modales) para devoluciones totales y **devoluciones parciales de ítems/cantidades** o **ajustes de precio**. Incluye selector de factura autorizada de sustento (`01`), detalle de motivo SRI (1 a 300 caracteres), tabla de cantidades a devolver con cálculo reactivo de subtotal e IVA, y pipeline de firma y autorización en línea.

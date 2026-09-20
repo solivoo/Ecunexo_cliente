@@ -30,4 +30,6 @@ public interface ICatalogItemRepository
     Task<bool> SkuExistsIgnoreCaseAsync(Guid tenantId, string sku, Guid? excludeId, CancellationToken ct);
 
     Task<bool> ExistsForCategoryAsync(Guid tenantId, Guid categoryId, CancellationToken ct);
+
+    Task<IReadOnlyList<CatalogItem>> ListVariantsByParentIdAsync(Guid tenantId, Guid parentId, CancellationToken ct);
 }

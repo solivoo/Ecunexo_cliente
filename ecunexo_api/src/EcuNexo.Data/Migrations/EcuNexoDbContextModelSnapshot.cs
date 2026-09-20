@@ -325,6 +325,12 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("description");
 
+                    b.Property<bool>("IsMatrixParent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_matrix_parent");
+
                     b.Property<int>("Kind")
                         .HasColumnType("integer")
                         .HasColumnName("kind");
@@ -334,6 +340,10 @@ namespace EcuNexo.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
 
                     b.Property<string>("Sku")
                         .HasMaxLength(32)
@@ -356,6 +366,10 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("updated_by");
 
+                    b.Property<string>("VariantDimensionsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("variant_dimensions_json");
+
                     b.Property<uint>("xmin")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -367,6 +381,9 @@ namespace EcuNexo.Data.Migrations
 
                     b.HasIndex("CategoryId")
                         .HasDatabaseName("ix_items_category_id");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_items_parent_id");
 
                     b.HasIndex("TenantId", "Sku")
                         .IsUnique()
@@ -555,6 +572,65 @@ namespace EcuNexo.Data.Migrations
                         .HasDatabaseName("ix_categories_tenant_id_parent_id");
 
                     b.ToTable("categories", "catalog");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Catalog.VariantDimensionTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("DimensionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("dimension_type");
+
+                    b.Property<bool>("IsSystemDefault")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_system_default");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("PredefinedValuesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("predefined_values_json");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_variant_dimension_templates");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_variant_dimension_templates_tenant_id_name");
+
+                    b.ToTable("variant_dimension_templates", "catalog");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.CreditNotes.CreditNote", b =>
@@ -4601,6 +4677,12 @@ namespace EcuNexo.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_items_categories_category_id");
 
+                    b.HasOne("EcuNexo.Core.Catalog.CatalogItem", "Parent")
+                        .WithMany("Variants")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_items_items_parent_id");
+
                     b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
@@ -4609,6 +4691,8 @@ namespace EcuNexo.Data.Migrations
                         .HasConstraintName("fk_items_tenants_tenant_id");
 
                     b.Navigation("Category");
+
+                    b.Navigation("Parent");
 
                     b.Navigation("Tenant");
                 });
@@ -4641,6 +4725,18 @@ namespace EcuNexo.Data.Migrations
                         .HasConstraintName("fk_categories_tenants_tenant_id");
 
                     b.Navigation("Parent");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Catalog.VariantDimensionTemplate", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_variant_dimension_templates_tenants_tenant_id");
 
                     b.Navigation("Tenant");
                 });
@@ -5152,6 +5248,8 @@ namespace EcuNexo.Data.Migrations
             modelBuilder.Entity("EcuNexo.Core.Catalog.CatalogItem", b =>
                 {
                     b.Navigation("Images");
+
+                    b.Navigation("Variants");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.CreditNotes.CreditNote", b =>

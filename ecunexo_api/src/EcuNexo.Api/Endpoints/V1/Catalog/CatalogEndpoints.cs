@@ -6,8 +6,11 @@ using EcuNexo.Api.Security;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
+using EcuNexo.Business.Catalog.Commands.CreateCatalogItemMatrix;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
+using EcuNexo.Business.Catalog.Commands.CreateVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.DeleteCatalogItemImage;
+using EcuNexo.Business.Catalog.Commands.DeleteVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.ReorderCatalogItemImages;
 using EcuNexo.Business.Catalog.Commands.SetCatalogItemMainImage;
 using EcuNexo.Business.Catalog.Commands.SoftDeleteCatalogItem;
@@ -15,10 +18,12 @@ using EcuNexo.Business.Catalog.Commands.SoftDeleteCategory;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItemImageAltText;
 using EcuNexo.Business.Catalog.Commands.UpdateCategory;
+using EcuNexo.Business.Catalog.Commands.UpdateVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.UploadCatalogItemImage;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
 using EcuNexo.Business.Catalog.Queries.ListCatalogItems;
 using EcuNexo.Business.Catalog.Queries.ListCategories;
+using EcuNexo.Business.Catalog.Queries.ListVariantDimensionTemplates;
 using EcuNexo.Core.Catalog;
 using Microsoft.AspNetCore.Mvc;
 
@@ -57,6 +62,8 @@ public static class CatalogEndpoints
 
         items.MapPost("/", CreateItemAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+        items.MapPost("/matrix", CreateItemMatrixAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
         items.MapGet("/", ListItemsAsync)
             .AddEndpointFilter(
                 PermissionFilters.RequireAny("catalog.item.read", "catalog.product.read"));
@@ -79,6 +86,21 @@ public static class CatalogEndpoints
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
         items.MapPut("/{itemId:guid}/images/{imageId:guid}/alt-text", UpdateImageAltTextAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
+
+        RouteGroupBuilder variantTemplates = app
+            .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/variant-templates")
+            .WithApiVersionSet(versionSet)
+            .WithTags("Catalog")
+            .RequireAuthorization();
+
+        variantTemplates.MapGet("/", ListVariantTemplatesAsync)
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.read", "catalog.item.create"));
+        variantTemplates.MapPost("/", CreateVariantTemplateAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+        variantTemplates.MapPut("/{templateId:guid}", UpdateVariantTemplateAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+        variantTemplates.MapDelete("/{templateId:guid}", DeleteVariantTemplateAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
 
         return app;
     }
@@ -165,18 +187,128 @@ public static class CatalogEndpoints
             value);
     }
 
+    private static async Task<IResult> CreateItemMatrixAsync(
+        Guid tenantId,
+        CreateCatalogItemMatrixRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var variants = body.Variants.Select(v => new CreateVariantChildDto(
+            v.VariantTitle,
+            v.Sku,
+            v.Barcode,
+            v.BasePrice,
+            v.CustomAttributesJson,
+            v.InitialStock,
+            v.InitialStockWarehouseId)).ToList();
+
+        var command = new CreateCatalogItemMatrixCommand(
+            tenantId,
+            (CatalogItemKind)body.Kind,
+            body.Name,
+            body.Description,
+            body.ModelCode,
+            body.BasePrice,
+            body.CategoryId,
+            body.VariantDimensionsJson,
+            variants);
+
+        var result = await sender
+            .SendAsync<CreateCatalogItemMatrixCommand, CreateCatalogItemMatrixResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        if (!result.IsSuccess)
+        {
+            return result.ToHttpResult();
+        }
+
+        var value = result.Value!;
+        return Results.Created(
+            $"/api/v1/tenants/{tenantId}/catalog/items/{value.ParentItemId}",
+            value);
+    }
+
     private static async Task<IResult> ListItemsAsync(
         Guid tenantId,
         CatalogItemKind? kind,
         CatalogItemStatus? status,
+        bool? onlyRoots,
         ISender sender,
         CancellationToken ct)
     {
         var result = await sender
             .AskAsync<ListCatalogItemsQuery, IReadOnlyList<CatalogItemListItemResponse>>(
-                new ListCatalogItemsQuery(tenantId, kind, status),
+                new ListCatalogItemsQuery(tenantId, kind, status, onlyRoots ?? false),
                 ct)
             .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> ListVariantTemplatesAsync(
+        Guid tenantId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<ListVariantDimensionTemplatesQuery, IReadOnlyList<VariantDimensionTemplateResponse>>(
+                new ListVariantDimensionTemplatesQuery(tenantId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> CreateVariantTemplateAsync(
+        Guid tenantId,
+        CreateVariantDimensionTemplateRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var command = new CreateVariantDimensionTemplateCommand(
+            tenantId,
+            body.Name,
+            body.DimensionType,
+            body.PredefinedValuesJson);
+
+        var result = await sender
+            .SendAsync<CreateVariantDimensionTemplateCommand, CreateVariantDimensionTemplateResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> UpdateVariantTemplateAsync(
+        Guid tenantId,
+        Guid templateId,
+        UpdateVariantDimensionTemplateRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var command = new UpdateVariantDimensionTemplateCommand(
+            templateId,
+            tenantId,
+            body.Name,
+            body.DimensionType,
+            body.PredefinedValuesJson);
+
+        var result = await sender
+            .SendAsync<UpdateVariantDimensionTemplateCommand, UpdateVariantDimensionTemplateResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> DeleteVariantTemplateAsync(
+        Guid tenantId,
+        Guid templateId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var command = new DeleteVariantDimensionTemplateCommand(templateId, tenantId);
+
+        var result = await sender
+            .SendAsync<DeleteVariantDimensionTemplateCommand, DeleteVariantDimensionTemplateResponse>(command, ct)
+            .ConfigureAwait(false);
+
         return result.ToHttpResult();
     }
 

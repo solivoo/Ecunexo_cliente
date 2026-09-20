@@ -33,6 +33,22 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
             .HasForeignKey(i => i.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.Property(i => i.ParentId)
+            .HasColumnType("uuid");
+
+        builder.HasOne(i => i.Parent)
+            .WithMany(i => i.Variants)
+            .HasForeignKey(i => i.ParentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Property(i => i.IsMatrixParent)
+            .HasColumnType("boolean")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(i => i.VariantDimensionsJson)
+            .HasColumnType("jsonb");
+
         builder.Property(i => i.Kind)
             .HasConversion<int>()
             .IsRequired();

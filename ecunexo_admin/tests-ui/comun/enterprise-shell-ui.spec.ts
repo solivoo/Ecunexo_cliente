@@ -85,4 +85,27 @@ test.describe('Enterprise Shell UI — Header, Tema y Modal Acerca de', () => {
     await closeBtn.click()
     await expect(modal).not.toBeVisible()
   })
+
+  test('el botón hamburguesa se muestra en viewport móvil/tablet y abre el menú lateral con backdrop', async ({
+    page,
+  }) => {
+    // Redimensionar viewport a tablet (768x1024)
+    await page.setViewportSize({ width: 768, height: 1024 })
+
+    const hamburgerBtn = page.locator('.app-shell__hamburger-btn')
+    await expect(hamburgerBtn).toBeVisible()
+
+    // Inicialmente el cajón lateral no tiene la clase app-shell--mobile-open
+    await expect(page.locator('.app-shell--mobile-open')).not.toBeVisible()
+
+    // Abrir menú con el botón hamburguesa
+    await hamburgerBtn.click()
+    await expect(page.locator('.app-shell--mobile-open')).toBeVisible()
+    await expect(page.locator('.app-shell__mobile-backdrop')).toBeVisible()
+
+    // Cerrar tocando el backdrop
+    await page.locator('.app-shell__mobile-backdrop').click()
+    await expect(page.locator('.app-shell--mobile-open')).not.toBeVisible()
+  })
 })
+

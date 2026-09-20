@@ -246,6 +246,23 @@
   margin-bottom: 0;
 }
 
+.ecu-dashboard-charts-grid .ecu-section-card__header {
+  padding: 0.85rem 1rem 0.65rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.ecu-dashboard-charts-grid .ecu-section-card__title-wrap {
+  width: 100%;
+}
+
+.ecu-dashboard-charts-grid .ecu-section-card__action {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+}
+
 .ecu-dashboard-charts-grid .ecu-section-card__body {
   flex: 1;
   display: flex;

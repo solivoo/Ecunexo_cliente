@@ -3,6 +3,7 @@ import { Button, Popup, TextBox, useToast } from 'glubox'
 import {
   ArrowLeft,
   ArrowRight,
+  Camera,
   ExternalLink,
   Image as ImageIcon,
   Sparkles,
@@ -11,6 +12,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react'
+import { CameraCaptureModal } from './CameraCaptureModal'
 import {
   deleteCatalogItemImage,
   reorderCatalogItemImages,
@@ -41,6 +43,8 @@ export function CatalogItemImageGallery({
 }: CatalogItemImageGalleryProps) {
   const toast = useToast()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement | null>(null)
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false)
 
   // Estados de carga y progreso
   const [uploading, setUploading] = useState(false)
@@ -264,6 +268,22 @@ export function CatalogItemImageGallery({
     }
   }
 
+  const handleTriggerCamera = () => {
+    if (!canEdit || uploading || sortedImages.length >= MAX_IMAGES) return
+
+    const isTouchOrMobile =
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+
+    // En dispositivos táctiles/móviles o si no hay WebRTC seguro (ej. HTTP en red local), abrir cámara nativa
+    if (isTouchOrMobile || !navigator.mediaDevices?.getUserMedia) {
+      cameraInputRef.current?.click()
+    } else {
+      setIsCameraModalOpen(true)
+    }
+  }
+
   return (
     <div className="ecu-product-gallery">
       {/* Banner Informativo con cuota e-commerce */}
@@ -277,22 +297,37 @@ export function CatalogItemImageGallery({
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           <span className="ecu-product-gallery__count-badge">
             <Sparkles size={13} style={{ color: 'var(--shell-primary)' }} aria-hidden />
             {sortedImages.length} de {MAX_IMAGES} fotos
           </span>
 
           {canEdit && (
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={uploading || sortedImages.length >= MAX_IMAGES}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload size={14} className="mr-1.5" aria-hidden />
-              {uploading ? uploadStatus || 'Subiendo...' : 'Añadir Fotos'}
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploading || sortedImages.length >= MAX_IMAGES}
+                onClick={handleTriggerCamera}
+                title="Abrir cámara del dispositivo para capturar foto"
+              >
+                <Camera size={14} className="mr-1.5" aria-hidden />
+                Tomar Foto
+              </Button>
+
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                disabled={uploading || sortedImages.length >= MAX_IMAGES}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={14} className="mr-1.5" aria-hidden />
+                {uploading ? uploadStatus || 'Subiendo...' : 'Añadir Fotos'}
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -303,6 +338,17 @@ export function CatalogItemImageGallery({
         type="file"
         multiple
         accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+        disabled={uploading || sortedImages.length >= MAX_IMAGES}
+      />
+
+      {/* Input nativo directo para captura con cámara */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
         style={{ display: 'none' }}
         onChange={handleFileChange}
         disabled={uploading || sortedImages.length >= MAX_IMAGES}
@@ -337,6 +383,34 @@ export function CatalogItemImageGallery({
           <p className="ecu-product-gallery__dropzone-hint">
             Recomendado: relación 1:1 cuadrada (mín. 800×800 px) · Formatos WebP, JPG o PNG hasta 8 MB por archivo.
           </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.5rem' }}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleTriggerCamera()
+              }}
+            >
+              <Camera size={14} className="mr-1.5" aria-hidden />
+              Tomar Foto
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={uploading}
+              onClick={(e) => {
+                e.stopPropagation()
+                fileInputRef.current?.click()
+              }}
+            >
+              <Upload size={14} className="mr-1.5" aria-hidden />
+              Seleccionar archivos
+            </Button>
+          </div>
         </div>
       )}
 
@@ -373,6 +447,20 @@ export function CatalogItemImageGallery({
           <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.75rem', color: 'var(--shell-muted)' }}>
             Las fotos que subas aquí definirán la portada y el carrusel interactivo en tu tienda online.
           </p>
+          {canEdit && (
+            <div style={{ marginTop: '0.85rem' }}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploading || sortedImages.length >= MAX_IMAGES}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={14} className="mr-1.5" aria-hidden />
+                Seleccionar fotos
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="ecu-product-gallery__grid">
@@ -660,6 +748,14 @@ export function CatalogItemImageGallery({
           </div>
         </Popup>
       )}
+
+      {/* Modal de Captura de Fotografía con Cámara */}
+      <CameraCaptureModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={(file) => void uploadFiles([file])}
+        onFallbackNative={() => cameraInputRef.current?.click()}
+      />
     </div>
   )
 }

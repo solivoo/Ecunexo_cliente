@@ -18,4 +18,16 @@ public sealed record CatalogItemDetailResponse(
     CatalogItemStatus Status,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt,
-    IReadOnlyList<CatalogItemImageResponse> Images);
+    IReadOnlyList<CatalogItemImageResponse> Images,
+    bool IsMatrixParent = false,
+    Guid? ParentId = null,
+    string? VariantDimensionsJson = null,
+    IReadOnlyList<CatalogItemVariantDto>? Variants = null);
+
+public sealed record CatalogItemVariantDto(
+    Guid Id,
+    string Name,
+    string? Sku,
+    decimal? BasePrice,
+    string CustomAttributesJson,
+    CatalogItemStatus Status);

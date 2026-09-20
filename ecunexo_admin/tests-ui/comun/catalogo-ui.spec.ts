@@ -48,4 +48,23 @@ test.describe('Catálogo UI — Productos y Categorías', () => {
     // Tira de métricas
     await expect(page.getByLabel('Resumen de categorías')).toBeVisible()
   })
+
+  test('Nuevo Ítem: carga formulario con sección de fotografías del producto', async ({ page }) => {
+    const session = await readPersistedSession(page)
+    test.skip(!hasRoute(session.routes, '/catalogo'), 'Este plan no incluye Catálogo.')
+
+    await page.goto('/catalogo/items/nuevo')
+    await expect(page.locator('.app-shell')).toBeVisible()
+
+    // PageHeader
+    await expect(
+      page.getByRole('heading', { name: /Nuevo Ítem/i })
+    ).toBeVisible({ timeout: 20_000 })
+
+    // Sección de fotos
+    await expect(page.getByText(/Fotografías del Ítem/i)).toBeVisible()
+    await expect(page.getByText(/Sin fotografías anexadas todavía/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: /Añadir Fotos/i })).toBeVisible()
+  })
 })
+

@@ -106,6 +106,14 @@ html.sf-dark-mode .ecu-product-gallery__dropzone {
   max-width: 32rem;
 }
 
+/* En dispositivos móviles y táctiles se oculta la zona de arrastrar (drag & drop)
+   ya que no existe mouse; en su lugar se usan botones directos de cámara/galería */
+@media (max-width: 768px), (pointer: coarse) {
+  .ecu-product-gallery__dropzone {
+    display: none !important;
+  }
+}
+
 /* Grid de Imágenes de Producto */
 .ecu-product-gallery__grid {
   display: grid;
@@ -411,3 +419,100 @@ html.sf-dark-mode .ecu-variant-preview-card__img-wrap {
   max-height: 100%;
   object-fit: contain;
 }
+
+/* --- Modal de Captura con Cámara (Live Viewfinder & Snapshot) --- */
+.ecu-camera-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.25rem 0;
+}
+
+.ecu-camera-viewfinder-container,
+.ecu-camera-preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  width: 100%;
+}
+
+.ecu-camera-viewfinder,
+.ecu-camera-preview-box {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 380px;
+  background-color: #090d16;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.ecu-camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ecu-camera-video--mirrored {
+  transform: scaleX(-1);
+}
+
+.ecu-camera-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background-color: #090d16;
+}
+
+.ecu-camera-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+  color: #f8fafc;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.ecu-camera-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  width: 100%;
+  padding-top: 0.5rem;
+}
+
+.ecu-camera-shutter-btn {
+  padding: 0.6rem 1.4rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+.ecu-camera-error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+  padding: 2rem 1rem;
+}
+
+.ecu-camera-error-text {
+  font-size: 0.875rem;
+  color: var(--glb-muted, #64748b);
+  max-width: 24rem;
+  line-height: 1.45;
+  margin: 0;
+}
+

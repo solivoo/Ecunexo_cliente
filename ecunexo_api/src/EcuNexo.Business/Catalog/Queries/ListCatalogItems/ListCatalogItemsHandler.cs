@@ -20,6 +20,11 @@ public sealed class ListCatalogItemsHandler
         CancellationToken ct)
     {
         var list = await _items.ListActiveByTenantAsync(query.TenantId, query.Kind, query.Status, ct).ConfigureAwait(false);
+        if (query.OnlyRoots)
+        {
+            list = list.Where(i => i.ParentId == null).ToList();
+        }
+
         var categories = await _categories.ListActiveByTenantAsync(query.TenantId, ct).ConfigureAwait(false);
         var names = categories.ToDictionary(c => c.Id, c => c.Name);
 
@@ -39,7 +44,11 @@ public sealed class ListCatalogItemsHandler
                     i.Status,
                     i.CreatedAt,
                     mainImg?.ThumbUrl,
-                    mainImg?.MediumUrl);
+                    mainImg?.MediumUrl,
+                    i.IsMatrixParent,
+                    i.ParentId,
+                    i.Variants.Count,
+                    i.VariantDimensionsJson);
             })
             .ToList();
         return Result.Success(items);

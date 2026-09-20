@@ -189,7 +189,7 @@ export function AppShellUserMenu({ onLogout, onOpenAbout }: AppShellUserMenuProp
             <span className="material-symbols-outlined" aria-hidden>
               info
             </span>
-            <span className="app-shell__user-menu-label">Acerca de EcuNexo</span>
+            <span className="app-shell__user-menu-label">Información</span>
             <span className="app-shell__user-menu-version-pill">v{APP_VERSION_INFO.version}</span>
           </button>
         </div>

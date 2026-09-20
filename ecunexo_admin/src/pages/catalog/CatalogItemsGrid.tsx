@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { DataGrid, type ColumnDef } from 'glubox'
-import { Package, Pencil, Trash2 } from 'lucide-react'
+import { Button, DataGrid, type ColumnDef, type DataGridCardRenderContext } from 'glubox'
+import { Layers, Package, Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { StatusBadge } from '@/components/ui'
@@ -13,6 +13,7 @@ import {
   CatalogItemStatus,
   type CatalogItemListItemDto,
 } from '@/types/catalogApi'
+import './catalogGrid.css'
 
 export type CatalogItemGridRow = CatalogItemListItemDto & Record<string, unknown>
 
@@ -85,6 +86,33 @@ function CatalogItemGridThumb({ row }: { readonly row: CatalogItemGridRow }) {
   )
 }
 
+function CatalogItemCardThumb({ row }: { readonly row: CatalogItemGridRow }) {
+  const [hasError, setHasError] = useState(false)
+  const thumbUrl = resolveCatalogItemThumbUrl(row)
+
+  if (!thumbUrl || hasError) {
+    return (
+      <div
+        className="ecu-catalog-card__thumb ecu-catalog-card__thumb--empty"
+        title={row.name}
+        aria-label={row.name}
+      >
+        <Package size={24} />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={thumbUrl}
+      alt={row.name}
+      className="ecu-catalog-card__thumb"
+      loading="lazy"
+      onError={() => setHasError(true)}
+    />
+  )
+}
+
 const gridMessages = createSpanishDataGridMessages('ítem', 'ítems')
 
 export function CatalogItemsGrid({
@@ -117,7 +145,27 @@ export function CatalogItemsGrid({
         width: 240,
         sortable: true,
         renderCell: (_value: CatalogItemGridRow['name'], row: CatalogItemGridRow) => (
-          <strong>{row.name}</strong>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <strong>{row.name}</strong>
+            {row.isMatrixParent ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '0.75rem',
+                  color: 'var(--shell-primary, #4f46e5)',
+                  fontWeight: 600,
+                }}
+              >
+                <Layers size={13} />
+                <span>
+                  Matriz · {row.variantCount ?? 0}{' '}
+                  {row.variantCount === 1 ? 'talla/variante' : 'tallas/variantes'}
+                </span>
+              </span>
+            ) : null}
+          </div>
         ),
       },
       {
@@ -137,7 +185,29 @@ export function CatalogItemsGrid({
         width: 140,
         sortable: true,
         renderCell: (_value: CatalogItemGridRow['sku'], row: CatalogItemGridRow) =>
-          row.sku ? <code className="ecu-code">{row.sku}</code> : '—',
+          row.sku ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <code className="ecu-code">{row.sku}</code>
+              {row.isMatrixParent ? (
+                <span
+                  style={{
+                    fontSize: '0.65rem',
+                    textTransform: 'uppercase',
+                    padding: '1px 4px',
+                    borderRadius: '3px',
+                    background: 'rgba(79, 70, 229, 0.08)',
+                    color: 'var(--shell-primary, #4f46e5)',
+                    fontWeight: 600,
+                  }}
+                  title="Código de modelo matriz"
+                >
+                  Mod
+                </span>
+              ) : null}
+            </span>
+          ) : (
+            '—'
+          ),
       },
       {
         key: 'categoryName',
@@ -214,6 +284,125 @@ export function CatalogItemsGrid({
     return cols
   }, [canDelete, canEdit, deletingId, navigate, onDelete])
 
+  const renderCard = useMemo(() => {
+    return ({ row }: DataGridCardRenderContext<CatalogItemGridRow>) => (
+      <div className="ecu-catalog-card">
+        <div className="ecu-catalog-card__header">
+          <div className="ecu-catalog-card__thumb-wrap">
+            <CatalogItemCardThumb row={row} />
+          </div>
+          <div className="ecu-catalog-card__header-main">
+            <div className="ecu-catalog-card__meta-badges">
+              <span className="ecu-catalog-card__category" title={row.categoryName ?? 'Sin categoría'}>
+                {row.categoryName ?? 'Sin categoría'}
+              </span>
+              <StatusBadge
+                tone={row.status === CatalogItemStatus.Active ? 'success' : 'neutral'}
+                withDot={row.status === CatalogItemStatus.Active}
+              >
+                {catalogItemStatusLabel(row.status)}
+              </StatusBadge>
+            </div>
+
+            <h4 className="ecu-catalog-card__title" title={row.name}>
+              {row.name}
+            </h4>
+
+            {row.isMatrixParent ? (
+              <div style={{ margin: '2px 0 6px 0' }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.75rem',
+                    color: 'var(--shell-primary, #4f46e5)',
+                    fontWeight: 600,
+                  }}
+                >
+                  <Layers size={13} />
+                  <span>
+                    Matriz ({row.variantCount ?? 0}{' '}
+                    {row.variantCount === 1 ? 'talla/variante' : 'tallas/variantes'})
+                  </span>
+                </span>
+              </div>
+            ) : null}
+
+            <div className="ecu-catalog-card__tags">
+              {row.sku ? (
+                <span className="ecu-catalog-card__sku">
+                  <span className="ecu-catalog-card__sku-label">
+                    {row.isMatrixParent ? 'Modelo:' : 'SKU:'}
+                  </span>
+                  <code className="ecu-code">{row.sku}</code>
+                </span>
+              ) : null}
+              <StatusBadge tone={row.kind === CatalogItemKind.Physical ? 'info' : 'neutral'}>
+                {catalogItemKindLabel(row.kind)}
+              </StatusBadge>
+            </div>
+          </div>
+        </div>
+
+        <div className="ecu-catalog-card__body">
+          <div className="ecu-catalog-card__price-box">
+            <span className="ecu-catalog-card__price-label">Precio base</span>
+            <span className="ecu-catalog-card__price-value">
+              {row.basePrice == null ? '—' : `$ ${row.basePrice.toFixed(2)}`}
+            </span>
+          </div>
+
+          {(canEdit || canDelete) && (
+            <div className="ecu-catalog-card__actions">
+              {canEdit ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="ecu-catalog-card__btn-edit"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigate(`/catalogo/items/${row.id}`)
+                  }}
+                  aria-label={`Editar ${row.name}`}
+                  title="Editar ítem"
+                >
+                  <Pencil size={15} />
+                  <span>Editar</span>
+                </Button>
+              ) : null}
+              {canDelete && onDelete ? (
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  className="ecu-catalog-card__btn-delete"
+                  disabled={deletingId === row.id}
+                  loading={deletingId === row.id}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDelete(row)
+                  }}
+                  aria-label={`Eliminar ${row.name}`}
+                  title="Eliminar ítem"
+                >
+                  <Trash2 size={16} />
+                </Button>
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        <div className="ecu-catalog-card__footer">
+          <span className="ecu-catalog-card__created-at">
+            Alta: {formatDateTime(row.createdAt)}
+          </span>
+        </div>
+      </div>
+    )
+  }, [canDelete, canEdit, deletingId, navigate, onDelete])
+
   return (
     <DataGrid
       className="ecu-companies-grid"
@@ -233,6 +422,13 @@ export function CatalogItemsGrid({
       paginationMode="client"
       pageSizeOptions={pageSizeOptions}
       layout="auto"
+      cardBreakpoint={768}
+      renderCard={renderCard}
+      onCardSelect={(row) => {
+        if (canEdit) {
+          navigate(`/catalogo/items/${row.id}`)
+        }
+      }}
       loading={loading}
       messages={gridMessages}
     />

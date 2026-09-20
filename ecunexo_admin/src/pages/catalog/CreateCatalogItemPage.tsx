@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import {
@@ -16,11 +16,23 @@ import {
   serializeAttributeValues,
 } from '@/lib/catalogAttributes'
 import { CatalogExtraAttributeFields } from '@/pages/catalog/CatalogExtraAttributeFields'
+import { StagedCatalogItemImages, type StagedItemImage } from '@/pages/catalog/StagedCatalogItemImages'
 import { readApiError } from '@/lib/readApiError'
-import { createCatalogItem, listCatalogCategories } from '@/services/catalogApi'
+import {
+  createCatalogItem,
+  createCatalogItemMatrix,
+  listCatalogCategories,
+  uploadCatalogItemImage,
+} from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import { CatalogItemKind, type CatalogAttributeField, type CategoryListItemDto } from '@/types/catalogApi'
+import {
+  CatalogItemKind,
+  type CatalogAttributeField,
+  type CategoryListItemDto,
+  type CreateVariantChildPayload,
+} from '@/types/catalogApi'
+import { VariantMatrixBuilder } from '@/pages/catalog/VariantMatrixBuilder'
 
 export function CreateCatalogItemPage() {
   const toast = useToast()
@@ -29,15 +41,42 @@ export function CreateCatalogItemPage() {
   const canCreate = useHasPermission('catalog.item.create')
 
   const [busy, setBusy] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [categories, setCategories] = useState<CategoryListItemDto[]>([])
   const [kind, setKind] = useState(String(CatalogItemKind.Service))
+  const [hasVariants, setHasVariants] = useState(false)
+  const [matrixData, setMatrixData] = useState<{
+    variants: CreateVariantChildPayload[]
+    variantDimensionsJson: string
+    isValid: boolean
+  }>({
+    variants: [],
+    variantDimensionsJson: '',
+    isValid: false,
+  })
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [sku, setSku] = useState('')
   const [basePrice, setBasePrice] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [attrValues, setAttrValues] = useState<Record<string, string>>({})
+  const [stagedImages, setStagedImages] = useState<StagedItemImage[]>([])
+
+  const stagedImagesRef = useRef<StagedItemImage[]>([])
+  stagedImagesRef.current = stagedImages
+
+  useEffect(() => {
+    return () => {
+      stagedImagesRef.current.forEach((img) => {
+        try {
+          URL.revokeObjectURL(img.previewUrl)
+        } catch {
+          // ignorar
+        }
+      })
+    }
+  }, [])
 
   const schemaFields = useMemo<CatalogAttributeField[]>(() => {
     const category = categories.find((c) => c.id === categoryId)
@@ -105,7 +144,7 @@ export function CreateCatalogItemPage() {
       try {
         if (!name.trim()) throw new Error('El nombre del ítem es obligatorio.')
         const kindNum = Number(kind) as CatalogItemKind
-        if (kindNum === CatalogItemKind.Physical && !sku.trim()) {
+        if (kindNum === CatalogItemKind.Physical && !hasVariants && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
         }
         const missingAttr = missingRequiredAttributeLabel(schemaFields, attrValues)
@@ -121,21 +160,80 @@ export function CreateCatalogItemPage() {
           price = parsed
         }
 
-        await createCatalogItem(tenantId, {
-          kind: kindNum,
-          name: name.trim(),
-          description: description.trim() || null,
-          sku: sku.trim() || null,
-          basePrice: price,
-          categoryId: categoryId || null,
-          customAttributesJson: serializeAttributeValues(schemaFields, attrValues),
-        })
+        let targetItemId: string
 
-        toast.show({
-          title: 'Ítem creado',
-          message: `«${name.trim()}» ya está en el catálogo.`,
-          variant: 'success',
-        })
+        if (hasVariants && kindNum === CatalogItemKind.Physical) {
+          if (!matrixData.isValid || matrixData.variants.length === 0) {
+            throw new Error('Debes configurar al menos una variante con SKU para el producto matriz.')
+          }
+
+          const createdMatrix = await createCatalogItemMatrix(tenantId, {
+            kind: kindNum,
+            name: name.trim(),
+            description: description.trim() || null,
+            modelCode: sku.trim() || null,
+            basePrice: price,
+            categoryId: categoryId || null,
+            variantDimensionsJson: matrixData.variantDimensionsJson,
+            variants: matrixData.variants,
+          })
+
+          targetItemId = createdMatrix.parentItemId
+        } else {
+          const created = await createCatalogItem(tenantId, {
+            kind: kindNum,
+            name: name.trim(),
+            description: description.trim() || null,
+            sku: sku.trim() || null,
+            basePrice: price,
+            categoryId: categoryId || null,
+            customAttributesJson: serializeAttributeValues(schemaFields, attrValues),
+          })
+
+          targetItemId = created.itemId
+        }
+
+        if (stagedImages.length > 0) {
+          let uploadedCount = 0
+          for (let i = 0; i < stagedImages.length; i++) {
+            const img = stagedImages[i]
+            setUploadStatus(`Subiendo imagen ${i + 1} de ${stagedImages.length}...`)
+            try {
+              await uploadCatalogItemImage(
+                tenantId,
+                targetItemId,
+                img.file,
+                img.altText || undefined,
+                img.isMain
+              )
+              uploadedCount++
+            } catch (uploadErr) {
+              console.error('Error al subir imagen', uploadErr)
+              toast.show({
+                variant: 'warning',
+                title: 'Aviso de imagen',
+                message: `No se pudo anexar «${img.file.name}». Puedes subirla editando el ítem.`,
+              })
+            }
+          }
+
+          toast.show({
+            title: hasVariants ? 'Producto Matriz creado con imágenes' : 'Ítem creado con imágenes',
+            message: `«${name.trim()}» se registró con ${uploadedCount} ${
+              uploadedCount === 1 ? 'fotografía' : 'fotografías'
+            }${hasVariants ? ` y ${matrixData.variants.length} variantes.` : '.'}`,
+            variant: 'success',
+          })
+        } else {
+          toast.show({
+            title: hasVariants ? 'Producto Matriz creado' : 'Ítem creado',
+            message: hasVariants
+              ? `«${name.trim()}» se registró con ${matrixData.variants.length} variantes físicas.`
+              : `«${name.trim()}» ya está en el catálogo.`,
+            variant: 'success',
+          })
+        }
+
         void navigate('/catalogo/items', { replace: true })
       } catch (err: unknown) {
         const message =
@@ -143,6 +241,7 @@ export function CreateCatalogItemPage() {
         setError(message)
         toast.show({ title: 'No se pudo crear', message, variant: 'error' })
       } finally {
+        setUploadStatus(null)
         setBusy(false)
       }
     },
@@ -151,11 +250,14 @@ export function CreateCatalogItemPage() {
       basePrice,
       categoryId,
       description,
+      hasVariants,
       kind,
+      matrixData,
       name,
       navigate,
       schemaFields,
       sku,
+      stagedImages,
       tenantId,
       toast,
     ]
@@ -264,15 +366,21 @@ export function CreateCatalogItemPage() {
               <div className="ecu-companies-form__field">
                 <TextBox
                   id="ci-sku"
-                  label={kind === String(CatalogItemKind.Physical) ? 'Código SKU (obligatorio)' : 'Código SKU (opcional)'}
+                  label={
+                    hasVariants
+                      ? 'Código Modelo / Prefijo SKU (ej. CALC-001)'
+                      : kind === String(CatalogItemKind.Physical)
+                        ? 'Código SKU (obligatorio)'
+                        : 'Código SKU (opcional)'
+                  }
                   labelPosition="outlined"
                   variant="outline"
                   value={sku}
                   onChange={(e: ChangeEvent<HTMLInputElement>) =>
                     setSku(e.target.value.toUpperCase())
                   }
-                  placeholder="PROD-001"
-                  required={kind === String(CatalogItemKind.Physical)}
+                  placeholder={hasVariants ? 'CALC-DEP' : 'PROD-001'}
+                  required={!hasVariants && kind === String(CatalogItemKind.Physical)}
                   disabled={busy}
                   fullWidth
                 />
@@ -311,17 +419,88 @@ export function CreateCatalogItemPage() {
                 onChange={(key, next) => setAttrValues((prev) => ({ ...prev, [key]: next }))}
               />
             </div>
+          </SectionCard>
 
+          {kind === String(CatalogItemKind.Physical) && (
+            <div style={{ marginTop: '1.25rem' }}>
+              <SectionCard
+                title="Variantes y Tallas (Producto Matriz)"
+                subtitle="Activa esta opción si el producto tiene tallas (ej. 35-38, M, 38), colores o combinaciones múltiples con stock independiente"
+                action={
+                  <label
+                    htmlFor="ci-has-variants"
+                    style={{
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      color: 'var(--shell-primary, #4f46e5)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '6px',
+                      background: 'rgba(79, 70, 229, 0.08)',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <input
+                      id="ci-has-variants"
+                      type="checkbox"
+                      checked={hasVariants}
+                      onChange={(e) => setHasVariants(e.target.checked)}
+                      disabled={busy}
+                      style={{ cursor: 'pointer', width: 16, height: 16 }}
+                    />
+                    <span>¿Tiene tallas o colores?</span>
+                  </label>
+                }
+              >
+                {hasVariants ? (
+                  <VariantMatrixBuilder
+                    tenantId={tenantId}
+                    baseName={name}
+                    baseSku={sku}
+                    basePrice={basePrice}
+                    disabled={busy}
+                    onChange={setMatrixData}
+                  />
+                ) : (
+                  <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.875rem' }}>
+                    Producto simple estándar (un solo ítem con su propio SKU directo). Si este producto
+                    es una prenda, calzado, medias u otro artículo con múltiples tallas o colores,
+                    marca la casilla superior <strong>«¿Tiene tallas o colores?»</strong>.
+                  </p>
+                )}
+              </SectionCard>
+            </div>
+          )}
+
+          <div style={{ marginTop: '1.25rem' }}>
+            <SectionCard
+              title="Fotografías del Ítem (Opcional)"
+              subtitle="Anexa hasta 8 imágenes para catálogo y vitrina online. Se optimizarán a WebP automáticamente al guardar"
+            >
+              <StagedCatalogItemImages
+                stagedImages={stagedImages}
+                onStagedImagesChange={setStagedImages}
+                disabled={busy}
+                uploading={busy && uploadStatus !== null}
+                uploadStatus={uploadStatus}
+              />
+            </SectionCard>
+          </div>
+
+          <SectionCard>
             <div
               className="ecu-companies-form__actions"
               style={{
-                marginTop: '1.5rem',
-                paddingTop: '1rem',
-                borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
               }}
             >
               <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-                Guardar Ítem
+                {uploadStatus || (hasVariants ? 'Guardar Producto Matriz' : 'Guardar Ítem')}
               </Button>
               <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
                 Cancelar
