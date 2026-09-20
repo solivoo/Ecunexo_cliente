@@ -35,8 +35,10 @@ public static class TenantModuleCodes
 
     public const string CreditNotes = "credit_notes";
 
+    public const string CatalogMatrix = "catalog.matrix";
+
     public static readonly IReadOnlyList<string> All =
-        [Identity, Catalog, Warehousing, Inventory, Invoicing, Accounting, Training, Support, Repairs, Customers, Ecommerce, Purchases, RemisionGuides, CreditNotes];
+        [Identity, Catalog, Warehousing, Inventory, Invoicing, Accounting, Training, Support, Repairs, Customers, Ecommerce, Purchases, RemisionGuides, CreditNotes, CatalogMatrix];
 
     public static bool IsKnown(string code)
     {
@@ -72,6 +74,7 @@ public static class TenantModuleCodes
             "accounting" => Accounting,
             "remision_guides" or "guias_remision" or "guias-remision" => RemisionGuides,
             "credit_notes" or "notas_credito" or "notas-credito" or "billing.credit_notes" => CreditNotes,
+            "catalog.matrix" or "catalog_matrix" or "matrix" or "catalog-matrix" => CatalogMatrix,
             _ => normalized,
         };
     }

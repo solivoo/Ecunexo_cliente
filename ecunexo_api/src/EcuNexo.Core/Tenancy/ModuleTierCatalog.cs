@@ -392,6 +392,36 @@ public static class ModuleTierCatalog
     };
 
     // ──────────────────────────────────────────────
+    // CatalogMatrix — Matriz de Tallas, Colores y Variantes Multidimensionales
+    // ──────────────────────────────────────────────
+    public const string LimitMaxActiveVariants = "max_active_variants";
+    public const string LimitMaxVariants = "max_variants";
+
+    private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> CatalogMatrixLimits = new()
+    {
+        [ModuleTier.Small] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveVariants] = 100,
+            [LimitMaxVariants] = 100,
+        },
+        [ModuleTier.Medium] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveVariants] = 1_000,
+            [LimitMaxVariants] = 1_000,
+        },
+        [ModuleTier.Big] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveVariants] = 10_000,
+            [LimitMaxVariants] = 10_000,
+        },
+        [ModuleTier.Enterprise] = new Dictionary<string, int>
+        {
+            [LimitMaxActiveVariants] = int.MaxValue,
+            [LimitMaxVariants] = int.MaxValue,
+        },
+    };
+
+    // ──────────────────────────────────────────────
     // Resolución
     // ──────────────────────────────────────────────
 
@@ -416,6 +446,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Accounting or "accounting" => AccountingLimits,
             TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => RemisionGuidesLimits,
             TenantModuleCodes.CreditNotes or "credit_notes" or "notas_credito" or "notas-credito" or "billing.credit_notes" => CreditNotesLimits,
+            TenantModuleCodes.CatalogMatrix or "catalog.matrix" or "catalog_matrix" or "matrix" or "catalog-matrix" => CatalogMatrixLimits,
             _ => null,
         };
 
@@ -448,6 +479,7 @@ public static class ModuleTierCatalog
             TenantModuleCodes.Accounting or "accounting" => AccountingLimits,
             TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => RemisionGuidesLimits,
             TenantModuleCodes.CreditNotes or "credit_notes" or "notas_credito" or "notas-credito" or "billing.credit_notes" => CreditNotesLimits,
+            TenantModuleCodes.CatalogMatrix or "catalog.matrix" or "catalog_matrix" or "matrix" or "catalog-matrix" => CatalogMatrixLimits,
             _ => null,
         };
 

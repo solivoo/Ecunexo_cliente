@@ -33,6 +33,7 @@ public static class ModuleDependencyGraph
             [TenantModuleCodes.Accounting] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.RemisionGuides] = [TenantModuleCodes.Identity, TenantModuleCodes.Invoicing],
             [TenantModuleCodes.CreditNotes] = [TenantModuleCodes.Identity, TenantModuleCodes.Invoicing],
+            [TenantModuleCodes.CatalogMatrix] = [TenantModuleCodes.Identity, TenantModuleCodes.Catalog],
         };
 
     /// <summary>
@@ -165,6 +166,7 @@ public static class ModuleDependencyGraph
         TenantModuleCodes.Purchases => "Compras",
         TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => "Guías de Remisión Electrónicas SRI (Tipo 06) & Logística",
         TenantModuleCodes.CreditNotes or "credit_notes" or "notas_credito" => "Notas de Crédito y Anulaciones SRI (Comprobante 04)",
+        TenantModuleCodes.CatalogMatrix or "catalog.matrix" or "catalog_matrix" or "matrix" => "Matriz de Tallas, Colores y Variantes Multidimensionales",
         _ => code,
     };
 
