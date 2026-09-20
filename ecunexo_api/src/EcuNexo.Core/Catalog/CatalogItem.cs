@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Catalog.ValueObjects;
 using EcuNexo.Core.Common;
@@ -451,9 +452,45 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Sku = skuResult.Value;
         BasePrice = priceResult.Value;
         CategoryId = categoryId;
-        CustomAttributesJson = attrs.Value!;
+        CustomAttributesJson = PreserveSystemAttributes(CustomAttributesJson, attrs.Value!);
         Touch(updatedBy);
         return Result.Success();
+    }
+
+    private static string PreserveSystemAttributes(string? existingJson, string newJson)
+    {
+        if (string.IsNullOrWhiteSpace(existingJson) || existingJson == CatalogAttributeSchema.EmptyObjectJson)
+        {
+            return newJson;
+        }
+
+        try
+        {
+            using var oldDoc = JsonDocument.Parse(existingJson);
+            if (!oldDoc.RootElement.TryGetProperty("parent_reassignment_history", out var historyEl))
+            {
+                return newJson;
+            }
+
+            using var newDoc = JsonDocument.Parse(newJson);
+            if (newDoc.RootElement.TryGetProperty("parent_reassignment_history", out _))
+            {
+                return newJson;
+            }
+
+            var dict = new Dictionary<string, object>();
+            foreach (var prop in newDoc.RootElement.EnumerateObject())
+            {
+                dict[prop.Name] = JsonSerializer.Deserialize<object>(prop.Value.GetRawText())!;
+            }
+
+            dict["parent_reassignment_history"] = JsonSerializer.Deserialize<object>(historyEl.GetRawText())!;
+            return JsonSerializer.Serialize(dict);
+        }
+        catch
+        {
+            return newJson;
+        }
     }
 
     /// <summary>
@@ -510,6 +547,180 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Status = CatalogItemStatus.Inactive;
         Touch(deletedBy);
         return Result.Success();
+    }
+
+    public const int MaxReassignmentReasonLength = 500;
+
+    /// <summary>
+    /// Reasigna una variante a otro producto matriz padre o la desenlaza como producto independiente,
+    /// registrando trazabilidad completa y justificación en auditoría jsonb.
+    /// </summary>
+    public Result ReassignParent(
+        CatalogItem? targetParent,
+        string reason,
+        CatalogItem? previousParent,
+        Guid? updatedBy,
+        DateTimeOffset utcNow)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return Result.Failure(new Error(
+                "catalog.variant.reassign.reason_required",
+                "El motivo de reasignación es obligatorio para fines de auditoría.",
+                ErrorType.Validation));
+        }
+
+        var trimmedReason = reason.Trim();
+        if (trimmedReason.Length > MaxReassignmentReasonLength)
+        {
+            return Result.Failure(new Error(
+                "catalog.variant.reassign.reason_length",
+                $"El motivo no puede exceder {MaxReassignmentReasonLength} caracteres.",
+                ErrorType.Validation));
+        }
+
+        if (IsMatrixParent && _variants.Count > 0)
+        {
+            return Result.Failure(new Error(
+                "catalog.variant.reassign.has_children",
+                "Un producto matriz con variantes hijas no puede ser reasignado como variante de otro producto.",
+                ErrorType.Validation));
+        }
+
+        if (targetParent is not null)
+        {
+            if (targetParent.Id == Id)
+            {
+                return Result.Failure(new Error(
+                    "catalog.variant.reassign.self_parent",
+                    "Un producto no puede ser su propio producto matriz padre.",
+                    ErrorType.Validation));
+            }
+
+            if (targetParent.TenantId != TenantId)
+            {
+                return Result.Failure(new Error(
+                    "catalog.variant.reassign.cross_tenant",
+                    "No se permite asignar una variante a un producto de otra empresa.",
+                    ErrorType.Validation));
+            }
+
+            if (!targetParent.IsMatrixParent)
+            {
+                return Result.Failure(new Error(
+                    "catalog.variant.reassign.target_not_matrix",
+                    "El producto destino debe ser un producto matriz padre.",
+                    ErrorType.Validation));
+            }
+
+            if (targetParent.ParentId.HasValue)
+            {
+                return Result.Failure(new Error(
+                    "catalog.variant.reassign.target_nested",
+                    "No se permite jerarquía de variantes a más de 1 nivel de profundidad.",
+                    ErrorType.Validation));
+            }
+
+            if (targetParent.DeletedAt.HasValue)
+            {
+                return Result.Failure(new Error(
+                    "catalog.variant.reassign.target_deleted",
+                    "No se puede reasignar a un producto matriz eliminado o inactivo.",
+                    ErrorType.Validation));
+            }
+
+            if (targetParent.Kind != Kind)
+            {
+                return Result.Failure(new Error(
+                    "catalog.variant.reassign.kind_mismatch",
+                    "El tipo de ítem del destino no coincide con el de la variante (físico vs servicio).",
+                    ErrorType.Validation));
+            }
+
+            if (ParentId == targetParent.Id)
+            {
+                return Result.Failure(new Error(
+                    "catalog.variant.reassign.already_parent",
+                    "La variante ya está asignada a este producto matriz.",
+                    ErrorType.Validation));
+            }
+        }
+        else
+        {
+            if (ParentId is null)
+            {
+                return Result.Failure(new Error(
+                    "catalog.variant.reassign.already_standalone",
+                    "El ítem ya es un producto independiente sin producto matriz.",
+                    ErrorType.Validation));
+            }
+        }
+
+        RecordReassignmentAudit(previousParent, targetParent, trimmedReason, updatedBy, utcNow);
+
+        ParentId = targetParent?.Id;
+        IsMatrixParent = false;
+        Touch(updatedBy);
+        return Result.Success();
+    }
+
+    private void RecordReassignmentAudit(
+        CatalogItem? previousParent,
+        CatalogItem? targetParent,
+        string reason,
+        Guid? updatedBy,
+        DateTimeOffset utcNow)
+    {
+        try
+        {
+            var dict = new Dictionary<string, object>();
+            if (!string.IsNullOrWhiteSpace(CustomAttributesJson) && CustomAttributesJson != CatalogAttributeSchema.EmptyObjectJson)
+            {
+                using var doc = JsonDocument.Parse(CustomAttributesJson);
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    dict[prop.Name] = JsonSerializer.Deserialize<object>(prop.Value.GetRawText())!;
+                }
+            }
+
+            var historyList = new List<object>();
+            if (dict.TryGetValue("parent_reassignment_history", out var existingHistoryObj))
+            {
+                try
+                {
+                    var existingHistoryJson = JsonSerializer.Serialize(existingHistoryObj);
+                    var parsed = JsonSerializer.Deserialize<List<object>>(existingHistoryJson);
+                    if (parsed is not null)
+                    {
+                        historyList.AddRange(parsed);
+                    }
+                }
+                catch
+                {
+                    // Fail-safe si el formato anterior era distinto
+                }
+            }
+
+            historyList.Add(new
+            {
+                timestamp = utcNow.ToString("O"),
+                moved_by = updatedBy?.ToString(),
+                reason,
+                previous_parent_id = previousParent?.Id.ToString() ?? ParentId?.ToString(),
+                previous_parent_name = previousParent?.Name,
+                previous_parent_sku = previousParent?.Sku,
+                target_parent_id = targetParent?.Id.ToString(),
+                target_parent_name = targetParent?.Name,
+                target_parent_sku = targetParent?.Sku
+            });
+
+            dict["parent_reassignment_history"] = historyList;
+            CustomAttributesJson = JsonSerializer.Serialize(dict);
+        }
+        catch
+        {
+            // Fail-safe
+        }
     }
 
     public Result<CatalogItemImage> AddImage(

@@ -217,3 +217,30 @@ export type CreateProductTemplateResponseDto = {
   id: string
   tenantId: string
 }
+
+export type ReassignCatalogItemVariantParentBody = {
+  targetParentItemId: string | null
+  reason: string
+}
+
+export type ReassignCatalogItemVariantParentResponseDto = {
+  itemId: string
+  previousParentId: string | null
+  targetParentId: string | null
+  reason: string
+  itemSku: string
+  itemName: string
+}
+
+export type ReassignmentAuditRecord = {
+  timestamp: string
+  moved_by?: string | null
+  reason: string
+  previous_parent_id?: string | null
+  previous_parent_name?: string | null
+  previous_parent_sku?: string | null
+  target_parent_id?: string | null
+  target_parent_name?: string | null
+  target_parent_sku?: string | null
+}
+

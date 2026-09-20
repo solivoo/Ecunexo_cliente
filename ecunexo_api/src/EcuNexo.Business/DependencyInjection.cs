@@ -18,6 +18,7 @@ using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItemMatrix;
 using EcuNexo.Business.Catalog.Commands.AddCatalogItemVariant;
+using EcuNexo.Business.Catalog.Commands.ReassignCatalogItemVariantParent;
 using EcuNexo.Business.Catalog.Commands.CreateCategory;
 using EcuNexo.Business.Catalog.Commands.CreateProductTemplate;
 using EcuNexo.Business.Catalog.Commands.CreateVariantDimensionTemplate;
@@ -197,6 +198,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<CreateCatalogItemCommand, CreateCatalogItemResponse>, CreateCatalogItemHandler>();
         services.AddScoped<ICommandHandler<CreateCatalogItemMatrixCommand, CreateCatalogItemMatrixResponse>, CreateCatalogItemMatrixHandler>();
         services.AddScoped<ICommandHandler<AddCatalogItemVariantCommand, AddCatalogItemVariantResponse>, AddCatalogItemVariantHandler>();
+        services.AddScoped<ICommandHandler<ReassignCatalogItemVariantParentCommand, ReassignCatalogItemVariantParentResponse>, ReassignCatalogItemVariantParentHandler>();
         services.AddScoped<ICommandHandler<CreateVariantDimensionTemplateCommand, CreateVariantDimensionTemplateResponse>, CreateVariantDimensionTemplateHandler>();
         services.AddScoped<ICommandHandler<UpdateVariantDimensionTemplateCommand, UpdateVariantDimensionTemplateResponse>, UpdateVariantDimensionTemplateHandler>();
         services.AddScoped<ICommandHandler<DeleteVariantDimensionTemplateCommand, DeleteVariantDimensionTemplateResponse>, DeleteVariantDimensionTemplateHandler>();

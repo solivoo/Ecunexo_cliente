@@ -18,6 +18,8 @@ import type {
   CreateProductTemplateBody,
   UpdateProductTemplateBody,
   CreateProductTemplateResponseDto,
+  ReassignCatalogItemVariantParentBody,
+  ReassignCatalogItemVariantParentResponseDto,
 } from '@/types/catalogApi'
 
 export async function listCatalogCategories(tenantId: string): Promise<CategoryListItemDto[]> {
@@ -287,4 +289,17 @@ export async function deleteProductTemplate(
     `/api/v1/tenants/${tenantId}/catalog/product-templates/${templateId}`
   )
 }
+
+export async function reassignCatalogItemVariantParent(
+  tenantId: string,
+  itemId: string,
+  body: ReassignCatalogItemVariantParentBody
+): Promise<ReassignCatalogItemVariantParentResponseDto> {
+  const { data } = await api.post<ReassignCatalogItemVariantParentResponseDto>(
+    `/api/v1/tenants/${tenantId}/catalog/items/${itemId}/reassign-parent`,
+    body
+  )
+  return data
+}
+
 

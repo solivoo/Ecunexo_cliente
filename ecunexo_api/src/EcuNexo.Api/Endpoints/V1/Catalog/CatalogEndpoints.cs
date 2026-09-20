@@ -14,6 +14,7 @@ using EcuNexo.Business.Catalog.Commands.CreateVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.DeleteCatalogItemImage;
 using EcuNexo.Business.Catalog.Commands.DeleteProductTemplate;
 using EcuNexo.Business.Catalog.Commands.DeleteVariantDimensionTemplate;
+using EcuNexo.Business.Catalog.Commands.ReassignCatalogItemVariantParent;
 using EcuNexo.Business.Catalog.Commands.ReorderCatalogItemImages;
 using EcuNexo.Business.Catalog.Commands.SetCatalogItemMainImage;
 using EcuNexo.Business.Catalog.Commands.SoftDeleteCatalogItem;
@@ -72,6 +73,8 @@ public static class CatalogEndpoints
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
         items.MapPost("/{itemId:guid}/variants", AddItemVariantAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.create", "catalog.item.update"));
+        items.MapPost("/{itemId:guid}/reassign-parent", ReassignItemVariantParentAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
         items.MapGet("/", ListItemsAsync)
             .AddEndpointFilter(
                 PermissionFilters.RequireAny("catalog.item.read", "catalog.product.read"));
@@ -284,6 +287,28 @@ public static class CatalogEndpoints
         return Results.Created(
             $"/api/v1/tenants/{tenantId}/catalog/items/{value.VariantItemId}",
             value);
+    }
+
+    private static async Task<IResult> ReassignItemVariantParentAsync(
+        Guid tenantId,
+        Guid itemId,
+        ReassignCatalogItemVariantParentRequest body,
+        ISender sender,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        var command = new ReassignCatalogItemVariantParentCommand(
+            tenantId,
+            itemId,
+            body.TargetParentItemId,
+            body.Reason,
+            caller.UserId);
+
+        var result = await sender
+            .SendAsync<ReassignCatalogItemVariantParentCommand, ReassignCatalogItemVariantParentResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
     }
 
     private static async Task<IResult> ListItemsAsync(

@@ -56,7 +56,7 @@ export function serializeCustomAttributes(
   for (const attr of attributes) {
     const k = attr.key.trim()
     const v = attr.value.trim()
-    if (k && k.toLowerCase() !== 'tags') {
+    if (k && k.toLowerCase() !== 'tags' && k.toLowerCase() !== 'parent_reassignment_history') {
       result[k] = v
     }
   }
@@ -72,7 +72,7 @@ export function deserializeCustomAttributes(raw: string | null | undefined): Cus
     const parsed: unknown = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return []
     return Object.entries(parsed as Record<string, unknown>)
-      .filter(([k]) => k.toLowerCase() !== 'tags')
+      .filter(([k]) => k.toLowerCase() !== 'tags' && k.toLowerCase() !== 'parent_reassignment_history')
       .map(([k, v], index) => ({
         id: `attr-${index}-${Date.now()}`,
         key: k,
@@ -81,6 +81,22 @@ export function deserializeCustomAttributes(raw: string | null | undefined): Cus
   } catch {
     return []
   }
+}
+
+export function extractReassignmentHistory(raw: string | null | undefined): import('@/types/catalogApi').ReassignmentAuditRecord[] {
+  if (!raw?.trim()) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const p = parsed as Record<string, unknown>
+      if (Array.isArray(p.parent_reassignment_history)) {
+        return p.parent_reassignment_history as import('@/types/catalogApi').ReassignmentAuditRecord[]
+      }
+    }
+  } catch {
+    // Ignorar JSON malformado
+  }
+  return []
 }
 
 export function ItemCustomAttributesEditor({

@@ -1,16 +1,27 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
-import { Camera, Pencil, Plus, RefreshCw, Sparkles, X } from 'lucide-react'
+import { ArrowLeftRight, Camera, Pencil, Plus, RefreshCw, Sparkles, X } from 'lucide-react'
 import { SectionCard, StatCard, StatusBadge } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
-import { addCatalogItemVariant, updateCatalogItem, uploadCatalogItemImage } from '@/services/catalogApi'
+import {
+  addCatalogItemVariant,
+  listCatalogItems,
+  reassignCatalogItemVariantParent,
+  updateCatalogItem,
+  uploadCatalogItemImage,
+} from '@/services/catalogApi'
 import { listWarehouses } from '@/services/inventoryApi'
 import type { WarehouseListItemDto } from '@/types/inventoryApi'
-import type { CatalogItemDetailDto, CatalogItemVariantSummaryDto } from '@/types/catalogApi'
+import {
+  CatalogItemKind,
+  type CatalogItemDetailDto,
+  type CatalogItemListItemDto,
+  type CatalogItemVariantSummaryDto,
+} from '@/types/catalogApi'
 
 export type EditCatalogItemVariantsSectionProps = {
   readonly tenantId: string
@@ -42,6 +53,94 @@ export function EditCatalogItemVariantsSection({
   const [syncModalOpen, setSyncModalOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [syncing, setSyncing] = useState(false)
+
+  // Reassign / Move variant state
+  const [reassignModalOpen, setReassignModalOpen] = useState(false)
+  const [selectedVariant, setSelectedVariant] = useState<VariantRow | null>(null)
+  const [targetParentId, setTargetParentId] = useState('')
+  const [reassignReason, setReassignReason] = useState('')
+  const [reassigning, setReassigning] = useState(false)
+  const [matrixParents, setMatrixParents] = useState<CatalogItemListItemDto[]>([])
+  const [loadingMatrixParents, setLoadingMatrixParents] = useState(false)
+
+  const handleOpenReassignModal = useCallback(
+    async (variant: VariantRow) => {
+      if (!tenantId) return
+      setSelectedVariant(variant)
+      setReassignReason('')
+      setTargetParentId('')
+      setReassignModalOpen(true)
+      setLoadingMatrixParents(true)
+      try {
+        const items = await listCatalogItems(tenantId, { kind: CatalogItemKind.Physical })
+        const parents = items.filter(
+          (p) => p.isMatrixParent && p.id !== parentItem.id && p.id !== variant.id
+        )
+        setMatrixParents(parents)
+      } catch (err) {
+        toast.show({
+          title: 'Error al listar matrices',
+          message: readApiError(err, 'No se pudieron consultar los productos matriz.'),
+          variant: 'error',
+        })
+      } finally {
+        setLoadingMatrixParents(false)
+      }
+    },
+    [parentItem.id, tenantId, toast]
+  )
+
+  const handleReassignSubmit = useCallback(async () => {
+    if (!tenantId || !selectedVariant) return
+    if (!reassignReason.trim() || reassignReason.trim().length < 3) {
+      toast.show({
+        title: 'Motivo requerido',
+        message: 'Debe ingresar un motivo de auditoría de al menos 3 caracteres.',
+        variant: 'warning',
+      })
+      return
+    }
+
+    setReassigning(true)
+    try {
+      await reassignCatalogItemVariantParent(tenantId, selectedVariant.id, {
+        targetParentItemId: targetParentId ? targetParentId : null,
+        reason: reassignReason.trim(),
+      })
+      toast.show({
+        title: 'Variante reasignada',
+        message: `La variante «${selectedVariant.name}» se movió exitosamente.`,
+        variant: 'success',
+      })
+      setReassignModalOpen(false)
+      setSelectedVariant(null)
+      await onRefreshRequired()
+    } catch (err) {
+      toast.show({
+        title: 'Error al reasignar',
+        message: readApiError(err, 'No se pudo mover la variante.'),
+        variant: 'error',
+      })
+    } finally {
+      setReassigning(false)
+    }
+  }, [onRefreshRequired, reassignReason, selectedVariant, targetParentId, tenantId, toast])
+
+  const reassignTargetOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [
+      {
+        value: '',
+        label: '— Convertir en producto individual (desenlazar matriz) —',
+      },
+    ]
+    matrixParents.forEach((p) => {
+      opts.push({
+        value: p.id,
+        label: `${p.name} ${p.sku ? `(${p.sku})` : ''}`,
+      })
+    })
+    return opts
+  }, [matrixParents])
 
   // Form states for adding a new variant
   const [variantTitle, setVariantTitle] = useState('')
@@ -427,19 +526,30 @@ export function EditCatalogItemVariantsSection({
       {
         key: 'actions',
         header: 'Acciones',
-        width: 90,
+        width: 96,
         renderCell: (_value: unknown, row: VariantRow) => (
-          <GridIconButton
-            label="Editar variante"
-            icon={Pencil}
-            onClick={() => {
-              navigate(`/catalogo/items/${row.id}`)
-            }}
-          />
+          <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+            <GridIconButton
+              label="Editar variante"
+              icon={Pencil}
+              onClick={() => {
+                navigate(`/catalogo/items/${row.id}`)
+              }}
+            />
+            {canEdit && (
+              <GridIconButton
+                label="Reasignar / Mover a otro producto matriz"
+                icon={ArrowLeftRight}
+                onClick={() => {
+                  void handleOpenReassignModal(row)
+                }}
+              />
+            )}
+          </div>
         ),
       },
     ],
-    [navigate, parseAttributes]
+    [canEdit, handleOpenReassignModal, navigate, parseAttributes]
   )
 
   const warehouseOptions = useMemo(
@@ -758,6 +868,82 @@ export function EditCatalogItemVariantsSection({
           </p>
         </div>
       </Popup>
+
+      {/* Modal para mover / reasignar variante a otro padre o independizar */}
+      <Popup
+        open={reassignModalOpen}
+        onClose={() => {
+          if (!reassigning) setReassignModalOpen(false)
+        }}
+        title="Reasignar / Mover Variante a Otro Producto Matriz"
+        width="min(92vw, 32rem)"
+        actions={[
+          {
+            id: 'cancel-reassign-var',
+            label: 'Cancelar',
+            variant: 'outline',
+            onClick: () => setReassignModalOpen(false),
+            disabled: reassigning,
+          },
+          {
+            id: 'confirm-reassign-var',
+            label: reassigning ? 'Reasignando…' : 'Confirmar Reasignación',
+            variant: 'primary',
+            onClick: () => void handleReassignSubmit(),
+            disabled: reassigning || reassignReason.trim().length < 3,
+          },
+        ]}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '0.5rem' }}>
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              borderRadius: '6px',
+              backgroundColor: 'color-mix(in srgb, var(--shell-primary, #4f46e5) 8%, var(--glb-surface, #fff))',
+              border: '1px solid color-mix(in srgb, var(--shell-primary, #4f46e5) 20%, transparent)',
+              fontSize: '0.85rem',
+            }}
+          >
+            <div>
+              <strong>Variante:</strong> {selectedVariant?.name} {selectedVariant?.sku ? `(${selectedVariant.sku})` : ''}
+            </div>
+            <div style={{ marginTop: '0.25rem', color: 'var(--glb-muted, #64748b)' }}>
+              Matriz actual: <strong>«{parentItem.name}»</strong>. El SKU, historial de facturación y stock en bodega se conservan intactos.
+            </div>
+          </div>
+
+          {loadingMatrixParents ? (
+            <p className="app-shell__muted" style={{ fontSize: '0.85rem' }}>
+              Cargando productos matriz disponibles…
+            </p>
+          ) : (
+            <Select
+              id="reassign-var-target"
+              label="Producto Matriz Destino"
+              labelPosition="outlined"
+              variant="outline"
+              options={reassignTargetOptions}
+              value={targetParentId}
+              onChange={setTargetParentId}
+              disabled={reassigning}
+              fullWidth
+            />
+          )}
+
+          <TextBox
+            id="reassign-var-reason"
+            label="Motivo de la reasignación (Auditoría obligatorio)"
+            labelPosition="outlined"
+            variant="outline"
+            placeholder="Ej. Error de asignación inicial / Se traslada a nueva línea deportiva"
+            value={reassignReason}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setReassignReason(e.target.value)}
+            disabled={reassigning}
+            fullWidth
+          />
+        </div>
+      </Popup>
     </div>
   )
 }
+

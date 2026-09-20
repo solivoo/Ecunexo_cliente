@@ -7,8 +7,16 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.37.0`.
+* **Última Versión Publicada:** `v0.38.0`.
 * **Hitos Recientes Completados:**
+  - **Reasignación Flexible de Variantes y Registro Inmutable de Auditoría (`CatalogItem.cs`, `ReassignCatalogItemVariantParent`, `EditCatalogItemPage.tsx`, `EditCatalogItemVariantsSection.tsx`):**
+    * **Dominio & Reglas de Invarianza (`CatalogItem.ReassignParent`):** Permite trasladar una variante física de un producto matriz a otro, o independizarla (`targetParent = null`), conservando el 100% de su SKU, código de barras, facturación histórica SRI y stock en bodega (unidades físicas y kárdex).
+    * **Trazabilidad Inmutable en JSONB (`parent_reassignment_history`):** Cada reasignación exige un motivo obligatorio (mínimo 3 y máximo 500 caracteres) y registra en auditoría: timestamp UTC, usuario, motivo, ID/nombre/SKU del padre anterior y del padre destino. La función `CatalogItem.Update` preserva automáticamente este historial para evitar sobreescrituras accidentales.
+    * **Capa de Negocio CQRS:** Comando `ReassignCatalogItemVariantParentCommand`, validador FluentValidation y handler registrados en `DependencyInjection.cs`, con endpoint `POST /api/v1/tenants/{tenantId}/catalog/items/{itemId}/reassign-parent` protegido por `catalog.item.update`.
+    * **Experiencia de Usuario en Frontend:**
+      - En `EditCatalogItemPage.tsx`: Banner de variante con botón «Mover / Reasignar Variante», banner en productos independientes para vincularlos a una matriz, modal interactivo de selección de destino y motivo, y tarjeta dedicada *Historial de Reasignaciones (Auditoría)* con línea de tiempo y traslados visuales.
+      - En `EditCatalogItemVariantsSection.tsx`: Acción directa en la grilla de variantes de la matriz padre (`ArrowLeftRight`) para mover cualquier variante sin salir de la vista.
+    * **Suite de Pruebas Automatizadas:** 410 tests en verde (258 en `EcuNexo.Core.UnitTests` y 152 en `EcuNexo.Business.UnitTests`) con cobertura de casos positivos, rechazo por motivo corto, cross-tenant, auto-asignación y destinos inválidos; y compilación de producción frontend limpia (`tsc -b && vite build` en 1.69s).
   - **Tags Jerárquicos en Catálogo, Variantes Dimensionales y Limpieza de Plantillas de Prueba (`EcuTagInput.tsx`, `CreateCatalogItemPage.tsx`, `EditCatalogItemPage.tsx`, `VariantMatrixBuilder.tsx`, `HierarchyTemplateTreeBuilder.tsx`):**
     * **Componente de Entrada de Etiquetas (`EcuTagInput.tsx`):** Input interactivo de tags/etiquetas tipo chip con prefijo `#`, soporte para teclado (`Enter`, `,`, `Backspace`), sugerencias automáticas basadas en categoría y especificaciones de atributos, prevención de duplicados insensible a mayúsculas y conteo dinámico.
     * **Herencia y Acumulación Jerárquica de Tags:** Los tags registrados en el producto matriz (ej. `#Nike`, `#Algodon`, `#Antideslizante`, `#Tennis`) se heredan a todas las variantes físicas generadas en el constructor de matriz. A su vez, cada variante combina los tags superiores con sus propias dimensiones físicas (`#CanaCorta`, `#Talla10-12`) y especificaciones secundarias (`#Running`, `#Crossfit`), permitiendo búsquedas hiperprecisas tanto en Punto de Venta (POS) como en vitrina e-commerce.

@@ -15,22 +15,32 @@ import { parseAttributeSchema } from '@/lib/catalogAttributes'
 import {
   ItemCustomAttributesEditor,
   deserializeCustomAttributes,
+  extractReassignmentHistory,
   extractTagsFromCustomAttributes,
   serializeCustomAttributes,
   type CustomAttributeRow,
 } from '@/pages/catalog/ItemCustomAttributesEditor'
 import { CatalogItemImageGallery } from '@/pages/catalog/CatalogItemImageGallery'
 import { EditCatalogItemVariantsSection } from '@/pages/catalog/EditCatalogItemVariantsSection'
-import { ArrowLeft, Layers } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, Layers } from 'lucide-react'
 import { readApiError } from '@/lib/readApiError'
-import { getCatalogItem, listCatalogCategories, softDeleteCatalogItem, updateCatalogItem } from '@/services/catalogApi'
+import {
+  getCatalogItem,
+  listCatalogCategories,
+  listCatalogItems,
+  reassignCatalogItemVariantParent,
+  softDeleteCatalogItem,
+  updateCatalogItem,
+} from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
   CatalogItemKind,
   CatalogItemStatus,
   type CatalogItemDetailDto,
+  type CatalogItemListItemDto,
   type CategoryListItemDto,
+  type ReassignmentAuditRecord,
 } from '@/types/catalogApi'
 
 export function EditCatalogItemPage() {
@@ -75,41 +85,128 @@ export function EditCatalogItemPage() {
     return Array.from(list)
   }, [categories, categoryId, customAttributes])
 
-  useEffect(() => {
-    if (!tenantId || !itemId || !canEdit) return
-    let cancelled = false
-    void (async () => {
-      setLoading(true)
-      try {
-        const [detail, cats] = await Promise.all([
-          getCatalogItem(tenantId, itemId),
-          listCatalogCategories(tenantId).catch(() => [] as CategoryListItemDto[]),
-        ])
-        if (cancelled) return
-        setItem(detail)
-        setCategories(cats)
-        setKind(String(detail.kind))
-        setName(detail.name)
-        setDescription(detail.description ?? '')
-        setSku(detail.sku ?? '')
-        setBasePrice(detail.basePrice == null ? '' : String(detail.basePrice))
-        setCategoryId(detail.categoryId ?? '')
-        setStatus(String(detail.status))
-        setCustomAttributes(deserializeCustomAttributes(detail.customAttributesJson))
-        setTags(extractTagsFromCustomAttributes(detail.customAttributesJson))
-        setError(null)
-      } catch (err: unknown) {
-        if (!cancelled) {
-          setError(readApiError(err, 'No se pudo cargar el ítem.'))
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+  const [reassignModalOpen, setReassignModalOpen] = useState(false)
+  const [reassignTargetParentId, setReassignTargetParentId] = useState('')
+  const [reassignReason, setReassignReason] = useState('')
+  const [reassigning, setReassigning] = useState(false)
+  const [matrixParents, setMatrixParents] = useState<CatalogItemListItemDto[]>([])
+  const [loadingMatrixParents, setLoadingMatrixParents] = useState(false)
+
+  const loadItem = useCallback(async () => {
+    if (!tenantId || !itemId) return
+    setLoading(true)
+    try {
+      const [detail, cats] = await Promise.all([
+        getCatalogItem(tenantId, itemId),
+        listCatalogCategories(tenantId).catch(() => [] as CategoryListItemDto[]),
+      ])
+      setItem(detail)
+      setCategories(cats)
+      setKind(String(detail.kind))
+      setName(detail.name)
+      setDescription(detail.description ?? '')
+      setSku(detail.sku ?? '')
+      setBasePrice(detail.basePrice == null ? '' : String(detail.basePrice))
+      setCategoryId(detail.categoryId ?? '')
+      setStatus(String(detail.status))
+      setCustomAttributes(deserializeCustomAttributes(detail.customAttributesJson))
+      setTags(extractTagsFromCustomAttributes(detail.customAttributesJson))
+      setError(null)
+    } catch (err: unknown) {
+      setError(readApiError(err, 'No se pudo cargar el ítem.'))
+    } finally {
+      setLoading(false)
     }
-  }, [canEdit, itemId, tenantId])
+  }, [itemId, tenantId])
+
+  useEffect(() => {
+    if (!canEdit) return
+    void loadItem()
+  }, [canEdit, loadItem])
+
+  const handleOpenReassignModal = useCallback(async () => {
+    if (!tenantId || !item) return
+    setReassignReason('')
+    setReassignTargetParentId('')
+    setReassignModalOpen(true)
+    setLoadingMatrixParents(true)
+    try {
+      const items = await listCatalogItems(tenantId, { kind: CatalogItemKind.Physical })
+      const parents = items.filter(
+        (p) => p.isMatrixParent && p.id !== itemId && p.id !== item.parentId
+      )
+      setMatrixParents(parents)
+    } catch (err) {
+      toast.show({
+        title: 'Error al listar matrices',
+        message: readApiError(err, 'No se pudieron cargar los productos matriz disponibles.'),
+        variant: 'error',
+      })
+    } finally {
+      setLoadingMatrixParents(false)
+    }
+  }, [item, itemId, tenantId, toast])
+
+  const onReassignSubmit = useCallback(async () => {
+    if (!tenantId || !itemId || !item) return
+    if (!reassignReason.trim() || reassignReason.trim().length < 3) {
+      toast.show({
+        title: 'Motivo requerido',
+        message: 'Debe ingresar un motivo de auditoría de al menos 3 caracteres.',
+        variant: 'warning',
+      })
+      return
+    }
+
+    setReassigning(true)
+    try {
+      await reassignCatalogItemVariantParent(tenantId, itemId, {
+        targetParentItemId: reassignTargetParentId ? reassignTargetParentId : null,
+        reason: reassignReason.trim(),
+      })
+      toast.show({
+        title: 'Variante reasignada',
+        message: 'El movimiento se registró exitosamente con respaldo de auditoría.',
+        variant: 'success',
+      })
+      setReassignModalOpen(false)
+      await loadItem()
+    } catch (err) {
+      toast.show({
+        title: 'Error al reasignar',
+        message: readApiError(err, 'No se pudo mover la variante.'),
+        variant: 'error',
+      })
+    } finally {
+      setReassigning(false)
+    }
+  }, [itemId, item, loadItem, reassignReason, reassignTargetParentId, tenantId, toast])
+
+  const reassignTargetOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = []
+    if (item?.parentId) {
+      opts.push({
+        value: '',
+        label: '— Convertir en producto individual (desenlazar matriz) —',
+      })
+    } else {
+      opts.push({
+        value: '',
+        label: 'Seleccionar producto matriz destino…',
+      })
+    }
+    matrixParents.forEach((p) => {
+      opts.push({
+        value: p.id,
+        label: `${p.name} ${p.sku ? `(${p.sku})` : ''}`,
+      })
+    })
+    return opts
+  }, [item?.parentId, matrixParents])
+
+  const reassignmentHistory = useMemo<ReassignmentAuditRecord[]>(() => {
+    return extractReassignmentHistory(item?.customAttributesJson)
+  }, [item?.customAttributesJson])
 
   const goToList = useCallback(() => {
     void navigate('/catalogo/items')
@@ -348,14 +445,61 @@ export function EditCatalogItemPage() {
                     </div>
                   </div>
                 </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/catalogo/items/${item.parentId}`)}
+                  >
+                    <ArrowLeft size={14} style={{ marginRight: '0.375rem' }} />
+                    Ver Ítem Principal
+                  </Button>
+                  {canEdit && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleOpenReassignModal()}
+                    >
+                      <ArrowLeftRight size={14} style={{ marginRight: '0.375rem' }} />
+                      Mover / Reasignar Variante
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Banner si es producto físico independiente para vincularlo como variante */}
+            {!item?.parentId && !item?.isMatrixParent && Number(kind) === CatalogItemKind.Physical && canEdit && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                  padding: '0.85rem 1.25rem',
+                  marginBottom: '1.25rem',
+                  borderRadius: '0.75rem',
+                  border: '1px dashed var(--glb-border, #cbd5e1)',
+                  backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.02))',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <Layers size={18} style={{ color: 'var(--glb-muted, #64748b)' }} />
+                  <div style={{ fontSize: '0.85rem', color: 'var(--glb-muted, #64748b)' }}>
+                    Este es un producto individual sin producto matriz padre. Puedes vincularlo como variante de una matriz existente.
+                  </div>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/catalogo/items/${item.parentId}`)}
+                  onClick={() => void handleOpenReassignModal()}
                 >
-                  <ArrowLeft size={14} style={{ marginRight: '0.375rem' }} />
-                  Ver Ítem Principal
+                  <ArrowLeftRight size={14} style={{ marginRight: '0.375rem' }} />
+                  Vincular a Producto Matriz
                 </Button>
               </div>
             )}
@@ -618,6 +762,77 @@ export function EditCatalogItemPage() {
               </SectionCard>
             </div>
           )}
+
+          {/* Historial inmutable de auditoría de reasignaciones */}
+          {tenantId && item && reassignmentHistory.length > 0 && (
+            <div className="mt-6">
+              <SectionCard
+                title="Historial de Reasignaciones (Auditoría)"
+                subtitle="Trazabilidad inmutable de movimientos de la variante entre productos matriz"
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {reassignmentHistory.map((entry, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.4rem',
+                        padding: '0.85rem 1rem',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.02))',
+                        border: '1px solid var(--glb-border, rgba(0, 0, 0, 0.08))',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                            {entry.previous_parent_name ? (
+                              <span>
+                                «{entry.previous_parent_name}» {entry.previous_parent_sku ? `(${entry.previous_parent_sku})` : ''}
+                              </span>
+                            ) : (
+                              <span className="app-shell__muted">Producto Individual</span>
+                            )}
+                          </span>
+                          <ArrowLeftRight size={14} style={{ opacity: 0.6 }} />
+                          <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--shell-primary, #4f46e5)' }}>
+                            {entry.target_parent_name ? (
+                              <span>
+                                «{entry.target_parent_name}» {entry.target_parent_sku ? `(${entry.target_parent_sku})` : ''}
+                              </span>
+                            ) : (
+                              <span className="app-shell__muted">Producto Individual</span>
+                            )}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #64748b)' }}>
+                          {new Date(entry.timestamp).toLocaleString()}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.85rem' }}>
+                        <span style={{ color: 'var(--glb-muted, #64748b)' }}>Motivo: </span>
+                        <span style={{ fontWeight: 500 }}>{entry.reason}</span>
+                      </div>
+                      {entry.moved_by && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #64748b)' }}>
+                          Usuario ID: <code className="ecu-code">{entry.moved_by}</code>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            </div>
+          )}
         </>
       )}
       </div>
@@ -653,6 +868,86 @@ export function EditCatalogItemPage() {
             documentos. Es una baja lógica.
           </p>
         ) : null}
+      </Popup>
+
+      <Popup
+        open={reassignModalOpen}
+        title="Reasignar Producto Matriz / Mover Variante"
+        onClose={() => {
+          if (!reassigning) setReassignModalOpen(false)
+        }}
+        width="min(92vw, 32rem)"
+        actions={[
+          {
+            id: 'cancel-reassign',
+            label: 'Cancelar',
+            variant: 'ghost',
+            onClick: () => setReassignModalOpen(false),
+            disabled: reassigning,
+          },
+          {
+            id: 'confirm-reassign',
+            label: reassigning ? 'Reasignando…' : 'Confirmar Reasignación',
+            variant: 'primary',
+            onClick: () => {
+              void onReassignSubmit()
+            },
+            disabled:
+              reassigning ||
+              reassignReason.trim().length < 3 ||
+              (!reassignTargetParentId && !item?.parentId),
+          },
+        ]}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '0.5rem' }}>
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              borderRadius: '6px',
+              backgroundColor: 'color-mix(in srgb, var(--shell-primary, #4f46e5) 8%, var(--glb-surface, #fff))',
+              border: '1px solid color-mix(in srgb, var(--shell-primary, #4f46e5) 20%, transparent)',
+              fontSize: '0.85rem',
+            }}
+          >
+            <div>
+              <strong>Ítem a mover:</strong> {item?.name} {item?.sku ? `(${item.sku})` : ''}
+            </div>
+            <div style={{ marginTop: '0.25rem', color: 'var(--glb-muted, #64748b)' }}>
+              El SKU, código de barras, facturación histórica y stock en bodega se conservan intactos.
+              El cambio quedará registrado en el historial inmutable de auditoría.
+            </div>
+          </div>
+
+          {loadingMatrixParents ? (
+            <p className="app-shell__muted" style={{ fontSize: '0.85rem' }}>
+              Cargando productos matriz disponibles…
+            </p>
+          ) : (
+            <Select
+              id="reassign-target"
+              label="Producto Matriz Destino"
+              labelPosition="outlined"
+              variant="outline"
+              options={reassignTargetOptions}
+              value={reassignTargetParentId}
+              onChange={setReassignTargetParentId}
+              disabled={reassigning}
+              fullWidth
+            />
+          )}
+
+          <TextBox
+            id="reassign-reason"
+            label="Motivo de la reasignación (Auditoría obligatorio)"
+            labelPosition="outlined"
+            variant="outline"
+            placeholder="Ej. Reubicación por error de tipeo en catálogo / Cambio de modelo"
+            value={reassignReason}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setReassignReason(e.target.value)}
+            disabled={reassigning}
+            fullWidth
+          />
+        </div>
       </Popup>
     </TenantSessionGate>
   )
