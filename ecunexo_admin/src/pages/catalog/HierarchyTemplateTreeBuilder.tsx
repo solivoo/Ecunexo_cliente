@@ -15,158 +15,17 @@ import {
   Trash2,
   Workflow,
   X,
-  Zap,
 } from 'lucide-react'
 import type {
   ProductTemplateLevel,
   VariantDimensionTemplateDto,
 } from '@/types/catalogApi'
 
-export interface TemplatePreset {
-  id: string
-  label: string
-  badge: string
-  icon: string
-  description: string
-  suggestedName: string
-  suggestedDescription: string
-  levels: ProductTemplateLevel[]
-}
-
-export const TEMPLATE_PRESETS: TemplatePreset[] = [
-  {
-    id: 'preset-calceteria',
-    label: 'Calcetería & Medias Deportivas',
-    badge: '3 Niveles',
-    icon: '🧦',
-    description: 'Colección (Deportivo/Lisos) → Modelo (Antideslizante/Tennis) → Tallas con Color y Fotos.',
-    suggestedName: 'Calcetería & Medias Deportivas (3 Niveles)',
-    suggestedDescription: 'Arquetipo para calcetines y medias con modelos técnicos y variantes de talla/color.',
-    levels: [
-      {
-        id: 'lvl-calc-1',
-        name: 'Colección / Familia',
-        hasColor: false,
-        hasImages: false,
-        attributes: ['Material', 'Género'],
-      },
-      {
-        id: 'lvl-calc-2',
-        name: 'Modelo / Estilo',
-        hasColor: false,
-        hasImages: true,
-        attributes: ['Tipo de Caña'],
-      },
-      {
-        id: 'lvl-calc-3',
-        name: 'Variantes Físicas',
-        hasColor: true,
-        hasImages: true,
-        attributes: ['Medias / Calcetines'],
-      },
-    ],
-  },
-  {
-    id: 'preset-calzado',
-    label: 'Calzado & Zapatillas',
-    badge: '3 Niveles',
-    icon: '👟',
-    description: 'Línea de Calzado → Modelo de Suela/Corte → Tallas numéricas (EUR) con ColorPicker y Fotos.',
-    suggestedName: 'Calzado Deportivo & Casual (3 Niveles)',
-    suggestedDescription: 'Arquetipo para calzado formal o deportivo con fotos de modelo y variaciones de talla y tono.',
-    levels: [
-      {
-        id: 'lvl-calz-1',
-        name: 'Línea / Género',
-        hasColor: false,
-        hasImages: false,
-        attributes: ['Material Exterior', 'Suela'],
-      },
-      {
-        id: 'lvl-calz-2',
-        name: 'Modelo / Silueta',
-        hasColor: false,
-        hasImages: true,
-        attributes: ['Corte'],
-      },
-      {
-        id: 'lvl-calz-3',
-        name: 'Tallas & Colores',
-        hasColor: true,
-        hasImages: true,
-        attributes: ['Calzado Adulto (Ecuador / EUR)'],
-      },
-    ],
-  },
-  {
-    id: 'preset-confeccion',
-    label: 'Prendas & Confección Textil',
-    badge: '3 Niveles',
-    icon: '👕',
-    description: 'Familia/Temporada → Modelo/Corte con Fotos → Tallas en letras (XS-3XL) con ColorPicker y Fotos.',
-    suggestedName: 'Confección Textil & Prendas (3 Niveles)',
-    suggestedDescription: 'Arquetipo para camisetas, sacos o pantalones con especificación textil y variaciones.',
-    levels: [
-      {
-        id: 'lvl-conf-1',
-        name: 'Familia / Temporada',
-        hasColor: false,
-        hasImages: false,
-        attributes: ['Composición', 'Cuidados'],
-      },
-      {
-        id: 'lvl-conf-2',
-        name: 'Diseño / Corte',
-        hasColor: false,
-        hasImages: true,
-        attributes: ['Manga', 'Cuello'],
-      },
-      {
-        id: 'lvl-conf-3',
-        name: 'Talla & Color',
-        hasColor: true,
-        hasImages: true,
-        attributes: ['Ropa Adulto (Letras)'],
-      },
-    ],
-  },
-  {
-    id: 'preset-simple',
-    label: 'Producto Simple / E-Commerce',
-    badge: '2 Niveles',
-    icon: '📦',
-    description: 'Producto Base → Variantes directas de Color con ColorPicker y Fotografía por SKU.',
-    suggestedName: 'Variantes Simples (2 Niveles)',
-    suggestedDescription: 'Arquetipo ágil para productos directos con 1 solo nivel de variantes (tazas, gorras, accesorios).',
-    levels: [
-      {
-        id: 'lvl-simp-1',
-        name: 'Producto Base',
-        hasColor: false,
-        hasImages: false,
-        attributes: ['Material'],
-      },
-      {
-        id: 'lvl-simp-2',
-        name: 'Variantes de Venta',
-        hasColor: true,
-        hasImages: true,
-        attributes: ['Colores Básicos'],
-      },
-    ],
-  },
-]
-
 export interface HierarchyTemplateTreeBuilderProps {
   levels: ProductTemplateLevel[]
   onChange: (levels: ProductTemplateLevel[]) => void
   availableAttributes: VariantDimensionTemplateDto[]
   disabled?: boolean
-  onApplyPreset?: (preset: {
-    levels: ProductTemplateLevel[]
-    suggestedName: string
-    suggestedDescription: string
-  }) => void
 }
 
 export function HierarchyTemplateTreeBuilder({
@@ -174,12 +33,10 @@ export function HierarchyTemplateTreeBuilder({
   onChange,
   availableAttributes,
   disabled = false,
-  onApplyPreset,
 }: HierarchyTemplateTreeBuilderProps) {
   const [selectedAttrByLevel, setSelectedAttrByLevel] = useState<Record<string, string>>({})
   const [customAttrInputByLevel, setCustomAttrInputByLevel] = useState<Record<string, string>>({})
   const [previewMode, setPreviewMode] = useState<'board' | 'tree'>('board')
-  const [activePresetId, setActivePresetId] = useState<string | null>(null)
 
   const handleAddLevel = () => {
     const nextIdx = levels.length + 1
@@ -268,132 +125,8 @@ export function HierarchyTemplateTreeBuilder({
     })
   }
 
-  const handleTriggerPreset = (preset: TemplatePreset) => {
-    setActivePresetId(preset.id)
-    if (onApplyPreset) {
-      onApplyPreset({
-        levels: preset.levels.map((l) => ({
-          ...l,
-          id: `lvl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        })),
-        suggestedName: preset.suggestedName,
-        suggestedDescription: preset.suggestedDescription,
-      })
-    } else {
-      onChange(
-        preset.levels.map((l) => ({
-          ...l,
-          id: `lvl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        }))
-      )
-    }
-  }
-
   return (
     <div className="cat-hierarchy-builder" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* 1-Click Quick Presets Starter Strip */}
-      <div
-        style={{
-          borderRadius: '12px',
-          border: '1px solid var(--shell-border, rgba(255,255,255,0.1))',
-          background: 'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(139,92,246,0.06) 100%)',
-          padding: '1.25rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.85rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                background: 'rgba(59, 130, 246, 0.2)',
-                color: 'var(--shell-primary, #3b82f6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Zap size={18} />
-            </div>
-            <div>
-              <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--glb-text)' }}>
-                Presets de Inicio Rápido (1 Clic)
-              </h4>
-              <p style={{ margin: '0.15rem 0 0', fontSize: '0.8rem', color: 'var(--glb-muted)' }}>
-                Carga la arquitectura recomendada para tu tipo de catálogo y personalízala según tus necesidades.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Preset Cards Grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '0.75rem',
-          }}
-        >
-          {TEMPLATE_PRESETS.map((preset) => {
-            const isSelected = activePresetId === preset.id
-            return (
-              <div
-                key={preset.id}
-                onClick={() => !disabled && handleTriggerPreset(preset)}
-                style={{
-                  borderRadius: '10px',
-                  border: isSelected
-                    ? '1.5px solid var(--shell-primary, #3b82f6)'
-                    : '1px solid var(--shell-border, rgba(255,255,255,0.08))',
-                  background: isSelected
-                    ? 'rgba(59, 130, 246, 0.12)'
-                    : 'var(--glb-surface, #1e222d)',
-                  padding: '0.85rem 1rem',
-                  cursor: disabled ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.4rem',
-                  transition: 'all 0.15s ease',
-                  position: 'relative',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '1.25rem' }}>{preset.icon}</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--glb-text)' }}>
-                      {preset.label}
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      padding: '0.15rem 0.45rem',
-                      borderRadius: '4px',
-                      background: 'rgba(59, 130, 246, 0.15)',
-                      color: 'var(--shell-primary, #60a5fa)',
-                    }}
-                  >
-                    {preset.badge}
-                  </span>
-                </div>
-                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--glb-muted)', lineHeight: 1.3 }}>
-                  {preset.description}
-                </p>
-                <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--shell-primary, #60a5fa)', fontWeight: 500 }}>
-                  <Zap size={13} />
-                  <span>Cargar este preset</span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
       {/* Levels list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {levels.map((lvl, index) => {

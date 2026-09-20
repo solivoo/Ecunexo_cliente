@@ -7,8 +7,14 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.36.0`.
+* **Última Versión Publicada:** `v0.37.0`.
 * **Hitos Recientes Completados:**
+  - **Tags Jerárquicos en Catálogo, Variantes Dimensionales y Limpieza de Plantillas de Prueba (`EcuTagInput.tsx`, `CreateCatalogItemPage.tsx`, `EditCatalogItemPage.tsx`, `VariantMatrixBuilder.tsx`, `HierarchyTemplateTreeBuilder.tsx`):**
+    * **Componente de Entrada de Etiquetas (`EcuTagInput.tsx`):** Input interactivo de tags/etiquetas tipo chip con prefijo `#`, soporte para teclado (`Enter`, `,`, `Backspace`), sugerencias automáticas basadas en categoría y especificaciones de atributos, prevención de duplicados insensible a mayúsculas y conteo dinámico.
+    * **Herencia y Acumulación Jerárquica de Tags:** Los tags registrados en el producto matriz (ej. `#Nike`, `#Algodon`, `#Antideslizante`, `#Tennis`) se heredan a todas las variantes físicas generadas en el constructor de matriz. A su vez, cada variante combina los tags superiores con sus propias dimensiones físicas (`#CanaCorta`, `#Talla10-12`) y especificaciones secundarias (`#Running`, `#Crossfit`), permitiendo búsquedas hiperprecisas tanto en Punto de Venta (POS) como en vitrina e-commerce.
+    * **Visualización de Tags en Grilla de Variantes:** Nueva columna *Tags Jerárquicos* en el constructor de matriz que exhibe visualmente en tiempo real los tags acumulados por SKU.
+    * **Limpieza de Plantillas de Prueba y Presets Mock:** Eliminada la sección de plantillas de prueba y presets mock (`TEMPLATE_PRESETS`: calcetería, calzado, confección, electrónica) de `HierarchyTemplateTreeBuilder.tsx` y `ProductTemplateBuilderPage.tsx`, garantizando una interfaz completamente limpia donde cada empresa crea sus propios arquetipos desde cero.
+    * **Pruebas y Verificación:** 395/395 tests unitarios en .NET 10 superados con 0 fallas, pruebas de UI Playwright actualizadas en `producto-matriz-ui.spec.ts` y compilación frontend limpia con Vite en 1.56s.
   - **Variantes Dimensionales con Identificador Jerárquico y Herencia Polimórfica de Precios/Descuentos (`VariantMatrixBuilder.tsx`, `CatalogItem.cs`, `CatalogAttributeSchema.cs`):**
     * **Identificador Jerárquico de SKUs (`PADRE-0001`):** Incorporado selector de formato de SKU en el constructor de variantes: modo *Jerárquico Numérico* (`NIK-001-0001`, `NIK-001-0002` con relleno a 4 dígitos) y modo *Por Atributos* (`PADRE-CORTA-BLA`), sincronizando reactivamente los códigos de cada variante con el prefijo del producto matriz padre.
     * **Herencia Automática de Precios y Descuentos:** El precio base del producto matriz (`basePrice`) se hereda por defecto a cada combinación en la grilla y en el backend (`basePrice ?? parent.BasePrice`), con indicador visual verde `Heredado ($X.XX)` y soporte de sobreescritura manual por variante.

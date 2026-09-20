@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Popup, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
+  EcuTagInput,
   PageHeader,
   SectionCard,
   StatusBadge,
@@ -14,6 +15,7 @@ import { parseAttributeSchema } from '@/lib/catalogAttributes'
 import {
   ItemCustomAttributesEditor,
   deserializeCustomAttributes,
+  extractTagsFromCustomAttributes,
   serializeCustomAttributes,
   type CustomAttributeRow,
 } from '@/pages/catalog/ItemCustomAttributesEditor'
@@ -54,11 +56,24 @@ export function EditCatalogItemPage() {
   const [categoryId, setCategoryId] = useState('')
   const [status, setStatus] = useState(String(CatalogItemStatus.Active))
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
+  const [tags, setTags] = useState<string[]>([])
 
   const categorySuggestions = useMemo<string[]>(() => {
     const category = categories.find((c) => c.id === categoryId)
     return parseAttributeSchema(category?.attributeSchemaJson).map((f) => f.label || f.key)
   }, [categories, categoryId])
+
+  const suggestedTags = useMemo<string[]>(() => {
+    const list = new Set<string>()
+    const cat = categories.find((c) => c.id === categoryId)
+    if (cat?.name) list.add(cat.name.trim())
+    customAttributes.forEach((attr) => {
+      if (attr.value.trim() && attr.value.length < 25) {
+        list.add(attr.value.trim())
+      }
+    })
+    return Array.from(list)
+  }, [categories, categoryId, customAttributes])
 
   useEffect(() => {
     if (!tenantId || !itemId || !canEdit) return
@@ -81,6 +96,7 @@ export function EditCatalogItemPage() {
         setCategoryId(detail.categoryId ?? '')
         setStatus(String(detail.status))
         setCustomAttributes(deserializeCustomAttributes(detail.customAttributesJson))
+        setTags(extractTagsFromCustomAttributes(detail.customAttributesJson))
         setError(null)
       } catch (err: unknown) {
         if (!cancelled) {
@@ -155,7 +171,7 @@ export function EditCatalogItemPage() {
           sku: sku.trim() || null,
           basePrice: price,
           categoryId: categoryId || null,
-          customAttributesJson: serializeCustomAttributes(customAttributes),
+          customAttributesJson: serializeCustomAttributes(customAttributes, tags),
           status: Number(status) as typeof CatalogItemStatus.Active,
         })
 
@@ -186,6 +202,7 @@ export function EditCatalogItemPage() {
       navigate,
       sku,
       status,
+      tags,
       tenantId,
       toast,
     ]
@@ -508,6 +525,18 @@ export function EditCatalogItemPage() {
                   borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
                 }}
               >
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <EcuTagInput
+                    tags={tags}
+                    onChange={setTags}
+                    label="Etiquetas Jerárquicas del Producto (Tags)"
+                    placeholder="Añadir etiqueta (ej. Nike, Algodon, Antideslizante)..."
+                    helperText="Estas etiquetas indexan el producto para búsquedas en Punto de Venta (POS), tienda online y se heredan automáticamente a todas las variantes físicas."
+                    suggestedTags={suggestedTags}
+                    disabled={busy}
+                  />
+                </div>
+
                 <div style={{ marginBottom: '1rem' }}>
                   <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem', fontWeight: 600 }}>
                     Especificaciones y Atributos Adicionales

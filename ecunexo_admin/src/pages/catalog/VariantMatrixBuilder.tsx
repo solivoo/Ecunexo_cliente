@@ -52,6 +52,7 @@ export type VariantMatrixBuilderProps = {
   baseName: string
   baseSku: string
   basePrice: string
+  parentTags?: readonly string[]
   disabled?: boolean
   onChange: (data: {
     variants: MatrixVariantPayloadWithImage[]
@@ -176,6 +177,7 @@ export function VariantMatrixBuilder({
   baseName,
   baseSku,
   basePrice,
+  parentTags = [],
   disabled = false,
   onChange,
 }: VariantMatrixBuilderProps) {
@@ -745,9 +747,28 @@ export function VariantMatrixBuilder({
       const parsedPrice = r.basePrice.trim() ? Number(r.basePrice.replace(',', '.')) : null
       const parsedStock = r.initialStock.trim() ? Number(r.initialStock) : null
 
-      const customAttrs: Record<string, string> = {}
+      const customAttrs: Record<string, unknown> = {}
       if (r.secondaryAttributeValue?.trim()) {
         customAttrs['actividad'] = r.secondaryAttributeValue.trim()
+      }
+
+      // Sintetizar tags jerárquicos: tags del padre + dimensiones de la variante + actividad
+      const variantTagsSet = new Set<string>()
+      parentTags.forEach((pt) => {
+        const norm = pt.trim().replace(/^#+/, '')
+        if (norm) variantTagsSet.add(norm)
+      })
+      Object.values(r.dimensionValues || {}).forEach((val) => {
+        if (typeof val === 'string' && val.trim()) {
+          variantTagsSet.add(val.trim().replace(/^#+/, ''))
+        }
+      })
+      if (r.secondaryAttributeValue?.trim()) {
+        variantTagsSet.add(r.secondaryAttributeValue.trim().replace(/^#+/, ''))
+      }
+
+      if (variantTagsSet.size > 0) {
+        customAttrs['tags'] = Array.from(variantTagsSet)
       }
 
       return {
@@ -776,6 +797,7 @@ export function VariantMatrixBuilder({
     rows,
     dimensions,
     bulkWarehouseId,
+    parentTags,
     onChange,
   ])
 
@@ -1145,6 +1167,7 @@ export function VariantMatrixBuilder({
                 <th style={{ width: 160 }}>Título Variante</th>
                 <th style={{ width: 160 }}>SKU (Obligatorio)</th>
                 <th style={{ width: 140 }}>Actividad / Uso</th>
+                <th style={{ width: 180 }}>Tags Jerárquicos</th>
                 <th style={{ width: 120 }}>Cód. Barras</th>
                 <th style={{ width: 120 }}>Precio Base ($)</th>
                 <th style={{ width: 95 }}>Stock Inicial</th>
@@ -1240,6 +1263,47 @@ export function VariantMatrixBuilder({
                       style={{ fontSize: '0.82rem' }}
                       title="Especificación o actividad para esta variante"
                     />
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.2rem', alignItems: 'center', minWidth: '140px' }}>
+                      {(() => {
+                        const set = new Set<string>()
+                        parentTags.forEach((pt) => {
+                          const n = pt.trim().replace(/^#+/, '')
+                          if (n) set.add(n)
+                        })
+                        Object.values(row.dimensionValues || {}).forEach((v) => {
+                          if (typeof v === 'string' && v.trim()) set.add(v.trim().replace(/^#+/, ''))
+                        })
+                        if (row.secondaryAttributeValue?.trim()) {
+                          set.add(row.secondaryAttributeValue.trim().replace(/^#+/, ''))
+                        }
+                        if (set.size === 0) {
+                          return (
+                            <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted)', fontStyle: 'italic' }}>
+                              Sin tags
+                            </span>
+                          )
+                        }
+                        return Array.from(set).map((tag) => (
+                          <span
+                            key={tag}
+                            style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              padding: '0.1rem 0.35rem',
+                              borderRadius: '4px',
+                              background: 'rgba(59, 130, 246, 0.1)',
+                              color: 'var(--shell-primary, #60a5fa)',
+                              border: '1px solid rgba(59, 130, 246, 0.2)',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            #{tag}
+                          </span>
+                        ))
+                      })()}
+                    </div>
                   </td>
                   <td>
                     <input

@@ -26,7 +26,7 @@ const DEFAULT_LEVELS: ProductTemplateLevel[] = [
     name: 'Colección / Familia',
     hasColor: false,
     hasImages: false,
-    attributes: ['Material'],
+    attributes: [],
   },
   {
     id: 'lvl-2',
@@ -40,7 +40,7 @@ const DEFAULT_LEVELS: ProductTemplateLevel[] = [
     name: 'Variantes Físicas',
     hasColor: true,
     hasImages: true,
-    attributes: ['Talla'],
+    attributes: [],
   },
 ]
 
@@ -98,28 +98,6 @@ export function ProductTemplateBuilderPage() {
   useEffect(() => {
     void loadData()
   }, [loadData])
-
-  const handleApplyPreset = useCallback(
-    (preset: {
-      levels: ProductTemplateLevel[]
-      suggestedName: string
-      suggestedDescription: string
-    }) => {
-      setLevels(preset.levels)
-      if (!name.trim() || name.startsWith('Arquetipo') || name.includes('(3 Niveles)') || name.includes('(2 Niveles)')) {
-        setName(preset.suggestedName)
-      }
-      if (!description.trim()) {
-        setDescription(preset.suggestedDescription)
-      }
-      toast.show({
-        title: 'Preset cargado',
-        message: `Se aplicó la estructura de «${preset.suggestedName}».`,
-        variant: 'info',
-      })
-    },
-    [name, description, toast]
-  )
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -312,7 +290,6 @@ export function ProductTemplateBuilderPage() {
               onChange={setLevels}
               availableAttributes={availableAttributes}
               disabled={saving || loading || !canManage}
-              onApplyPreset={handleApplyPreset}
             />
           </SectionCard>
         </form>

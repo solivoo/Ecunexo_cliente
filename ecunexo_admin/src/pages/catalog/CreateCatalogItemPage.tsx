@@ -4,6 +4,7 @@ import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import { Layers } from 'lucide-react'
 import {
   EcuPageActions,
+  EcuTagInput,
   PageHeader,
   SectionCard,
   StatusBadge,
@@ -70,6 +71,7 @@ export function CreateCatalogItemPage() {
   const [basePrice, setBasePrice] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
+  const [tags, setTags] = useState<string[]>([])
   const [stagedImages, setStagedImages] = useState<StagedItemImage[]>([])
 
   const stagedImagesRef = useRef<StagedItemImage[]>([])
@@ -91,6 +93,18 @@ export function CreateCatalogItemPage() {
     const category = categories.find((c) => c.id === categoryId)
     return parseAttributeSchema(category?.attributeSchemaJson).map((f) => f.label || f.key)
   }, [categories, categoryId])
+
+  const suggestedTags = useMemo<string[]>(() => {
+    const list = new Set<string>()
+    const cat = categories.find((c) => c.id === categoryId)
+    if (cat?.name) list.add(cat.name.trim())
+    customAttributes.forEach((attr) => {
+      if (attr.value.trim() && attr.value.length < 25) {
+        list.add(attr.value.trim())
+      }
+    })
+    return Array.from(list)
+  }, [categories, categoryId, customAttributes])
 
   const appliedTemplate = useMemo(
     () => productTemplates.find((t) => t.id === selectedTemplateId),
@@ -267,7 +281,7 @@ export function CreateCatalogItemPage() {
             categoryId: categoryId || null,
             variantDimensionsJson: matrixData.variantDimensionsJson,
             variants: matrixData.variants,
-            customAttributesJson: serializeCustomAttributes(customAttributes),
+            customAttributesJson: serializeCustomAttributes(customAttributes, tags),
           })
 
           targetItemId = createdMatrix.parentItemId
@@ -301,7 +315,7 @@ export function CreateCatalogItemPage() {
             sku: sku.trim() || null,
             basePrice: price,
             categoryId: categoryId || null,
-            customAttributesJson: serializeCustomAttributes(customAttributes),
+            customAttributesJson: serializeCustomAttributes(customAttributes, tags),
           })
 
           targetItemId = created.itemId
@@ -364,6 +378,7 @@ export function CreateCatalogItemPage() {
       navigate,
       sku,
       stagedImages,
+      tags,
       tenantId,
       toast,
     ]
@@ -591,6 +606,18 @@ export function CreateCatalogItemPage() {
               title="Especificaciones y Atributos Adicionales"
               subtitle="Define propiedades técnicas, comerciales o informativas propias de este producto (ej. Material, Marca, Garantía, Procedencia, etc.)."
             >
+              <div style={{ marginBottom: '1.5rem' }}>
+                <EcuTagInput
+                  tags={tags}
+                  onChange={setTags}
+                  label="Etiquetas Jerárquicas del Producto (Tags)"
+                  placeholder="Añadir etiqueta (ej. Nike, Algodon, Antideslizante)..."
+                  helperText="Estas etiquetas indexan el producto para búsquedas en Punto de Venta (POS), tienda online y se heredan automáticamente a todas las variantes físicas."
+                  suggestedTags={suggestedTags}
+                  disabled={busy}
+                />
+              </div>
+
               <ItemCustomAttributesEditor
                 attributes={customAttributes}
                 onChange={setCustomAttributes}
@@ -640,6 +667,7 @@ export function CreateCatalogItemPage() {
                     baseName={name}
                     baseSku={sku}
                     basePrice={basePrice}
+                    parentTags={tags}
                     disabled={busy}
                     onChange={setMatrixData}
                   />

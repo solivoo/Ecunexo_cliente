@@ -88,6 +88,13 @@ test.describe('Catálogo UI — Producto Matriz y Configurador de Variantes', ()
     await activityInput.fill('Running')
     await expect(activityInput).toHaveValue('Running')
 
+    // Columna de Tags Jerárquicos en la grilla de variantes
+    await expect(page.getByRole('columnheader', { name: /Tags Jerárquicos/i })).toBeVisible()
+
+    // Entrada de Tags Jerárquicos en la ficha del producto matriz
+    const tagSection = page.getByText(/Etiquetas Jerárquicas del Producto/i)
+    await expect(tagSection).toBeVisible()
+
     // Botones de formato y acción masiva
     await expect(page.getByRole('button', { name: /Jerárquico \(0001\)/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /precio base/i })).toBeVisible()

@@ -29,14 +29,39 @@ const DEFAULT_PRESET_SUGGESTIONS = [
   'Modelo / Serie',
 ]
 
-export function serializeCustomAttributes(attributes: readonly CustomAttributeRow[]): string {
-  const result: Record<string, string> = {}
+export function extractTagsFromCustomAttributes(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object') {
+      const p = parsed as Record<string, unknown>
+      if (Array.isArray(p.tags)) {
+        return p.tags.map(String).map((s) => s.trim().replace(/^#+/, '')).filter(Boolean)
+      }
+      if (typeof p.tags === 'string') {
+        return p.tags.split(',').map((s) => s.trim().replace(/^#+/, '')).filter(Boolean)
+      }
+    }
+  } catch {
+    // Ignorar JSON malformado
+  }
+  return []
+}
+
+export function serializeCustomAttributes(
+  attributes: readonly CustomAttributeRow[],
+  tags?: readonly string[]
+): string {
+  const result: Record<string, unknown> = {}
   for (const attr of attributes) {
     const k = attr.key.trim()
     const v = attr.value.trim()
-    if (k) {
+    if (k && k.toLowerCase() !== 'tags') {
       result[k] = v
     }
+  }
+  if (tags && tags.length > 0) {
+    result['tags'] = tags.map((t) => t.trim().replace(/^#+/, '')).filter(Boolean)
   }
   return JSON.stringify(result)
 }
@@ -46,11 +71,13 @@ export function deserializeCustomAttributes(raw: string | null | undefined): Cus
   try {
     const parsed: unknown = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return []
-    return Object.entries(parsed as Record<string, unknown>).map(([k, v], index) => ({
-      id: `attr-${index}-${Date.now()}`,
-      key: k,
-      value: typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v ?? ''),
-    }))
+    return Object.entries(parsed as Record<string, unknown>)
+      .filter(([k]) => k.toLowerCase() !== 'tags')
+      .map(([k, v], index) => ({
+        id: `attr-${index}-${Date.now()}`,
+        key: k,
+        value: typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v ?? ''),
+      }))
   } catch {
     return []
   }
