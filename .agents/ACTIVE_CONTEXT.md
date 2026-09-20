@@ -9,13 +9,21 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.33.0`.
 * **Hitos Recientes Completados:**
-  - **Unificación Arquitectónica de Comprobantes SRI en Módulo Maestro `facturacion`:**
-    * Consolidación de subcomponentes de Facturas (01), Notas de Crédito (04) y Guías de Remisión (06) bajo el código único `facturacion` (alias `invoicing`, `billing`).
-    * Configuración de dependencias maestras en [`ModuleDependencyGraph.cs`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/src/EcuNexo.Core/Tenancy/ModuleDependencyGraph.cs): `identity`, `catalog`.
-    * Centralización de métricas y límites transaccionales por tier en [`ModuleTierCatalog.cs`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/src/EcuNexo.Core/Tenancy/ModuleTierCatalog.cs): `max_invoices_per_month`, `max_monthly_credit_notes`, `max_monthly_remision_guides`, `max_active_carriers`, `invoice_history_months`.
-    * Mapeo unificado de permisos RBAC `facturacion.*` en [`PermissionModuleMapper.cs`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/src/EcuNexo.Core/Tenancy/Authorization/PermissionModuleMapper.cs).
-    * Suite de 376 pruebas backend (`EcuNexo.slnx`) superada con éxito (0 fallos).
-    * Remoción de sección "Asignación en Planes Comerciales" de la skill y prompts de licenciamiento para gestión exclusiva en subsistema de licencias.
+  - **Consolidación Taxonómica Oficial de Extensiones en Módulos Raíz (`catalog` y `facturacion`):**
+    * Las extensiones funcionales quedan completamente integradas bajo sus módulos raíz canónicos sin fragmentación en submódulos satélite.
+    * **Extensión de Catálogo (`catalog`):**
+      - Capacidad: Producto Matriz, Escalas Reutilizables y Variantes Multidimensionales (Tallas/Colores).
+      - Dependencias: Depende únicamente de `identity`.
+      - Permisos RBAC (`catalog.*`): `catalog.matrix.read`, `catalog.matrix.create`, `catalog.matrix.update`, `catalog.matrix.delete`, `catalog.scale.manage`.
+      - Límites por Tier en `ModuleTierCatalog`: `max_active_variants` (Small=100, Medium=1.000, Big=10.000, Enterprise=Ilimitado).
+    * **Extensión de Facturación Electrónica SRI (`facturacion`):**
+      - Capacidad: Comprobantes SRI (Notas de Crédito 04 y Guías de Remisión 06).
+      - Dependencias: Requiere obligatoriamente `catalog` e `identity`.
+      - Permisos RBAC (`facturacion.*`): `facturacion.notas.credito.read`, `facturacion.notas.credito.create`, `facturacion.notas.credito.anular`, `facturacion.guias.remision.read`, `facturacion.guias.remision.create`, `facturacion.guias.remision.autorizar`, `facturacion.transportistas.manage`.
+      - Límites por Tier en `ModuleTierCatalog`: `max_monthly_credit_notes` (Small=20, Medium=100, Big=500, Enterprise=Ilimitado), `max_monthly_remision_guides` (Small=50, Medium=250, Big=1.000, Enterprise=Ilimitado), `max_active_carriers` (Small=5, Medium=20, Big=50, Enterprise=Ilimitado).
+    * Resolución de permisos centralizada en [`PermissionModuleMapper.cs`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/src/EcuNexo.Business/Tenancy/Authorization/PermissionModuleMapper.cs) al módulo raíz (`catalog` y `facturacion`).
+    * Registro de permisos RBAC en [`MenuCatalogSeedData.cs`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_api/src/EcuNexo.Api/Development/MenuCatalogSeedData.cs) cumpliendo la regex de dominio `^[a-z0-9]+(\.[a-z0-9]+)*$`.
+    * Suite de 376 pruebas backend (`EcuNexo.slnx`) pasando al 100%.
   - **Módulo de Producto Matriz (Parent-Child) & Escalas Reutilizables de Tallas/Variantes:**
     * **Arquitectura de Dominio (`CatalogItem.cs`, `VariantDimensionTemplate.cs`):**
       - Modelo auto-referencial (`ParentId` -> `Parent` con borrado en cascada) donde el producto padre (`IsMatrixParent = true`) agrupa los datos comerciales y de vitrina, mientras que cada variante física (`ParentId != null`) es un `CatalogItem` independiente con SKU único, código de barras, precio propio y stock físico en bodega.
