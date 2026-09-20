@@ -3,7 +3,7 @@ name: licenciamiento-modulo-prompt
 description: >-
   Generación obligatoria de prompts estandarizados para el subsistema de licencias (platform-licensing)
   cada vez que se crea o desarrolla un nuevo módulo en EcuNexo (código de módulo, dependencias, permisos RBAC,
-  tiers, límites transaccionales, planes comerciales y rutas SPA).
+  tiers, límites transaccionales y rutas SPA).
 ---
 
 # Generación de Prompts para el Módulo de Licencias (EcuNexo)
@@ -26,7 +26,7 @@ El objetivo es que el usuario pueda copiar directamente el bloque de prompt gene
 
 ## 2. Componentes que Requiere el Subsistema de Licencias
 
-Para que un módulo sea comercializado, emitido en archivos de licencia `.lic` criptográficos y habilitado en las empresas (`tenants.enabled_modules`), el módulo de licencias necesita 7 datos clave:
+Para que un módulo sea comercializado, emitido en archivos de licencia `.lic` criptográficos y habilitado en las empresas (`tenants.enabled_modules`), el módulo de licencias necesita 6 datos clave (la asignación a planes comerciales se define y administra exclusivamente en el repositorio de licencias):
 
 1. **`ModuleCode` Canónico:** Identificador en minúsculas (ej: `purchases`, `repairs`, `ecommerce`). Debe agregarse a `TenantModuleCodes.cs`.
 2. **Nombre Comercial & Descripción:** Nombre para el panel de ventas y portal de licencias.
@@ -38,9 +38,7 @@ Para que un módulo sea comercializado, emitido en archivos de licencia `.lic` c
    * Límites mínimos, estándar y enterprise.
 5. **Permisos RBAC Habilitados (`identity.permissions`):**
    * Lista exhaustiva de los permisos creados en backend y frontend para ese módulo.
-6. **Asignación en Planes Comerciales:**
-   * Planes que lo incluyen por defecto (ej: `empresa-pyme`, `cadena-retail`, `local-comercio`) vs módulo add-on de pago adicional.
-7. **Rutas y Navegación SPA:**
+6. **Rutas y Navegación SPA:**
    * Rutas desbloqueadas en `ecunexo_admin` al estar el módulo en `enabledModules`.
 
 ---
@@ -92,22 +90,13 @@ Permisos asociados al módulo que deben habilitarse en el rol Administrador del 
 - [modulo].[recurso].manage: [Descripción breve]
 ...
 
-5. ASIGNACIÓN EN PLANES COMERCIALES (02-planes-y-precios-ecuador.md)
---------------------------------------------------------------------------------
-- Plan `pro-independiente`: [Incluido / No incluido / Add-on opcional]
-- Plan `local-comercio`: [Incluido / No incluido / Add-on opcional]
-- Plan `taller-mixto`: [Incluido / No incluido / Add-on opcional]
-- Plan `empresa-pyme`: [Incluido con Tier X]
-- Plan `cadena-retail`: [Incluido con Tier Big/Enterprise]
-- Plan `grupo-multi-ruc`: [Incluido con Tier Enterprise]
-
-6. RUTAS DESBLOQUEADAS EN SPA (ecunexo_admin)
+5. RUTAS DESBLOQUEADAS EN SPA (ecunexo_admin)
 --------------------------------------------------------------------------------
 - Rutas front-end condicionadas por enabledModules:
   * /[modulo]/[ruta_1]
   * /[modulo]/[ruta_2]
 
-7. TAREAS TÉCNICAS A REALIZAR EN EL REPOSITORIO DE LICENCIAS
+6. TAREAS TÉCNICAS A REALIZAR EN EL REPOSITORIO DE LICENCIAS
 --------------------------------------------------------------------------------
 1. Agregar constante a `TenantModuleCodes.cs`:
    `public const string [NombrePascal] = "[codigo_modulo]";` y sumarlo al array `All`.

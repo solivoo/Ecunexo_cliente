@@ -34,7 +34,7 @@ When creating or modifying UI components, views, layouts, or styles in this repo
    - Never consider a feature "complete" without its accompanying test suite verifying positive, negative, and edge cases.
 7. **Mandatory Licensing Prompt on Module Creation**:
    - ALWAYS generate and include a structured prompt at the end of the turn when a new functional module is created or developed (using the skill `licenciamiento-modulo-prompt`).
-   - The prompt must be ready to copy and send to the licensing/entitlements team/agent, detailing: `ModuleCode`, `ModuleDependencyGraph` dependencies, `ModuleTierCatalog` limits per tier, RBAC permissions, commercial plans inclusion, and frontend routes.
+   - The prompt must be ready to copy and send to the licensing/entitlements team/agent, detailing: `ModuleCode`, `ModuleDependencyGraph` dependencies, `ModuleTierCatalog` limits per tier, RBAC permissions, and frontend routes (commercial plans assignment is managed exclusively in the licensing subsystem).
 8. **Strict RBAC Permission Code Format & Seeder Invariants**:
    - Every permission code in EcuNexo MUST strictly adhere to the domain regex enforced in `Permission.cs`: `^[a-z0-9]+(\.[a-z0-9]+)*$`.
    - ONLY lowercase ASCII letters `a-z`, digits `0-9`, and dot separators `.` are permitted.
