@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.38.0`.
+* **Última Versión Publicada:** `v0.38.1`.
 * **Hitos Recientes Completados:**
+  - **Ergonomía de Selección Instantánea y Modernización Visual en Plantillas (`HierarchyTemplateTreeBuilder.tsx`, `ProductTemplateBuilderPage.tsx`):**
+    * **Adición Automática en 1 Clic:** Al seleccionar cualquier atributo del diccionario corporativo en el menú desplegable, se añade inmediatamente como chip/etiqueta activa al nivel sin requerir presionar el botón `+`, reiniciando automáticamente el desplegable para una carga ágil continua.
+    * **Paleta M3 Enterprise SaaS Refinada:** Sustituido el contenedor gris opaco (`rgba(0,0,0,0.15)`) por superficies suaves con tintado primario semántico (`color-mix`), bordes de alta definición y contraste cromático óptimo tanto en modo claro como oscuro.
+    * **Limpieza Absoluta de Presets Fijos:** Eliminada cualquier plantilla fija predeterminada para que el usuario diseñe y cree sus arquetipos y taxonomías con total autonomía desde cero.
   - **Reasignación Flexible de Variantes y Registro Inmutable de Auditoría (`CatalogItem.cs`, `ReassignCatalogItemVariantParent`, `EditCatalogItemPage.tsx`, `EditCatalogItemVariantsSection.tsx`):**
     * **Dominio & Reglas de Invarianza (`CatalogItem.ReassignParent`):** Permite trasladar una variante física de un producto matriz a otro, o independizarla (`targetParent = null`), conservando el 100% de su SKU, código de barras, facturación histórica SRI y stock en bodega (unidades físicas y kárdex).
     * **Trazabilidad Inmutable en JSONB (`parent_reassignment_history`):** Cada reasignación exige un motivo obligatorio (mínimo 3 y máximo 500 caracteres) y registra en auditoría: timestamp UTC, usuario, motivo, ID/nombre/SKU del padre anterior y del padre destino. La función `CatalogItem.Update` preserva automáticamente este historial para evitar sobreescrituras accidentales.

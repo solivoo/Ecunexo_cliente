@@ -149,13 +149,13 @@ export function HierarchyTemplateTreeBuilder({
               key={lvl.id}
               style={{
                 borderRadius: '12px',
-                border: '1px solid var(--shell-border, rgba(255,255,255,0.1))',
-                background: 'var(--glb-surface, #1e222d)',
+                border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+                background: 'var(--glb-surface, #ffffff)',
                 padding: '1.25rem',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '1rem',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
               }}
             >
               {/* Level header bar */}
@@ -278,11 +278,11 @@ export function HierarchyTemplateTreeBuilder({
                       borderRadius: '8px',
                       background: lvl.hasColor
                         ? 'rgba(16, 185, 129, 0.12)'
-                        : 'var(--shell-surface-subtle, rgba(255,255,255,0.03))',
+                        : 'color-mix(in srgb, var(--shell-primary, #3b82f6) 3%, var(--glb-surface, #ffffff))',
                       border: `1px solid ${
-                        lvl.hasColor ? 'rgba(16, 185, 129, 0.3)' : 'var(--shell-border, rgba(255,255,255,0.08))'
+                        lvl.hasColor ? 'rgba(16, 185, 129, 0.35)' : 'var(--shell-border, rgba(0,0,0,0.1))'
                       }`,
-                      color: lvl.hasColor ? '#10b981' : 'var(--glb-text)',
+                      color: lvl.hasColor ? '#059669' : 'var(--glb-text)',
                       transition: 'all 0.15s ease',
                     }}
                   >
@@ -309,11 +309,11 @@ export function HierarchyTemplateTreeBuilder({
                       borderRadius: '8px',
                       background: lvl.hasImages
                         ? 'rgba(139, 92, 246, 0.12)'
-                        : 'var(--shell-surface-subtle, rgba(255,255,255,0.03))',
+                        : 'color-mix(in srgb, var(--shell-primary, #3b82f6) 3%, var(--glb-surface, #ffffff))',
                       border: `1px solid ${
-                        lvl.hasImages ? 'rgba(139, 92, 246, 0.3)' : 'var(--shell-border, rgba(255,255,255,0.08))'
+                        lvl.hasImages ? 'rgba(139, 92, 246, 0.35)' : 'var(--shell-border, rgba(0,0,0,0.1))'
                       }`,
-                      color: lvl.hasImages ? '#a78bfa' : 'var(--glb-text)',
+                      color: lvl.hasImages ? '#7c3aed' : 'var(--glb-text)',
                       transition: 'all 0.15s ease',
                     }}
                   >
@@ -333,12 +333,13 @@ export function HierarchyTemplateTreeBuilder({
               {/* Attributes Section */}
               <div
                 style={{
-                  background: 'var(--shell-surface-subtle, rgba(0,0,0,0.15))',
-                  borderRadius: '8px',
-                  padding: '1rem',
+                  background: 'color-mix(in srgb, var(--shell-primary, #3b82f6) 4%, var(--glb-surface, #ffffff))',
+                  border: '1px solid color-mix(in srgb, var(--shell-primary, #3b82f6) 16%, var(--shell-border, rgba(0,0,0,0.08)))',
+                  borderRadius: '10px',
+                  padding: '1.1rem',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.75rem',
+                  gap: '0.85rem',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -370,9 +371,11 @@ export function HierarchyTemplateTreeBuilder({
                         placeholder="Seleccionar atributo corporativo..."
                         value={selectedAttrByLevel[lvl.id] ?? ''}
                         disabled={disabled}
-                        onChange={(val: string) =>
-                          setSelectedAttrByLevel((prev) => ({ ...prev, [lvl.id]: val }))
-                        }
+                        onChange={(val: string) => {
+                          if (val) {
+                            handleAddAttributeFromCatalog(index, val)
+                          }
+                        }}
                         options={[
                           { value: '', label: 'Seleccionar atributo...' },
                           ...availableAttributes
@@ -444,16 +447,17 @@ export function HierarchyTemplateTreeBuilder({
                         disabled={disabled}
                         onClick={() => handleAddAttributeFromCatalog(index, attr.name)}
                         style={{
-                          background: 'rgba(59, 130, 246, 0.1)',
-                          border: '1px solid rgba(59, 130, 246, 0.25)',
-                          color: 'var(--shell-primary, #60a5fa)',
-                          borderRadius: '4px',
-                          padding: '0.15rem 0.5rem',
-                          fontSize: '0.72rem',
+                          background: 'color-mix(in srgb, var(--shell-primary, #3b82f6) 8%, var(--glb-surface, #ffffff))',
+                          border: '1px solid color-mix(in srgb, var(--shell-primary, #3b82f6) 24%, var(--shell-border, rgba(0,0,0,0.1)))',
+                          color: 'var(--shell-primary, #2563eb)',
+                          borderRadius: '6px',
+                          padding: '0.25rem 0.6rem',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.25rem',
+                          gap: '0.3rem',
                           transition: 'all 0.15s ease',
                         }}
                         title={`Agregar «${attr.name}» en 1 clic`}
@@ -469,7 +473,7 @@ export function HierarchyTemplateTreeBuilder({
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
                   {lvl.attributes.length === 0 ? (
                     <span style={{ fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--glb-muted)' }}>
-                      Sin atributos asignados en este nivel (opcional).
+                      Sin atributos asignados en este nivel (opcional). Selecciona uno arriba para agregarlo al instante.
                     </span>
                   ) : (
                     lvl.attributes.map((attr) => (
@@ -478,14 +482,14 @@ export function HierarchyTemplateTreeBuilder({
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.4rem',
-                          background: 'rgba(59, 130, 246, 0.15)',
-                          color: 'var(--shell-primary, #60a5fa)',
-                          border: '1px solid rgba(59, 130, 246, 0.3)',
-                          padding: '0.25rem 0.6rem',
+                          gap: '0.45rem',
+                          background: 'color-mix(in srgb, var(--shell-primary, #3b82f6) 12%, var(--glb-surface, #ffffff))',
+                          color: 'var(--shell-primary, #2563eb)',
+                          border: '1px solid color-mix(in srgb, var(--shell-primary, #3b82f6) 28%, var(--shell-border, rgba(0,0,0,0.08)))',
+                          padding: '0.3rem 0.65rem',
                           borderRadius: '6px',
-                          fontSize: '0.8rem',
-                          fontWeight: 500,
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
                         }}
                       >
                         <Tag size={13} />
@@ -764,10 +768,10 @@ export function HierarchyTemplateTreeBuilder({
             {/* Live Catalog Branching Simulation Box (Matching User Whiteboard) */}
             <div
               style={{
-                borderRadius: '8px',
-                border: '1px solid var(--shell-border, rgba(255,255,255,0.08))',
-                background: 'rgba(0,0,0,0.2)',
-                padding: '1rem',
+                borderRadius: '10px',
+                border: '1px solid color-mix(in srgb, var(--shell-primary, #3b82f6) 20%, var(--shell-border, rgba(0,0,0,0.08)))',
+                background: 'color-mix(in srgb, var(--shell-primary, #3b82f6) 3%, var(--glb-surface, #ffffff))',
+                padding: '1rem 1.25rem',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0.5rem',

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, TextBox, useToast } from 'glubox'
-import { ArrowLeft, Save, Sparkles } from 'lucide-react'
+import { ArrowLeft, Save } from 'lucide-react'
 import { PageHeader, SectionCard } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -61,89 +61,6 @@ export function ProductTemplateBuilderPage() {
   const [availableAttributes, setAvailableAttributes] = useState<VariantDimensionTemplateDto[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-
-  const applySocksPreset = (type: 'deportiva' | 'diseno' | 'packs') => {
-    if (type === 'deportiva') {
-      setName('Calcetines Deportivos por Caña & Actividad')
-      setDescription('Arquetipo para calcetines deportivos (Nike NIK-001, Adidas ADI-001) con atributos base (Marca, Material, Tipo, Talla, Color) y variantes físicas por Caña (Corta, Mediana, Larga), Actividad, Foto y Tags.')
-      setLevels([
-        {
-          id: 'lvl-socks-dep-1',
-          name: 'Modelo Matriz (Comercial)',
-          hasColor: true,
-          hasImages: false,
-          attributes: ['Marca', 'Material', 'Tipo', 'Talla'],
-        },
-        {
-          id: 'lvl-socks-dep-2',
-          name: 'Variantes Físicas (Caña & Actividad)',
-          hasColor: false,
-          hasImages: true,
-          attributes: ['Caña', 'Actividad'],
-        },
-      ])
-      toast.show({
-        title: 'Preset cargado',
-        message: 'Estructura exacta del diagrama de Calcetines Deportivos aplicada.',
-        variant: 'success',
-      })
-    } else if (type === 'diseno') {
-      setName('Calcetines de Colección & Diseño Urbano')
-      setDescription('Arquetipo para calcetines temáticos, estampados y líneas urbanas (Guayaca) con variantes de diseño y talla.')
-      setLevels([
-        {
-          id: 'lvl-socks-dis-1',
-          name: 'Colección Temática',
-          hasColor: false,
-          hasImages: false,
-          attributes: ['Colección', 'Composición', 'Género'],
-        },
-        {
-          id: 'lvl-socks-dis-2',
-          name: 'Diseño & Gráfico',
-          hasColor: false,
-          hasImages: true,
-          attributes: ['Modelo', 'Estilo'],
-        },
-        {
-          id: 'lvl-socks-dis-3',
-          name: 'Variantes Físicas',
-          hasColor: true,
-          hasImages: true,
-          attributes: ['Talla'],
-        },
-      ])
-      toast.show({
-        title: 'Preset cargado',
-        message: 'Estructura de Calcetines de Diseño aplicada con éxito.',
-        variant: 'success',
-      })
-    } else if (type === 'packs') {
-      setName('Packs & Boxes de Calcetines')
-      setDescription('Arquetipo para cajas de regalo, packs de 3/6 pares (BOX001) y surtidos multipack.')
-      setLevels([
-        {
-          id: 'lvl-socks-pck-1',
-          name: 'Presentación & Formato',
-          hasColor: false,
-          hasImages: true,
-          attributes: ['Cantidad de Pares', 'Tipo de Empaque', 'Surtido'],
-        },
-        {
-          id: 'lvl-socks-pck-2',
-          name: 'Variantes Físicas',
-          hasColor: true,
-          hasImages: true,
-          attributes: ['Talla'],
-        },
-      ])
-      toast.show({
-        title: 'Preset cargado',
-        message: 'Estructura de Packs & Boxes aplicada con éxito.',
-        variant: 'success',
-      })
-    }
-  }
 
   const loadData = useCallback(async () => {
     if (!tenantId) return
@@ -288,58 +205,6 @@ export function ProductTemplateBuilderPage() {
         />
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem' }}>
-          {!isEdit && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '1rem',
-                flexWrap: 'wrap',
-                padding: '0.85rem 1.25rem',
-                borderRadius: '0.75rem',
-                border: '1px solid color-mix(in srgb, var(--shell-primary, #4f46e5) 25%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
-                backgroundColor: 'color-mix(in srgb, var(--shell-primary, #4f46e5) 4%, var(--glb-surface, transparent))',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Sparkles size={18} style={{ color: 'var(--shell-primary, #4f46e5)' }} />
-                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>
-                  Presets Especializados para Calcetines:
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applySocksPreset('deportiva')}
-                  disabled={saving || loading}
-                >
-                  Deportiva & Técnica (3N)
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applySocksPreset('diseno')}
-                  disabled={saving || loading}
-                >
-                  Diseño & Urbana / Guayaca (3N)
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applySocksPreset('packs')}
-                  disabled={saving || loading}
-                >
-                  Packs & Boxes (2N)
-                </Button>
-              </div>
-            </div>
-          )}
-
           {/* General Information Section */}
           <SectionCard title="Datos Principales de la Plantilla">
             <div
