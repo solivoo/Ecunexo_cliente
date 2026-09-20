@@ -9,6 +9,11 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.33.0`.
 * **Hitos Recientes Completados:**
+  - **Refactor UI/UX de Producto Matriz y Sincronización Reactiva de Variantes (`VariantMatrixBuilder.tsx`, `CreateCatalogItemPage.tsx`):**
+    * **Herencia Reactiva en Tiempo Real:** El prefijo SKU escrito en el producto padre (ej. `AND-001`) se propaga instantáneamente a todas las filas de variantes (`AND-001-2-4-NEGRO`), al igual que el precio base (ej. `$1.50`), sin requerir clics en botones de regeneración manual a menos que el usuario haya editado una celda específica (`isManualSku`, `isManualPrice`).
+    * **Eliminación de Redundancias de Categoría:** Cuando `hasVariants` está activo, se filtran automáticamente los atributos dinámicos de molde coincidentes con las variantes (`talla`, `color`, `size`), evitando pedir un color o talla único obligatorio en el formulario padre.
+    * **Claridad en Dimensiones:** Reemplazo de etiquetas confusas ("Escala 2", "size") por terminología natural: `Tallas / Medidas (Dimensión 1)` y `Colores / Combinación (Dimensión 2)`. Eliminación de botones duplicados de cierre y unificación del disparador a `+ Añadir Color (2da Dimensión)`.
+    * **Pruebas y Verificación:** Actualización de la suite Playwright en [`producto-matriz-ui.spec.ts`](file:///home/solivo/Documentos/ecunexo/Cliente/ecunexo_admin/tests-ui/comun/producto-matriz-ui.spec.ts) validando herencia de SKU y precio base. Compilación Vite/TypeScript limpia en 1.62s.
   - **Consolidación Taxonómica Oficial de Extensiones en Módulos Raíz (`catalog` y `facturacion`):**
     * Las extensiones funcionales quedan completamente integradas bajo sus módulos raíz canónicos sin fragmentación en submódulos satélite.
     * **Extensión de Catálogo (`catalog`):**
