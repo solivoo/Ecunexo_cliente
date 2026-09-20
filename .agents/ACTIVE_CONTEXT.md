@@ -9,6 +9,11 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.36.0`.
 * **Hitos Recientes Completados:**
+  - **Experiencia de Usuario Avanzada en Constructor de Plantillas (`HierarchyTemplateTreeBuilder.tsx`, `ProductTemplateBuilderPage.tsx`):**
+    * **Presets Rápidos en 1 Clic:** Barra interactiva con 4 presets canónicos (*Calcetería & Medias Deportivas 3N*, *Calzado Deportivo 3N*, *Confección Textil 3N*, *Producto Simple 2N*) que autocompletan la estructura jerárquica y el nombre recomendado al instante.
+    * **Diagrama Visual de Pizarra / Mindmap Canvas:** Vista previa interactiva con cuadrícula técnica de nodos conectados por flechas direccionales, insignias de capacidades (ColorPicker, Fotos) y caja de simulación viva de desglose en catálogo que reproduce fielmente el modelo de pizarra conceptual.
+    * **Sugerencias Inteligentes de Atributos y Clonación de Niveles:** Botones de adición rápida en 1 clic para atributos recomendados del diccionario y botón de clonar nivel (`Copy`) para duplicar configuraciones complejas.
+    * **Verificación:** Compilación frontend limpia (`vite build` en 1.34s) y 392/392 tests backend en verde.
   - **Corrección de Eliminación de Atributos en PostgreSQL (`CatalogItemRepository.cs`):**
     * **Resolución de Error 500 en Eliminación de Atributos:** Se corrigió `IsAttributeTemplateInUseAsync` para delegar la verificación en `GetInUseAttributeTemplateNamesAsync`, eliminando el uso inválido de `EF.Functions.ILike` sobre columnas `jsonb` (`custom_attributes_json` y `variant_dimensions_json`) que provocaba la excepción de PostgreSQL `42883: operator does not exist: jsonb ~~* unknown`.
     * **Consistencia 100% UI y Backend:** La lógica de validación previa al borrado ahora utiliza exactamente la misma inspección que alimenta los badges "Sin Registros / Base" y "En Uso" en la interfaz (`/catalogo/atributos`).
