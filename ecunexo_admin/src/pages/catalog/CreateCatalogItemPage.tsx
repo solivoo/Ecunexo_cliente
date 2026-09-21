@@ -190,10 +190,10 @@ export function CreateCatalogItemPage() {
     getVariantDimensionFields(appliedTemplateLevels, dimensionValuesMap).forEach((field) => push(field.key))
 
     if (appliedTemplateLevels.some((lvl) => lvl.hasColor) && !dims.some((d) => d.isColor)) {
-      const colorFound = dimensionValuesMap.get('color') || dimensionValuesMap.get('colores')
+      // Los colores se asignan únicamente por hexadecimal: sin presets nominales.
       dims.push({
         name: 'Color',
-        values: colorFound?.values || ['Negro', 'Blanco', 'Azul'],
+        values: [],
         isColor: true,
       })
     }

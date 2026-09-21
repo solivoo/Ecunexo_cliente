@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Button, ColorPicker, NumberBox, Popup, Select, TextBox, useToast } from 'glubox'
-import { Camera, Check, Copy, Layers, Palette, Plus, Trash2, Upload, X } from 'lucide-react'
+import { Camera, Check, Copy, Layers, Plus, Trash2, Upload, X } from 'lucide-react'
 import { isColorDimension } from '@/lib/catalogArchetype'
 import type { CreateVariantChildPayload } from '@/types/catalogApi'
 import './variantMatrixBuilder.css'
@@ -36,7 +36,6 @@ export type VariantRowState = {
   stagedImagePreview?: string | null
   stagedImages?: VariantImageItem[]
   variantTags?: string
-  secondaryColors?: string[]
   actions?: string
   [key: string]: unknown
 }
@@ -88,6 +87,24 @@ const DEFAULT_COLOR_MAP: Record<string, string> = {
   Marrón: '#78350f',
 }
 
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
+
+function normalizeHexColor(value: string): string {
+  const clean = value.trim()
+  if (!HEX_COLOR_PATTERN.test(clean)) return ''
+  return clean.toLowerCase()
+}
+
+/** Una dimensión de color siempre está activa: se asigna por hexadecimal aunque no tenga presets. */
+function isDimensionActive(dim: DimensionState): boolean {
+  return (
+    Boolean(dim.isColor) ||
+    isColorDimension(dim.name) ||
+    dim.activeValues.length > 0 ||
+    dim.values.length > 0
+  )
+}
+
 function combineHierarchyTags(
   parentTags: readonly string[],
   dimensionValues?: Record<string, string>,
@@ -100,7 +117,11 @@ function combineHierarchyTags(
   })
   if (dimensionValues) {
     Object.values(dimensionValues).forEach((v) => {
-      if (typeof v === 'string' && v.trim()) set.add(v.trim().replace(/^#+/, ''))
+      if (typeof v !== 'string') return
+      const value = v.trim()
+      // Los colores hexadecimales no se indexan como tags.
+      if (!value || HEX_COLOR_PATTERN.test(value)) return
+      set.add(value.replace(/^#+/, ''))
     })
   }
   if (variantTags?.trim()) {
@@ -137,12 +158,20 @@ export function VariantMatrixBuilder({
   // Color Hex Map
   const [colorHexMap, setColorHexMap] = useState<Record<string, string>>(DEFAULT_COLOR_MAP)
   const [colorModal, setColorModal] = useState<{
-    mode: 'edit' | 'new' | 'duplicate' | 'add-group' | 'row'
+    mode: 'duplicate' | 'add-group'
     value: string
-    name: string
     hex: string
-    rowId?: string
   } | null>(null)
+
+  /** Hex de un color: acepta `#RRGGBB` o nombres históricos del catálogo. */
+  const colorHexFor = useCallback(
+    (value: string): string => {
+      const clean = value.trim()
+      if (!clean) return ''
+      return HEX_COLOR_PATTERN.test(clean) ? clean.toLowerCase() : colorHexMap[clean] ?? ''
+    },
+    [colorHexMap]
+  )
 
   // Dimensions Array
   const [dimensions, setDimensions] = useState<DimensionState[]>([
@@ -160,7 +189,12 @@ export function VariantMatrixBuilder({
     if (!initialDimensions || initialDimensions.length === 0) return
     const newDims: DimensionState[] = initialDimensions.map((d, idx) => {
       const isColor = d.isColor || isColorDimension(d.name)
-      const values = d.values && d.values.length > 0 ? d.values : isColor ? ['Negro', 'Blanco', 'Azul'] : ['35-38', '39-41', '42-44']
+      // Los colores se asignan únicamente por hexadecimal: sin presets nominales.
+      const values = isColor
+        ? []
+        : d.values && d.values.length > 0
+          ? d.values
+          : ['35-38', '39-41', '42-44']
       return {
         id: `dim-tpl-${idx}`,
         name: d.name,
@@ -194,7 +228,7 @@ export function VariantMatrixBuilder({
   const hasInitializedRows = useRef(false)
   useEffect(() => {
     if (hasInitializedRows.current) return
-    const activeDims = dimensions.filter((d) => d.activeValues.length > 0 || d.values.length > 0)
+    const activeDims = dimensions.filter(isDimensionActive)
     if (activeDims.length > 0 && rows.length === 0) {
       hasInitializedRows.current = true
       const defaultPrice = basePrice.trim() ? basePrice.trim() : ''
@@ -289,7 +323,7 @@ export function VariantMatrixBuilder({
 
   // Identify primary dimension for grouping (e.g. Color if present, else first dimension if multiple)
   const primaryDim = useMemo(() => {
-    const act = dimensions.filter((d) => d.activeValues.length > 0 || d.values.length > 0)
+    const act = dimensions.filter(isDimensionActive)
     if (act.length === 0) return null
     const isColor = (d: DimensionState) => Boolean(d.isColor) || isColorDimension(d.name)
     if (act.length === 1) {
@@ -299,7 +333,7 @@ export function VariantMatrixBuilder({
   }, [dimensions])
 
   const childDims = useMemo(() => {
-    const act = dimensions.filter((d) => d.activeValues.length > 0 || d.values.length > 0)
+    const act = dimensions.filter(isDimensionActive)
     if (!primaryDim) return act
     return act.filter((d) => d.id !== primaryDim.id)
   }, [dimensions, primaryDim])
@@ -311,15 +345,12 @@ export function VariantMatrixBuilder({
 
   // Cambio de dimensión en una fila específica (selección por variante) - NO recrear el SKU
   const buildRowLabel = useCallback(
-    (dimensionValues: Record<string, string>, secondaryColors: readonly string[] = []) => {
+    (dimensionValues: Record<string, string>) => {
       const parts: string[] = []
       if (primaryDim) {
         const main = dimensionValues[primaryDim.name]
         if (main) parts.push(main)
       }
-      secondaryColors.forEach((color) => {
-        if (color && !parts.includes(color)) parts.push(color)
-      })
       Object.entries(dimensionValues).forEach(([key, value]) => {
         if (!value) return
         if (primaryDim && key === primaryDim.name) return
@@ -336,7 +367,7 @@ export function VariantMatrixBuilder({
         prev.map((r) => {
           if (r.id !== rowId) return r
           const updatedDims = { ...r.dimensionValues, [dimName]: newValue }
-          const variationLabel = buildRowLabel(updatedDims, r.secondaryColors)
+          const variationLabel = buildRowLabel(updatedDims)
           const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
 
           return {
@@ -345,26 +376,6 @@ export function VariantMatrixBuilder({
             variationLabel,
             variantTitle: r.isManualTitle ? r.variantTitle : autoTitle,
             sku: r.sku, // El SKU nunca se recrea automáticamente
-          }
-        })
-      )
-    },
-    [baseName, buildRowLabel]
-  )
-
-  const handleSecondaryColorsChange = useCallback(
-    (rowId: string, colors: string[]) => {
-      setRows((prev) =>
-        prev.map((r) => {
-          if (r.id !== rowId) return r
-          const variationLabel = buildRowLabel(r.dimensionValues, colors)
-          const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
-
-          return {
-            ...r,
-            secondaryColors: colors,
-            variationLabel,
-            variantTitle: r.isManualTitle ? r.variantTitle : autoTitle,
           }
         })
       )
@@ -656,15 +667,16 @@ export function VariantMatrixBuilder({
       return
     }
 
+    if (isPrimaryColor) {
+      setColorModal({ mode: 'add-group', value: '', hex: '#3b82f6' })
+      return
+    }
+
     const existingGroupVals = new Set(rows.map((r) => r.dimensionValues[primaryDim.name]).filter(Boolean))
     const nextVal = primaryDim.values.find((v) => !existingGroupVals.has(v))
     let groupValToUse = nextVal
 
     if (!groupValToUse) {
-      if (isPrimaryColor) {
-        setColorModal({ mode: 'add-group', value: '', name: '', hex: '#3b82f6' })
-        return
-      }
       const prompted = window.prompt(`Ingresa el nombre del nuevo ${primaryDim.name}:`)
       if (!prompted || !prompted.trim()) return
       groupValToUse = prompted.trim()
@@ -712,16 +724,21 @@ export function VariantMatrixBuilder({
   const handleDuplicateGroup = useCallback(
     (sourceGroupVal: string) => {
       if (!primaryDim) return
+
+      if (isPrimaryColor) {
+        setColorModal({
+          mode: 'duplicate',
+          value: sourceGroupVal,
+          hex: colorHexFor(sourceGroupVal) || '#3b82f6',
+        })
+        return
+      }
+
       const existingGroupVals = new Set(rows.map((r) => r.dimensionValues[primaryDim.name]).filter(Boolean))
       const nextVal = primaryDim.values.find((v) => !existingGroupVals.has(v))
 
       if (nextVal) {
         handleDuplicateGroupTo(sourceGroupVal, nextVal)
-        return
-      }
-
-      if (isPrimaryColor) {
-        setColorModal({ mode: 'duplicate', value: sourceGroupVal, name: '', hex: '#3b82f6' })
         return
       }
 
@@ -731,7 +748,7 @@ export function VariantMatrixBuilder({
       handleAddCustomOptionToDimension(primaryDim.id, targetVal)
       handleDuplicateGroupTo(sourceGroupVal, targetVal)
     },
-    [handleAddCustomOptionToDimension, handleDuplicateGroupTo, isPrimaryColor, primaryDim, rows]
+    [colorHexFor, handleAddCustomOptionToDimension, handleDuplicateGroupTo, isPrimaryColor, primaryDim, rows]
   )
 
   // Delete group
@@ -752,10 +769,6 @@ export function VariantMatrixBuilder({
       if (!primaryDim) return
       let targetVal = newVal
       if (newVal === '__add_new__') {
-        if (isPrimaryColor) {
-          setColorModal({ mode: 'new', value: oldVal, name: '', hex: '#3b82f6' })
-          return
-        }
         const prompted = window.prompt(`Ingresa el nombre del nuevo ${primaryDim.name}:`)
         if (!prompted || !prompted.trim()) return
         targetVal = prompted.trim()
@@ -777,59 +790,40 @@ export function VariantMatrixBuilder({
         })
       )
     },
-    [baseName, childDims, handleAddCustomOptionToDimension, isPrimaryColor, primaryDim]
+    [baseName, childDims, handleAddCustomOptionToDimension, primaryDim]
   )
 
   const handleConfirmColorModal = useCallback(() => {
     if (!colorModal || !primaryDim) return
-
-    const targetVal = colorModal.mode === 'edit' ? colorModal.value : colorModal.name.trim()
+    const targetVal = normalizeHexColor(colorModal.hex)
     if (!targetVal) return
 
-    if (colorModal.mode === 'row') {
-      if (!colorModal.rowId) return
-      handleAddCustomOptionToDimension(primaryDim.id, targetVal)
-      setColorHexMap((prev) => ({ ...prev, [targetVal]: colorModal.hex }))
-      handleRowDimensionChange(colorModal.rowId, primaryDim.name, targetVal)
-      setColorModal(null)
+    if (colorModal.mode === 'duplicate' && targetVal === colorModal.value) {
+      toast.show({
+        title: 'Color duplicado',
+        message: 'El nuevo color debe ser distinto al color de origen.',
+        variant: 'warning',
+      })
       return
     }
+
+    handleAddCustomOptionToDimension(primaryDim.id, targetVal)
+    setColorHexMap((prev) => ({ ...prev, [targetVal]: targetVal }))
 
     if (colorModal.mode === 'add-group') {
-      handleAddCustomOptionToDimension(primaryDim.id, targetVal)
-      setColorHexMap((prev) => ({ ...prev, [targetVal]: colorModal.hex }))
       handleAddSubVariantToGroup(targetVal)
-      setColorModal(null)
-      return
-    }
-
-    if (colorModal.mode !== 'edit') {
-      handleAddCustomOptionToDimension(primaryDim.id, targetVal)
-    }
-
-    if (colorModal.mode === 'new') {
-      handleRenameGroupValue(colorModal.value, targetVal)
-    } else if (colorModal.mode === 'duplicate') {
+    } else {
       handleDuplicateGroupTo(colorModal.value, targetVal)
     }
 
-    setColorHexMap((prev) => {
-      const next = { ...prev }
-      if (colorModal.mode !== 'edit') {
-        delete next[colorModal.value]
-      }
-      next[targetVal] = colorModal.hex
-      return next
-    })
     setColorModal(null)
   }, [
     colorModal,
     handleAddCustomOptionToDimension,
     handleAddSubVariantToGroup,
     handleDuplicateGroupTo,
-    handleRenameGroupValue,
-    handleRowDimensionChange,
     primaryDim,
+    toast,
   ])
 
   // Clean up object URLs on unmount
@@ -865,9 +859,6 @@ export function VariantMatrixBuilder({
             customAttrs[dimName.toLowerCase()] = val.trim()
           }
         })
-      }
-      if (r.secondaryColors && r.secondaryColors.length > 0) {
-        customAttrs['colores_secundarios'] = r.secondaryColors
       }
 
       // Sintetizar tags: tags del padre + dimensiones de la variante + tags específicos de la variante
@@ -1002,7 +993,7 @@ export function VariantMatrixBuilder({
         <div className="ecu-variant-groups-list">
           {groups.map((group) => {
             const isColor = primaryDim ? isPrimaryColor : false
-            const hex = isColor ? colorHexMap[group.groupValue] : null
+            const groupHex = isColor ? colorHexFor(group.groupValue) : ''
             const availableGroupVals = primaryDim ? (primaryDim.values.length > 0 ? primaryDim.values : primaryDim.activeValues) : []
 
             return (
@@ -1010,51 +1001,29 @@ export function VariantMatrixBuilder({
                 {/* Header */}
                 <div className="ecu-variant-group-card__header">
                   <div className="ecu-variant-group-card__header-left">
-                    {(isColor || hex) &&
-                      (isColor ? (
-                        <button
-                          type="button"
-                          className="ecu-color-swatch-dot--lg"
-                          style={{
-                            backgroundColor: hex || '#94a3b8',
-                            border: hex
-                              ? '1px solid var(--shell-border, rgba(0,0,0,0.15))'
-                              : '1px dashed var(--shell-primary, #3b82f6)',
-                            padding: 0,
-                            cursor: disabled ? 'not-allowed' : 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          title={
-                            hex
-                              ? `Editar el color de «${group.groupValue}»`
-                              : `Elegir un color para «${group.groupValue}»`
-                          }
-                          onClick={() =>
-                            setColorModal({
-                              mode: 'edit',
-                              value: group.groupValue,
-                              name: group.groupValue,
-                              hex: hex || '#3b82f6',
-                            })
-                          }
-                          disabled={disabled}
-                        >
-                          {!hex && <Palette size={10} style={{ color: '#ffffff' }} />}
-                        </button>
-                      ) : (
-                        <span
-                          className="ecu-color-swatch-dot--lg"
-                          style={{ backgroundColor: hex || '#94a3b8' }}
-                          title={group.groupValue}
-                        />
-                      ))}
                     <div className="ecu-variant-group-card__title-wrap">
                       <span className="ecu-variant-group-card__dim-label">
                         {primaryDim ? primaryDim.name : 'Grupo'}:
                       </span>
-                      {primaryDim && primaryDim.id ? (
+                      {isColor && primaryDim ? (
+                        <div style={{ minWidth: 190, maxWidth: 260 }}>
+                          <ColorPicker
+                            size="sm"
+                            variant="outline"
+                            value={groupHex}
+                            placeholder="#000000"
+                            onChange={(hex: string) => {
+                              const target = normalizeHexColor(hex)
+                              if (!target || target === group.groupValue) return
+                              setColorHexMap((prev) => ({ ...prev, [target]: target }))
+                              handleAddCustomOptionToDimension(primaryDim.id, target)
+                              handleRenameGroupValue(group.groupValue, target)
+                            }}
+                            disabled={disabled}
+                            fullWidth
+                          />
+                        </div>
+                      ) : primaryDim && primaryDim.id ? (
                         <div style={{ minWidth: 170, maxWidth: 240 }}>
                           <Select
                             size="sm"
@@ -1185,78 +1154,33 @@ export function VariantMatrixBuilder({
                         )
                       })}
 
-                      {/* Color individual de la variante */}
+                      {/* Color individual de la variante (hexadecimal) */}
                       {isPrimaryColor && primaryDim
                         ? (() => {
                             const rowColor = row.dimensionValues[primaryDim.name] || ''
-                            const rowHex = colorHexMap[rowColor]
-                            const colorVals =
-                              primaryDim.values.length > 0 ? primaryDim.values : primaryDim.activeValues
+                            const rowHex = colorHexFor(rowColor)
 
                             return (
                               <div
                                 className="ecu-variant-sub-item-field"
-                                style={{ minWidth: '170px', flex: '1 1 170px', maxWidth: '220px' }}
+                                style={{ minWidth: '190px', flex: '1 1 190px', maxWidth: '240px' }}
                               >
                                 <label className="ecu-variant-sub-item-label">{primaryDim.name}</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                  <button
-                                    type="button"
-                                    className="ecu-color-swatch-dot"
-                                    style={{
-                                      width: 16,
-                                      height: 16,
-                                      cursor: rowColor && !disabled ? 'pointer' : 'default',
-                                      backgroundColor: rowHex || '#94a3b8',
-                                      border: rowHex
-                                        ? '1px solid var(--shell-border, rgba(0,0,0,0.2))'
-                                        : '1px dashed var(--shell-primary, #3b82f6)',
-                                    }}
-                                    title={
-                                      rowColor
-                                        ? `Editar la muestra de «${rowColor}»`
-                                        : 'Elegir un color para esta variante'
-                                    }
-                                    disabled={disabled || !rowColor}
-                                    onClick={() => {
-                                      if (!rowColor) return
-                                      setColorModal({
-                                        mode: 'edit',
-                                        value: rowColor,
-                                        name: rowColor,
-                                        hex: rowHex || '#3b82f6',
-                                      })
-                                    }}
-                                  />
-                                  <Select
-                                    size="sm"
-                                    variant="outline"
-                                    value={rowColor}
-                                    placeholder="Elegir color..."
-                                    onChange={(val: string) => {
-                                      if (val === '__add_new__') {
-                                        setColorModal({
-                                          mode: 'row',
-                                          rowId: row.id,
-                                          value: '',
-                                          name: '',
-                                          hex: '#3b82f6',
-                                        })
-                                        return
-                                      }
-                                      handleRowDimensionChange(row.id, primaryDim.name, val)
-                                    }}
-                                    disabled={disabled}
-                                    options={[
-                                      ...(rowColor && !colorVals.includes(rowColor)
-                                        ? [{ value: rowColor, label: rowColor }]
-                                        : []),
-                                      ...colorVals.map((val) => ({ value: val, label: val })),
-                                      { value: '__add_new__', label: '+ Nuevo color...' },
-                                    ]}
-                                    fullWidth
-                                  />
-                                </div>
+                                <ColorPicker
+                                  size="sm"
+                                  variant="outline"
+                                  value={rowHex}
+                                  placeholder="#000000"
+                                  onChange={(hex: string) => {
+                                    const target = normalizeHexColor(hex)
+                                    if (!target || target === rowColor) return
+                                    setColorHexMap((prev) => ({ ...prev, [target]: target }))
+                                    handleAddCustomOptionToDimension(primaryDim.id, target)
+                                    handleRowDimensionChange(row.id, primaryDim.name, target)
+                                  }}
+                                  disabled={disabled}
+                                  fullWidth
+                                />
                               </div>
                             )
                           })()
@@ -1329,71 +1253,6 @@ export function VariantMatrixBuilder({
 
                       {/* Salto de línea para legibilidad de la ficha de variante */}
                       <div className="ecu-variant-sub-item-break" aria-hidden />
-
-                      {/* Colores combinados (SKU bicolor) */}
-                      {isPrimaryColor && primaryDim && (
-                        <div
-                          className="ecu-variant-sub-item-field"
-                          style={{ minWidth: '230px', flex: '1.4 1 230px' }}
-                        >
-                          <label className="ecu-variant-sub-item-label">Colores combinados</label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
-                            {(row.secondaryColors ?? []).map((color) => (
-                              <span key={color} className="ecu-secondary-color-chip" title={`Color secundario: ${color}`}>
-                                <span
-                                  className="ecu-secondary-color-dot"
-                                  style={{ backgroundColor: colorHexMap[color] || '#94a3b8' }}
-                                />
-                                <span>{color}</span>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleSecondaryColorsChange(
-                                      row.id,
-                                      (row.secondaryColors ?? []).filter((c) => c !== color)
-                                    )
-                                  }
-                                  disabled={disabled}
-                                  title={`Quitar ${color}`}
-                                >
-                                  <X size={10} />
-                                </button>
-                              </span>
-                            ))}
-                            <div style={{ minWidth: 130, maxWidth: 170 }}>
-                              <Select
-                                size="sm"
-                                variant="outline"
-                                value=""
-                                placeholder={
-                                  row.secondaryColors && row.secondaryColors.length > 0
-                                    ? '+ Agregar color'
-                                    : '+ Combinar color'
-                                }
-                                options={(primaryDim.values.length > 0
-                                  ? primaryDim.values
-                                  : primaryDim.activeValues
-                                )
-                                  .filter(
-                                    (val) =>
-                                      val !== row.dimensionValues[primaryDim.name] &&
-                                      !(row.secondaryColors ?? []).includes(val)
-                                  )
-                                  .map((val) => ({ value: val, label: val }))}
-                                onChange={(val: string) => {
-                                  if (!val) return
-                                  handleSecondaryColorsChange(row.id, [
-                                    ...(row.secondaryColors ?? []),
-                                    val,
-                                  ])
-                                }}
-                                disabled={disabled}
-                                fullWidth
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
 
                       {/* Tags / Actividad */}
                       <div className="ecu-variant-sub-item-field" style={{ minWidth: '160px', flex: '1 1 160px' }}>
@@ -1660,37 +1519,20 @@ export function VariantMatrixBuilder({
           open={true}
           onClose={() => setColorModal(null)}
           title={
-            colorModal.mode === 'edit'
-              ? `Color de «${colorModal.value}»`
-              : colorModal.mode === 'duplicate'
-                ? `Duplicar ${primaryDim.name} a un color nuevo`
-                : colorModal.mode === 'row'
-                  ? `Asignar ${primaryDim.name.toLowerCase()} a la variante`
-                  : `Nuevo ${primaryDim.name}`
+            colorModal.mode === 'duplicate'
+              ? `Duplicar ${primaryDim.name} a un color nuevo`
+              : `Nuevo ${primaryDim.name}`
           }
           width="420px"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
-            {colorModal.mode !== 'edit' && (
-              <TextBox
-                label={`Nombre del ${primaryDim.name.toLowerCase()}`}
-                labelPosition="outlined"
-                variant="outline"
-                value={colorModal.name}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setColorModal((prev) => (prev ? { ...prev, name: e.target.value } : prev))
-                }
-                placeholder="Ej. Azul Marino"
-                fullWidth
-              />
-            )}
             <ColorPicker
-              label="Muestra de color"
+              label="Color (hexadecimal)"
               labelPosition="outlined"
               variant="outline"
               value={colorModal.hex}
               onChange={(hex: string) =>
-                setColorModal((prev) => (prev ? { ...prev, hex: hex || '#94a3b8' } : prev))
+                setColorModal((prev) => (prev ? { ...prev, hex: hex || '' } : prev))
               }
               fullWidth
             />
@@ -1711,7 +1553,7 @@ export function VariantMatrixBuilder({
                 variant="primary"
                 size="sm"
                 onClick={handleConfirmColorModal}
-                disabled={colorModal.mode !== 'edit' && !colorModal.name.trim()}
+                disabled={!normalizeHexColor(colorModal.hex)}
               >
                 <Check size={14} /> Guardar color
               </Button>

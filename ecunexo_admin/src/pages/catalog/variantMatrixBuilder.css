@@ -352,23 +352,6 @@ html.sf-dark-mode .ecu-matrix-table-wrap select {
   background: rgba(79, 70, 229, 0.04);
 }
 
-.ecu-color-swatch-dot {
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-}
-
-.ecu-matrix-color-add-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-top: 0.5rem;
-}
-
 /* Enhanced Variant Image Slots & Modal Picker */
 .ecu-var-img-slot {
   position: relative;
@@ -830,15 +813,6 @@ html.sf-dark-mode .ecu-variant-card__select {
   flex-wrap: wrap;
 }
 
-.ecu-color-swatch-dot--lg {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
-  flex-shrink: 0;
-}
-
 .ecu-variant-group-card__title-wrap {
   display: flex;
   align-items: center;
@@ -1134,38 +1108,3 @@ html.sf-dark-mode .ecu-variant-group-photo-add {
   color: #10b981;
 }
 
-.ecu-secondary-color-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  background: var(--glb-surface-variant, rgba(0, 0, 0, 0.04));
-  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.12));
-  color: var(--glb-text, #1e293b);
-}
-
-.ecu-secondary-color-chip button {
-  background: transparent;
-  border: none;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  color: inherit;
-  cursor: pointer;
-  opacity: 0.7;
-}
-
-.ecu-secondary-color-chip button:hover {
-  opacity: 1;
-}
-
-.ecu-secondary-color-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  flex-shrink: 0;
-}
