@@ -77,6 +77,7 @@ export type VariantMatrixBuilderProps = {
     isValid: boolean
   }) => void
   availableImages?: AvailableGalleryImage[]
+  initialDimensions?: { name: string; values?: string[]; isColor?: boolean }[]
 }
 
 const DEFAULT_FALLBACK_TEMPLATES: VariantDimensionTemplateDto[] = [
@@ -191,7 +192,7 @@ function cartesianProduct(arrays: string[][]): string[][] {
   )
 }
 
-function isColorDimension(name: string, type?: string, tplId?: string): boolean {
+export function isColorDimension(name: string, type?: string, tplId?: string): boolean {
   const nameLower = (name || '').toLowerCase().trim()
   const typeLower = (type || '').toLowerCase().trim()
   return (
@@ -231,6 +232,7 @@ export function VariantMatrixBuilder({
   disabled = false,
   onChange,
   availableImages = [],
+  initialDimensions,
 }: VariantMatrixBuilderProps) {
   const toast = useToast()
 
@@ -265,6 +267,26 @@ export function VariantMatrixBuilder({
     },
   ])
 
+  // Sync initialDimensions from template if provided
+  useEffect(() => {
+    if (!initialDimensions || initialDimensions.length === 0) return
+    const newDims: DimensionState[] = initialDimensions.map((d, idx) => {
+      const isColor = d.isColor || isColorDimension(d.name)
+      const values = d.values && d.values.length > 0 ? d.values : isColor ? ['Negro', 'Blanco', 'Azul'] : ['35-38', '39-41', '42-44']
+      return {
+        id: `dim-tpl-${idx}`,
+        name: d.name,
+        dimensionType: isColor ? 'Color' : 'Talla',
+        selectedTemplateId: 'custom',
+        values,
+        activeValues: [values[0]],
+        newValInput: '',
+        newColorHex: '#2563eb',
+      }
+    })
+    setDimensions(newDims)
+  }, [initialDimensions])
+
   // Custom template creation state
   const [savingTemplate, setSavingTemplate] = useState<boolean>(false)
 
@@ -275,7 +297,7 @@ export function VariantMatrixBuilder({
   const [bulkWarehouseId, setBulkWarehouseId] = useState<string>('')
 
   // SKU Generation Format: hierarchical sequential (e.g. NIK-001-0001) vs attribute slug (e.g. NIK-001-CANA-CORTA)
-  const [skuFormat, setSkuFormat] = useState<'hierarchical' | 'name'>('hierarchical')
+  const [skuFormat, setSkuFormat] = useState<'hierarchical' | 'name'>('name')
 
   // Fetch templates and warehouses on mount
   useEffect(() => {

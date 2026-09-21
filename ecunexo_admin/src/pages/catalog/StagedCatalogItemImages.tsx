@@ -28,6 +28,7 @@ export interface StagedCatalogItemImagesProps {
   readonly disabled?: boolean
   readonly uploading?: boolean
   readonly uploadStatus?: string | null
+  readonly hideBanner?: boolean
 }
 
 const MAX_IMAGES = 8
@@ -39,6 +40,7 @@ export function StagedCatalogItemImages({
   disabled = false,
   uploading = false,
   uploadStatus = null,
+  hideBanner = false,
 }: StagedCatalogItemImagesProps) {
   const toast = useToast()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -231,47 +233,56 @@ export function StagedCatalogItemImages({
 
   return (
     <div className="ecu-product-gallery">
-      {/* Banner Informativo con cuota de fotografías */}
-      <div className="ecu-product-gallery__banner">
-        <div>
-          <h4 className="ecu-product-gallery__title">
-            Fotografías para Vitrina y E-commerce
-          </h4>
-          <p className="ecu-product-gallery__subtitle">
-            Anexa hasta 8 fotografías. Al guardar el ítem se optimizarán automáticamente en formato WebP responsive.
-          </p>
-        </div>
+      {/* Banner Informativo con cuota de fotografías (se omite cuando está anidado en una sección con título) */}
+      {!hideBanner ? (
+        <div className="ecu-product-gallery__banner">
+          <div>
+            <h4 className="ecu-product-gallery__title">
+              Fotografías para Vitrina y E-commerce
+            </h4>
+            <p className="ecu-product-gallery__subtitle">
+              Anexa hasta 8 fotografías. Al guardar el ítem se optimizarán automáticamente en formato WebP responsive.
+            </p>
+          </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <span className="ecu-product-gallery__count-badge">
+              <Sparkles size={13} style={{ color: 'var(--shell-primary)' }} aria-hidden />
+              {stagedImages.length} de {MAX_IMAGES} fotos
+            </span>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled || uploading || stagedImages.length >= MAX_IMAGES}
+              onClick={handleTriggerCamera}
+              title="Abrir cámara del dispositivo para capturar foto"
+            >
+              <Camera size={14} className="mr-1.5" aria-hidden />
+              Tomar Foto
+            </Button>
+
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={disabled || uploading || stagedImages.length >= MAX_IMAGES}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload size={14} className="mr-1.5" aria-hidden />
+              {uploading ? uploadStatus || 'Subiendo...' : 'Añadir Fotos'}
+            </Button>
+          </div>
+        </div>
+      ) : stagedImages.length > 0 ? (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.65rem' }}>
           <span className="ecu-product-gallery__count-badge">
             <Sparkles size={13} style={{ color: 'var(--shell-primary)' }} aria-hidden />
-            {stagedImages.length} de {MAX_IMAGES} fotos
+            {stagedImages.length} de {MAX_IMAGES} fotos cargadas
           </span>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled || uploading || stagedImages.length >= MAX_IMAGES}
-            onClick={handleTriggerCamera}
-            title="Abrir cámara del dispositivo para capturar foto"
-          >
-            <Camera size={14} className="mr-1.5" aria-hidden />
-            Tomar Foto
-          </Button>
-
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            disabled={disabled || uploading || stagedImages.length >= MAX_IMAGES}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload size={14} className="mr-1.5" aria-hidden />
-            {uploading ? uploadStatus || 'Subiendo...' : 'Añadir Fotos'}
-          </Button>
         </div>
-      </div>
+      ) : null}
 
       {/* Input de archivo invisible nativo (selección múltiple) */}
       <input

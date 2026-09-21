@@ -7,8 +7,13 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.39.1`.
+* **Última Versión Publicada:** `v0.40.0`.
 * **Hitos Recientes Completados:**
+  - **Flujo Jerárquico Nivel por Nivel, Selección Asistida de Atributos y Fotos por Escala (`CreateCatalogItemPage.tsx`, `StagedCatalogItemImages.tsx`, `VariantMatrixBuilder.tsx`) [v0.40.0]:**
+    * **Desglose Nivel por Nivel en Creación de Ítems:** El formulario de alta de productos ahora se despliega ordenadamente según los niveles de la plantilla jerárquica (ej. Nivel 1: Familia ➔ Nivel 2: Modelo ➔ Nivel 3: Variantes Físicas al final).
+    * **Atributos de Niveles Superiores con `<Select>`:** Los atributos definidos en la plantilla (ej. Caña, Actividad, Composición, Material) se renderizan como menús desplegables (`<Select>`) cargados en 1 clic directamente del Diccionario Maestro de Atributos (`VariantDimensionTemplateDto`).
+    * **Fotografías por Nivel Jerárquico:** La subida de imágenes se ubica directamente dentro del nivel al que pertenecen (ej. Nivel Modelo para fotos de presentación), eliminando la tarjeta flotante y el banner interior duplicado (`hideBanner`).
+    * **Variaciones Físicas al Final del Formulario:** La matriz de variantes (`VariantMatrixBuilder`) se ubica en el último escalón del flujo (Nivel Terminal), con inicialización automática de dimensiones terminales, sin preguntar si tiene variantes cuando hay plantilla, y con generación descriptiva de SKUs (`skuFormat = 'name'`).
   - **Columnas por Dimensión, Múltiples Fotografías por Variante Física y Optimización de SKU (`VariantMatrixBuilder.tsx`, `CreateCatalogItemPage.tsx`, `variantMatrixBuilder.css`, `StagedCatalogItemImages.tsx`) [v0.39.1]:**
     * **Columnas Dedicadas por Dimensión en Matriz:** En lugar de agrupar características bajo un encabezado único «Variación», cada dimensión activa (ej. Caña, Talla, Color) cuenta con su propia columna dedicada en el `<thead>` y celdas individuales en el `<tbody>`, incluyendo swatches de color y alineación limpia.
     * **Múltiples Fotografías por Variante Física (SKU):** Soporte para asignar múltiples imágenes por variante (`stagedImages[]`). Selector de archivos con atributo `multiple`, modal de gestión con grilla de fotos asignadas (marcador «Principal» y botón de remoción individual), selector tipo toggle en galería general de vitrina, y badge contador (`+N`) en la celda de la tabla.

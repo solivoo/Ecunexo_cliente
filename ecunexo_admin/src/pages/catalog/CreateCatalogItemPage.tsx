@@ -25,6 +25,7 @@ import {
   createCatalogItemMatrix,
   listCatalogCategories,
   listProductTemplates,
+  listVariantDimensionTemplates,
   uploadCatalogItemImage,
 } from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
@@ -34,9 +35,11 @@ import {
   type CategoryListItemDto,
   type ProductTemplateDto,
   type ProductTemplateLevel,
+  type VariantDimensionTemplateDto,
 } from '@/types/catalogApi'
 import {
   VariantMatrixBuilder,
+  isColorDimension,
   type MatrixVariantPayloadWithImage,
 } from '@/pages/catalog/VariantMatrixBuilder'
 
@@ -51,8 +54,9 @@ export function CreateCatalogItemPage() {
   const [error, setError] = useState<string | null>(null)
   const [categories, setCategories] = useState<CategoryListItemDto[]>([])
   const [productTemplates, setProductTemplates] = useState<ProductTemplateDto[]>([])
+  const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
-  const [kind, setKind] = useState(String(CatalogItemKind.Service))
+  const [kind, setKind] = useState(String(CatalogItemKind.Physical))
   const [hasVariants, setHasVariants] = useState(false)
   const [matrixData, setMatrixData] = useState<{
     variants: MatrixVariantPayloadWithImage[]
@@ -106,6 +110,50 @@ export function CreateCatalogItemPage() {
     return Array.from(list)
   }, [categories, categoryId, customAttributes])
 
+  // Mapa de atributos del diccionario corporativo: clave en minúscula -> { values, isColor }
+  const dimensionValuesMap = useMemo(() => {
+    const map = new Map<string, { values: string[]; isColor: boolean }>()
+    dimensionTemplates.forEach((t) => {
+      try {
+        const parsed = JSON.parse(t.predefinedValuesJson)
+        if (Array.isArray(parsed)) {
+          map.set(t.name.trim().toLowerCase(), {
+            values: parsed.map(String),
+            isColor: (t.dimensionType || '').toLowerCase() === 'color' || isColorDimension(t.name),
+          })
+        }
+      } catch {
+        // ignorar
+      }
+    })
+    return map
+  }, [dimensionTemplates])
+
+  const getAttributeValue = useCallback(
+    (key: string): string => {
+      const row = customAttributes.find((r) => r.key.toLowerCase() === key.toLowerCase())
+      return row?.value || ''
+    },
+    [customAttributes]
+  )
+
+  const setAttributeValue = useCallback((key: string, value: string) => {
+    setCustomAttributes((prev) => {
+      const exists = prev.some((r) => r.key.toLowerCase() === key.toLowerCase())
+      if (exists) {
+        return prev.map((r) => (r.key.toLowerCase() === key.toLowerCase() ? { ...r, value } : r))
+      }
+      return [
+        ...prev,
+        {
+          id: `attr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          key,
+          value,
+        },
+      ]
+    })
+  }, [])
+
   const appliedTemplate = useMemo(
     () => productTemplates.find((t) => t.id === selectedTemplateId),
     [productTemplates, selectedTemplateId]
@@ -121,10 +169,49 @@ export function CreateCatalogItemPage() {
     }
   }, [appliedTemplate])
 
+  const templateTerminalDimensions = useMemo(() => {
+    if (appliedTemplateLevels.length === 0) return undefined
+    const terminalLevel = appliedTemplateLevels[appliedTemplateLevels.length - 1]
+    if (!terminalLevel) return undefined
+
+    const dims: { name: string; values?: string[]; isColor?: boolean }[] = []
+    terminalLevel.attributes.forEach((attr) => {
+      const found = dimensionValuesMap.get(attr.trim().toLowerCase())
+      dims.push({
+        name: attr,
+        values: found?.values,
+        isColor: found?.isColor || isColorDimension(attr),
+      })
+    })
+
+    if (terminalLevel.hasColor && !dims.some((d) => d.isColor || isColorDimension(d.name))) {
+      const colorFound = dimensionValuesMap.get('color') || dimensionValuesMap.get('colores')
+      dims.push({
+        name: 'Color',
+        values: colorFound?.values || ['Negro', 'Blanco', 'Azul'],
+        isColor: true,
+      })
+    }
+
+    if (dims.length === 0) {
+      const sizeFound = dimensionValuesMap.get('talla') || dimensionValuesMap.get('tallas')
+      dims.push({
+        name: 'Talla',
+        values: sizeFound?.values || ['35-38', '39-41', '42-44'],
+        isColor: false,
+      })
+    }
+
+    return dims
+  }, [appliedTemplateLevels, dimensionValuesMap])
+
   const handleApplyTemplate = useCallback(
     (templateId: string) => {
       setSelectedTemplateId(templateId)
-      if (!templateId) return
+      if (!templateId) {
+        setHasVariants(false)
+        return
+      }
       const tpl = productTemplates.find((t) => t.id === templateId)
       if (!tpl) return
 
@@ -135,30 +222,27 @@ export function CreateCatalogItemPage() {
         parsedLevels = []
       }
 
-      if (parsedLevels.some((l) => l.hasColor || l.hasImages || l.attributes.length > 0)) {
-        setKind(String(CatalogItemKind.Physical))
-      }
+      setKind(String(CatalogItemKind.Physical))
 
       const terminalLevel = parsedLevels[parsedLevels.length - 1]
-      if (
-        terminalLevel &&
-        (terminalLevel.hasColor || terminalLevel.hasImages || terminalLevel.attributes.length > 0)
-      ) {
-        setHasVariants(true)
-      }
+      const hasTerminalVariants =
+        parsedLevels.length > 1 ||
+        (terminalLevel && (terminalLevel.hasColor || terminalLevel.hasImages || terminalLevel.attributes.length > 0))
 
-      const macroAttributes: string[] = []
-      parsedLevels.forEach((l) => {
+      setHasVariants(!!hasTerminalVariants)
+
+      const upperAttrs: string[] = []
+      parsedLevels.slice(0, parsedLevels.length - 1).forEach((l) => {
         l.attributes.forEach((attr) => {
-          if (!macroAttributes.includes(attr)) macroAttributes.push(attr)
+          if (!upperAttrs.includes(attr)) upperAttrs.push(attr)
         })
       })
 
-      if (macroAttributes.length > 0) {
+      if (upperAttrs.length > 0) {
         setCustomAttributes((prev) => {
           const existingKeys = new Set(prev.map((r) => r.key.toLowerCase()))
           const newRows: CustomAttributeRow[] = [...prev]
-          macroAttributes.forEach((attr) => {
+          upperAttrs.forEach((attr) => {
             if (!existingKeys.has(attr.toLowerCase())) {
               newRows.push({
                 id: `attr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -173,7 +257,7 @@ export function CreateCatalogItemPage() {
 
       toast.show({
         title: 'Plantilla aplicada',
-        message: `Se ha cargado la jerarquía y atributos de «${tpl.name}».`,
+        message: `Se ha cargado la jerarquía y estructura de «${tpl.name}».`,
         variant: 'success',
       })
     },
@@ -185,18 +269,21 @@ export function CreateCatalogItemPage() {
     let cancelled = false
     void (async () => {
       try {
-        const [catList, tplList] = await Promise.all([
+        const [catList, tplList, dimList] = await Promise.all([
           listCatalogCategories(tenantId),
           listProductTemplates(tenantId),
+          listVariantDimensionTemplates(tenantId),
         ])
         if (!cancelled) {
           setCategories(catList)
           setProductTemplates(tplList.filter((t) => t.isActive))
+          setDimensionTemplates(dimList)
         }
       } catch {
         if (!cancelled) {
           setCategories([])
           setProductTemplates([])
+          setDimensionTemplates([])
         }
       }
     })()
@@ -610,105 +697,235 @@ export function CreateCatalogItemPage() {
             </div>
           </SectionCard>
 
-          {/* Galería Multimedia Principal / Portada y Vitrina */}
-          <div style={{ marginTop: '1.25rem' }}>
-            <SectionCard
-              title="Fotografías de Vitrina y E-commerce"
-              subtitle="Anexa hasta 8 imágenes para el catálogo y vitrina virtual. Estas fotos también estarán disponibles para asociarlas rápidamente a cada variante."
-            >
-              <StagedCatalogItemImages
-                stagedImages={stagedImages}
-                onStagedImagesChange={setStagedImages}
-                disabled={busy}
-                uploading={busy && uploadStatus !== null}
-                uploadStatus={uploadStatus}
-              />
-            </SectionCard>
-          </div>
-
-          {/* Variantes Físicas Dimensionales */}
-          {kind === String(CatalogItemKind.Physical) && (
-            <div style={{ marginTop: '1.25rem' }}>
-              <SectionCard
-                title="Variantes"
-                subtitle="Activa esta opción si el producto tiene variantes (tallas, colores, fotos individuales, etc.) con stock independiente"
-                action={
-                  <label
-                    htmlFor="ci-has-variants"
-                    style={{
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      color: 'var(--shell-primary, #4f46e5)',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.45rem',
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '6px',
-                      background: 'rgba(79, 70, 229, 0.08)',
-                      userSelect: 'none',
-                    }}
+          {/* Modo Jerárquico con Plantilla: Desglose Nivel por Nivel */}
+          {appliedTemplateLevels.length > 0 ? (
+            <>
+              {/* Niveles Superiores del Producto (Familia, Modelo/Estilo) */}
+              {appliedTemplateLevels.slice(0, appliedTemplateLevels.length - 1).map((lvl, idx) => (
+                <div key={lvl.id || idx} style={{ marginTop: '1.25rem' }}>
+                  <SectionCard
+                    title={`Nivel ${idx + 1}: ${lvl.name}`}
+                    subtitle={`Especificaciones y atributos correspondientes a este nivel en la jerarquía del producto`}
                   >
-                    <input
-                      id="ci-has-variants"
-                      type="checkbox"
-                      checked={hasVariants}
-                      onChange={(e) => setHasVariants(e.target.checked)}
-                      disabled={busy}
-                      style={{ cursor: 'pointer', width: 16, height: 16 }}
-                    />
-                    <span>¿Tiene variantes (tallas, colores, etc.)?</span>
-                  </label>
-                }
-              >
-                {hasVariants ? (
-                  <VariantMatrixBuilder
-                    tenantId={tenantId}
-                    baseName={name}
-                    baseSku={sku}
-                    basePrice={basePrice}
-                    parentTags={tags}
-                    disabled={busy}
-                    onChange={setMatrixData}
-                    availableImages={stagedImages}
-                  />
-                ) : (
-                  <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.875rem' }}>
-                    Producto simple estándar (un solo ítem con su propio SKU directo). Si este producto
-                    tiene múltiples variantes (tallas, colores, fotos individuales),
-                    marca la casilla superior <strong>«¿Tiene variantes (tallas, colores, etc.)?»</strong>.
-                  </p>
-                )}
-              </SectionCard>
-            </div>
-          )}
+                    {lvl.attributes.length > 0 ? (
+                      <div
+                        className="ecu-companies-form__grid ecu-companies-form__grid--3"
+                        style={{ marginBottom: lvl.hasImages ? '1.25rem' : '0' }}
+                      >
+                        {lvl.attributes.map((attr) => {
+                          const found = dimensionValuesMap.get(attr.trim().toLowerCase())
+                          const hasOptions = found && found.values.length > 0
+                          return (
+                            <div key={attr} className="ecu-companies-form__field">
+                              {hasOptions ? (
+                                <Select
+                                  id={`attr-${lvl.id}-${attr}`}
+                                  label={attr}
+                                  labelPosition="outlined"
+                                  variant="outline"
+                                  options={[
+                                    { value: '', label: `Seleccionar ${attr}...` },
+                                    ...found.values.map((v) => ({ value: v, label: v })),
+                                  ]}
+                                  value={getAttributeValue(attr)}
+                                  onChange={(val: string) => setAttributeValue(attr, val)}
+                                  disabled={busy}
+                                  fullWidth
+                                />
+                              ) : (
+                                <TextBox
+                                  id={`attr-${lvl.id}-${attr}`}
+                                  label={attr}
+                                  labelPosition="outlined"
+                                  variant="outline"
+                                  value={getAttributeValue(attr)}
+                                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                                    setAttributeValue(attr, e.target.value)
+                                  }
+                                  placeholder={`Ingresar ${attr.toLowerCase()}...`}
+                                  disabled={busy}
+                                  fullWidth
+                                />
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : null}
 
-          {/* Especificaciones y Atributos Técnicos */}
-          <div style={{ marginTop: '1.25rem' }}>
-            <SectionCard
-              title="Especificaciones y Atributos Adicionales"
-              subtitle="Define propiedades técnicas, comerciales o informativas propias de este producto (ej. Material, Marca, Garantía, Procedencia, etc.)."
-            >
-              <div style={{ marginBottom: '1.5rem' }}>
-                <EcuTagInput
-                  tags={tags}
-                  onChange={setTags}
-                  label="Etiquetas Jerárquicas del Producto (Tags)"
-                  placeholder="Añadir etiqueta (ej. Deportivo, Premium, Temporada 2026)..."
-                  helperText="Estas etiquetas indexan el producto para búsquedas en Punto de Venta (POS), tienda online y se heredan automáticamente a todas las variantes físicas."
-                  suggestedTags={suggestedTags}
-                  disabled={busy}
-                />
+                    {/* Fotografías específicas de este nivel si hasImages está habilitado */}
+                    {lvl.hasImages && (
+                      <div style={{ marginTop: lvl.attributes.length > 0 ? '1rem' : '0' }}>
+                        <div
+                          style={{
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                            color: 'var(--glb-text)',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          Fotografías del {lvl.name} (Vitrina / Presentación):
+                        </div>
+                        <StagedCatalogItemImages
+                          stagedImages={stagedImages}
+                          onStagedImagesChange={setStagedImages}
+                          disabled={busy}
+                          uploading={busy && uploadStatus !== null}
+                          uploadStatus={uploadStatus}
+                          hideBanner={true}
+                        />
+                      </div>
+                    )}
+                  </SectionCard>
+                </div>
+              ))}
+
+              {/* Etiquetas Jerárquicas del Producto */}
+              <div style={{ marginTop: '1.25rem' }}>
+                <SectionCard
+                  title="Etiquetas Jerárquicas del Producto (Tags)"
+                  subtitle="Indexación para Punto de Venta (POS) y tienda online. Se heredan automáticamente a todas las variantes."
+                >
+                  <EcuTagInput
+                    tags={tags}
+                    onChange={setTags}
+                    label="Etiquetas del Ítem"
+                    placeholder="Añadir etiqueta (ej. Deportivo, Algodón, Temporada 2026)..."
+                    suggestedTags={suggestedTags}
+                    disabled={busy}
+                  />
+                </SectionCard>
               </div>
 
-              <ItemCustomAttributesEditor
-                attributes={customAttributes}
-                onChange={setCustomAttributes}
-                categorySuggestions={categorySuggestions}
-                disabled={busy}
-              />
-            </SectionCard>
-          </div>
+              {/* Nivel Terminal: Variaciones Físicas (Al final del formulario) */}
+              {hasVariants && (
+                <div style={{ marginTop: '1.25rem' }}>
+                  <SectionCard
+                    title={`Nivel ${appliedTemplateLevels.length}: ${
+                      appliedTemplateLevels[appliedTemplateLevels.length - 1]?.name || 'Variantes Físicas'
+                    }`}
+                    subtitle="Genera las combinaciones finales por cada variante física (SKU, código de barras, fotos por color y stock)"
+                  >
+                    <VariantMatrixBuilder
+                      tenantId={tenantId}
+                      baseName={name}
+                      baseSku={sku}
+                      basePrice={basePrice}
+                      parentTags={tags}
+                      disabled={busy}
+                      onChange={setMatrixData}
+                      availableImages={stagedImages}
+                      initialDimensions={templateTerminalDimensions}
+                    />
+                  </SectionCard>
+                </div>
+              )}
+            </>
+          ) : (
+            /* Modo Libre Sin Plantilla */
+            <>
+              {/* Especificaciones y Atributos Técnicos */}
+              <div style={{ marginTop: '1.25rem' }}>
+                <SectionCard
+                  title="Especificaciones y Atributos Adicionales"
+                  subtitle="Define propiedades técnicas, comerciales o informativas propias de este producto (ej. Material, Marca, Garantía, Procedencia, etc.)."
+                >
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <EcuTagInput
+                      tags={tags}
+                      onChange={setTags}
+                      label="Etiquetas Jerárquicas del Producto (Tags)"
+                      placeholder="Añadir etiqueta (ej. Deportivo, Premium, Temporada 2026)..."
+                      helperText="Estas etiquetas indexan el producto para búsquedas en Punto de Venta (POS), tienda online y se heredan automáticamente a todas las variantes físicas."
+                      suggestedTags={suggestedTags}
+                      disabled={busy}
+                    />
+                  </div>
+
+                  <ItemCustomAttributesEditor
+                    attributes={customAttributes}
+                    onChange={setCustomAttributes}
+                    categorySuggestions={categorySuggestions}
+                    disabled={busy}
+                  />
+                </SectionCard>
+              </div>
+
+              {/* Fotografías del Producto */}
+              <div style={{ marginTop: '1.25rem' }}>
+                <SectionCard
+                  title="Fotografías del Producto"
+                  subtitle="Anexa hasta 8 imágenes para el catálogo y vitrina virtual."
+                >
+                  <StagedCatalogItemImages
+                    stagedImages={stagedImages}
+                    onStagedImagesChange={setStagedImages}
+                    disabled={busy}
+                    uploading={busy && uploadStatus !== null}
+                    uploadStatus={uploadStatus}
+                    hideBanner={true}
+                  />
+                </SectionCard>
+              </div>
+
+              {/* Variantes Físicas Dimensionales (Al final del formulario) */}
+              {kind === String(CatalogItemKind.Physical) && (
+                <div style={{ marginTop: '1.25rem' }}>
+                  <SectionCard
+                    title="Variantes Físicas"
+                    subtitle="Activa esta opción si el producto tiene variantes (tallas, colores, fotos individuales, etc.) con stock independiente"
+                    action={
+                      <label
+                        htmlFor="ci-has-variants"
+                        style={{
+                          fontSize: '0.85rem',
+                          fontWeight: 600,
+                          color: 'var(--shell-primary, #4f46e5)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.45rem',
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '6px',
+                          background: 'rgba(79, 70, 229, 0.08)',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <input
+                          id="ci-has-variants"
+                          type="checkbox"
+                          checked={hasVariants}
+                          onChange={(e) => setHasVariants(e.target.checked)}
+                          disabled={busy}
+                          style={{ cursor: 'pointer', width: 16, height: 16 }}
+                        />
+                        <span>¿Tiene variantes (tallas, colores, etc.)?</span>
+                      </label>
+                    }
+                  >
+                    {hasVariants ? (
+                      <VariantMatrixBuilder
+                        tenantId={tenantId}
+                        baseName={name}
+                        baseSku={sku}
+                        basePrice={basePrice}
+                        parentTags={tags}
+                        disabled={busy}
+                        onChange={setMatrixData}
+                        availableImages={stagedImages}
+                      />
+                    ) : (
+                      <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.875rem' }}>
+                        Producto simple estándar (un solo ítem con su propio SKU directo). Si este producto
+                        tiene múltiples variantes (tallas, colores, fotos individuales),
+                        marca la casilla superior <strong>«¿Tiene variantes (tallas, colores, etc.)?»</strong>.
+                      </p>
+                    )}
+                  </SectionCard>
+                </div>
+              )}
+            </>
+          )}
 
           <SectionCard>
             <div
