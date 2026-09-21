@@ -58,7 +58,7 @@ test.describe('Catálogo UI — Plantillas y Arquetipos Jerárquicos de Producto
     // Constructor de niveles jerárquicos
     await expect(page.getByText('Configuración de Niveles Jerárquicos')).toBeVisible()
     await expect(page.getByText('Nivel 1 (Base / Colección)')).toBeVisible()
-    await expect(page.getByText('Nivel 2 (Submodelo / Estilo)')).toBeVisible()
+    await expect(page.getByText('Nivel 2 (Intermedio / Ficha del modelo)')).toBeVisible()
     await expect(page.getByText('Nivel 3 (Terminal / Variantes)')).toBeVisible()
 
     // Botón para agregar nivel adicional

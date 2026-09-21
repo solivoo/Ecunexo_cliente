@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Button, ColorPicker, NumberBox, Popup, Select, TextBox, useToast } from 'glubox'
 import { Camera, Check, Copy, Layers, Plus, Trash2, Upload, X } from 'lucide-react'
+import { EcuTagInput } from '@/components/ui'
 import { isColorDimension } from '@/lib/catalogArchetype'
 import type { CreateVariantChildPayload } from '@/types/catalogApi'
 import './variantMatrixBuilder.css'
@@ -35,7 +36,8 @@ export type VariantRowState = {
   stagedImage?: File | null
   stagedImagePreview?: string | null
   stagedImages?: VariantImageItem[]
-  variantTags?: string
+  variantTags?: string[]
+  extraColors?: string[]
   actions?: string
   [key: string]: unknown
 }
@@ -108,7 +110,7 @@ function isDimensionActive(dim: DimensionState): boolean {
 function combineHierarchyTags(
   parentTags: readonly string[],
   dimensionValues?: Record<string, string>,
-  variantTags?: string
+  variantTags?: readonly string[]
 ): string[] {
   const set = new Set<string>()
   parentTags.forEach((pt) => {
@@ -124,13 +126,10 @@ function combineHierarchyTags(
       set.add(value.replace(/^#+/, ''))
     })
   }
-  if (variantTags?.trim()) {
-    variantTags
-      .split(/[,\s]+/)
-      .map((t) => t.trim().replace(/^#+/, ''))
-      .filter(Boolean)
-      .forEach((t) => set.add(t))
-  }
+  variantTags?.forEach((t) => {
+    const n = t.trim().replace(/^#+/, '')
+    if (n) set.add(n)
+  })
   return Array.from(set)
 }
 
@@ -158,9 +157,10 @@ export function VariantMatrixBuilder({
   // Color Hex Map
   const [colorHexMap, setColorHexMap] = useState<Record<string, string>>(DEFAULT_COLOR_MAP)
   const [colorModal, setColorModal] = useState<{
-    mode: 'duplicate' | 'add-group'
+    mode: 'duplicate' | 'add-group' | 'extra'
     value: string
     hex: string
+    rowId?: string
   } | null>(null)
 
   /** Hex de un color: acepta `#RRGGBB` o nombres históricos del catálogo. */
@@ -259,7 +259,8 @@ export function VariantMatrixBuilder({
           stagedImage: null,
           stagedImagePreview: null,
           stagedImages: [],
-          variantTags: '',
+          variantTags: [],
+          extraColors: [],
         },
       ])
     }
@@ -279,6 +280,8 @@ export function VariantMatrixBuilder({
         sku: '',
         variantTitle: `${source.variantTitle} (Copia)`,
         isManualTitle: false,
+        variantTags: [...(source.variantTags ?? [])],
+        extraColors: [...(source.extraColors ?? [])],
       }
 
       setRows((prev) => [...prev, duplicated])
@@ -305,6 +308,14 @@ export function VariantMatrixBuilder({
         return updated
       })
     )
+  }, [])
+
+  const handleVariantTagsChange = useCallback((rowId: string, tags: string[]) => {
+    setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, variantTags: tags } : r)))
+  }, [])
+
+  const handleExtraColorsChange = useCallback((rowId: string, colors: string[]) => {
+    setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, extraColors: colors } : r)))
   }, [])
 
   // Delete row
@@ -652,7 +663,8 @@ export function VariantMatrixBuilder({
         warehouseId: '',
         stagedImages: groupImages,
         stagedImagePreview: groupImages[0]?.previewUrl || null,
-        variantTags: '',
+        variantTags: [],
+        extraColors: [],
       }
 
       setRows((prev) => [...prev, newRow])
@@ -798,6 +810,21 @@ export function VariantMatrixBuilder({
     const targetVal = normalizeHexColor(colorModal.hex)
     if (!targetVal) return
 
+    if (colorModal.mode === 'extra') {
+      if (!colorModal.rowId) return
+      setColorHexMap((prev) => ({ ...prev, [targetVal]: targetVal }))
+      setRows((prev) =>
+        prev.map((r) => {
+          if (r.id !== colorModal.rowId) return r
+          const extras = r.extraColors ?? []
+          if (extras.includes(targetVal)) return r
+          return { ...r, extraColors: [...extras, targetVal] }
+        })
+      )
+      setColorModal(null)
+      return
+    }
+
     if (colorModal.mode === 'duplicate' && targetVal === colorModal.value) {
       toast.show({
         title: 'Color duplicado',
@@ -840,10 +867,22 @@ export function VariantMatrixBuilder({
 
   // Synchronize with parent
   useEffect(() => {
-    const dimensionsConfig = dimensions.map((d) => ({
-      name: d.name.trim() || 'Dimensión',
-      values: d.activeValues,
-    }))
+    // Los valores de cada dimensión se derivan de las filas realmente asignadas
+    // (los colores por hex no tienen presets nominales).
+    const dimensionsConfig = dimensions
+      .map((d) => {
+        const name = d.name.trim() || 'Dimensión'
+        const values = Array.from(
+          new Set(
+            rows
+              .map((r) => (r.dimensionValues ? r.dimensionValues[d.name] : undefined))
+              .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+              .map((v) => v.trim())
+          )
+        )
+        return { name, values }
+      })
+      .filter((d) => d.values.length > 0)
 
     const variantDimensionsJson = JSON.stringify(dimensionsConfig)
     const dimensionNames = dimensions.map((d) => d.name.trim())
@@ -859,6 +898,9 @@ export function VariantMatrixBuilder({
             customAttrs[dimName.toLowerCase()] = val.trim()
           }
         })
+      }
+      if (r.extraColors && r.extraColors.length > 0) {
+        customAttrs['colores_secundarios'] = r.extraColors
       }
 
       // Sintetizar tags: tags del padre + dimensiones de la variante + tags específicos de la variante
@@ -1154,16 +1196,17 @@ export function VariantMatrixBuilder({
                         )
                       })}
 
-                      {/* Color individual de la variante (hexadecimal) */}
+                      {/* Color individual de la variante (hexadecimal, admite varios) */}
                       {isPrimaryColor && primaryDim
                         ? (() => {
                             const rowColor = row.dimensionValues[primaryDim.name] || ''
                             const rowHex = colorHexFor(rowColor)
+                            const extras = row.extraColors ?? []
 
                             return (
                               <div
                                 className="ecu-variant-sub-item-field"
-                                style={{ minWidth: '190px', flex: '1 1 190px', maxWidth: '240px' }}
+                                style={{ minWidth: '210px', flex: '1.3 1 210px', maxWidth: '280px' }}
                               >
                                 <label className="ecu-variant-sub-item-label">{primaryDim.name}</label>
                                 <ColorPicker
@@ -1181,6 +1224,37 @@ export function VariantMatrixBuilder({
                                   disabled={disabled}
                                   fullWidth
                                 />
+                                {extras.length > 0 && (
+                                  <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                                    {extras.map((hex) => (
+                                      <span key={hex} className="ecu-extra-color-chip" title={`Color adicional: ${hex}`}>
+                                        <span
+                                          className="ecu-extra-color-dot"
+                                          style={{ backgroundColor: colorHexFor(hex) || '#94a3b8' }}
+                                        />
+                                        <span>{hex}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleExtraColorsChange(row.id, extras.filter((c) => c !== hex))}
+                                          disabled={disabled}
+                                          title={`Quitar ${hex}`}
+                                        >
+                                          <X size={10} />
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  className="ecu-extra-color-add"
+                                  onClick={() =>
+                                    setColorModal({ mode: 'extra', rowId: row.id, value: '', hex: '#3b82f6' })
+                                  }
+                                  disabled={disabled}
+                                >
+                                  <Plus size={11} /> Añadir color
+                                </button>
                               </div>
                             )
                           })()
@@ -1255,19 +1329,13 @@ export function VariantMatrixBuilder({
                       <div className="ecu-variant-sub-item-break" aria-hidden />
 
                       {/* Tags / Actividad */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '160px', flex: '1 1 160px' }}>
+                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '200px', flex: '1.3 1 200px' }}>
                         <label className="ecu-variant-sub-item-label">Tags / Actividad</label>
-                        <TextBox
-                          size="sm"
-                          variant="outline"
-                          value={row.variantTags || ''}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            updateRow(row.id, 'variantTags', e.target.value)
-                          }
-                          placeholder="Ej. Running..."
+                        <EcuTagInput
+                          tags={row.variantTags ?? []}
+                          onChange={(tags: string[]) => handleVariantTagsChange(row.id, tags)}
+                          placeholder="Ej. Running, Casual..."
                           disabled={disabled}
-                          title="Tags o actividad específica para esta variante"
-                          fullWidth
                         />
                       </div>
 
@@ -1521,7 +1589,9 @@ export function VariantMatrixBuilder({
           title={
             colorModal.mode === 'duplicate'
               ? `Duplicar ${primaryDim.name} a un color nuevo`
-              : `Nuevo ${primaryDim.name}`
+              : colorModal.mode === 'extra'
+                ? 'Color adicional de la variante'
+                : `Nuevo ${primaryDim.name}`
           }
           width="420px"
         >

@@ -45,7 +45,7 @@ export function buildDimensionValuesMap(
       const lowerType = (t.dimensionType || '').trim().toLowerCase()
       if (lowerType && !map.has(lowerType)) map.set(lowerType, entry)
 
-      if (lowerType === 'talla' || lowerName.includes('talla')) {
+      if (lowerType === 'size' || lowerType === 'talla' || lowerName.includes('talla')) {
         if (!map.has('talla')) map.set('talla', entry)
         if (!map.has('tallas')) map.set('tallas', entry)
         if (!map.has('size')) map.set('size', entry)
@@ -100,8 +100,9 @@ export function resolvePhotoScope(levels: readonly ProductTemplateLevel[]): Phot
 /**
  * Regla de posición + metadatos:
  * - Nivel terminal: manda el diccionario (`isVariantAxis=false` ⇒ descriptivo); sin diccionario, es eje.
- * - Niveles intermedios: solo los colores ascienden como eje; el resto es contexto del modelo,
- *   aunque el diccionario los tenga como "genera variantes".
+ * - Niveles intermedios: ascienden los colores y los atributos del diccionario marcados como ejes
+ *   (ej. una escala de tallas reutilizable); el texto libre (Marca, Material, Colección…) queda
+ *   como ficha del modelo.
  */
 export function resolveIsVariantAxis(
   map: Map<string, DimensionLookup> | undefined,
@@ -117,7 +118,8 @@ export function resolveIsVariantAxis(
     return true
   }
 
-  return lookup ? lookup.isColor : isColorDimension(attributeKey)
+  if (lookup) return lookup.isColor || lookup.isVariantAxis !== false
+  return isColorDimension(attributeKey)
 }
 
 /** Atributos del modelo: todo atributo declarado como no-eje (isVariantAxis=false) y, sin tipado, los intermedios no-color. */

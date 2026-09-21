@@ -197,9 +197,9 @@ export function HierarchyTemplateTreeBuilder({
           const levelLabel =
             index === 0
               ? 'Nivel 1 (Base / Colección)'
-              : index === 1
-              ? 'Nivel 2 (Submodelo / Estilo)'
-              : `Nivel ${index + 1} (Terminal / Variantes)`
+              : isLast
+                ? `Nivel ${index + 1} (Terminal / Variantes)`
+                : `Nivel ${index + 1} (Intermedio / Ficha del modelo)`
 
           // Atributos sugeridos rápidos para este nivel (excluyendo los ya asignados)
           const suggestedAttributes = availableAttributes
@@ -711,8 +711,10 @@ export function HierarchyTemplateTreeBuilder({
               style={{
                 display: 'flex',
                 alignItems: 'stretch',
-                flexWrap: 'wrap',
+                flexWrap: 'nowrap',
+                overflowX: 'auto',
                 gap: '0.75rem',
+                paddingBottom: '0.5rem',
               }}
             >
               {levels.map((lvl, index) => {
@@ -733,7 +735,9 @@ export function HierarchyTemplateTreeBuilder({
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.75rem',
-                      flex: '1 1 200px',
+                      flex: '0 0 auto',
+                      minWidth: 200,
+                      maxWidth: 240,
                     }}
                   >
                     {/* Node Card */}
@@ -741,8 +745,14 @@ export function HierarchyTemplateTreeBuilder({
                       style={{
                         flex: 1,
                         borderRadius: '10px',
-                        border: '1px solid var(--shell-border, rgba(255,255,255,0.12))',
-                        background: 'var(--glb-surface, #1e222d)',
+                        border: `1px solid ${
+                          isLast
+                            ? 'rgba(16, 185, 129, 0.5)'
+                            : 'var(--shell-border, rgba(255,255,255,0.12))'
+                        }`,
+                        background: isLast
+                          ? 'color-mix(in srgb, #10b981 6%, var(--glb-surface, #1e222d))'
+                          : 'var(--glb-surface, #1e222d)',
                         padding: '0.85rem 1rem',
                         display: 'flex',
                         flexDirection: 'column',
@@ -869,7 +879,7 @@ export function HierarchyTemplateTreeBuilder({
               <div style={{ fontSize: '0.82rem', fontFamily: 'monospace', color: 'var(--glb-text)', lineHeight: 1.6 }}>
                 {levels.map((lvl, index) => {
                   const isLast = index === levels.length - 1
-                  const indent = index === 0 ? 0 : index === 1 ? 16 : 32
+                  const indent = index * 20
                   const attrs = lvl.attributes
 
                   return (
@@ -904,8 +914,8 @@ export function HierarchyTemplateTreeBuilder({
                       : 'se capturan por cada variante/SKU'}
                 </div>
                 <div style={{ marginTop: '0.2rem', color: 'var(--glb-muted)' }}>
-                  Regla: solo el <strong>nivel terminal</strong> genera variantes/SKU; los niveles anteriores son
-                  ficha del modelo (el color asciende como eje de agrupación).
+                  Regla: las variantes/SKU nacen de los <strong>ejes físicos</strong> (tallas, caña, color) y de
+                  los colores; los demás niveles son ficha del modelo.
                   {levels.length > 3 && ' Recomendado: 2–3 niveles.'}
                 </div>
               </div>

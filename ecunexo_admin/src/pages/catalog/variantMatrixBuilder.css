@@ -1108,3 +1108,59 @@ html.sf-dark-mode .ecu-variant-group-photo-add {
   color: #10b981;
 }
 
+
+.ecu-extra-color-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: var(--glb-surface-variant, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.12));
+  color: var(--glb-text, #1e293b);
+}
+
+.ecu-extra-color-chip button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.ecu-extra-color-chip button:hover {
+  opacity: 1;
+}
+
+.ecu-extra-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.ecu-extra-color-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px dashed var(--shell-primary, #3b82f6);
+  background: transparent;
+  color: var(--shell-primary, #2563eb);
+  cursor: pointer;
+}
+
+.ecu-extra-color-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
