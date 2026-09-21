@@ -260,7 +260,8 @@
 }
 
 .ecu-matrix-table input[type="text"],
-.ecu-matrix-table input[type="number"] {
+.ecu-matrix-table input[type="number"],
+.ecu-matrix-table select {
   width: 100%;
   padding: 0.35rem 0.6rem;
   font-size: 0.825rem;
@@ -273,7 +274,8 @@
 }
 
 .ecu-matrix-table input[type="text"]:focus,
-.ecu-matrix-table input[type="number"]:focus {
+.ecu-matrix-table input[type="number"]:focus,
+.ecu-matrix-table select:focus {
   outline: none;
   border-color: var(--shell-primary, #4f46e5);
 }
@@ -329,9 +331,10 @@ html.sf-dark-mode .ecu-matrix-table td {
 }
 
 html.sf-dark-mode .ecu-matrix-table input[type="text"],
-html.sf-dark-mode .ecu-matrix-table input[type="number"] {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.12);
+html.sf-dark-mode .ecu-matrix-table input[type="number"],
+html.sf-dark-mode .ecu-matrix-table select {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.15);
   color: #f1f5f9;
 }
 

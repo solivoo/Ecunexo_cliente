@@ -7,8 +7,13 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.40.2`.
+* **Última Versión Publicada:** `v0.40.3`.
 * **Hitos Recientes Completados:**
+  - **Dimensiones Seleccionables por Variante, Tags Editables y Creación Bajo Demanda (`VariantMatrixBuilder.tsx`, `variantMatrixBuilder.css`, `AboutAppModal.tsx`) [v0.40.3]:**
+    * **Desacoplamiento de la Explosión Cartesiana:** Se reemplazó la generación cartesiana forzada y automática por creación bajo demanda. El comerciante agrega variantes físicas con el botón `+ Agregar Variante` o `Duplicar` (`<Copy />`), o genera combinaciones completas únicamente si lo desea mediante el botón explícito `Combinar Opciones`.
+    * **Selectores de Dimensión por Fila:** Las dimensiones en la tabla ya no son texto estático inmutable. Cada fila de variante cuenta con menús desplegables (`<select className="ecu-matrix-dim-select">`) para cada dimensión activa (Talla, Color, Caña, etc.), permitiendo seleccionar el valor exacto para esa variante física con swatch de color y actualización automática de título y SKU.
+    * **Supresión de Columna "Actividad / Uso" Duplicada:** Se eliminó la columna fija y redundante de actividad en la tabla y en `customAttributesJson`, evitando duplicidad con las especificaciones del modelo o tags.
+    * **Tags / Especificaciones Editables por Variante:** Cada fila de variante cuenta con su campo de texto propio para ingresar tags o actividad específica (`#running`, `#crossfit`, `Verano`), combinándose reactivamente con los tags del padre y las dimensiones seleccionadas en badges visuales y serializándose en `customAttributesJson.tags`.
   - **Catálogo Basado en Plantillas y Fotografía Exclusiva en Variantes (`CreateCatalogItemPage.tsx`, `VariantMatrixBuilder.tsx`, `AboutAppModal.tsx`) [v0.40.2]:**
     * **Formulario 100% Guiado por Plantilla:** Supresión de campos redundantes (`Categoría`, `Nombre manual`, `Precio base referencial`, `Descripción`) al elegir una plantilla, listando directamente las dimensiones intermedias del modelo en la tarjeta superior mediante selectores (`<Select>`) asistidos del Diccionario Maestro.
     * **Fotografías Exclusivas en Variantes:** Eliminación de la zona de subida de imágenes a nivel producto cuando existen variantes (las fotos se gestionan exclusivamente en las variantes físicas).

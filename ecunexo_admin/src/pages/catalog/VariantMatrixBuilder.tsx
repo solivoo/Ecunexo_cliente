@@ -38,6 +38,7 @@ export type VariantRowState = {
   dimensionValues: Record<string, string>
   variationLabel: string
   variantTitle: string
+  isManualTitle?: boolean
   sku: string
   isManualSku?: boolean
   barcode: string
@@ -48,7 +49,7 @@ export type VariantRowState = {
   stagedImage?: File | null
   stagedImagePreview?: string | null
   stagedImages?: VariantImageItem[]
-  secondaryAttributeValue?: string
+  variantTags?: string
 }
 
 export type MatrixVariantPayloadWithImage = CreateVariantChildPayload & {
@@ -205,7 +206,7 @@ export function isColorDimension(name: string, type?: string, tplId?: string): b
 function combineHierarchyTags(
   parentTags: readonly string[],
   dimensionValues?: Record<string, string>,
-  secondaryAttrVal?: string
+  variantTags?: string
 ): string[] {
   const set = new Set<string>()
   parentTags.forEach((pt) => {
@@ -217,8 +218,12 @@ function combineHierarchyTags(
       if (typeof v === 'string' && v.trim()) set.add(v.trim().replace(/^#+/, ''))
     })
   }
-  if (secondaryAttrVal?.trim()) {
-    set.add(secondaryAttrVal.trim().replace(/^#+/, ''))
+  if (variantTags?.trim()) {
+    variantTags
+      .split(/[,\s]+/)
+      .map((t) => t.trim().replace(/^#+/, ''))
+      .filter(Boolean)
+      .forEach((t) => set.add(t))
   }
   return Array.from(set)
 }
@@ -532,58 +537,40 @@ export function VariantMatrixBuilder({
     )
   }, [])
 
-  // Generate Cartesian combinations when active dimensions change
+  // Inicializar con 1 variante por defecto si la lista de filas está vacía
+  const hasInitializedRows = useRef(false)
   useEffect(() => {
-    const prefix = getVariantSkuPrefix(baseSku, baseName)
-    const defaultPrice = basePrice.trim() ? basePrice.trim() : ''
+    if (hasInitializedRows.current) return
+    const activeDims = dimensions.filter((d) => d.activeValues.length > 0 || d.values.length > 0)
+    if (activeDims.length > 0 && rows.length === 0) {
+      hasInitializedRows.current = true
+      const prefix = getVariantSkuPrefix(baseSku, baseName)
+      const defaultPrice = basePrice.trim() ? basePrice.trim() : ''
 
-    const activeDims = dimensions.filter((d) => d.activeValues.length > 0)
-    if (activeDims.length === 0) {
-      setRows([])
-      return
-    }
+      const dimensionValues: Record<string, string> = {}
+      activeDims.forEach((d) => {
+        dimensionValues[d.name] = d.activeValues[0] || d.values[0] || ''
+      })
 
-    const arraysToMultiply = activeDims.map((d) => d.activeValues)
-    const combinations = cartesianProduct(arraysToMultiply)
+      const variationLabel = Object.values(dimensionValues).filter(Boolean).join(' / ')
+      const autoTitle = baseName.trim()
+        ? (variationLabel ? `${baseName.trim()} - ${variationLabel}` : baseName.trim())
+        : (variationLabel || 'Variante 1')
 
-    setRows((prev) => {
-      return combinations.map((comb, combIdx) => {
-        const id = comb.map(sanitizeSkuPart).join('_')
-        const existing = prev.find((r) => r.id === id)
+      const dimValues = Object.values(dimensionValues).filter(Boolean)
+      const generatedSku = skuFormat === 'hierarchical'
+        ? `${prefix}-0001`
+        : dimValues.length > 0
+          ? `${prefix}-${dimValues.map(sanitizeSkuPart).join('-')}`
+          : `${prefix}-VAR1`
 
-        const variationLabel = comb.join(' / ')
-        const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
-
-        const identifier = String(combIdx + 1).padStart(4, '0')
-        const generatedSku = skuFormat === 'hierarchical'
-          ? `${prefix}-${identifier}`
-          : `${prefix}-${comb.map(sanitizeSkuPart).join('-')}`
-
-        const dimensionValues: Record<string, string> = {}
-        activeDims.forEach((dim, idx) => {
-          dimensionValues[dim.name] = comb[idx]
-        })
-
-        if (existing) {
-          const finalSku = existing.isManualSku ? existing.sku : generatedSku
-          const finalPrice = existing.isManualPrice ? existing.basePrice : (defaultPrice || existing.basePrice)
-
-          return {
-            ...existing,
-            dimensionValues,
-            variationLabel,
-            variantTitle: existing.variantTitle || autoTitle,
-            sku: finalSku,
-            basePrice: finalPrice,
-            stagedImages: existing.stagedImages || (existing.stagedImage && existing.stagedImagePreview ? [{ id: '1', file: existing.stagedImage, previewUrl: existing.stagedImagePreview, name: existing.variantTitle }] : []),
-          }
-        }
-
-        return {
-          id,
+      setRows([
+        {
+          id: `var-init-${Date.now()}`,
           dimensionValues,
           variationLabel,
           variantTitle: autoTitle,
+          isManualTitle: false,
           sku: generatedSku,
           isManualSku: false,
           barcode: '',
@@ -594,11 +581,224 @@ export function VariantMatrixBuilder({
           stagedImage: null,
           stagedImagePreview: null,
           stagedImages: [],
-          secondaryAttributeValue: '',
+          variantTags: '',
+        },
+      ])
+    }
+  }, [dimensions, baseSku, baseName, basePrice, skuFormat, bulkWarehouseId, rows.length])
+
+  // Sincronizar título y SKU base cuando cambian baseName o baseSku (si no fueron editados manualmente)
+  useEffect(() => {
+    const prefix = getVariantSkuPrefix(baseSku, baseName)
+    setRows((prev) =>
+      prev.map((r, idx) => {
+        let title = r.variantTitle
+        if (!r.isManualTitle && baseName.trim()) {
+          const varLabel = Object.values(r.dimensionValues || {}).filter(Boolean).join(' / ')
+          title = varLabel ? `${baseName.trim()} - ${varLabel}` : baseName.trim()
         }
+        let sku = r.sku
+        if (!r.isManualSku) {
+          const dimVals = Object.values(r.dimensionValues || {}).filter(Boolean)
+          sku = skuFormat === 'hierarchical'
+            ? `${prefix}-${String(idx + 1).padStart(4, '0')}`
+            : dimVals.length > 0
+              ? `${prefix}-${dimVals.map(sanitizeSkuPart).join('-')}`
+              : `${prefix}-${sanitizeSkuPart(title)}`
+        }
+        return { ...r, variantTitle: title, sku }
       })
+    )
+  }, [baseSku, baseName, skuFormat])
+
+  // Cambio de dimensión en una fila específica (selección por variante)
+  const handleRowDimensionChange = useCallback(
+    (rowId: string, dimName: string, newValue: string) => {
+      setRows((prev) =>
+        prev.map((r, idx) => {
+          if (r.id !== rowId) return r
+          const updatedDims = { ...r.dimensionValues, [dimName]: newValue }
+          const variationLabel = Object.values(updatedDims).filter(Boolean).join(' / ')
+          const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
+
+          const prefix = getVariantSkuPrefix(baseSku, baseName)
+          const dimValues = Object.values(updatedDims).filter(Boolean)
+          const autoSku = skuFormat === 'hierarchical'
+            ? `${prefix}-${String(idx + 1).padStart(4, '0')}`
+            : dimValues.length > 0
+              ? `${prefix}-${dimValues.map(sanitizeSkuPart).join('-')}`
+              : `${prefix}-${sanitizeSkuPart(autoTitle)}`
+
+          return {
+            ...r,
+            dimensionValues: updatedDims,
+            variationLabel,
+            variantTitle: r.isManualTitle ? r.variantTitle : autoTitle,
+            sku: r.isManualSku ? r.sku : autoSku,
+          }
+        })
+      )
+    },
+    [baseSku, baseName, skuFormat]
+  )
+
+  // Agregar una variante bajo demanda
+  const handleAddVariantRow = useCallback(() => {
+    const prefix = getVariantSkuPrefix(baseSku, baseName)
+    const defaultPrice = basePrice.trim() ? basePrice.trim() : ''
+    const newId = `var-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    const nextIdx = rows.length + 1
+
+    const dimensionValues: Record<string, string> = {}
+    dimensions.forEach((d) => {
+      const defaultVal = d.activeValues[0] || d.values[0] || ''
+      if (defaultVal) {
+        dimensionValues[d.name] = defaultVal
+      }
     })
-  }, [dimensions, baseSku, basePrice, baseName, bulkWarehouseId, skuFormat])
+
+    const variationLabel = Object.values(dimensionValues).filter(Boolean).join(' / ')
+    const autoTitle = baseName.trim()
+      ? (variationLabel ? `${baseName.trim()} - ${variationLabel}` : `${baseName.trim()} - Variante ${nextIdx}`)
+      : (variationLabel || `Variante ${nextIdx}`)
+
+    const dimValues = Object.values(dimensionValues).filter(Boolean)
+    const autoSku = skuFormat === 'hierarchical'
+      ? `${prefix}-${String(nextIdx).padStart(4, '0')}`
+      : dimValues.length > 0
+        ? `${prefix}-${dimValues.map(sanitizeSkuPart).join('-')}`
+        : `${prefix}-VAR-${nextIdx}`
+
+    const newRow: VariantRowState = {
+      id: newId,
+      dimensionValues,
+      variationLabel,
+      variantTitle: autoTitle,
+      isManualTitle: false,
+      sku: autoSku,
+      isManualSku: false,
+      barcode: '',
+      basePrice: defaultPrice,
+      isManualPrice: false,
+      initialStock: '',
+      warehouseId: bulkWarehouseId,
+      stagedImage: null,
+      stagedImagePreview: null,
+      stagedImages: [],
+      variantTags: '',
+    }
+
+    setRows((prev) => [...prev, newRow])
+  }, [baseSku, baseName, basePrice, bulkWarehouseId, dimensions, rows.length, skuFormat])
+
+  // Duplicar una fila de variante
+  const handleDuplicateVariantRow = useCallback(
+    (rowId: string) => {
+      const source = rows.find((r) => r.id === rowId)
+      if (!source) return
+
+      const prefix = getVariantSkuPrefix(baseSku, baseName)
+      const newId = `var-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+      const nextIdx = rows.length + 1
+
+      const newSku = skuFormat === 'hierarchical'
+        ? `${prefix}-${String(nextIdx).padStart(4, '0')}`
+        : `${source.sku}-COPIA`
+
+      const duplicated: VariantRowState = {
+        ...source,
+        id: newId,
+        sku: newSku,
+        isManualSku: false,
+        variantTitle: `${source.variantTitle} (Copia)`,
+        isManualTitle: false,
+      }
+
+      setRows((prev) => [...prev, duplicated])
+      toast.show({
+        variant: 'success',
+        title: 'Variante duplicada',
+        message: `Se duplicó la fila. Puedes seleccionar otra talla, color o tags.`,
+      })
+    },
+    [rows, baseSku, baseName, skuFormat, toast]
+  )
+
+  // Generar todas las combinaciones bajo demanda (opcional, no automático)
+  const handleGenerateAllCombinations = useCallback(() => {
+    const activeDims = dimensions.filter((d) => d.activeValues.length > 0 || d.values.length > 0)
+    if (activeDims.length === 0) {
+      toast.show({
+        variant: 'warning',
+        title: 'Sin opciones',
+        message: 'Configura al menos una opción en las dimensiones para generar combinaciones.',
+      })
+      return
+    }
+
+    const prefix = getVariantSkuPrefix(baseSku, baseName)
+    const defaultPrice = basePrice.trim() ? basePrice.trim() : ''
+
+    const arraysToMultiply = activeDims.map((d) => (d.activeValues.length > 0 ? d.activeValues : d.values))
+    const combinations = cartesianProduct(arraysToMultiply)
+
+    if (combinations.length > 60) {
+      toast.show({
+        variant: 'warning',
+        title: 'Atención',
+        message: `Se están generando ${combinations.length} variantes.`,
+      })
+    }
+
+    const newRows: VariantRowState[] = combinations.map((comb, combIdx) => {
+      const id = comb.map(sanitizeSkuPart).join('_')
+      const variationLabel = comb.join(' / ')
+      const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
+      const identifier = String(combIdx + 1).padStart(4, '0')
+      const generatedSku = skuFormat === 'hierarchical'
+        ? `${prefix}-${identifier}`
+        : `${prefix}-${comb.map(sanitizeSkuPart).join('-')}`
+
+      const dimensionValues: Record<string, string> = {}
+      activeDims.forEach((dim, idx) => {
+        dimensionValues[dim.name] = comb[idx]
+      })
+
+      const existing = rows.find((r) =>
+        activeDims.every((dim) => r.dimensionValues[dim.name] === dimensionValues[dim.name])
+      )
+
+      if (existing) {
+        return existing
+      }
+
+      return {
+        id: `var-${id}-${Date.now()}-${combIdx}`,
+        dimensionValues,
+        variationLabel,
+        variantTitle: autoTitle,
+        isManualTitle: false,
+        sku: generatedSku,
+        isManualSku: false,
+        barcode: '',
+        basePrice: defaultPrice,
+        isManualPrice: false,
+        initialStock: '',
+        warehouseId: bulkWarehouseId,
+        stagedImage: null,
+        stagedImagePreview: null,
+        stagedImages: [],
+        variantTags: '',
+      }
+    })
+
+    setRows(newRows)
+    toast.show({
+      variant: 'success',
+      title: 'Combinaciones generadas',
+      message: `Se crearon ${newRows.length} variantes combinando todas las opciones.`,
+    })
+  }, [dimensions, baseSku, baseName, basePrice, bulkWarehouseId, rows, skuFormat, toast])
 
   // Bulk actions
   const handleCopyBasePrice = useCallback(() => {
@@ -655,6 +855,8 @@ export function VariantMatrixBuilder({
         const updated = { ...r, [field]: value }
         if (field === 'sku') {
           updated.isManualSku = true
+        } else if (field === 'variantTitle') {
+          updated.isManualTitle = true
         } else if (field === 'basePrice') {
           updated.isManualPrice = true
         }
@@ -976,27 +1178,18 @@ export function VariantMatrixBuilder({
       const parsedStock = r.initialStock.trim() ? Number(r.initialStock) : null
 
       const customAttrs: Record<string, unknown> = {}
-      if (r.secondaryAttributeValue?.trim()) {
-        customAttrs['actividad'] = r.secondaryAttributeValue.trim()
+      if (r.dimensionValues) {
+        Object.entries(r.dimensionValues).forEach(([dimName, val]) => {
+          if (val && typeof val === 'string' && val.trim()) {
+            customAttrs[dimName.toLowerCase()] = val.trim()
+          }
+        })
       }
 
-      // Sintetizar tags jerárquicos: tags del padre + dimensiones de la variante + actividad
-      const variantTagsSet = new Set<string>()
-      parentTags.forEach((pt) => {
-        const norm = pt.trim().replace(/^#+/, '')
-        if (norm) variantTagsSet.add(norm)
-      })
-      Object.values(r.dimensionValues || {}).forEach((val) => {
-        if (typeof val === 'string' && val.trim()) {
-          variantTagsSet.add(val.trim().replace(/^#+/, ''))
-        }
-      })
-      if (r.secondaryAttributeValue?.trim()) {
-        variantTagsSet.add(r.secondaryAttributeValue.trim().replace(/^#+/, ''))
-      }
-
-      if (variantTagsSet.size > 0) {
-        customAttrs['tags'] = Array.from(variantTagsSet)
+      // Sintetizar tags: tags del padre + dimensiones de la variante + tags específicos de la variante
+      const combinedTags = combineHierarchyTags(parentTags, r.dimensionValues, r.variantTags)
+      if (combinedTags.length > 0) {
+        customAttrs['tags'] = combinedTags
       }
 
       return {
@@ -1363,6 +1556,26 @@ export function VariantMatrixBuilder({
 
           <Button
             type="button"
+            variant="primary"
+            size="sm"
+            onClick={handleAddVariantRow}
+            disabled={disabled}
+            title="Crear una nueva variante física para este producto"
+          >
+            <Plus size={13} /> Agregar Variante
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleGenerateAllCombinations}
+            disabled={disabled || activeDims.length === 0}
+            title="Crea variantes combinando todas las opciones de las dimensiones configuradas"
+          >
+            <Layers size={13} /> Combinar Opciones
+          </Button>
+          <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={() => {
@@ -1435,8 +1648,17 @@ export function VariantMatrixBuilder({
       {/* Variants Table */}
       <div className="ecu-matrix-table-wrap">
         {rows.length === 0 ? (
-          <div className="ecu-matrix-empty">
-            No hay variantes activas. Selecciona al menos un valor en cada dimensión para generar combinaciones.
+          <div className="ecu-matrix-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', padding: '2.5rem 1rem' }}>
+            <div>No hay variantes físicas agregadas aún.</div>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={handleAddVariantRow}
+              disabled={disabled}
+            >
+              <Plus size={14} /> Agregar Variante
+            </Button>
           </div>
         ) : (
           <table className="ecu-matrix-table">
@@ -1448,21 +1670,20 @@ export function VariantMatrixBuilder({
                 </th>
                 {activeDims.length > 0 ? (
                   activeDims.map((dim) => (
-                    <th key={dim.id} style={{ minWidth: 105, whiteSpace: 'nowrap' }}>
+                    <th key={dim.id} style={{ minWidth: 110, whiteSpace: 'nowrap' }}>
                       {dim.name || 'Dimensión'}
                     </th>
                   ))
                 ) : (
                   <th style={{ width: 140 }}>Variación</th>
                 )}
-                <th style={{ width: 160 }}>Título Variante</th>
+                <th style={{ width: 170 }}>Título Variante</th>
                 <th style={{ width: 160 }}>SKU (Obligatorio)</th>
-                <th style={{ width: 140 }}>Actividad / Uso</th>
-                <th style={{ width: 180 }}>Tags Jerárquicos</th>
+                <th style={{ width: 180 }}>Tags / Actividad</th>
                 <th style={{ width: 120 }}>Cód. Barras</th>
                 <th style={{ width: 120 }}>Precio Base ($)</th>
                 <th style={{ width: 95 }}>Stock Inicial</th>
-                <th style={{ width: 44, textAlign: 'center' }}></th>
+                <th style={{ width: 70, textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -1522,20 +1743,47 @@ export function VariantMatrixBuilder({
                   </td>
                   {activeDims.length > 0 ? (
                     activeDims.map((dim) => {
-                      const val = row.dimensionValues[dim.name] || '—'
+                      const currentVal = row.dimensionValues[dim.name] || ''
                       const isColor = isColorDimension(dim.name)
-                      const hex = colorHexMap[val]
+                      const availableVals = dim.values.length > 0 ? dim.values : dim.activeValues
+                      const hex = colorHexMap[currentVal]
                       return (
                         <td key={dim.id} style={{ whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: '100%' }}>
                             {(isColor || hex) && (
                               <span
                                 className="ecu-color-swatch-dot"
                                 style={{ backgroundColor: hex || '#94a3b8' }}
-                                title={val}
+                                title={currentVal}
                               />
                             )}
-                            <strong style={{ fontSize: '0.85rem' }}>{val}</strong>
+                            <select
+                              className="ecu-matrix-dim-select"
+                              value={currentVal}
+                              onChange={(e) => handleRowDimensionChange(row.id, dim.name, e.target.value)}
+                              disabled={disabled}
+                              style={{
+                                padding: '0.35rem 0.5rem',
+                                borderRadius: '6px',
+                                border: '1px solid var(--shell-border, rgba(0,0,0,0.15))',
+                                background: 'var(--glb-surface, #fff)',
+                                color: 'var(--glb-text, #1e293b)',
+                                fontSize: '0.825rem',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                width: '100%',
+                                minWidth: '85px',
+                              }}
+                            >
+                              {availableVals.map((val) => (
+                                <option key={val} value={val}>
+                                  {val}
+                                </option>
+                              ))}
+                              {currentVal && !availableVals.includes(currentVal) && (
+                                <option value={currentVal}>{currentVal}</option>
+                              )}
+                            </select>
                           </div>
                         </td>
                       )
@@ -1565,39 +1813,35 @@ export function VariantMatrixBuilder({
                     />
                   </td>
                   <td>
-                    <input
-                      type="text"
-                      value={row.secondaryAttributeValue || ''}
-                      onChange={(e) => updateRow(row.id, 'secondaryAttributeValue', e.target.value)}
-                      placeholder="Ej. Deportivo, Casual, Estándar..."
-                      disabled={disabled}
-                      title="Especificación de uso o actividad para esta variante"
-                    />
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', alignItems: 'center' }}>
-                      {combineHierarchyTags(parentTags, row.dimensionValues, row.secondaryAttributeValue).length === 0 ? (
-                        <span style={{ fontSize: '0.725rem', color: 'var(--glb-muted)', fontStyle: 'italic' }}>
-                          Sin tags
-                        </span>
-                      ) : (
-                        combineHierarchyTags(parentTags, row.dimensionValues, row.secondaryAttributeValue).map((tag) => (
-                          <span
-                            key={tag}
-                            style={{
-                              fontSize: '0.7rem',
-                              fontWeight: 500,
-                              background: 'rgba(59, 130, 246, 0.12)',
-                              color: 'var(--shell-primary, #60a5fa)',
-                              padding: '0.1rem 0.4rem',
-                              borderRadius: '4px',
-                              lineHeight: 1.2,
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {tag}
-                          </span>
-                        ))
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <input
+                        type="text"
+                        value={row.variantTags || ''}
+                        onChange={(e) => updateRow(row.id, 'variantTags', e.target.value)}
+                        placeholder="Ej. Running, Crossfit..."
+                        disabled={disabled}
+                        title="Tags o actividad específica para esta variante física"
+                      />
+                      {combineHierarchyTags(parentTags, row.dimensionValues, row.variantTags).length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.2rem', alignItems: 'center' }}>
+                          {combineHierarchyTags(parentTags, row.dimensionValues, row.variantTags).map((tag) => (
+                            <span
+                              key={tag}
+                              style={{
+                                fontSize: '0.675rem',
+                                fontWeight: 500,
+                                background: 'rgba(59, 130, 246, 0.12)',
+                                color: 'var(--shell-primary, #60a5fa)',
+                                padding: '0.05rem 0.35rem',
+                                borderRadius: '4px',
+                                lineHeight: 1.2,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </td>
@@ -1649,23 +1893,62 @@ export function VariantMatrixBuilder({
                       disabled={disabled}
                     />
                   </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <button
-                      type="button"
-                      className="ecu-matrix-pill__remove"
-                      style={{ width: 24, height: 24 }}
-                      onClick={() => deleteRow(row.id)}
-                      disabled={disabled}
-                      title="Eliminar esta fila de variante"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                  <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <button
+                        type="button"
+                        className="ecu-matrix-pill__remove"
+                        style={{ width: 26, height: 26 }}
+                        onClick={() => handleDuplicateVariantRow(row.id)}
+                        disabled={disabled}
+                        title="Duplicar esta variante"
+                      >
+                        <Copy size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        className="ecu-matrix-pill__remove"
+                        style={{ width: 26, height: 26, color: 'var(--glb-danger, #ef4444)' }}
+                        onClick={() => deleteRow(row.id)}
+                        disabled={disabled}
+                        title="Eliminar esta fila de variante"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )
               })}
             </tbody>
           </table>
+        )}
+        {rows.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 0.25rem 0.25rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={handleAddVariantRow}
+                disabled={disabled}
+              >
+                <Plus size={14} /> Agregar Variante
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateAllCombinations}
+                disabled={disabled || activeDims.length === 0}
+              >
+                <Layers size={14} /> Combinar Opciones
+              </Button>
+            </div>
+            <span style={{ fontSize: '0.8rem', color: 'var(--glb-muted)' }}>
+              {rows.length} {rows.length === 1 ? 'variante física configurada' : 'variantes físicas configuradas'}
+            </span>
+          </div>
         )}
       </div>
 
