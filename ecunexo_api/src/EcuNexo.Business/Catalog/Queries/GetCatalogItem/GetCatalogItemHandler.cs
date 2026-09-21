@@ -53,46 +53,78 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
             ?? item.Images.Where(i => i.GroupValue == null).OrderBy(i => i.DisplayOrder).FirstOrDefault();
         var modelThumb = modelMainImage?.ThumbUrl ?? modelMainImage?.MediumUrl ?? modelMainImage?.LargeUrl;
 
-        var groupThumbs = item.Images
+        var modelImages = item.Images
+            .Where(i => i.GroupValue == null)
+            .OrderBy(i => i.DisplayOrder)
+            .ToList();
+
+        var groupImages = item.Images
             .Where(i => i.GroupValue != null)
             .GroupBy(i => i.GroupValue!, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 g => g.Key,
-                g =>
-                {
-                    var ordered = g.OrderBy(i => i.DisplayOrder).ToList();
-                    var main = ordered.FirstOrDefault(i => i.IsMain) ?? ordered.FirstOrDefault();
-                    return main?.ThumbUrl ?? main?.MediumUrl ?? main?.LargeUrl;
-                },
+                g => g.OrderBy(i => i.DisplayOrder).ToList(),
                 StringComparer.OrdinalIgnoreCase);
 
-        var primaryDimensionName = ResolvePrimaryDimensionName(item.VariantDimensionsJson);
+        var groupThumbs = groupImages.ToDictionary(
+            g => g.Key,
+            g =>
+            {
+                var main = g.Value.FirstOrDefault(i => i.IsMain) ?? g.Value.FirstOrDefault();
+                return main?.ThumbUrl ?? main?.MediumUrl ?? main?.LargeUrl;
+            },
+            StringComparer.OrdinalIgnoreCase);
+
+        var axes = ParseMatrixAxes(item.VariantDimensionsJson);
 
         var variants = item.Variants
             .Where(v => v.DeletedAt == null)
             .Select(v =>
             {
-                var mainImg = v.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault(i => i.IsMain)
-                    ?? v.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault();
+                var ownImages = v.Images.OrderBy(i => i.DisplayOrder).ToList();
+                var mainImg = ownImages.FirstOrDefault(i => i.IsMain) ?? ownImages.FirstOrDefault();
                 var ownThumb = mainImg?.ThumbUrl ?? mainImg?.MediumUrl ?? mainImg?.LargeUrl;
 
                 string? inheritedThumb = null;
                 string? inheritedFrom = null;
+                string? matchedGroupKey = null;
                 if (ownThumb is null)
                 {
-                    var groupValue = ResolveVariantGroupValue(v, primaryDimensionName);
-                    if (groupValue is not null
-                        && groupThumbs.TryGetValue(groupValue, out var groupThumb)
-                        && groupThumb is not null)
+                    foreach (var candidate in ResolveVariantGroupKeyCandidates(v, axes))
                     {
-                        inheritedThumb = groupThumb;
-                        inheritedFrom = "group";
+                        if (groupThumbs.TryGetValue(candidate, out var groupThumb) && groupThumb is not null)
+                        {
+                            inheritedThumb = groupThumb;
+                            inheritedFrom = "group";
+                            matchedGroupKey = candidate;
+                            break;
+                        }
                     }
-                    else if (modelThumb is not null)
+
+                    if (inheritedThumb is null && modelThumb is not null)
                     {
                         inheritedThumb = modelThumb;
                         inheritedFrom = "model";
                     }
+                }
+
+                IReadOnlyList<CatalogItemImageResponse>? gallery;
+                if (ownImages.Count > 0)
+                {
+                    gallery = ownImages.Select(CatalogItemImageResponse.FromEntity).ToList();
+                }
+                else if (matchedGroupKey is not null
+                    && groupImages.TryGetValue(matchedGroupKey, out var groupGallery))
+                {
+                    gallery = groupGallery.Select(CatalogItemImageResponse.FromEntity).ToList();
+                }
+                else if (modelImages.Count > 0)
+                {
+                    gallery = modelImages.Select(CatalogItemImageResponse.FromEntity).ToList();
+                }
+                else
+                {
+                    gallery = null;
                 }
 
                 return new CatalogItemVariantDto(
@@ -104,17 +136,25 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                     v.Status,
                     ownThumb ?? inheritedThumb,
                     inheritedFrom is not null,
-                    inheritedFrom);
+                    inheritedFrom,
+                    ResolveVariantDimensionValues(v, axes),
+                    gallery,
+                    ResolveVariantStringList(v, "tags"),
+                    ResolveVariantStringList(v, "colores_secundarios"));
             })
             .ToList();
 
-        string? parentName = null;
+        CatalogItem? parent = null;
         if (item.ParentId is { } parentId)
         {
-            var parent = await _items.GetActiveByIdAsync(query.TenantId, parentId, ct)
+            parent = await _items.GetActiveByIdAsync(query.TenantId, parentId, ct)
                 .ConfigureAwait(false);
-            parentName = parent?.Name;
         }
+        var parentName = parent?.Name;
+
+        var matrixSource = item.IsMatrixParent ? item : parent;
+        var matrixAxes = item.IsMatrixParent ? axes : ParseMatrixAxes(matrixSource?.VariantDimensionsJson);
+        var matrixDescriptor = BuildMatrixDescriptor(matrixSource, matrixAxes);
 
         string? familyName = null;
         if (item.FamilyId is { } familyId)
@@ -145,14 +185,15 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 parentName,
                 item.FamilyId,
                 familyName,
-                item.HierarchyPathJson));
+                item.HierarchyPathJson,
+                matrixDescriptor));
     }
 
-    private static string? ResolvePrimaryDimensionName(string? variantDimensionsJson)
+    private static IReadOnlyList<MatrixAxisDef> ParseMatrixAxes(string? variantDimensionsJson)
     {
         if (string.IsNullOrWhiteSpace(variantDimensionsJson))
         {
-            return null;
+            return Array.Empty<MatrixAxisDef>();
         }
 
         try
@@ -160,29 +201,112 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
             using var doc = JsonDocument.Parse(variantDimensionsJson);
             if (doc.RootElement.ValueKind != JsonValueKind.Array)
             {
-                return null;
+                return Array.Empty<MatrixAxisDef>();
             }
 
+            var axes = new List<MatrixAxisDef>();
             foreach (var dim in doc.RootElement.EnumerateArray())
             {
-                if (dim.ValueKind == JsonValueKind.Object
-                    && dim.TryGetProperty("name", out var nameEl))
+                if (dim.ValueKind != JsonValueKind.Object
+                    || !dim.TryGetProperty("name", out var nameEl))
                 {
-                    return nameEl.GetString();
+                    continue;
                 }
+
+                var name = nameEl.GetString();
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                var values = new List<string>();
+                if (dim.TryGetProperty("values", out var valuesEl)
+                    && valuesEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var valueEl in valuesEl.EnumerateArray())
+                    {
+                        if (valueEl.ValueKind == JsonValueKind.String)
+                        {
+                            var value = valueEl.GetString();
+                            if (!string.IsNullOrWhiteSpace(value))
+                            {
+                                values.Add(value.Trim());
+                            }
+                        }
+                    }
+                }
+
+                var photoGroup = dim.TryGetProperty("photoGroup", out var photoGroupEl)
+                    && photoGroupEl.ValueKind == JsonValueKind.True;
+
+                axes.Add(new MatrixAxisDef(name.Trim(), values, photoGroup));
             }
+
+            return axes;
         }
         catch (JsonException)
         {
-            // Dimensiones inválidas: sin herencia por grupo
+            return Array.Empty<MatrixAxisDef>();
         }
-
-        return null;
     }
 
-    private static string? ResolveVariantGroupValue(CatalogItem variant, string? primaryDimensionName)
+    private static CatalogMatrixDescriptorDto? BuildMatrixDescriptor(
+        CatalogItem? matrixSource,
+        IReadOnlyList<MatrixAxisDef> matrixAxes)
     {
-        if (string.IsNullOrWhiteSpace(primaryDimensionName))
+        if (matrixSource is null || matrixAxes.Count == 0)
+        {
+            return null;
+        }
+
+        var groupValues = matrixSource.Images
+            .Where(i => !string.IsNullOrWhiteSpace(i.GroupValue))
+            .Select(i => i.GroupValue!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var descriptorAxes = matrixAxes
+            .Select(a => new CatalogMatrixAxisDto(
+                a.Name,
+                ResolveAxisType(a.Name),
+                a.Values,
+                a.PhotoGroup
+                    || (groupValues.Count > 0
+                        && a.Values.Any(v => groupValues.Contains(v, StringComparer.OrdinalIgnoreCase)))))
+            .ToList();
+
+        return new CatalogMatrixDescriptorDto(
+            matrixAxes.Count,
+            descriptorAxes,
+            matrixAxes[0].Name,
+            groupValues);
+    }
+
+    private static string ResolveAxisType(string name)
+    {
+        var normalized = name.Trim().ToLowerInvariant();
+        if (normalized.Contains("color", StringComparison.Ordinal))
+        {
+            return "color";
+        }
+
+        if (normalized.Contains("talla", StringComparison.Ordinal)
+            || normalized.Contains("size", StringComparison.Ordinal)
+            || normalized.Contains("medida", StringComparison.Ordinal)
+            || normalized.Contains("numero", StringComparison.Ordinal)
+            || normalized.Contains("número", StringComparison.Ordinal))
+        {
+            return "size";
+        }
+
+        return "custom";
+    }
+
+    private static Dictionary<string, string>? ResolveVariantDimensionValues(
+        CatalogItem variant,
+        IReadOnlyList<MatrixAxisDef> axes)
+    {
+        if (axes.Count == 0 || string.IsNullOrWhiteSpace(variant.CustomAttributesJson))
         {
             return null;
         }
@@ -195,20 +319,126 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 return null;
             }
 
-            foreach (var prop in doc.RootElement.EnumerateObject())
+            var properties = doc.RootElement.EnumerateObject().ToList();
+            var dimensionValues = new Dictionary<string, string>();
+            foreach (var axis in axes)
             {
-                if (string.Equals(prop.Name, primaryDimensionName, StringComparison.OrdinalIgnoreCase)
-                    && prop.Value.ValueKind == JsonValueKind.String)
+                var match = properties.FirstOrDefault(p =>
+                    string.Equals(p.Name, axis.Name, StringComparison.OrdinalIgnoreCase)
+                    && p.Value.ValueKind == JsonValueKind.String);
+                if (match.Value.ValueKind == JsonValueKind.String)
                 {
-                    return prop.Value.GetString();
+                    dimensionValues[axis.Name] = match.Value.GetString()!;
                 }
             }
+
+            return dimensionValues.Count > 0 ? dimensionValues : null;
         }
         catch (JsonException)
         {
-            // Atributos inválidos: sin herencia por grupo
+            return null;
+        }
+    }
+
+    private sealed record MatrixAxisDef(string Name, IReadOnlyList<string> Values, bool PhotoGroup);
+
+    /// <summary>
+    /// Claves candidatas de grupo de fotos para una variante. Con ejes marcados <c>photoGroup</c>
+    /// devuelve la clave compuesta (ej. "Alta|#457fc9"); sin flags (legado) prueba el valor de cada eje.
+    /// </summary>
+    private static IReadOnlyList<string> ResolveVariantGroupKeyCandidates(
+        CatalogItem variant,
+        IReadOnlyList<MatrixAxisDef> axes)
+    {
+        if (axes.Count == 0 || string.IsNullOrWhiteSpace(variant.CustomAttributesJson))
+        {
+            return Array.Empty<string>();
         }
 
-        return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(variant.CustomAttributesJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return Array.Empty<string>();
+            }
+
+            var properties = doc.RootElement.EnumerateObject().ToList();
+
+            string? ValueOf(MatrixAxisDef axis)
+            {
+                var match = properties.FirstOrDefault(p =>
+                    string.Equals(p.Name, axis.Name, StringComparison.OrdinalIgnoreCase)
+                    && p.Value.ValueKind == JsonValueKind.String);
+                return match.Value.ValueKind == JsonValueKind.String ? match.Value.GetString() : null;
+            }
+
+            var groupAxes = axes.Where(a => a.PhotoGroup).ToList();
+            if (groupAxes.Count > 0)
+            {
+                var groupValues = groupAxes.Select(ValueOf).ToList();
+                if (groupValues.All(v => !string.IsNullOrWhiteSpace(v)))
+                {
+                    return new[] { string.Join('|', groupValues.Select(v => v!.Trim())) };
+                }
+
+                return Array.Empty<string>();
+            }
+
+            return axes
+                .Select(ValueOf)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .Select(v => v!.Trim())
+                .ToList();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    private static List<string>? ResolveVariantStringList(CatalogItem variant, string key)
+    {
+        if (string.IsNullOrWhiteSpace(variant.CustomAttributesJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(variant.CustomAttributesJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            JsonElement? found = null;
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                if (string.Equals(prop.Name, key, StringComparison.OrdinalIgnoreCase))
+                {
+                    found = prop.Value;
+                    break;
+                }
+            }
+
+            if (found is not { } element || element.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            var values = element
+                .EnumerateArray()
+                .Where(e => e.ValueKind == JsonValueKind.String)
+                .Select(e => e.GetString()!)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .ToList();
+
+            return values.Count > 0 ? values : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 }

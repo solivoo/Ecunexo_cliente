@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   Camera,
+  Check,
   Copy,
   GitFork,
   Layers,
@@ -600,6 +601,96 @@ export function HierarchyTemplateTreeBuilder({
                     ))
                   )}
                 </div>
+
+                {/* Ejes que comparten fotos (solo con alcance "Compartidas por grupo") */}
+                {lvl.photoScope === 'group' && (() => {
+                  const groupOptions = Array.from(
+                    new Set([
+                      ...(lvl.hasColor ? ['Color'] : []),
+                      ...lvl.attributes.map((a) => a.trim()).filter(Boolean),
+                    ])
+                  )
+                  const selected = lvl.photoGroupBy ?? []
+                  return (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.45rem',
+                        padding: '0.7rem 0.8rem',
+                        borderRadius: '8px',
+                        border: '1px dashed color-mix(in srgb, #7c3aed 32%, var(--shell-border, rgba(0,0,0,0.08)))',
+                        background: 'color-mix(in srgb, #7c3aed 5%, var(--glb-surface, #ffffff))',
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          color: 'var(--glb-text)',
+                        }}
+                      >
+                        <Camera size={14} color="#7c3aed" />
+                        Agrupar fotos por:
+                      </span>
+                      {groupOptions.length === 0 ? (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+                          Agrega atributos a este nivel (o activa color) para elegir los ejes que comparten fotos.
+                        </span>
+                      ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                          {groupOptions.map((attr) => {
+                            const active = selected.some(
+                              (s) => s.trim().toLowerCase() === attr.trim().toLowerCase()
+                            )
+                            return (
+                              <button
+                                key={attr}
+                                type="button"
+                                disabled={disabled}
+                                onClick={() => {
+                                  const next = active
+                                    ? selected.filter((s) => s.trim().toLowerCase() !== attr.trim().toLowerCase())
+                                    : [...selected, attr.trim()]
+                                  handleUpdateLevel(index, { photoGroupBy: next })
+                                }}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  padding: '0.28rem 0.6rem',
+                                  borderRadius: '6px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 600,
+                                  cursor: disabled ? 'not-allowed' : 'pointer',
+                                  border: active
+                                    ? '1px solid color-mix(in srgb, #7c3aed 45%, transparent)'
+                                    : '1px solid var(--shell-border, rgba(0,0,0,0.12))',
+                                  background: active
+                                    ? 'color-mix(in srgb, #7c3aed 16%, var(--glb-surface, #ffffff))'
+                                    : 'var(--glb-surface, #ffffff)',
+                                  color: active ? '#6d28d9' : 'var(--glb-text)',
+                                }}
+                                title={active ? `Quitar «${attr}» del grupo de fotos` : `Compartir fotos por «${attr}»`}
+                              >
+                                {active ? <Check size={12} /> : <Plus size={11} />}
+                                <span>{attr}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                      <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted)' }}>
+                        {selected.length === 0
+                          ? 'Automático: se agrupan todos los ejes que no sean tallas o medidas.'
+                          : `Las tallas comparten la foto de cada combinación de: ${selected.join(' + ')}.`}
+                      </span>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           )

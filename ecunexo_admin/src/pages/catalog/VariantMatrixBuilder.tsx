@@ -13,6 +13,7 @@ export type DimensionState = {
   values: string[]
   activeValues: string[]
   isColor?: boolean
+  photoGroup?: boolean
 }
 export type VariantImageItem = {
   id: string
@@ -68,7 +69,7 @@ export type VariantMatrixBuilderProps = {
     groupImages: { groupValue: string; images: VariantImageItem[] }[]
   }) => void
   availableImages?: AvailableGalleryImage[]
-  initialDimensions?: { name: string; values?: string[]; isColor?: boolean }[]
+  initialDimensions?: { name: string; values?: string[]; isColor?: boolean; photoGroup?: boolean }[]
   photoScope?: 'variant' | 'group' | 'model'
 }
 
@@ -202,6 +203,7 @@ export function VariantMatrixBuilder({
         values,
         activeValues: values,
         isColor,
+        photoGroup: d.photoGroup === true,
       }
     })
     setDimensions(newDims)
@@ -351,7 +353,31 @@ export function VariantMatrixBuilder({
 
   const isPrimaryColor = useMemo(
     () => (primaryDim ? Boolean(primaryDim.isColor) || isColorDimension(primaryDim.name) : false),
-    [primaryDim]
+    [dimensions, primaryDim]
+  )
+
+  // Ejes que agrupan las fotos compartidas (ej. Color × Tipo de Caña). Sin flags, cae al eje primario.
+  const photoGroupDims = useMemo(() => {
+    const flagged = dimensions.filter((d) => isDimensionActive(d) && d.photoGroup === true)
+    if (flagged.length > 0) return flagged
+    return primaryDim ? [primaryDim] : []
+  }, [dimensions, primaryDim])
+
+  const useCompositePhotoBars =
+    photoScope === 'group' &&
+    photoGroupDims.length > 0 &&
+    !(photoGroupDims.length === 1 && primaryDim?.id === photoGroupDims[0].id)
+
+  const photoGroupKeyOf = useCallback(
+    (dimensionValues: Record<string, string>) =>
+      photoGroupDims.map((d) => (dimensionValues[d.name] || '').trim() || 'Sin definir').join('|'),
+    [photoGroupDims]
+  )
+
+  const photoGroupLabelOf = useCallback(
+    (dimensionValues: Record<string, string>) =>
+      photoGroupDims.map((d) => (dimensionValues[d.name] || '').trim() || 'Sin definir').join(' · '),
+    [photoGroupDims]
   )
 
   // Cambio de dimensión en una fila específica (selección por variante) - NO recrear el SKU
@@ -575,8 +601,43 @@ export function VariantMatrixBuilder({
     )
   }, [])
 
+  type PhotoGroupProjection = {
+    groupValue: string
+    label: string
+    rows: VariantRowState[]
+    images: VariantImageItem[]
+  }
+
+  type GroupProjection = {
+    groupValue: string
+    rows: VariantRowState[]
+    images: VariantImageItem[]
+    photoGroups: PhotoGroupProjection[]
+  }
+
   // Project rows into groups
-  const groups = useMemo(() => {
+  const groups = useMemo<GroupProjection[]>(() => {
+    const buildPhotoGroups = (groupRows: VariantRowState[]): PhotoGroupProjection[] => {
+      if (!useCompositePhotoBars) return []
+      const map = new Map<string, PhotoGroupProjection>()
+      groupRows.forEach((r) => {
+        const key = photoGroupKeyOf(r.dimensionValues)
+        if (!map.has(key)) {
+          map.set(key, {
+            groupValue: key,
+            label: photoGroupLabelOf(r.dimensionValues),
+            rows: [],
+            images: [],
+          })
+        }
+        map.get(key)!.rows.push(r)
+      })
+      return Array.from(map.values()).map((pg) => ({
+        ...pg,
+        images: groupStagedImages[pg.groupValue] ?? [],
+      }))
+    }
+
     if (!primaryDim) {
       const generalImages =
         photoScope === 'group'
@@ -587,6 +648,7 @@ export function VariantMatrixBuilder({
           groupValue: 'General',
           rows,
           images: generalImages,
+          photoGroups: buildPhotoGroups(rows),
         },
       ]
     }
@@ -612,8 +674,17 @@ export function VariantMatrixBuilder({
     return Array.from(map.values()).map((g) => ({
       ...g,
       images: photoScope === 'group' ? groupStagedImages[g.groupValue] ?? [] : g.images,
+      photoGroups: buildPhotoGroups(g.rows),
     }))
-  }, [groupStagedImages, photoScope, primaryDim, rows])
+  }, [
+    groupStagedImages,
+    photoScope,
+    primaryDim,
+    rows,
+    useCompositePhotoBars,
+    photoGroupKeyOf,
+    photoGroupLabelOf,
+  ])
 
   // Add sub-variant (talla) to a specific group
   const handleAddSubVariantToGroup = useCallback(
@@ -880,7 +951,7 @@ export function VariantMatrixBuilder({
               .map((v) => v.trim())
           )
         )
-        return { name, values }
+        return { name, values, ...(d.photoGroup ? { photoGroup: true } : {}) }
       })
       .filter((d) => d.values.length > 0)
 
@@ -948,6 +1019,39 @@ export function VariantMatrixBuilder({
     groupStagedImages,
     onChange,
   ])
+
+  const renderGroupPhotosBar = (groupKey: string, label: string, images: VariantImageItem[]) => (
+    <div className="ecu-variant-group-card__photos-bar" key={groupKey}>
+      <span className="ecu-variant-group-card__photos-label">
+        Fotos de «{label}» ({images.length}):
+      </span>
+      <div className="ecu-variant-group-card__photos-list">
+        {images.map((img) => (
+          <div key={img.id} className="ecu-variant-group-photo-thumb">
+            <img src={img.previewUrl} alt={img.name} />
+            <button
+              type="button"
+              className="ecu-variant-group-photo-remove"
+              onClick={() => handleRemovePhotoFromGroup(groupKey, img.id)}
+              disabled={disabled}
+              title="Quitar foto de este grupo"
+            >
+              <X size={10} />
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="ecu-variant-group-photo-add"
+          onClick={() => setGroupPhotoModalTarget(groupKey)}
+          disabled={disabled}
+          title={`Gestionar fotografías para ${label}`}
+        >
+          <Camera size={13} /> {images.length === 0 ? '+ Subir Fotos' : '+ Gestionar Fotos'}
+        </button>
+      </div>
+    </div>
+  )
 
   return (
     <div className="ecu-matrix-builder">
@@ -1119,38 +1223,13 @@ export function VariantMatrixBuilder({
                   </div>
                 </div>
 
-                {/* Shared Photos Bar (solo cuando la captura es por grupo o el arquetipo no lo define) */}
+                {/* Shared Photos Bar (por grupo compuesto o valor único) */}
                 {primaryDim && photoScope !== 'variant' && (
-                  <div className="ecu-variant-group-card__photos-bar">
-                    <span className="ecu-variant-group-card__photos-label">
-                      Fotos {primaryDim ? `de «${group.groupValue}»` : ''} ({group.images.length}):
-                    </span>
-                    <div className="ecu-variant-group-card__photos-list">
-                      {group.images.map((img) => (
-                        <div key={img.id} className="ecu-variant-group-photo-thumb">
-                          <img src={img.previewUrl} alt={img.name} />
-                          <button
-                            type="button"
-                            className="ecu-variant-group-photo-remove"
-                            onClick={() => handleRemovePhotoFromGroup(group.groupValue, img.id)}
-                            disabled={disabled}
-                            title="Quitar foto de este grupo"
-                          >
-                            <X size={10} />
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        className="ecu-variant-group-photo-add"
-                        onClick={() => setGroupPhotoModalTarget(group.groupValue)}
-                        disabled={disabled}
-                        title={`Gestionar fotografías para ${group.groupValue}`}
-                      >
-                        <Camera size={13} /> {group.images.length === 0 ? '+ Subir Fotos' : '+ Gestionar Fotos'}
-                      </button>
-                    </div>
-                  </div>
+                  <>
+                    {group.photoGroups.length > 0
+                      ? group.photoGroups.map((pg) => renderGroupPhotosBar(pg.groupValue, pg.label, pg.images))
+                      : renderGroupPhotosBar(group.groupValue, group.groupValue, group.images)}
+                  </>
                 )}
 
                 {/* Sub-items (Tallas / Variantes físicas) */}
@@ -1441,7 +1520,12 @@ export function VariantMatrixBuilder({
       {/* Modal para Gestión de Fotos de Grupo / Color */}
       {groupPhotoModalTarget && (() => {
         const targetGroup = groups.find((g) => g.groupValue === groupPhotoModalTarget)
-        const assigned = targetGroup?.images || []
+        const targetPhotoGroup = targetGroup
+          ? undefined
+          : groups.flatMap((g) => g.photoGroups).find((pg) => pg.groupValue === groupPhotoModalTarget)
+        const assigned =
+          groupStagedImages[groupPhotoModalTarget] ?? targetGroup?.images ?? targetPhotoGroup?.images ?? []
+        const targetRowsCount = targetGroup?.rows.length ?? targetPhotoGroup?.rows.length ?? 0
         const titleText = primaryDim
           ? `Fotografías para «${groupPhotoModalTarget}»`
           : 'Fotografías de las Variantes'
@@ -1467,7 +1551,7 @@ export function VariantMatrixBuilder({
                   {groupPhotoModalTarget}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--glb-muted)', marginTop: '0.15rem' }}>
-                  {targetGroup?.rows.length || 0} {(targetGroup?.rows.length === 1 ? 'talla física compartirá' : 'tallas físicas compartirán')} estas fotografías en catálogo y POS.
+                  {targetRowsCount} {(targetRowsCount === 1 ? 'talla física compartirá' : 'tallas físicas compartirán')} estas fotografías en catálogo y POS.
                 </div>
               </div>
 

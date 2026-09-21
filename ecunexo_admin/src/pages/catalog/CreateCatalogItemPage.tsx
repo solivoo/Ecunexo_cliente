@@ -130,6 +130,14 @@ export function CreateCatalogItemPage() {
 
   const photoScope = useMemo(() => resolvePhotoScope(appliedTemplateLevels), [appliedTemplateLevels])
 
+  const photoGroupBy = useMemo(
+    () =>
+      appliedTemplateLevels
+        .flatMap((lvl) => lvl.photoGroupBy ?? [])
+        .map((name) => name.trim().toLowerCase()),
+    [appliedTemplateLevels]
+  )
+
   const modelAttributeFields = useMemo(
     () => getModelAttributeFields(appliedTemplateLevels, dimensionValuesMap),
     [appliedTemplateLevels, dimensionValuesMap]
@@ -156,8 +164,21 @@ export function CreateCatalogItemPage() {
   // Ejes físicos por variante: nivel terminal + atributos de color de niveles intermedios
   const templateAllDimensions = useMemo(() => {
     if (appliedTemplateLevels.length === 0) return undefined
-    const dims: { name: string; values?: string[]; isColor?: boolean }[] = []
+    const dims: { name: string; values?: string[]; isColor?: boolean; photoGroup?: boolean }[] = []
     const seen = new Set<string>()
+
+    const photoGroupFor = (rawName: string): boolean => {
+      if (photoScope !== 'group') return false
+      const lower = rawName.trim().toLowerCase()
+      if (photoGroupBy.length > 0) return photoGroupBy.includes(lower)
+      return !(
+        lower.includes('talla') ||
+        lower.includes('size') ||
+        lower.includes('medida') ||
+        lower.includes('numero') ||
+        lower.includes('número')
+      )
+    }
 
     const push = (rawName: string) => {
       const clean = rawName.trim()
@@ -184,6 +205,7 @@ export function CreateCatalogItemPage() {
         name: clean,
         values: found?.values,
         isColor: found?.isColor || isColorDimension(clean),
+        photoGroup: photoGroupFor(clean),
       })
     }
 
@@ -195,6 +217,7 @@ export function CreateCatalogItemPage() {
         name: 'Color',
         values: [],
         isColor: true,
+        photoGroup: photoGroupFor('Color'),
       })
     }
 
@@ -204,11 +227,12 @@ export function CreateCatalogItemPage() {
         name: 'Talla',
         values: sizeFound?.values || ['35-38', '39-41', '42-44'],
         isColor: false,
+        photoGroup: false,
       })
     }
 
     return dims
-  }, [appliedTemplateLevels, dimensionValuesMap])
+  }, [appliedTemplateLevels, dimensionValuesMap, photoGroupBy, photoScope])
 
   const handleApplyTemplate = useCallback(
     (templateId: string) => {

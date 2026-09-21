@@ -311,6 +311,19 @@ public sealed class ProductMatrixItemTests
         result.Value.Should().Be("""[{"name":"Color","values":["Negro","Blanco"]}]""");
     }
 
+    [Fact(DisplayName = "NormalizeVariantDimensions conserva el flag photoGroup de los ejes visuales")]
+    public void NormalizeVariantDimensions_PhotoGroupFlag_IsPreserved()
+    {
+        var result = CatalogItem.NormalizeVariantDimensions(
+            """[{"name":"Talla","values":["S","M"]},{"name":"Color","values":["#457fc9"],"photoGroup":true}]""");
+
+        result.IsSuccess.Should().BeTrue();
+        using var doc = JsonDocument.Parse(result.Value!);
+        doc.RootElement.GetArrayLength().Should().Be(2);
+        doc.RootElement[0].TryGetProperty("photoGroup", out _).Should().BeFalse();
+        doc.RootElement[1].GetProperty("photoGroup").GetBoolean().Should().BeTrue();
+    }
+
     [Fact(DisplayName = "NormalizeVariantDimensions rechaza un formato desconocido")]
     public void NormalizeVariantDimensions_UnknownShape_ReturnsError()
     {

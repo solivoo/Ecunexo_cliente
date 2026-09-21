@@ -26,7 +26,8 @@ public sealed record CatalogItemDetailResponse(
     string? ParentName = null,
     Guid? FamilyId = null,
     string? FamilyName = null,
-    string? HierarchyPathJson = null);
+    string? HierarchyPathJson = null,
+    CatalogMatrixDescriptorDto? MatrixDescriptor = null);
 
 public sealed record CatalogItemVariantDto(
     Guid Id,
@@ -37,4 +38,24 @@ public sealed record CatalogItemVariantDto(
     CatalogItemStatus Status,
     string? MainImageThumbUrl = null,
     bool ImageInherited = false,
-    string? ImageInheritedFrom = null);
+    string? ImageInheritedFrom = null,
+    IReadOnlyDictionary<string, string>? DimensionValues = null,
+    IReadOnlyList<CatalogItemImageResponse>? Images = null,
+    IReadOnlyList<string>? Tags = null,
+    IReadOnlyList<string>? ExtraColors = null);
+
+/// <summary>
+/// Contrato de lectura de la matriz: profundidad, ejes tipados y valores usados en fotos por grupo.
+/// Se resuelve desde el propio ítem (snapshot), no desde la plantilla viva.
+/// </summary>
+public sealed record CatalogMatrixDescriptorDto(
+    int Depth,
+    IReadOnlyList<CatalogMatrixAxisDto> Axes,
+    string? PrimaryAxis,
+    IReadOnlyList<string> GroupValues);
+
+public sealed record CatalogMatrixAxisDto(
+    string Name,
+    string Type,
+    IReadOnlyList<string> Values,
+    bool IsPhotoGroup);

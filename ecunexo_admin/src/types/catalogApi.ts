@@ -86,6 +86,24 @@ export type CatalogItemVariantSummaryDto = {
   mainImageThumbUrl?: string | null
   imageInherited?: boolean
   imageInheritedFrom?: 'group' | 'model' | null
+  dimensionValues?: Record<string, string> | null
+  images?: CatalogItemImageDto[] | null
+  tags?: string[] | null
+  extraColors?: string[] | null
+}
+
+export type CatalogMatrixAxisDto = {
+  name: string
+  type: 'color' | 'size' | 'custom'
+  values: string[]
+  isPhotoGroup: boolean
+}
+
+export type CatalogMatrixDescriptorDto = {
+  depth: number
+  axes: CatalogMatrixAxisDto[]
+  primaryAxis: string | null
+  groupValues: string[]
 }
 
 export type CatalogItemDetailDto = {
@@ -110,6 +128,7 @@ export type CatalogItemDetailDto = {
   familyId?: string | null
   familyName?: string | null
   hierarchyPathJson?: string | null
+  matrixDescriptor?: CatalogMatrixDescriptorDto | null
 }
 
 export type CreateCategoryBody = {
@@ -213,6 +232,7 @@ export type ProductTemplateLevel = {
   hasImages: boolean
   attributes: string[]
   photoScope?: 'none' | 'variant' | 'group' | 'model'
+  photoGroupBy?: string[]
 }
 
 export type ProductTemplateDto = {

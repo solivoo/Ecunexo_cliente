@@ -489,7 +489,16 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
                         new Error("catalog.matrix.dimension.values.empty", $"La dimensión '{name}' debe tener al menos un valor.", ErrorType.Validation));
                 }
 
-                dimensions.Add(new { name, values });
+                var photoGroup = dim.TryGetProperty("photoGroup", out var photoGroupEl)
+                    && photoGroupEl.ValueKind == System.Text.Json.JsonValueKind.True;
+                if (photoGroup)
+                {
+                    dimensions.Add(new { name, values, photoGroup = true });
+                }
+                else
+                {
+                    dimensions.Add(new { name, values });
+                }
             }
 
             if (dimensions.Count == 0)
