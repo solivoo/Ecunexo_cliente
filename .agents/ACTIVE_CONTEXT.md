@@ -7,9 +7,18 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.40.3`.
+* **Última Versión Publicada:** `v0.41.0`.
 * **Hitos Recientes Completados:**
-  - **Dimensiones Seleccionables por Variante, Tags Editables y Creación Bajo Demanda (`VariantMatrixBuilder.tsx`, `variantMatrixBuilder.css`, `AboutAppModal.tsx`) [v0.40.3]:**
+  - **Enfoque A: Tarjetas Agrupadas por Dimensión Principal (Color/Grupo) con Tallas Físicas y Fotos Compartidas (`VariantMatrixBuilder.tsx`, `CreateCatalogItemPage.tsx`, `variantMatrixBuilder.css`, `AboutAppModal.tsx`) [v0.41.0]:**
+    * **Arquitectura Jerárquica de Variantes (Enfoque A):** Las variantes físicas se agrupan visualmente por su dimensión principal (Color o Presentación), resolviendo la relación multidimensional entre dimensiones y variantes.
+    * **Fotografías Compartidas por Color:** Las fotos se gestionan y suben a nivel del Color/Grupo (barra integrada con miniaturas + botón `+ Subir Fotos` y modal de gestión), compartiéndose automáticamente a todas las tallas de ese color y propagándose a `stagedImages[]`.
+    * **Filas Compactas de Tallas (Sub-items):** Dentro de cada tarjeta de color, las tallas (dimensiones secundarias) se gestionan como filas claras y ágiles con su selector de talla, SKU inmutable, tags/actividad, precio base heredado, stock inicial, código de barras y botones para duplicar o eliminar talla.
+    * **Duplicación de Grupo en 1 Clic:** Botón `Duplicar Color` en el encabezado del grupo para clonar instantáneamente todas las tallas a un nuevo color sin recaptura manual.
+    * **Limpieza de Secciones Redundantes y Eliminación de Código Muerto:**
+      - Removidas las secciones sin sentido en `CreateCatalogItemPage`: "Etiquetas de Clasificación y Búsqueda (Tags)" a nivel producto y "04 Especificaciones y Atributos Adicionales", así como el selector duplicado "Dimensiones del Modelo".
+      - Unificada la captura de dimensiones de la plantilla en `templateAllDimensions` que fluye directamente a las tarjetas de variantes.
+      - Eliminado el botón duplicado de "Agregar Variante" (ahora 1 botón primario en barra superior para `Añadir Color / Variante` y botones secundarios en el footer de cada tarjeta para `Añadir Talla`).
+      - Preservación estricta de SKU según instrucciones del usuario (el SKU no se recrea automáticamente al cambiar dimensiones).
     * **Desacoplamiento de la Explosión Cartesiana:** Se reemplazó la generación cartesiana forzada y automática por creación bajo demanda. El comerciante agrega variantes físicas con el botón `+ Agregar Variante` o `Duplicar` (`<Copy />`), o genera combinaciones completas únicamente si lo desea mediante el botón explícito `Combinar Opciones`.
     * **Selectores de Dimensión por Fila:** Las dimensiones en la tabla ya no son texto estático inmutable. Cada fila de variante cuenta con menús desplegables (`<select className="ecu-matrix-dim-select">`) para cada dimensión activa (Talla, Color, Caña, etc.), permitiendo seleccionar el valor exacto para esa variante física con swatch de color y actualización automática de título y SKU.
     * **Supresión de Columna "Actividad / Uso" Duplicada:** Se eliminó la columna fija y redundante de actividad en la tabla y en `customAttributesJson`, evitando duplicidad con las especificaciones del modelo o tags.

@@ -4,7 +4,6 @@ import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import { Layers } from 'lucide-react'
 import {
   EcuPageActions,
-  EcuTagInput,
   PageHeader,
   SectionCard,
   StatusBadge,
@@ -12,9 +11,7 @@ import {
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { parseAttributeSchema } from '@/lib/catalogAttributes'
 import {
-  ItemCustomAttributesEditor,
   serializeCustomAttributes,
   type CustomAttributeRow,
 } from '@/pages/catalog/ItemCustomAttributesEditor'
@@ -75,7 +72,6 @@ export function CreateCatalogItemPage() {
   const [basePrice, setBasePrice] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
-  const [tags, setTags] = useState<string[]>([])
   const [stagedImages, setStagedImages] = useState<StagedItemImage[]>([])
 
   const stagedImagesRef = useRef<StagedItemImage[]>([])
@@ -92,23 +88,6 @@ export function CreateCatalogItemPage() {
       })
     }
   }, [])
-
-  const categorySuggestions = useMemo<string[]>(() => {
-    const category = categories.find((c) => c.id === categoryId)
-    return parseAttributeSchema(category?.attributeSchemaJson).map((f) => f.label || f.key)
-  }, [categories, categoryId])
-
-  const suggestedTags = useMemo<string[]>(() => {
-    const list = new Set<string>()
-    const cat = categories.find((c) => c.id === categoryId)
-    if (cat?.name) list.add(cat.name.trim())
-    customAttributes.forEach((attr) => {
-      if (attr.value.trim() && attr.value.length < 25) {
-        list.add(attr.value.trim())
-      }
-    })
-    return Array.from(list)
-  }, [categories, categoryId, customAttributes])
 
   // Mapa de atributos del diccionario corporativo y escalas del sistema: clave en minúscula -> { values, isColor }
   const dimensionValuesMap = useMemo(() => {
@@ -167,31 +146,6 @@ export function CreateCatalogItemPage() {
     return map
   }, [dimensionTemplates])
 
-  const getAttributeValue = useCallback(
-    (key: string): string => {
-      const row = customAttributes.find((r) => r.key.toLowerCase() === key.toLowerCase())
-      return row?.value || ''
-    },
-    [customAttributes]
-  )
-
-  const setAttributeValue = useCallback((key: string, value: string) => {
-    setCustomAttributes((prev) => {
-      const exists = prev.some((r) => r.key.toLowerCase() === key.toLowerCase())
-      if (exists) {
-        return prev.map((r) => (r.key.toLowerCase() === key.toLowerCase() ? { ...r, value } : r))
-      }
-      return [
-        ...prev,
-        {
-          id: `attr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          key,
-          value,
-        },
-      ]
-    })
-  }, [])
-
   const appliedTemplate = useMemo(
     () => productTemplates.find((t) => t.id === selectedTemplateId),
     [productTemplates, selectedTemplateId]
@@ -207,96 +161,57 @@ export function CreateCatalogItemPage() {
     }
   }, [appliedTemplate])
 
-  // Dimensiones del modelo sin variantes (niveles intermedios de la plantilla)
-  const templateModelDimensions = useMemo(() => {
-    if (appliedTemplateLevels.length <= 1) return []
-    const upper = appliedTemplateLevels.slice(0, appliedTemplateLevels.length - 1)
-    const list: { key: string; label: string; levelName: string; levelIndex: number }[] = []
+  // Todas las dimensiones definidas en los niveles de la plantilla seleccionada
+  const templateAllDimensions = useMemo(() => {
+    if (appliedTemplateLevels.length === 0) return undefined
+    const dims: { name: string; values?: string[]; isColor?: boolean }[] = []
     const seen = new Set<string>()
 
-    upper.forEach((lvl, idx) => {
-      if (lvl.attributes && lvl.attributes.length > 0) {
-        lvl.attributes.forEach((attr) => {
-          const clean = attr.trim()
-          const lower = clean.toLowerCase()
-          if (
-            lower !== 'talla' &&
-            lower !== 'tallas' &&
-            lower !== 'size' &&
-            lower !== 'color' &&
-            lower !== 'colores'
-          ) {
-            if (!seen.has(lower)) {
-              seen.add(lower)
-              list.push({ key: clean, label: clean, levelName: lvl.name, levelIndex: idx + 1 })
-            }
-          }
-        })
-      } else {
-        const clean = lvl.name.trim()
+    appliedTemplateLevels.forEach((lvl) => {
+      const attrs = lvl.attributes && lvl.attributes.length > 0 ? lvl.attributes : [lvl.name]
+      attrs.forEach((attr) => {
+        const clean = attr.trim()
         const lower = clean.toLowerCase()
         if (
-          lower !== 'talla' &&
-          lower !== 'tallas' &&
-          lower !== 'size' &&
-          lower !== 'color' &&
-          lower !== 'colores'
+          !clean ||
+          lower === 'tags' ||
+          lower === 'tag' ||
+          lower.includes('actividad') ||
+          lower.includes('variante') ||
+          lower.includes('física')
         ) {
-          if (!seen.has(lower)) {
-            seen.add(lower)
-            list.push({ key: clean, label: clean, levelName: lvl.name, levelIndex: idx + 1 })
-          }
+          return
         }
+        if (seen.has(lower)) return
+        seen.add(lower)
+
+        const found =
+          dimensionValuesMap.get(lower) ||
+          (lower.includes('talla') ? dimensionValuesMap.get('talla') : undefined) ||
+          (lower.includes('color') ? dimensionValuesMap.get('color') : undefined)
+
+        dims.push({
+          name: clean,
+          values: found?.values,
+          isColor: found?.isColor || isColorDimension(clean),
+        })
+      })
+
+      if (lvl.hasColor && !seen.has('color')) {
+        seen.add('color')
+        const colorFound = dimensionValuesMap.get('color') || dimensionValuesMap.get('colores')
+        dims.push({
+          name: 'Color',
+          values: colorFound?.values || ['Negro', 'Blanco', 'Azul'],
+          isColor: true,
+        })
       }
     })
-    return list
-  }, [appliedTemplateLevels])
-
-  const templateTerminalDimensions = useMemo(() => {
-    if (appliedTemplateLevels.length === 0) return undefined
-    const terminalLevel = appliedTemplateLevels[appliedTemplateLevels.length - 1]
-    if (!terminalLevel) return undefined
-
-    const upperKeys = new Set(templateModelDimensions.map((m) => m.key.toLowerCase()))
-    const dims: { name: string; values?: string[]; isColor?: boolean }[] = []
-
-    terminalLevel.attributes.forEach((attr) => {
-      const clean = attr.trim()
-      const lower = clean.toLowerCase()
-      if (
-        upperKeys.has(lower) ||
-        lower === 'tags' ||
-        lower === 'tag' ||
-        lower.includes('actividad')
-      ) {
-        return
-      }
-
-      const found =
-        dimensionValuesMap.get(lower) ||
-        (lower.includes('talla') ? dimensionValuesMap.get('talla') : undefined) ||
-        (lower.includes('color') ? dimensionValuesMap.get('color') : undefined)
-
-      dims.push({
-        name: clean,
-        values: found?.values,
-        isColor: found?.isColor || isColorDimension(clean),
-      })
-    })
-
-    if (terminalLevel.hasColor && !dims.some((d) => d.isColor || isColorDimension(d.name))) {
-      const colorFound = dimensionValuesMap.get('color') || dimensionValuesMap.get('colores')
-      dims.push({
-        name: 'Color',
-        values: colorFound?.values || ['Negro', 'Blanco', 'Azul'],
-        isColor: true,
-      })
-    }
 
     if (dims.length === 0) {
       const sizeFound = dimensionValuesMap.get('talla') || dimensionValuesMap.get('tallas')
       dims.push({
-        name: terminalLevel.name || 'Talla',
+        name: 'Talla',
         values: sizeFound?.values || ['35-38', '39-41', '42-44'],
         isColor: false,
       })
@@ -476,7 +391,8 @@ export function CreateCatalogItemPage() {
             categoryId: categoryId || null,
             variantDimensionsJson: matrixData.variantDimensionsJson,
             variants: matrixData.variants,
-            customAttributesJson: serializeCustomAttributes(customAttributes, tags),
+            customAttributesJson:
+              customAttributes.length > 0 ? serializeCustomAttributes(customAttributes, []) : null,
           })
 
           targetItemId = createdMatrix.parentItemId
@@ -519,7 +435,8 @@ export function CreateCatalogItemPage() {
             sku: sku.trim() || null,
             basePrice: price,
             categoryId: categoryId || null,
-            customAttributesJson: serializeCustomAttributes(customAttributes, tags),
+            customAttributesJson:
+              customAttributes.length > 0 ? serializeCustomAttributes(customAttributes, []) : null,
           })
 
           targetItemId = created.itemId
@@ -582,7 +499,6 @@ export function CreateCatalogItemPage() {
       navigate,
       sku,
       stagedImages,
-      tags,
       tenantId,
       toast,
     ]
@@ -707,59 +623,9 @@ export function CreateCatalogItemPage() {
             )}
 
             {appliedTemplate ? (
-              /* MODO CON PLANTILLA: Listado directo de las dimensiones del modelo sin variantes */
-              <div>
-                {templateModelDimensions.length > 0 ? (
-                  <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.75rem' }}>
-                      Dimensiones del Modelo:
-                    </div>
-                    <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
-                      {templateModelDimensions.map(({ key, label, levelName }) => {
-                        const found = dimensionValuesMap.get(key.trim().toLowerCase())
-                        const hasOptions = found && found.values.length > 0
-                        return (
-                          <div key={key} className="ecu-companies-form__field">
-                            {hasOptions ? (
-                              <Select
-                                id={`dim-${key}`}
-                                label={label.toLowerCase() === levelName.toLowerCase() ? label : `${label} (${levelName})`}
-                                labelPosition="outlined"
-                                variant="outline"
-                                options={[
-                                  { value: '', label: `Seleccionar ${label}...` },
-                                  ...found.values.map((v) => ({ value: v, label: v })),
-                                ]}
-                                value={getAttributeValue(key)}
-                                onChange={(val: string) => setAttributeValue(key, val)}
-                                disabled={busy}
-                                fullWidth
-                              />
-                            ) : (
-                              <TextBox
-                                id={`dim-${key}`}
-                                label={label.toLowerCase() === levelName.toLowerCase() ? label : `${label} (${levelName})`}
-                                labelPosition="outlined"
-                                variant="outline"
-                                value={getAttributeValue(key)}
-                                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                                  setAttributeValue(key, e.target.value)
-                                }
-                                placeholder={`Ingresar ${label.toLowerCase()}...`}
-                                disabled={busy}
-                                fullWidth
-                              />
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
-                    Esta plantilla no define dimensiones intermedias. Las variantes físicas se configuran en la sección inferior.
-                  </p>
-                )}
+              /* MODO CON PLANTILLA: Dimensiones se seleccionan en cada tarjeta de variante */
+              <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: 'var(--glb-surface-variant, rgba(0,0,0,0.02))', borderRadius: '8px', border: '1px solid var(--glb-border, #e2e8f0)', fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
+                Plantilla configurada: <strong style={{ color: 'var(--glb-text)' }}>{appliedTemplate.name}</strong>. Todas las dimensiones ({templateAllDimensions?.map((d) => d.name).join(', ') || 'atributos'}) se seleccionan directamente dentro de cada tarjeta de variante física abajo.
               </div>
             ) : (
               /* MODO MANUAL LIBRE (SIN PLANTILLA) */
@@ -863,23 +729,6 @@ export function CreateCatalogItemPage() {
             )}
           </SectionCard>
 
-          {/* Especificaciones y Atributos Adicionales (Únicamente en creación manual libre) */}
-          {!appliedTemplate && (
-            <div style={{ marginTop: '1.25rem' }}>
-              <SectionCard
-                title="Especificaciones y Atributos Adicionales"
-                subtitle="Define propiedades técnicas, comerciales o informativas propias de este producto (ej. Material, Marca, Garantía, Procedencia, etc.)."
-              >
-                <ItemCustomAttributesEditor
-                  attributes={customAttributes}
-                  onChange={setCustomAttributes}
-                  categorySuggestions={categorySuggestions}
-                  disabled={busy}
-                />
-              </SectionCard>
-            </div>
-          )}
-
           {/* Fotografías del Producto (Únicamente cuando NO tiene variantes físicas) */}
           {!hasVariants && (
             <div style={{ marginTop: '1.25rem' }}>
@@ -899,32 +748,11 @@ export function CreateCatalogItemPage() {
             </div>
           )}
 
-          {/* Etiquetas del Producto (Tags) */}
-          <div style={{ marginTop: '1.25rem' }}>
-            <SectionCard
-              title="Etiquetas de Clasificación y Búsqueda (Tags)"
-              subtitle="Indexación para Punto de Venta (POS) y tienda online. Se heredan automáticamente a todas las variantes físicas."
-            >
-              <EcuTagInput
-                tags={tags}
-                onChange={setTags}
-                label="Etiquetas del Ítem"
-                placeholder="Añadir etiqueta (ej. Deportivo, Algodón, Temporada 2026)..."
-                suggestedTags={suggestedTags}
-                disabled={busy}
-              />
-            </SectionCard>
-          </div>
-
           {/* Variantes Físicas Dimensionales (Al final del formulario) */}
           {kind === String(CatalogItemKind.Physical) && (
             <div style={{ marginTop: '1.25rem' }}>
               <SectionCard
-                title={`Variantes Físicas de Inventario ${
-                  appliedTemplate && appliedTemplateLevels.length > 0
-                    ? `(${appliedTemplateLevels[appliedTemplateLevels.length - 1]?.name || 'Nivel Terminal'})`
-                    : ''
-                }`}
+                title="Variantes Físicas de Inventario"
                 subtitle="Configura las variantes físicas con sus tallas, colores, códigos SKU y fotografías independientes."
               >
                 <VariantMatrixBuilder
@@ -932,11 +760,10 @@ export function CreateCatalogItemPage() {
                   baseName={name}
                   baseSku={sku}
                   basePrice={basePrice}
-                  parentTags={tags}
                   disabled={busy}
                   onChange={setMatrixData}
                   availableImages={stagedImages}
-                  initialDimensions={templateTerminalDimensions}
+                  initialDimensions={templateAllDimensions}
                 />
               </SectionCard>
             </div>
