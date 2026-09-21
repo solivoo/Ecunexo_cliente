@@ -7,8 +7,15 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.38.1`.
+* **Última Versión Publicada:** `v0.39.1`.
 * **Hitos Recientes Completados:**
+  - **Columnas por Dimensión, Múltiples Fotografías por Variante Física y Optimización de SKU (`VariantMatrixBuilder.tsx`, `CreateCatalogItemPage.tsx`, `variantMatrixBuilder.css`, `StagedCatalogItemImages.tsx`) [v0.39.1]:**
+    * **Columnas Dedicadas por Dimensión en Matriz:** En lugar de agrupar características bajo un encabezado único «Variación», cada dimensión activa (ej. Caña, Talla, Color) cuenta con su propia columna dedicada en el `<thead>` y celdas individuales en el `<tbody>`, incluyendo swatches de color y alineación limpia.
+    * **Múltiples Fotografías por Variante Física (SKU):** Soporte para asignar múltiples imágenes por variante (`stagedImages[]`). Selector de archivos con atributo `multiple`, modal de gestión con grilla de fotos asignadas (marcador «Principal» y botón de remoción individual), selector tipo toggle en galería general de vitrina, y badge contador (`+N`) en la celda de la tabla.
+    * **Carga en Lote al Backend:** Al dar de alta el producto, el backend sube todas las fotografías de cada variante hija a través del endpoint de imágenes.
+    * **Inicialización Limpia y Supresión de SKU Padre:** La matriz arranca por defecto con una única variante inicial física en lugar de tres. Se oculta el campo SKU en el producto padre cuando se habilitan variantes físicas, asignando códigos SKU exclusivamente al nivel terminal (variantes).
+  - **Fotografías por Variante, Asignación Masiva y Arquitectura de Catálogo (`VariantMatrixBuilder.tsx`, `MenuCatalogSeedData.cs`) [v0.39.0]:**
+    * Asignación visual de fotografías independientes por variante física, ranuras interactivas de previsualización, modal de asignación en lote por característica, retiro definitivo del módulo obsoleto de Categorías y placeholders genéricos normalizados en todo el catálogo.
   - **Ergonomía de Selección Instantánea y Modernización Visual en Plantillas (`HierarchyTemplateTreeBuilder.tsx`, `ProductTemplateBuilderPage.tsx`):**
     * **Adición Automática en 1 Clic:** Al seleccionar cualquier atributo del diccionario corporativo en el menú desplegable, se añade inmediatamente como chip/etiqueta activa al nivel sin requerir presionar el botón `+`, reiniciando automáticamente el desplegable para una carga ágil continua.
     * **Paleta M3 Enterprise SaaS Refinada:** Sustituido el contenedor gris opaco (`rgba(0,0,0,0.15)`) por superficies suaves con tintado primario semántico (`color-mix`), bordes de alta definición y contraste cromático óptimo tanto en modo claro como oscuro.
