@@ -57,7 +57,7 @@ export function CreateCatalogItemPage() {
   const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [kind, setKind] = useState(String(CatalogItemKind.Physical))
-  const [hasVariants, setHasVariants] = useState(false)
+  const hasVariants = kind === String(CatalogItemKind.Physical)
   const [matrixData, setMatrixData] = useState<{
     variants: MatrixVariantPayloadWithImage[]
     variantDimensionsJson: string
@@ -257,10 +257,21 @@ export function CreateCatalogItemPage() {
     const terminalLevel = appliedTemplateLevels[appliedTemplateLevels.length - 1]
     if (!terminalLevel) return undefined
 
+    const upperKeys = new Set(templateModelDimensions.map((m) => m.key.toLowerCase()))
     const dims: { name: string; values?: string[]; isColor?: boolean }[] = []
+
     terminalLevel.attributes.forEach((attr) => {
       const clean = attr.trim()
       const lower = clean.toLowerCase()
+      if (
+        upperKeys.has(lower) ||
+        lower === 'tags' ||
+        lower === 'tag' ||
+        lower.includes('actividad')
+      ) {
+        return
+      }
+
       const found =
         dimensionValuesMap.get(lower) ||
         (lower.includes('talla') ? dimensionValuesMap.get('talla') : undefined) ||
@@ -298,7 +309,6 @@ export function CreateCatalogItemPage() {
     (templateId: string) => {
       setSelectedTemplateId(templateId)
       if (!templateId) {
-        setHasVariants(false)
         return
       }
       const tpl = productTemplates.find((t) => t.id === templateId)
@@ -317,13 +327,6 @@ export function CreateCatalogItemPage() {
       }
 
       setKind(String(CatalogItemKind.Physical))
-
-      const terminalLevel = parsedLevels[parsedLevels.length - 1]
-      const hasTerminalVariants =
-        parsedLevels.length > 1 ||
-        (terminalLevel && (terminalLevel.hasColor || terminalLevel.hasImages || terminalLevel.attributes.length > 0))
-
-      setHasVariants(!!hasTerminalVariants)
 
       const upperAttrs: string[] = []
       parsedLevels.slice(0, parsedLevels.length - 1).forEach((l) => {
@@ -922,55 +925,19 @@ export function CreateCatalogItemPage() {
                     ? `(${appliedTemplateLevels[appliedTemplateLevels.length - 1]?.name || 'Nivel Terminal'})`
                     : ''
                 }`}
-                subtitle="Genera los SKUs individuales con stock, código de barras y fotos por color para control de inventario."
-                action={
-                  <label
-                    htmlFor="ci-has-variants"
-                    style={{
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      color: 'var(--shell-primary, #4f46e5)',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.45rem',
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '6px',
-                      background: 'rgba(79, 70, 229, 0.08)',
-                      userSelect: 'none',
-                    }}
-                  >
-                    <input
-                      id="ci-has-variants"
-                      type="checkbox"
-                      checked={hasVariants}
-                      onChange={(e) => setHasVariants(e.target.checked)}
-                      disabled={busy}
-                      style={{ cursor: 'pointer', width: 16, height: 16 }}
-                    />
-                    <span>¿Tiene variantes (tallas, colores, etc.)?</span>
-                  </label>
-                }
+                subtitle="Configura las variantes físicas con sus tallas, colores, códigos SKU y fotografías independientes."
               >
-                {hasVariants ? (
-                  <VariantMatrixBuilder
-                    tenantId={tenantId}
-                    baseName={name}
-                    baseSku={sku}
-                    basePrice={basePrice}
-                    parentTags={tags}
-                    disabled={busy}
-                    onChange={setMatrixData}
-                    availableImages={stagedImages}
-                    initialDimensions={templateTerminalDimensions}
-                  />
-                ) : (
-                  <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.875rem' }}>
-                    Producto simple estándar (un solo ítem con su propio SKU directo). Si este producto
-                    tiene múltiples variantes (tallas, colores, fotos individuales),
-                    marca la casilla superior <strong>«¿Tiene variantes (tallas, colores, etc.)?»</strong>.
-                  </p>
-                )}
+                <VariantMatrixBuilder
+                  tenantId={tenantId}
+                  baseName={name}
+                  baseSku={sku}
+                  basePrice={basePrice}
+                  parentTags={tags}
+                  disabled={busy}
+                  onChange={setMatrixData}
+                  availableImages={stagedImages}
+                  initialDimensions={templateTerminalDimensions}
+                />
               </SectionCard>
             </div>
           )}

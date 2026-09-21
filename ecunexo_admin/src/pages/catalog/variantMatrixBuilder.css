@@ -52,60 +52,7 @@
   margin: 0;
 }
 
-/* Dimensions Config Cards */
-.ecu-matrix-builder__dimensions {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
 
-@media (min-width: 850px) {
-  .ecu-matrix-builder__dimensions--dual,
-  .ecu-matrix-builder__dimensions--grid {
-    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  }
-}
-
-.ecu-matrix-dim-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  padding: 1rem;
-  background: var(--glb-surface, #ffffff);
-  border: 1px solid var(--glb-border, #e2e8f0);
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-}
-
-.ecu-matrix-dim-card__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.ecu-matrix-dim-card__badge {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  background: rgba(79, 70, 229, 0.08);
-  color: var(--shell-primary, #4f46e5);
-}
-
-.ecu-matrix-dim-card__fields {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
-}
-
-@media (min-width: 550px) {
-  .ecu-matrix-dim-card__fields {
-    grid-template-columns: 1fr 1fr;
-  }
-}
 
 /* Chips / Pills Area */
 .ecu-matrix-pills-wrap {
@@ -299,10 +246,6 @@ html.sf-dark-mode .ecu-matrix-bulk-bar {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-html.sf-dark-mode .ecu-matrix-dim-card {
-  background: var(--glb-surface, #1e293b);
-  border-color: rgba(255, 255, 255, 0.08);
-}
 
 html.sf-dark-mode .ecu-matrix-pill {
   background: rgba(255, 255, 255, 0.05);
