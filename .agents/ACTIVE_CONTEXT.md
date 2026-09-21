@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.40.0`.
+* **Última Versión Publicada:** `v0.40.1`.
 * **Hitos Recientes Completados:**
+  - **Consolidación de Atributos del Modelo, Galería Única de Fotos y Matriz Física de Variantes (`CreateCatalogItemPage.tsx`, `VariantMatrixBuilder.tsx`, `AboutAppModal.tsx`) [v0.40.1]:**
+    * **Especificaciones del Modelo en `<Select>`:** Todos los atributos definidos en niveles intermedios de la jerarquía (ej. Caña, Actividad, Disciplina, Material) se consolidan en una sola tarjeta clara, renderizados con menús desplegables (`<Select>`) prealimentados automáticamente con opciones y sinónimos del Diccionario Maestro de Atributos.
+    * **Galería Única de Fotos de Presentación:** Se eliminaron definitivamente las zonas de carga de fotos repetidas por nivel jerárquico intermedio. El producto cuenta con exactamente 1 zona de carga de fotografías de vitrina comercial disponible para vincular a variantes.
+    * **Matriz Terminal de Variantes Físicas:** El constructor de matriz (`VariantMatrixBuilder`) al pie del formulario se restringe exclusivamente a las variaciones físicas reales de inventario (Talla × Color) con generación automática de SKUs descriptivos y preselección de 1 variante inicial.
   - **Flujo Jerárquico Nivel por Nivel, Selección Asistida de Atributos y Fotos por Escala (`CreateCatalogItemPage.tsx`, `StagedCatalogItemImages.tsx`, `VariantMatrixBuilder.tsx`) [v0.40.0]:**
     * **Desglose Nivel por Nivel en Creación de Ítems:** El formulario de alta de productos ahora se despliega ordenadamente según los niveles de la plantilla jerárquica (ej. Nivel 1: Familia ➔ Nivel 2: Modelo ➔ Nivel 3: Variantes Físicas al final).
     * **Atributos de Niveles Superiores con `<Select>`:** Los atributos definidos en la plantilla (ej. Caña, Actividad, Composición, Material) se renderizan como menús desplegables (`<Select>`) cargados en 1 clic directamente del Diccionario Maestro de Atributos (`VariantDimensionTemplateDto`).
