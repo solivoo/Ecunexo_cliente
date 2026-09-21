@@ -39,6 +39,7 @@ import {
 import {
   VariantMatrixBuilder,
   type MatrixVariantPayloadWithImage,
+  type VariantImageItem,
 } from '@/pages/catalog/VariantMatrixBuilder'
 import {
   buildDimensionValuesMap,
@@ -46,6 +47,7 @@ import {
   getModelAttributeFields,
   getVariantDimensionFields,
   isColorDimension,
+  resolvePhotoScope,
 } from '@/lib/catalogArchetype'
 import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
 
@@ -69,11 +71,13 @@ export function CreateCatalogItemPage() {
     variantDimensionsJson: string
     dimensionNames: string[]
     isValid: boolean
+    groupImages: { groupValue: string; images: VariantImageItem[] }[]
   }>({
     variants: [],
     variantDimensionsJson: '',
     dimensionNames: [],
     isValid: false,
+    groupImages: [],
   })
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -124,9 +128,11 @@ export function CreateCatalogItemPage() {
     }
   }, [appliedTemplate])
 
+  const photoScope = useMemo(() => resolvePhotoScope(appliedTemplateLevels), [appliedTemplateLevels])
+
   const modelAttributeFields = useMemo(
-    () => getModelAttributeFields(appliedTemplateLevels),
-    [appliedTemplateLevels]
+    () => getModelAttributeFields(appliedTemplateLevels, dimensionValuesMap),
+    [appliedTemplateLevels, dimensionValuesMap]
   )
 
   const setAttributeValue = useCallback((key: string, value: string) => {
@@ -181,7 +187,7 @@ export function CreateCatalogItemPage() {
       })
     }
 
-    getVariantDimensionFields(appliedTemplateLevels).forEach((field) => push(field.key))
+    getVariantDimensionFields(appliedTemplateLevels, dimensionValuesMap).forEach((field) => push(field.key))
 
     if (appliedTemplateLevels.some((lvl) => lvl.hasColor) && !dims.some((d) => d.isColor)) {
       const colorFound = dimensionValuesMap.get('color') || dimensionValuesMap.get('colores')
@@ -364,7 +370,11 @@ export function CreateCatalogItemPage() {
 
         let targetItemId: string
         const familyId = selectedTemplateId || null
-        const hierarchyPathJson = buildHierarchyPathJson(appliedTemplateLevels, customAttributes)
+        const hierarchyPathJson = buildHierarchyPathJson(
+          appliedTemplateLevels,
+          customAttributes,
+          dimensionValuesMap
+        )
 
         if (hasVariants && kindNum === CatalogItemKind.Physical) {
           if (!matrixData.isValid || matrixData.variants.length === 0) {
@@ -419,6 +429,30 @@ export function CreateCatalogItemPage() {
                   )
                 } catch (imgErr) {
                   console.error('Error al subir imagen de variante', imgErr)
+                }
+              }
+            }
+          }
+
+          // Fotos compartidas por grupo: se suben una sola vez al producto matriz con su valor de grupo
+          if (photoScope === 'group' && matrixData.groupImages.length > 0) {
+            for (const group of matrixData.groupImages) {
+              for (let imgIdx = 0; imgIdx < group.images.length; imgIdx++) {
+                const img = group.images[imgIdx]
+                setUploadStatus(
+                  `Subiendo foto ${imgIdx + 1} de ${group.images.length} para «${group.groupValue}»...`
+                )
+                try {
+                  await uploadCatalogItemImage(
+                    tenantId,
+                    createdMatrix.parentItemId,
+                    img.file,
+                    group.groupValue,
+                    imgIdx === 0,
+                    group.groupValue
+                  )
+                } catch (imgErr) {
+                  console.error('Error al subir imagen de grupo', imgErr)
                 }
               }
             }
@@ -492,12 +526,14 @@ export function CreateCatalogItemPage() {
       categoryId,
       customAttributes,
       description,
+      dimensionValuesMap,
       hasVariants,
       kind,
       matrixData,
       maxVariants,
       name,
       navigate,
+      photoScope,
       remainingVariants,
       selectedTemplateId,
       sku,
@@ -741,12 +777,16 @@ export function CreateCatalogItemPage() {
             )}
           </SectionCard>
 
-          {/* Fotografías del Producto (Únicamente cuando NO tiene variantes físicas) */}
-          {!hasVariants && (
+          {/* Fotografías del Producto (siempre sin variantes; con variantes solo si el arquetipo las captura en el modelo) */}
+          {(!hasVariants || photoScope === 'model') && (
             <div style={{ marginTop: '1.25rem' }}>
               <SectionCard
                 title="Fotografías del Producto"
-                subtitle="Anexa hasta 8 imágenes para este producto."
+                subtitle={
+                  photoScope === 'model' && hasVariants
+                    ? 'Se comparten automáticamente con todas las variantes del modelo.'
+                    : 'Anexa hasta 8 imágenes para este producto.'
+                }
               >
                 <StagedCatalogItemImages
                   stagedImages={stagedImages}
@@ -803,6 +843,7 @@ export function CreateCatalogItemPage() {
                   onChange={setMatrixData}
                   availableImages={stagedImages}
                   initialDimensions={templateAllDimensions}
+                  photoScope={appliedTemplate ? photoScope : undefined}
                 />
               </SectionCard>
             </div>

@@ -1,4 +1,5 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Core.Catalog;
 
 namespace EcuNexo.Business.Catalog.Queries.ListVariantDimensionTemplates;
 
@@ -12,4 +13,7 @@ public sealed record VariantDimensionTemplateResponse(
     string DimensionType,
     string PredefinedValuesJson,
     bool IsSystemDefault,
-    bool IsInUse = false);
+    bool IsInUse = false,
+    string DataType = VariantDimensionTemplate.DataTypeText,
+    bool IsVariantAxis = true,
+    string? Unit = null);

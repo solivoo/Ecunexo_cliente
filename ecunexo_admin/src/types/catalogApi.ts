@@ -84,6 +84,8 @@ export type CatalogItemVariantSummaryDto = {
   customAttributesJson: string
   status: CatalogItemStatus
   mainImageThumbUrl?: string | null
+  imageInherited?: boolean
+  imageInheritedFrom?: 'group' | 'model' | null
 }
 
 export type CatalogItemDetailDto = {
@@ -153,6 +155,9 @@ export type VariantDimensionTemplateDto = {
   predefinedValuesJson: string
   isSystemDefault: boolean
   isInUse?: boolean
+  dataType?: string
+  isVariantAxis?: boolean
+  unit?: string | null
 }
 
 export type CreateVariantChildPayload = {
@@ -207,6 +212,7 @@ export type ProductTemplateLevel = {
   hasColor: boolean
   hasImages: boolean
   attributes: string[]
+  photoScope?: 'none' | 'variant' | 'group' | 'model'
 }
 
 export type ProductTemplateDto = {
@@ -218,6 +224,7 @@ export type ProductTemplateDto = {
   isActive: boolean
   createdAt: string
   updatedAt?: string | null
+  usageCount?: number
 }
 
 export type CreateProductTemplateBody = {

@@ -357,7 +357,10 @@ public static class CatalogEndpoints
             tenantId,
             body.Name,
             body.DimensionType,
-            body.PredefinedValuesJson);
+            body.PredefinedValuesJson,
+            body.DataType,
+            body.IsVariantAxis,
+            body.Unit);
 
         var result = await sender
             .SendAsync<CreateVariantDimensionTemplateCommand, CreateVariantDimensionTemplateResponse>(command, ct)
@@ -378,7 +381,10 @@ public static class CatalogEndpoints
             tenantId,
             body.Name,
             body.DimensionType,
-            body.PredefinedValuesJson);
+            body.PredefinedValuesJson,
+            body.DataType,
+            body.IsVariantAxis,
+            body.Unit);
 
         var result = await sender
             .SendAsync<UpdateVariantDimensionTemplateCommand, UpdateVariantDimensionTemplateResponse>(command, ct)
@@ -539,6 +545,7 @@ public static class CatalogEndpoints
         IFormFile? file,
         [FromForm] string? altText,
         [FromForm] bool? setAsMain,
+        [FromForm] string? groupValue,
         ISender sender,
         ICallerContext caller,
         CancellationToken ct)
@@ -557,7 +564,8 @@ public static class CatalogEndpoints
             ContentType: file.ContentType,
             AltText: altText,
             SetAsMain: setAsMain,
-            UserId: caller.UserId);
+            UserId: caller.UserId,
+            GroupValue: groupValue);
 
         var result = await sender.SendAsync<UploadCatalogItemImageCommand, CatalogItemImageResponse>(command, ct).ConfigureAwait(false);
         return result.ToHttpResult();

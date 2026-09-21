@@ -17,6 +17,7 @@ public sealed class ProductTemplateHandlerTests
 {
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IProductTemplateRepository _templates = Substitute.For<IProductTemplateRepository>();
+    private readonly ICatalogItemRepository _items = Substitute.For<ICatalogItemRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IIdGenerator _idGenerator = Substitute.For<IIdGenerator>();
     private readonly CreateProductTemplateValidator _createValidator = new();
@@ -29,7 +30,7 @@ public sealed class ProductTemplateHandlerTests
         new(_updateValidator, _tenants, _templates, _unitOfWork);
 
     private DeleteProductTemplateHandler CreateDeleteSut() =>
-        new(_tenants, _templates, _unitOfWork);
+        new(_tenants, _templates, _items, _unitOfWork);
 
     [Fact(DisplayName = "Crear plantilla con nombre duplicado falla con conflicto")]
     public async Task Create_DuplicateName_FailsWithConflict()
@@ -121,6 +122,26 @@ public sealed class ProductTemplateHandlerTests
         await _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    [Fact(DisplayName = "Eliminar plantilla en uso por productos falla con conflicto")]
+    public async Task Delete_TemplateInUse_FailsWithConflict()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var templateId = Guid.CreateVersion7();
+        var template = ProductTemplate.Create(templateId, tenantId, "En uso", null, "[]").Value!;
+
+        _tenants.ExistsByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(true);
+        _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>()).Returns(template);
+        _items.CountItemsByFamilyAsync(tenantId, Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int> { [templateId] = 3 });
+
+        var command = new DeleteProductTemplateCommand(templateId, tenantId);
+        var result = await CreateDeleteSut().Handle(command, CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("catalog.product_template.delete.in_use", result.Error!.Code);
+        await _templates.DidNotReceive().DeleteAsync(Arg.Any<ProductTemplate>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact(DisplayName = "List y GetById queries retornan datos esperados")]
     public async Task Queries_ReturnExpectedData()
     {
@@ -133,7 +154,7 @@ public sealed class ProductTemplateHandlerTests
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(template);
 
-        var listSut = new ListProductTemplatesHandler(_templates);
+        var listSut = new ListProductTemplatesHandler(_templates, _items);
         var listResult = await listSut.Handle(new ListProductTemplatesQuery(tenantId), CancellationToken.None);
 
         Assert.True(listResult.IsSuccess);

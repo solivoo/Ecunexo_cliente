@@ -35,4 +35,6 @@ public sealed record CatalogItemVariantDto(
     decimal? BasePrice,
     string CustomAttributesJson,
     CatalogItemStatus Status,
-    string? MainImageThumbUrl = null);
+    string? MainImageThumbUrl = null,
+    bool ImageInherited = false,
+    string? ImageInheritedFrom = null);

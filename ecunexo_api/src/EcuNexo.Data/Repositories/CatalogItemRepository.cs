@@ -181,4 +181,18 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
 
         return query.CountAsync(ct);
     }
+
+    public async Task<IReadOnlyDictionary<Guid, int>> CountItemsByFamilyAsync(
+        Guid tenantId,
+        CancellationToken ct)
+    {
+        var rows = await _db.CatalogItems.AsNoTracking()
+            .Where(i => i.TenantId == tenantId && i.FamilyId != null && i.DeletedAt == null)
+            .GroupBy(i => i.FamilyId!.Value)
+            .Select(g => new { FamilyId = g.Key, Count = g.Count() })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return rows.ToDictionary(r => r.FamilyId, r => r.Count);
+    }
 }

@@ -28,6 +28,19 @@ public sealed class VariantDimensionTemplateConfiguration : IEntityTypeConfigura
             .HasMaxLength(VariantDimensionTemplate.DimensionTypeMaxLength)
             .IsRequired();
 
+        builder.Property(t => t.DataType)
+            .HasMaxLength(VariantDimensionTemplate.DataTypeMaxLength)
+            .HasDefaultValue(VariantDimensionTemplate.DataTypeText)
+            .IsRequired();
+
+        builder.Property(t => t.IsVariantAxis)
+            .HasColumnType("boolean")
+            .HasDefaultValue(true)
+            .IsRequired();
+
+        builder.Property(t => t.Unit)
+            .HasMaxLength(VariantDimensionTemplate.UnitMaxLength);
+
         builder.Property(t => t.PredefinedValuesJson)
             .HasColumnType("jsonb")
             .IsRequired();

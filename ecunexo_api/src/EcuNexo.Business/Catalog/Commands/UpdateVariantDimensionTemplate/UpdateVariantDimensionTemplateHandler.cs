@@ -73,6 +73,9 @@ public sealed class UpdateVariantDimensionTemplateHandler
             command.Name,
             command.DimensionType,
             command.PredefinedValuesJson,
+            command.DataType,
+            command.IsVariantAxis,
+            command.Unit,
             command.UpdatedBy);
 
         if (updateResult.IsFailure)

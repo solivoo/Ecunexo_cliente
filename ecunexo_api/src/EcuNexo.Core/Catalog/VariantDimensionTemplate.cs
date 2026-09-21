@@ -13,13 +13,29 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
 {
     public const int NameMaxLength = 120;
     public const int DimensionTypeMaxLength = 50;
+    public const int DataTypeMaxLength = 20;
+    public const int UnitMaxLength = 20;
     public const string EmptyArrayJson = "[]";
+
+    public const string DataTypeText = "text";
+    public const string DataTypeNumber = "number";
+    public const string DataTypeBoolean = "boolean";
+    public const string DataTypeColor = "color";
+
+    private static readonly string[] AllowedDataTypes =
+        [DataTypeText, DataTypeNumber, DataTypeBoolean, DataTypeColor];
+
+    public static bool IsValidDataType(string? dataType) =>
+        string.IsNullOrWhiteSpace(dataType)
+        || AllowedDataTypes.Contains(dataType.Trim().ToLowerInvariant());
 
     private VariantDimensionTemplate()
     {
         Name = string.Empty;
         DimensionType = "size";
         PredefinedValuesJson = EmptyArrayJson;
+        DataType = DataTypeText;
+        IsVariantAxis = true;
     }
 
     public Guid TenantId { get; private set; }
@@ -32,6 +48,21 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
     /// Tipo de dimensión: "size", "color", "other".
     /// </summary>
     public string DimensionType { get; private set; }
+
+    /// <summary>
+    /// Tipo de dato que gobierna el control de captura en la interfaz:
+    /// "text" | "number" | "boolean" | "color".
+    /// </summary>
+    public string DataType { get; private set; }
+
+    /// <summary>
+    /// Indica si el atributo genera ejes físicos con SKU propio (true) o si es
+    /// descriptivo del modelo (false), por ejemplo un color único del producto.
+    /// </summary>
+    public bool IsVariantAxis { get; private set; }
+
+    /// <summary>Unidad de medida opcional para mostrar junto al valor (ej. cm, g, mm).</summary>
+    public string? Unit { get; private set; }
 
     /// <summary>
     /// Arreglo JSON de valores predefinidos, ej: ["35-38", "39-41", "42-44"].
@@ -54,6 +85,9 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
         string name,
         string dimensionType,
         string predefinedValuesJson,
+        string dataType = DataTypeText,
+        bool isVariantAxis = true,
+        string? unit = null,
         bool isSystemDefault = false,
         Guid? createdBy = null)
     {
@@ -75,6 +109,18 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
             return Result.Failure<VariantDimensionTemplate>(dimNorm.Error!);
         }
 
+        var dataNorm = NormalizeDataType(dataType);
+        if (dataNorm.IsFailure)
+        {
+            return Result.Failure<VariantDimensionTemplate>(dataNorm.Error!);
+        }
+
+        var unitNorm = NormalizeUnit(unit);
+        if (unitNorm.IsFailure)
+        {
+            return Result.Failure<VariantDimensionTemplate>(unitNorm.Error!);
+        }
+
         var valuesNorm = NormalizeValuesJson(predefinedValuesJson);
         if (valuesNorm.IsFailure)
         {
@@ -87,6 +133,9 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
             TenantId = tenantId,
             Name = nameNorm.Value!,
             DimensionType = dimNorm.Value!,
+            DataType = dataNorm.Value!,
+            IsVariantAxis = isVariantAxis,
+            Unit = unitNorm.Value,
             PredefinedValuesJson = valuesNorm.Value!,
             IsSystemDefault = isSystemDefault,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -98,6 +147,9 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
         string name,
         string dimensionType,
         string predefinedValuesJson,
+        string dataType = DataTypeText,
+        bool isVariantAxis = true,
+        string? unit = null,
         Guid? updatedBy = null)
     {
         var nameNorm = NormalizeName(name);
@@ -112,6 +164,18 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
             return Result.Failure(dimNorm.Error!);
         }
 
+        var dataNorm = NormalizeDataType(dataType);
+        if (dataNorm.IsFailure)
+        {
+            return Result.Failure(dataNorm.Error!);
+        }
+
+        var unitNorm = NormalizeUnit(unit);
+        if (unitNorm.IsFailure)
+        {
+            return Result.Failure(unitNorm.Error!);
+        }
+
         var valuesNorm = NormalizeValuesJson(predefinedValuesJson);
         if (valuesNorm.IsFailure)
         {
@@ -120,6 +184,9 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
 
         Name = nameNorm.Value!;
         DimensionType = dimNorm.Value!;
+        DataType = dataNorm.Value!;
+        IsVariantAxis = isVariantAxis;
+        Unit = unitNorm.Value;
         PredefinedValuesJson = valuesNorm.Value!;
         UpdatedAt = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
@@ -127,15 +194,15 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
         return Result.Success();
     }
 
-    public static IReadOnlyList<(string Name, string DimensionType, string[] Values)> GetSystemDefaultTemplates() =>
+    public static IReadOnlyList<(string Name, string DimensionType, string DataType, string[] Values)> GetSystemDefaultTemplates() =>
     [
-        ("Medias / Calcetines", "size", ["Infantil", "35-38", "39-41", "42-44", "45+"]),
-        ("Ropa Adulto (Letras)", "size", ["XS", "S", "M", "L", "XL", "XXL", "3XL"]),
-        ("Pantalones / Jeans (Pulgadas)", "size", ["28", "30", "32", "34", "36", "38", "40"]),
-        ("Calzado Adulto (Ecuador / EUR)", "size", ["35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45"]),
-        ("Calzado Infantil", "size", ["20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34"]),
-        ("Ropa Bebé (Meses)", "size", ["0-3M", "3-6M", "6-9M", "9-12M", "12-18M", "24M"]),
-        ("Colores Básicos", "color", ["Blanco", "Negro", "Azul", "Rojo", "Gris", "Verde", "Beige", "Café"]),
+        ("Medias / Calcetines", "size", DataTypeText, ["Infantil", "35-38", "39-41", "42-44", "45+"]),
+        ("Ropa Adulto (Letras)", "size", DataTypeText, ["XS", "S", "M", "L", "XL", "XXL", "3XL"]),
+        ("Pantalones / Jeans (Pulgadas)", "size", DataTypeNumber, ["28", "30", "32", "34", "36", "38", "40"]),
+        ("Calzado Adulto (Ecuador / EUR)", "size", DataTypeNumber, ["35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45"]),
+        ("Calzado Infantil", "size", DataTypeNumber, ["20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34"]),
+        ("Ropa Bebé (Meses)", "size", DataTypeText, ["0-3M", "3-6M", "6-9M", "9-12M", "12-18M", "24M"]),
+        ("Colores Básicos", "color", DataTypeColor, ["Blanco", "Negro", "Azul", "Rojo", "Gris", "Verde", "Beige", "Café"]),
     ];
 
     private static Result<string> NormalizeName(string name)
@@ -171,6 +238,43 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
         }
 
         return Result.Success(norm);
+    }
+
+    private static Result<string> NormalizeDataType(string dataType)
+    {
+        if (string.IsNullOrWhiteSpace(dataType))
+        {
+            return Result.Success(DataTypeText);
+        }
+
+        var norm = dataType.Trim().ToLowerInvariant();
+        if (!AllowedDataTypes.Contains(norm))
+        {
+            return Result.Failure<string>(
+                new Error(
+                    "catalog.variant_template.data_type.invalid",
+                    "El tipo de dato debe ser texto, número, booleano o color.",
+                    ErrorType.Validation));
+        }
+
+        return Result.Success(norm);
+    }
+
+    private static Result<string?> NormalizeUnit(string? unit)
+    {
+        if (string.IsNullOrWhiteSpace(unit))
+        {
+            return Result.Success<string?>(null);
+        }
+
+        var trimmed = unit.Trim();
+        if (trimmed.Length > UnitMaxLength)
+        {
+            return Result.Failure<string?>(
+                new Error("catalog.variant_template.unit.length", $"La unidad no puede superar {UnitMaxLength} caracteres.", ErrorType.Validation));
+        }
+
+        return Result.Success<string?>(trimmed);
     }
 
     private static Result<string> NormalizeValuesJson(string json)

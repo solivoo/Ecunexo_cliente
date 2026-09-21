@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react'
+import { useMemo, useState, type ChangeEvent } from 'react'
 import { Button, Select, TextBox } from 'glubox'
 import {
   ArrowDown,
@@ -20,12 +20,46 @@ import type {
   ProductTemplateLevel,
   VariantDimensionTemplateDto,
 } from '@/types/catalogApi'
+import {
+  buildDimensionValuesMap,
+  getVariantDimensionFields,
+  resolveAttributeLookup,
+  resolvePhotoScope,
+} from '@/lib/catalogArchetype'
 
 export interface HierarchyTemplateTreeBuilderProps {
   levels: ProductTemplateLevel[]
   onChange: (levels: ProductTemplateLevel[]) => void
   availableAttributes: VariantDimensionTemplateDto[]
   disabled?: boolean
+}
+
+const DATA_TYPE_LABELS: Record<string, string> = {
+  text: 'Texto',
+  number: 'Número',
+  boolean: 'Sí / No',
+  color: 'Color',
+}
+
+function photoScopeOf(level: ProductTemplateLevel): 'none' | 'variant' | 'group' | 'model' {
+  return level.photoScope ?? (level.hasImages ? 'variant' : 'none')
+}
+
+function photoScopeLabel(scope: 'none' | 'variant' | 'group' | 'model'): string {
+  switch (scope) {
+    case 'model':
+      return 'Foto: Modelo'
+    case 'group':
+      return 'Foto: Grupo'
+    case 'variant':
+      return 'Foto: Variante'
+    default:
+      return ''
+  }
+}
+
+function nextLevelId(): string {
+  return `lvl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
 }
 
 export function HierarchyTemplateTreeBuilder({
@@ -38,29 +72,58 @@ export function HierarchyTemplateTreeBuilder({
   const [customAttrInputByLevel, setCustomAttrInputByLevel] = useState<Record<string, string>>({})
   const [previewMode, setPreviewMode] = useState<'board' | 'tree'>('board')
 
+  const attributeLookup = useMemo(
+    () => buildDimensionValuesMap(availableAttributes),
+    [availableAttributes]
+  )
+
+  const variantFields = useMemo(
+    () => getVariantDimensionFields(levels, attributeLookup),
+    [levels, attributeLookup]
+  )
+
+  const effectivePhotoScope = useMemo(() => resolvePhotoScope(levels), [levels])
+
+  const attributeRoleLabel = (name: string): string => {
+    const lookup = resolveAttributeLookup(attributeLookup, name)
+    if (!lookup) return 'Libre'
+    return lookup.isVariantAxis ? 'Variantes' : 'Descriptivo'
+  }
+
+  const attributeTypeLabel = (name: string): string => {
+    const lookup = resolveAttributeLookup(attributeLookup, name)
+    if (!lookup) return 'Texto'
+    const type = DATA_TYPE_LABELS[lookup.dataType] ?? 'Texto'
+    return lookup.unit ? `${type} · ${lookup.unit}` : type
+  }
+
   const handleAddLevel = () => {
     const nextIdx = levels.length + 1
     let defaultName = `Nivel ${nextIdx}`
     let hasColor = false
     let hasImages = false
+    let photoScope: 'none' | 'variant' | 'group' | 'model' = 'none'
 
     if (nextIdx === 1) {
       defaultName = 'Colección / Familia'
     } else if (nextIdx === 2) {
       defaultName = 'Modelo / Estilo'
       hasImages = true
+      photoScope = 'model'
     } else if (nextIdx === 3) {
       defaultName = 'Variantes Físicas'
       hasColor = true
       hasImages = true
+      photoScope = 'variant'
     }
 
     const newLevel: ProductTemplateLevel = {
-      id: `lvl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: nextLevelId(),
       name: defaultName,
       hasColor,
       hasImages,
       attributes: [],
+      photoScope,
     }
 
     onChange([...levels, newLevel])
@@ -69,11 +132,12 @@ export function HierarchyTemplateTreeBuilder({
   const handleDuplicateLevel = (index: number) => {
     const source = levels[index]
     const cloned: ProductTemplateLevel = {
-      id: `lvl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: nextLevelId(),
       name: `${source.name} (Copia)`,
       hasColor: source.hasColor,
       hasImages: source.hasImages,
       attributes: [...source.attributes],
+      photoScope: source.photoScope,
     }
     const updated = [...levels]
     updated.splice(index + 1, 0, cloned)
@@ -317,15 +381,33 @@ export function HierarchyTemplateTreeBuilder({
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={lvl.hasImages}
-                      disabled={disabled}
-                      onChange={(e) => handleUpdateLevel(index, { hasImages: e.target.checked })}
-                      style={{ cursor: 'pointer' }}
-                    />
                     <Camera size={16} />
-                    <span>Fotografías por elemento</span>
+                    <span>Fotografías</span>
+                    <select
+                      value={lvl.photoScope ?? (lvl.hasImages ? 'variant' : 'none')}
+                      disabled={disabled}
+                      onChange={(e) => {
+                        const scope = e.target.value as 'none' | 'variant' | 'group' | 'model'
+                        handleUpdateLevel(index, {
+                          photoScope: scope,
+                          hasImages: scope !== 'none',
+                        })
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'inherit',
+                        fontWeight: 600,
+                        fontSize: '0.82rem',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                        outline: 'none',
+                      }}
+                    >
+                      <option value="none">Sin fotos</option>
+                      <option value="variant">Por variante (SKU)</option>
+                      <option value="group">Compartidas por grupo</option>
+                      <option value="model">Del modelo (todas las variantes)</option>
+                    </select>
                   </label>
                 </div>
               </div>
@@ -382,7 +464,9 @@ export function HierarchyTemplateTreeBuilder({
                             .filter((a) => !lvl.attributes.includes(a.name))
                             .map((a) => ({
                               value: a.name,
-                              label: `${a.name} (${a.dimensionType || 'general'})`,
+                              label: `${a.name} · ${DATA_TYPE_LABELS[a.dataType ?? 'text'] ?? 'Texto'} · ${
+                                a.isVariantAxis === false ? 'Descriptivo' : 'Variantes'
+                              }${a.unit ? ` (${a.unit})` : ''}`,
                             })),
                         ]}
                         fullWidth
@@ -494,6 +578,22 @@ export function HierarchyTemplateTreeBuilder({
                       >
                         <Tag size={13} />
                         <span>{attr}</span>
+                        <span
+                          title={`${attributeTypeLabel(attr)} · ${attributeRoleLabel(attr)}`}
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '0 0.35rem',
+                            borderRadius: '4px',
+                            background:
+                              attributeRoleLabel(attr) === 'Descriptivo'
+                                ? 'color-mix(in srgb, #f59e0b 20%, transparent)'
+                                : 'color-mix(in srgb, #10b981 18%, transparent)',
+                            color: attributeRoleLabel(attr) === 'Descriptivo' ? '#b45309' : '#059669',
+                          }}
+                        >
+                          {attributeRoleLabel(attr)}
+                        </span>
                         {!disabled && (
                           <button
                             type="button"
@@ -704,8 +804,9 @@ export function HierarchyTemplateTreeBuilder({
                             <span>Color</span>
                           </span>
                         )}
-                        {lvl.hasImages && (
+                        {photoScopeOf(lvl) !== 'none' && (
                           <span
+                            title="Alcance de captura fotográfica"
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -718,7 +819,7 @@ export function HierarchyTemplateTreeBuilder({
                             }}
                           >
                             <Camera size={11} />
-                            <span>Foto</span>
+                            <span>{photoScopeLabel(photoScopeOf(lvl))}</span>
                           </span>
                         )}
                       </div>
@@ -783,30 +884,42 @@ export function HierarchyTemplateTreeBuilder({
               </div>
 
               <div style={{ fontSize: '0.82rem', fontFamily: 'monospace', color: 'var(--glb-text)', lineHeight: 1.6 }}>
-                <div>
-                  <span style={{ color: '#60a5fa', fontWeight: 600 }}>[ {levels[0]?.name || 'Colección'} ]</span>
-                  <span style={{ color: 'var(--glb-muted)' }}> (Ej. Deportivo)</span>
+                {levels.map((lvl, index) => {
+                  const isLast = index === levels.length - 1
+                  const indent = index === 0 ? 0 : index === 1 ? 16 : 32
+                  const attrs = lvl.attributes
+
+                  return (
+                    <div key={lvl.id} style={{ paddingLeft: indent }}>
+                      <span style={{ color: isLast ? '#10b981' : '#60a5fa', fontWeight: 600 }}>
+                        {isLast ? '└── ' : '├── '}
+                        [ {lvl.name || `Nivel ${index + 1}`} ]
+                      </span>
+                      {attrs.length > 0 && (
+                        <span style={{ color: 'var(--glb-muted)' }}>
+                          {' '}
+                          {attrs.map((a) => `${a} (${attributeRoleLabel(a)})`).join(' · ')}
+                        </span>
+                      )}
+                      {isLast && (
+                        <div style={{ paddingLeft: '1.5rem', color: '#10b981' }}>
+                          └── SKUs por combinación:{' '}
+                          {variantFields.length > 0
+                            ? variantFields.map((f) => f.key).join(' × ')
+                            : 'sin ejes definidos (se usará la dimensión por defecto)'}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                <div style={{ marginTop: '0.35rem', color: 'var(--glb-muted)' }}>
+                  Fotos:{' '}
+                  {effectivePhotoScope === 'model'
+                    ? 'se capturan una vez en el modelo y todas las variantes las heredan'
+                    : effectivePhotoScope === 'group'
+                      ? 'se capturan por grupo (color/caña) y las tallas del grupo las heredan'
+                      : 'se capturan por cada variante/SKU'}
                 </div>
-                {levels.length > 2 && (
-                  <div style={{ paddingLeft: '1.25rem' }}>
-                    ├── <span style={{ color: '#a78bfa', fontWeight: 600 }}>[ {levels[1]?.name || 'Modelo'} 1 ]</span>
-                    <span style={{ color: 'var(--glb-muted)' }}> (Ej. Antideslizante)</span>
-                    <div style={{ paddingLeft: '1.75rem', color: '#10b981' }}>
-                      └── 📦 Variantes SKUs: Talla + Color + Imagen por combinación
-                    </div>
-                    ├── <span style={{ color: '#a78bfa', fontWeight: 600 }}>[ {levels[1]?.name || 'Modelo'} 2 ]</span>
-                    <span style={{ color: 'var(--glb-muted)' }}> (Ej. Tennis)</span>
-                    <div style={{ paddingLeft: '1.75rem', color: '#10b981' }}>
-                      └── 📦 Variantes SKUs: Talla + Color + Imagen por combinación
-                    </div>
-                  </div>
-                )}
-                {levels.length === 2 && (
-                  <div style={{ paddingLeft: '1.25rem' }}>
-                    └── <span style={{ color: '#10b981', fontWeight: 600 }}>[ {levels[1]?.name || 'Variantes'} ]</span>
-                    <span style={{ color: 'var(--glb-muted)' }}> (Colores, Fotos y Opciones de venta)</span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -869,9 +982,9 @@ export function HierarchyTemplateTreeBuilder({
                       </span>
                     )}
 
-                    {lvl.hasImages && (
+                    {photoScopeOf(lvl) !== 'none' && (
                       <span
-                        title="Tiene Fotografías"
+                        title="Alcance de captura fotográfica"
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -884,7 +997,7 @@ export function HierarchyTemplateTreeBuilder({
                         }}
                       >
                         <Camera size={12} />
-                        <span>Foto</span>
+                        <span>{photoScopeLabel(photoScopeOf(lvl))}</span>
                       </span>
                     )}
 

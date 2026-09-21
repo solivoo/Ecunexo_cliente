@@ -216,8 +216,17 @@ export function ProductTemplatesListPage() {
                   <Palette size={12} color="#10b981" />
                 </span>
               )}
-              {lvl.hasImages && (
-                <span title="Lleva fotos" style={{ display: 'inline-flex', alignItems: 'center' }}>
+              {(lvl.photoScope ?? (lvl.hasImages ? 'variant' : 'none')) !== 'none' && (
+                <span
+                  title={
+                    lvl.photoScope === 'model'
+                      ? 'Fotos del modelo (todas las variantes las heredan)'
+                      : lvl.photoScope === 'group'
+                        ? 'Fotos compartidas por grupo'
+                        : 'Fotos por variante (SKU)'
+                  }
+                  style={{ display: 'inline-flex', alignItems: 'center' }}
+                >
                   <Camera size={12} color="#a78bfa" />
                 </span>
               )}
@@ -264,6 +273,19 @@ export function ProductTemplatesListPage() {
       },
     },
     {
+      key: 'usageCount',
+      header: 'Uso',
+      width: 140,
+      sortable: true,
+      renderCell: (_val: unknown, row: TemplateGridRow) => (
+        <StatusBadge tone={row.usageCount && row.usageCount > 0 ? 'info' : 'neutral'}>
+          {row.usageCount && row.usageCount > 0
+            ? `${row.usageCount} ${row.usageCount === 1 ? 'producto' : 'productos'}`
+            : 'Sin uso'}
+        </StatusBadge>
+      ),
+    },
+    {
       key: 'actions',
       header: 'Acciones',
       width: 110,
@@ -278,10 +300,14 @@ export function ProductTemplatesListPage() {
           />
           <GridIconButton
             icon={Trash2}
-            label={`Eliminar ${row.name}`}
+            label={
+              row.usageCount && row.usageCount > 0
+                ? `En uso por ${row.usageCount} producto(s): no se puede eliminar`
+                : `Eliminar ${row.name}`
+            }
             danger
             onClick={() => setConfirmDelete(row)}
-            disabled={!canManage}
+            disabled={!canManage || Boolean(row.usageCount && row.usageCount > 0)}
           />
         </div>
       ),

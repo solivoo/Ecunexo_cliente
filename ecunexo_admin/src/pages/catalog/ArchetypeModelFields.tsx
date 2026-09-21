@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react'
-import { Select, TextBox } from 'glubox'
+import { ColorPicker, NumberBox, Select, TextBox } from 'glubox'
 import type { ArchetypeAttributeField, DimensionLookup } from '@/lib/catalogArchetype'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 
@@ -19,6 +19,10 @@ function fieldId(field: ArchetypeAttributeField): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
   return `archetype-${field.levelIndex}-${slug || 'campo'}`
+}
+
+function buildLabel(field: ArchetypeAttributeField, unit: string | null): string {
+  return unit ? `${field.key} (${unit})` : field.key
 }
 
 export function ArchetypeModelFields({
@@ -51,20 +55,64 @@ export function ArchetypeModelFields({
       </div>
       <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
         {fields.map((field) => {
-          const lookup = dimensionValuesMap.get(field.key.toLowerCase())
+          const lookup = dimensionValuesMap.get(field.key.trim().toLowerCase())
           const value = getValue(field.key)
           const id = fieldId(field)
+          const dataType = lookup?.dataType ?? 'text'
+          const unit = lookup?.unit ?? null
+          const label = buildLabel(field, unit)
+          const hasOptions = (lookup?.values.length ?? 0) > 0
+
           return (
             <div key={`${field.levelIndex}-${field.key}`} className="ecu-companies-form__field">
-              {lookup && lookup.values.length > 0 ? (
+              {dataType === 'color' ? (
+                <ColorPicker
+                  id={id}
+                  label={label}
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={value || '#ffffff'}
+                  onChange={(hex: string) => onChangeValue(field.key, hex)}
+                  disabled={disabled}
+                  fullWidth
+                />
+              ) : dataType === 'boolean' ? (
                 <Select
                   id={id}
-                  label={field.key}
+                  label={label}
                   labelPosition="outlined"
                   variant="outline"
                   options={[
                     { value: '', label: 'Sin definir' },
-                    ...lookup.values.map((v) => ({ value: v, label: v })),
+                    { value: 'true', label: 'Sí' },
+                    { value: 'false', label: 'No' },
+                  ]}
+                  value={value}
+                  onChange={(v: string) => onChangeValue(field.key, v)}
+                  disabled={disabled}
+                  fullWidth
+                />
+              ) : dataType === 'number' ? (
+                <NumberBox
+                  id={id}
+                  label={label}
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={value}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => onChangeValue(field.key, e.target.value)}
+                  step={1}
+                  disabled={disabled}
+                  fullWidth
+                />
+              ) : hasOptions ? (
+                <Select
+                  id={id}
+                  label={label}
+                  labelPosition="outlined"
+                  variant="outline"
+                  options={[
+                    { value: '', label: 'Sin definir' },
+                    ...(lookup?.values ?? []).map((v) => ({ value: v, label: v })),
                   ]}
                   value={value}
                   onChange={(v: string) => onChangeValue(field.key, v)}
@@ -74,7 +122,7 @@ export function ArchetypeModelFields({
               ) : (
                 <TextBox
                   id={id}
-                  label={field.key}
+                  label={label}
                   labelPosition="outlined"
                   variant="outline"
                   value={value}

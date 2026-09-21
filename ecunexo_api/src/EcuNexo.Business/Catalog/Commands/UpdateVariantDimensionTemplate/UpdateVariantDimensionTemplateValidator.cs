@@ -30,5 +30,9 @@ public sealed class UpdateVariantDimensionTemplateValidator : AbstractValidator<
         RuleFor(x => x.PredefinedValuesJson)
             .NotEmpty()
             .WithMessage("La lista de valores predefinidos es obligatoria.");
+
+        RuleFor(x => x.DataType)
+            .Must(VariantDimensionTemplate.IsValidDataType)
+            .WithMessage("El tipo de dato debe ser texto, número, booleano o color.");
     }
 }

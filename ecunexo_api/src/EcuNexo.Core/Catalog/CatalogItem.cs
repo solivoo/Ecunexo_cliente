@@ -325,6 +325,30 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         };
     }
 
+    public Result AddVariantChild(CatalogItem variant)
+    {
+        ArgumentNullException.ThrowIfNull(variant);
+
+        if (!IsMatrixParent)
+        {
+            return Result.Failure(
+                new Error("catalog.matrix.not_parent", "Solo un producto matriz puede tener variantes.", ErrorType.Validation));
+        }
+
+        if (variant.ParentId != Id)
+        {
+            return Result.Failure(
+                new Error("catalog.matrix.child.mismatch", "La variante no pertenece a este producto matriz.", ErrorType.Validation));
+        }
+
+        if (!_variants.Contains(variant))
+        {
+            _variants.Add(variant);
+        }
+
+        return Result.Success();
+    }
+
     /// <summary>
     /// Normaliza la ruta jerárquica capturada desde un arquetipo/familia.
     /// Formato canónico: [{ "level": "...", "name": "...", "value": "..." }]. Entradas sin nombre o valor se descartan.
@@ -820,7 +844,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string mediumUrl,
         string largeUrl,
         bool? setAsMain = null,
-        Guid? createdBy = null)
+        Guid? createdBy = null,
+        string? groupValue = null)
     {
         if (_images.Count >= ImageOptimizationPolicy.MaxImagesPerItem)
         {
@@ -855,7 +880,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             thumbUrl,
             mediumUrl,
             largeUrl,
-            createdBy);
+            createdBy,
+            groupValue);
 
         if (imageResult.IsFailure)
         {

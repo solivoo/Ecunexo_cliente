@@ -4,11 +4,12 @@ import type {
   VariantDimensionTemplateDto,
 } from '@/types/catalogApi'
 
-const VARIANT_DIMENSION_NAMES = new Set(['talla', 'tallas', 'size', 'color', 'colores'])
-
 export type DimensionLookup = {
   values: string[]
   isColor: boolean
+  dataType: string
+  isVariantAxis: boolean
+  unit: string | null
 }
 
 export function isColorDimension(name: string, type?: string, tplId?: string): boolean {
@@ -17,7 +18,7 @@ export function isColorDimension(name: string, type?: string, tplId?: string): b
   return nameLower.includes('color') || typeLower.includes('color') || tplId === 'system-colors'
 }
 
-/** Mapa de atributos del diccionario y escalas: clave en minúscula -> valores normalizados. */
+/** Mapa de atributos del diccionario y escalas: clave en minúscula -> valores normalizados y tipo de dato. */
 export function buildDimensionValuesMap(
   templates: readonly VariantDimensionTemplateDto[]
 ): Map<string, DimensionLookup> {
@@ -28,9 +29,15 @@ export function buildDimensionValuesMap(
       const parsed = JSON.parse(t.predefinedValuesJson)
       if (!Array.isArray(parsed) || parsed.length === 0) return
 
+      const isColor = (t.dimensionType || '').toLowerCase() === 'color' || isColorDimension(t.name)
+      const dataType = (t.dataType || (isColor ? 'color' : 'text')).trim().toLowerCase()
+
       const entry: DimensionLookup = {
         values: parsed.map(String),
-        isColor: (t.dimensionType || '').toLowerCase() === 'color' || isColorDimension(t.name),
+        isColor: isColor || dataType === 'color',
+        dataType,
+        isVariantAxis: t.isVariantAxis !== false,
+        unit: t.unit ?? null,
       }
       const lowerName = t.name.trim().toLowerCase()
       if (!map.has(lowerName)) map.set(lowerName, entry)
@@ -65,27 +72,62 @@ export function buildDimensionValuesMap(
   return map
 }
 
+export function resolveAttributeLookup(
+  map: Map<string, DimensionLookup> | undefined,
+  attributeKey: string
+): DimensionLookup | undefined {
+  return map?.get(attributeKey.trim().toLowerCase())
+}
+
 export type ArchetypeAttributeField = {
   key: string
   levelName: string
   levelIndex: number
 }
 
-/** Atributos del modelo: niveles intermedios (todos menos el terminal), excluyendo ejes variables talla/color. */
+export type PhotoScope = 'variant' | 'group' | 'model'
+
+/**
+ * Alcance de captura fotográfica declarado en el arquetipo.
+ * Gana el más consolidado: modelo > grupo > variante.
+ */
+export function resolvePhotoScope(levels: readonly ProductTemplateLevel[]): PhotoScope {
+  if (levels.some((l) => l.photoScope === 'model')) return 'model'
+  if (levels.some((l) => l.photoScope === 'group')) return 'group'
+  return 'variant'
+}
+
+function resolveIsVariantAxis(
+  map: Map<string, DimensionLookup> | undefined,
+  attributeKey: string,
+  levelIndex: number,
+  totalLevels: number
+): boolean {
+  const lookup = resolveAttributeLookup(map, attributeKey)
+  if (lookup) return lookup.isVariantAxis !== false
+
+  // Sin metadatos tipados: el nivel terminal genera ejes; arriba solo los colores.
+  if (levelIndex >= totalLevels) return true
+  return isColorDimension(attributeKey)
+}
+
+/** Atributos del modelo: todo atributo declarado como no-eje (isVariantAxis=false) y, sin tipado, los intermedios no-color. */
 export function getModelAttributeFields(
-  levels: readonly ProductTemplateLevel[]
+  levels: readonly ProductTemplateLevel[],
+  map?: Map<string, DimensionLookup>
 ): ArchetypeAttributeField[] {
-  if (levels.length <= 1) return []
+  if (levels.length === 0) return []
 
   const seen = new Set<string>()
   const fields: ArchetypeAttributeField[] = []
 
-  levels.slice(0, levels.length - 1).forEach((lvl, idx) => {
+  levels.forEach((lvl, idx) => {
     const names = lvl.attributes.length > 0 ? lvl.attributes : [lvl.name]
     names.forEach((attr) => {
       const clean = attr.trim()
       const lower = clean.toLowerCase()
-      if (!clean || VARIANT_DIMENSION_NAMES.has(lower) || seen.has(lower)) return
+      if (!clean || seen.has(lower)) return
+      if (resolveIsVariantAxis(map, clean, idx + 1, levels.length)) return
       seen.add(lower)
       fields.push({ key: clean, levelName: lvl.name, levelIndex: idx + 1 })
     })
@@ -94,9 +136,10 @@ export function getModelAttributeFields(
   return fields
 }
 
-/** Ejes físicos: atributos del nivel terminal más cualquier atributo de color de niveles intermedios. */
+/** Ejes físicos: atributos declarados como eje (isVariantAxis=true), con heurística de color/terminal como respaldo. */
 export function getVariantDimensionFields(
-  levels: readonly ProductTemplateLevel[]
+  levels: readonly ProductTemplateLevel[],
+  map?: Map<string, DimensionLookup>
 ): ArchetypeAttributeField[] {
   if (levels.length === 0) return []
 
@@ -111,24 +154,25 @@ export function getVariantDimensionFields(
     fields.push({ key: clean, levelName, levelIndex })
   }
 
-  levels.slice(0, -1).forEach((lvl, idx) => {
-    lvl.attributes.forEach((attr) => {
-      if (isColorDimension(attr)) push(attr, lvl.name, idx + 1)
+  const isTerminal = (idx: number) => idx === levels.length - 1
+
+  levels.forEach((lvl, idx) => {
+    const names = lvl.attributes.length > 0 ? lvl.attributes : isTerminal(idx) ? [lvl.name] : []
+    names.forEach((attr) => {
+      if (!resolveIsVariantAxis(map, attr, idx + 1, levels.length)) return
+      push(attr, lvl.name, idx + 1)
     })
   })
-
-  const terminal = levels[levels.length - 1]
-  const terminalAttributes = terminal.attributes.length > 0 ? terminal.attributes : [terminal.name]
-  terminalAttributes.forEach((attr) => push(attr, terminal.name, levels.length))
 
   return fields
 }
 
 export function buildHierarchyPathJson(
   levels: readonly ProductTemplateLevel[],
-  attributes: readonly { key: string; value: string }[]
+  attributes: readonly { key: string; value: string }[],
+  map?: Map<string, DimensionLookup>
 ): string | null {
-  const fields = getModelAttributeFields(levels)
+  const fields = getModelAttributeFields(levels, map)
   if (fields.length === 0) return null
 
   const entries: HierarchyPathEntry[] = []

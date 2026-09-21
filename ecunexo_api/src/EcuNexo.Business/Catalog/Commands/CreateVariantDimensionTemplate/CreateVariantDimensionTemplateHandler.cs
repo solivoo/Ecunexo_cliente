@@ -55,6 +55,9 @@ public sealed class CreateVariantDimensionTemplateHandler
             command.Name,
             command.DimensionType,
             command.PredefinedValuesJson,
+            command.DataType,
+            command.IsVariantAxis,
+            command.Unit,
             isSystemDefault: false);
 
         if (templateResult.IsFailure)

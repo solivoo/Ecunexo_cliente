@@ -1,4 +1,6 @@
+using System.Text.Json;
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
 
 namespace EcuNexo.Business.Catalog.Queries.GetCatalogItem;
@@ -43,12 +45,56 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
             .Select(CatalogItemImageResponse.FromEntity)
             .ToList();
 
+        // Herencia de imagen: la variante sin foto propia usa la del grupo (si coincide) o la del modelo.
+        var modelMainImage = item.Images
+            .Where(i => i.GroupValue == null)
+            .OrderBy(i => i.DisplayOrder)
+            .FirstOrDefault(i => i.IsMain)
+            ?? item.Images.Where(i => i.GroupValue == null).OrderBy(i => i.DisplayOrder).FirstOrDefault();
+        var modelThumb = modelMainImage?.ThumbUrl ?? modelMainImage?.MediumUrl ?? modelMainImage?.LargeUrl;
+
+        var groupThumbs = item.Images
+            .Where(i => i.GroupValue != null)
+            .GroupBy(i => i.GroupValue!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    var ordered = g.OrderBy(i => i.DisplayOrder).ToList();
+                    var main = ordered.FirstOrDefault(i => i.IsMain) ?? ordered.FirstOrDefault();
+                    return main?.ThumbUrl ?? main?.MediumUrl ?? main?.LargeUrl;
+                },
+                StringComparer.OrdinalIgnoreCase);
+
+        var primaryDimensionName = ResolvePrimaryDimensionName(item.VariantDimensionsJson);
+
         var variants = item.Variants
             .Where(v => v.DeletedAt == null)
             .Select(v =>
             {
                 var mainImg = v.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault(i => i.IsMain)
                     ?? v.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault();
+                var ownThumb = mainImg?.ThumbUrl ?? mainImg?.MediumUrl ?? mainImg?.LargeUrl;
+
+                string? inheritedThumb = null;
+                string? inheritedFrom = null;
+                if (ownThumb is null)
+                {
+                    var groupValue = ResolveVariantGroupValue(v, primaryDimensionName);
+                    if (groupValue is not null
+                        && groupThumbs.TryGetValue(groupValue, out var groupThumb)
+                        && groupThumb is not null)
+                    {
+                        inheritedThumb = groupThumb;
+                        inheritedFrom = "group";
+                    }
+                    else if (modelThumb is not null)
+                    {
+                        inheritedThumb = modelThumb;
+                        inheritedFrom = "model";
+                    }
+                }
+
                 return new CatalogItemVariantDto(
                     v.Id,
                     v.Name,
@@ -56,7 +102,9 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                     v.BasePrice,
                     v.CustomAttributesJson,
                     v.Status,
-                    mainImg?.ThumbUrl ?? mainImg?.MediumUrl ?? mainImg?.LargeUrl);
+                    ownThumb ?? inheritedThumb,
+                    inheritedFrom is not null,
+                    inheritedFrom);
             })
             .ToList();
 
@@ -98,5 +146,69 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 item.FamilyId,
                 familyName,
                 item.HierarchyPathJson));
+    }
+
+    private static string? ResolvePrimaryDimensionName(string? variantDimensionsJson)
+    {
+        if (string.IsNullOrWhiteSpace(variantDimensionsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(variantDimensionsJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            foreach (var dim in doc.RootElement.EnumerateArray())
+            {
+                if (dim.ValueKind == JsonValueKind.Object
+                    && dim.TryGetProperty("name", out var nameEl))
+                {
+                    return nameEl.GetString();
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Dimensiones inválidas: sin herencia por grupo
+        }
+
+        return null;
+    }
+
+    private static string? ResolveVariantGroupValue(CatalogItem variant, string? primaryDimensionName)
+    {
+        if (string.IsNullOrWhiteSpace(primaryDimensionName))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(variant.CustomAttributesJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                if (string.Equals(prop.Name, primaryDimensionName, StringComparison.OrdinalIgnoreCase)
+                    && prop.Value.ValueKind == JsonValueKind.String)
+                {
+                    return prop.Value.GetString();
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Atributos inválidos: sin herencia por grupo
+        }
+
+        return null;
     }
 }

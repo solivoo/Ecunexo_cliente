@@ -410,17 +410,52 @@ export function EditCatalogItemVariantsSection({
           return (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {row.mainImageThumbUrl ? (
-                <img
-                  src={row.mainImageThumbUrl}
-                  alt={row.name}
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 6,
-                    objectFit: 'cover',
-                    border: '1px solid var(--glb-border, #e2e8f0)',
-                  }}
-                />
+                <div style={{ position: 'relative' }}>
+                  <img
+                    src={row.mainImageThumbUrl}
+                    alt={row.name}
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 6,
+                      objectFit: 'cover',
+                      border: '1px solid var(--glb-border, #e2e8f0)',
+                    }}
+                    title={
+                      row.imageInherited
+                        ? row.imageInheritedFrom === 'group'
+                          ? 'Imagen compartida del grupo'
+                          : 'Imagen heredada del modelo'
+                        : row.name
+                    }
+                  />
+                  {row.imageInherited && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        bottom: -4,
+                        right: -4,
+                        padding: '0 4px',
+                        borderRadius: 4,
+                        fontSize: '0.6rem',
+                        fontWeight: 700,
+                        lineHeight: 1.4,
+                        background:
+                          row.imageInheritedFrom === 'group'
+                            ? 'color-mix(in srgb, #0d9488 90%, #000)'
+                            : 'color-mix(in srgb, #8b5cf6 85%, #000)',
+                        color: '#fff',
+                      }}
+                      title={
+                        row.imageInheritedFrom === 'group'
+                          ? 'Imagen compartida del grupo'
+                          : 'Imagen heredada del modelo'
+                      }
+                    >
+                      {row.imageInheritedFrom === 'group' ? 'G' : 'M'}
+                    </span>
+                  )}
+                </div>
               ) : (
                 <div
                   style={{

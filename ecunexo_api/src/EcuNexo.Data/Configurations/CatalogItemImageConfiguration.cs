@@ -32,6 +32,11 @@ public sealed class CatalogItemImageConfiguration : IEntityTypeConfiguration<Cat
         builder.Property(i => i.AltText)
             .HasMaxLength(ImageOptimizationPolicy.MaxAltTextLength);
 
+        builder.Property(i => i.GroupValue)
+            .HasMaxLength(CatalogItemImage.GroupValueMaxLength);
+
+        builder.HasIndex(i => new { i.CatalogItemId, i.GroupValue });
+
         builder.Property(i => i.DisplayOrder)
             .IsRequired();
 

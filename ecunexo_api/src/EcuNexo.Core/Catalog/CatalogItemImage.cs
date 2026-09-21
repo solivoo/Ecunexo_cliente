@@ -9,6 +9,8 @@ namespace EcuNexo.Core.Catalog;
 /// </summary>
 public sealed class CatalogItemImage : Entity<Guid>, IAuditable
 {
+    public const int GroupValueMaxLength = 120;
+
     private CatalogItemImage()
     {
         StorageKey = string.Empty;
@@ -25,6 +27,13 @@ public sealed class CatalogItemImage : Entity<Guid>, IAuditable
     public string StorageKey { get; private set; }
     public string OriginalFileName { get; private set; }
     public string? AltText { get; private set; }
+
+    /// <summary>
+    /// Valor de grupo compartido (ej. "Caña corta" o "Negro") cuando la imagen pertenece a una
+    /// variación agrupada del producto matriz. <c>null</c> = imagen del modelo.
+    /// </summary>
+    public string? GroupValue { get; private set; }
+
     public int DisplayOrder { get; internal set; }
     public bool IsMain { get; internal set; }
 
@@ -56,7 +65,8 @@ public sealed class CatalogItemImage : Entity<Guid>, IAuditable
         string thumbUrl,
         string mediumUrl,
         string largeUrl,
-        Guid? createdBy = null)
+        Guid? createdBy = null,
+        string? groupValue = null)
     {
         if (id == Guid.Empty)
         {
@@ -91,6 +101,15 @@ public sealed class CatalogItemImage : Entity<Guid>, IAuditable
                     ErrorType.Validation));
         }
 
+        var normalizedGroup = string.IsNullOrWhiteSpace(groupValue) ? null : groupValue.Trim();
+        if (normalizedGroup is not null && normalizedGroup.Length > GroupValueMaxLength)
+        {
+            return Result.Failure<CatalogItemImage>(
+                new Error("catalog.item.image.group_value.too_long",
+                    $"El valor de grupo no puede superar los {GroupValueMaxLength} caracteres.",
+                    ErrorType.Validation));
+        }
+
         return Result.Success(new CatalogItemImage
         {
             Id = id,
@@ -98,6 +117,7 @@ public sealed class CatalogItemImage : Entity<Guid>, IAuditable
             StorageKey = storageKey.Trim(),
             OriginalFileName = Path.GetFileName(originalFileName).Trim(),
             AltText = normalizedAlt,
+            GroupValue = normalizedGroup,
             DisplayOrder = displayOrder,
             IsMain = isMain,
             OriginalWidth = dimensions.Width,

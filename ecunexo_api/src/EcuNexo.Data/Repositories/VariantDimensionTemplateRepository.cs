@@ -29,7 +29,7 @@ public sealed class VariantDimensionTemplateRepository : IVariantDimensionTempla
             // Sembrar escalas por defecto para este tenant si aún no existen
             var defaults = VariantDimensionTemplate.GetSystemDefaultTemplates();
             var seeded = new List<VariantDimensionTemplate>();
-            foreach (var (name, dimType, values) in defaults)
+            foreach (var (name, dimType, dataType, values) in defaults)
             {
                 var valuesJson = JsonSerializer.Serialize(values);
                 var created = VariantDimensionTemplate.Create(
@@ -38,6 +38,8 @@ public sealed class VariantDimensionTemplateRepository : IVariantDimensionTempla
                     name,
                     dimType,
                     valuesJson,
+                    dataType: dataType,
+                    isVariantAxis: true,
                     isSystemDefault: true);
 
                 if (created.IsSuccess)

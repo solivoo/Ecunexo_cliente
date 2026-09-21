@@ -43,6 +43,38 @@ public sealed class VariantDimensionTemplateTests
         result.Error!.Code.Should().Be("catalog.variant_template.values.empty");
     }
 
+    [Fact(DisplayName = "Plantilla con tipo de dato y eje de variante se persiste")]
+    public void Create_WithTypedMetadata_Succeeds()
+    {
+        var result = VariantDimensionTemplate.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "Color Único",
+            "color",
+            "[\"Blanco\"]",
+            dataType: VariantDimensionTemplate.DataTypeColor,
+            isVariantAxis: false);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.DataType.Should().Be(VariantDimensionTemplate.DataTypeColor);
+        result.Value.IsVariantAxis.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Plantilla con tipo de dato no soportado es rechazada")]
+    public void Create_InvalidDataType_Fails()
+    {
+        var result = VariantDimensionTemplate.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "Raro",
+            "size",
+            "[\"A\"]",
+            dataType: "moneda");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("catalog.variant_template.data_type.invalid");
+    }
+
     [Fact(DisplayName = "Actualización de plantilla actualiza nombre y valores")]
     public void Update_Template_Succeeds()
     {

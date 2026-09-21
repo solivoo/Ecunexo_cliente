@@ -119,7 +119,8 @@ export async function uploadCatalogItemImage(
   itemId: string,
   file: File,
   altText?: string,
-  setAsMain?: boolean
+  setAsMain?: boolean,
+  groupValue?: string
 ): Promise<CatalogItemImageDto> {
   const formData = new FormData()
   formData.append('file', file)
@@ -128,6 +129,9 @@ export async function uploadCatalogItemImage(
   }
   if (setAsMain !== undefined) {
     formData.append('setAsMain', String(setAsMain))
+  }
+  if (groupValue) {
+    formData.append('groupValue', groupValue)
   }
 
   const { data } = await api.post<CatalogItemImageDto>(
@@ -199,7 +203,14 @@ export async function listVariantDimensionTemplates(
 
 export async function createVariantDimensionTemplate(
   tenantId: string,
-  payload: { name: string; dimensionType: string; predefinedValuesJson: string }
+  payload: {
+    name: string
+    dimensionType: string
+    predefinedValuesJson: string
+    dataType?: string
+    isVariantAxis?: boolean
+    unit?: string | null
+  }
 ): Promise<{ id: string; tenantId: string }> {
   const { data } = await api.post<{ id: string; tenantId: string }>(
     `/api/v1/tenants/${tenantId}/catalog/variant-templates`,
@@ -211,7 +222,14 @@ export async function createVariantDimensionTemplate(
 export async function updateVariantDimensionTemplate(
   tenantId: string,
   templateId: string,
-  payload: { name: string; dimensionType: string; predefinedValuesJson: string }
+  payload: {
+    name: string
+    dimensionType: string
+    predefinedValuesJson: string
+    dataType?: string
+    isVariantAxis?: boolean
+    unit?: string | null
+  }
 ): Promise<{ id: string; tenantId: string }> {
   const { data } = await api.put<{ id: string; tenantId: string }>(
     `/api/v1/tenants/${tenantId}/catalog/variant-templates/${templateId}`,

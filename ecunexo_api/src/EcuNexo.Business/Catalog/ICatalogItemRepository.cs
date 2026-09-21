@@ -33,6 +33,8 @@ public interface ICatalogItemRepository
 
     Task<int> CountVariantsAsync(Guid tenantId, bool onlyActive, CancellationToken ct);
 
+    Task<IReadOnlyDictionary<Guid, int>> CountItemsByFamilyAsync(Guid tenantId, CancellationToken ct);
+
     Task<bool> IsAttributeTemplateInUseAsync(Guid tenantId, string templateName, CancellationToken ct);
     Task<HashSet<string>> GetInUseAttributeTemplateNamesAsync(Guid tenantId, CancellationToken ct);
 }

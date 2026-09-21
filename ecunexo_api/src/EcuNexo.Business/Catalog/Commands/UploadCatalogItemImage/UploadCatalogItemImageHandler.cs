@@ -110,7 +110,8 @@ public sealed class UploadCatalogItemImageHandler : ICommandHandler<UploadCatalo
             mediumUrl: mediumUrl,
             largeUrl: largeUrl,
             setAsMain: command.SetAsMain,
-            createdBy: command.UserId);
+            createdBy: command.UserId,
+            groupValue: command.GroupValue);
 
         if (addResult.IsFailure)
         {

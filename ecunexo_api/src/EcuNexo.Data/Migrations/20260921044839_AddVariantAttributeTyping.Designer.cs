@@ -5,6 +5,7 @@ using EcuNexo.Core.Tenancy;
 using EcuNexo.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EcuNexo.Data.Migrations
 {
     [DbContext(typeof(EcuNexoDbContext))]
-    partial class EcuNexoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260921044839_AddVariantAttributeTyping")]
+    partial class AddVariantAttributeTyping
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -461,11 +464,6 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("file_size_bytes");
 
-                    b.Property<string>("GroupValue")
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("group_value");
-
                     b.Property<bool>("IsMain")
                         .HasColumnType("boolean")
                         .HasColumnName("is_main");
@@ -532,9 +530,6 @@ namespace EcuNexo.Data.Migrations
 
                     b.HasIndex("CatalogItemId", "DisplayOrder")
                         .HasDatabaseName("ix_item_images_catalog_item_id_display_order");
-
-                    b.HasIndex("CatalogItemId", "GroupValue")
-                        .HasDatabaseName("ix_item_images_catalog_item_id_group_value");
 
                     b.ToTable("item_images", "catalog");
                 });

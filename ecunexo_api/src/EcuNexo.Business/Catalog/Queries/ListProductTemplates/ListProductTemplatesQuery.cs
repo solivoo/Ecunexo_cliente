@@ -13,4 +13,5 @@ public sealed record ProductTemplateResponse(
     string HierarchyTreeJson,
     bool IsActive,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt,
+    int UsageCount = 0);

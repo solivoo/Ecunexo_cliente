@@ -32,7 +32,10 @@ public sealed class ListVariantDimensionTemplatesHandler
                 t.DimensionType,
                 t.PredefinedValuesJson,
                 t.IsSystemDefault,
-                inUseNames.Contains(t.Name)))
+                inUseNames.Contains(t.Name),
+                t.DataType,
+                t.IsVariantAxis,
+                t.Unit))
             .ToList();
 
         return Result.Success(response);

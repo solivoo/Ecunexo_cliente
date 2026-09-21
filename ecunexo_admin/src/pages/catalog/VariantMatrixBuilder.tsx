@@ -11,6 +11,7 @@ export type DimensionState = {
   dimensionType: string
   values: string[]
   activeValues: string[]
+  isColor?: boolean
 }
 export type VariantImageItem = {
   id: string
@@ -62,9 +63,11 @@ export type VariantMatrixBuilderProps = {
     variantDimensionsJson: string
     dimensionNames: string[]
     isValid: boolean
+    groupImages: { groupValue: string; images: VariantImageItem[] }[]
   }) => void
   availableImages?: AvailableGalleryImage[]
   initialDimensions?: { name: string; values?: string[]; isColor?: boolean }[]
+  photoScope?: 'variant' | 'group' | 'model'
 }
 
 
@@ -118,6 +121,7 @@ export function VariantMatrixBuilder({
   onChange,
   availableImages = [],
   initialDimensions,
+  photoScope,
 }: VariantMatrixBuilderProps) {
   const toast = useToast()
 
@@ -127,6 +131,7 @@ export function VariantMatrixBuilder({
   const [groupTargetForUpload, setGroupTargetForUpload] = useState<string | null>(null)
   const rowFileInputRef = useRef<HTMLInputElement | null>(null)
   const [rowTargetForUpload, setRowTargetForUpload] = useState<string | null>(null)
+  const [groupStagedImages, setGroupStagedImages] = useState<Record<string, VariantImageItem[]>>({})
 
   // Color Hex Map
   const [colorHexMap, setColorHexMap] = useState<Record<string, string>>(DEFAULT_COLOR_MAP)
@@ -160,6 +165,7 @@ export function VariantMatrixBuilder({
         dimensionType: isColor ? 'Color' : 'Talla',
         values,
         activeValues: values,
+        isColor,
       }
     })
     setDimensions(newDims)
@@ -306,10 +312,11 @@ export function VariantMatrixBuilder({
   const primaryDim = useMemo(() => {
     const act = dimensions.filter((d) => d.activeValues.length > 0 || d.values.length > 0)
     if (act.length === 0) return null
+    const isColor = (d: DimensionState) => Boolean(d.isColor) || isColorDimension(d.name)
     if (act.length === 1) {
-      return isColorDimension(act[0].name) ? act[0] : null
+      return isColor(act[0]) ? act[0] : null
     }
-    return act.find((d) => isColorDimension(d.name)) || act[0]
+    return act.find((d) => isColor(d)) || act[0]
   }, [dimensions])
 
   const childDims = useMemo(() => {
@@ -318,9 +325,34 @@ export function VariantMatrixBuilder({
     return act.filter((d) => d.id !== primaryDim.id)
   }, [dimensions, primaryDim])
 
+  const isPrimaryColor = useMemo(
+    () => (primaryDim ? Boolean(primaryDim.isColor) || isColorDimension(primaryDim.name) : false),
+    [primaryDim]
+  )
+
   // Group Image Toggle from general gallery
   const handleToggleGalleryImageInGroup = useCallback(
     (groupVal: string, img: AvailableGalleryImage) => {
+      if (photoScope === 'group') {
+        setGroupStagedImages((prev) => {
+          const current = prev[groupVal] ?? []
+          const exists = current.some((item) => item.previewUrl === img.previewUrl)
+          const updated = exists
+            ? current.filter((item) => item.previewUrl !== img.previewUrl)
+            : [
+                ...current,
+                {
+                  id: `var-gal-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                  file: img.file,
+                  previewUrl: img.previewUrl,
+                  name: img.altText || img.file.name,
+                },
+              ]
+          return { ...prev, [groupVal]: updated }
+        })
+        return
+      }
+
       setRows((prev) =>
         prev.map((r) => {
           if (primaryDim && r.dimensionValues[primaryDim.name] !== groupVal) return r
@@ -349,11 +381,16 @@ export function VariantMatrixBuilder({
         })
       )
     },
-    [primaryDim]
+    [photoScope, primaryDim]
   )
 
   const handleRemoveAllGroupImages = useCallback(
     (groupVal: string) => {
+      if (photoScope === 'group') {
+        setGroupStagedImages((prev) => ({ ...prev, [groupVal]: [] }))
+        return
+      }
+
       setRows((prev) =>
         prev.map((r) => {
           if (primaryDim && r.dimensionValues[primaryDim.name] !== groupVal) return r
@@ -366,7 +403,7 @@ export function VariantMatrixBuilder({
         })
       )
     },
-    [primaryDim]
+    [photoScope, primaryDim]
   )
 
   const handleTriggerUploadForGroup = useCallback((groupVal: string) => {
@@ -383,6 +420,14 @@ export function VariantMatrixBuilder({
         name: file.name,
       }))
 
+      if (photoScope === 'group') {
+        setGroupStagedImages((prev) => ({
+          ...prev,
+          [groupVal]: [...(prev[groupVal] ?? []), ...newItems],
+        }))
+        return
+      }
+
       setRows((prev) =>
         prev.map((r) => {
           if (primaryDim && r.dimensionValues[primaryDim.name] !== groupVal) return r
@@ -396,11 +441,19 @@ export function VariantMatrixBuilder({
         })
       )
     },
-    [primaryDim]
+    [photoScope, primaryDim]
   )
 
   const handleRemovePhotoFromGroup = useCallback(
     (groupVal: string, imgId: string) => {
+      if (photoScope === 'group') {
+        setGroupStagedImages((prev) => ({
+          ...prev,
+          [groupVal]: (prev[groupVal] ?? []).filter((i) => i.id !== imgId),
+        }))
+        return
+      }
+
       setRows((prev) =>
         prev.map((r) => {
           if (primaryDim && r.dimensionValues[primaryDim.name] !== groupVal) return r
@@ -413,7 +466,7 @@ export function VariantMatrixBuilder({
         })
       )
     },
-    [primaryDim]
+    [photoScope, primaryDim]
   )
 
   const handleTriggerUploadForRow = useCallback((rowId: string) => {
@@ -461,11 +514,15 @@ export function VariantMatrixBuilder({
   // Project rows into groups
   const groups = useMemo(() => {
     if (!primaryDim) {
+      const generalImages =
+        photoScope === 'group'
+          ? groupStagedImages['General'] ?? []
+          : rows.find((r) => r.stagedImages && r.stagedImages.length > 0)?.stagedImages || []
       return [
         {
           groupValue: 'General',
           rows,
-          images: rows.find((r) => r.stagedImages && r.stagedImages.length > 0)?.stagedImages || [],
+          images: generalImages,
         },
       ]
     }
@@ -483,13 +540,16 @@ export function VariantMatrixBuilder({
       }
       const g = map.get(gVal)!
       g.rows.push(r)
-      if (g.images.length === 0 && r.stagedImages && r.stagedImages.length > 0) {
+      if (photoScope !== 'group' && g.images.length === 0 && r.stagedImages && r.stagedImages.length > 0) {
         g.images = r.stagedImages
       }
     })
 
-    return Array.from(map.values())
-  }, [primaryDim, rows])
+    return Array.from(map.values()).map((g) => ({
+      ...g,
+      images: photoScope === 'group' ? groupStagedImages[g.groupValue] ?? [] : g.images,
+    }))
+  }, [groupStagedImages, photoScope, primaryDim, rows])
 
   // Add sub-variant (talla) to a specific group
   const handleAddSubVariantToGroup = useCallback(
@@ -518,7 +578,10 @@ export function VariantMatrixBuilder({
       })
 
       const groupRows = rows.filter((r) => (primaryDim ? r.dimensionValues[primaryDim.name] === groupVal : true))
-      const groupImages = groupRows.find((r) => r.stagedImages && r.stagedImages.length > 0)?.stagedImages || []
+      const groupImages =
+        photoScope === 'group'
+          ? []
+          : groupRows.find((r) => r.stagedImages && r.stagedImages.length > 0)?.stagedImages || []
 
       const rowId = `var-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 
@@ -541,7 +604,7 @@ export function VariantMatrixBuilder({
 
       setRows((prev) => [...prev, newRow])
     },
-    [baseName, basePrice, childDims, primaryDim, rows]
+    [baseName, basePrice, childDims, photoScope, primaryDim, rows]
   )
 
   // Add new group (e.g. Color)
@@ -611,7 +674,7 @@ export function VariantMatrixBuilder({
         return
       }
 
-      if (isColorDimension(primaryDim.name)) {
+      if (isPrimaryColor) {
         setColorModal({ mode: 'duplicate', value: sourceGroupVal, name: '', hex: '#3b82f6' })
         return
       }
@@ -622,7 +685,7 @@ export function VariantMatrixBuilder({
       handleAddCustomOptionToDimension(primaryDim.id, targetVal)
       handleDuplicateGroupTo(sourceGroupVal, targetVal)
     },
-    [handleAddCustomOptionToDimension, handleDuplicateGroupTo, primaryDim, rows]
+    [handleAddCustomOptionToDimension, handleDuplicateGroupTo, isPrimaryColor, primaryDim, rows]
   )
 
   // Delete group
@@ -643,7 +706,7 @@ export function VariantMatrixBuilder({
       if (!primaryDim) return
       let targetVal = newVal
       if (newVal === '__add_new__') {
-        if (isColorDimension(primaryDim.name)) {
+        if (isPrimaryColor) {
           setColorModal({ mode: 'new', value: oldVal, name: '', hex: '#3b82f6' })
           return
         }
@@ -668,7 +731,7 @@ export function VariantMatrixBuilder({
         })
       )
     },
-    [baseName, childDims, handleAddCustomOptionToDimension, primaryDim]
+    [baseName, childDims, handleAddCustomOptionToDimension, isPrimaryColor, primaryDim]
   )
 
   const handleConfirmColorModal = useCallback(() => {
@@ -771,11 +834,17 @@ export function VariantMatrixBuilder({
       variantDimensionsJson,
       dimensionNames,
       isValid,
+      groupImages:
+        photoScope === 'group'
+          ? Object.entries(groupStagedImages).map(([groupValue, images]) => ({ groupValue, images }))
+          : [],
     })
   }, [
     rows,
     dimensions,
     parentTags,
+    photoScope,
+    groupStagedImages,
     onChange,
   ])
 
@@ -864,7 +933,7 @@ export function VariantMatrixBuilder({
       ) : (
         <div className="ecu-variant-groups-list">
           {groups.map((group) => {
-            const isColor = primaryDim ? isColorDimension(primaryDim.name) : false
+            const isColor = primaryDim ? isPrimaryColor : false
             const hex = isColor ? colorHexMap[group.groupValue] : null
             const availableGroupVals = primaryDim ? (primaryDim.values.length > 0 ? primaryDim.values : primaryDim.activeValues) : []
 
@@ -959,8 +1028,8 @@ export function VariantMatrixBuilder({
                   </div>
                 </div>
 
-                {/* Shared Photos Bar (solo cuando existe una dimensión principal de agrupación) */}
-                {primaryDim && (
+                {/* Shared Photos Bar (solo cuando la captura es por grupo o el arquetipo no lo define) */}
+                {primaryDim && photoScope !== 'variant' && (
                   <div className="ecu-variant-group-card__photos-bar">
                     <span className="ecu-variant-group-card__photos-label">
                       Fotos {primaryDim ? `de «${group.groupValue}»` : ''} ({group.images.length}):
@@ -1039,51 +1108,53 @@ export function VariantMatrixBuilder({
                       })}
 
                       {/* Foto exclusiva de la variante (SKU) */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '96px', maxWidth: '120px' }}>
-                        <label className="ecu-variant-sub-item-label">Foto</label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          {row.stagedImages && row.stagedImages.length > 0 ? (
-                            <>
-                              <div className="ecu-variant-group-photo-thumb" style={{ width: 32, height: 32 }}>
-                                <img src={row.stagedImages[0].previewUrl} alt={row.variantTitle} />
-                                {row.stagedImages.length > 1 && (
-                                  <span className="ecu-variant-sub-item-photo-count">
-                                    +{row.stagedImages.length - 1}
-                                  </span>
-                                )}
+                      {photoScope !== 'group' && photoScope !== 'model' && (
+                        <div className="ecu-variant-sub-item-field" style={{ minWidth: '96px', maxWidth: '120px' }}>
+                          <label className="ecu-variant-sub-item-label">Foto</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            {row.stagedImages && row.stagedImages.length > 0 ? (
+                              <>
+                                <div className="ecu-variant-group-photo-thumb" style={{ width: 32, height: 32 }}>
+                                  <img src={row.stagedImages[0].previewUrl} alt={row.variantTitle} />
+                                  {row.stagedImages.length > 1 && (
+                                    <span className="ecu-variant-sub-item-photo-count">
+                                      +{row.stagedImages.length - 1}
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="ecu-variant-group-photo-remove"
+                                    onClick={() => handleRemovePhotoFromRow(row.id, row.stagedImages![0].id)}
+                                    disabled={disabled}
+                                    title="Quitar la foto principal de esta variante"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </div>
                                 <button
                                   type="button"
-                                  className="ecu-variant-group-photo-remove"
-                                  onClick={() => handleRemovePhotoFromRow(row.id, row.stagedImages![0].id)}
+                                  className="ecu-variant-card__icon-btn"
+                                  onClick={() => handleTriggerUploadForRow(row.id)}
                                   disabled={disabled}
-                                  title="Quitar la foto principal de esta variante"
+                                  title="Añadir otra foto a esta variante"
                                 >
-                                  <X size={10} />
+                                  <Upload size={12} />
                                 </button>
-                              </div>
+                              </>
+                            ) : (
                               <button
                                 type="button"
-                                className="ecu-variant-card__icon-btn"
+                                className="ecu-variant-sub-item-photo-add"
                                 onClick={() => handleTriggerUploadForRow(row.id)}
                                 disabled={disabled}
-                                title="Añadir otra foto a esta variante"
+                                title="Subir foto exclusiva para esta variante"
                               >
-                                <Upload size={12} />
+                                <Camera size={12} /> Foto
                               </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              className="ecu-variant-sub-item-photo-add"
-                              onClick={() => handleTriggerUploadForRow(row.id)}
-                              disabled={disabled}
-                              title="Subir foto exclusiva para esta variante"
-                            >
-                              <Camera size={12} /> Foto
-                            </button>
-                          )}
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* SKU (Obligatorio) */}
                       <div className="ecu-variant-sub-item-field" style={{ minWidth: '140px', flex: 1.2 }}>

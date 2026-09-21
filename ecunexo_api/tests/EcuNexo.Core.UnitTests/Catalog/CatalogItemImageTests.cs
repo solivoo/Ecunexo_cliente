@@ -159,4 +159,26 @@ public sealed class CatalogItemImageTests
         item.Images.First(i => i.Id == img1.Id).DisplayOrder.Should().Be(2);
         item.Images.First(i => i.Id == img2.Id).DisplayOrder.Should().Be(3);
     }
+
+    [Fact(DisplayName = "AddImage con valor de grupo persiste la referencia compartida")]
+    public void AddImage_WithGroupValue_StoresGroupReference()
+    {
+        var item = CatalogTestFactory.Physical(sku: "IMG-GROUP-01");
+
+        var result = item.AddImage(
+            Guid.CreateVersion7(),
+            "tenants/t/catalog/items/i/group_large.webp",
+            "grupo.webp",
+            null,
+            ImageDimensions.Create(800, 800).Value!,
+            1024,
+            "https://cdn/group-thumb.webp",
+            "https://cdn/group-medium.webp",
+            "https://cdn/group-large.webp",
+            setAsMain: true,
+            groupValue: "Negra");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.GroupValue.Should().Be("Negra");
+    }
 }

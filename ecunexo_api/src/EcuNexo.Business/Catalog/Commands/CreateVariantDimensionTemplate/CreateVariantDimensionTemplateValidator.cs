@@ -1,3 +1,4 @@
+using EcuNexo.Core.Catalog;
 using FluentValidation;
 
 namespace EcuNexo.Business.Catalog.Commands.CreateVariantDimensionTemplate;
@@ -19,5 +20,9 @@ public sealed class CreateVariantDimensionTemplateValidator : AbstractValidator<
         RuleFor(c => c.PredefinedValuesJson)
             .NotEmpty()
             .WithMessage("Los valores predefinidos son obligatorios.");
+
+        RuleFor(c => c.DataType)
+            .Must(VariantDimensionTemplate.IsValidDataType)
+            .WithMessage("El tipo de dato debe ser texto, número, booleano o color.");
     }
 }

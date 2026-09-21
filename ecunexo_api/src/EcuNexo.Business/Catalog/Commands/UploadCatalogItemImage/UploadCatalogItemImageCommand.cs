@@ -10,4 +10,5 @@ public sealed record UploadCatalogItemImageCommand(
     string ContentType,
     string? AltText = null,
     bool? SetAsMain = null,
-    Guid? UserId = null) : ICommand<CatalogItemImageResponse>;
+    Guid? UserId = null,
+    string? GroupValue = null) : ICommand<CatalogItemImageResponse>;

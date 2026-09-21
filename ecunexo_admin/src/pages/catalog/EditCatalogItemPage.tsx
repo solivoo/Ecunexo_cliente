@@ -118,14 +118,14 @@ export function EditCatalogItemPage() {
     }
   }, [familyTemplate])
 
-  const modelAttributeFields = useMemo(
-    () => getModelAttributeFields(familyLevels),
-    [familyLevels]
-  )
-
   const dimensionValuesMap = useMemo(
     () => buildDimensionValuesMap(dimensionTemplates),
     [dimensionTemplates]
+  )
+
+  const modelAttributeFields = useMemo(
+    () => getModelAttributeFields(familyLevels, dimensionValuesMap),
+    [familyLevels, dimensionValuesMap]
   )
 
   const setAttributeValue = useCallback((key: string, value: string) => {
@@ -348,7 +348,9 @@ export function EditCatalogItemPage() {
         }
 
         const hierarchyPathJson =
-          buildHierarchyPathJson(familyLevels, customAttributes) ?? item.hierarchyPathJson ?? null
+          buildHierarchyPathJson(familyLevels, customAttributes, dimensionValuesMap) ??
+            item.hierarchyPathJson ??
+            null
 
         await updateCatalogItem(tenantId, itemId, {
           kind: kindNum,
@@ -383,6 +385,7 @@ export function EditCatalogItemPage() {
       categoryId,
       customAttributes,
       description,
+      dimensionValuesMap,
       familyLevels,
       item,
       itemId,

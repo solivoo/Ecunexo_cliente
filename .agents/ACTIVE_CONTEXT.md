@@ -9,6 +9,44 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.41.0`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Validación de Nivel Terminal sin Atributos + Documentación de Plantillas (`ProductTemplateBuilderPage.tsx`, `doc/modulo-catalogo-inventario-ecommerce.md`) [sin bump de versión]:**
+    * **Validación:** aviso inline en el constructor y `Popup` de confirmación («Guardar de todas formas») cuando el nivel terminal no tiene atributos, explicando que el alta usará la dimensión por defecto (Talla).
+    * **Doc ampliada:** nueva sección 8 (cómo se genera una plantilla: estructura `hierarchyTreeJson`, interpretación en el alta, invariantes) y sección 9 (metodología de análisis de productos: levantamiento, árbol de decisión, traducción a niveles, elección de tipos de dato, errores comunes y checklist previa).
+    * **Verificación:** build frontend limpio; único aviso de lint restante es preexistente (`setState` en efecto de carga).
+  - **Catálogo — Alineación del Generador de Plantillas con Atributos Tipados y `photoScope` (`HierarchyTemplateTreeBuilder.tsx`, `ProductTemplatesListPage.tsx`) [sin bump de versión]:**
+    * **Selector de atributos:** ya no muestra la clasificación antigua (`size/color/custom`); ahora indica **tipo de dato + rol** (`Variantes` / `Descriptivo`) y unidad: ej. `Caña · Texto · Variantes`.
+    * **Chips de atributos:** incorporan badge verde **Variantes** o ámbar **Descriptivo** con tooltip del tipo y unidad, para entender por qué un atributo no genera SKUs.
+    * **Pills de fotos:** reemplazan el genérico «Foto» por el alcance real: **Foto: Modelo / Grupo / Variante** (en vista pizarra y lista anidada).
+    * **Simulación de desglose real:** se eliminó el texto hardcodeado (Talla + Color, ejemplos fijos, solo 2–3 niveles); ahora recorre los niveles reales, muestra cada atributo con su rol, los **ejes de SKU efectivos** y el **alcance de fotos resuelto**.
+    * **Listado de plantillas:** el icono de cámara refleja el alcance de fotos por nivel en su tooltip.
+    * **Verificación:** build frontend limpio, lint sin errores en los archivos tocados y specs de plantillas compilando.
+  - **Documentación Funcional — Catálogo, Inventario y Ecommerce (`doc/modulo-catalogo-inventario-ecommerce.md`) [sin bump de versión]:**
+    * Guía funcional completa: modelo de 3 capas (catálogo → inventario → ecommerce), piezas del catálogo (categorías, diccionario tipado, plantillas con `photoScope`, producto, variante), flujo de alta paso a paso.
+    * **6 ejemplos de ingreso:** calcetines (caña × talla con fotos por grupo/modelo), camisetas (color × talla), ferretería (medida numérica con unidad y color descriptivo), producto simple, servicio y variante con código de barras + stock inicial.
+    * Inventario (documentos de ingreso/egreso/traspaso/ajuste, kárdex promedio ponderado, disponible = cantidad − reservada), ciclo de pedidos ecommerce (reserva al crear, commit al despachar, liberación al cancelar), bondades, límites actuales/hoja de ruta, glosario y anexo de rutas.
+    * Afirmaciones verificadas contra el código (CreateEcommerceOrder reserva, ShipEcommerceOrder comitea, CancelEcommerceOrder libera; ReceivePurchase crea y aprueba documento `Receipt` origen `Purchase`).
+  - **Catálogo Fase 2-C — Fotos de Grupo Deduplicadas y Herencia Grupo→Modelo (`CatalogItemImage.cs`, migración `AddCatalogItemImageGroupValue`, `UploadCatalogItemImage*`, `GetCatalogItemHandler.cs`, `VariantMatrixBuilder.tsx`, `CreateCatalogItemPage.tsx`, `EditCatalogItemVariantsSection.tsx`) [sin bump de versión]:**
+    * **Esquema:** `catalog.item_images.group_value` (varchar 120, nullable, índice por ítem+grupo); `null` = imagen del modelo, con valor = foto compartida de esa variación.
+    * **Subida única:** el endpoint de imágenes acepta `groupValue`; en alcance «Compartidas por grupo» el constructor guarda las fotos en un mapa por grupo (`onChange.groupImages`) y la creación las sube **una sola vez** al producto matriz, sin replicar ni subir N veces.
+    * **Resolución en lectura:** la variante usa su foto propia → foto de su grupo (coincidencia por la dimensión principal y el valor del atributo) → foto del modelo; se expone `ImageInheritedFrom` (`group`/`model`).
+    * **UI de edición:** la columna Foto marca «G» (compartida de grupo) o «M» (heredada del modelo).
+    * **Verificación:** 432/432 tests backend en verde (270 Core + 162 Business; 2 nuevos: persistencia de `groupValue` y resolución grupo→modelo), modelo/migración sincronizados, build frontend limpio y sin errores nuevos de lint.
+    * **Pendiente:** aplicar el mismo resolvedor de herencia en la vitrina Ecommerce; vinculación de plantillas por ID de atributo (opcional).
+  - **Catálogo Fase 2-B — `photoScope` y Herencia de Imagen del Modelo (`HierarchyTemplateTreeBuilder.tsx`, `ProductTemplateBuilderPage.tsx`, `catalogArchetype.ts`, `CreateCatalogItemPage.tsx`, `VariantMatrixBuilder.tsx`, `GetCatalogItemHandler.cs`, `EditCatalogItemVariantsSection.tsx`) [sin bump de versión]:**
+    * **photoScope por nivel:** la plantilla declara dónde se capturan las fotos (`Sin fotos`, `Por variante (SKU)`, `Compartidas por grupo`, `Del modelo`); gana el alcance más consolidado (`model > group > variant`) y `hasImages` se mantiene sincronizado para compatibilidad.
+    * **Flujo de alta:** con alcance de modelo la galería del padre se habilita incluso con variantes y las fotos se suben una sola vez al producto matriz; con alcance de grupo se usa la barra compartida y se oculta la foto por fila; con variante se mantiene la foto por SKU.
+    * **Herencia en lectura:** `GetCatalogItem` resuelve la imagen principal del modelo para variantes sin foto propia (`ImageInherited = true`), sin duplicar registros ni archivos; la edición muestra la miniatura con la marca «M» (heredada).
+    * **Constructor de plantillas:** el toggle «Fotografías por elemento» se reemplaza por un selector de alcance; los niveles nuevos usan `model` en el nivel de modelo y `variant` en el terminal.
+    * **Verificación:** 430/430 tests backend en verde (269 Core + 161 Business; 2 tests nuevos de herencia), build frontend limpio y limpieza de lint (ids de nivel extraídos a helper puro).
+    * **Pendiente 2-C (si se requiere):** media compartida real (asset único referenciado por grupo/variante), deduplicación de fotos de grupo (hoy se replican al subir) y vinculación de plantillas por ID de atributo.
+  - **Catálogo Fase 2-A — Atributos Tipados y Candado de Plantilla en Uso (`VariantDimensionTemplate.cs`, migración `AddVariantAttributeTyping`, `catalogArchetype.ts`, `ArchetypeModelFields.tsx`, `CatalogAttributesListPage.tsx`, `ProductTemplatesListPage.tsx`, handlers) [sin bump de versión]:**
+    * **Diccionario tipado:** `VariantDimensionTemplate` incorpora `DataType` (`text|number|boolean|color`), `IsVariantAxis` (eje con SKU vs descriptivo del modelo) y `Unit` (unidad opcional); migración con defaults y backfill de escalas con semántica de color; escalas del sistema tipadas.
+    * **UI por tipo:** `ArchetypeModelFields` renderiza según `dataType` (ColorPicker, NumberBox, Select Sí/No, Select de opciones o TextBox) e incluye la unidad en la etiqueta; el constructor de variantes respeta el color tipado aunque el nombre no contenga «color» (`DimensionState.isColor`).
+    * **isVariantAxis:** `getModelAttributeFields`/`getVariantDimensionFields` separan modelo y ejes por metadato tipado (heurística por nombre solo como respaldo); un color `isVariantAxis=false` deja de generar SKUs y se captura como atributo del modelo.
+    * **Gestión del diccionario:** el modal de Atributos agrega Tipo de dato, Uso en variantes y Unidad; la grilla muestra tipo, unidad y la marca «Solo descriptivo».
+    * **Candado de plantilla:** el listado expone `usageCount` con badge «N productos / Sin uso» y bloquea la eliminación en uso (backend `catalog.product_template.delete.in_use`, con FK `SET NULL` como respaldo).
+    * **Verificación:** 428/428 tests backend en verde (269 Core + 159 Business; 4 tests nuevos), modelo y migración sincronizados, build frontend limpio y sin errores nuevos de lint.
+    * **Pendiente Fase 2-B:** `photoScope` (model/group/variant) + media compartida sin duplicar y vinculación de plantillas por ID de atributo.
   - **Catálogo — Fotografía por Variante (SKU) (`VariantMatrixBuilder.tsx`, `variantMatrixBuilder.css`, specs UI) [sin bump de versión]:**
     * **Foto por fila:** cada variante/SKU incorpora su propia columna «Foto» con subida múltiple, miniatura, contador `+N` y remoción, independiente de las fotos compartidas.
     * **Barra compartida condicionada:** las «Fotos compartidas del grupo» solo se muestran cuando existe una dimensión principal real (color/caña); con una sola dimensión (Talla → grupo «General») cada SKU gestiona su propia imagen.

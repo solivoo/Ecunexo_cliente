@@ -69,6 +69,9 @@ export function CatalogAttributesListPage() {
   const [editingTemplate, setEditingTemplate] = useState<VariantDimensionTemplateDto | null>(null)
   const [formName, setFormName] = useState('')
   const [formType, setFormType] = useState('custom')
+  const [formDataType, setFormDataType] = useState('text')
+  const [formIsVariantAxis, setFormIsVariantAxis] = useState(true)
+  const [formUnit, setFormUnit] = useState('')
   const [formValues, setFormValues] = useState<string[]>([])
   const [newValueInput, setNewValueInput] = useState('')
   const [saving, setSaving] = useState(false)
@@ -112,6 +115,9 @@ export function CatalogAttributesListPage() {
     setEditingTemplate(null)
     setFormName('')
     setFormType('custom')
+    setFormDataType('text')
+    setFormIsVariantAxis(true)
+    setFormUnit('')
     setFormValues([])
     setNewValueInput('')
     setEditModalOpen(true)
@@ -121,6 +127,11 @@ export function CatalogAttributesListPage() {
     setEditingTemplate(template)
     setFormName(template.name)
     setFormType(template.dimensionType || 'custom')
+    setFormDataType(
+      template.dataType || (template.dimensionType === 'color' ? 'color' : 'text')
+    )
+    setFormIsVariantAxis(template.isVariantAxis !== false)
+    setFormUnit(template.unit ?? '')
     try {
       const parsed = JSON.parse(template.predefinedValuesJson)
       setFormValues(Array.isArray(parsed) ? parsed : [])
@@ -176,6 +187,9 @@ export function CatalogAttributesListPage() {
         name,
         dimensionType: formType,
         predefinedValuesJson: JSON.stringify(formValues),
+        dataType: formDataType,
+        isVariantAxis: formIsVariantAxis,
+        unit: formUnit.trim() || null,
       }
       if (editingTemplate) {
         await updateVariantDimensionTemplate(tenantId, editingTemplate.id, payload)
@@ -200,7 +214,7 @@ export function CatalogAttributesListPage() {
     } finally {
       setSaving(false)
     }
-  }, [editingTemplate, formName, formType, formValues, loadData, tenantId, toast])
+  }, [editingTemplate, formDataType, formIsVariantAxis, formName, formType, formUnit, formValues, loadData, tenantId, toast])
 
   const handleDelete = useCallback(async () => {
     if (!tenantId || !confirmDelete) return
@@ -295,16 +309,33 @@ export function CatalogAttributesListPage() {
       {
         key: 'dimensionType',
         header: 'Clasificación',
-        width: 160,
+        width: 180,
         sortable: true,
         renderCell: (_val: unknown, row: TemplateGridRow) => {
-          if (row.dimensionType === 'size') {
-            return <StatusBadge tone="info">Tallas / Medidas</StatusBadge>
-          }
-          if (row.dimensionType === 'color') {
-            return <StatusBadge tone="warning">Color / Acabado</StatusBadge>
-          }
-          return <StatusBadge tone="neutral">Especificación</StatusBadge>
+          const typeLabel =
+            row.dataType === 'color'
+              ? 'Color'
+              : row.dataType === 'number'
+                ? 'Número'
+                : row.dataType === 'boolean'
+                  ? 'Sí / No'
+                  : 'Texto'
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              {row.dimensionType === 'size' ? (
+                <StatusBadge tone="info">Tallas / Medidas</StatusBadge>
+              ) : row.dimensionType === 'color' ? (
+                <StatusBadge tone="warning">Color / Acabado</StatusBadge>
+              ) : (
+                <StatusBadge tone="neutral">Especificación</StatusBadge>
+              )}
+              <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
+                {typeLabel}
+                {row.unit ? ` · ${row.unit}` : ''}
+                {row.isVariantAxis === false ? ' · Solo descriptivo' : ''}
+              </span>
+            </div>
+          )
         },
       },
       {
@@ -583,6 +614,54 @@ export function CatalogAttributesListPage() {
               ]}
               value={formType}
               onChange={setFormType}
+              disabled={saving}
+              fullWidth
+            />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <Select
+                id="template-data-type"
+                label="Tipo de dato"
+                labelPosition="outlined"
+                variant="outline"
+                options={[
+                  { value: 'text', label: 'Texto libre' },
+                  { value: 'number', label: 'Número' },
+                  { value: 'boolean', label: 'Sí / No' },
+                  { value: 'color', label: 'Color (muestra)' },
+                ]}
+                value={formDataType}
+                onChange={(v: string) => {
+                  setFormDataType(v)
+                  if (v === 'color') setFormType('color')
+                }}
+                disabled={saving}
+                fullWidth
+              />
+              <Select
+                id="template-axis"
+                label="Uso en variantes"
+                labelPosition="outlined"
+                variant="outline"
+                options={[
+                  { value: 'true', label: 'Genera variantes con SKU' },
+                  { value: 'false', label: 'Solo descriptivo del producto' },
+                ]}
+                value={formIsVariantAxis ? 'true' : 'false'}
+                onChange={(v: string) => setFormIsVariantAxis(v === 'true')}
+                disabled={saving}
+                fullWidth
+              />
+            </div>
+
+            <TextBox
+              id="template-unit"
+              label="Unidad (opcional)"
+              labelPosition="outlined"
+              variant="outline"
+              placeholder="Ej. cm, mm, g, pulgadas"
+              value={formUnit}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setFormUnit(e.target.value)}
               disabled={saving}
               fullWidth
             />
