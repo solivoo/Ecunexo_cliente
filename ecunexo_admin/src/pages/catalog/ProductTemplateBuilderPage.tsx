@@ -173,26 +173,30 @@ export function ProductTemplateBuilderPage() {
     setSaving(true)
     try {
       const hierarchyTreeJson = JSON.stringify(levels)
+      const payload = {
+        name: trimmedName,
+        description: description.trim() || null,
+        hierarchyTreeJson,
+        isActive,
+      }
+
+      console.log('[Plantillas] Enviando a la API al guardar plantilla', {
+        tenantId,
+        plantillaId: isEdit && templateId ? templateId : null,
+        modo: isEdit ? 'edición' : 'creación',
+        payload,
+        niveles: levels,
+      })
 
       if (isEdit && templateId) {
-        await updateProductTemplate(tenantId, templateId, {
-          name: trimmedName,
-          description: description.trim() || null,
-          hierarchyTreeJson,
-          isActive,
-        })
+        await updateProductTemplate(tenantId, templateId, payload)
         toast.show({
           title: 'Plantilla Guardada',
           message: `La plantilla «${trimmedName}» se ha actualizado correctamente.`,
           variant: 'success',
         })
       } else {
-        await createProductTemplate(tenantId, {
-          name: trimmedName,
-          description: description.trim() || null,
-          hierarchyTreeJson,
-          isActive,
-        })
+        await createProductTemplate(tenantId, payload)
         toast.show({
           title: 'Plantilla Creada',
           message: `La plantilla «${trimmedName}» se ha creado con éxito.`,

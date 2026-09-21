@@ -376,6 +376,18 @@ export function CreateCatalogItemPage() {
           dimensionValuesMap
         )
 
+        console.log('[Crear Ítem] Guardando con plantilla', {
+          plantillaId: familyId,
+          plantillaNombre: appliedTemplate?.name ?? null,
+          nivelesPlantilla: appliedTemplateLevels,
+          alcanceFotos: appliedTemplate ? photoScope : null,
+          atributosModelo: customAttributes,
+          rutaJerarquica: hierarchyPathJson,
+          dimensionesVariantes: matrixData.variantDimensionsJson,
+          variantes: matrixData.variants,
+          fotosPorGrupo: matrixData.groupImages,
+        })
+
         if (hasVariants && kindNum === CatalogItemKind.Physical) {
           if (!matrixData.isValid || matrixData.variants.length === 0) {
             throw new Error('Debes configurar al menos una variante con SKU.')
