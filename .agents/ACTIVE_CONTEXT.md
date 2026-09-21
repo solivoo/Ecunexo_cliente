@@ -9,6 +9,12 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.41.0`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — UI de Variantes en Glubox, SKU Bicolor y Legibilidad (`VariantMatrixBuilder.tsx`, `variantMatrixBuilder.css`) [sin bump de versión]:**
+    * **Controles glubox:** la ficha de variante migró de inputs/selects nativos a `Select` (dimensiones y selector de grupo), `TextBox` (SKU, tags, código de barras) y `NumberBox` (precio, stock); el SKU se normaliza a mayúsculas.
+    * **Legibilidad:** cada variante se divide en dos líneas (dimensiones + SKU arriba; colores combinados, foto, tags, precio, stock, barras y acciones abajo) con ancho mínimo por campo para evitar truncamientos.
+    * **Swatch de color evidente:** botón con borde punteado y paleta cuando no hay color asignado, tooltip «Elegir/Editar color» y apertura del `ColorPicker` de glubox.
+    * **SKU bicolor (colores combinados):** en dimensiones de color, cada fila puede sumar colores secundarios (chips con muestra y quitar); el principal agrupa la tarjeta y conserva la herencia de foto; el título se compone «Principal / Secundarios / Talla» y se serializa en `customAttributesJson.colores_secundarios`.
+    * **Verificación:** build frontend limpio; únicos avisos de lint preexistentes.
   - **Catálogo — Validación de Nivel Terminal sin Atributos + Documentación de Plantillas (`ProductTemplateBuilderPage.tsx`, `doc/modulo-catalogo-inventario-ecommerce.md`) [sin bump de versión]:**
     * **Validación:** aviso inline en el constructor y `Popup` de confirmación («Guardar de todas formas») cuando el nivel terminal no tiene atributos, explicando que el alta usará la dimensión por defecto (Talla).
     * **Doc ampliada:** nueva sección 8 (cómo se genera una plantilla: estructura `hierarchyTreeJson`, interpretación en el alta, invariantes) y sección 9 (metodología de análisis de productos: levantamiento, árbol de decisión, traducción a niveles, elección de tipos de dato, errores comunes y checklist previa).

@@ -112,6 +112,8 @@ Cada nivel declara además:
 
 > Si prefieres una sola foto para todo el producto, el nivel de modelo se marca como **Del modelo**: subes 1 imagen y las 9 variantes la heredan.
 
+> **Colores combinados (SKU bicolor):** dentro de una tarjeta puedes combinar el color principal con **colores secundarios** (ej. Negro + Blanco). El SKU se escribe manual y el título se compone como «Negro / Blanco / Talla»; los secundarios se guardan en el atributo `colores_secundarios` de la variante y no alteran la agrupación ni la herencia de fotos del color principal.
+
 ### B. Camisetas — Color × Talla
 
 * **Plantilla:** Colección (Marca, Material) → Variantes (Color, Talla).
@@ -355,6 +357,7 @@ Los niveles intermedios **no deben inventarse**: cada nivel debe aportar context
 | **Eje de variante** | Atributo que genera combinaciones y SKUs (Talla, Color, Caña…) |
 | **SKU** | Código único de la variante vendible/inventariable |
 | **photoScope** | Alcance de captura fotográfica: modelo, grupo o variante |
+| **Colores secundarios** | Colores adicionales de una variante bicolor; se combinan con el color principal de la tarjeta |
 | **Kárdex** | Registro valorado de movimientos de inventario (promedio ponderado) |
 | **Disponible** | Cantidad física menos cantidad reservada por pedidos o talleres |
 

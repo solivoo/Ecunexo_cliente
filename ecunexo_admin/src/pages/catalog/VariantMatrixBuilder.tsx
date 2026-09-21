@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { Button, ColorPicker, Popup, TextBox, useToast } from 'glubox'
-import { Camera, Check, Copy, Layers, Plus, Trash2, Upload, X } from 'lucide-react'
+import { Button, ColorPicker, NumberBox, Popup, Select, TextBox, useToast } from 'glubox'
+import { Camera, Check, Copy, Layers, Palette, Plus, Trash2, Upload, X } from 'lucide-react'
 import { isColorDimension } from '@/lib/catalogArchetype'
 import type { CreateVariantChildPayload } from '@/types/catalogApi'
 import './variantMatrixBuilder.css'
@@ -36,6 +36,7 @@ export type VariantRowState = {
   stagedImagePreview?: string | null
   stagedImages?: VariantImageItem[]
   variantTags?: string
+  secondaryColors?: string[]
   actions?: string
   [key: string]: unknown
 }
@@ -229,29 +230,6 @@ export function VariantMatrixBuilder({
     }
   }, [dimensions, baseName, basePrice, rows.length])
 
-  // Cambio de dimensión en una fila específica (selección por variante) - NO recrear el SKU
-  const handleRowDimensionChange = useCallback(
-    (rowId: string, dimName: string, newValue: string) => {
-      setRows((prev) =>
-        prev.map((r) => {
-          if (r.id !== rowId) return r
-          const updatedDims = { ...r.dimensionValues, [dimName]: newValue }
-          const variationLabel = Object.values(updatedDims).filter(Boolean).join(' / ')
-          const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
-
-          return {
-            ...r,
-            dimensionValues: updatedDims,
-            variationLabel,
-            variantTitle: r.isManualTitle ? r.variantTitle : autoTitle,
-            sku: r.sku, // El SKU nunca se recrea automáticamente
-          }
-        })
-      )
-    },
-    [baseName]
-  )
-
   // Duplicar una fila de variante
   const handleDuplicateVariantRow = useCallback(
     (rowId: string) => {
@@ -328,6 +306,69 @@ export function VariantMatrixBuilder({
   const isPrimaryColor = useMemo(
     () => (primaryDim ? Boolean(primaryDim.isColor) || isColorDimension(primaryDim.name) : false),
     [primaryDim]
+  )
+
+  // Cambio de dimensión en una fila específica (selección por variante) - NO recrear el SKU
+  const buildRowLabel = useCallback(
+    (dimensionValues: Record<string, string>, secondaryColors: readonly string[] = []) => {
+      const parts: string[] = []
+      if (primaryDim) {
+        const main = dimensionValues[primaryDim.name]
+        if (main) parts.push(main)
+      }
+      secondaryColors.forEach((color) => {
+        if (color && !parts.includes(color)) parts.push(color)
+      })
+      Object.entries(dimensionValues).forEach(([key, value]) => {
+        if (!value) return
+        if (primaryDim && key === primaryDim.name) return
+        parts.push(value)
+      })
+      return parts.join(' / ')
+    },
+    [primaryDim]
+  )
+
+  const handleRowDimensionChange = useCallback(
+    (rowId: string, dimName: string, newValue: string) => {
+      setRows((prev) =>
+        prev.map((r) => {
+          if (r.id !== rowId) return r
+          const updatedDims = { ...r.dimensionValues, [dimName]: newValue }
+          const variationLabel = buildRowLabel(updatedDims, r.secondaryColors)
+          const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
+
+          return {
+            ...r,
+            dimensionValues: updatedDims,
+            variationLabel,
+            variantTitle: r.isManualTitle ? r.variantTitle : autoTitle,
+            sku: r.sku, // El SKU nunca se recrea automáticamente
+          }
+        })
+      )
+    },
+    [baseName, buildRowLabel]
+  )
+
+  const handleSecondaryColorsChange = useCallback(
+    (rowId: string, colors: string[]) => {
+      setRows((prev) =>
+        prev.map((r) => {
+          if (r.id !== rowId) return r
+          const variationLabel = buildRowLabel(r.dimensionValues, colors)
+          const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
+
+          return {
+            ...r,
+            secondaryColors: colors,
+            variationLabel,
+            variantTitle: r.isManualTitle ? r.variantTitle : autoTitle,
+          }
+        })
+      )
+    },
+    [baseName, buildRowLabel]
   )
 
   // Group Image Toggle from general gallery
@@ -801,6 +842,9 @@ export function VariantMatrixBuilder({
           }
         })
       }
+      if (r.secondaryColors && r.secondaryColors.length > 0) {
+        customAttrs['colores_secundarios'] = r.secondaryColors
+      }
 
       // Sintetizar tags: tags del padre + dimensiones de la variante + tags específicos de la variante
       const combinedTags = combineHierarchyTags(parentTags, r.dimensionValues, r.variantTags)
@@ -949,11 +993,20 @@ export function VariantMatrixBuilder({
                           className="ecu-color-swatch-dot--lg"
                           style={{
                             backgroundColor: hex || '#94a3b8',
-                            border: '1px solid var(--shell-border, rgba(0,0,0,0.15))',
+                            border: hex
+                              ? '1px solid var(--shell-border, rgba(0,0,0,0.15))'
+                              : '1px dashed var(--shell-primary, #3b82f6)',
                             padding: 0,
                             cursor: disabled ? 'not-allowed' : 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                           }}
-                          title={`Elegir el color de «${group.groupValue}»`}
+                          title={
+                            hex
+                              ? `Editar el color de «${group.groupValue}»`
+                              : `Elegir un color para «${group.groupValue}»`
+                          }
                           onClick={() =>
                             setColorModal({
                               mode: 'edit',
@@ -963,7 +1016,9 @@ export function VariantMatrixBuilder({
                             })
                           }
                           disabled={disabled}
-                        />
+                        >
+                          {!hex && <Palette size={10} style={{ color: '#ffffff' }} />}
+                        </button>
                       ) : (
                         <span
                           className="ecu-color-swatch-dot--lg"
@@ -976,22 +1031,23 @@ export function VariantMatrixBuilder({
                         {primaryDim ? primaryDim.name : 'Grupo'}:
                       </span>
                       {primaryDim && primaryDim.id ? (
-                        <select
-                          className="ecu-variant-group-card__select"
-                          value={group.groupValue}
-                          onChange={(e) => handleRenameGroupValue(group.groupValue, e.target.value)}
-                          disabled={disabled}
-                        >
-                          {availableGroupVals.map((val) => (
-                            <option key={val} value={val}>
-                              {val}
-                            </option>
-                          ))}
-                          {group.groupValue && !availableGroupVals.includes(group.groupValue) && (
-                            <option value={group.groupValue}>{group.groupValue}</option>
-                          )}
-                          <option value="__add_new__">+ Nuevo {primaryDim.name}...</option>
-                        </select>
+                        <div style={{ minWidth: 170, maxWidth: 240 }}>
+                          <Select
+                            size="sm"
+                            variant="outline"
+                            value={group.groupValue}
+                            onChange={(val: string) => handleRenameGroupValue(group.groupValue, val)}
+                            disabled={disabled}
+                            options={[
+                              ...availableGroupVals.map((val) => ({ value: val, label: val })),
+                              ...(group.groupValue && !availableGroupVals.includes(group.groupValue)
+                                ? [{ value: group.groupValue, label: group.groupValue }]
+                                : []),
+                              { value: '__add_new__', label: `+ Nuevo ${primaryDim.name}...` },
+                            ]}
+                            fullWidth
+                          />
+                        </div>
                       ) : (
                         <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--glb-text)' }}>
                           {group.groupValue}
@@ -1074,13 +1130,13 @@ export function VariantMatrixBuilder({
                         const availableVals = dim.values.length > 0 ? dim.values : dim.activeValues
 
                         return (
-                          <div key={dim.id} className="ecu-variant-sub-item-field" style={{ minWidth: '100px', maxWidth: '140px' }}>
+                          <div key={dim.id} className="ecu-variant-sub-item-field" style={{ minWidth: '140px', flex: '1 1 140px', maxWidth: '190px' }}>
                             <label className="ecu-variant-sub-item-label">{dim.name}</label>
-                            <select
-                              className="ecu-variant-card__select"
+                            <Select
+                              size="sm"
+                              variant="outline"
                               value={currentVal}
-                              onChange={(e) => {
-                                const val = e.target.value
+                              onChange={(val: string) => {
                                 if (val === '__add_new__') {
                                   const newVal = window.prompt(`Añadir nueva opción para «${dim.name}»:`)
                                   if (newVal && newVal.trim()) {
@@ -1092,17 +1148,15 @@ export function VariantMatrixBuilder({
                                 }
                               }}
                               disabled={disabled}
-                            >
-                              {availableVals.map((val) => (
-                                <option key={val} value={val}>
-                                  {val}
-                                </option>
-                              ))}
-                              {currentVal && !availableVals.includes(currentVal) && (
-                                <option value={currentVal}>{currentVal}</option>
-                              )}
-                              <option value="__add_new__">+ Nueva...</option>
-                            </select>
+                              options={[
+                                ...(currentVal && !availableVals.includes(currentVal)
+                                  ? [{ value: currentVal, label: currentVal }]
+                                  : []),
+                                ...availableVals.map((val) => ({ value: val, label: val })),
+                                { value: '__add_new__', label: '+ Nueva...' },
+                              ]}
+                              fullWidth
+                            />
                           </div>
                         )
                       })}
@@ -1157,79 +1211,158 @@ export function VariantMatrixBuilder({
                       )}
 
                       {/* SKU (Obligatorio) */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '140px', flex: 1.2 }}>
+                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '190px', flex: '1.4 1 190px', maxWidth: '260px' }}>
                         <label className="ecu-variant-sub-item-label">SKU *</label>
-                        <input
-                          type="text"
-                          className="ecu-variant-card__input ecu-variant-card__input--sku"
+                        <TextBox
+                          size="sm"
+                          variant="outline"
                           value={row.sku}
-                          onChange={(e) => updateRow(row.id, 'sku', e.target.value)}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            updateRow(row.id, 'sku', e.target.value.toUpperCase())
+                          }
                           placeholder="Ej. NIK-001-0001"
                           disabled={disabled}
+                          fullWidth
                         />
                       </div>
 
+                      {/* Salto de línea para legibilidad de la ficha de variante */}
+                      <div className="ecu-variant-sub-item-break" aria-hidden />
+
+                      {/* Colores combinados (SKU bicolor) */}
+                      {isPrimaryColor && primaryDim && (
+                        <div
+                          className="ecu-variant-sub-item-field"
+                          style={{ minWidth: '230px', flex: '1.4 1 230px' }}
+                        >
+                          <label className="ecu-variant-sub-item-label">Colores combinados</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+                            {(row.secondaryColors ?? []).map((color) => (
+                              <span key={color} className="ecu-secondary-color-chip" title={`Color secundario: ${color}`}>
+                                <span
+                                  className="ecu-secondary-color-dot"
+                                  style={{ backgroundColor: colorHexMap[color] || '#94a3b8' }}
+                                />
+                                <span>{color}</span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleSecondaryColorsChange(
+                                      row.id,
+                                      (row.secondaryColors ?? []).filter((c) => c !== color)
+                                    )
+                                  }
+                                  disabled={disabled}
+                                  title={`Quitar ${color}`}
+                                >
+                                  <X size={10} />
+                                </button>
+                              </span>
+                            ))}
+                            <div style={{ minWidth: 130, maxWidth: 170 }}>
+                              <Select
+                                size="sm"
+                                variant="outline"
+                                value=""
+                                placeholder={
+                                  row.secondaryColors && row.secondaryColors.length > 0
+                                    ? '+ Agregar color'
+                                    : '+ Combinar color'
+                                }
+                                options={(primaryDim.values.length > 0
+                                  ? primaryDim.values
+                                  : primaryDim.activeValues
+                                )
+                                  .filter(
+                                    (val) =>
+                                      val !== row.dimensionValues[primaryDim.name] &&
+                                      !(row.secondaryColors ?? []).includes(val)
+                                  )
+                                  .map((val) => ({ value: val, label: val }))}
+                                onChange={(val: string) => {
+                                  if (!val) return
+                                  handleSecondaryColorsChange(row.id, [
+                                    ...(row.secondaryColors ?? []),
+                                    val,
+                                  ])
+                                }}
+                                disabled={disabled}
+                                fullWidth
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Tags / Actividad */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '130px', flex: 1 }}>
+                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '160px', flex: '1 1 160px' }}>
                         <label className="ecu-variant-sub-item-label">Tags / Actividad</label>
-                        <input
-                          type="text"
-                          className="ecu-variant-card__input"
+                        <TextBox
+                          size="sm"
+                          variant="outline"
                           value={row.variantTags || ''}
-                          onChange={(e) => updateRow(row.id, 'variantTags', e.target.value)}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            updateRow(row.id, 'variantTags', e.target.value)
+                          }
                           placeholder="Ej. Running..."
                           disabled={disabled}
                           title="Tags o actividad específica para esta variante"
+                          fullWidth
                         />
                       </div>
 
                       {/* Precio Base */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '110px', maxWidth: '140px' }}>
+                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '130px', flex: '0 1 150px' }}>
                         <label className="ecu-variant-sub-item-label">Precio ($)</label>
-                        <div style={{ position: 'relative', width: '100%' }}>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            className="ecu-variant-card__input"
-                            value={row.basePrice}
-                            onChange={(e) => updateRow(row.id, 'basePrice', e.target.value)}
-                            placeholder="0.00"
-                            disabled={disabled}
-                          />
-                          {!row.isManualPrice && basePrice.trim() && (
-                            <span className="ecu-variant-card__inherited-hint">
-                              Heredado (${basePrice.trim()})
-                            </span>
-                          )}
-                        </div>
+                        <NumberBox
+                          size="sm"
+                          variant="outline"
+                          value={row.basePrice}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            updateRow(row.id, 'basePrice', e.target.value)
+                          }
+                          step={0.01}
+                          min={0}
+                          placeholder="0.00"
+                          disabled={disabled}
+                          fullWidth
+                        />
+                        {!row.isManualPrice && basePrice.trim() && (
+                          <span className="ecu-variant-sub-item-hint">Heredado (${basePrice.trim()})</span>
+                        )}
                       </div>
 
                       {/* Stock Inicial */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '90px', maxWidth: '120px' }}>
+                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '110px', flex: '0 1 130px' }}>
                         <label className="ecu-variant-sub-item-label">Stock</label>
-                        <input
-                          type="number"
-                          step="1"
-                          min="0"
-                          className="ecu-variant-card__input"
+                        <NumberBox
+                          size="sm"
+                          variant="outline"
                           value={row.initialStock}
-                          onChange={(e) => updateRow(row.id, 'initialStock', e.target.value)}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            updateRow(row.id, 'initialStock', e.target.value)
+                          }
+                          step={1}
+                          min={0}
                           placeholder="0"
                           disabled={disabled}
+                          fullWidth
                         />
                       </div>
 
                       {/* Cód. Barras */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '120px', maxWidth: '160px' }}>
+                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '150px', flex: '1 1 150px' }}>
                         <label className="ecu-variant-sub-item-label">Cód. Barras</label>
-                        <input
-                          type="text"
-                          className="ecu-variant-card__input"
+                        <TextBox
+                          size="sm"
+                          variant="outline"
                           value={row.barcode}
-                          onChange={(e) => updateRow(row.id, 'barcode', e.target.value)}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            updateRow(row.id, 'barcode', e.target.value)
+                          }
                           placeholder="EAN / UPC (opc.)"
                           disabled={disabled}
+                          fullWidth
                         />
                       </div>
 
