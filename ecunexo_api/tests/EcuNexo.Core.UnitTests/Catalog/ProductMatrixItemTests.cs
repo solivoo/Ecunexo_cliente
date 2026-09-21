@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EcuNexo.Core.Catalog;
 
 namespace EcuNexo.Core.UnitTests.Catalog;
@@ -99,9 +100,6 @@ public sealed class ProductMatrixItemTests
         child.Sku.Should().Be("CALC-01-3538");
         child.BasePrice.Should().Be(3.50m);
         child.Kind.Should().Be(CatalogItemKind.Physical);
-
-        parent.AddVariantChild(child).IsSuccess.Should().BeTrue();
-        parent.Variants.Should().Contain(child);
     }
 
     [Fact(DisplayName = "Crear variante hija sobre un ítem que no es matriz es rechazado")]
@@ -291,5 +289,97 @@ public sealed class ProductMatrixItemTests
         child.CustomAttributesJson.Should().NotContain("\"descuento\":10");
         child.CustomAttributesJson.Should().Contain("\"marca\":\"Adidas\"");
         child.CustomAttributesJson.Should().Contain("\"actividad\":\"Skater\"");
+    }
+
+    [Fact(DisplayName = "NormalizeVariantDimensions acepta el arreglo canónico y normaliza cada dimensión")]
+    public void NormalizeVariantDimensions_CanonicalArray_NormalizesDimensions()
+    {
+        var result = CatalogItem.NormalizeVariantDimensions(
+            """[{"name":" Talla ","values":["S"," M ",""]}]""");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("""[{"name":"Talla","values":["S","M"]}]""");
+    }
+
+    [Fact(DisplayName = "NormalizeVariantDimensions acepta el formato envuelto y devuelve el arreglo canónico")]
+    public void NormalizeVariantDimensions_WrappedObject_ReturnsCanonicalArray()
+    {
+        var result = CatalogItem.NormalizeVariantDimensions(
+            """{"dimensions":[{"name":"Color","values":["Negro","Blanco"]}]}""");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("""[{"name":"Color","values":["Negro","Blanco"]}]""");
+    }
+
+    [Fact(DisplayName = "NormalizeVariantDimensions rechaza un formato desconocido")]
+    public void NormalizeVariantDimensions_UnknownShape_ReturnsError()
+    {
+        var result = CatalogItem.NormalizeVariantDimensions("""{"foo":"bar"}""");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("catalog.matrix.dimensions.array");
+    }
+
+    [Fact(DisplayName = "NormalizeHierarchyPath normaliza y descarta entradas sin nombre o valor")]
+    public void NormalizeHierarchyPath_NormalizesAndSkipsIncompleteEntries()
+    {
+        var result = CatalogItem.NormalizeHierarchyPath(
+            """[{"level":"Modelo","name":" Caña ","value":" Corta "},{"level":"Modelo","name":"Bordado","value":"  "}]""");
+
+        result.IsSuccess.Should().BeTrue();
+        using var doc = JsonDocument.Parse(result.Value!);
+        doc.RootElement.GetArrayLength().Should().Be(1);
+        doc.RootElement[0].GetProperty("level").GetString().Should().Be("Modelo");
+        doc.RootElement[0].GetProperty("name").GetString().Should().Be("Caña");
+        doc.RootElement[0].GetProperty("value").GetString().Should().Be("Corta");
+    }
+
+    [Fact(DisplayName = "NormalizeHierarchyPath sin datos devuelve null")]
+    public void NormalizeHierarchyPath_Empty_ReturnsNull()
+    {
+        CatalogItem.NormalizeHierarchyPath(null).Value.Should().BeNull();
+        CatalogItem.NormalizeHierarchyPath("[]").Value.Should().BeNull();
+    }
+
+    [Fact(DisplayName = "NormalizeHierarchyPath rechaza una raíz que no sea arreglo")]
+    public void NormalizeHierarchyPath_ObjectRoot_ReturnsError()
+    {
+        var result = CatalogItem.NormalizeHierarchyPath("""{"level":"Modelo"}""");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("catalog.item.hierarchy.path.invalid");
+    }
+
+    [Fact(DisplayName = "Variante hija hereda arquetipo y ruta jerárquica del producto matriz")]
+    public void CreateVariantChild_InheritsFamilyAndHierarchyPath()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var familyId = Guid.CreateVersion7();
+        var parent = CatalogItem.CreateMatrixParent(
+            Guid.CreateVersion7(),
+            tenantId,
+            CatalogItemKind.Physical,
+            "Calcetines Nike",
+            null,
+            "NIK-FAM-01",
+            12.00m,
+            null,
+            """[{"name":"Talla","values":["S","M"]}]""",
+            """{"material":"Algodón"}""",
+            CatalogAttributeSchema.EmptyArrayJson,
+            familyId: familyId,
+            hierarchyPathJson: """[{"level":"Modelo","name":"Material","value":"Algodón"}]""").Value!;
+
+        var child = CatalogItem.CreateVariantChild(
+            Guid.CreateVersion7(),
+            parent,
+            "Talla S",
+            "NIK-FAM-01-S",
+            basePrice: null,
+            customAttributesJson: """{"talla":"S"}""",
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        child.FamilyId.Should().Be(familyId);
+        child.HierarchyPathJson.Should().Be(parent.HierarchyPathJson);
     }
 }

@@ -21,10 +21,12 @@ import {
   createCatalogItem,
   createCatalogItemMatrix,
   listCatalogCategories,
+  listCatalogItems,
   listProductTemplates,
   listVariantDimensionTemplates,
   uploadCatalogItemImage,
 } from '@/services/catalogApi'
+import { useCatalogLimits } from '@/hooks/useCatalogLimits'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
@@ -36,9 +38,16 @@ import {
 } from '@/types/catalogApi'
 import {
   VariantMatrixBuilder,
-  isColorDimension,
   type MatrixVariantPayloadWithImage,
 } from '@/pages/catalog/VariantMatrixBuilder'
+import {
+  buildDimensionValuesMap,
+  buildHierarchyPathJson,
+  getModelAttributeFields,
+  getVariantDimensionFields,
+  isColorDimension,
+} from '@/lib/catalogArchetype'
+import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
 
 export function CreateCatalogItemPage() {
   const toast = useToast()
@@ -73,6 +82,11 @@ export function CreateCatalogItemPage() {
   const [categoryId, setCategoryId] = useState('')
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
   const [stagedImages, setStagedImages] = useState<StagedItemImage[]>([])
+  const [usedVariants, setUsedVariants] = useState(0)
+
+  const { maxVariants } = useCatalogLimits()
+  const remainingVariants =
+    maxVariants != null ? Math.max(0, maxVariants - usedVariants) : null
 
   const stagedImagesRef = useRef<StagedItemImage[]>([])
   stagedImagesRef.current = stagedImages
@@ -90,61 +104,10 @@ export function CreateCatalogItemPage() {
   }, [])
 
   // Mapa de atributos del diccionario corporativo y escalas del sistema: clave en minúscula -> { values, isColor }
-  const dimensionValuesMap = useMemo(() => {
-    const map = new Map<string, { values: string[]; isColor: boolean }>()
-
-    const allSource = [
-      ...dimensionTemplates,
-      { id: 'sys-1', name: 'Medias / Calcetines (Tallas)', dimensionType: 'Talla', predefinedValuesJson: '["35-38","39-41","42-44"]' },
-      { id: 'sys-2', name: 'Tipo de Caña / Altura (Calcetines)', dimensionType: 'Caña / Altura', predefinedValuesJson: '["Invisible / Talonera","Tobillero / Corto","Media Caña / Crew","Caña Alta / Largo"]' },
-      { id: 'sys-3', name: 'Ropa Adulto (Tallas)', dimensionType: 'Talla', predefinedValuesJson: '["XS","S","M","L","XL","XXL"]' },
-      { id: 'sys-4', name: 'Colores Básicos', dimensionType: 'Color', predefinedValuesJson: '["Negro","Blanco","Azul","Rojo","Gris","Verde"]' },
-      { id: 'sys-5', name: 'Actividad / Disciplina', dimensionType: 'Actividad', predefinedValuesJson: '["Crossfit","Running","Ciclismo","Gimnasio","Urbano / Casual","Fútbol"]' },
-    ]
-
-    allSource.forEach((t) => {
-      try {
-        const parsed = JSON.parse(t.predefinedValuesJson)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const entry = {
-            values: parsed.map(String),
-            isColor: (t.dimensionType || '').toLowerCase() === 'color' || isColorDimension(t.name),
-          }
-          const lowerName = t.name.trim().toLowerCase()
-          if (!map.has(lowerName)) map.set(lowerName, entry)
-
-          const lowerType = (t.dimensionType || '').trim().toLowerCase()
-          if (lowerType && !map.has(lowerType)) {
-            map.set(lowerType, entry)
-          }
-
-          // Sinónimos y alias para coincidir con nombres de atributos de plantillas
-          if (lowerType === 'talla' || lowerName.includes('talla')) {
-            if (!map.has('talla')) map.set('talla', entry)
-            if (!map.has('tallas')) map.set('tallas', entry)
-            if (!map.has('size')) map.set('size', entry)
-          }
-          if (lowerType === 'color' || lowerName.includes('color')) {
-            if (!map.has('color')) map.set('color', entry)
-            if (!map.has('colores')) map.set('colores', entry)
-          }
-          if (lowerName.includes('caña') || lowerName.includes('altura')) {
-            if (!map.has('caña')) map.set('caña', entry)
-            if (!map.has('tipo de caña')) map.set('tipo de caña', entry)
-            if (!map.has('altura')) map.set('altura', entry)
-            if (!map.has('caña / altura')) map.set('caña / altura', entry)
-          }
-          if (lowerName.includes('actividad') || lowerType.includes('actividad')) {
-            if (!map.has('actividad')) map.set('actividad', entry)
-            if (!map.has('disciplina')) map.set('disciplina', entry)
-          }
-        }
-      } catch {
-        // ignorar
-      }
-    })
-    return map
-  }, [dimensionTemplates])
+  const dimensionValuesMap = useMemo(
+    () => buildDimensionValuesMap(dimensionTemplates),
+    [dimensionTemplates]
+  )
 
   const appliedTemplate = useMemo(
     () => productTemplates.find((t) => t.id === selectedTemplateId),
@@ -161,52 +124,73 @@ export function CreateCatalogItemPage() {
     }
   }, [appliedTemplate])
 
-  // Todas las dimensiones definidas en los niveles de la plantilla seleccionada
+  const modelAttributeFields = useMemo(
+    () => getModelAttributeFields(appliedTemplateLevels),
+    [appliedTemplateLevels]
+  )
+
+  const setAttributeValue = useCallback((key: string, value: string) => {
+    const lower = key.trim().toLowerCase()
+    setCustomAttributes((prev) => {
+      const exists = prev.some((r) => r.key.trim().toLowerCase() === lower)
+      if (exists) {
+        return prev.map((r) => (r.key.trim().toLowerCase() === lower ? { ...r, value } : r))
+      }
+      return [
+        ...prev,
+        {
+          id: `attr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          key,
+          value,
+        },
+      ]
+    })
+  }, [])
+
+  // Ejes físicos por variante: nivel terminal + atributos de color de niveles intermedios
   const templateAllDimensions = useMemo(() => {
     if (appliedTemplateLevels.length === 0) return undefined
     const dims: { name: string; values?: string[]; isColor?: boolean }[] = []
     const seen = new Set<string>()
 
-    appliedTemplateLevels.forEach((lvl) => {
-      const attrs = lvl.attributes && lvl.attributes.length > 0 ? lvl.attributes : [lvl.name]
-      attrs.forEach((attr) => {
-        const clean = attr.trim()
-        const lower = clean.toLowerCase()
-        if (
-          !clean ||
-          lower === 'tags' ||
-          lower === 'tag' ||
-          lower.includes('actividad') ||
-          lower.includes('variante') ||
-          lower.includes('física')
-        ) {
-          return
-        }
-        if (seen.has(lower)) return
-        seen.add(lower)
-
-        const found =
-          dimensionValuesMap.get(lower) ||
-          (lower.includes('talla') ? dimensionValuesMap.get('talla') : undefined) ||
-          (lower.includes('color') ? dimensionValuesMap.get('color') : undefined)
-
-        dims.push({
-          name: clean,
-          values: found?.values,
-          isColor: found?.isColor || isColorDimension(clean),
-        })
-      })
-
-      if (lvl.hasColor && !seen.has('color')) {
-        seen.add('color')
-        const colorFound = dimensionValuesMap.get('color') || dimensionValuesMap.get('colores')
-        dims.push({
-          name: 'Color',
-          values: colorFound?.values || ['Negro', 'Blanco', 'Azul'],
-          isColor: true,
-        })
+    const push = (rawName: string) => {
+      const clean = rawName.trim()
+      const lower = clean.toLowerCase()
+      if (
+        !clean ||
+        lower === 'tags' ||
+        lower === 'tag' ||
+        lower.includes('actividad') ||
+        lower.includes('variante') ||
+        lower.includes('física')
+      ) {
+        return
       }
-    })
+      if (seen.has(lower)) return
+      seen.add(lower)
+
+      const found =
+        dimensionValuesMap.get(lower) ||
+        (lower.includes('talla') ? dimensionValuesMap.get('talla') : undefined) ||
+        (lower.includes('color') ? dimensionValuesMap.get('color') : undefined)
+
+      dims.push({
+        name: clean,
+        values: found?.values,
+        isColor: found?.isColor || isColorDimension(clean),
+      })
+    }
+
+    getVariantDimensionFields(appliedTemplateLevels).forEach((field) => push(field.key))
+
+    if (appliedTemplateLevels.some((lvl) => lvl.hasColor) && !dims.some((d) => d.isColor)) {
+      const colorFound = dimensionValuesMap.get('color') || dimensionValuesMap.get('colores')
+      dims.push({
+        name: 'Color',
+        values: colorFound?.values || ['Negro', 'Blanco', 'Azul'],
+        isColor: true,
+      })
+    }
 
     if (dims.length === 0) {
       const sizeFound = dimensionValuesMap.get('talla') || dimensionValuesMap.get('tallas')
@@ -291,21 +275,24 @@ export function CreateCatalogItemPage() {
     let cancelled = false
     void (async () => {
       try {
-        const [catList, tplList, dimList] = await Promise.all([
+        const [catList, tplList, dimList, items] = await Promise.all([
           listCatalogCategories(tenantId),
           listProductTemplates(tenantId),
           listVariantDimensionTemplates(tenantId),
+          listCatalogItems(tenantId, { onlyRoots: true }).catch(() => []),
         ])
         if (!cancelled) {
           setCategories(catList)
           setProductTemplates(tplList.filter((t) => t.isActive))
           setDimensionTemplates(dimList)
+          setUsedVariants(items.reduce((sum, i) => sum + (i.variantCount ?? 0), 0))
         }
       } catch {
         if (!cancelled) {
           setCategories([])
           setProductTemplates([])
           setDimensionTemplates([])
+          setUsedVariants(0)
         }
       }
     })()
@@ -376,10 +363,17 @@ export function CreateCatalogItemPage() {
         }
 
         let targetItemId: string
+        const familyId = selectedTemplateId || null
+        const hierarchyPathJson = buildHierarchyPathJson(appliedTemplateLevels, customAttributes)
 
         if (hasVariants && kindNum === CatalogItemKind.Physical) {
           if (!matrixData.isValid || matrixData.variants.length === 0) {
             throw new Error('Debes configurar al menos una variante con SKU.')
+          }
+          if (remainingVariants != null && matrixData.variants.length > remainingVariants) {
+            throw new Error(
+              `Tu plan permite hasta ${maxVariants} variantes y solo quedan ${remainingVariants} disponibles. Ajusta las variantes o actualiza tu plan.`
+            )
           }
 
           const createdMatrix = await createCatalogItemMatrix(tenantId, {
@@ -393,6 +387,8 @@ export function CreateCatalogItemPage() {
             variants: matrixData.variants,
             customAttributesJson:
               customAttributes.length > 0 ? serializeCustomAttributes(customAttributes, []) : null,
+            familyId,
+            hierarchyPathJson,
           })
 
           targetItemId = createdMatrix.parentItemId
@@ -437,6 +433,8 @@ export function CreateCatalogItemPage() {
             categoryId: categoryId || null,
             customAttributesJson:
               customAttributes.length > 0 ? serializeCustomAttributes(customAttributes, []) : null,
+            familyId,
+            hierarchyPathJson,
           })
 
           targetItemId = created.itemId
@@ -488,6 +486,8 @@ export function CreateCatalogItemPage() {
       }
     },
     [
+      appliedTemplate,
+      appliedTemplateLevels,
       basePrice,
       categoryId,
       customAttributes,
@@ -495,8 +495,11 @@ export function CreateCatalogItemPage() {
       hasVariants,
       kind,
       matrixData,
+      maxVariants,
       name,
       navigate,
+      remainingVariants,
+      selectedTemplateId,
       sku,
       stagedImages,
       tenantId,
@@ -623,10 +626,19 @@ export function CreateCatalogItemPage() {
             )}
 
             {appliedTemplate ? (
-              /* MODO CON PLANTILLA: Dimensiones se seleccionan en cada tarjeta de variante */
-              <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: 'var(--glb-surface-variant, rgba(0,0,0,0.02))', borderRadius: '8px', border: '1px solid var(--glb-border, #e2e8f0)', fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
-                Plantilla configurada: <strong style={{ color: 'var(--glb-text)' }}>{appliedTemplate.name}</strong>. Todas las dimensiones ({templateAllDimensions?.map((d) => d.name).join(', ') || 'atributos'}) se seleccionan directamente dentro de cada tarjeta de variante física abajo.
-              </div>
+              /* MODO CON PLANTILLA: atributos del modelo en el padre y ejes físicos en cada tarjeta de variante */
+              <>
+                <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: 'var(--glb-surface-variant, rgba(0,0,0,0.02))', borderRadius: '8px', border: '1px solid var(--glb-border, #e2e8f0)', fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
+                  Arquetipo: <strong style={{ color: 'var(--glb-text)' }}>{appliedTemplate.name}</strong>. Completa los atributos del modelo y selecciona las variaciones físicas ({templateAllDimensions?.map((d) => d.name).join(', ') || 'atributos'}) dentro de cada tarjeta de variante.
+                </div>
+                <ArchetypeModelFields
+                  fields={modelAttributeFields}
+                  values={customAttributes}
+                  dimensionValuesMap={dimensionValuesMap}
+                  onChangeValue={setAttributeValue}
+                  disabled={busy}
+                />
+              </>
             ) : (
               /* MODO MANUAL LIBRE (SIN PLANTILLA) */
               <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
@@ -755,6 +767,34 @@ export function CreateCatalogItemPage() {
                 title="Variantes Físicas de Inventario"
                 subtitle="Configura las variantes físicas con sus tallas, colores, códigos SKU y fotografías independientes."
               >
+                {remainingVariants != null && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.625rem 0.875rem',
+                      marginBottom: '1rem',
+                      borderRadius: '0.625rem',
+                      border:
+                        matrixData.variants.length > remainingVariants
+                          ? '1px solid color-mix(in srgb, #ef4444 35%, transparent)'
+                          : '1px solid var(--shell-border, rgba(148, 163, 184, 0.25))',
+                      backgroundColor:
+                        matrixData.variants.length > remainingVariants
+                          ? 'color-mix(in srgb, #ef4444 8%, var(--glb-surface, transparent))'
+                          : 'var(--glb-surface-variant, rgba(0, 0, 0, 0.02))',
+                      fontSize: '0.82rem',
+                    }}
+                  >
+                    <Layers size={16} style={{ flexShrink: 0, color: 'var(--glb-muted, #64748b)' }} />
+                    <span>
+                      Variantes de tu plan: <strong>{remainingVariants}</strong> disponibles de {maxVariants}.
+                      {matrixData.variants.length > remainingVariants &&
+                        ` Has configurado ${matrixData.variants.length} y supera lo disponible.`}
+                    </span>
+                  </div>
+                )}
                 <VariantMatrixBuilder
                   tenantId={tenantId}
                   baseName={name}

@@ -28,8 +28,8 @@ export function CatalogItemsListPage() {
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
   const hasItemRead = useHasPermission('catalog.item.read')
-  const hasProductRead = useHasPermission('catalog.product.read')
-  const canRead = hasItemRead || hasProductRead
+  const hasMatrixRead = useHasPermission('catalog.matrix.read')
+  const canRead = hasItemRead || hasMatrixRead
   const canCreate = useHasPermission('catalog.item.create')
   const canEdit = useHasPermission('catalog.item.update')
   const canDelete = useHasPermission('catalog.item.delete')

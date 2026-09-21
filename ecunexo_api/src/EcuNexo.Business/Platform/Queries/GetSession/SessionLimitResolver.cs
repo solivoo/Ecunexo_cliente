@@ -25,12 +25,6 @@ public static class SessionLimitResolver
 
         foreach (var entitlement in entitlements)
         {
-            // Catalog no tiene límites numéricos
-            if (string.Equals(entitlement.ModuleCode, TenantModuleCodes.Catalog, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
             var defaults = ModuleTierCatalog.GetDefaultsForTier(entitlement.ModuleCode, entitlement.Tier);
 
             // Aplica sobrescritos si los hay

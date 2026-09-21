@@ -9,7 +9,9 @@ public sealed record CreateCatalogItemMatrixRequest(
     Guid? CategoryId,
     string VariantDimensionsJson,
     IReadOnlyList<CreateVariantChildRequest> Variants,
-    string? CustomAttributesJson = null);
+    string? CustomAttributesJson = null,
+    Guid? FamilyId = null,
+    string? HierarchyPathJson = null);
 
 public sealed record CreateVariantChildRequest(
     string VariantTitle,

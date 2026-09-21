@@ -21,6 +21,12 @@ export type CatalogAttributeField = {
   required?: boolean
 }
 
+export type HierarchyPathEntry = {
+  level: string
+  name: string
+  value: string
+}
+
 export type CategoryListItemDto = {
   id: string
   name: string
@@ -65,6 +71,9 @@ export type CatalogItemListItemDto = {
   parentId?: string | null
   variantCount?: number
   variantDimensionsJson?: string | null
+  familyId?: string | null
+  familyName?: string | null
+  hierarchyPathJson?: string | null
 }
 
 export type CatalogItemVariantSummaryDto = {
@@ -96,6 +105,9 @@ export type CatalogItemDetailDto = {
   parentName?: string | null
   variantDimensionsJson?: string | null
   variants?: CatalogItemVariantSummaryDto[] | null
+  familyId?: string | null
+  familyName?: string | null
+  hierarchyPathJson?: string | null
 }
 
 export type CreateCategoryBody = {
@@ -120,6 +132,8 @@ export type CreateCatalogItemBody = {
   basePrice?: number | null
   categoryId?: string | null
   customAttributesJson?: string | null
+  familyId?: string | null
+  hierarchyPathJson?: string | null
 }
 
 export type CreateCatalogItemResponseDto = {
@@ -161,6 +175,8 @@ export type CreateCatalogItemMatrixPayload = {
   variantDimensionsJson: string
   variants: CreateVariantChildPayload[]
   customAttributesJson?: string | null
+  familyId?: string | null
+  hierarchyPathJson?: string | null
 }
 
 export type CreateCatalogItemMatrixResponseDto = {

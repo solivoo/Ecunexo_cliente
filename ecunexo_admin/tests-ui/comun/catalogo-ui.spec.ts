@@ -3,13 +3,13 @@ import { loginAsSeedUser } from '../helpers/loginAsSeedUser'
 import { hasRoute, readPersistedSession } from '../helpers/readPersistedSession'
 import { requireFixedCredentials } from '../helpers/requirePlan'
 
-test.describe('Catálogo UI — Productos y Categorías', () => {
+test.describe('Catálogo UI — Ítems y Categorías', () => {
   test.beforeEach(async ({ page }) => {
     requireFixedCredentials()
     await loginAsSeedUser(page)
   })
 
-  test('Items: carga PageHeader, métricas KPI y menú de acciones', async ({ page }) => {
+  test('Ítems: carga PageHeader, métricas KPI y menú de acciones', async ({ page }) => {
     const session = await readPersistedSession(page)
     test.skip(!hasRoute(session.routes, '/catalogo'), 'Este plan no incluye Catálogo.')
 
@@ -17,9 +17,9 @@ test.describe('Catálogo UI — Productos y Categorías', () => {
     await expect(page.locator('.app-shell')).toBeVisible()
 
     // PageHeader
-    await expect(
-      page.getByRole('heading', { name: /Catálogo de Productos y Servicios/i })
-    ).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole('heading', { name: /Ítems del Catálogo/i })).toBeVisible({
+      timeout: 20_000,
+    })
 
     // Menú de acciones
     await expect(page.getByRole('button', { name: /Acciones de catálogo/i })).toBeVisible()
@@ -38,9 +38,9 @@ test.describe('Catálogo UI — Productos y Categorías', () => {
     await expect(page.locator('.app-shell')).toBeVisible()
 
     // PageHeader
-    await expect(
-      page.getByRole('heading', { name: /Categorías de Catálogo/i })
-    ).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole('heading', { name: /Categorías del Catálogo/i })).toBeVisible({
+      timeout: 20_000,
+    })
 
     // Menú de acciones
     await expect(page.getByRole('button', { name: /Acciones de categorías/i })).toBeVisible()
@@ -49,7 +49,7 @@ test.describe('Catálogo UI — Productos y Categorías', () => {
     await expect(page.getByLabel('Resumen de categorías')).toBeVisible()
   })
 
-  test('Nuevo Ítem: carga formulario con sección de fotografías del producto', async ({ page }) => {
+  test('Nuevo Ítem servicio: muestra la sección de fotografías del producto', async ({ page }) => {
     const session = await readPersistedSession(page)
     test.skip(!hasRoute(session.routes, '/catalogo'), 'Este plan no incluye Catálogo.')
 
@@ -57,43 +57,44 @@ test.describe('Catálogo UI — Productos y Categorías', () => {
     await expect(page.locator('.app-shell')).toBeVisible()
 
     // PageHeader
-    await expect(
-      page.getByRole('heading', { name: /Nuevo Ítem/i })
-    ).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole('heading', { name: /Nuevo Ítem/i })).toBeVisible({
+      timeout: 20_000,
+    })
 
-    // Sección de fotos
-    await expect(page.getByText(/Fotografías del Ítem/i)).toBeVisible()
-    await expect(page.getByText(/Sin fotografías anexadas todavía/i)).toBeVisible()
+    // Los servicios no generan variantes de inventario: se habilita la galería
+    await page.getByRole('combobox', { name: 'Tipo de ítem' }).click()
+    await page.getByRole('option', { name: /Servicio/i }).click()
+    await expect(page.getByText(/Fotografías del Producto/i)).toBeVisible()
+    await expect(page.getByText(/Arrastra tus fotografías aquí/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /Añadir Fotos/i })).toBeVisible()
   })
 
-  test('Nuevo Ítem: activa sección de Variantes con selector de color y foto por variante', async ({ page }) => {
+  test('Nuevo Ítem físico: despliega el constructor de variantes con tarjetas por dimensión', async ({
+    page,
+  }) => {
     const session = await readPersistedSession(page)
     test.skip(!hasRoute(session.routes, '/catalogo'), 'Este plan no incluye Catálogo.')
 
     await page.goto('/catalogo/items/nuevo')
     await expect(page.locator('.app-shell')).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Nuevo Ítem/i })).toBeVisible({
+      timeout: 20_000,
+    })
 
-    // Cambiar a producto físico
-    await page.selectOption('#ci-kind', '0')
+    // Para productos físicos (tipo por defecto) el constructor de variantes aparece automáticamente
+    const matrix = page.locator('.ecu-matrix-builder')
+    await expect(matrix).toBeVisible()
+    await expect(matrix.getByRole('heading', { name: 'Variantes' })).toBeVisible()
 
-    // Verificar sección Variantes
-    await expect(page.getByText('¿Tiene variantes (tallas, colores, etc.)?')).toBeVisible()
-    await page.locator('#ci-has-variants').check()
+    // Arranca con una variante inicial agrupada por su dimensión principal
+    await expect(matrix.locator('.ecu-variant-group-card')).toHaveCount(1)
 
-    // Constructor de Variantes
-    await expect(page.locator('.ecu-matrix-builder')).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Variantes' })).toBeVisible()
+    // Agregar un segundo grupo de variantes desde la barra de acciones
+    await matrix.locator('.ecu-matrix-bulk-bar').getByRole('button', { name: /Añadir|Agregar/ }).click()
+    await expect(matrix.locator('.ecu-variant-group-card')).toHaveCount(2)
 
-    // Añadir segunda dimensión (Color)
-    const addColorBtn = page.getByRole('button', { name: /Añadir Color/i })
-    if (await addColorBtn.isVisible()) {
-      await addColorBtn.click()
-      await expect(page.locator('#mat-color-picker-2')).toBeVisible()
-    }
-
-    // Columna de Foto en la tabla de variantes
-    await expect(page.locator('.ecu-matrix-table th', { hasText: 'Foto' })).toBeVisible()
+    // Cada grupo (color/talla) gestiona sus propias fotografías
+    await expect(matrix.getByText(/Subir Fotos|Gestionar Fotos/i).first()).toBeVisible()
+    await expect(matrix.locator('.ecu-matrix-bulk-bar__count')).toContainText(/variante/i)
   })
 })
-

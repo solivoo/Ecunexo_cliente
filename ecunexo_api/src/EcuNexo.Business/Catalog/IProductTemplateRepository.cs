@@ -10,6 +10,8 @@ public interface IProductTemplateRepository
 
     Task<bool> ExistsByNameAsync(Guid tenantId, string name, Guid? excludeId, CancellationToken ct);
 
+    Task<int> CountByTenantAsync(Guid tenantId, CancellationToken ct);
+
     Task AddAsync(ProductTemplate template, CancellationToken ct);
 
     Task DeleteAsync(ProductTemplate template, CancellationToken ct);

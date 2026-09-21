@@ -25,6 +25,7 @@ export type AuthState = {
   tenant: TenantBranding
   enabledModules: string[] | null
   moduleEntitlements: ModuleEntitlementDto[] | null
+  resolvedLimits: Record<string, number> | null
   permissions: string[]
   navigation: NavigationNode[]
   settings: Record<string, unknown>
@@ -44,6 +45,7 @@ const initialState: AuthState = {
   tenant: defaultTenantBranding,
   enabledModules: null,
   moduleEntitlements: null,
+  resolvedLimits: null,
   permissions: [],
   navigation: [],
   settings: {},
@@ -78,11 +80,13 @@ function applySession(state: AuthState, session: SessionPayload): void {
     state.tenant = tenantFromSession(session.tenant)
     state.enabledModules = session.tenant.enabledModules ?? null
     state.moduleEntitlements = session.tenant.moduleEntitlements ?? null
+    state.resolvedLimits = session.tenant.resolvedLimits ?? null
   } else {
     state.tenantId = null
     state.tenant = defaultTenantBranding
     state.enabledModules = session.subscription?.enabledModules ?? null
     state.moduleEntitlements = session.subscription?.moduleEntitlements ?? null
+    state.resolvedLimits = session.subscription?.resolvedLimits ?? null
   }
 }
 
@@ -137,6 +141,7 @@ export const authSlice = createSlice({
       state.subscription = null
       state.enabledModules = null
       state.moduleEntitlements = null
+      state.resolvedLimits = null
       state.permissions = []
       state.navigation = []
       state.settings = {}
@@ -229,6 +234,10 @@ export function selectEnabledModules(state: { auth: AuthState }): string[] | nul
 
 export function selectModuleEntitlements(state: { auth: AuthState }): ModuleEntitlementDto[] | null {
   return state.auth.moduleEntitlements
+}
+
+export function selectResolvedLimits(state: { auth: AuthState }): Record<string, number> | null {
+  return state.auth.resolvedLimits
 }
 
 export function selectHasPermission(state: { auth: AuthState }, code: string): boolean {

@@ -16,6 +16,7 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
     private readonly ICategoryRepository _categories;
     private readonly ICatalogItemRepository _items;
     private readonly ISysSettingRepository _settings;
+    private readonly IProductTemplateRepository _templates;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateCatalogItemHandler(
@@ -25,6 +26,7 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
         ICategoryRepository categories,
         ICatalogItemRepository items,
         ISysSettingRepository settings,
+        IProductTemplateRepository templates,
         IUnitOfWork unitOfWork)
     {
         _validator = validator;
@@ -33,6 +35,7 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
         _categories = categories;
         _items = items;
         _settings = settings;
+        _templates = templates;
         _unitOfWork = unitOfWork;
     }
 
@@ -76,6 +79,16 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
             schemaJson = category.AttributeSchemaJson;
         }
 
+        if (command.FamilyId is { } familyId)
+        {
+            var family = await _templates.GetByIdAsync(familyId, command.TenantId, ct).ConfigureAwait(false);
+            if (family is null)
+            {
+                return Result.Failure<CreateCatalogItemResponse>(
+                    new Error("catalog.item.family.not_found", "El arquetipo (familia) no existe.", ErrorType.NotFound));
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(command.Sku)
             && await _items.SkuExistsIgnoreCaseAsync(command.TenantId, command.Sku, null, ct)
                 .ConfigureAwait(false))
@@ -95,7 +108,9 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
             command.BasePrice,
             command.CategoryId,
             command.CustomAttributesJson,
-            schemaJson);
+            schemaJson,
+            command.FamilyId,
+            command.HierarchyPathJson);
         if (created.IsFailure)
         {
             return Result.Failure<CreateCatalogItemResponse>(created.Error!);

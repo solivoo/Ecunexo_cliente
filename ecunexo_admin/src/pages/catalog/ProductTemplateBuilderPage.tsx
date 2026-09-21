@@ -5,10 +5,12 @@ import { ArrowLeft, Save } from 'lucide-react'
 import { PageHeader, SectionCard } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { useCatalogLimits } from '@/hooks/useCatalogLimits'
 import { readApiError } from '@/lib/readApiError'
 import {
   createProductTemplate,
   getProductTemplateById,
+  listProductTemplates,
   listVariantDimensionTemplates,
   updateProductTemplate,
 } from '@/services/catalogApi'
@@ -51,7 +53,10 @@ export function ProductTemplateBuilderPage() {
   const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
 
-  const canManage = useHasPermission('catalog.item.create') || useHasPermission('catalog.scale.manage')
+  const canCreateItems = useHasPermission('catalog.item.create')
+  const canManageScales = useHasPermission('catalog.scale.manage')
+  const canManage = canCreateItems || canManageScales
+  const { maxProductTemplates } = useCatalogLimits()
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -130,6 +135,23 @@ export function ProductTemplateBuilderPage() {
           variant: 'warning',
         })
         return
+      }
+    }
+
+    if (!isEdit && maxProductTemplates != null) {
+      try {
+        const existing = await listProductTemplates(tenantId)
+        if (existing.length >= maxProductTemplates) {
+          toast.show({
+            title: 'Límite del plan alcanzado',
+            message: `Tu plan permite hasta ${maxProductTemplates} plantillas de producto. Elimina alguna o actualiza tu plan para crear más.`,
+            variant: 'warning',
+          })
+          void navigate('/catalogo/plantillas')
+          return
+        }
+      } catch {
+        // Ante error de consulta, el backend validará el límite al guardar
       }
     }
 

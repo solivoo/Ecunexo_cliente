@@ -26,4 +26,7 @@ public sealed record CatalogItemListItemResponse(
     bool IsMatrixParent = false,
     Guid? ParentId = null,
     int VariantCount = 0,
-    string? VariantDimensionsJson = null);
+    string? VariantDimensionsJson = null,
+    Guid? FamilyId = null,
+    string? FamilyName = null,
+    string? HierarchyPathJson = null);

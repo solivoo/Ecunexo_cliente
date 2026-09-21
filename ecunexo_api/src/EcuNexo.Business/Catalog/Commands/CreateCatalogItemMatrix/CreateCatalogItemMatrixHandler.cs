@@ -20,6 +20,7 @@ public sealed class CreateCatalogItemMatrixHandler
     private readonly ICategoryRepository _categories;
     private readonly ICatalogItemRepository _items;
     private readonly ISysSettingRepository _settings;
+    private readonly IProductTemplateRepository _templates;
     private readonly IStockRepository _stocks;
     private readonly IWarehouseRepository _warehouses;
     private readonly IUnitOfWork _unitOfWork;
@@ -31,6 +32,7 @@ public sealed class CreateCatalogItemMatrixHandler
         ICategoryRepository categories,
         ICatalogItemRepository items,
         ISysSettingRepository settings,
+        IProductTemplateRepository templates,
         IStockRepository stocks,
         IWarehouseRepository warehouses,
         IUnitOfWork unitOfWork)
@@ -41,6 +43,7 @@ public sealed class CreateCatalogItemMatrixHandler
         _categories = categories;
         _items = items;
         _settings = settings;
+        _templates = templates;
         _stocks = stocks;
         _warehouses = warehouses;
         _unitOfWork = unitOfWork;
@@ -86,6 +89,24 @@ public sealed class CreateCatalogItemMatrixHandler
             schemaJson = category.AttributeSchemaJson;
         }
 
+        if (command.FamilyId is { } familyId)
+        {
+            var family = await _templates.GetByIdAsync(familyId, command.TenantId, ct).ConfigureAwait(false);
+            if (family is null)
+            {
+                return Result.Failure<CreateCatalogItemMatrixResponse>(
+                    new Error("catalog.matrix.family.not_found", "El arquetipo (familia) no existe.", ErrorType.NotFound));
+            }
+        }
+
+        var variantsAllowed = await CatalogTierLimits
+            .EnsureVariantsWithinLimitAsync(_tenants, _items, command.TenantId, command.Variants.Count, ct)
+            .ConfigureAwait(false);
+        if (variantsAllowed.IsFailure)
+        {
+            return Result.Failure<CreateCatalogItemMatrixResponse>(variantsAllowed.Error!);
+        }
+
         // Validar unicidad de SKUs en el payload entre sí
         var seenPayloadSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var v in command.Variants)
@@ -122,7 +143,9 @@ public sealed class CreateCatalogItemMatrixHandler
             command.CategoryId,
             command.VariantDimensionsJson,
             command.CustomAttributesJson,
-            schemaJson);
+            schemaJson,
+            familyId: command.FamilyId,
+            hierarchyPathJson: command.HierarchyPathJson);
 
         if (parentResult.IsFailure)
         {

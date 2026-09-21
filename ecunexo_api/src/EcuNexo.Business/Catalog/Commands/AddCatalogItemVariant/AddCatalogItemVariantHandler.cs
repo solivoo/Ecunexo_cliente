@@ -1,5 +1,6 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Inventory;
+using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Catalog;
@@ -14,6 +15,7 @@ public sealed class AddCatalogItemVariantHandler
 {
     private readonly IValidator<AddCatalogItemVariantCommand> _validator;
     private readonly IIdGenerator _idGenerator;
+    private readonly ITenantRepository _tenants;
     private readonly ICatalogItemRepository _items;
     private readonly ICategoryRepository _categories;
     private readonly IStockRepository _stocks;
@@ -23,6 +25,7 @@ public sealed class AddCatalogItemVariantHandler
     public AddCatalogItemVariantHandler(
         IValidator<AddCatalogItemVariantCommand> validator,
         IIdGenerator idGenerator,
+        ITenantRepository tenants,
         ICatalogItemRepository items,
         ICategoryRepository categories,
         IStockRepository stocks,
@@ -31,6 +34,7 @@ public sealed class AddCatalogItemVariantHandler
     {
         _validator = validator;
         _idGenerator = idGenerator;
+        _tenants = tenants;
         _items = items;
         _categories = categories;
         _stocks = stocks;
@@ -61,6 +65,14 @@ public sealed class AddCatalogItemVariantHandler
         {
             return Result.Failure<AddCatalogItemVariantResponse>(
                 new Error("catalog.item.not_matrix_parent", "El ítem seleccionado no es un producto matriz.", ErrorType.Validation));
+        }
+
+        var variantsAllowed = await CatalogTierLimits
+            .EnsureVariantsWithinLimitAsync(_tenants, _items, command.TenantId, 1, ct)
+            .ConfigureAwait(false);
+        if (variantsAllowed.IsFailure)
+        {
+            return Result.Failure<AddCatalogItemVariantResponse>(variantsAllowed.Error!);
         }
 
         if (await _items.SkuExistsIgnoreCaseAsync(command.TenantId, command.Sku, null, ct).ConfigureAwait(false))

@@ -109,7 +109,7 @@ export function useCommandPaletteItems({
     }
 
     // Nuevo Item / Producto
-    if (hasPerm('catalog.item.create') || hasPerm('catalog.product.create')) {
+    if (hasPerm('catalog.item.create') || hasPerm('catalog.matrix.create')) {
       items.push({
         id: 'action-new-catalog-item',
         title: 'Crear Producto o Servicio',

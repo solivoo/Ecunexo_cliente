@@ -48,6 +48,14 @@ public sealed class CreateProductTemplateHandler
                 new Error("catalog.product_template.tenant.not_found", "El tenant no existe.", ErrorType.NotFound));
         }
 
+        var limitAllowed = await CatalogTierLimits
+            .EnsureProductTemplateWithinLimitAsync(_tenants, _templates, command.TenantId, ct)
+            .ConfigureAwait(false);
+        if (limitAllowed.IsFailure)
+        {
+            return Result.Failure<CreateProductTemplateResponse>(limitAllowed.Error!);
+        }
+
         var exists = await _templates.ExistsByNameAsync(command.TenantId, command.Name, null, ct).ConfigureAwait(false);
         if (exists)
         {

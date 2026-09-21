@@ -169,16 +169,16 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
             i => i.TenantId == tenantId && i.CategoryId == categoryId && i.DeletedAt == null,
             ct);
 
-    public async Task<IReadOnlyList<CatalogItem>> ListVariantsByParentIdAsync(
-        Guid tenantId,
-        Guid parentId,
-        CancellationToken ct)
+    public Task<int> CountVariantsAsync(Guid tenantId, bool onlyActive, CancellationToken ct)
     {
-        return await _db.CatalogItems.AsNoTracking()
-            .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
-            .Where(i => i.TenantId == tenantId && i.ParentId == parentId && i.DeletedAt == null)
-            .OrderBy(i => i.Name)
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
+        var query = _db.CatalogItems.AsNoTracking()
+            .Where(i => i.TenantId == tenantId && i.ParentId != null && i.DeletedAt == null);
+
+        if (onlyActive)
+        {
+            query = query.Where(i => i.Status == CatalogItemStatus.Active);
+        }
+
+        return query.CountAsync(ct);
     }
 }

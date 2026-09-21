@@ -11,7 +11,14 @@ import {
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { useCatalogLimits } from '@/hooks/useCatalogLimits'
 import { parseAttributeSchema } from '@/lib/catalogAttributes'
+import {
+  buildDimensionValuesMap,
+  buildHierarchyPathJson,
+  getModelAttributeFields,
+} from '@/lib/catalogArchetype'
+import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
 import {
   ItemCustomAttributesEditor,
   deserializeCustomAttributes,
@@ -28,6 +35,8 @@ import {
   getCatalogItem,
   listCatalogCategories,
   listCatalogItems,
+  listProductTemplates,
+  listVariantDimensionTemplates,
   reassignCatalogItemVariantParent,
   softDeleteCatalogItem,
   updateCatalogItem,
@@ -40,7 +49,11 @@ import {
   type CatalogItemDetailDto,
   type CatalogItemListItemDto,
   type CategoryListItemDto,
+  type HierarchyPathEntry,
+  type ProductTemplateDto,
+  type ProductTemplateLevel,
   type ReassignmentAuditRecord,
+  type VariantDimensionTemplateDto,
 } from '@/types/catalogApi'
 
 export function EditCatalogItemPage() {
@@ -58,6 +71,13 @@ export function EditCatalogItemPage() {
   const [error, setError] = useState<string | null>(null)
   const [item, setItem] = useState<CatalogItemDetailDto | null>(null)
   const [categories, setCategories] = useState<CategoryListItemDto[]>([])
+  const [productTemplates, setProductTemplates] = useState<ProductTemplateDto[]>([])
+  const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
+  const [usedVariants, setUsedVariants] = useState(0)
+
+  const { maxVariants } = useCatalogLimits()
+  const remainingVariants =
+    maxVariants != null ? Math.max(0, maxVariants - usedVariants) : null
   const [kind, setKind] = useState(String(CatalogItemKind.Service))
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -72,6 +92,59 @@ export function EditCatalogItemPage() {
     const category = categories.find((c) => c.id === categoryId)
     return parseAttributeSchema(category?.attributeSchemaJson).map((f) => f.label || f.key)
   }, [categories, categoryId])
+
+  const hierarchyPath = useMemo<HierarchyPathEntry[]>(() => {
+    if (!item?.hierarchyPathJson) return []
+    try {
+      const parsed = JSON.parse(item.hierarchyPathJson)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }, [item])
+
+  const familyTemplate = useMemo(
+    () => productTemplates.find((t) => t.id === item?.familyId),
+    [productTemplates, item]
+  )
+
+  const familyLevels = useMemo<ProductTemplateLevel[]>(() => {
+    if (!familyTemplate) return []
+    try {
+      const parsed = JSON.parse(familyTemplate.hierarchyTreeJson)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }, [familyTemplate])
+
+  const modelAttributeFields = useMemo(
+    () => getModelAttributeFields(familyLevels),
+    [familyLevels]
+  )
+
+  const dimensionValuesMap = useMemo(
+    () => buildDimensionValuesMap(dimensionTemplates),
+    [dimensionTemplates]
+  )
+
+  const setAttributeValue = useCallback((key: string, value: string) => {
+    const lower = key.trim().toLowerCase()
+    setCustomAttributes((prev) => {
+      const exists = prev.some((r) => r.key.trim().toLowerCase() === lower)
+      if (exists) {
+        return prev.map((r) => (r.key.trim().toLowerCase() === lower ? { ...r, value } : r))
+      }
+      return [
+        ...prev,
+        {
+          id: `attr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          key,
+          value,
+        },
+      ]
+    })
+  }, [])
 
   const suggestedTags = useMemo<string[]>(() => {
     const list = new Set<string>()
@@ -96,12 +169,18 @@ export function EditCatalogItemPage() {
     if (!tenantId || !itemId) return
     setLoading(true)
     try {
-      const [detail, cats] = await Promise.all([
+      const [detail, cats, templates, dims, items] = await Promise.all([
         getCatalogItem(tenantId, itemId),
         listCatalogCategories(tenantId).catch(() => [] as CategoryListItemDto[]),
+        listProductTemplates(tenantId).catch(() => [] as ProductTemplateDto[]),
+        listVariantDimensionTemplates(tenantId).catch(() => [] as VariantDimensionTemplateDto[]),
+        listCatalogItems(tenantId, { onlyRoots: true }).catch(() => []),
       ])
       setItem(detail)
       setCategories(cats)
+      setProductTemplates(templates)
+      setDimensionTemplates(dims)
+      setUsedVariants(items.reduce((sum, i) => sum + (i.variantCount ?? 0), 0))
       setKind(String(detail.kind))
       setName(detail.name)
       setDescription(detail.description ?? '')
@@ -268,6 +347,9 @@ export function EditCatalogItemPage() {
           price = parsed
         }
 
+        const hierarchyPathJson =
+          buildHierarchyPathJson(familyLevels, customAttributes) ?? item.hierarchyPathJson ?? null
+
         await updateCatalogItem(tenantId, itemId, {
           kind: kindNum,
           name: name.trim(),
@@ -277,6 +359,8 @@ export function EditCatalogItemPage() {
           categoryId: categoryId || null,
           customAttributesJson: serializeCustomAttributes(customAttributes, tags),
           status: Number(status) as typeof CatalogItemStatus.Active,
+          familyId: item.familyId ?? null,
+          hierarchyPathJson,
         })
 
         toast.show({
@@ -299,6 +383,7 @@ export function EditCatalogItemPage() {
       categoryId,
       customAttributes,
       description,
+      familyLevels,
       item,
       itemId,
       kind,
@@ -551,7 +636,89 @@ export function EditCatalogItemPage() {
               </div>
             )}
 
+            {(item?.familyName || hierarchyPath.length > 0) && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.25rem',
+                  borderRadius: '0.75rem',
+                  border: '1px solid color-mix(in srgb, #8b5cf6 25%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
+                  backgroundColor: 'color-mix(in srgb, #8b5cf6 6%, var(--glb-surface, transparent))',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      backgroundColor: 'color-mix(in srgb, #8b5cf6 15%, transparent)',
+                      color: '#8b5cf6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Layers size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
+                      Arquetipo: {item?.familyName || 'Familia de producto'}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--glb-muted, #64748b)', marginTop: '0.125rem' }}>
+                      Contexto jerárquico registrado al crear el ítem.
+                    </div>
+                  </div>
+                </div>
+                {hierarchyPath.length > 0 && (
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {hierarchyPath.map((entry, idx) => (
+                      <span
+                        key={`${entry.level}-${entry.name}-${idx}`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          padding: '0.25rem 0.625rem',
+                          borderRadius: '999px',
+                          fontSize: '0.8rem',
+                          backgroundColor: 'color-mix(in srgb, #8b5cf6 12%, var(--glb-surface, transparent))',
+                          border: '1px solid color-mix(in srgb, #8b5cf6 25%, transparent)',
+                        }}
+                      >
+                        <strong>{entry.name}:</strong> {entry.value}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <form onSubmit={(e) => void onSubmit(e)} noValidate>
+            {modelAttributeFields.length > 0 && (
+              <SectionCard
+                title="Modelo del Arquetipo"
+                subtitle={
+                  familyTemplate
+                    ? `Estructura guiada por «${familyTemplate.name}»`
+                    : 'Estructura guiada por el arquetipo del producto'
+                }
+              >
+                <ArchetypeModelFields
+                  fields={modelAttributeFields}
+                  values={customAttributes}
+                  dimensionValuesMap={dimensionValuesMap}
+                  onChangeValue={setAttributeValue}
+                  disabled={busy}
+                />
+              </SectionCard>
+            )}
             <SectionCard
               title="Ficha del Ítem"
               subtitle="Parámetros comerciales, asignación taxonómica y atributos dinámicos"
@@ -743,6 +910,8 @@ export function EditCatalogItemPage() {
               tenantId={tenantId}
               parentItem={item}
               canEdit={canEdit}
+              remainingVariants={remainingVariants}
+              maxVariants={maxVariants}
               onRefreshRequired={async () => {
                 const fresh = await getCatalogItem(tenantId, item.id)
                 setItem(fresh)

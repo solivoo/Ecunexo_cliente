@@ -47,7 +47,7 @@ const COMPANY_TILES: readonly DashboardTile[] = [
     icon: 'add_box',
     title: '+ Nuevo Ítem',
     desc: 'Registro rápido de producto o servicio.',
-    permission: 'catalog.items.create|catalog.items.read',
+    permission: 'catalog.item.create|catalog.item.read',
     badge: 'Catálogo',
     isPrimary: true,
   },
@@ -72,7 +72,7 @@ const COMPANY_TILES: readonly DashboardTile[] = [
     icon: 'inventory_2',
     title: 'Productos y Precios',
     desc: 'Catálogo de ítems físicos y servicios.',
-    permission: 'catalog.items.read',
+    permission: 'catalog.item.read|catalog.matrix.read',
     badge: 'Catálogo',
   },
   {

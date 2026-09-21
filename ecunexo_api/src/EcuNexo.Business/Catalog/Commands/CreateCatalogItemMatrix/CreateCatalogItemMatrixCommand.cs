@@ -13,7 +13,9 @@ public sealed record CreateCatalogItemMatrixCommand(
     Guid? CategoryId,
     string VariantDimensionsJson,
     IReadOnlyList<CreateVariantChildDto> Variants,
-    string? CustomAttributesJson = null) : ICommand<CreateCatalogItemMatrixResponse>;
+    string? CustomAttributesJson = null,
+    Guid? FamilyId = null,
+    string? HierarchyPathJson = null) : ICommand<CreateCatalogItemMatrixResponse>;
 
 public sealed record CreateVariantChildDto(
     string VariantTitle,

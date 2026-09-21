@@ -55,11 +55,9 @@ export function CatalogAttributesListPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
-  const canRead =
-    useHasPermission('catalog.item.read') ||
-    useHasPermission('catalog.scale.manage') ||
-    useHasPermission('catalog.product.read')
+  const hasItemRead = useHasPermission('catalog.item.read')
   const canManage = useHasPermission('catalog.scale.manage')
+  const canRead = hasItemRead || canManage
 
   const [rows, setRows] = useState<VariantDimensionTemplateDto[]>([])
   const [loading, setLoading] = useState(true)

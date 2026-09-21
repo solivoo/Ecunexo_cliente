@@ -33,6 +33,17 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
             .HasForeignKey(i => i.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.Property(i => i.FamilyId)
+            .HasColumnType("uuid");
+
+        builder.HasOne<ProductTemplate>()
+            .WithMany()
+            .HasForeignKey(i => i.FamilyId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Property(i => i.HierarchyPathJson)
+            .HasColumnType("jsonb");
+
         builder.Property(i => i.ParentId)
             .HasColumnType("uuid");
 
@@ -102,10 +113,16 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
         builder.HasIndex(i => new { i.TenantId, i.ParentId })
             .HasFilter("\"deleted_at\" IS NULL");
 
+        builder.HasIndex(i => new { i.TenantId, i.FamilyId })
+            .HasFilter("\"deleted_at\" IS NULL");
+
         builder.HasIndex(i => i.CustomAttributesJson)
             .HasMethod("gin");
 
         builder.HasIndex(i => i.VariantDimensionsJson)
+            .HasMethod("gin");
+
+        builder.HasIndex(i => i.HierarchyPathJson)
             .HasMethod("gin");
 
         builder.HasMany(i => i.Images)

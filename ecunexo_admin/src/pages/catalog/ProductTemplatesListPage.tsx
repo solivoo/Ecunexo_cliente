@@ -29,6 +29,7 @@ import { GridIconButton } from '@/components/ui/GridIconButton'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { useCatalogLimits } from '@/hooks/useCatalogLimits'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
@@ -56,7 +57,9 @@ export function ProductTemplatesListPage() {
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
 
-  const canManage = useHasPermission('catalog.item.create') || useHasPermission('catalog.scale.manage')
+  const canCreateItems = useHasPermission('catalog.item.create')
+  const canManageScales = useHasPermission('catalog.scale.manage')
+  const canManage = canCreateItems || canManageScales
 
   const [rows, setRows] = useState<ProductTemplateDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -155,6 +158,9 @@ export function ProductTemplatesListPage() {
   // KPIs
   const totalCount = rows.length
   const activeCount = useMemo(() => rows.filter((r) => r.isActive).length, [rows])
+  const { maxProductTemplates } = useCatalogLimits()
+  const templateLimitReached =
+    maxProductTemplates != null && rows.length >= maxProductTemplates
   const maxDepth = useMemo(() => {
     return enrichedRows.reduce((max, r) => Math.max(max, r.parsedLevels.length), 0)
   }, [enrichedRows])
@@ -312,6 +318,12 @@ export function ProductTemplatesListPage() {
                   type="button"
                   variant="primary"
                   onClick={() => navigate('/catalogo/plantillas/nueva')}
+                  disabled={templateLimitReached}
+                  title={
+                    templateLimitReached
+                      ? `Tu plan permite hasta ${maxProductTemplates} plantillas de producto.`
+                      : undefined
+                  }
                 >
                   <Plus size={16} />
                   <span>Nueva Plantilla</span>
@@ -320,6 +332,28 @@ export function ProductTemplatesListPage() {
             </div>
           }
         />
+
+        {templateLimitReached && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.625rem',
+              padding: '0.75rem 1rem',
+              marginBottom: '1.25rem',
+              borderRadius: '0.75rem',
+              border: '1px solid color-mix(in srgb, #f59e0b 30%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
+              backgroundColor: 'color-mix(in srgb, #f59e0b 8%, var(--glb-surface, transparent))',
+              fontSize: '0.85rem',
+            }}
+          >
+            <Layers size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
+            <span>
+              Alcanzaste el máximo de <strong>{maxProductTemplates}</strong> plantillas de producto de tu plan.
+              Actualiza tu plan para crear más arquetipos.
+            </span>
+          </div>
+        )}
 
         {/* KPIs in ecu-stat-grid */}
         <div className="ecu-stat-grid" style={{ marginBottom: '1.25rem' }}>

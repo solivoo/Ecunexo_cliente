@@ -30,21 +30,26 @@ test.describe('Catálogo UI — Plantillas y Arquetipos Jerárquicos de Producto
     await expect(page.getByText('Plantillas Activas')).toBeVisible()
     await expect(page.getByText('Máximo de Niveles')).toBeVisible()
 
-    // Botón para crear nueva plantilla
+    // Botón para crear nueva plantilla (puede estar deshabilitado si el plan alcanzó el máximo)
     const newTemplateBtn = page.getByRole('button', { name: /Nueva Plantilla/i })
     await expect(newTemplateBtn).toBeVisible()
-    await newTemplateBtn.click()
+    if (await newTemplateBtn.isEnabled()) {
+      await newTemplateBtn.click()
+    } else {
+      await page.goto('/catalogo/plantillas/nueva')
+    }
 
     // Navega a la vista dedicada del constructor de jerarquías
     await expect(page).toHaveURL(/\/catalogo\/plantillas\/nueva/)
     await expect(page.getByRole('heading', { name: /Nueva Plantilla de Producto/i })).toBeVisible()
 
     // Campos del formulario principal
+    await expect(page.getByText('Datos Principales de la Plantilla')).toBeVisible()
     await expect(page.getByText('Nombre de la Plantilla *')).toBeVisible()
     await expect(page.getByText('Descripción / Propósito del Arquetipo')).toBeVisible()
 
     // Constructor de niveles jerárquicos
-    await expect(page.getByText('Estructura de Niveles y Arquetipos')).toBeVisible()
+    await expect(page.getByText('Configuración de Niveles Jerárquicos')).toBeVisible()
     await expect(page.getByText('Nivel 1 (Base / Colección)')).toBeVisible()
     await expect(page.getByText('Nivel 2 (Submodelo / Estilo)')).toBeVisible()
     await expect(page.getByText('Nivel 3 (Terminal / Variantes)')).toBeVisible()
@@ -58,7 +63,9 @@ test.describe('Catálogo UI — Plantillas y Arquetipos Jerárquicos de Producto
     await expect(page.getByText('Nivel 4 (Terminal / Variantes)')).toBeVisible()
 
     // Vista previa interactiva de la jerarquía
-    await expect(page.getByText('Vista Previa de la Jerarquía Resultante')).toBeVisible()
+    await expect(page.getByText('Diagrama Visual de Jerarquía (Vista Pizarra)')).toBeVisible()
+    await expect(page.getByRole('button', { name: /Diagrama de Nodos/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Lista Anidada/i })).toBeVisible()
 
     // Botón Volver
     const backBtn = page.getByRole('button', { name: /Volver/i })
@@ -68,9 +75,7 @@ test.describe('Catálogo UI — Plantillas y Arquetipos Jerárquicos de Producto
     await expect(page).toHaveURL(/\/catalogo\/plantillas/)
   })
 
-  test('Selector de plantillas aparece en la creación de productos y muestra opciones', async ({
-    page,
-  }) => {
+  test('Selector de plantillas aparece en la creación de productos', async ({ page }) => {
     const session = await readPersistedSession(page)
     test.skip(!hasRoute(session.routes, '/catalogo'), 'Este plan no incluye Catálogo.')
 
@@ -81,10 +86,7 @@ test.describe('Catálogo UI — Plantillas y Arquetipos Jerárquicos de Producto
       timeout: 20_000,
     })
 
-    // Acciones de página deben incluir acceso a Plantillas
-    const templateAction = page.locator('button:has-text("Plantillas de producto")')
-    if (await templateAction.isVisible()) {
-      await expect(templateAction).toBeVisible()
-    }
+    // Selector de arquetipo para precargar la estructura jerárquica
+    await expect(page.getByText(/Cargar estructura desde Plantilla/i)).toBeVisible()
   })
 })

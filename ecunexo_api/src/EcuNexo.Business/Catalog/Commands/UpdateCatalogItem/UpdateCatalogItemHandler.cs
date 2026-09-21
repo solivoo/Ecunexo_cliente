@@ -1,6 +1,7 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Platform;
+using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
 using FluentValidation;
@@ -13,6 +14,8 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
     private readonly ICategoryRepository _categories;
     private readonly ICatalogItemRepository _items;
     private readonly ISysSettingRepository _settings;
+    private readonly IProductTemplateRepository _templates;
+    private readonly ITenantRepository _tenants;
     private readonly IStockRepository _stocks;
     private readonly IInventoryMovementRepository _movements;
     private readonly IUnitOfWork _unitOfWork;
@@ -22,6 +25,8 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
         ICategoryRepository categories,
         ICatalogItemRepository items,
         ISysSettingRepository settings,
+        IProductTemplateRepository templates,
+        ITenantRepository tenants,
         IStockRepository stocks,
         IInventoryMovementRepository movements,
         IUnitOfWork unitOfWork)
@@ -30,6 +35,8 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
         _categories = categories;
         _items = items;
         _settings = settings;
+        _templates = templates;
+        _tenants = tenants;
         _stocks = stocks;
         _movements = movements;
         _unitOfWork = unitOfWork;
@@ -66,6 +73,16 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
             }
 
             schemaJson = category.AttributeSchemaJson;
+        }
+
+        if (command.FamilyId is { } familyId)
+        {
+            var family = await _templates.GetByIdAsync(familyId, command.TenantId, ct).ConfigureAwait(false);
+            if (family is null)
+            {
+                return Result.Failure<UpdateCatalogItemResponse>(
+                    new Error("catalog.item.family.not_found", "El arquetipo (familia) no existe.", ErrorType.NotFound));
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(command.Sku)
@@ -119,7 +136,9 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
             command.CategoryId,
             command.CustomAttributesJson,
             schemaJson,
-            updatedBy: null);
+            updatedBy: null,
+            familyId: command.FamilyId,
+            hierarchyPathJson: command.HierarchyPathJson);
         if (updated.IsFailure)
         {
             return Result.Failure<UpdateCatalogItemResponse>(updated.Error!);
@@ -127,6 +146,19 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
 
         if (command.Status is { } status)
         {
+            if (status == CatalogItemStatus.Active
+                && item.Status != CatalogItemStatus.Active
+                && item.ParentId.HasValue)
+            {
+                var activeAllowed = await CatalogTierLimits
+                    .EnsureActiveVariantsWithinLimitAsync(_tenants, _items, command.TenantId, 1, ct)
+                    .ConfigureAwait(false);
+                if (activeAllowed.IsFailure)
+                {
+                    return Result.Failure<UpdateCatalogItemResponse>(activeAllowed.Error!);
+                }
+            }
+
             var statusResult = item.SetStatus(status, updatedBy: null);
             if (statusResult.IsFailure)
             {

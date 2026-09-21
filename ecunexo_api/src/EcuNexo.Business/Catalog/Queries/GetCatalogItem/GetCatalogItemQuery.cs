@@ -23,7 +23,10 @@ public sealed record CatalogItemDetailResponse(
     Guid? ParentId = null,
     string? VariantDimensionsJson = null,
     IReadOnlyList<CatalogItemVariantDto>? Variants = null,
-    string? ParentName = null);
+    string? ParentName = null,
+    Guid? FamilyId = null,
+    string? FamilyName = null,
+    string? HierarchyPathJson = null);
 
 public sealed record CatalogItemVariantDto(
     Guid Id,

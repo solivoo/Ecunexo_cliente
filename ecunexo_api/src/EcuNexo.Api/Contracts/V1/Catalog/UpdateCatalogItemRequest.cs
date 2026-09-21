@@ -11,8 +11,22 @@ public sealed record UpdateCatalogItemRequest(
     Guid? CategoryId = null,
     string? CustomAttributesJson = null,
     CatalogItemStatus? Status = null,
-    CatalogItemKind? Kind = null)
+    CatalogItemKind? Kind = null,
+    Guid? FamilyId = null,
+    string? HierarchyPathJson = null)
 {
     public UpdateCatalogItemCommand ToCommand(Guid tenantId, Guid itemId) =>
-        new(tenantId, itemId, Name, Description, Sku, BasePrice, CategoryId, CustomAttributesJson, Status, Kind);
+        new(
+            tenantId,
+            itemId,
+            Name,
+            Description,
+            Sku,
+            BasePrice,
+            CategoryId,
+            CustomAttributesJson,
+            Status,
+            Kind,
+            FamilyId,
+            HierarchyPathJson);
 }

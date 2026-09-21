@@ -7,11 +7,16 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
 {
     private readonly ICatalogItemRepository _items;
     private readonly ICategoryRepository _categories;
+    private readonly IProductTemplateRepository _templates;
 
-    public GetCatalogItemHandler(ICatalogItemRepository items, ICategoryRepository categories)
+    public GetCatalogItemHandler(
+        ICatalogItemRepository items,
+        ICategoryRepository categories,
+        IProductTemplateRepository templates)
     {
         _items = items;
         _categories = categories;
+        _templates = templates;
     }
 
     public async Task<Result<CatalogItemDetailResponse>> Handle(
@@ -63,6 +68,13 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
             parentName = parent?.Name;
         }
 
+        string? familyName = null;
+        if (item.FamilyId is { } familyId)
+        {
+            var family = await _templates.GetByIdAsync(familyId, query.TenantId, ct).ConfigureAwait(false);
+            familyName = family?.Name;
+        }
+
         return Result.Success(
             new CatalogItemDetailResponse(
                 item.Id,
@@ -82,6 +94,9 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 item.ParentId,
                 item.VariantDimensionsJson,
                 variants.Count > 0 ? variants : null,
-                parentName));
+                parentName,
+                item.FamilyId,
+                familyName,
+                item.HierarchyPathJson));
     }
 }

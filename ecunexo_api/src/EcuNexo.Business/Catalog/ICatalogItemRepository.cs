@@ -31,7 +31,8 @@ public interface ICatalogItemRepository
 
     Task<bool> ExistsForCategoryAsync(Guid tenantId, Guid categoryId, CancellationToken ct);
 
-    Task<IReadOnlyList<CatalogItem>> ListVariantsByParentIdAsync(Guid tenantId, Guid parentId, CancellationToken ct);
+    Task<int> CountVariantsAsync(Guid tenantId, bool onlyActive, CancellationToken ct);
+
     Task<bool> IsAttributeTemplateInUseAsync(Guid tenantId, string templateName, CancellationToken ct);
     Task<HashSet<string>> GetInUseAttributeTemplateNamesAsync(Guid tenantId, CancellationToken ct);
 }

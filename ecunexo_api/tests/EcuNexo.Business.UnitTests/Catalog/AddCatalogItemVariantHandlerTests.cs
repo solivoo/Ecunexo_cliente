@@ -2,10 +2,12 @@ using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.AddCatalogItemVariant;
 using EcuNexo.Business.Inventory;
+using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Inventory;
+using EcuNexo.Core.Tenancy;
 using EcuNexo.Core.Warehousing;
 using NSubstitute;
 
@@ -14,6 +16,7 @@ namespace EcuNexo.Business.UnitTests.Catalog;
 public sealed class AddCatalogItemVariantHandlerTests
 {
     private readonly IIdGenerator _idGenerator = Substitute.For<IIdGenerator>();
+    private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly ICatalogItemRepository _items = Substitute.For<ICatalogItemRepository>();
     private readonly ICategoryRepository _categories = Substitute.For<ICategoryRepository>();
     private readonly IStockRepository _stocks = Substitute.For<IStockRepository>();
@@ -25,6 +28,7 @@ public sealed class AddCatalogItemVariantHandlerTests
         new(
             _validator,
             _idGenerator,
+            _tenants,
             _items,
             _categories,
             _stocks,
@@ -228,5 +232,45 @@ public sealed class AddCatalogItemVariantHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         await _stocks.Received(1).AddAsync(Arg.Is<Stock>(s => s.CatalogItemId == childId && s.Quantity == 50m), Arg.Any<CancellationToken>());
+    }
+
+    [Fact(DisplayName = "Añadir variante bloquea cuando se alcanza el límite de variantes del plan")]
+    public async Task Handle_VariantLimitReached_ReturnsForbidden()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var parentId = Guid.CreateVersion7();
+        var parent = CatalogItem.CreateMatrixParent(
+            parentId,
+            tenantId,
+            CatalogItemKind.Physical,
+            "Medias Límite",
+            null,
+            "LIM-01",
+            3.00m,
+            null,
+            "[{\"name\":\"Talla\",\"values\":[\"S\"]}]",
+            null,
+            CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        _items.GetTrackedByIdAsync(tenantId, parentId, Arg.Any<CancellationToken>())
+            .Returns(parent);
+
+        var tenant = Tenant.Create(
+            tenantId,
+            "Empresa Small",
+            new ServicePlan("Small", 3, 1),
+            moduleEntitlements:
+            [
+                ModuleEntitlement.FromTier(TenantModuleCodes.Catalog, ModuleTier.Small)
+            ]).Value!;
+        _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(tenant);
+        _items.CountVariantsAsync(tenantId, false, Arg.Any<CancellationToken>()).Returns(100);
+
+        var command = new AddCatalogItemVariantCommand(tenantId, parentId, "Talla M", "LIM-01-M");
+
+        var result = await CreateSut().Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("catalog.variants.limit_reached");
     }
 }

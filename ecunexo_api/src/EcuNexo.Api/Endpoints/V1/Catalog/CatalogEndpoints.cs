@@ -59,7 +59,7 @@ public static class CatalogEndpoints
             .AddEndpointFilter(PermissionFilters.Require("catalog.category.manage"));
         categories.MapGet("/", ListCategoriesAsync)
             .AddEndpointFilter(
-                PermissionFilters.RequireAny("catalog.item.read", "catalog.category.manage", "catalog.product.read"));
+                PermissionFilters.RequireAny("catalog.item.read", "catalog.category.manage"));
 
         RouteGroupBuilder items = app
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/items")
@@ -70,17 +70,22 @@ public static class CatalogEndpoints
         items.MapPost("/", CreateItemAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
         items.MapPost("/matrix", CreateItemMatrixAsync)
-            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.create", "catalog.matrix.create"));
         items.MapPost("/{itemId:guid}/variants", AddItemVariantAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.create", "catalog.item.update"));
+            .AddEndpointFilter(
+                PermissionFilters.RequireAny(
+                    "catalog.item.create",
+                    "catalog.item.update",
+                    "catalog.matrix.create",
+                    "catalog.matrix.update"));
         items.MapPost("/{itemId:guid}/reassign-parent", ReassignItemVariantParentAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
         items.MapGet("/", ListItemsAsync)
             .AddEndpointFilter(
-                PermissionFilters.RequireAny("catalog.item.read", "catalog.product.read"));
+                PermissionFilters.RequireAny("catalog.item.read", "catalog.matrix.read"));
         items.MapGet("/{itemId:guid}", GetItemAsync)
             .AddEndpointFilter(
-                PermissionFilters.RequireAny("catalog.item.read", "catalog.product.read"));
+                PermissionFilters.RequireAny("catalog.item.read", "catalog.matrix.read"));
         items.MapPut("/{itemId:guid}", UpdateItemAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
         items.MapDelete("/{itemId:guid}", SoftDeleteItemAsync)
@@ -240,7 +245,9 @@ public static class CatalogEndpoints
             body.CategoryId,
             body.VariantDimensionsJson,
             variants,
-            body.CustomAttributesJson);
+            body.CustomAttributesJson,
+            body.FamilyId,
+            body.HierarchyPathJson);
 
         var result = await sender
             .SendAsync<CreateCatalogItemMatrixCommand, CreateCatalogItemMatrixResponse>(command, ct)

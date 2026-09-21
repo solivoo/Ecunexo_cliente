@@ -13,6 +13,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 {
     public const int NameMaxLength = 200;
     public const int DescriptionMaxLength = 1000;
+    public const int HierarchyPathMaxEntries = 12;
+    public const int HierarchyPathTextMaxLength = 120;
 
     private readonly List<CatalogItemImage> _images = [];
     private readonly List<CatalogItem> _variants = [];
@@ -42,6 +44,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
     public Guid? CategoryId { get; private set; }
 
     public Category? Category { get; private set; }
+
+    /// <summary>Arquetipo/Familia (plantilla de producto) que describe la forma del ítem.</summary>
+    public Guid? FamilyId { get; private set; }
+
+    /// <summary>Ruta jerárquica capturada al crear: [{ level, name, value }]. Las variantes la heredan del padre.</summary>
+    public string? HierarchyPathJson { get; private set; }
 
     public CatalogItemKind Kind { get; private set; }
 
@@ -79,7 +87,9 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         decimal? basePrice,
         Guid? categoryId,
         string? customAttributesJson,
-        string categorySchemaJson)
+        string categorySchemaJson,
+        Guid? familyId = null,
+        string? hierarchyPathJson = null)
     {
         if (tenantId == Guid.Empty)
         {
@@ -123,11 +133,19 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(attrs.Error!);
         }
 
+        var path = NormalizeHierarchyPath(hierarchyPathJson);
+        if (path.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(path.Error!);
+        }
+
         return new CatalogItem
         {
             Id = id,
             TenantId = tenantId,
             CategoryId = categoryId,
+            FamilyId = familyId,
+            HierarchyPathJson = path.Value,
             Kind = kind,
             Name = nameResult.Value!,
             Description = descResult.Value,
@@ -151,7 +169,9 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string variantDimensionsJson,
         string? customAttributesJson,
         string categorySchemaJson,
-        Guid? createdBy = null)
+        Guid? createdBy = null,
+        Guid? familyId = null,
+        string? hierarchyPathJson = null)
     {
         if (tenantId == Guid.Empty)
         {
@@ -201,11 +221,19 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(attrs.Error!);
         }
 
+        var path = NormalizeHierarchyPath(hierarchyPathJson);
+        if (path.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(path.Error!);
+        }
+
         return new CatalogItem
         {
             Id = id,
             TenantId = tenantId,
             CategoryId = categoryId,
+            FamilyId = familyId,
+            HierarchyPathJson = path.Value,
             Kind = kind,
             Name = nameResult.Value!,
             Description = descResult.Value,
@@ -283,6 +311,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             Parent = parent,
             IsMatrixParent = false,
             CategoryId = parent.CategoryId,
+            FamilyId = parent.FamilyId,
+            HierarchyPathJson = parent.HierarchyPathJson,
             Kind = parent.Kind,
             Name = combinedName,
             Description = parent.Description,
@@ -295,43 +325,81 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         };
     }
 
-    public Result AddVariantChild(CatalogItem variant)
+    /// <summary>
+    /// Normaliza la ruta jerárquica capturada desde un arquetipo/familia.
+    /// Formato canónico: [{ "level": "...", "name": "...", "value": "..." }]. Entradas sin nombre o valor se descartan.
+    /// </summary>
+    public static Result<string?> NormalizeHierarchyPath(string? raw)
     {
-        ArgumentNullException.ThrowIfNull(variant);
-
-        if (!IsMatrixParent)
+        if (string.IsNullOrWhiteSpace(raw))
         {
-            return Result.Failure(
-                new Error("catalog.matrix.not_parent", "Solo un producto matriz puede tener variantes.", ErrorType.Validation));
+            return Result.Success<string?>(null);
         }
 
-        if (variant.ParentId != Id)
+        try
         {
-            return Result.Failure(
-                new Error("catalog.matrix.child.mismatch", "La variante no pertenece a este producto matriz.", ErrorType.Validation));
+            using var doc = JsonDocument.Parse(raw.Trim());
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return Result.Failure<string?>(
+                    new Error("catalog.item.hierarchy.path.invalid", "La ruta jerárquica debe ser un arreglo JSON.", ErrorType.Validation));
+            }
+
+            var entries = new List<object>();
+            foreach (var entry in doc.RootElement.EnumerateArray())
+            {
+                if (entry.ValueKind != JsonValueKind.Object)
+                {
+                    return Result.Failure<string?>(
+                        new Error("catalog.item.hierarchy.entry.invalid", "Cada nivel de la ruta jerárquica debe ser un objeto JSON.", ErrorType.Validation));
+                }
+
+                var level = entry.TryGetProperty("level", out var levelEl) ? levelEl.GetString()?.Trim() : null;
+                var name = entry.TryGetProperty("name", out var nameEl) ? nameEl.GetString()?.Trim() : null;
+                var value = entry.TryGetProperty("value", out var valueEl) ? valueEl.GetString()?.Trim() : null;
+
+                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(value))
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(level))
+                {
+                    level = name;
+                }
+
+                if (level.Length > HierarchyPathTextMaxLength)
+                {
+                    level = level[..HierarchyPathTextMaxLength];
+                }
+
+                if (name.Length > HierarchyPathTextMaxLength)
+                {
+                    name = name[..HierarchyPathTextMaxLength];
+                }
+
+                if (value.Length > NameMaxLength)
+                {
+                    value = value[..NameMaxLength];
+                }
+
+                entries.Add(new { level, name, value });
+
+                if (entries.Count >= HierarchyPathMaxEntries)
+                {
+                    break;
+                }
+            }
+
+            return entries.Count == 0
+                ? Result.Success<string?>(null)
+                : Result.Success<string?>(JsonSerializer.Serialize(entries));
         }
-
-        _variants.Add(variant);
-        return Result.Success();
-    }
-
-    public Result UpdateMatrixDimensions(string variantDimensionsJson, Guid? updatedBy)
-    {
-        if (!IsMatrixParent)
+        catch (JsonException)
         {
-            return Result.Failure(
-                new Error("catalog.matrix.not_parent", "Solo un producto matriz posee dimensiones.", ErrorType.Validation));
+            return Result.Failure<string?>(
+                new Error("catalog.item.hierarchy.path.json", "El formato JSON de la ruta jerárquica no es válido.", ErrorType.Validation));
         }
-
-        var dims = NormalizeVariantDimensions(variantDimensionsJson);
-        if (dims.IsFailure)
-        {
-            return Result.Failure(dims.Error!);
-        }
-
-        VariantDimensionsJson = dims.Value!;
-        Touch(updatedBy);
-        return Result.Success();
     }
 
     public static Result<string> NormalizeVariantDimensions(string? raw)
@@ -345,14 +413,22 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         try
         {
             using var doc = System.Text.Json.JsonDocument.Parse(raw.Trim());
-            if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array)
+            var root = doc.RootElement;
+            if (root.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                root.TryGetProperty("dimensions", out var wrapped) &&
+                wrapped.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                root = wrapped;
+            }
+
+            if (root.ValueKind != System.Text.Json.JsonValueKind.Array)
             {
                 return Result.Failure<string>(
                     new Error("catalog.matrix.dimensions.array", "Las dimensiones de la matriz deben ser un arreglo JSON.", ErrorType.Validation));
             }
 
             var dimensions = new List<object>();
-            foreach (var dim in doc.RootElement.EnumerateArray())
+            foreach (var dim in root.EnumerateArray())
             {
                 if (dim.ValueKind != System.Text.Json.JsonValueKind.Object)
                 {
@@ -415,7 +491,9 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Guid? categoryId,
         string? customAttributesJson,
         string categorySchemaJson,
-        Guid? updatedBy)
+        Guid? updatedBy,
+        Guid? familyId = null,
+        string? hierarchyPathJson = null)
     {
         var nameResult = NormalizeName(name);
         if (nameResult.IsFailure)
@@ -447,11 +525,19 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure(attrs.Error!);
         }
 
+        var path = NormalizeHierarchyPath(hierarchyPathJson);
+        if (path.IsFailure)
+        {
+            return Result.Failure(path.Error!);
+        }
+
         Name = nameResult.Value!;
         Description = descResult.Value;
         Sku = skuResult.Value;
         BasePrice = priceResult.Value;
         CategoryId = categoryId;
+        FamilyId = familyId;
+        HierarchyPathJson = path.Value;
         CustomAttributesJson = PreserveSystemAttributes(CustomAttributesJson, attrs.Value!);
         Touch(updatedBy);
         return Result.Success();

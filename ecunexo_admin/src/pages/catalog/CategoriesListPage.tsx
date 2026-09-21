@@ -24,11 +24,9 @@ export function CategoriesListPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
-  const canRead =
-    useHasPermission('catalog.item.read') ||
-    useHasPermission('catalog.category.manage') ||
-    useHasPermission('catalog.product.read')
+  const hasItemRead = useHasPermission('catalog.item.read')
   const canManage = useHasPermission('catalog.category.manage')
+  const canRead = hasItemRead || canManage
   const [rows, setRows] = useState<CategoryListItemDto[]>([])
   const [loading, setLoading] = useState(true)
   const [confirmDelete, setConfirmDelete] = useState<CategoryListItemDto | null>(null)

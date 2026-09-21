@@ -28,6 +28,8 @@ export type EditCatalogItemVariantsSectionProps = {
   readonly parentItem: CatalogItemDetailDto
   readonly onRefreshRequired: () => Promise<void>
   readonly canEdit: boolean
+  readonly remainingVariants?: number | null
+  readonly maxVariants?: number | null
 }
 
 type VariantDimensionDef = {
@@ -45,6 +47,8 @@ export function EditCatalogItemVariantsSection({
   parentItem,
   onRefreshRequired,
   canEdit,
+  remainingVariants = null,
+  maxVariants = null,
 }: EditCatalogItemVariantsSectionProps) {
   const toast = useToast()
   const navigate = useNavigate()
@@ -343,6 +347,8 @@ export function EditCatalogItemVariantsSection({
           status: v.status,
           kind: parentItem.kind,
           categoryId: parentItem.categoryId,
+          familyId: parentItem.familyId ?? null,
+          hierarchyPathJson: parentItem.hierarchyPathJson ?? null,
         })
         updatedCount++
       }
@@ -620,6 +626,12 @@ export function EditCatalogItemVariantsSection({
                 variant="primary"
                 size="sm"
                 onClick={handleOpenAddModal}
+                disabled={remainingVariants === 0}
+                title={
+                  remainingVariants === 0
+                    ? `Tu plan permite hasta ${maxVariants} variantes y ya alcanzaste el máximo.`
+                    : undefined
+                }
               >
                 <Plus size={15} style={{ marginRight: '0.35rem' }} />
                 Añadir Variante

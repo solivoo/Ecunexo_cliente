@@ -41,6 +41,11 @@ public sealed class ProductTemplateRepository : IProductTemplateRepository
         return await query.AnyAsync(ct).ConfigureAwait(false);
     }
 
+    public Task<int> CountByTenantAsync(Guid tenantId, CancellationToken ct) =>
+        _db.ProductTemplates
+            .AsNoTracking()
+            .CountAsync(t => t.TenantId == tenantId, ct);
+
     public Task AddAsync(ProductTemplate template, CancellationToken ct)
     {
         _db.ProductTemplates.Add(template);

@@ -10,8 +10,20 @@ public sealed record CreateCatalogItemRequest(
     string? Sku = null,
     decimal? BasePrice = null,
     Guid? CategoryId = null,
-    string? CustomAttributesJson = null)
+    string? CustomAttributesJson = null,
+    Guid? FamilyId = null,
+    string? HierarchyPathJson = null)
 {
     public CreateCatalogItemCommand ToCommand(Guid tenantId) =>
-        new(tenantId, Kind, Name, Description, Sku, BasePrice, CategoryId, CustomAttributesJson);
+        new(
+            tenantId,
+            Kind,
+            Name,
+            Description,
+            Sku,
+            BasePrice,
+            CategoryId,
+            CustomAttributesJson,
+            FamilyId,
+            HierarchyPathJson);
 }

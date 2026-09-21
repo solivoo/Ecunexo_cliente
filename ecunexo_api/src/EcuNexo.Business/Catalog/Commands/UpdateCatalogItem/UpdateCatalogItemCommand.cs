@@ -13,6 +13,8 @@ public sealed record UpdateCatalogItemCommand(
     Guid? CategoryId = null,
     string? CustomAttributesJson = null,
     CatalogItemStatus? Status = null,
-    CatalogItemKind? Kind = null) : ICommand<UpdateCatalogItemResponse>;
+    CatalogItemKind? Kind = null,
+    Guid? FamilyId = null,
+    string? HierarchyPathJson = null) : ICommand<UpdateCatalogItemResponse>;
 
 public sealed record UpdateCatalogItemResponse(Guid ItemId, Guid TenantId);

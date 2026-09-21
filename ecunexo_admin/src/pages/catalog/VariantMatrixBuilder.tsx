@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Popup, useToast } from 'glubox'
 import { Camera, Check, Copy, Layers, Plus, Trash2, Upload, X } from 'lucide-react'
+import { isColorDimension } from '@/lib/catalogArchetype'
 import type { CreateVariantChildPayload } from '@/types/catalogApi'
 import './variantMatrixBuilder.css'
 
@@ -106,16 +107,6 @@ function getVariantSkuPrefix(baseSku?: string, baseName?: string): string {
   return 'PROD'
 }
 
-
-export function isColorDimension(name: string, type?: string, tplId?: string): boolean {
-  const nameLower = (name || '').toLowerCase().trim()
-  const typeLower = (type || '').toLowerCase().trim()
-  return (
-    nameLower.includes('color') ||
-    typeLower.includes('color') ||
-    tplId === 'system-colors'
-  )
-}
 
 function combineHierarchyTags(
   parentTags: readonly string[],
@@ -675,7 +666,7 @@ export function VariantMatrixBuilder({
       values: d.activeValues,
     }))
 
-    const variantDimensionsJson = JSON.stringify({ dimensions: dimensionsConfig })
+    const variantDimensionsJson = JSON.stringify(dimensionsConfig)
     const dimensionNames = dimensions.map((d) => d.name.trim())
 
     const payloadVariants: MatrixVariantPayloadWithImage[] = rows.map((r) => {

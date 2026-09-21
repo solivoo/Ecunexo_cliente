@@ -296,4 +296,74 @@ public sealed class CatalogItemTests
         doc.RootElement.TryGetProperty("parent_reassignment_history", out var historyEl).Should().BeTrue();
         historyEl.GetArrayLength().Should().Be(1);
     }
+
+    [Fact(DisplayName = "Create guarda arquetipo (familia) y ruta jerárquica normalizada")]
+    public void Create_WithFamilyAndHierarchyPath_PersistsContext()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var familyId = Guid.CreateVersion7();
+
+        var result = CatalogItem.Create(
+            Guid.CreateVersion7(),
+            tenantId,
+            CatalogItemKind.Physical,
+            "Calcetín Deportivo",
+            description: null,
+            sku: "CALC-FAM-01",
+            basePrice: 5m,
+            categoryId: null,
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson,
+            familyId: familyId,
+            hierarchyPathJson: """[{"level":" Colección / Familia ","name":"Material","value":" Algodón "}]""");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.FamilyId.Should().Be(familyId);
+        using var doc = JsonDocument.Parse(result.Value.HierarchyPathJson!);
+        doc.RootElement.GetArrayLength().Should().Be(1);
+        doc.RootElement[0].GetProperty("level").GetString().Should().Be("Colección / Familia");
+        doc.RootElement[0].GetProperty("name").GetString().Should().Be("Material");
+        doc.RootElement[0].GetProperty("value").GetString().Should().Be("Algodón");
+    }
+
+    [Fact(DisplayName = "Update reemplaza arquetipo y ruta; sin datos los limpia")]
+    public void Update_ChangesAndClearsFamilyContext()
+    {
+        var item = CatalogTestFactory.Physical(sku: "UPD-FAM-01");
+        var familyId = Guid.CreateVersion7();
+
+        var updated = item.Update(
+            "Ítem actualizado",
+            null,
+            item.Sku,
+            null,
+            null,
+            null,
+            CatalogAttributeSchema.EmptyArrayJson,
+            null,
+            familyId,
+            """[{"level":"Modelo","name":"Caña","value":"Corta"}]""");
+
+        updated.IsSuccess.Should().BeTrue();
+        item.FamilyId.Should().Be(familyId);
+        using (var doc = JsonDocument.Parse(item.HierarchyPathJson!))
+        {
+            doc.RootElement[0].GetProperty("name").GetString().Should().Be("Caña");
+            doc.RootElement[0].GetProperty("value").GetString().Should().Be("Corta");
+        }
+
+        var cleared = item.Update(
+            "Ítem actualizado",
+            null,
+            item.Sku,
+            null,
+            null,
+            null,
+            CatalogAttributeSchema.EmptyArrayJson,
+            null);
+
+        cleared.IsSuccess.Should().BeTrue();
+        item.FamilyId.Should().BeNull();
+        item.HierarchyPathJson.Should().BeNull();
+    }
 }

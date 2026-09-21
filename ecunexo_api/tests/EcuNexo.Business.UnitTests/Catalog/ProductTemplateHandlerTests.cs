@@ -8,6 +8,7 @@ using EcuNexo.Business.Catalog.Queries.ListProductTemplates;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Catalog;
+using EcuNexo.Core.Tenancy;
 using NSubstitute;
 
 namespace EcuNexo.Business.UnitTests.Catalog;
@@ -144,5 +145,30 @@ public sealed class ProductTemplateHandlerTests
 
         Assert.True(getResult.IsSuccess);
         Assert.Equal("Plantilla Colección", getResult.Value!.Name);
+    }
+
+    [Fact(DisplayName = "Crear plantilla bloquea cuando se alcanza el límite del plan")]
+    public async Task Create_TemplateLimitReached_FailsWithForbidden()
+    {
+        var tenantId = Guid.CreateVersion7();
+        _tenants.ExistsByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(true);
+
+        var tenant = Tenant.Create(
+            tenantId,
+            "Empresa Small",
+            new ServicePlan("Small", 3, 1),
+            moduleEntitlements:
+            [
+                ModuleEntitlement.FromTier(TenantModuleCodes.Catalog, ModuleTier.Small)
+            ]).Value!;
+        _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(tenant);
+        _templates.CountByTenantAsync(tenantId, Arg.Any<CancellationToken>()).Returns(10);
+
+        var command = new CreateProductTemplateCommand(tenantId, "Plantilla extra", "Desc", "[]");
+
+        var result = await CreateCreateSut().Handle(command, CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("catalog.product_templates.limit_reached", result.Error!.Code);
     }
 }
