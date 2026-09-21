@@ -1697,17 +1697,43 @@ export function VariantMatrixBuilder({
                 </div>
               </div>
 
+              {/* Zona de subida directa de fotos desde el equipo */}
+              <div
+                onClick={() => singleFileInputRef.current?.click()}
+                style={{
+                  padding: '1.25rem 1rem',
+                  borderRadius: '8px',
+                  border: '2px dashed var(--shell-primary, #3b82f6)',
+                  background: 'color-mix(in srgb, var(--shell-primary, #3b82f6) 4%, var(--glb-surface, #ffffff))',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  userSelect: 'none',
+                }}
+              >
+                <Upload size={22} color="var(--shell-primary, #3b82f6)" />
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--glb-text)' }}>
+                  Subir fotografías para esta variante
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+                  Haz clic para seleccionar imágenes desde tu equipo (PNG, JPG o WebP)
+                </div>
+              </div>
+
               {/* Fotos actualmente asignadas */}
               {assigned.length > 0 && (
                 <div>
                   <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.4rem' }}>
-                    Fotos asignadas ({assigned.length}):
+                    Fotos de esta variante ({assigned.length}):
                   </div>
                   <div className="ecu-var-assigned-grid">
                     {assigned.map((img, idx) => (
                       <div key={img.id || idx} className="ecu-var-assigned-card">
                         <img src={img.previewUrl} alt={img.name || ''} />
-                        {idx === 0 && <span className="ecu-var-assigned-card__badge">Principal</span>}
+                        {idx === 0 && <span className="ecu-var-assigned-card__badge">Foto 1</span>}
                         <button
                           type="button"
                           className="ecu-var-assigned-card__remove"
@@ -1723,11 +1749,11 @@ export function VariantMatrixBuilder({
                 </div>
               )}
 
-              {/* Galería general del producto */}
-              {availableImages.length > 0 ? (
+              {/* Otras fotos disponibles */}
+              {availableImages.length > 0 && (
                 <div>
                   <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.35rem' }}>
-                    Seleccionar o deseleccionar de la vitrina ({availableImages.length} disponibles):
+                    Otras fotos disponibles ({availableImages.length}):
                   </div>
                   <div className="ecu-var-gallery-grid">
                     {availableImages.map((img) => {
@@ -1751,23 +1777,10 @@ export function VariantMatrixBuilder({
                     })}
                   </div>
                 </div>
-              ) : (
-                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--glb-muted)' }}>
-                  No hay fotos cargadas aún en la vitrina principal. Puedes subir fotografías directamente desde tu equipo.
-                </p>
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.75rem', borderTop: '1px solid var(--shell-border, rgba(0,0,0,0.08))' }}>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => singleFileInputRef.current?.click()}
-                    disabled={disabled}
-                  >
-                    <Upload size={14} /> Subir fotos desde equipo...
-                  </Button>
                   {assigned.length > 0 && (
                     <Button
                       type="button"
@@ -1853,7 +1866,7 @@ export function VariantMatrixBuilder({
 
             <div>
               <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.35rem' }}>
-                3. Selecciona la fotografía:
+                3. Selecciona o sube la fotografía:
               </div>
               {availableImages.length > 0 && (
                 <div className="ecu-var-gallery-grid" style={{ marginBottom: '0.75rem' }}>
@@ -1880,21 +1893,37 @@ export function VariantMatrixBuilder({
                   })}
                 </div>
               )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
+              <div
                 onClick={() => bulkFileInputRef.current?.click()}
+                style={{
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  border: '2px dashed var(--shell-primary, #3b82f6)',
+                  background: 'color-mix(in srgb, var(--shell-primary, #3b82f6) 4%, var(--glb-surface, #ffffff))',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  userSelect: 'none',
+                }}
               >
-                <Upload size={14} /> Subir nueva foto desde equipo...
-              </Button>
+                <Upload size={20} color="var(--shell-primary, #3b82f6)" />
+                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--glb-text)' }}>
+                  Subir fotografía desde tu equipo
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--glb-muted)' }}>
+                  Formatos PNG, JPG o WebP
+                </div>
+              </div>
               {bulkSelectedImage && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.6rem' }}>
-                  <div className="ecu-var-img-slot ecu-var-img-slot--filled" style={{ width: 40, height: 40 }}>
+                  <div className="ecu-var-img-slot ecu-var-img-slot--filled" style={{ width: 44, height: 44 }}>
                     <img src={bulkSelectedImage.previewUrl} alt="Seleccionada" />
                   </div>
                   <span style={{ fontSize: '0.8rem', color: 'var(--glb-text)', fontWeight: 500 }}>
-                    Foto lista para aplicar
+                    Foto lista para aplicar a las variantes
                   </span>
                 </div>
               )}

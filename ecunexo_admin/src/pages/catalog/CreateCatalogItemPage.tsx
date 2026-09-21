@@ -207,15 +207,33 @@ export function CreateCatalogItemPage() {
     }
   }, [appliedTemplate])
 
-  // Atributos correspondientes a los niveles superiores (especificaciones fijas del modelo)
-  const modelAttributes = useMemo(() => {
+  // Dimensiones del modelo sin variantes (niveles intermedios de la plantilla)
+  const templateModelDimensions = useMemo(() => {
     if (appliedTemplateLevels.length <= 1) return []
     const upper = appliedTemplateLevels.slice(0, appliedTemplateLevels.length - 1)
-    const list: { levelName: string; levelIndex: number; attr: string }[] = []
+    const list: { key: string; label: string; levelName: string; levelIndex: number }[] = []
     const seen = new Set<string>()
+
     upper.forEach((lvl, idx) => {
-      lvl.attributes.forEach((attr) => {
-        const clean = attr.trim()
+      if (lvl.attributes && lvl.attributes.length > 0) {
+        lvl.attributes.forEach((attr) => {
+          const clean = attr.trim()
+          const lower = clean.toLowerCase()
+          if (
+            lower !== 'talla' &&
+            lower !== 'tallas' &&
+            lower !== 'size' &&
+            lower !== 'color' &&
+            lower !== 'colores'
+          ) {
+            if (!seen.has(lower)) {
+              seen.add(lower)
+              list.push({ key: clean, label: clean, levelName: lvl.name, levelIndex: idx + 1 })
+            }
+          }
+        })
+      } else {
+        const clean = lvl.name.trim()
         const lower = clean.toLowerCase()
         if (
           lower !== 'talla' &&
@@ -226,10 +244,10 @@ export function CreateCatalogItemPage() {
         ) {
           if (!seen.has(lower)) {
             seen.add(lower)
-            list.push({ levelName: lvl.name, levelIndex: idx + 1, attr: clean })
+            list.push({ key: clean, label: clean, levelName: lvl.name, levelIndex: idx + 1 })
           }
         }
-      })
+      }
     })
     return list
   }, [appliedTemplateLevels])
@@ -286,6 +304,11 @@ export function CreateCatalogItemPage() {
       const tpl = productTemplates.find((t) => t.id === templateId)
       if (!tpl) return
 
+      setName(tpl.name)
+      setDescription(tpl.description || '')
+      setBasePrice('')
+      setCategoryId('')
+
       let parsedLevels: ProductTemplateLevel[] = []
       try {
         parsedLevels = JSON.parse(tpl.hierarchyTreeJson)
@@ -304,12 +327,19 @@ export function CreateCatalogItemPage() {
 
       const upperAttrs: string[] = []
       parsedLevels.slice(0, parsedLevels.length - 1).forEach((l) => {
-        l.attributes.forEach((attr) => {
-          const lower = attr.trim().toLowerCase()
+        if (l.attributes && l.attributes.length > 0) {
+          l.attributes.forEach((attr) => {
+            const lower = attr.trim().toLowerCase()
+            if (lower !== 'talla' && lower !== 'tallas' && lower !== 'color' && lower !== 'colores') {
+              if (!upperAttrs.includes(attr.trim())) upperAttrs.push(attr.trim())
+            }
+          })
+        } else {
+          const lower = l.name.trim().toLowerCase()
           if (lower !== 'talla' && lower !== 'tallas' && lower !== 'color' && lower !== 'colores') {
-            if (!upperAttrs.includes(attr.trim())) upperAttrs.push(attr.trim())
+            if (!upperAttrs.includes(l.name.trim())) upperAttrs.push(l.name.trim())
           }
-        })
+        }
       })
 
       if (upperAttrs.length > 0) {
@@ -412,7 +442,8 @@ export function CreateCatalogItemPage() {
       setError(null)
       setBusy(true)
       try {
-        if (!name.trim()) throw new Error('El nombre del ítem es obligatorio.')
+        const finalName = name.trim() || appliedTemplate?.name || ''
+        if (!finalName) throw new Error('El nombre del ítem es obligatorio.')
         const kindNum = Number(kind) as CatalogItemKind
         if (kindNum === CatalogItemKind.Physical && !hasVariants && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
@@ -435,7 +466,7 @@ export function CreateCatalogItemPage() {
 
           const createdMatrix = await createCatalogItemMatrix(tenantId, {
             kind: kindNum,
-            name: name.trim(),
+            name: finalName,
             description: description.trim() || null,
             modelCode: null,
             basePrice: price,
@@ -672,154 +703,166 @@ export function CreateCatalogItemPage() {
               </div>
             )}
 
-            <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
-              <div className="ecu-companies-form__field">
-                <Select
-                  id="ci-kind"
-                  label="Tipo de ítem"
-                  labelPosition="outlined"
-                  variant="outline"
-                  options={[
-                    { value: String(CatalogItemKind.Service), label: 'Servicio (intangible)' },
-                    { value: String(CatalogItemKind.Physical), label: 'Físico (con inventario)' },
-                  ]}
-                  value={kind}
-                  onChange={setKind}
-                  disabled={busy}
-                  fullWidth
-                />
+            {appliedTemplate ? (
+              /* MODO CON PLANTILLA: Listado directo de las dimensiones del modelo sin variantes */
+              <div>
+                {templateModelDimensions.length > 0 ? (
+                  <div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.75rem' }}>
+                      Dimensiones del Modelo:
+                    </div>
+                    <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+                      {templateModelDimensions.map(({ key, label, levelName }) => {
+                        const found = dimensionValuesMap.get(key.trim().toLowerCase())
+                        const hasOptions = found && found.values.length > 0
+                        return (
+                          <div key={key} className="ecu-companies-form__field">
+                            {hasOptions ? (
+                              <Select
+                                id={`dim-${key}`}
+                                label={label.toLowerCase() === levelName.toLowerCase() ? label : `${label} (${levelName})`}
+                                labelPosition="outlined"
+                                variant="outline"
+                                options={[
+                                  { value: '', label: `Seleccionar ${label}...` },
+                                  ...found.values.map((v) => ({ value: v, label: v })),
+                                ]}
+                                value={getAttributeValue(key)}
+                                onChange={(val: string) => setAttributeValue(key, val)}
+                                disabled={busy}
+                                fullWidth
+                              />
+                            ) : (
+                              <TextBox
+                                id={`dim-${key}`}
+                                label={label.toLowerCase() === levelName.toLowerCase() ? label : `${label} (${levelName})`}
+                                labelPosition="outlined"
+                                variant="outline"
+                                value={getAttributeValue(key)}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                                  setAttributeValue(key, e.target.value)
+                                }
+                                placeholder={`Ingresar ${label.toLowerCase()}...`}
+                                disabled={busy}
+                                fullWidth
+                              />
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
+                    Esta plantilla no define dimensiones intermedias. Las variantes físicas se configuran en la sección inferior.
+                  </p>
+                )}
               </div>
-              <div className="ecu-companies-form__field">
-                <Select
-                  id="ci-cat"
-                  label="Categoría"
-                  labelPosition="outlined"
-                  variant="outline"
-                  options={categoryOptions}
-                  value={categoryId}
-                  onChange={setCategoryId}
-                  disabled={busy}
-                  fullWidth
-                />
-              </div>
-              <div className="ecu-companies-form__field">
-                <TextBox
-                  id="ci-name"
-                  label="Nombre del producto o servicio"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={name}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                  placeholder={
-                    kind === String(CatalogItemKind.Physical)
-                      ? 'Ej. Camiseta Deportiva, Monitor 27", Zapatos de Seguridad'
-                      : 'Ej. Consultoría, Soporte Técnico Mensual'
-                  }
-                  required
-                  disabled={busy}
-                  fullWidth
-                />
-              </div>
-              {!hasVariants && (
+            ) : (
+              /* MODO MANUAL LIBRE (SIN PLANTILLA) */
+              <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                 <div className="ecu-companies-form__field">
-                  <TextBox
-                    id="ci-sku"
-                    label={
-                      kind === String(CatalogItemKind.Physical)
-                        ? 'Código SKU (obligatorio)'
-                        : 'Código SKU (opcional)'
-                    }
+                  <Select
+                    id="ci-kind"
+                    label="Tipo de ítem"
                     labelPosition="outlined"
                     variant="outline"
-                    value={sku}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                      setSku(e.target.value.toUpperCase())
-                    }
-                    placeholder="PROD-001"
-                    required={kind === String(CatalogItemKind.Physical)}
+                    options={[
+                      { value: String(CatalogItemKind.Service), label: 'Servicio (intangible)' },
+                      { value: String(CatalogItemKind.Physical), label: 'Físico (con inventario)' },
+                    ]}
+                    value={kind}
+                    onChange={setKind}
                     disabled={busy}
                     fullWidth
                   />
                 </div>
-              )}
-              <div className="ecu-companies-form__field">
-                <TextBox
-                  id="ci-price"
-                  label={hasVariants ? 'Precio base referencial' : 'Precio base de venta'}
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={basePrice}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
-                  placeholder="0.00"
-                  disabled={busy}
-                  fullWidth
-                />
+                <div className="ecu-companies-form__field">
+                  <Select
+                    id="ci-cat"
+                    label="Categoría"
+                    labelPosition="outlined"
+                    variant="outline"
+                    options={categoryOptions}
+                    value={categoryId}
+                    onChange={setCategoryId}
+                    disabled={busy}
+                    fullWidth
+                  />
+                </div>
+                <div className="ecu-companies-form__field">
+                  <TextBox
+                    id="ci-name"
+                    label="Nombre del producto o servicio"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={name}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                    placeholder={
+                      kind === String(CatalogItemKind.Physical)
+                        ? 'Ej. Camiseta Deportiva, Monitor 27", Zapatos de Seguridad'
+                        : 'Ej. Consultoría, Soporte Técnico Mensual'
+                    }
+                    required
+                    disabled={busy}
+                    fullWidth
+                  />
+                </div>
+                {!hasVariants && (
+                  <div className="ecu-companies-form__field">
+                    <TextBox
+                      id="ci-sku"
+                      label={
+                        kind === String(CatalogItemKind.Physical)
+                          ? 'Código SKU (obligatorio)'
+                          : 'Código SKU (opcional)'
+                      }
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={sku}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setSku(e.target.value.toUpperCase())
+                      }
+                      placeholder="PROD-001"
+                      required={kind === String(CatalogItemKind.Physical)}
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
+                <div className="ecu-companies-form__field">
+                  <TextBox
+                    id="ci-price"
+                    label={hasVariants ? 'Precio base referencial' : 'Precio base de venta'}
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={basePrice}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
+                    placeholder="0.00"
+                    disabled={busy}
+                    fullWidth
+                  />
+                </div>
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
+                  <TextBox
+                    id="ci-desc"
+                    label="Descripción comercial o especificaciones"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={description}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+                    placeholder="Detalles y características para facturación y reportes…"
+                    disabled={busy}
+                    fullWidth
+                  />
+                </div>
               </div>
-              <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
-                <TextBox
-                  id="ci-desc"
-                  label="Descripción comercial o especificaciones"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={description}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
-                  placeholder="Detalles y características para facturación y reportes…"
-                  disabled={busy}
-                  fullWidth
-                />
-              </div>
-            </div>
+            )}
           </SectionCard>
 
-          {/* Especificaciones y Atributos del Modelo */}
-          <div style={{ marginTop: '1.25rem' }}>
-            {appliedTemplate && modelAttributes.length > 0 ? (
-              <SectionCard
-                title="Especificaciones y Atributos del Modelo"
-                subtitle="Selecciona los valores predefinidos en la plantilla para las características de este modelo de producto"
-              >
-                <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
-                  {modelAttributes.map(({ levelName, attr }) => {
-                    const found = dimensionValuesMap.get(attr.trim().toLowerCase())
-                    const hasOptions = found && found.values.length > 0
-                    return (
-                      <div key={attr} className="ecu-companies-form__field">
-                        {hasOptions ? (
-                          <Select
-                            id={`attr-${attr}`}
-                            label={`${attr} (${levelName})`}
-                            labelPosition="outlined"
-                            variant="outline"
-                            options={[
-                              { value: '', label: `Seleccionar ${attr}...` },
-                              ...found.values.map((v) => ({ value: v, label: v })),
-                            ]}
-                            value={getAttributeValue(attr)}
-                            onChange={(val: string) => setAttributeValue(attr, val)}
-                            disabled={busy}
-                            fullWidth
-                          />
-                        ) : (
-                          <TextBox
-                            id={`attr-${attr}`}
-                            label={`${attr} (${levelName})`}
-                            labelPosition="outlined"
-                            variant="outline"
-                            value={getAttributeValue(attr)}
-                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                              setAttributeValue(attr, e.target.value)
-                            }
-                            placeholder={`Ingresar ${attr.toLowerCase()}...`}
-                            disabled={busy}
-                            fullWidth
-                          />
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </SectionCard>
-            ) : !appliedTemplate ? (
+          {/* Especificaciones y Atributos Adicionales (Únicamente en creación manual libre) */}
+          {!appliedTemplate && (
+            <div style={{ marginTop: '1.25rem' }}>
               <SectionCard
                 title="Especificaciones y Atributos Adicionales"
                 subtitle="Define propiedades técnicas, comerciales o informativas propias de este producto (ej. Material, Marca, Garantía, Procedencia, etc.)."
@@ -831,25 +874,27 @@ export function CreateCatalogItemPage() {
                   disabled={busy}
                 />
               </SectionCard>
-            ) : null}
-          </div>
+            </div>
+          )}
 
-          {/* Fotografías de Presentación del Producto (Única galería en todo el formulario) */}
-          <div style={{ marginTop: '1.25rem' }}>
-            <SectionCard
-              title="Fotografías de Presentación del Producto"
-              subtitle="Imágenes de vitrina comercial para el catálogo digital, POS y tienda virtual. Disponibles para asociar a variantes físicas."
-            >
-              <StagedCatalogItemImages
-                stagedImages={stagedImages}
-                onStagedImagesChange={setStagedImages}
-                disabled={busy}
-                uploading={busy && uploadStatus !== null}
-                uploadStatus={uploadStatus}
-                hideBanner={true}
-              />
-            </SectionCard>
-          </div>
+          {/* Fotografías del Producto (Únicamente cuando NO tiene variantes físicas) */}
+          {!hasVariants && (
+            <div style={{ marginTop: '1.25rem' }}>
+              <SectionCard
+                title="Fotografías del Producto"
+                subtitle="Anexa hasta 8 imágenes para este producto."
+              >
+                <StagedCatalogItemImages
+                  stagedImages={stagedImages}
+                  onStagedImagesChange={setStagedImages}
+                  disabled={busy}
+                  uploading={busy && uploadStatus !== null}
+                  uploadStatus={uploadStatus}
+                  hideBanner={true}
+                />
+              </SectionCard>
+            </div>
+          )}
 
           {/* Etiquetas del Producto (Tags) */}
           <div style={{ marginTop: '1.25rem' }}>
