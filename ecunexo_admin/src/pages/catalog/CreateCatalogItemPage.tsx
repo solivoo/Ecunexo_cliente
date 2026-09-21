@@ -798,7 +798,6 @@ export function CreateCatalogItemPage() {
                 <VariantMatrixBuilder
                   tenantId={tenantId}
                   baseName={name}
-                  baseSku={sku}
                   basePrice={basePrice}
                   disabled={busy}
                   onChange={setMatrixData}

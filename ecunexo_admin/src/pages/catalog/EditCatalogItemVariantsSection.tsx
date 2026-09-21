@@ -200,9 +200,8 @@ export function EditCatalogItemVariantsSection({
     }
     setVariantImage(null)
     setVariantImagePreview(null)
-    const defaultPrefix = parentItem.sku ? `${parentItem.sku}-` : ''
     setVariantTitle('')
-    setSku(defaultPrefix)
+    setSku('')
     setPrice(parentItem.basePrice != null ? String(parentItem.basePrice) : '')
     setInitialStock('')
     const initialDims: Record<string, string> = {}
@@ -211,23 +210,17 @@ export function EditCatalogItemVariantsSection({
     }
     setDimValues(initialDims)
     setAddModalOpen(true)
-  }, [dimensions, parentItem.basePrice, parentItem.sku, variantImagePreview])
+  }, [dimensions, parentItem.basePrice, variantImagePreview])
 
-  // Auto-suggest title and SKU when dimensions change in add modal
+  // Auto-suggest variant title when dimensions change in add modal
   const handleDimChange = useCallback(
     (dimName: string, val: string) => {
       const updated = { ...dimValues, [dimName.toLowerCase()]: val }
       setDimValues(updated)
       const valuesJoined = Object.values(updated).filter(Boolean).join(' - ')
       setVariantTitle(valuesJoined)
-      const skuSuffix = Object.values(updated)
-        .filter(Boolean)
-        .map((v) => v.replace(/\s+/g, '').toUpperCase())
-        .join('-')
-      const prefix = parentItem.sku ? `${parentItem.sku}-` : ''
-      setSku(`${prefix}${skuSuffix}`)
     },
-    [dimValues, parentItem.sku]
+    [dimValues]
   )
 
   // Submit adding new variant
@@ -595,11 +588,11 @@ export function EditCatalogItemVariantsSection({
           footerText="Precios por variante"
         />
         <StatCard
-          label="Prefijo Modelo SKU"
+          label="SKU del Modelo"
           value={parentItem.sku || 'Sin código'}
           icon="qr_code_2"
           toneColor="#0ea5e9"
-          footerText="Código agrupador"
+          footerText="Código agrupador de la matriz"
         />
       </div>
 

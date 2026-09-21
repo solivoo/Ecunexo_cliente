@@ -9,7 +9,7 @@ test.describe('Catálogo UI — Variantes Físicas y Ficha de Ítem', () => {
     await loginAsSeedUser(page)
   })
 
-  test('Constructor de variantes: tarjetas por dimensión, fotos compartidas y segundo grupo', async ({
+  test('Constructor de variantes: fila inicial, foto por variante y alta de talla', async ({
     page,
   }) => {
     const session = await readPersistedSession(page)
@@ -24,16 +24,16 @@ test.describe('Catálogo UI — Variantes Físicas y Ficha de Ítem', () => {
     const matrix = page.locator('.ecu-matrix-builder')
     await expect(matrix).toBeVisible()
 
-    // Variante inicial con su fila interna y acciones de grupo
+    // Variante inicial con su fila interna y controles por SKU
     const firstGroup = matrix.locator('.ecu-variant-group-card').first()
     await expect(firstGroup).toBeVisible()
     await expect(firstGroup.locator('.ecu-variant-sub-item-row').first()).toBeVisible()
-    await expect(firstGroup.getByText(/Subir Fotos|Gestionar Fotos/i)).toBeVisible()
-    await expect(firstGroup.getByRole('button', { name: /Duplicar/i })).toBeVisible()
+    await expect(firstGroup.getByTitle('Subir foto exclusiva para esta variante').first()).toBeVisible()
+    await expect(firstGroup.getByTitle('Duplicar esta talla').first()).toBeVisible()
 
-    // Agregar un segundo grupo (color/talla) desde la barra de acciones superior
+    // Agregar una segunda talla/variante desde la barra de acciones superior
     await matrix.locator('.ecu-matrix-bulk-bar').getByRole('button', { name: /Añadir|Agregar/ }).click()
-    await expect(matrix.locator('.ecu-variant-group-card')).toHaveCount(2)
+    await expect(matrix.locator('.ecu-variant-sub-item-row')).toHaveCount(2)
   })
 
   test('Ficha de ítem: abre la vista de edición desde el listado', async ({ page }) => {

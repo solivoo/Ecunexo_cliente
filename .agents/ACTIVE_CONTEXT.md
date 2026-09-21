@@ -9,6 +9,24 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.41.0`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Fotografía por Variante (SKU) (`VariantMatrixBuilder.tsx`, `variantMatrixBuilder.css`, specs UI) [sin bump de versión]:**
+    * **Foto por fila:** cada variante/SKU incorpora su propia columna «Foto» con subida múltiple, miniatura, contador `+N` y remoción, independiente de las fotos compartidas.
+    * **Barra compartida condicionada:** las «Fotos compartidas del grupo» solo se muestran cuando existe una dimensión principal real (color/caña); con una sola dimensión (Talla → grupo «General») cada SKU gestiona su propia imagen.
+    * **Payload sin cambios:** `stagedImages` por variante ya se enviaba al backend; ahora es gestionable desde la interfaz.
+    * **Specs Playwright actualizados:** foto por variante, alta de talla en fila y botón duplicar fila.
+    * **Verificación:** build frontend limpio; sin errores de lint nuevos; specs compilan y se listan.
+  - **Catálogo — ColorPicker de glubox en la Dimensión Color (`VariantMatrixBuilder.tsx`) [sin bump de versión]:**
+    * **Swatch editable:** el círculo de color de cada tarjeta de grupo ahora es un botón que abre un `Popup` con el `ColorPicker` de glubox (input hex, panel HSV y presets) para definir la muestra cromática.
+    * **Nuevo color con picker:** al elegir «+ Nuevo Color…» ya no se usa `window.prompt`; se abre el modal con nombre + `ColorPicker`.
+    * **Duplicar color con picker:** «Duplicar Color» sin valores restantes abre el mismo modal (nombre + color) en lugar del prompt.
+    * **Estado:** `colorHexMap` pasó a ser mutable (`setColorHexMap`); al renombrar o duplicar, el hex se traslada del valor origen al destino.
+    * **Limitación:** el mapa hex es de sesión (no persiste en backend); puede guardarse en `customAttributesJson` si se requiere.
+    * **Verificación:** build frontend limpio; sin errores de lint nuevos.
+  - **Catálogo — SKU Manual (sin generación automática) (`VariantMatrixBuilder.tsx`, `EditCatalogItemVariantsSection.tsx`, `CreateCatalogItemPage.tsx`) [sin bump de versión]:**
+    * **Sin autogeneración:** la fila inicial, «Duplicar variante», «Añadir talla al grupo» y «Duplicar grupo» ahora arrancan con el campo SKU vacío y obligatorio para ingreso manual del usuario.
+    * **Modal de alta de variante:** ya no prellena ni autosugiere el SKU con el prefijo del modelo al cambiar dimensiones; se conserva la sugerencia automática del título.
+    * **Purga (Regla 10):** eliminados los helpers `getVariantSkuPrefix`/`sanitizeSkuPart`, el flag muerto `isManualSku` y el prop `baseSku` del constructor; placeholder del campo actualizado («Ej. NIK-001-0001») y tarjeta renombrada a «SKU del Modelo».
+    * **Verificación:** build frontend limpio; sin errores de lint nuevos.
   - **Catálogo — Specs Playwright Actualizados al Flujo Actual (`catalogo-ui.spec.ts`, `producto-matriz-ui.spec.ts`, `plantillas-producto-ui.spec.ts`) [sin bump de versión]:**
     * **Selectores y copy alineados a la UI v0.41+:** «Ítems del Catálogo», «Categorías del Catálogo», «Fotografías del Producto», tarjetas de variantes por dimensión (`.ecu-variant-group-card`, `.ecu-variant-sub-item-row`), fotos compartidas por grupo, «Configuración de Niveles Jerárquicos» y «Diagrama Visual de Jerarquía (Vista Pizarra)».
     * **Interacción correcta con glubox `Select`:** se usa el rol `combobox` + `option` (el componente no es un `<select>` nativo, por lo que `selectOption` no aplica).

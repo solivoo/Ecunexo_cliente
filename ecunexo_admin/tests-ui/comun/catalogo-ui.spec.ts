@@ -89,12 +89,12 @@ test.describe('Catálogo UI — Ítems y Categorías', () => {
     // Arranca con una variante inicial agrupada por su dimensión principal
     await expect(matrix.locator('.ecu-variant-group-card')).toHaveCount(1)
 
-    // Agregar un segundo grupo de variantes desde la barra de acciones
-    await matrix.locator('.ecu-matrix-bulk-bar').getByRole('button', { name: /Añadir|Agregar/ }).click()
-    await expect(matrix.locator('.ecu-variant-group-card')).toHaveCount(2)
+    // Cada variante/SKU gestiona su propia fotografía
+    await expect(matrix.getByTitle('Subir foto exclusiva para esta variante').first()).toBeVisible()
 
-    // Cada grupo (color/talla) gestiona sus propias fotografías
-    await expect(matrix.getByText(/Subir Fotos|Gestionar Fotos/i).first()).toBeVisible()
+    // Agregar una segunda talla desde la barra de acciones
+    await matrix.locator('.ecu-matrix-bulk-bar').getByRole('button', { name: /Añadir|Agregar/ }).click()
+    await expect(matrix.locator('.ecu-variant-sub-item-row')).toHaveCount(2)
     await expect(matrix.locator('.ecu-matrix-bulk-bar__count')).toContainText(/variante/i)
   })
 })
