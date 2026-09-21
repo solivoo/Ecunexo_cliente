@@ -546,18 +546,78 @@ html.sf-dark-mode .ecu-matrix-table input[type="number"] {
   object-fit: cover;
 }
 
-.ecu-var-gallery-badge {
+.ecu-var-img-count-badge {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  line-height: 1.1;
+  pointer-events: none;
+  backdrop-filter: blur(2px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ecu-var-assigned-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.ecu-var-assigned-card {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.12));
+  background: var(--glb-surface-ground, #f8fafc);
+}
+
+.ecu-var-assigned-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ecu-var-assigned-card__remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--shell-primary, #4f46e5);
+  background: rgba(239, 68, 68, 0.9);
   color: #ffffff;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s ease;
+}
+
+.ecu-var-assigned-card__remove:hover {
+  transform: scale(1.15);
+  background: #dc2626;
+}
+
+.ecu-var-assigned-card__badge {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  background: rgba(37, 99, 235, 0.9);
+  color: #ffffff;
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 1px 3px;
+  border-radius: 3px;
+  line-height: 1;
 }
 
 

@@ -276,7 +276,7 @@ export function CreateCatalogItemPage() {
             kind: kindNum,
             name: name.trim(),
             description: description.trim() || null,
-            modelCode: sku.trim() || null,
+            modelCode: null,
             basePrice: price,
             categoryId: categoryId || null,
             variantDimensionsJson: matrixData.variantDimensionsJson,
@@ -291,15 +291,24 @@ export function CreateCatalogItemPage() {
             for (let i = 0; i < matrixData.variants.length; i++) {
               const v = matrixData.variants[i]
               const variantItemId = createdMatrix.variantItemIds[i]
-              if (v.stagedImage && variantItemId) {
-                setUploadStatus(`Subiendo imagen de variante «${v.variantTitle}»...`)
+              if (!variantItemId) continue
+
+              const imagesToUpload = v.stagedImages && v.stagedImages.length > 0
+                ? v.stagedImages
+                : v.stagedImage
+                  ? [{ file: v.stagedImage, name: v.variantTitle }]
+                  : []
+
+              for (let imgIdx = 0; imgIdx < imagesToUpload.length; imgIdx++) {
+                const img = imagesToUpload[imgIdx]
+                setUploadStatus(`Subiendo foto ${imgIdx + 1} de ${imagesToUpload.length} para variante «${v.variantTitle}»...`)
                 try {
                   await uploadCatalogItemImage(
                     tenantId,
                     variantItemId,
-                    v.stagedImage,
-                    v.variantTitle,
-                    true
+                    img.file,
+                    `${v.variantTitle} - ${imgIdx + 1}`,
+                    imgIdx === 0
                   )
                 } catch (imgErr) {
                   console.error('Error al subir imagen de variante', imgErr)
@@ -550,32 +559,32 @@ export function CreateCatalogItemPage() {
                   fullWidth
                 />
               </div>
-              <div className="ecu-companies-form__field">
-                <TextBox
-                  id="ci-sku"
-                  label={
-                    hasVariants
-                      ? 'Código Modelo / Prefijo SKU (ej. MOD-001)'
-                      : kind === String(CatalogItemKind.Physical)
+              {!hasVariants && (
+                <div className="ecu-companies-form__field">
+                  <TextBox
+                    id="ci-sku"
+                    label={
+                      kind === String(CatalogItemKind.Physical)
                         ? 'Código SKU (obligatorio)'
                         : 'Código SKU (opcional)'
-                  }
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={sku}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setSku(e.target.value.toUpperCase())
-                  }
-                  placeholder={hasVariants ? 'Ej. MOD-001, ART-001' : 'PROD-001'}
-                  required={!hasVariants && kind === String(CatalogItemKind.Physical)}
-                  disabled={busy}
-                  fullWidth
-                />
-              </div>
+                    }
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={sku}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setSku(e.target.value.toUpperCase())
+                    }
+                    placeholder="PROD-001"
+                    required={kind === String(CatalogItemKind.Physical)}
+                    disabled={busy}
+                    fullWidth
+                  />
+                </div>
+              )}
               <div className="ecu-companies-form__field">
                 <TextBox
                   id="ci-price"
-                  label="Precio base de venta"
+                  label={hasVariants ? 'Precio base referencial' : 'Precio base de venta'}
                   labelPosition="outlined"
                   variant="outline"
                   value={basePrice}
@@ -604,8 +613,8 @@ export function CreateCatalogItemPage() {
           {/* Galería Multimedia Principal / Portada y Vitrina */}
           <div style={{ marginTop: '1.25rem' }}>
             <SectionCard
-              title="Fotografías del Ítem y Vitrina Online"
-              subtitle="Anexa hasta 8 imágenes para el catálogo y tienda online. Estas fotos también estarán disponibles para asociarlas rápidamente a cada variante."
+              title="Fotografías de Vitrina y E-commerce"
+              subtitle="Anexa hasta 8 imágenes para el catálogo y vitrina virtual. Estas fotos también estarán disponibles para asociarlas rápidamente a cada variante."
             >
               <StagedCatalogItemImages
                 stagedImages={stagedImages}

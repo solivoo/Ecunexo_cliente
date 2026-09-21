@@ -26,6 +26,13 @@ export type DimensionState = {
   newColorHex: string
 }
 
+export type VariantImageItem = {
+  id: string
+  file: File
+  previewUrl: string
+  name: string
+}
+
 export type VariantRowState = {
   id: string
   dimensionValues: Record<string, string>
@@ -40,11 +47,13 @@ export type VariantRowState = {
   warehouseId: string
   stagedImage?: File | null
   stagedImagePreview?: string | null
+  stagedImages?: VariantImageItem[]
   secondaryAttributeValue?: string
 }
 
 export type MatrixVariantPayloadWithImage = CreateVariantChildPayload & {
   stagedImage?: File | null
+  stagedImages?: VariantImageItem[]
 }
 
 export interface AvailableGalleryImage {
@@ -154,6 +163,18 @@ function sanitizeSkuPart(value: string): string {
     .replace(/^-|-$/g, '')
 }
 
+function getVariantSkuPrefix(baseSku?: string, baseName?: string): string {
+  if (baseSku?.trim()) {
+    return sanitizeSkuPart(baseSku)
+  }
+  if (baseName?.trim()) {
+    const parts = baseName.trim().split(/\s+/).filter(Boolean)
+    if (parts.length === 1) return sanitizeSkuPart(parts[0].slice(0, 6))
+    return parts.slice(0, 3).map((w) => sanitizeSkuPart(w.slice(0, 4))).join('-')
+  }
+  return 'PROD'
+}
+
 function cartesianProduct(arrays: string[][]): string[][] {
   if (arrays.length === 0) return []
   return arrays.reduce<string[][]>(
@@ -238,7 +259,7 @@ export function VariantMatrixBuilder({
       dimensionType: 'Talla',
       selectedTemplateId: 'system-socks',
       values: ['35-38', '39-41', '42-44'],
-      activeValues: ['35-38', '39-41', '42-44'],
+      activeValues: ['35-38'],
       newValInput: '',
       newColorHex: '#2563eb',
     },
@@ -491,7 +512,7 @@ export function VariantMatrixBuilder({
 
   // Generate Cartesian combinations when active dimensions change
   useEffect(() => {
-    const prefix = sanitizeSkuPart(baseSku) || 'ITEM'
+    const prefix = getVariantSkuPrefix(baseSku, baseName)
     const defaultPrice = basePrice.trim() ? basePrice.trim() : ''
 
     const activeDims = dimensions.filter((d) => d.activeValues.length > 0)
@@ -532,6 +553,7 @@ export function VariantMatrixBuilder({
             variantTitle: existing.variantTitle || autoTitle,
             sku: finalSku,
             basePrice: finalPrice,
+            stagedImages: existing.stagedImages || (existing.stagedImage && existing.stagedImagePreview ? [{ id: '1', file: existing.stagedImage, previewUrl: existing.stagedImagePreview, name: existing.variantTitle }] : []),
           }
         }
 
@@ -549,6 +571,7 @@ export function VariantMatrixBuilder({
           warehouseId: bulkWarehouseId,
           stagedImage: null,
           stagedImagePreview: null,
+          stagedImages: [],
           secondaryAttributeValue: '',
         }
       })
@@ -581,7 +604,7 @@ export function VariantMatrixBuilder({
 
   const handleRegenerateSkus = useCallback((format?: 'hierarchical' | 'name') => {
     const targetFormat = format ?? skuFormat
-    const prefix = sanitizeSkuPart(baseSku) || 'ITEM'
+    const prefix = getVariantSkuPrefix(baseSku, baseName)
     setRows((prev) =>
       prev.map((r, idx) => {
         const activeVals = Object.values(r.dimensionValues || {})
@@ -600,7 +623,7 @@ export function VariantMatrixBuilder({
         ? `Se generaron los códigos jerárquicos secuenciales «${prefix}-0001», etc.`
         : `Los códigos SKU se sincronizaron con los nombres de dimensión.`,
     })
-  }, [baseSku, skuFormat, toast])
+  }, [baseSku, baseName, skuFormat, toast])
 
   // Row field update
   const updateRow = useCallback((id: string, field: keyof VariantRowState, value: string) => {
@@ -622,77 +645,116 @@ export function VariantMatrixBuilder({
   const deleteRow = useCallback((id: string) => {
     setRows((prev) => {
       const target = prev.find((r) => r.id === id)
-      if (target?.stagedImagePreview) {
+      target?.stagedImages?.forEach((img) => {
+        if (img.previewUrl.startsWith('blob:')) URL.revokeObjectURL(img.previewUrl)
+      })
+      if (target?.stagedImagePreview?.startsWith('blob:')) {
         URL.revokeObjectURL(target.stagedImagePreview)
       }
       return prev.filter((r) => r.id !== id)
     })
   }, [])
 
-  // Row image handlers
-  const handleRowImageSelect = useCallback((id: string, file: File) => {
-    const previewUrl = URL.createObjectURL(file)
+  // Multi-photo handlers for variant rows
+  const handleAddImagesToRow = useCallback((id: string, files: File[]) => {
+    const newItems: VariantImageItem[] = files.map((file) => ({
+      id: `var-img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+      name: file.name,
+    }))
+
     setRows((prev) =>
       prev.map((r) => {
         if (r.id !== id) return r
-        if (r.stagedImagePreview) {
-          URL.revokeObjectURL(r.stagedImagePreview)
-        }
+        const updated = [...(r.stagedImages || []), ...newItems]
         return {
           ...r,
-          stagedImage: file,
-          stagedImagePreview: previewUrl,
+          stagedImages: updated,
+          stagedImage: updated[0]?.file ?? null,
+          stagedImagePreview: updated[0]?.previewUrl ?? null,
         }
       })
     )
   }, [])
 
-  const handleRemoveRowImage = useCallback((id: string) => {
+  const handleToggleGalleryImageInRow = useCallback((id: string, img: AvailableGalleryImage) => {
     setRows((prev) =>
       prev.map((r) => {
         if (r.id !== id) return r
-        if (r.stagedImagePreview) {
-          URL.revokeObjectURL(r.stagedImagePreview)
+        const current = r.stagedImages || []
+        const exists = current.some((item) => item.previewUrl === img.previewUrl)
+        let updated: VariantImageItem[]
+        if (exists) {
+          updated = current.filter((item) => item.previewUrl !== img.previewUrl)
+        } else {
+          updated = [
+            ...current,
+            {
+              id: `var-gal-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              file: img.file,
+              previewUrl: img.previewUrl,
+              name: img.altText || img.file.name,
+            },
+          ]
         }
         return {
           ...r,
+          stagedImages: updated,
+          stagedImage: updated[0]?.file ?? null,
+          stagedImagePreview: updated[0]?.previewUrl ?? null,
+        }
+      })
+    )
+  }, [])
+
+  const handleRemoveImageFromRow = useCallback((rowId: string, imagePreviewUrl: string) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== rowId) return r
+        const current = r.stagedImages || []
+        const updated = current.filter((img) => img.previewUrl !== imagePreviewUrl)
+        if (imagePreviewUrl.startsWith('blob:')) {
+          const isGallery = availableImages?.some((g) => g.previewUrl === imagePreviewUrl)
+          if (!isGallery) {
+            URL.revokeObjectURL(imagePreviewUrl)
+          }
+        }
+        return {
+          ...r,
+          stagedImages: updated,
+          stagedImage: updated[0]?.file ?? null,
+          stagedImagePreview: updated[0]?.previewUrl ?? null,
+        }
+      })
+    )
+  }, [availableImages])
+
+  const handleRemoveAllRowImages = useCallback((id: string) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r
+        r.stagedImages?.forEach((img) => {
+          const isGallery = availableImages?.some((g) => g.previewUrl === img.previewUrl)
+          if (!isGallery && img.previewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(img.previewUrl)
+          }
+        })
+        return {
+          ...r,
+          stagedImages: [],
           stagedImage: null,
           stagedImagePreview: null,
         }
       })
     )
-  }, [])
+  }, [availableImages])
 
   const handleOpenImagePickerForRow = useCallback(
     (rowId: string) => {
       setSingleRowImageTargetId(rowId)
-      if (!availableImages || availableImages.length === 0) {
-        singleFileInputRef.current?.click()
-      }
     },
-    [availableImages]
-  )
-
-  const handleAssignGalleryImageToRow = useCallback(
-    (rowId: string, img: AvailableGalleryImage) => {
-      setRows((prev) =>
-        prev.map((r) => {
-          if (r.id !== rowId) return r
-          return {
-            ...r,
-            stagedImage: img.file,
-            stagedImagePreview: img.previewUrl,
-          }
-        })
-      )
-      setSingleRowImageTargetId(null)
-      toast.show({
-        variant: 'success',
-        title: 'Imagen asignada',
-        message: 'Fotografía vinculada a la variante.',
-      })
-    },
-    [toast]
+    []
   )
 
   const handleApplyBulkImage = useCallback(() => {
@@ -718,10 +780,20 @@ export function VariantMatrixBuilder({
       prev.map((r) => {
         if (r.dimensionValues[bulkDimName] === bulkDimVal) {
           affectedCount++
+          const newImageItem: VariantImageItem = {
+            id: `var-bulk-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            file: bulkSelectedImage.file,
+            previewUrl: bulkSelectedImage.previewUrl,
+            name: bulkSelectedImage.name || 'Foto lote',
+          }
+          const current = r.stagedImages || []
+          const exists = current.some((img) => img.previewUrl === bulkSelectedImage.previewUrl)
+          const updated = exists ? current : [newImageItem, ...current]
           return {
             ...r,
-            stagedImage: bulkSelectedImage.file,
-            stagedImagePreview: bulkSelectedImage.previewUrl,
+            stagedImages: updated,
+            stagedImage: updated[0]?.file ?? null,
+            stagedImagePreview: updated[0]?.previewUrl ?? null,
           }
         }
         return r
@@ -737,7 +809,7 @@ export function VariantMatrixBuilder({
     })
   }, [bulkDimName, bulkDimVal, bulkSelectedImage, toast])
 
-  const activeDimsForBulk = useMemo(() => {
+  const activeDims = useMemo(() => {
     return dimensions.filter((d) => d.activeValues.length > 0)
   }, [dimensions])
 
@@ -913,7 +985,12 @@ export function VariantMatrixBuilder({
         customAttributesJson: Object.keys(customAttrs).length > 0 ? JSON.stringify(customAttrs) : null,
         initialStock: parsedStock != null && !Number.isNaN(parsedStock) && parsedStock > 0 ? parsedStock : null,
         initialStockWarehouseId: r.warehouseId || (bulkWarehouseId || null),
-        stagedImage: r.stagedImage,
+        stagedImage: r.stagedImages?.[0]?.file ?? r.stagedImage ?? null,
+        stagedImages: r.stagedImages && r.stagedImages.length > 0
+          ? r.stagedImages
+          : r.stagedImage && r.stagedImagePreview
+            ? [{ id: '1', file: r.stagedImage, previewUrl: r.stagedImagePreview, name: r.variantTitle }]
+            : [],
       }
     })
 
@@ -1308,12 +1385,12 @@ export function VariantMatrixBuilder({
         type="file"
         ref={singleFileInputRef}
         accept="image/jpeg,image/png,image/webp"
+        multiple
         style={{ display: 'none' }}
         onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file && singleRowImageTargetId) {
-            handleRowImageSelect(singleRowImageTargetId, file)
-            setSingleRowImageTargetId(null)
+          const files = Array.from(e.target.files || [])
+          if (files.length > 0 && singleRowImageTargetId) {
+            handleAddImagesToRow(singleRowImageTargetId, files)
           }
           e.target.value = ''
         }}
@@ -1344,10 +1421,18 @@ export function VariantMatrixBuilder({
             <thead>
               <tr>
                 <th style={{ width: 36 }}>#</th>
-                <th style={{ width: 80, textAlign: 'center' }} title="1 fotografía representativa por variante física (SKU)">
-                  Foto (1)
+                <th style={{ width: 85, textAlign: 'center' }} title="Fotografías asociadas a esta variante física (SKU)">
+                  Fotos
                 </th>
-                <th style={{ width: 160 }}>Variación</th>
+                {activeDims.length > 0 ? (
+                  activeDims.map((dim) => (
+                    <th key={dim.id} style={{ minWidth: 105, whiteSpace: 'nowrap' }}>
+                      {dim.name || 'Dimensión'}
+                    </th>
+                  ))
+                ) : (
+                  <th style={{ width: 140 }}>Variación</th>
+                )}
                 <th style={{ width: 160 }}>Título Variante</th>
                 <th style={{ width: 160 }}>SKU (Obligatorio)</th>
                 <th style={{ width: 140 }}>Actividad / Uso</th>
@@ -1359,32 +1444,42 @@ export function VariantMatrixBuilder({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, idx) => (
+              {rows.map((row, idx) => {
+                const rowImages = row.stagedImages || []
+                const hasImages = rowImages.length > 0 || !!row.stagedImagePreview
+                const firstPreview = rowImages[0]?.previewUrl || row.stagedImagePreview
+                return (
                 <tr key={row.id}>
                   <td style={{ color: 'var(--glb-muted)' }}>{idx + 1}</td>
                   <td style={{ textAlign: 'center' }}>
-                    {row.stagedImagePreview ? (
+                    {hasImages && firstPreview ? (
                       <div
                         className="ecu-var-img-slot ecu-var-img-slot--filled"
-                        title={`Foto de «${row.variantTitle}». Clic para cambiar o quitar`}
+                        title={`«${row.variantTitle}» (${rowImages.length || 1} fotos). Clic para gestionar`}
+                        style={{ position: 'relative' }}
                       >
-                        <img src={row.stagedImagePreview} alt={row.variantTitle} />
+                        <img src={firstPreview} alt={row.variantTitle} />
+                        {rowImages.length > 1 && (
+                          <span className="ecu-var-img-count-badge" title={`${rowImages.length} fotos asignadas`}>
+                            +{rowImages.length - 1}
+                          </span>
+                        )}
                         <div className="ecu-var-img-overlay">
                           <button
                             type="button"
                             className="ecu-var-img-action-btn"
                             onClick={() => handleOpenImagePickerForRow(row.id)}
                             disabled={disabled}
-                            title="Cambiar fotografía"
+                            title="Gestionar fotografías"
                           >
                             <Camera size={12} />
                           </button>
                           <button
                             type="button"
                             className="ecu-var-img-action-btn ecu-var-img-action-btn--danger"
-                            onClick={() => handleRemoveRowImage(row.id)}
+                            onClick={() => handleRemoveAllRowImages(row.id)}
                             disabled={disabled}
-                            title="Quitar fotografía"
+                            title="Quitar fotografías"
                           >
                             <X size={12} />
                           </button>
@@ -1396,20 +1491,21 @@ export function VariantMatrixBuilder({
                         className="ecu-var-img-slot ecu-var-img-slot--empty"
                         onClick={() => handleOpenImagePickerForRow(row.id)}
                         disabled={disabled}
-                        title="Asignar o subir fotografía a esta variante"
+                        title="Asignar o subir fotografías a esta variante"
                       >
                         <Camera size={15} />
-                        <span className="ecu-var-img-slot-text">+ Foto</span>
+                        <span className="ecu-var-img-slot-text">+ Fotos</span>
                       </button>
                     )}
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-                      {Object.entries(row.dimensionValues || {}).map(([dimName, val], i, arr) => {
-                        const isColor = isColorDimension(dimName)
-                        const hex = colorHexMap[val]
-                        return (
-                          <span key={dimName} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  {activeDims.length > 0 ? (
+                    activeDims.map((dim) => {
+                      const val = row.dimensionValues[dim.name] || '—'
+                      const isColor = isColorDimension(dim.name)
+                      const hex = colorHexMap[val]
+                      return (
+                        <td key={dim.id} style={{ whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                             {(isColor || hex) && (
                               <span
                                 className="ecu-color-swatch-dot"
@@ -1417,13 +1513,16 @@ export function VariantMatrixBuilder({
                                 title={val}
                               />
                             )}
-                            <strong>{val}</strong>
-                            {i < arr.length - 1 && <span style={{ color: 'var(--glb-muted)' }}>/</span>}
-                          </span>
-                        )
-                      })}
-                    </div>
-                  </td>
+                            <strong style={{ fontSize: '0.85rem' }}>{val}</strong>
+                          </div>
+                        </td>
+                      )
+                    })
+                  ) : (
+                    <td>
+                      <span style={{ color: 'var(--glb-muted)' }}>—</span>
+                    </td>
+                  )}
                   <td>
                     <input
                       type="text"
@@ -1541,100 +1640,138 @@ export function VariantMatrixBuilder({
                     </button>
                   </td>
                 </tr>
-              ))}
+              )
+              })}
             </tbody>
           </table>
         )}
       </div>
 
       {/* Modal para Asignar Foto a Variante Individual */}
-      {singleRowImageTargetId && targetRowForSingle && (
-        <Popup
-          open={true}
-          onClose={() => setSingleRowImageTargetId(null)}
-          title="Asignar Fotografía a la Variante"
-          width="500px"
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
-            <div
-              style={{
-                padding: '0.75rem 1rem',
-                borderRadius: '8px',
-                background: 'color-mix(in srgb, var(--shell-primary, #3b82f6) 6%, var(--glb-surface, #ffffff))',
-                border: '1px solid color-mix(in srgb, var(--shell-primary, #3b82f6) 20%, var(--shell-border, rgba(0,0,0,0.1)))',
-              }}
-            >
-              <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)', fontWeight: 600 }}>Variante física (1 foto):</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--glb-text)', marginTop: '0.2rem' }}>
-                {targetRowForSingle.variantTitle}
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--shell-primary, #2563eb)', fontFamily: 'monospace', marginTop: '0.15rem' }}>
-                SKU: {targetRowForSingle.sku}
-              </div>
-            </div>
-
-            {availableImages.length > 0 ? (
-              <div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.35rem' }}>
-                  Seleccionar de la galería del ítem ({availableImages.length} disponibles):
-                </div>
-                <div className="ecu-var-gallery-grid">
-                  {availableImages.map((img) => {
-                    const isSelected = targetRowForSingle.stagedImagePreview === img.previewUrl
-                    return (
-                      <button
-                        key={img.id}
-                        type="button"
-                        className={`ecu-var-gallery-item ${isSelected ? 'ecu-var-gallery-item--selected' : ''}`}
-                        onClick={() => handleAssignGalleryImageToRow(targetRowForSingle.id, img)}
-                        title={img.altText || img.file.name}
-                      >
-                        <img src={img.previewUrl} alt={img.altText || img.file.name} />
-                        {isSelected && (
-                          <div className="ecu-var-gallery-badge">
-                            <Check size={11} />
-                          </div>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ) : (
-              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--glb-muted)' }}>
-                No hay fotos cargadas aún en la galería principal del producto. Puedes subir una foto directamente desde tu equipo.
-              </p>
-            )}
-
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.5rem', borderTop: '1px solid var(--shell-border, rgba(0,0,0,0.08))' }}>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => singleFileInputRef.current?.click()}
-                disabled={disabled}
+      {singleRowImageTargetId && targetRowForSingle && (() => {
+        const assigned = targetRowForSingle.stagedImages || []
+        return (
+          <Popup
+            open={true}
+            onClose={() => setSingleRowImageTargetId(null)}
+            title="Fotografías de la Variante"
+            width="540px"
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
+              <div
+                style={{
+                  padding: '0.75rem 1rem',
+                  borderRadius: '8px',
+                  background: 'color-mix(in srgb, var(--shell-primary, #3b82f6) 6%, var(--glb-surface, #ffffff))',
+                  border: '1px solid color-mix(in srgb, var(--shell-primary, #3b82f6) 20%, var(--shell-border, rgba(0,0,0,0.1)))',
+                }}
               >
-                <Upload size={14} /> Subir nueva foto desde equipo...
-              </Button>
-              {targetRowForSingle.stagedImagePreview && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)', fontWeight: 600 }}>Variante física:</div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--glb-text)', marginTop: '0.2rem' }}>
+                  {targetRowForSingle.variantTitle}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--shell-primary, #2563eb)', fontFamily: 'monospace', marginTop: '0.15rem' }}>
+                  SKU: {targetRowForSingle.sku}
+                </div>
+              </div>
+
+              {/* Fotos actualmente asignadas */}
+              {assigned.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.4rem' }}>
+                    Fotos asignadas ({assigned.length}):
+                  </div>
+                  <div className="ecu-var-assigned-grid">
+                    {assigned.map((img, idx) => (
+                      <div key={img.id || idx} className="ecu-var-assigned-card">
+                        <img src={img.previewUrl} alt={img.name || ''} />
+                        {idx === 0 && <span className="ecu-var-assigned-card__badge">Principal</span>}
+                        <button
+                          type="button"
+                          className="ecu-var-assigned-card__remove"
+                          onClick={() => handleRemoveImageFromRow(targetRowForSingle.id, img.previewUrl)}
+                          disabled={disabled}
+                          title="Quitar esta foto de la variante"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Galería general del producto */}
+              {availableImages.length > 0 ? (
+                <div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.35rem' }}>
+                    Seleccionar o deseleccionar de la vitrina ({availableImages.length} disponibles):
+                  </div>
+                  <div className="ecu-var-gallery-grid">
+                    {availableImages.map((img) => {
+                      const isSelected = assigned.some((item) => item.previewUrl === img.previewUrl)
+                      return (
+                        <button
+                          key={img.id}
+                          type="button"
+                          className={`ecu-var-gallery-item ${isSelected ? 'ecu-var-gallery-item--selected' : ''}`}
+                          onClick={() => handleToggleGalleryImageInRow(targetRowForSingle.id, img)}
+                          title={img.altText || img.file.name}
+                        >
+                          <img src={img.previewUrl} alt={img.altText || img.file.name} />
+                          {isSelected && (
+                            <div className="ecu-var-gallery-badge">
+                              <Check size={11} />
+                            </div>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--glb-muted)' }}>
+                  No hay fotos cargadas aún en la vitrina principal. Puedes subir fotografías directamente desde tu equipo.
+                </p>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.75rem', borderTop: '1px solid var(--shell-border, rgba(0,0,0,0.08))' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => singleFileInputRef.current?.click()}
+                    disabled={disabled}
+                  >
+                    <Upload size={14} /> Subir fotos desde equipo...
+                  </Button>
+                  {assigned.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRemoveAllRowImages(targetRowForSingle.id)}
+                      disabled={disabled}
+                      style={{ color: 'var(--glb-danger, #ef4444)' }}
+                    >
+                      <Trash2 size={14} /> Quitar todas
+                    </Button>
+                  )}
+                </div>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="primary"
                   size="sm"
-                  onClick={() => {
-                    handleRemoveRowImage(targetRowForSingle.id)
-                    setSingleRowImageTargetId(null)
-                  }}
-                  disabled={disabled}
-                  style={{ color: 'var(--glb-danger, #ef4444)' }}
+                  onClick={() => setSingleRowImageTargetId(null)}
                 >
-                  <Trash2 size={14} /> Quitar foto asignada
+                  Listo ({assigned.length})
                 </Button>
-              )}
+              </div>
             </div>
-          </div>
-        </Popup>
-      )}
+          </Popup>
+        )
+      })()}
 
       {/* Modal para Asignar Foto en Lote */}
       {isBulkImageModalOpen && (
@@ -1655,7 +1792,7 @@ export function VariantMatrixBuilder({
                   1. Característica / Dimensión:
                 </label>
                 <Select
-                  options={activeDimsForBulk.map((d) => ({ value: d.name, label: d.name }))}
+                  options={activeDims.map((d) => ({ value: d.name, label: d.name }))}
                   value={bulkDimName}
                   onChange={(val: string) => {
                     setBulkDimName(val)

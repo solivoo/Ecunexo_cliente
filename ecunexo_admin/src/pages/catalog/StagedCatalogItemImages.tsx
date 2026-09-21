@@ -5,7 +5,6 @@ import {
   ArrowRight,
   Camera,
   ExternalLink,
-  Image as ImageIcon,
   Sparkles,
   Star,
   Tag,
@@ -236,7 +235,7 @@ export function StagedCatalogItemImages({
       <div className="ecu-product-gallery__banner">
         <div>
           <h4 className="ecu-product-gallery__title">
-            Fotografías del Ítem para Catálogo y E-commerce
+            Fotografías para Vitrina y E-commerce
           </h4>
           <p className="ecu-product-gallery__subtitle">
             Anexa hasta 8 fotografías. Al guardar el ítem se optimizarán automáticamente en formato WebP responsive.
@@ -357,52 +356,7 @@ export function StagedCatalogItemImages({
       )}
 
       {/* Grid de imágenes anexadas */}
-      {stagedImages.length === 0 ? (
-        <div
-          style={{
-            padding: '2rem 1rem',
-            textAlign: 'center',
-            borderRadius: '0.75rem',
-            background: 'var(--glb-surface-muted)',
-            border: '1px solid var(--shell-border)',
-          }}
-        >
-          <div
-            style={{
-              width: '3rem',
-              height: '3rem',
-              borderRadius: '50%',
-              background: 'var(--glb-surface)',
-              border: '1px solid var(--shell-border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 0.75rem auto',
-              color: 'var(--shell-muted)',
-            }}
-          >
-            <ImageIcon size={24} aria-hidden />
-          </div>
-          <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--shell-text)' }}>
-            Sin fotografías anexadas todavía
-          </h4>
-          <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.75rem', color: 'var(--shell-muted)' }}>
-            Puedes guardar el ítem sin imágenes o añadir hasta 8 fotos para la vitrina virtual.
-          </p>
-          <div style={{ marginTop: '0.85rem' }}>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={disabled || uploading || stagedImages.length >= MAX_IMAGES}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload size={14} className="mr-1.5" aria-hidden />
-              Seleccionar fotos
-            </Button>
-          </div>
-        </div>
-      ) : (
+      {stagedImages.length > 0 && (
         <div className="ecu-product-gallery__grid">
           {stagedImages.map((img, index) => {
             const isFirst = index === 0
