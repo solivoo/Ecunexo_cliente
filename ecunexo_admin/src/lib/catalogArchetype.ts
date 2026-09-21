@@ -97,6 +97,115 @@ export function resolvePhotoScope(levels: readonly ProductTemplateLevel[]): Phot
   return 'variant'
 }
 
+export type TemplateDimension = {
+  name: string
+  values?: string[]
+  isColor?: boolean
+  photoGroup?: boolean
+}
+
+/** Ejes declarados explícitamente para compartir fotos (normalizados a minúsculas). */
+export function resolvePhotoGroupBy(levels: readonly ProductTemplateLevel[]): string[] {
+  return levels
+    .flatMap((lvl) => lvl.photoGroupBy ?? [])
+    .map((name) => name.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+export function isSizeAxisName(name: string): boolean {
+  const lower = name.trim().toLowerCase()
+  return (
+    lower.includes('talla') ||
+    lower.includes('size') ||
+    lower.includes('medida') ||
+    lower.includes('numero') ||
+    lower.includes('número')
+  )
+}
+
+/**
+ * Un eje comparte fotos cuando el alcance es `group` y está declarado en `photoGroupBy`;
+ * sin declaración explícita se agrupan todos los ejes que no sean tallas/medidas.
+ */
+export function isPhotoGroupAxis(
+  axisName: string,
+  photoScope: PhotoScope,
+  explicitGroupBy: readonly string[]
+): boolean {
+  if (photoScope !== 'group') return false
+  const lower = axisName.trim().toLowerCase()
+  if (explicitGroupBy.length > 0) return explicitGroupBy.includes(lower)
+  return !isSizeAxisName(lower)
+}
+
+/**
+ * Deriva las dimensiones físicas (ejes) del arquetipo igual que el alta de ítems:
+ * terminal + escalas de talla/color que ascienden, tipadas y con su flag de agrupación de fotos.
+ */
+export function resolveTemplateDimensions(
+  levels: readonly ProductTemplateLevel[],
+  map: Map<string, DimensionLookup>
+): TemplateDimension[] | undefined {
+  if (levels.length === 0) return undefined
+
+  const photoScope = resolvePhotoScope(levels)
+  const explicitGroupBy = resolvePhotoGroupBy(levels)
+  const dims: TemplateDimension[] = []
+  const seen = new Set<string>()
+
+  const push = (rawName: string) => {
+    const clean = rawName.trim()
+    const lower = clean.toLowerCase()
+    if (
+      !clean ||
+      lower === 'tags' ||
+      lower === 'tag' ||
+      lower.includes('actividad') ||
+      lower.includes('variante') ||
+      lower.includes('física')
+    ) {
+      return
+    }
+    if (seen.has(lower)) return
+    seen.add(lower)
+
+    const found =
+      map.get(lower) ||
+      (lower.includes('talla') ? map.get('talla') : undefined) ||
+      (lower.includes('color') ? map.get('color') : undefined)
+
+    dims.push({
+      name: clean,
+      values: found?.values,
+      isColor: found?.isColor || isColorDimension(clean),
+      photoGroup: isPhotoGroupAxis(clean, photoScope, explicitGroupBy),
+    })
+  }
+
+  getVariantDimensionFields(levels, map).forEach((field) => push(field.key))
+
+  if (levels.some((lvl) => lvl.hasColor) && !dims.some((d) => d.isColor)) {
+    dims.push({
+      name: 'Color',
+      values: [],
+      isColor: true,
+      photoGroup: isPhotoGroupAxis('Color', photoScope, explicitGroupBy),
+    })
+  }
+
+  if (dims.length === 0) {
+    const sizeFound = map.get('talla') || map.get('tallas')
+    dims.push({
+      name: 'Talla',
+      values: sizeFound?.values || ['35-38', '39-41', '42-44'],
+      isColor: false,
+      photoGroup: false,
+    })
+  }
+
+  return dims
+}
+
 /**
  * Regla de posición + metadatos:
  * - Nivel terminal: manda el diccionario (`isVariantAxis=false` ⇒ descriptivo); sin diccionario, es eje.

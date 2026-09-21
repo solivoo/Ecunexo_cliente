@@ -1,7 +1,7 @@
 {
   "name": "admin_ecunexo",
   "private": true,
-  "version": "0.49.0",
+  "version": "0.49.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,6 +12,7 @@
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
     "test:ui": "playwright test",
+    "test:templates": "node --test scripts/templates.formation.test.ts",
     "test:ui:headed": "playwright test --headed",
     "test:ui:comun": "playwright test tests-ui/comun",
     "test:ui:independiente": "playwright test tests-ui/planes/independiente",

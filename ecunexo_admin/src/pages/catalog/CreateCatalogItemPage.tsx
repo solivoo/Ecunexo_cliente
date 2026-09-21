@@ -45,9 +45,8 @@ import {
   buildDimensionValuesMap,
   buildHierarchyPathJson,
   getModelAttributeFields,
-  getVariantDimensionFields,
-  isColorDimension,
   resolvePhotoScope,
+  resolveTemplateDimensions,
 } from '@/lib/catalogArchetype'
 import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
 
@@ -130,14 +129,6 @@ export function CreateCatalogItemPage() {
 
   const photoScope = useMemo(() => resolvePhotoScope(appliedTemplateLevels), [appliedTemplateLevels])
 
-  const photoGroupBy = useMemo(
-    () =>
-      appliedTemplateLevels
-        .flatMap((lvl) => lvl.photoGroupBy ?? [])
-        .map((name) => name.trim().toLowerCase()),
-    [appliedTemplateLevels]
-  )
-
   const modelAttributeFields = useMemo(
     () => getModelAttributeFields(appliedTemplateLevels, dimensionValuesMap),
     [appliedTemplateLevels, dimensionValuesMap]
@@ -161,78 +152,11 @@ export function CreateCatalogItemPage() {
     })
   }, [])
 
-  // Ejes físicos por variante: nivel terminal + atributos de color de niveles intermedios
-  const templateAllDimensions = useMemo(() => {
-    if (appliedTemplateLevels.length === 0) return undefined
-    const dims: { name: string; values?: string[]; isColor?: boolean; photoGroup?: boolean }[] = []
-    const seen = new Set<string>()
-
-    const photoGroupFor = (rawName: string): boolean => {
-      if (photoScope !== 'group') return false
-      const lower = rawName.trim().toLowerCase()
-      if (photoGroupBy.length > 0) return photoGroupBy.includes(lower)
-      return !(
-        lower.includes('talla') ||
-        lower.includes('size') ||
-        lower.includes('medida') ||
-        lower.includes('numero') ||
-        lower.includes('número')
-      )
-    }
-
-    const push = (rawName: string) => {
-      const clean = rawName.trim()
-      const lower = clean.toLowerCase()
-      if (
-        !clean ||
-        lower === 'tags' ||
-        lower === 'tag' ||
-        lower.includes('actividad') ||
-        lower.includes('variante') ||
-        lower.includes('física')
-      ) {
-        return
-      }
-      if (seen.has(lower)) return
-      seen.add(lower)
-
-      const found =
-        dimensionValuesMap.get(lower) ||
-        (lower.includes('talla') ? dimensionValuesMap.get('talla') : undefined) ||
-        (lower.includes('color') ? dimensionValuesMap.get('color') : undefined)
-
-      dims.push({
-        name: clean,
-        values: found?.values,
-        isColor: found?.isColor || isColorDimension(clean),
-        photoGroup: photoGroupFor(clean),
-      })
-    }
-
-    getVariantDimensionFields(appliedTemplateLevels, dimensionValuesMap).forEach((field) => push(field.key))
-
-    if (appliedTemplateLevels.some((lvl) => lvl.hasColor) && !dims.some((d) => d.isColor)) {
-      // Los colores se asignan únicamente por hexadecimal: sin presets nominales.
-      dims.push({
-        name: 'Color',
-        values: [],
-        isColor: true,
-        photoGroup: photoGroupFor('Color'),
-      })
-    }
-
-    if (dims.length === 0) {
-      const sizeFound = dimensionValuesMap.get('talla') || dimensionValuesMap.get('tallas')
-      dims.push({
-        name: 'Talla',
-        values: sizeFound?.values || ['35-38', '39-41', '42-44'],
-        isColor: false,
-        photoGroup: false,
-      })
-    }
-
-    return dims
-  }, [appliedTemplateLevels, dimensionValuesMap, photoGroupBy, photoScope])
+  // Ejes físicos por variante: terminal + escalas de talla/color, con agrupación de fotos resuelta
+  const templateAllDimensions = useMemo(
+    () => resolveTemplateDimensions(appliedTemplateLevels, dimensionValuesMap),
+    [appliedTemplateLevels, dimensionValuesMap]
+  )
 
   const handleApplyTemplate = useCallback(
     (templateId: string) => {
