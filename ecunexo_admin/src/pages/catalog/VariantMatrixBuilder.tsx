@@ -191,61 +191,7 @@ export function VariantMatrixBuilder({
   // Generated Variant Rows
   const [rows, setRows] = useState<VariantRowState[]>([])
 
-  // Add new dimension (up to 4)
-  const handleAddDimension = useCallback(() => {
-    if (dimensions.length >= 4) {
-      toast.show({
-        variant: 'warning',
-        title: 'Límite de dimensiones',
-        message: 'Se permiten hasta 4 dimensiones simultáneas.',
-      })
-      return
-    }
 
-    const hasColor = dimensions.some((d) => isColorDimension(d.name, d.dimensionType))
-    const defaultName = hasColor ? 'Dimensión' : 'Color'
-    const promptVal = window.prompt('Nombre de la nueva dimensión (ej. Color, Talla, Acabado):', defaultName)
-    if (!promptVal || !promptVal.trim()) return
-
-    const cleanName = promptVal.trim()
-    const isColor = isColorDimension(cleanName)
-    const initialVals = isColor ? ['Negro', 'Blanco', 'Azul'] : ['Estándar']
-
-    const newDim: DimensionState = {
-      id: `dim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      name: cleanName,
-      dimensionType: isColor ? 'Color' : 'Personalizada',
-      values: initialVals,
-      activeValues: initialVals,
-    }
-
-    setDimensions((prev) => [...prev, newDim])
-  }, [dimensions, toast])
-
-  // Remove a dimension
-  const handleRemoveDimension = useCallback((dimId: string) => {
-    setDimensions((prev) => {
-      if (prev.length <= 1) return prev
-      const target = prev.find((d) => d.id === dimId)
-      if (target) {
-        setRows((prevRows) =>
-          prevRows.map((r) => {
-            const nextDims = { ...r.dimensionValues }
-            delete nextDims[target.name]
-            const variationLabel = Object.values(nextDims).filter(Boolean).join(' / ')
-            const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
-            return {
-              ...r,
-              dimensionValues: nextDims,
-              variationLabel,
-              variantTitle: r.isManualTitle ? r.variantTitle : (autoTitle || r.variantTitle),
-            }
-          })
-        )
-      }
-      return prev.filter((d) => d.id !== dimId)
-    })
-  }, [baseName])
 
   // Add custom option to an existing dimension
   const handleAddCustomOptionToDimension = useCallback((dimId: string, newVal: string) => {
@@ -638,19 +584,6 @@ export function VariantMatrixBuilder({
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleAddDimension}
-            disabled={disabled || dimensions.length >= 4}
-            title={dimensions.length >= 4 ? 'Máximo 4 dimensiones alcanzado' : 'Añadir un nuevo eje de variación (ej. Caña, Color, Grosor)'}
-          >
-            <Plus size={14} style={{ marginRight: '0.35rem' }} />
-            Añadir Dimensión ({dimensions.length}/4)
-          </Button>
-        </div>
       </div>
 
 
@@ -717,29 +650,8 @@ export function VariantMatrixBuilder({
                 </th>
                 {activeDims.length > 0 ? (
                   activeDims.map((dim) => (
-                    <th key={dim.id} style={{ minWidth: 120, whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem', width: '100%' }}>
-                        <span>{dim.name || 'Dimensión'}</span>
-                        {dimensions.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveDimension(dim.id)}
-                            disabled={disabled}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: 'var(--glb-muted)',
-                              cursor: 'pointer',
-                              padding: '2px',
-                              lineHeight: 1,
-                              borderRadius: '3px',
-                            }}
-                            title={`Eliminar dimensión «${dim.name}»`}
-                          >
-                            <X size={12} />
-                          </button>
-                        )}
-                      </div>
+                    <th key={dim.id} style={{ minWidth: 110, whiteSpace: 'nowrap' }}>
+                      {dim.name || 'Dimensión'}
                     </th>
                   ))
                 ) : (
