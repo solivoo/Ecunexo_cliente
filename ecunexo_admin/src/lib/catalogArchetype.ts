@@ -97,18 +97,27 @@ export function resolvePhotoScope(levels: readonly ProductTemplateLevel[]): Phot
   return 'variant'
 }
 
-function resolveIsVariantAxis(
+/**
+ * Regla de posición + metadatos:
+ * - Nivel terminal: manda el diccionario (`isVariantAxis=false` ⇒ descriptivo); sin diccionario, es eje.
+ * - Niveles intermedios: solo los colores ascienden como eje; el resto es contexto del modelo,
+ *   aunque el diccionario los tenga como "genera variantes".
+ */
+export function resolveIsVariantAxis(
   map: Map<string, DimensionLookup> | undefined,
   attributeKey: string,
   levelIndex: number,
   totalLevels: number
 ): boolean {
   const lookup = resolveAttributeLookup(map, attributeKey)
-  if (lookup) return lookup.isVariantAxis !== false
+  const isTerminal = levelIndex >= totalLevels
 
-  // Sin metadatos tipados: el nivel terminal genera ejes; arriba solo los colores.
-  if (levelIndex >= totalLevels) return true
-  return isColorDimension(attributeKey)
+  if (isTerminal) {
+    if (lookup) return lookup.isVariantAxis !== false
+    return true
+  }
+
+  return lookup ? lookup.isColor : isColorDimension(attributeKey)
 }
 
 /** Atributos del modelo: todo atributo declarado como no-eje (isVariantAxis=false) y, sin tipado, los intermedios no-color. */

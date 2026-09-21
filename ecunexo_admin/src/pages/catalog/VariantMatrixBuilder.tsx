@@ -137,7 +137,7 @@ export function VariantMatrixBuilder({
   // Color Hex Map
   const [colorHexMap, setColorHexMap] = useState<Record<string, string>>(DEFAULT_COLOR_MAP)
   const [colorModal, setColorModal] = useState<{
-    mode: 'edit' | 'new' | 'duplicate'
+    mode: 'edit' | 'new' | 'duplicate' | 'add-group'
     value: string
     name: string
     hex: string
@@ -660,6 +660,10 @@ export function VariantMatrixBuilder({
     let groupValToUse = nextVal
 
     if (!groupValToUse) {
+      if (isPrimaryColor) {
+        setColorModal({ mode: 'add-group', value: '', name: '', hex: '#3b82f6' })
+        return
+      }
       const prompted = window.prompt(`Ingresa el nombre del nuevo ${primaryDim.name}:`)
       if (!prompted || !prompted.trim()) return
       groupValToUse = prompted.trim()
@@ -667,7 +671,7 @@ export function VariantMatrixBuilder({
     }
 
     handleAddSubVariantToGroup(groupValToUse)
-  }, [handleAddCustomOptionToDimension, handleAddSubVariantToGroup, primaryDim, rows])
+  }, [handleAddCustomOptionToDimension, handleAddSubVariantToGroup, isPrimaryColor, primaryDim, rows])
 
   // Duplicate group (e.g. copy all sizes from Negro to Blanco)
   const handleDuplicateGroupTo = useCallback(
@@ -781,6 +785,14 @@ export function VariantMatrixBuilder({
     const targetVal = colorModal.mode === 'edit' ? colorModal.value : colorModal.name.trim()
     if (!targetVal) return
 
+    if (colorModal.mode === 'add-group') {
+      handleAddCustomOptionToDimension(primaryDim.id, targetVal)
+      setColorHexMap((prev) => ({ ...prev, [targetVal]: colorModal.hex }))
+      handleAddSubVariantToGroup(targetVal)
+      setColorModal(null)
+      return
+    }
+
     if (colorModal.mode !== 'edit') {
       handleAddCustomOptionToDimension(primaryDim.id, targetVal)
     }
@@ -803,6 +815,7 @@ export function VariantMatrixBuilder({
   }, [
     colorModal,
     handleAddCustomOptionToDimension,
+    handleAddSubVariantToGroup,
     handleDuplicateGroupTo,
     handleRenameGroupValue,
     primaryDim,

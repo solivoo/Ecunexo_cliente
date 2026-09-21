@@ -360,7 +360,7 @@ export function CreateCatalogItemPage() {
           throw new Error('El SKU es obligatorio para ítems físicos.')
         }
         let price: number | null = null
-        if (basePrice.trim()) {
+        if (!hasVariants && basePrice.trim()) {
           const parsed = Number(basePrice.replace(',', '.'))
           if (Number.isNaN(parsed) || parsed < 0) {
             throw new Error('El precio base no es válido.')
@@ -707,7 +707,7 @@ export function CreateCatalogItemPage() {
                     fullWidth
                   />
                 </div>
-                <div className="ecu-companies-form__field">
+                <div className={`ecu-companies-form__field${hasVariants ? ' ecu-companies-form__field--span-2' : ''}`}>
                   <TextBox
                     id="ci-name"
                     label="Nombre del producto o servicio"
@@ -747,19 +747,21 @@ export function CreateCatalogItemPage() {
                     />
                   </div>
                 )}
-                <div className="ecu-companies-form__field">
-                  <TextBox
-                    id="ci-price"
-                    label={hasVariants ? 'Precio base referencial' : 'Precio base de venta'}
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={basePrice}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
-                    placeholder="0.00"
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
+                {!hasVariants && (
+                  <div className="ecu-companies-form__field">
+                    <TextBox
+                      id="ci-price"
+                      label="Precio base de venta"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={basePrice}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
+                      placeholder="0.00"
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
                   <TextBox
                     id="ci-desc"
@@ -838,7 +840,7 @@ export function CreateCatalogItemPage() {
                 <VariantMatrixBuilder
                   tenantId={tenantId}
                   baseName={name}
-                  basePrice={basePrice}
+                  basePrice={hasVariants ? '' : basePrice}
                   disabled={busy}
                   onChange={setMatrixData}
                   availableImages={stagedImages}

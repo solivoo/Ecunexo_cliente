@@ -24,6 +24,7 @@ import {
   buildDimensionValuesMap,
   getVariantDimensionFields,
   resolveAttributeLookup,
+  resolveIsVariantAxis,
   resolvePhotoScope,
 } from '@/lib/catalogArchetype'
 
@@ -84,15 +85,12 @@ export function HierarchyTemplateTreeBuilder({
 
   const effectivePhotoScope = useMemo(() => resolvePhotoScope(levels), [levels])
 
-  const attributeRoleLabel = (name: string): string => {
-    const lookup = resolveAttributeLookup(attributeLookup, name)
-    if (!lookup) return 'Libre'
-    return lookup.isVariantAxis ? 'Variantes' : 'Descriptivo'
-  }
+  const attributeRoleLabel = (name: string, levelIndex: number): string =>
+    resolveIsVariantAxis(attributeLookup, name, levelIndex, levels.length) ? 'Variantes' : 'Descriptivo'
 
   const attributeTypeLabel = (name: string): string => {
     const lookup = resolveAttributeLookup(attributeLookup, name)
-    if (!lookup) return 'Texto'
+    if (!lookup) return 'Sin tipado'
     const type = DATA_TYPE_LABELS[lookup.dataType] ?? 'Texto'
     return lookup.unit ? `${type} · ${lookup.unit}` : type
   }
@@ -361,54 +359,39 @@ export function HierarchyTemplateTreeBuilder({
                     <span>Lleva Colores (Paleta / Picker)</span>
                   </label>
 
-                  <label
+                  <div
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.5rem',
-                      fontSize: '0.85rem',
-                      fontWeight: 500,
-                      cursor: disabled ? 'not-allowed' : 'pointer',
-                      padding: '0.5rem 0.75rem',
-                      borderRadius: '8px',
-                      background: lvl.hasImages
-                        ? 'rgba(139, 92, 246, 0.12)'
-                        : 'color-mix(in srgb, var(--shell-primary, #3b82f6) 3%, var(--glb-surface, #ffffff))',
-                      border: `1px solid ${
-                        lvl.hasImages ? 'rgba(139, 92, 246, 0.35)' : 'var(--shell-border, rgba(0,0,0,0.1))'
-                      }`,
-                      color: lvl.hasImages ? '#7c3aed' : 'var(--glb-text)',
-                      transition: 'all 0.15s ease',
+                      minWidth: 300,
+                      maxWidth: 360,
                     }}
                   >
-                    <Camera size={16} />
-                    <span>Fotografías</span>
-                    <select
+                    <Camera size={16} color={lvl.hasImages ? '#7c3aed' : 'var(--glb-muted, #64748b)'} />
+                    <Select
+                      id={`photo-scope-${lvl.id}`}
+                      size="sm"
+                      variant="outline"
+                      label="Fotografías"
+                      labelPosition="left"
                       value={lvl.photoScope ?? (lvl.hasImages ? 'variant' : 'none')}
-                      disabled={disabled}
-                      onChange={(e) => {
-                        const scope = e.target.value as 'none' | 'variant' | 'group' | 'model'
+                      options={[
+                        { value: 'none', label: 'Sin fotos' },
+                        { value: 'variant', label: 'Por variante (SKU)' },
+                        { value: 'group', label: 'Compartidas por grupo' },
+                        { value: 'model', label: 'Del modelo (todas las variantes)' },
+                      ]}
+                      onChange={(scope: string) =>
                         handleUpdateLevel(index, {
-                          photoScope: scope,
+                          photoScope: scope as 'none' | 'variant' | 'group' | 'model',
                           hasImages: scope !== 'none',
                         })
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'inherit',
-                        fontWeight: 600,
-                        fontSize: '0.82rem',
-                        cursor: disabled ? 'not-allowed' : 'pointer',
-                        outline: 'none',
-                      }}
-                    >
-                      <option value="none">Sin fotos</option>
-                      <option value="variant">Por variante (SKU)</option>
-                      <option value="group">Compartidas por grupo</option>
-                      <option value="model">Del modelo (todas las variantes)</option>
-                    </select>
-                  </label>
+                      }
+                      disabled={disabled}
+                      fullWidth
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -579,20 +562,20 @@ export function HierarchyTemplateTreeBuilder({
                         <Tag size={13} />
                         <span>{attr}</span>
                         <span
-                          title={`${attributeTypeLabel(attr)} · ${attributeRoleLabel(attr)}`}
+                          title={`${attributeTypeLabel(attr)} · ${attributeRoleLabel(attr, index + 1)}`}
                           style={{
                             fontSize: '0.68rem',
                             fontWeight: 700,
                             padding: '0 0.35rem',
                             borderRadius: '4px',
                             background:
-                              attributeRoleLabel(attr) === 'Descriptivo'
+                              attributeRoleLabel(attr, index + 1) === 'Descriptivo'
                                 ? 'color-mix(in srgb, #f59e0b 20%, transparent)'
                                 : 'color-mix(in srgb, #10b981 18%, transparent)',
-                            color: attributeRoleLabel(attr) === 'Descriptivo' ? '#b45309' : '#059669',
+                            color: attributeRoleLabel(attr, index + 1) === 'Descriptivo' ? '#b45309' : '#059669',
                           }}
                         >
-                          {attributeRoleLabel(attr)}
+                          {attributeRoleLabel(attr, index + 1)}
                         </span>
                         {!disabled && (
                           <button
@@ -898,7 +881,7 @@ export function HierarchyTemplateTreeBuilder({
                       {attrs.length > 0 && (
                         <span style={{ color: 'var(--glb-muted)' }}>
                           {' '}
-                          {attrs.map((a) => `${a} (${attributeRoleLabel(a)})`).join(' · ')}
+                          {attrs.map((a) => `${a} (${attributeRoleLabel(a, index + 1)})`).join(' · ')}
                         </span>
                       )}
                       {isLast && (
@@ -919,6 +902,11 @@ export function HierarchyTemplateTreeBuilder({
                     : effectivePhotoScope === 'group'
                       ? 'se capturan por grupo (color/caña) y las tallas del grupo las heredan'
                       : 'se capturan por cada variante/SKU'}
+                </div>
+                <div style={{ marginTop: '0.2rem', color: 'var(--glb-muted)' }}>
+                  Regla: solo el <strong>nivel terminal</strong> genera variantes/SKU; los niveles anteriores son
+                  ficha del modelo (el color asciende como eje de agrupación).
+                  {levels.length > 3 && ' Recomendado: 2–3 niveles.'}
                 </div>
               </div>
             </div>

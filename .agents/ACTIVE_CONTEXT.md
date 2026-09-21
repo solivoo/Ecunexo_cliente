@@ -9,6 +9,19 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.41.0`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Regla de Posición para Ejes de Variante y Ajustes de Plantilla (`catalogArchetype.ts`, `HierarchyTemplateTreeBuilder.tsx`) [v0.45.1]:**
+    * **Solo el nivel terminal genera ejes/SKU:** en niveles intermedios únicamente el color asciende como eje; el resto de atributos queda como ficha del modelo, aunque el diccionario los tenga como «genera variantes». Evita que Marca, Colección, Categoría o Material exploten las columnas de la matriz (caso detectado con plantillas de 6 niveles).
+    * **Badges y simulación** ahora reflejan la regla real por posición, con nota «solo el nivel terminal genera SKUs; recomendado 2–3 niveles».
+    * **Selector de fotografías por nivel** reemplazado por un `Select` de glubox (antes era un híbrido pill + select nativo).
+    * **«+ Añadir Color»** abre el modal con `ColorPicker` (ya no `window.prompt`).
+    * **Verificación:** build frontend limpio; sin errores de lint en los archivos tocados.
+  - **Catálogo — ColorPicker Consistente al Crear Colores (`VariantMatrixBuilder.tsx`) [sin bump de versión]:**
+    * «+ Añadir Color» (sin valores predefinidos restantes) ya no usa `window.prompt`: abre el modal con **nombre + ColorPicker** (modo `add-group`) y crea la tarjeta con su color.
+    * Quedaban cubiertos el swatch editable (modo `edit`) y «+ Nuevo Color…» del selector de tarjeta (modo `new`).
+  - **Catálogo — Retiro del Precio Base Referencial en Alta Manual (`CreateCatalogItemPage.tsx`) [sin bump de versión]:**
+    * En creación manual de productos **físicos (con variantes)** se elimina el campo «Precio base referencial»; el precio se captura por variante/SKU y el nombre ocupa el ancho liberado (`span-2`).
+    * Los **servicios** mantienen «Precio base de venta».
+    * El submit y el constructor de variantes ignoran el precio del padre cuando hay variantes (sin herencia automática de precio).
   - **Catálogo — UI de Variantes en Glubox, SKU Bicolor y Legibilidad (`VariantMatrixBuilder.tsx`, `variantMatrixBuilder.css`) [sin bump de versión]:**
     * **Controles glubox:** la ficha de variante migró de inputs/selects nativos a `Select` (dimensiones y selector de grupo), `TextBox` (SKU, tags, código de barras) y `NumberBox` (precio, stock); el SKU se normaliza a mayúsculas.
     * **Legibilidad:** cada variante se divide en dos líneas (dimensiones + SKU arriba; colores combinados, foto, tags, precio, stock, barras y acciones abajo) con ancho mínimo por campo para evitar truncamientos.
