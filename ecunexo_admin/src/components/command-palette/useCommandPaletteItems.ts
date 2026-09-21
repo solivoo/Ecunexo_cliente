@@ -122,17 +122,17 @@ export function useCommandPaletteItems({
       })
     }
 
-    // Nueva Categoría
-    if (hasPerm('catalog.category.manage') || hasPerm('catalog.category.create')) {
+    // Nueva Plantilla de Producto
+    if (hasPerm('catalog.scale.manage') || hasPerm('catalog.item.create')) {
       items.push({
-        id: 'action-new-category',
-        title: 'Crear Categoría de Catálogo',
-        subtitle: 'Clasificar items en familias y grupos de productos',
+        id: 'action-new-product-template',
+        title: 'Crear Plantilla de Producto',
+        subtitle: 'Diseñar plantilla con ejes de atributos y especificaciones',
         category: 'Acciones Rápidas',
-        icon: 'folder-tree',
+        icon: 'layers',
         badge: 'Catálogo',
-        keywords: ['categoria', 'familia', 'grupo', 'clasificacion', 'catalogo', 'nueva'],
-        onSelect: () => navigate('/catalogo/categorias/nueva'),
+        keywords: ['plantilla', 'template', 'variantes', 'atributos', 'catalogo', 'nueva'],
+        onSelect: () => navigate('/catalogo/plantillas/nueva'),
       })
     }
 

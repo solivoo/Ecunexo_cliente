@@ -219,10 +219,10 @@ export function CreateCatalogItemPage() {
         disabled: false,
       },
       {
-        id: 'categories',
-        label: 'Categorías',
-        icon: 'folder-tree',
-        route: '/catalogo/categorias',
+        id: 'attributes',
+        label: 'Atributos y escalas',
+        icon: 'tag',
+        route: '/catalogo/atributos',
         disabled: false,
       },
       {
@@ -542,7 +542,7 @@ export function CreateCatalogItemPage() {
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                   placeholder={
                     kind === String(CatalogItemKind.Physical)
-                      ? 'Ej. Calcetines Antideslizantes, Camiseta Deportiva'
+                      ? 'Ej. Camiseta Deportiva, Monitor 27", Zapatos de Seguridad'
                       : 'Ej. Consultoría, Soporte Técnico Mensual'
                   }
                   required
@@ -555,7 +555,7 @@ export function CreateCatalogItemPage() {
                   id="ci-sku"
                   label={
                     hasVariants
-                      ? 'Código Modelo / Prefijo SKU (ej. CALC-001)'
+                      ? 'Código Modelo / Prefijo SKU (ej. MOD-001)'
                       : kind === String(CatalogItemKind.Physical)
                         ? 'Código SKU (obligatorio)'
                         : 'Código SKU (opcional)'
@@ -566,7 +566,7 @@ export function CreateCatalogItemPage() {
                   onChange={(e: ChangeEvent<HTMLInputElement>) =>
                     setSku(e.target.value.toUpperCase())
                   }
-                  placeholder={hasVariants ? 'Ej. AND-001 o CALC-DEP' : 'PROD-001'}
+                  placeholder={hasVariants ? 'Ej. MOD-001, ART-001' : 'PROD-001'}
                   required={!hasVariants && kind === String(CatalogItemKind.Physical)}
                   disabled={busy}
                   fullWidth
@@ -601,32 +601,23 @@ export function CreateCatalogItemPage() {
             </div>
           </SectionCard>
 
+          {/* Galería Multimedia Principal / Portada y Vitrina */}
           <div style={{ marginTop: '1.25rem' }}>
             <SectionCard
-              title="Especificaciones y Atributos Adicionales"
-              subtitle="Define propiedades técnicas, comerciales o informativas propias de este producto (ej. Material, Marca, Garantía, Procedencia, etc.)."
+              title="Fotografías del Ítem y Vitrina Online"
+              subtitle="Anexa hasta 8 imágenes para el catálogo y tienda online. Estas fotos también estarán disponibles para asociarlas rápidamente a cada variante."
             >
-              <div style={{ marginBottom: '1.5rem' }}>
-                <EcuTagInput
-                  tags={tags}
-                  onChange={setTags}
-                  label="Etiquetas Jerárquicas del Producto (Tags)"
-                  placeholder="Añadir etiqueta (ej. Nike, Algodon, Antideslizante)..."
-                  helperText="Estas etiquetas indexan el producto para búsquedas en Punto de Venta (POS), tienda online y se heredan automáticamente a todas las variantes físicas."
-                  suggestedTags={suggestedTags}
-                  disabled={busy}
-                />
-              </div>
-
-              <ItemCustomAttributesEditor
-                attributes={customAttributes}
-                onChange={setCustomAttributes}
-                categorySuggestions={categorySuggestions}
+              <StagedCatalogItemImages
+                stagedImages={stagedImages}
+                onStagedImagesChange={setStagedImages}
                 disabled={busy}
+                uploading={busy && uploadStatus !== null}
+                uploadStatus={uploadStatus}
               />
             </SectionCard>
           </div>
 
+          {/* Variantes Físicas Dimensionales */}
           {kind === String(CatalogItemKind.Physical) && (
             <div style={{ marginTop: '1.25rem' }}>
               <SectionCard
@@ -670,6 +661,7 @@ export function CreateCatalogItemPage() {
                     parentTags={tags}
                     disabled={busy}
                     onChange={setMatrixData}
+                    availableImages={stagedImages}
                   />
                 ) : (
                   <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.875rem' }}>
@@ -682,17 +674,29 @@ export function CreateCatalogItemPage() {
             </div>
           )}
 
+          {/* Especificaciones y Atributos Técnicos */}
           <div style={{ marginTop: '1.25rem' }}>
             <SectionCard
-              title="Fotografías del Ítem (Opcional)"
-              subtitle="Anexa hasta 8 imágenes para catálogo y vitrina online. Se optimizarán a WebP automáticamente al guardar"
+              title="Especificaciones y Atributos Adicionales"
+              subtitle="Define propiedades técnicas, comerciales o informativas propias de este producto (ej. Material, Marca, Garantía, Procedencia, etc.)."
             >
-              <StagedCatalogItemImages
-                stagedImages={stagedImages}
-                onStagedImagesChange={setStagedImages}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <EcuTagInput
+                  tags={tags}
+                  onChange={setTags}
+                  label="Etiquetas Jerárquicas del Producto (Tags)"
+                  placeholder="Añadir etiqueta (ej. Deportivo, Premium, Temporada 2026)..."
+                  helperText="Estas etiquetas indexan el producto para búsquedas en Punto de Venta (POS), tienda online y se heredan automáticamente a todas las variantes físicas."
+                  suggestedTags={suggestedTags}
+                  disabled={busy}
+                />
+              </div>
+
+              <ItemCustomAttributesEditor
+                attributes={customAttributes}
+                onChange={setCustomAttributes}
+                categorySuggestions={categorySuggestions}
                 disabled={busy}
-                uploading={busy && uploadStatus !== null}
-                uploadStatus={uploadStatus}
               />
             </SectionCard>
           </div>

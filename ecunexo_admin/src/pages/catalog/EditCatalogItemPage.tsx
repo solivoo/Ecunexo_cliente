@@ -222,10 +222,17 @@ export function EditCatalogItemPage() {
         disabled: false,
       },
       {
-        id: 'categories',
-        label: 'Categorías',
-        icon: 'folder-tree',
-        route: '/catalogo/categorias',
+        id: 'attributes',
+        label: 'Atributos',
+        icon: 'tag',
+        route: '/catalogo/atributos',
+        disabled: false,
+      },
+      {
+        id: 'templates',
+        label: 'Plantillas',
+        icon: 'layers',
+        route: '/catalogo/plantillas',
         disabled: false,
       },
     ],
@@ -674,7 +681,7 @@ export function EditCatalogItemPage() {
                     tags={tags}
                     onChange={setTags}
                     label="Etiquetas Jerárquicas del Producto (Tags)"
-                    placeholder="Añadir etiqueta (ej. Nike, Algodon, Antideslizante)..."
+                    placeholder="Añadir etiqueta (ej. Deportivo, Premium, Temporada 2026)..."
                     helperText="Estas etiquetas indexan el producto para búsquedas en Punto de Venta (POS), tienda online y se heredan automáticamente a todas las variantes físicas."
                     suggestedTags={suggestedTags}
                     disabled={busy}

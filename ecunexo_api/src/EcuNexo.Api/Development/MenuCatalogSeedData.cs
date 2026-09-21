@@ -150,9 +150,8 @@ internal static class MenuCatalogSeedData
         Item("security-permissions", "security", "Permisos globales", "key", "seguridad/permisos", 1, MenuContextKind.Operational, "identity", ["identity.permissions.read"]),
         Item("catalog", null, "Catálogo", "inventory_2", null, 50, MenuContextKind.Operational, "catalog", ["catalog.item.read", "catalog.product.read"]),
         Item("catalog-items", "catalog", "Ítems", "package", "catalogo/items", 1, MenuContextKind.Operational, "catalog", ["catalog.item.read", "catalog.product.read"]),
-        Item("catalog-categories", "catalog", "Categorías", "folder-tree", "catalogo/categorias", 2, MenuContextKind.Operational, "catalog", ["catalog.item.read", "catalog.category.manage", "catalog.product.read"]),
-        Item("catalog-attributes", "catalog", "Atributos", "tag", "catalogo/atributos", 3, MenuContextKind.Operational, "catalog", ["catalog.item.read", "catalog.scale.manage", "catalog.product.read"]),
-        Item("catalog-templates", "catalog", "Plantillas", "layers", "catalogo/plantillas", 4, MenuContextKind.Operational, "catalog", ["catalog.item.read", "catalog.scale.manage", "catalog.product.read"]),
+        Item("catalog-attributes", "catalog", "Atributos", "tag", "catalogo/atributos", 2, MenuContextKind.Operational, "catalog", ["catalog.item.read", "catalog.scale.manage", "catalog.product.read"]),
+        Item("catalog-templates", "catalog", "Plantillas", "layers", "catalogo/plantillas", 3, MenuContextKind.Operational, "catalog", ["catalog.item.read", "catalog.scale.manage", "catalog.product.read"]),
 
         Item("warehousing", null, "Bodegas", "warehouse", null, 52, MenuContextKind.Operational, "warehousing", ["warehousing.read"]),
         Item("warehousing-list", "warehousing", "Ubicaciones", "warehouse", "bodegas", 1, MenuContextKind.Operational, "warehousing", ["warehousing.read", "warehousing.locations.manage"]),
@@ -252,6 +251,7 @@ internal static class MenuCatalogSeedData
         "facturacion-config",
         "facturacion-config-impuestos",
         "catalog-soon",
+        "catalog-categories",
         "repairs-customers",
     ];
 

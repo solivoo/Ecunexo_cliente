@@ -408,7 +408,7 @@ export function HierarchyTemplateTreeBuilder({
                       <TextBox
                         variant="outline"
                         value={customAttrInputByLevel[lvl.id] ?? ''}
-                        placeholder="Ej. Tipo de Caña, Corte..."
+                        placeholder="Ej. Material, Acabado, Capacidad..."
                         disabled={disabled}
                         onChange={(e: ChangeEvent<HTMLInputElement>) =>
                           setCustomAttrInputByLevel((prev) => ({ ...prev, [lvl.id]: e.target.value }))

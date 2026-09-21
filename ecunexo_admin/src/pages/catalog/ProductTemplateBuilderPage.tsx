@@ -229,7 +229,7 @@ export function ProductTemplateBuilderPage() {
                 <TextBox
                   variant="outline"
                   value={name}
-                  placeholder="Ej. Arquetipo Calcetines & Deportivo, Camisetas..."
+                  placeholder="Ej. Calzado & Textil, Electrónica, Ferretería, Alimentos..."
                   disabled={saving || loading || !canManage}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                   fullWidth

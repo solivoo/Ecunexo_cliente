@@ -74,10 +74,17 @@ export function CatalogItemsListPage() {
     const items: PageActionItem[] = []
     items.push(
       {
-        id: 'categories',
-        label: 'Categorías',
-        icon: 'folder-tree',
-        route: '/catalogo/categorias',
+        id: 'attributes',
+        label: 'Atributos',
+        icon: 'tag',
+        route: '/catalogo/atributos',
+        disabled: false,
+      },
+      {
+        id: 'templates',
+        label: 'Plantillas',
+        icon: 'layers',
+        route: '/catalogo/plantillas',
         disabled: false,
       },
       {

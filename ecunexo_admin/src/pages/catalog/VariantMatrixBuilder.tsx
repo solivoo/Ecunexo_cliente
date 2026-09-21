@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, ColorPicker, Select, TextBox, useToast } from 'glubox'
-import { Camera, Copy, Layers, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Button, ColorPicker, Popup, Select, TextBox, useToast } from 'glubox'
+import { Camera, Check, Copy, Image as ImageIcon, Layers, Plus, RefreshCw, Trash2, Upload, X } from 'lucide-react'
 import {
   createVariantDimensionTemplate,
   deleteVariantDimensionTemplate,
@@ -47,6 +47,13 @@ export type MatrixVariantPayloadWithImage = CreateVariantChildPayload & {
   stagedImage?: File | null
 }
 
+export interface AvailableGalleryImage {
+  id: string
+  file: File
+  previewUrl: string
+  altText?: string
+}
+
 export type VariantMatrixBuilderProps = {
   tenantId: string | null
   baseName: string
@@ -60,6 +67,7 @@ export type VariantMatrixBuilderProps = {
     dimensionNames: string[]
     isValid: boolean
   }) => void
+  availableImages?: AvailableGalleryImage[]
 }
 
 const DEFAULT_FALLBACK_TEMPLATES: VariantDimensionTemplateDto[] = [
@@ -172,6 +180,27 @@ function isColorDimension(name: string, type?: string, tplId?: string): boolean 
   )
 }
 
+function combineHierarchyTags(
+  parentTags: readonly string[],
+  dimensionValues?: Record<string, string>,
+  secondaryAttrVal?: string
+): string[] {
+  const set = new Set<string>()
+  parentTags.forEach((pt) => {
+    const n = pt.trim().replace(/^#+/, '')
+    if (n) set.add(n)
+  })
+  if (dimensionValues) {
+    Object.values(dimensionValues).forEach((v) => {
+      if (typeof v === 'string' && v.trim()) set.add(v.trim().replace(/^#+/, ''))
+    })
+  }
+  if (secondaryAttrVal?.trim()) {
+    set.add(secondaryAttrVal.trim().replace(/^#+/, ''))
+  }
+  return Array.from(set)
+}
+
 export function VariantMatrixBuilder({
   tenantId,
   baseName,
@@ -180,8 +209,19 @@ export function VariantMatrixBuilder({
   parentTags = [],
   disabled = false,
   onChange,
+  availableImages = [],
 }: VariantMatrixBuilderProps) {
   const toast = useToast()
+
+  // Image Assignment State
+  const [singleRowImageTargetId, setSingleRowImageTargetId] = useState<string | null>(null)
+  const [isBulkImageModalOpen, setIsBulkImageModalOpen] = useState<boolean>(false)
+  const [bulkDimName, setBulkDimName] = useState<string>('')
+  const [bulkDimVal, setBulkDimVal] = useState<string>('')
+  const [bulkSelectedImage, setBulkSelectedImage] = useState<{ file: File; previewUrl: string; name?: string } | null>(null)
+
+  const singleFileInputRef = useRef<HTMLInputElement | null>(null)
+  const bulkFileInputRef = useRef<HTMLInputElement | null>(null)
 
   // Catalogs
   const [templates, setTemplates] = useState<VariantDimensionTemplateDto[]>([])
@@ -623,6 +663,100 @@ export function VariantMatrixBuilder({
     )
   }, [])
 
+  const handleOpenImagePickerForRow = useCallback(
+    (rowId: string) => {
+      setSingleRowImageTargetId(rowId)
+      if (!availableImages || availableImages.length === 0) {
+        singleFileInputRef.current?.click()
+      }
+    },
+    [availableImages]
+  )
+
+  const handleAssignGalleryImageToRow = useCallback(
+    (rowId: string, img: AvailableGalleryImage) => {
+      setRows((prev) =>
+        prev.map((r) => {
+          if (r.id !== rowId) return r
+          return {
+            ...r,
+            stagedImage: img.file,
+            stagedImagePreview: img.previewUrl,
+          }
+        })
+      )
+      setSingleRowImageTargetId(null)
+      toast.show({
+        variant: 'success',
+        title: 'Imagen asignada',
+        message: 'Fotografía vinculada a la variante.',
+      })
+    },
+    [toast]
+  )
+
+  const handleApplyBulkImage = useCallback(() => {
+    if (!bulkDimName || !bulkDimVal) {
+      toast.show({
+        variant: 'warning',
+        title: 'Selección requerida',
+        message: 'Selecciona la característica y el valor a asociar.',
+      })
+      return
+    }
+    if (!bulkSelectedImage) {
+      toast.show({
+        variant: 'warning',
+        title: 'Fotografía requerida',
+        message: 'Selecciona una fotografía de la galería o sube una imagen.',
+      })
+      return
+    }
+
+    let affectedCount = 0
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.dimensionValues[bulkDimName] === bulkDimVal) {
+          affectedCount++
+          return {
+            ...r,
+            stagedImage: bulkSelectedImage.file,
+            stagedImagePreview: bulkSelectedImage.previewUrl,
+          }
+        }
+        return r
+      })
+    )
+
+    setIsBulkImageModalOpen(false)
+    setBulkSelectedImage(null)
+    toast.show({
+      variant: 'success',
+      title: 'Fotos asignadas en lote',
+      message: `Se vinculó la foto a ${affectedCount} variantes con ${bulkDimName}: «${bulkDimVal}».`,
+    })
+  }, [bulkDimName, bulkDimVal, bulkSelectedImage, toast])
+
+  const activeDimsForBulk = useMemo(() => {
+    return dimensions.filter((d) => d.activeValues.length > 0)
+  }, [dimensions])
+
+  const bulkDimValuesOptions = useMemo(() => {
+    const selectedDim = dimensions.find((d) => d.name === bulkDimName)
+    if (!selectedDim) return []
+    return selectedDim.activeValues.map((v) => ({ value: v, label: v }))
+  }, [dimensions, bulkDimName])
+
+  const matchingBulkCount = useMemo(() => {
+    if (!bulkDimName || !bulkDimVal) return 0
+    return rows.filter((r) => r.dimensionValues[bulkDimName] === bulkDimVal).length
+  }, [rows, bulkDimName, bulkDimVal])
+
+  const targetRowForSingle = useMemo(() => {
+    if (!singleRowImageTargetId) return null
+    return rows.find((r) => r.id === singleRowImageTargetId) || null
+  }, [rows, singleRowImageTargetId])
+
   // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
@@ -945,7 +1079,7 @@ export function VariantMatrixBuilder({
                   variant="outline"
                   value={dim.name}
                   onChange={(e) => handleUpdateDimensionName(dim.id, e.target.value)}
-                  placeholder="Ej. Talla, Caña / Altura, Color, Grosor"
+                  placeholder="Ej. Talla, Color, Material, Capacidad"
                   disabled={disabled}
                   fullWidth
                 />
@@ -1030,7 +1164,7 @@ export function VariantMatrixBuilder({
                   <div className="ecu-matrix-add-val">
                     <TextBox
                       id={`mat-add-val-${dim.id}`}
-                      placeholder={`Añadir valor a ${dim.name} (ej. Corto, Largo, 3XL)…`}
+                      placeholder={`Añadir valor a ${dim.name} (ej. S, M, L o Estándar)…`}
                       variant="outline"
                       value={dim.newValInput}
                       onChange={(e) => handleNewValInputChange(dim.id, e.target.value)}
@@ -1132,6 +1266,24 @@ export function VariantMatrixBuilder({
             type="button"
             variant="outline"
             size="sm"
+            onClick={() => {
+              const firstDimWithVals = dimensions.find((d) => d.activeValues.length > 0)
+              if (firstDimWithVals) {
+                setBulkDimName(firstDimWithVals.name)
+                setBulkDimVal(firstDimWithVals.activeValues[0] || '')
+              }
+              setBulkSelectedImage(null)
+              setIsBulkImageModalOpen(true)
+            }}
+            disabled={disabled || rows.length === 0}
+            title="Asigna una fotografía en lote a todas las variantes que compartan una opción (ej. Caña Corta o Color Blanco)"
+          >
+            <ImageIcon size={13} /> Asignar foto por opción...
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={handleCopyBasePrice}
             disabled={disabled || !basePrice.trim() || rows.length === 0}
             title="Aplica y hereda el precio base a todas las variantes"
@@ -1151,6 +1303,36 @@ export function VariantMatrixBuilder({
         </div>
       </div>
 
+      {/* Hidden file inputs for image upload */}
+      <input
+        type="file"
+        ref={singleFileInputRef}
+        accept="image/jpeg,image/png,image/webp"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file && singleRowImageTargetId) {
+            handleRowImageSelect(singleRowImageTargetId, file)
+            setSingleRowImageTargetId(null)
+          }
+          e.target.value = ''
+        }}
+      />
+      <input
+        type="file"
+        ref={bulkFileInputRef}
+        accept="image/jpeg,image/png,image/webp"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) {
+            const previewUrl = URL.createObjectURL(file)
+            setBulkSelectedImage({ file, previewUrl, name: file.name })
+          }
+          e.target.value = ''
+        }}
+      />
+
       {/* Variants Table */}
       <div className="ecu-matrix-table-wrap">
         {rows.length === 0 ? (
@@ -1162,7 +1344,9 @@ export function VariantMatrixBuilder({
             <thead>
               <tr>
                 <th style={{ width: 36 }}>#</th>
-                <th style={{ width: 70, textAlign: 'center' }}>Foto</th>
+                <th style={{ width: 80, textAlign: 'center' }} title="1 fotografía representativa por variante física (SKU)">
+                  Foto (1)
+                </th>
                 <th style={{ width: 160 }}>Variación</th>
                 <th style={{ width: 160 }}>Título Variante</th>
                 <th style={{ width: 160 }}>SKU (Obligatorio)</th>
@@ -1180,35 +1364,43 @@ export function VariantMatrixBuilder({
                   <td style={{ color: 'var(--glb-muted)' }}>{idx + 1}</td>
                   <td style={{ textAlign: 'center' }}>
                     {row.stagedImagePreview ? (
-                      <div className="ecu-var-img-preview" title="Foto de la variante">
+                      <div
+                        className="ecu-var-img-slot ecu-var-img-slot--filled"
+                        title={`Foto de «${row.variantTitle}». Clic para cambiar o quitar`}
+                      >
                         <img src={row.stagedImagePreview} alt={row.variantTitle} />
-                        <button
-                          type="button"
-                          className="ecu-var-img-remove"
-                          onClick={() => handleRemoveRowImage(row.id)}
-                          disabled={disabled}
-                          title="Quitar foto"
-                        >
-                          ✕
-                        </button>
+                        <div className="ecu-var-img-overlay">
+                          <button
+                            type="button"
+                            className="ecu-var-img-action-btn"
+                            onClick={() => handleOpenImagePickerForRow(row.id)}
+                            disabled={disabled}
+                            title="Cambiar fotografía"
+                          >
+                            <Camera size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            className="ecu-var-img-action-btn ecu-var-img-action-btn--danger"
+                            onClick={() => handleRemoveRowImage(row.id)}
+                            disabled={disabled}
+                            title="Quitar fotografía"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <label className="ecu-var-img-upload-btn" title="Subir foto de esta variante (.jpg/.png)">
+                      <button
+                        type="button"
+                        className="ecu-var-img-slot ecu-var-img-slot--empty"
+                        onClick={() => handleOpenImagePickerForRow(row.id)}
+                        disabled={disabled}
+                        title="Asignar o subir fotografía a esta variante"
+                      >
                         <Camera size={15} />
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          disabled={disabled}
-                          style={{ display: 'none' }}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleRowImageSelect(row.id, file)
-                            }
-                            e.target.value = ''
-                          }}
-                        />
-                      </label>
+                        <span className="ecu-var-img-slot-text">+ Foto</span>
+                      </button>
                     )}
                   </td>
                   <td>
@@ -1237,72 +1429,55 @@ export function VariantMatrixBuilder({
                       type="text"
                       value={row.variantTitle}
                       onChange={(e) => updateRow(row.id, 'variantTitle', e.target.value)}
-                      placeholder="Título variante"
+                      placeholder="Título de la variante"
                       disabled={disabled}
-                      required
                     />
                   </td>
                   <td>
                     <input
                       type="text"
-                      className="ecu-table-sku"
                       value={row.sku}
-                      onChange={(e) => updateRow(row.id, 'sku', e.target.value.toUpperCase())}
+                      onChange={(e) => updateRow(row.id, 'sku', e.target.value)}
                       placeholder="SKU-VAR"
                       disabled={disabled}
-                      required
+                      style={{ fontWeight: 600, fontFamily: 'monospace' }}
                     />
                   </td>
                   <td>
                     <input
                       type="text"
-                      value={row.secondaryAttributeValue ?? ''}
+                      value={row.secondaryAttributeValue || ''}
                       onChange={(e) => updateRow(row.id, 'secondaryAttributeValue', e.target.value)}
-                      placeholder="Ej. Running, Skater..."
+                      placeholder="Ej. Deportivo, Casual, Estándar..."
                       disabled={disabled}
-                      style={{ fontSize: '0.82rem' }}
-                      title="Especificación o actividad para esta variante"
+                      title="Especificación de uso o actividad para esta variante"
                     />
                   </td>
                   <td>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.2rem', alignItems: 'center', minWidth: '140px' }}>
-                      {(() => {
-                        const set = new Set<string>()
-                        parentTags.forEach((pt) => {
-                          const n = pt.trim().replace(/^#+/, '')
-                          if (n) set.add(n)
-                        })
-                        Object.values(row.dimensionValues || {}).forEach((v) => {
-                          if (typeof v === 'string' && v.trim()) set.add(v.trim().replace(/^#+/, ''))
-                        })
-                        if (row.secondaryAttributeValue?.trim()) {
-                          set.add(row.secondaryAttributeValue.trim().replace(/^#+/, ''))
-                        }
-                        if (set.size === 0) {
-                          return (
-                            <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted)', fontStyle: 'italic' }}>
-                              Sin tags
-                            </span>
-                          )
-                        }
-                        return Array.from(set).map((tag) => (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', alignItems: 'center' }}>
+                      {combineHierarchyTags(parentTags, row.dimensionValues, row.secondaryAttributeValue).length === 0 ? (
+                        <span style={{ fontSize: '0.725rem', color: 'var(--glb-muted)', fontStyle: 'italic' }}>
+                          Sin tags
+                        </span>
+                      ) : (
+                        combineHierarchyTags(parentTags, row.dimensionValues, row.secondaryAttributeValue).map((tag) => (
                           <span
                             key={tag}
                             style={{
                               fontSize: '0.7rem',
-                              fontWeight: 600,
-                              padding: '0.1rem 0.35rem',
-                              borderRadius: '4px',
-                              background: 'rgba(59, 130, 246, 0.1)',
+                              fontWeight: 500,
+                              background: 'rgba(59, 130, 246, 0.12)',
                               color: 'var(--shell-primary, #60a5fa)',
-                              border: '1px solid rgba(59, 130, 246, 0.2)',
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: '4px',
+                              lineHeight: 1.2,
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            #{tag}
+                            {tag}
                           </span>
                         ))
-                      })()}
+                      )}
                     </div>
                   </td>
                   <td>
@@ -1310,25 +1485,33 @@ export function VariantMatrixBuilder({
                       type="text"
                       value={row.barcode}
                       onChange={(e) => updateRow(row.id, 'barcode', e.target.value)}
-                      placeholder="786..."
+                      placeholder="EAN / UPC (opc.)"
                       disabled={disabled}
                     />
                   </td>
                   <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    <div style={{ position: 'relative' }}>
                       <input
                         type="number"
                         step="0.01"
                         min="0"
                         value={row.basePrice}
-                        onChange={(e) => {
-                          updateRow(row.id, 'basePrice', e.target.value)
-                        }}
-                        placeholder={basePrice.trim() ? `${basePrice.trim()}` : '0.00'}
+                        onChange={(e) => updateRow(row.id, 'basePrice', e.target.value)}
+                        placeholder="0.00"
                         disabled={disabled}
                       />
                       {!row.isManualPrice && basePrice.trim() && (
-                        <span style={{ fontSize: '0.68rem', color: '#10b981', fontStyle: 'italic' }}>
+                        <span
+                          style={{
+                            display: 'block',
+                            fontSize: '0.65rem',
+                            color: '#10b981',
+                            fontWeight: 500,
+                            marginTop: '2px',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title="Este precio proviene del precio base del producto padre"
+                        >
                           Heredado (${basePrice.trim()})
                         </span>
                       )}
@@ -1363,6 +1546,218 @@ export function VariantMatrixBuilder({
           </table>
         )}
       </div>
+
+      {/* Modal para Asignar Foto a Variante Individual */}
+      {singleRowImageTargetId && targetRowForSingle && (
+        <Popup
+          open={true}
+          onClose={() => setSingleRowImageTargetId(null)}
+          title="Asignar Fotografía a la Variante"
+          width="500px"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
+            <div
+              style={{
+                padding: '0.75rem 1rem',
+                borderRadius: '8px',
+                background: 'color-mix(in srgb, var(--shell-primary, #3b82f6) 6%, var(--glb-surface, #ffffff))',
+                border: '1px solid color-mix(in srgb, var(--shell-primary, #3b82f6) 20%, var(--shell-border, rgba(0,0,0,0.1)))',
+              }}
+            >
+              <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)', fontWeight: 600 }}>Variante física (1 foto):</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--glb-text)', marginTop: '0.2rem' }}>
+                {targetRowForSingle.variantTitle}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--shell-primary, #2563eb)', fontFamily: 'monospace', marginTop: '0.15rem' }}>
+                SKU: {targetRowForSingle.sku}
+              </div>
+            </div>
+
+            {availableImages.length > 0 ? (
+              <div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.35rem' }}>
+                  Seleccionar de la galería del ítem ({availableImages.length} disponibles):
+                </div>
+                <div className="ecu-var-gallery-grid">
+                  {availableImages.map((img) => {
+                    const isSelected = targetRowForSingle.stagedImagePreview === img.previewUrl
+                    return (
+                      <button
+                        key={img.id}
+                        type="button"
+                        className={`ecu-var-gallery-item ${isSelected ? 'ecu-var-gallery-item--selected' : ''}`}
+                        onClick={() => handleAssignGalleryImageToRow(targetRowForSingle.id, img)}
+                        title={img.altText || img.file.name}
+                      >
+                        <img src={img.previewUrl} alt={img.altText || img.file.name} />
+                        {isSelected && (
+                          <div className="ecu-var-gallery-badge">
+                            <Check size={11} />
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--glb-muted)' }}>
+                No hay fotos cargadas aún en la galería principal del producto. Puedes subir una foto directamente desde tu equipo.
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.5rem', borderTop: '1px solid var(--shell-border, rgba(0,0,0,0.08))' }}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => singleFileInputRef.current?.click()}
+                disabled={disabled}
+              >
+                <Upload size={14} /> Subir nueva foto desde equipo...
+              </Button>
+              {targetRowForSingle.stagedImagePreview && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    handleRemoveRowImage(targetRowForSingle.id)
+                    setSingleRowImageTargetId(null)
+                  }}
+                  disabled={disabled}
+                  style={{ color: 'var(--glb-danger, #ef4444)' }}
+                >
+                  <Trash2 size={14} /> Quitar foto asignada
+                </Button>
+              )}
+            </div>
+          </div>
+        </Popup>
+      )}
+
+      {/* Modal para Asignar Foto en Lote */}
+      {isBulkImageModalOpen && (
+        <Popup
+          open={true}
+          onClose={() => setIsBulkImageModalOpen(false)}
+          title="Asignar Fotografía en Lote por Característica"
+          width="520px"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '0.5rem 0' }}>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--glb-muted)' }}>
+              Aplica la misma imagen a todas las variantes que compartan una característica (por ejemplo: asociar la misma foto a todas las tallas con <strong>Caña: Caña Corta</strong>).
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.25rem' }}>
+                  1. Característica / Dimensión:
+                </label>
+                <Select
+                  options={activeDimsForBulk.map((d) => ({ value: d.name, label: d.name }))}
+                  value={bulkDimName}
+                  onChange={(val: string) => {
+                    setBulkDimName(val)
+                    const targetDim = dimensions.find((d) => d.name === val)
+                    setBulkDimVal(targetDim?.activeValues[0] || '')
+                  }}
+                  fullWidth
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.25rem' }}>
+                  2. Valor de la opción:
+                </label>
+                <Select
+                  options={bulkDimValuesOptions}
+                  value={bulkDimVal}
+                  onChange={setBulkDimVal}
+                  fullWidth
+                />
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '0.5rem 0.75rem',
+                borderRadius: '6px',
+                background: 'color-mix(in srgb, var(--shell-primary, #3b82f6) 6%, var(--glb-surface, #ffffff))',
+                fontSize: '0.8rem',
+                color: 'var(--shell-primary, #2563eb)',
+                fontWeight: 500,
+              }}
+            >
+              Se aplicará a <strong>{matchingBulkCount}</strong> variantes correspondientes.
+            </div>
+
+            <div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--glb-text)', marginBottom: '0.35rem' }}>
+                3. Selecciona la fotografía:
+              </div>
+              {availableImages.length > 0 && (
+                <div className="ecu-var-gallery-grid" style={{ marginBottom: '0.75rem' }}>
+                  {availableImages.map((img) => {
+                    const isSelected = bulkSelectedImage?.previewUrl === img.previewUrl
+                    return (
+                      <button
+                        key={img.id}
+                        type="button"
+                        className={`ecu-var-gallery-item ${isSelected ? 'ecu-var-gallery-item--selected' : ''}`}
+                        onClick={() =>
+                          setBulkSelectedImage({ file: img.file, previewUrl: img.previewUrl, name: img.file.name })
+                        }
+                        title={img.altText || img.file.name}
+                      >
+                        <img src={img.previewUrl} alt={img.altText || img.file.name} />
+                        {isSelected && (
+                          <div className="ecu-var-gallery-badge">
+                            <Check size={11} />
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => bulkFileInputRef.current?.click()}
+              >
+                <Upload size={14} /> Subir nueva foto desde equipo...
+              </Button>
+              {bulkSelectedImage && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.6rem' }}>
+                  <div className="ecu-var-img-slot ecu-var-img-slot--filled" style={{ width: 40, height: 40 }}>
+                    <img src={bulkSelectedImage.previewUrl} alt="Seleccionada" />
+                  </div>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--glb-text)', fontWeight: 500 }}>
+                    Foto lista para aplicar
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--shell-border, rgba(0,0,0,0.08))' }}>
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsBulkImageModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={handleApplyBulkImage}
+                disabled={!bulkSelectedImage || matchingBulkCount === 0}
+              >
+                Aplicar a {matchingBulkCount} Variantes
+              </Button>
+            </div>
+          </div>
+        </Popup>
+      )}
     </div>
   )
 }

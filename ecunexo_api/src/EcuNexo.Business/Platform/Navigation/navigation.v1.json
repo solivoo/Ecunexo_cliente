@@ -145,13 +145,24 @@
         "children": []
       },
       {
-        "id": "catalog-categories",
-        "label": "Categorías",
-        "route": "catalogo/categorias",
-        "icon": "folder-tree",
+        "id": "catalog-attributes",
+        "label": "Atributos",
+        "route": "catalogo/atributos",
+        "icon": "tag",
         "requiredPermission": "catalog.item.read",
         "requiredModule": "catalog",
         "order": 2,
+        "placeholder": false,
+        "children": []
+      },
+      {
+        "id": "catalog-templates",
+        "label": "Plantillas",
+        "route": "catalogo/plantillas",
+        "icon": "layers",
+        "requiredPermission": "catalog.item.read",
+        "requiredModule": "catalog",
+        "order": 3,
         "placeholder": false,
         "children": []
       }

@@ -405,10 +405,10 @@ export function CatalogAttributesListPage() {
         disabled: false,
       },
       {
-        id: 'categories',
-        label: 'Categorías',
-        icon: 'folder-tree',
-        route: '/catalogo/categorias',
+        id: 'templates',
+        label: 'Plantillas',
+        icon: 'layers',
+        route: '/catalogo/plantillas',
         disabled: false,
       },
     ],
@@ -507,7 +507,7 @@ export function CatalogAttributesListPage() {
             <div style={{ flex: '1 1 280px', maxWidth: '400px' }}>
               <TextBox
                 id="search-attr"
-                placeholder="Buscar por nombre o valor (ej. Caña, 35-38, Algodón)…"
+                placeholder="Buscar por nombre o valor (ej. Talla, Color, Material)…"
                 value={searchQuery}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                 fullWidth
@@ -560,7 +560,7 @@ export function CatalogAttributesListPage() {
               label="Nombre del Atributo"
               labelPosition="outlined"
               variant="outline"
-              placeholder="Ej. Tipo de Caña, Material, Grosor de Hilo"
+              placeholder="Ej. Talla, Color, Material, Capacidad"
               value={formName}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setFormName(e.target.value)}
               disabled={saving || Boolean(editingTemplate?.isInUse)}
@@ -604,7 +604,7 @@ export function CatalogAttributesListPage() {
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
                 <TextBox
                   id="new-val-input"
-                  placeholder="Ej. Tobillera, Media Canilla, Caña Alta…"
+                  placeholder="Ej. Pequeño, Mediano, Grande o 100% Algodón…"
                   value={newValueInput}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setNewValueInput(e.target.value)}
                   onKeyDown={(e) => {

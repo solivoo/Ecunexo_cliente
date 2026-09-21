@@ -131,14 +131,9 @@ export function ItemCustomAttributesEditor({
     for (const t of templates) {
       try {
         const parsed = JSON.parse(t.predefinedValuesJson)
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           const lowerName = t.name.trim().toLowerCase()
           map.set(lowerName, parsed)
-          // También mapear palabras clave simplificadas (ej. "tipo de caña / altura" -> "caña")
-          if (lowerName.includes('caña')) map.set('caña', parsed)
-          if (lowerName.includes('manga')) map.set('manga', parsed)
-          if (lowerName.includes('color')) map.set('color', parsed)
-          if (lowerName.includes('talla') || lowerName.includes('medias')) map.set('talla', parsed)
         }
       } catch {
         // ignorar
@@ -313,12 +308,15 @@ export function ItemCustomAttributesEditor({
 
           {attributes.map((attr, index) => {
             const attrKeyLower = attr.key.trim().toLowerCase()
-            const suggestedValues =
-              templateValuesMap.get(attrKeyLower) ??
-              (attrKeyLower.includes('caña') ? templateValuesMap.get('caña') : undefined) ??
-              (attrKeyLower.includes('manga') ? templateValuesMap.get('manga') : undefined) ??
-              (attrKeyLower.includes('color') ? templateValuesMap.get('color') : undefined) ??
-              []
+            let suggestedValues: string[] = templateValuesMap.get(attrKeyLower) ?? []
+            if (suggestedValues.length === 0 && attrKeyLower) {
+              for (const [tplKey, vals] of templateValuesMap.entries()) {
+                if (attrKeyLower.includes(tplKey) || tplKey.includes(attrKeyLower)) {
+                  suggestedValues = vals
+                  break
+                }
+              }
+            }
 
             return (
               <div
@@ -343,7 +341,7 @@ export function ItemCustomAttributesEditor({
                 >
                   <TextBox
                     id={`${baseId}-key-${index}`}
-                    placeholder="Ej. Tipo de Caña, Material, Marca…"
+                    placeholder="Ej. Material, Color, Marca, Garantía…"
                     value={attr.key}
                     onChange={(e: ChangeEvent<HTMLInputElement>) =>
                       handleUpdateRow(attr.id, 'key', e.target.value)
@@ -354,7 +352,13 @@ export function ItemCustomAttributesEditor({
                   />
                   <TextBox
                     id={`${baseId}-val-${index}`}
-                    placeholder="Ej. Tobillera, 100% Algodón, 1 Año…"
+                    placeholder={
+                      suggestedValues.length > 0
+                        ? `Ej. ${suggestedValues.slice(0, 3).join(', ')}…`
+                        : attr.key.trim()
+                          ? `Valor o especificación para ${attr.key.trim()}…`
+                          : 'Valor o detalle de la especificación…'
+                    }
                     value={attr.value}
                     onChange={(e: ChangeEvent<HTMLInputElement>) =>
                       handleUpdateRow(attr.id, 'value', e.target.value)
