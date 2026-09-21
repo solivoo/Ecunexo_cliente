@@ -137,10 +137,11 @@ export function VariantMatrixBuilder({
   // Color Hex Map
   const [colorHexMap, setColorHexMap] = useState<Record<string, string>>(DEFAULT_COLOR_MAP)
   const [colorModal, setColorModal] = useState<{
-    mode: 'edit' | 'new' | 'duplicate' | 'add-group'
+    mode: 'edit' | 'new' | 'duplicate' | 'add-group' | 'row'
     value: string
     name: string
     hex: string
+    rowId?: string
   } | null>(null)
 
   // Dimensions Array
@@ -785,6 +786,15 @@ export function VariantMatrixBuilder({
     const targetVal = colorModal.mode === 'edit' ? colorModal.value : colorModal.name.trim()
     if (!targetVal) return
 
+    if (colorModal.mode === 'row') {
+      if (!colorModal.rowId) return
+      handleAddCustomOptionToDimension(primaryDim.id, targetVal)
+      setColorHexMap((prev) => ({ ...prev, [targetVal]: colorModal.hex }))
+      handleRowDimensionChange(colorModal.rowId, primaryDim.name, targetVal)
+      setColorModal(null)
+      return
+    }
+
     if (colorModal.mode === 'add-group') {
       handleAddCustomOptionToDimension(primaryDim.id, targetVal)
       setColorHexMap((prev) => ({ ...prev, [targetVal]: colorModal.hex }))
@@ -818,6 +828,7 @@ export function VariantMatrixBuilder({
     handleAddSubVariantToGroup,
     handleDuplicateGroupTo,
     handleRenameGroupValue,
+    handleRowDimensionChange,
     primaryDim,
   ])
 
@@ -1173,6 +1184,83 @@ export function VariantMatrixBuilder({
                           </div>
                         )
                       })}
+
+                      {/* Color individual de la variante */}
+                      {isPrimaryColor && primaryDim
+                        ? (() => {
+                            const rowColor = row.dimensionValues[primaryDim.name] || ''
+                            const rowHex = colorHexMap[rowColor]
+                            const colorVals =
+                              primaryDim.values.length > 0 ? primaryDim.values : primaryDim.activeValues
+
+                            return (
+                              <div
+                                className="ecu-variant-sub-item-field"
+                                style={{ minWidth: '170px', flex: '1 1 170px', maxWidth: '220px' }}
+                              >
+                                <label className="ecu-variant-sub-item-label">{primaryDim.name}</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  <button
+                                    type="button"
+                                    className="ecu-color-swatch-dot"
+                                    style={{
+                                      width: 16,
+                                      height: 16,
+                                      cursor: rowColor && !disabled ? 'pointer' : 'default',
+                                      backgroundColor: rowHex || '#94a3b8',
+                                      border: rowHex
+                                        ? '1px solid var(--shell-border, rgba(0,0,0,0.2))'
+                                        : '1px dashed var(--shell-primary, #3b82f6)',
+                                    }}
+                                    title={
+                                      rowColor
+                                        ? `Editar la muestra de «${rowColor}»`
+                                        : 'Elegir un color para esta variante'
+                                    }
+                                    disabled={disabled || !rowColor}
+                                    onClick={() => {
+                                      if (!rowColor) return
+                                      setColorModal({
+                                        mode: 'edit',
+                                        value: rowColor,
+                                        name: rowColor,
+                                        hex: rowHex || '#3b82f6',
+                                      })
+                                    }}
+                                  />
+                                  <Select
+                                    size="sm"
+                                    variant="outline"
+                                    value={rowColor}
+                                    placeholder="Elegir color..."
+                                    onChange={(val: string) => {
+                                      if (val === '__add_new__') {
+                                        setColorModal({
+                                          mode: 'row',
+                                          rowId: row.id,
+                                          value: '',
+                                          name: '',
+                                          hex: '#3b82f6',
+                                        })
+                                        return
+                                      }
+                                      handleRowDimensionChange(row.id, primaryDim.name, val)
+                                    }}
+                                    disabled={disabled}
+                                    options={[
+                                      ...(rowColor && !colorVals.includes(rowColor)
+                                        ? [{ value: rowColor, label: rowColor }]
+                                        : []),
+                                      ...colorVals.map((val) => ({ value: val, label: val })),
+                                      { value: '__add_new__', label: '+ Nuevo color...' },
+                                    ]}
+                                    fullWidth
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })()
+                        : null}
 
                       {/* Foto exclusiva de la variante (SKU) */}
                       {photoScope !== 'group' && photoScope !== 'model' && (
@@ -1576,7 +1664,9 @@ export function VariantMatrixBuilder({
               ? `Color de «${colorModal.value}»`
               : colorModal.mode === 'duplicate'
                 ? `Duplicar ${primaryDim.name} a un color nuevo`
-                : `Nuevo ${primaryDim.name}`
+                : colorModal.mode === 'row'
+                  ? `Asignar ${primaryDim.name.toLowerCase()} a la variante`
+                  : `Nuevo ${primaryDim.name}`
           }
           width="420px"
         >

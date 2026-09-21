@@ -43,6 +43,13 @@ test.describe('Catálogo UI — Plantillas y Arquetipos Jerárquicos de Producto
     await expect(page).toHaveURL(/\/catalogo\/plantillas\/nueva/)
     await expect(page.getByRole('heading', { name: /Nueva Plantilla de Producto/i })).toBeVisible()
 
+    // Regresión: rutas con parámetros mantienen el módulo expandido y el ítem resaltado en el sidebar
+    const sidebar = page.locator('.app-shell__sidebar')
+    await expect(sidebar.getByRole('button', { name: 'Plantillas', exact: true })).toHaveAttribute(
+      'aria-current',
+      'page'
+    )
+
     // Campos del formulario principal
     await expect(page.getByText('Datos Principales de la Plantilla')).toBeVisible()
     await expect(page.getByText('Nombre de la Plantilla *')).toBeVisible()

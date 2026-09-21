@@ -2,7 +2,10 @@ import { useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Sidebar } from 'glubox'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
-import { navigationToMenuConfig } from '@/features/navigation/mapNavigationToMenu'
+import {
+  navigationToMenuConfig,
+  resolveMenuActivePath,
+} from '@/features/navigation/mapNavigationToMenu'
 import { TenantSidebarBrand } from '@/shell/TenantSidebarBrand'
 import type { NavigationNode } from '@/types/navigation'
 
@@ -25,6 +28,7 @@ export function AppSidebar({
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const menu = useMemo(() => navigationToMenuConfig(nodes, permissions), [nodes, permissions])
+  const activePath = useMemo(() => resolveMenuActivePath(pathname, menu), [pathname, menu])
   const width = collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED
 
   return (
@@ -33,7 +37,7 @@ export function AppSidebar({
       userPermissions={permissions}
       brand={TenantSidebarBrand}
       collapsed={collapsed}
-      activePath={pathname}
+      activePath={activePath}
       width={width}
       renderIcon={renderSidebarIcon}
       onCollapsedChange={onCollapsedChange}
