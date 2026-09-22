@@ -158,6 +158,18 @@
   color: var(--glb-text, #1e293b);
 }
 
+.ecu-matrix-bulk-bar__warn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b91c1c;
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
+}
+
 .ecu-matrix-bulk-bar__actions {
   display: flex;
   align-items: center;

@@ -242,7 +242,7 @@ export function resolveIsVariantAxis(
   return isColorDimension(attributeKey)
 }
 
-/** Atributos del modelo: todo atributo declarado como no-eje (isVariantAxis=false) y, sin tipado, los intermedios no-color. */
+/** Atributos del modelo: descriptivos de niveles intermedios; los descriptivos del terminal se capturan por variante. */
 export function getModelAttributeFields(
   levels: readonly ProductTemplateLevel[],
   map?: Map<string, DimensionLookup>
@@ -259,9 +259,35 @@ export function getModelAttributeFields(
       const lower = clean.toLowerCase()
       if (!clean || seen.has(lower)) return
       if (resolveIsVariantAxis(map, clean, idx + 1, levels.length)) return
+      if (idx === levels.length - 1) return
       seen.add(lower)
       fields.push({ key: clean, levelName: lvl.name, levelIndex: idx + 1 })
     })
+  })
+
+  return fields
+}
+
+/** Atributos descriptivos declarados en el nivel terminal: se capturan por variante (no generan SKU). */
+export function getVariantAttributeFields(
+  levels: readonly ProductTemplateLevel[],
+  map?: Map<string, DimensionLookup>
+): ArchetypeAttributeField[] {
+  if (levels.length === 0) return []
+
+  const terminalIndex = levels.length - 1
+  const terminal = levels[terminalIndex]
+  const names = terminal.attributes.length > 0 ? terminal.attributes : [terminal.name]
+  const seen = new Set<string>()
+  const fields: ArchetypeAttributeField[] = []
+
+  names.forEach((attr) => {
+    const clean = attr.trim()
+    const lower = clean.toLowerCase()
+    if (!clean || seen.has(lower)) return
+    if (resolveIsVariantAxis(map, clean, levels.length, levels.length)) return
+    seen.add(lower)
+    fields.push({ key: clean, levelName: terminal.name, levelIndex: levels.length })
   })
 
   return fields
@@ -316,4 +342,23 @@ export function buildHierarchyPathJson(
   })
 
   return entries.length > 0 ? JSON.stringify(entries) : null
+}
+
+export function findDuplicateSkuValues(skus: readonly string[]): string[] {
+  const seen = new Map<string, string>()
+  const duplicates = new Map<string, string>()
+
+  for (const raw of skus) {
+    const clean = raw.trim()
+    if (!clean) continue
+    const key = clean.toUpperCase()
+    const first = seen.get(key)
+    if (first !== undefined) {
+      if (!duplicates.has(key)) duplicates.set(key, first)
+      continue
+    }
+    seen.set(key, clean)
+  }
+
+  return Array.from(duplicates.values())
 }

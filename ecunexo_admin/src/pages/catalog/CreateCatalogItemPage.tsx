@@ -45,6 +45,7 @@ import {
   buildDimensionValuesMap,
   buildHierarchyPathJson,
   getModelAttributeFields,
+  getVariantAttributeFields,
   resolvePhotoScope,
   resolveTemplateDimensions,
 } from '@/lib/catalogArchetype'
@@ -70,12 +71,14 @@ export function CreateCatalogItemPage() {
     variantDimensionsJson: string
     dimensionNames: string[]
     isValid: boolean
+    invalidReason: string | null
     groupImages: { groupValue: string; images: VariantImageItem[] }[]
   }>({
     variants: [],
     variantDimensionsJson: '',
     dimensionNames: [],
     isValid: false,
+    invalidReason: null,
     groupImages: [],
   })
   const [name, setName] = useState('')
@@ -131,6 +134,11 @@ export function CreateCatalogItemPage() {
 
   const modelAttributeFields = useMemo(
     () => getModelAttributeFields(appliedTemplateLevels, dimensionValuesMap),
+    [appliedTemplateLevels, dimensionValuesMap]
+  )
+
+  const variantAttributeFields = useMemo(
+    () => getVariantAttributeFields(appliedTemplateLevels, dimensionValuesMap),
     [appliedTemplateLevels, dimensionValuesMap]
   )
 
@@ -338,7 +346,7 @@ export function CreateCatalogItemPage() {
 
         if (hasVariants && kindNum === CatalogItemKind.Physical) {
           if (!matrixData.isValid || matrixData.variants.length === 0) {
-            throw new Error('Debes configurar al menos una variante con SKU.')
+            throw new Error(matrixData.invalidReason ?? 'Debes configurar al menos una variante con SKU.')
           }
           if (remainingVariants != null && matrixData.variants.length > remainingVariants) {
             throw new Error(
@@ -806,6 +814,8 @@ export function CreateCatalogItemPage() {
                   availableImages={stagedImages}
                   initialDimensions={templateAllDimensions}
                   photoScope={appliedTemplate ? photoScope : undefined}
+                  variantAttributeFields={variantAttributeFields}
+                  dimensionValuesMap={dimensionValuesMap}
                 />
               </SectionCard>
             </div>

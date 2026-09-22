@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import { Button, ColorPicker, DEFAULT_COLOR_PRESETS, NumberBox, Popup, Select, TextBox, useToast } from 'glubox'
 import { Camera, Check, Copy, Layers, Plus, Trash2, Upload, X } from 'lucide-react'
 import { EcuTagInput } from '@/components/ui'
-import { isColorDimension } from '@/lib/catalogArchetype'
+import {
+  findDuplicateSkuValues,
+  isColorDimension,
+  type ArchetypeAttributeField,
+  type DimensionLookup,
+} from '@/lib/catalogArchetype'
 import type { CreateVariantChildPayload } from '@/types/catalogApi'
 import './variantMatrixBuilder.css'
 
@@ -37,6 +42,7 @@ export type VariantRowState = {
   stagedImagePreview?: string | null
   stagedImages?: VariantImageItem[]
   variantTags?: string[]
+  variantAttributes?: Record<string, string>
   extraColors?: string[]
   actions?: string
   [key: string]: unknown
@@ -65,6 +71,7 @@ export type VariantMatrixBuilderProps = {
     variantDimensionsJson: string
     dimensionNames: string[]
     isValid: boolean
+    invalidReason: string | null
     groupImages: { groupValue: string; images: VariantImageItem[] }[]
   }) => void
   availableImages?: AvailableGalleryImage[]
@@ -76,6 +83,8 @@ export type VariantMatrixBuilderProps = {
     type?: 'color' | 'size' | 'custom'
   }[]
   photoScope?: 'variant' | 'group' | 'model'
+  variantAttributeFields?: ArchetypeAttributeField[]
+  dimensionValuesMap?: Map<string, DimensionLookup>
 }
 
 
@@ -151,6 +160,8 @@ export function VariantMatrixBuilder({
   availableImages = [],
   initialDimensions,
   photoScope,
+  variantAttributeFields = [],
+  dimensionValuesMap,
 }: VariantMatrixBuilderProps) {
   const toast = useToast()
 
@@ -273,6 +284,7 @@ export function VariantMatrixBuilder({
           stagedImagePreview: null,
           stagedImages: [],
           variantTags: [],
+          variantAttributes: {},
           extraColors: [],
         },
       ])
@@ -325,6 +337,16 @@ export function VariantMatrixBuilder({
 
   const handleVariantTagsChange = useCallback((rowId: string, tags: string[]) => {
     setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, variantTags: tags } : r)))
+  }, [])
+
+  const handleVariantAttributeChange = useCallback((rowId: string, key: string, value: string) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === rowId
+          ? { ...r, variantAttributes: { ...(r.variantAttributes ?? {}), [key]: value } }
+          : r
+      )
+    )
   }, [])
 
   const handleExtraColorsChange = useCallback((rowId: string, colors: string[]) => {
@@ -398,6 +420,15 @@ export function VariantMatrixBuilder({
       return (row.dimensionValues[primaryDim.name] || '').trim() || 'Sin definir'
     },
     [primaryDim]
+  )
+
+  const duplicateSkus = useMemo(
+    () => findDuplicateSkuValues(rows.map((r) => r.sku)),
+    [rows]
+  )
+  const duplicateSkuSet = useMemo(
+    () => new Set(duplicateSkus.map((sku) => sku.toUpperCase())),
+    [duplicateSkus]
   )
 
   // Cambio de dimensión en una fila específica (selección por variante) - NO recrear el SKU
@@ -754,6 +785,7 @@ export function VariantMatrixBuilder({
         stagedImages: groupImages,
         stagedImagePreview: groupImages[0]?.previewUrl || null,
         variantTags: [],
+        variantAttributes: {},
         extraColors: [],
       }
 
@@ -1020,6 +1052,13 @@ export function VariantMatrixBuilder({
           }
         })
       }
+      if (r.variantAttributes) {
+        Object.entries(r.variantAttributes).forEach(([attrName, val]) => {
+          if (val && typeof val === 'string' && val.trim()) {
+            customAttrs[attrName.trim().toLowerCase()] = val.trim()
+          }
+        })
+      }
       if (r.extraColors && r.extraColors.length > 0) {
         customAttrs['colores_secundarios'] = r.extraColors
       }
@@ -1045,15 +1084,23 @@ export function VariantMatrixBuilder({
       }
     })
 
-    const isValid =
-      payloadVariants.length > 0 &&
-      payloadVariants.every((v) => v.variantTitle.length > 0 && v.sku.length > 0)
+    const invalidReason =
+      payloadVariants.length === 0
+        ? 'Agrega al menos una variante física.'
+        : payloadVariants.some((v) => v.variantTitle.length === 0)
+          ? 'Completa el título de todas las variantes.'
+          : duplicateSkus.length > 0
+            ? `El SKU «${duplicateSkus[0]}» está repetido. Cámbialo en una de las variantes.`
+            : payloadVariants.some((v) => v.sku.length === 0)
+              ? 'Completa el SKU de todas las variantes.'
+              : null
 
     onChange({
       variants: payloadVariants,
       variantDimensionsJson,
       dimensionNames,
-      isValid,
+      isValid: invalidReason === null,
+      invalidReason,
       groupImages:
         photoScope === 'group'
           ? Object.entries(groupStagedImages).map(([groupValue, images]) => ({ groupValue, images }))
@@ -1066,6 +1113,7 @@ export function VariantMatrixBuilder({
     photoScope,
     groupStagedImages,
     onChange,
+    duplicateSkus,
   ])
 
   const renderGroupPhotosBar = (groupKey: string, label: string, images: VariantImageItem[]) => (
@@ -1130,6 +1178,11 @@ export function VariantMatrixBuilder({
             {rows.length} {rows.length === 1 ? 'variante física' : 'variantes físicas'}
             {groups.length > 0 && primaryDim ? ` en ${groups.length} ${primaryDim.name.toLowerCase()}${groups.length === 1 ? '' : 'es'}` : ''}
           </span>
+          {duplicateSkus.length > 0 && (
+            <span className="ecu-matrix-bulk-bar__warn" role="alert">
+              SKU repetido: {duplicateSkus.join(', ')}
+            </span>
+          )}
         </div>
 
         <div className="ecu-matrix-bulk-bar__actions">
@@ -1460,6 +1513,8 @@ export function VariantMatrixBuilder({
                             updateRow(row.id, 'sku', e.target.value.toUpperCase())
                           }
                           placeholder="Ej. NIK-001-0001"
+                          error={duplicateSkuSet.has(row.sku.trim().toUpperCase())}
+                          errorMessage="SKU repetido"
                           disabled={disabled}
                           fullWidth
                         />
@@ -1467,6 +1522,103 @@ export function VariantMatrixBuilder({
 
                       {/* Salto de línea para legibilidad de la ficha de variante */}
                       <div className="ecu-variant-sub-item-break" aria-hidden />
+
+                      {/* Atributos del nivel terminal: se capturan por variante */}
+                      {variantAttributeFields.map((field) => {
+                        const lookup = dimensionValuesMap?.get(field.key.trim().toLowerCase())
+                        const dataType = lookup?.dataType ?? 'text'
+                        const value = row.variantAttributes?.[field.key] ?? ''
+
+                        return (
+                          <div
+                            key={`attr-${field.key}`}
+                            className="ecu-variant-sub-item-field"
+                            style={{ minWidth: '170px', flex: '1 1 170px', maxWidth: '240px' }}
+                          >
+                            <label className="ecu-variant-sub-item-label">{field.key}</label>
+                            {dataType === 'boolean' ? (
+                              <Select
+                                size="sm"
+                                variant="outline"
+                                value={value}
+                                onChange={(v: string) =>
+                                  handleVariantAttributeChange(row.id, field.key, v)
+                                }
+                                options={[
+                                  { value: '', label: 'Sin definir' },
+                                  { value: 'true', label: 'Sí' },
+                                  { value: 'false', label: 'No' },
+                                ]}
+                                disabled={disabled}
+                                fullWidth
+                              />
+                            ) : dataType === 'number' ? (
+                              <NumberBox
+                                size="sm"
+                                variant="outline"
+                                value={value}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                                  handleVariantAttributeChange(row.id, field.key, e.target.value)
+                                }
+                                step={1}
+                                disabled={disabled}
+                                fullWidth
+                              />
+                            ) : dataType === 'color' ? (
+                              <ColorPicker
+                                size="sm"
+                                variant="outline"
+                                value={value || '#ffffff'}
+                                onChange={(hex: string) =>
+                                  handleVariantAttributeChange(row.id, field.key, hex)
+                                }
+                                disabled={disabled}
+                                fullWidth
+                              />
+                            ) : dataType === 'multiselect' ? (
+                              <EcuTagInput
+                                label={undefined}
+                                tags={value
+                                  .split(',')
+                                  .map((v) => v.trim())
+                                  .filter(Boolean)}
+                                suggestedTags={lookup?.values ?? []}
+                                onChange={(tags: string[]) =>
+                                  handleVariantAttributeChange(row.id, field.key, tags.join(', '))
+                                }
+                                placeholder={`Añadir ${field.key}...`}
+                                disabled={disabled}
+                              />
+                            ) : (lookup?.values.length ?? 0) > 0 ? (
+                              <Select
+                                size="sm"
+                                variant="outline"
+                                value={value}
+                                onChange={(v: string) =>
+                                  handleVariantAttributeChange(row.id, field.key, v)
+                                }
+                                options={[
+                                  { value: '', label: 'Sin definir' },
+                                  ...(lookup?.values ?? []).map((v) => ({ value: v, label: v })),
+                                ]}
+                                disabled={disabled}
+                                fullWidth
+                              />
+                            ) : (
+                              <TextBox
+                                size="sm"
+                                variant="outline"
+                                value={value}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                                  handleVariantAttributeChange(row.id, field.key, e.target.value)
+                                }
+                                disabled={disabled}
+                                fullWidth
+                              />
+                            )}
+                          </div>
+                        )
+                      })}
 
                       {/* Tags / Actividad */}
                       <div className="ecu-variant-sub-item-field" style={{ minWidth: '200px', flex: '1.3 1 200px' }}>

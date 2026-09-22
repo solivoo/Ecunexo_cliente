@@ -2,7 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildDimensionValuesMap,
+  findDuplicateSkuValues,
   getModelAttributeFields,
+  getVariantAttributeFields,
   resolvePhotoScope,
   resolveTemplateDimensions,
 } from '../src/lib/catalogArchetype.ts'
@@ -224,3 +226,54 @@ for (const caso of casos) {
     )
   })
 }
+
+test('SKUs duplicados: detecta repeticiones ignorando mayúsculas y espacios', () => {
+  assert.deepEqual(findDuplicateSkuValues(['NIK-001', ' nik-001 ', 'NIK-002']), ['NIK-001'])
+  assert.deepEqual(findDuplicateSkuValues(['NIK-001', 'NIK-002', 'nik-001']), ['NIK-001'])
+})
+
+test('SKUs duplicados: ignora vacíos y no reporta falsos positivos', () => {
+  assert.deepEqual(findDuplicateSkuValues(['NIK-001', '', '  ', 'NIK-002']), [])
+  assert.deepEqual(findDuplicateSkuValues([]), [])
+})
+
+test('SKUs duplicados: reporta cada valor repetido una sola vez', () => {
+  assert.deepEqual(findDuplicateSkuValues(['A', 'A', 'a', 'B', 'B']), ['A', 'B'])
+})
+
+test('Atributo descriptivo del terminal se captura por variante y sale de la ficha del modelo', () => {
+  const levels: ProductTemplateLevel[] = [
+    {
+      id: 'l1',
+      name: 'Producto',
+      hasColor: false,
+      hasImages: false,
+      attributes: ['Marca'],
+      photoScope: 'none',
+    },
+    {
+      id: 'l2',
+      name: 'Variantes',
+      hasColor: false,
+      hasImages: false,
+      attributes: ['Tallas', 'Actividad / Uso'],
+      photoScope: 'none',
+    },
+  ]
+  const map = buildDimensionValuesMap([
+    dict('Tallas', ['S', 'M'], { size: true }),
+    dict('Actividad / Uso', ['Running', 'Crossfit'], { axis: false }),
+    dict('Marca', ['Nike'], { axis: false }),
+  ])
+
+  assert.deepEqual(
+    getVariantAttributeFields(levels, map).map((f) => f.key),
+    ['Actividad / Uso'],
+    'El descriptivo del terminal se captura por variante'
+  )
+  assert.deepEqual(
+    getModelAttributeFields(levels, map).map((f) => f.key),
+    ['Marca'],
+    'La ficha del modelo no duplica el atributo de variante'
+  )
+})
