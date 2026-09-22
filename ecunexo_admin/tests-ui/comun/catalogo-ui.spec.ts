@@ -97,4 +97,27 @@ test.describe('Catálogo UI — Ítems y Categorías', () => {
     await expect(matrix.locator('.ecu-variant-sub-item-row')).toHaveCount(2)
     await expect(matrix.locator('.ecu-matrix-bulk-bar__count')).toContainText(/variante/i)
   })
+
+  test('Nuevo Ítem físico: sin bucle de render y el sidebar navega', async ({ page }) => {
+    const session = await readPersistedSession(page)
+    test.skip(!hasRoute(session.routes, '/catalogo'), 'Este plan no incluye Catálogo.')
+
+    const loopErrors: string[] = []
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && msg.text().includes('Maximum update depth')) {
+        loopErrors.push(msg.text())
+      }
+    })
+
+    await page.goto('/catalogo/items/nuevo')
+    await expect(page.getByRole('heading', { name: /Nuevo Ítem/i })).toBeVisible({
+      timeout: 20_000,
+    })
+    await expect(page.locator('.ecu-matrix-builder')).toBeVisible()
+    await page.waitForTimeout(1500)
+
+    await page.locator('.sidebar__link--option', { hasText: 'Atributos' }).first().click()
+    await expect(page).toHaveURL(/\/catalogo\/atributos$/, { timeout: 15_000 })
+    expect(loopErrors).toEqual([])
+  })
 })

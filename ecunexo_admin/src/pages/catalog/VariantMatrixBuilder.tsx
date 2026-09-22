@@ -97,6 +97,8 @@ const DEFAULT_COLOR_MAP: Record<string, string> = {
   Marrón: '#78350f',
 }
 
+const NO_PARENT_TAGS: readonly string[] = []
+
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
 
 function normalizeHexColor(value: string): string {
@@ -145,7 +147,7 @@ export function VariantMatrixBuilder({
   tenantId: _tenantId,
   baseName,
   basePrice,
-  parentTags = [],
+  parentTags = NO_PARENT_TAGS,
   disabled = false,
   onChange,
   availableImages = [],
