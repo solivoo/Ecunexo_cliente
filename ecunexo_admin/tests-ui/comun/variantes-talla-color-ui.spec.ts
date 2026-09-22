@@ -230,5 +230,34 @@ test.describe('Variantes multidimensionales (Talla × Caña × Color) y tags/col
     }
     const variant = (detail.variants ?? []).find((v) => v.sku === 'MED-1')
     expect(variant?.extraColors ?? []).toContain('#22c55e')
+
+    // Edición: la grilla de variantes muestra los colores del SKU y permite agregar más.
+    await page.goto(`/catalogo/items/${createdItem!.id}`)
+    await expect(page.getByText('Variantes Registradas', { exact: false })).toBeVisible({
+      timeout: 20_000,
+    })
+    await expect(page.getByText('#22c55e', { exact: true }).first()).toBeVisible()
+    await page.getByRole('button', { name: 'Colores de la variante' }).first().click()
+    await expect(page.getByText('Colores de la Variante')).toBeVisible({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Color #ef4444' }).click()
+    await page
+      .locator('.glb-popup__panel')
+      .filter({ hasText: 'Colores de la Variante' })
+      .getByRole('button', { name: 'Guardar', exact: true })
+      .click()
+    await expect(page.getByText('Colores de la Variante')).toBeHidden({ timeout: 10_000 })
+
+    const afterEditRes = await page.request.get(
+      `${API}/api/v1/tenants/${auth!.tenantId}/catalog/items/${createdItem!.id}`,
+      { headers: { Authorization: `Bearer ${auth!.token}` } }
+    )
+    expect(afterEditRes.ok()).toBeTruthy()
+    const afterEdit = (await afterEditRes.json()) as {
+      variants?: { sku: string | null; extraColors?: string[] | null }[]
+    }
+    const editedVariant = (afterEdit.variants ?? []).find((v) => v.sku === 'MED-1')
+    expect(editedVariant?.extraColors ?? []).toEqual(
+      expect.arrayContaining(['#22c55e', '#ef4444'])
+    )
   })
 })

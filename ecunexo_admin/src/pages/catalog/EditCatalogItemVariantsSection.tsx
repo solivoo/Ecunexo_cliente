@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
-import { ArrowLeftRight, Camera, Pencil, Plus, RefreshCw, Sparkles, X } from 'lucide-react'
+import { Button, ColorPicker, DataGrid, DEFAULT_COLOR_PRESETS, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
+import { ArrowLeftRight, Camera, Palette, Pencil, Plus, RefreshCw, Sparkles, X } from 'lucide-react'
 import { SectionCard, StatCard, StatusBadge } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
@@ -156,6 +156,12 @@ export function EditCatalogItemVariantsSection({
   const [warehouses, setWarehouses] = useState<WarehouseListItemDto[]>([])
   const [variantImage, setVariantImage] = useState<File | null>(null)
   const [variantImagePreview, setVariantImagePreview] = useState<string | null>(null)
+
+  // Colors editor per variant
+  const [colorsModalVariant, setColorsModalVariant] = useState<VariantRow | null>(null)
+  const [colorDraft, setColorDraft] = useState<string[]>([])
+  const [customColorHex, setCustomColorHex] = useState('#3b82f6')
+  const [savingColors, setSavingColors] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -400,6 +406,73 @@ export function EditCatalogItemVariantsSection({
     return {}
   }, [])
 
+  const toggleDraftColor = useCallback((hex: string) => {
+    const normalized = hex.trim().toLowerCase()
+    if (!/^#[0-9a-f]{6}$/.test(normalized)) return
+    setColorDraft((prev) =>
+      prev.includes(normalized) ? prev.filter((c) => c !== normalized) : [...prev, normalized]
+    )
+  }, [])
+
+  const handleOpenColorsModal = useCallback((row: VariantRow) => {
+    setColorsModalVariant(row)
+    setColorDraft(Array.isArray(row.extraColors) ? [...row.extraColors] : [])
+    setCustomColorHex('#3b82f6')
+  }, [])
+
+  const handleSaveVariantColors = useCallback(async () => {
+    if (!tenantId || !colorsModalVariant) return
+    setSavingColors(true)
+    try {
+      let attrs: Record<string, unknown> = {}
+      try {
+        const parsed = JSON.parse(colorsModalVariant.customAttributesJson || '{}')
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          attrs = { ...(parsed as Record<string, unknown>) }
+        }
+      } catch {
+        attrs = {}
+      }
+
+      if (colorDraft.length > 0) {
+        attrs['colores_secundarios'] = colorDraft
+      } else {
+        delete attrs['colores_secundarios']
+      }
+
+      await updateCatalogItem(tenantId, colorsModalVariant.id, {
+        kind: parentItem.kind,
+        name: colorsModalVariant.name,
+        sku: colorsModalVariant.sku,
+        basePrice: colorsModalVariant.basePrice,
+        categoryId: parentItem.categoryId,
+        customAttributesJson: JSON.stringify(attrs),
+        familyId: parentItem.familyId ?? null,
+        hierarchyPathJson: parentItem.hierarchyPathJson ?? null,
+        status: colorsModalVariant.status,
+      })
+
+      toast.show({
+        title: 'Colores actualizados',
+        message:
+          colorDraft.length > 0
+            ? `La variante «${colorsModalVariant.name}» quedó con ${colorDraft.length} color(es).`
+            : `Se quitaron los colores de «${colorsModalVariant.name}».`,
+        variant: 'success',
+      })
+      setColorsModalVariant(null)
+      await onRefreshRequired()
+    } catch (err) {
+      toast.show({
+        title: 'Error al guardar colores',
+        message: readApiError(err, 'No se pudieron actualizar los colores de la variante.'),
+        variant: 'error',
+      })
+    } finally {
+      setSavingColors(false)
+    }
+  }, [colorDraft, colorsModalVariant, onRefreshRequired, parentItem, tenantId, toast])
+
   const columns = useMemo<ColumnDef<VariantRow>[]>(
     () => [
       {
@@ -515,6 +588,54 @@ export function EditCatalogItemVariantsSection({
         },
       },
       {
+        key: 'extraColors',
+        header: 'Colores',
+        width: 160,
+        renderCell: (_value: unknown, row: VariantRow) => {
+          const colors = Array.isArray(row.extraColors) ? row.extraColors : []
+          if (colors.length === 0) {
+            return (
+              <span className="app-shell__muted" style={{ fontSize: '0.8rem' }}>
+                Sin colores
+              </span>
+            )
+          }
+          return (
+            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+              {colors.map((hex) => (
+                <span
+                  key={hex}
+                  title={`Color ${hex}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    padding: '0.15rem 0.45rem',
+                    borderRadius: '999px',
+                    border: '1px solid var(--glb-border, #e2e8f0)',
+                    backgroundColor: 'var(--glb-surface, #ffffff)',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      border: '1px solid rgba(0, 0, 0, 0.2)',
+                      backgroundColor: hex,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span>{hex}</span>
+                </span>
+              ))}
+            </div>
+          )
+        },
+      },
+      {
         key: 'name',
         header: 'Nombre de Variante',
         width: 240,
@@ -560,7 +681,7 @@ export function EditCatalogItemVariantsSection({
       {
         key: 'actions',
         header: 'Acciones',
-        width: 96,
+        width: 128,
         renderCell: (_value: unknown, row: VariantRow) => (
           <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
             <GridIconButton
@@ -570,6 +691,15 @@ export function EditCatalogItemVariantsSection({
                 navigate(`/catalogo/items/${row.id}`)
               }}
             />
+            {canEdit && (
+              <GridIconButton
+                label="Colores de la variante"
+                icon={Palette}
+                onClick={() => {
+                  handleOpenColorsModal(row)
+                }}
+              />
+            )}
             {canEdit && (
               <GridIconButton
                 label="Reasignar / Mover a otro producto matriz"
@@ -583,7 +713,7 @@ export function EditCatalogItemVariantsSection({
         ),
       },
     ],
-    [canEdit, handleOpenReassignModal, navigate, parseAttributes]
+    [canEdit, handleOpenColorsModal, handleOpenReassignModal, navigate, parseAttributes]
   )
 
   const warehouseOptions = useMemo(
@@ -981,6 +1111,156 @@ export function EditCatalogItemVariantsSection({
             disabled={reassigning}
             fullWidth
           />
+        </div>
+      </Popup>
+
+      {/* Modal de colores de la variante */}
+      <Popup
+        open={colorsModalVariant != null}
+        onClose={() => {
+          if (!savingColors) setColorsModalVariant(null)
+        }}
+        title="Colores de la Variante"
+        width="min(92vw, 30rem)"
+        actions={[
+          {
+            id: 'cancel-colors',
+            label: 'Cancelar',
+            variant: 'outline',
+            onClick: () => setColorsModalVariant(null),
+            disabled: savingColors,
+          },
+          {
+            id: 'save-colors',
+            label: savingColors ? 'Guardando…' : 'Guardar',
+            variant: 'primary',
+            onClick: () => void handleSaveVariantColors(),
+            disabled: savingColors,
+          },
+        ]}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '0.5rem' }}>
+          <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.85rem' }}>
+            Variante: <strong>{colorsModalVariant?.name}</strong>
+            {colorsModalVariant?.sku ? ` (${colorsModalVariant.sku})` : ''}
+          </p>
+
+          <div>
+            <span
+              style={{
+                display: 'block',
+                marginBottom: '0.45rem',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: 'var(--glb-muted, #64748b)',
+              }}
+            >
+              Elige un color
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.5rem' }}>
+              {DEFAULT_COLOR_PRESETS.map((preset) => {
+                const selected = colorDraft.includes(preset)
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    aria-label={`Color ${preset}`}
+                    aria-pressed={selected}
+                    title={preset}
+                    onClick={() => toggleDraftColor(preset)}
+                    style={{
+                      width: '100%',
+                      aspectRatio: '1',
+                      padding: 0,
+                      borderRadius: 8,
+                      border: '1px solid var(--glb-border, rgba(0, 0, 0, 0.15))',
+                      backgroundColor: preset,
+                      cursor: 'pointer',
+                      boxShadow: selected
+                        ? '0 0 0 2px var(--glb-surface, #fff), 0 0 0 4px var(--shell-primary, #3b82f6)'
+                        : undefined,
+                    }}
+                  />
+                )
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+            <div style={{ flex: 1 }}>
+              <ColorPicker
+                label="Otro color (hexadecimal)"
+                labelPosition="outlined"
+                variant="outline"
+                value={customColorHex}
+                onChange={(hex: string) => setCustomColorHex(hex || '')}
+                disabled={savingColors}
+                fullWidth
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => toggleDraftColor(customColorHex)}
+              disabled={savingColors || !/^#[0-9a-fA-F]{6}$/.test(customColorHex.trim())}
+            >
+              <Plus size={13} /> Añadir
+            </Button>
+          </div>
+
+          {colorDraft.length > 0 && (
+            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+              {colorDraft.map((hex) => (
+                <span
+                  key={hex}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    padding: '0.15rem 0.4rem',
+                    borderRadius: '999px',
+                    border: '1px solid var(--glb-border, #e2e8f0)',
+                    backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.04))',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      border: '1px solid rgba(0, 0, 0, 0.2)',
+                      backgroundColor: hex,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span>{hex}</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleDraftColor(hex)}
+                    disabled={savingColors}
+                    title={`Quitar ${hex}`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: 0,
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'inherit',
+                      cursor: 'pointer',
+                      opacity: 0.7,
+                    }}
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </Popup>
     </div>
