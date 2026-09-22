@@ -10,6 +10,7 @@ type ArchetypeModelFieldsProps = {
   dimensionValuesMap: Map<string, DimensionLookup>
   onChangeValue: (key: string, value: string) => void
   disabled?: boolean
+  bare?: boolean
 }
 
 function fieldId(field: ArchetypeAttributeField): string {
@@ -32,6 +33,7 @@ export function ArchetypeModelFields({
   dimensionValuesMap,
   onChangeValue,
   disabled = false,
+  bare = false,
 }: ArchetypeModelFieldsProps) {
   if (fields.length === 0) return null
 
@@ -40,20 +42,26 @@ export function ArchetypeModelFields({
 
   return (
     <div
-      style={{
-        marginTop: '1rem',
-        padding: '1rem',
-        borderRadius: '0.75rem',
-        border: '1px solid var(--shell-border, rgba(148, 163, 184, 0.25))',
-        backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.02))',
-      }}
+      style={
+        bare
+          ? undefined
+          : {
+              marginTop: '1rem',
+              padding: '1rem',
+              borderRadius: '0.75rem',
+              border: '1px solid var(--shell-border, rgba(148, 163, 184, 0.25))',
+              backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.02))',
+            }
+      }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', marginBottom: '0.875rem' }}>
-        <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Atributos del Modelo</span>
-        <span style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #64748b)' }}>
-          Especificaciones del arquetipo que acompañan al producto y forman su ruta jerárquica.
-        </span>
-      </div>
+      {bare ? null : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', marginBottom: '0.875rem' }}>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Datos del producto</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #64748b)' }}>
+            Se completan una vez y acompañan a todas las variaciones.
+          </span>
+        </div>
+      )}
       <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
         {fields.map((field) => {
           const lookup = dimensionValuesMap.get(field.key.trim().toLowerCase())

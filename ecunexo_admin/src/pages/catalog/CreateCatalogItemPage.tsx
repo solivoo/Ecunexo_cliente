@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
-import { Layers } from 'lucide-react'
+import { Layers, Save } from 'lucide-react'
 import {
   EcuPageActions,
   PageHeader,
@@ -44,12 +44,33 @@ import {
 import {
   buildDimensionValuesMap,
   buildHierarchyPathJson,
+  describeTemplateLine,
   getModelAttributeFields,
   getVariantAttributeFields,
-  resolvePhotoScope,
+  readPhotoChoice,
   resolveTemplateDimensions,
 } from '@/lib/catalogArchetype'
 import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
+
+type EntryMode = 'template' | 'single' | 'service'
+
+const ENTRY_OPTIONS: { id: EntryMode; title: string; text: string }[] = [
+  {
+    id: 'template',
+    title: 'Usar una plantilla',
+    text: 'El producto sigue los niveles, datos y variaciones que ya armaste.',
+  },
+  {
+    id: 'single',
+    title: 'Producto con un solo código',
+    text: 'Una pieza, un código y sus fotos. Sin variaciones.',
+  },
+  {
+    id: 'service',
+    title: 'Servicio',
+    text: 'Se vende sin stock ni variaciones.',
+  },
+]
 
 export function CreateCatalogItemPage() {
   const toast = useToast()
@@ -64,8 +85,8 @@ export function CreateCatalogItemPage() {
   const [productTemplates, setProductTemplates] = useState<ProductTemplateDto[]>([])
   const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [entryMode, setEntryMode] = useState<EntryMode>('template')
   const [kind, setKind] = useState(String(CatalogItemKind.Physical))
-  const hasVariants = kind === String(CatalogItemKind.Physical)
   const [matrixData, setMatrixData] = useState<{
     variants: MatrixVariantPayloadWithImage[]
     variantDimensionsJson: string
@@ -130,7 +151,15 @@ export function CreateCatalogItemPage() {
     }
   }, [appliedTemplate])
 
-  const photoScope = useMemo(() => resolvePhotoScope(appliedTemplateLevels), [appliedTemplateLevels])
+  const photoChoice = useMemo(
+    () => readPhotoChoice(appliedTemplateLevels).choice,
+    [appliedTemplateLevels]
+  )
+
+  const templateSummary = useMemo(
+    () => (appliedTemplate ? describeTemplateLine(appliedTemplateLevels, dimensionValuesMap) : ''),
+    [appliedTemplate, appliedTemplateLevels, dimensionValuesMap]
+  )
 
   const modelAttributeFields = useMemo(
     () => getModelAttributeFields(appliedTemplateLevels, dimensionValuesMap),
@@ -166,71 +195,46 @@ export function CreateCatalogItemPage() {
     [appliedTemplateLevels, dimensionValuesMap]
   )
 
-  const handleApplyTemplate = useCallback(
-    (templateId: string) => {
-      setSelectedTemplateId(templateId)
-      if (!templateId) {
-        return
-      }
-      const tpl = productTemplates.find((t) => t.id === templateId)
-      if (!tpl) return
+  const usesMatrix =
+    entryMode === 'template' && Boolean(appliedTemplate) && (templateAllDimensions?.length ?? 0) > 0
 
-      setName(tpl.name)
-      setDescription(tpl.description || '')
-      setBasePrice('')
-      setCategoryId('')
+  const showProductGallery =
+    entryMode !== 'template' ||
+    !appliedTemplate ||
+    photoChoice === 'model' ||
+    (!usesMatrix && photoChoice !== 'none')
 
-      let parsedLevels: ProductTemplateLevel[] = []
-      try {
-        parsedLevels = JSON.parse(tpl.hierarchyTreeJson)
-      } catch {
-        parsedLevels = []
-      }
+  const matrixPhotoScope =
+    photoChoice === 'group' ? 'group' : photoChoice === 'variant' ? 'variant' : 'model'
 
-      setKind(String(CatalogItemKind.Physical))
+  const modelFieldGroups = useMemo(() => {
+    const groups: { key: string; title: string; fields: typeof modelAttributeFields }[] = []
+    for (const field of modelAttributeFields) {
+      const key = String(field.levelIndex)
+      const last = groups[groups.length - 1]
+      if (last?.key === key) last.fields.push(field)
+      else groups.push({ key, title: field.levelName || `Nivel ${field.levelIndex}`, fields: [field] })
+    }
+    return groups
+  }, [modelAttributeFields])
 
-      const upperAttrs: string[] = []
-      parsedLevels.slice(0, parsedLevels.length - 1).forEach((l) => {
-        if (l.attributes && l.attributes.length > 0) {
-          l.attributes.forEach((attr) => {
-            const lower = attr.trim().toLowerCase()
-            if (lower !== 'talla' && lower !== 'tallas' && lower !== 'color' && lower !== 'colores') {
-              if (!upperAttrs.includes(attr.trim())) upperAttrs.push(attr.trim())
-            }
-          })
-        } else {
-          const lower = l.name.trim().toLowerCase()
-          if (lower !== 'talla' && lower !== 'tallas' && lower !== 'color' && lower !== 'colores') {
-            if (!upperAttrs.includes(l.name.trim())) upperAttrs.push(l.name.trim())
-          }
-        }
-      })
+  const selectEntry = useCallback((mode: EntryMode) => {
+    setEntryMode(mode)
+    setError(null)
+    if (mode === 'service') {
+      setKind(String(CatalogItemKind.Service))
+      setSelectedTemplateId('')
+      return
+    }
+    setKind(String(CatalogItemKind.Physical))
+    if (mode === 'single') setSelectedTemplateId('')
+  }, [])
 
-      if (upperAttrs.length > 0) {
-        setCustomAttributes((prev) => {
-          const existingKeys = new Set(prev.map((r) => r.key.toLowerCase()))
-          const newRows: CustomAttributeRow[] = [...prev]
-          upperAttrs.forEach((attr) => {
-            if (!existingKeys.has(attr.toLowerCase())) {
-              newRows.push({
-                id: `attr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-                key: attr,
-                value: '',
-              })
-            }
-          })
-          return newRows
-        })
-      }
-
-      toast.show({
-        title: 'Plantilla aplicada',
-        message: `Se ha cargado la jerarquía y estructura de «${tpl.name}».`,
-        variant: 'success',
-      })
-    },
-    [productTemplates, toast]
-  )
+  const handleApplyTemplate = useCallback((templateId: string) => {
+    setSelectedTemplateId(templateId)
+    setCustomAttributes([])
+    setKind(String(CatalogItemKind.Physical))
+  }, [])
 
   useEffect(() => {
     if (!tenantId || !canCreate) return
@@ -309,14 +313,17 @@ export function CreateCatalogItemPage() {
       setError(null)
       setBusy(true)
       try {
-        const finalName = name.trim() || appliedTemplate?.name || ''
-        if (!finalName) throw new Error('El nombre del ítem es obligatorio.')
+        const finalName = name.trim()
+        if (!finalName) throw new Error('El nombre del producto es obligatorio.')
+        if (entryMode === 'template' && !selectedTemplateId) {
+          throw new Error('Elige una plantilla o cambia la forma de registro.')
+        }
         const kindNum = Number(kind) as CatalogItemKind
-        if (kindNum === CatalogItemKind.Physical && !hasVariants && !sku.trim()) {
-          throw new Error('El SKU es obligatorio para ítems físicos.')
+        if (kindNum === CatalogItemKind.Physical && !usesMatrix && !sku.trim()) {
+          throw new Error('El código es obligatorio para un producto físico.')
         }
         let price: number | null = null
-        if (!hasVariants && basePrice.trim()) {
+        if (basePrice.trim()) {
           const parsed = Number(basePrice.replace(',', '.'))
           if (Number.isNaN(parsed) || parsed < 0) {
             throw new Error('El precio base no es válido.')
@@ -336,7 +343,7 @@ export function CreateCatalogItemPage() {
           plantillaId: familyId,
           plantillaNombre: appliedTemplate?.name ?? null,
           nivelesPlantilla: appliedTemplateLevels,
-          alcanceFotos: appliedTemplate ? photoScope : null,
+          alcanceFotos: appliedTemplate ? photoChoice : null,
           atributosModelo: customAttributes,
           rutaJerarquica: hierarchyPathJson,
           dimensionesVariantes: matrixData.variantDimensionsJson,
@@ -344,7 +351,7 @@ export function CreateCatalogItemPage() {
           fotosPorGrupo: matrixData.groupImages,
         })
 
-        if (hasVariants && kindNum === CatalogItemKind.Physical) {
+        if (usesMatrix && kindNum === CatalogItemKind.Physical) {
           if (!matrixData.isValid || matrixData.variants.length === 0) {
             throw new Error(matrixData.invalidReason ?? 'Debes configurar al menos una variante con SKU.')
           }
@@ -403,7 +410,7 @@ export function CreateCatalogItemPage() {
           }
 
           // Fotos compartidas por grupo: se suben una sola vez al producto matriz con su valor de grupo
-          if (photoScope === 'group' && matrixData.groupImages.length > 0) {
+          if (photoChoice === 'group' && matrixData.groupImages.length > 0) {
             for (const group of matrixData.groupImages) {
               for (let imgIdx = 0; imgIdx < group.images.length; imgIdx++) {
                 const img = group.images[imgIdx]
@@ -470,10 +477,10 @@ export function CreateCatalogItemPage() {
         }
 
         toast.show({
-          title: hasVariants ? 'Producto matriz creado' : 'Ítem creado',
-          message: hasVariants
-            ? `«${name.trim()}» con ${matrixData.variants.length} variantes físicas quedó registrado en el catálogo.`
-            : `«${name.trim()}» quedó registrado en el catálogo.`,
+          title: usesMatrix ? 'Producto creado' : 'Producto creado',
+          message: usesMatrix
+            ? `«${finalName}» quedó registrado con ${matrixData.variants.length} códigos.`
+            : `«${finalName}» quedó registrado en el catálogo.`,
           variant: 'success',
         })
         void navigate('/catalogo/items', { replace: true })
@@ -495,13 +502,14 @@ export function CreateCatalogItemPage() {
       customAttributes,
       description,
       dimensionValuesMap,
-      hasVariants,
+      entryMode,
       kind,
       matrixData,
       maxVariants,
       name,
       navigate,
-      photoScope,
+      photoChoice,
+      usesMatrix,
       remainingVariants,
       selectedTemplateId,
       sku,
@@ -537,28 +545,99 @@ export function CreateCatalogItemPage() {
     <TenantSessionGate title="Nuevo ítem" lead="Alta en el maestro de catálogo (sin stock).">
       <div className="ecu-dashboard-layout">
         <PageHeader
-          title="Nuevo Ítem"
-          subtitle="Registra un producto físico o servicio intangible. Los productos físicos requieren código SKU para su control en inventario."
+          title="Nuevo producto"
+          subtitle="Completa la ficha. Si eliges una plantilla, los niveles y las variaciones ya vienen armados."
           badge={
             <StatusBadge tone="primary" withDot>
-              Alta de Ítem
+              Alta
             </StatusBadge>
           }
           actions={
-            <EcuPageActions
-              items={actionItems}
-              variant="outline"
-              triggerLabel="Acciones de nuevo ítem"
-              renderIcon={renderSidebarIcon}
-              onNavigate={(route: string) => navigate(route)}
-            />
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Más acciones"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+              />
+              <Button type="submit" form="create-catalog-item" variant="primary" loading={busy} disabled={busy}>
+                <Save size={16} />
+                <span>{uploadStatus || 'Guardar producto'}</span>
+              </Button>
+            </div>
           }
         />
 
-        <form onSubmit={(e) => void onSubmit(e)} noValidate>
+        <form id="create-catalog-item" onSubmit={(e) => void onSubmit(e)} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <SectionCard title="Cómo lo registras" subtitle="Elige la forma. El resto del formulario muestra solo lo que ese camino necesita.">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '0.75rem',
+              }}
+            >
+              {ENTRY_OPTIONS.map((option) => {
+                const active = entryMode === option.id
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => selectEntry(option.id)}
+                    style={{
+                      textAlign: 'left',
+                      borderRadius: '12px',
+                      padding: '0.9rem 1rem',
+                      cursor: busy ? 'not-allowed' : 'pointer',
+                      border: active
+                        ? '1px solid color-mix(in srgb, var(--shell-primary, #2563eb) 55%, transparent)'
+                        : '1px solid var(--shell-border, rgba(0,0,0,0.1))',
+                      background: active
+                        ? 'color-mix(in srgb, var(--shell-primary, #2563eb) 10%, var(--glb-surface, #fff))'
+                        : 'var(--glb-surface, #fff)',
+                      color: 'var(--glb-text)',
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{option.title}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #64748b)' }}>{option.text}</div>
+                  </button>
+                )
+              })}
+            </div>
+            {entryMode === 'template' && (
+              <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                {productTemplates.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
+                    Todavía no hay plantillas. Puedes crear una desde Plantillas de producto, o registrar este producto con un solo código.
+                  </p>
+                ) : (
+                  <Select
+                    id="ci-template"
+                    label="Plantilla"
+                    labelPosition="outlined"
+                    variant="outline"
+                    options={[
+                      { value: '', label: 'Elige una plantilla' },
+                      ...productTemplates.map((t) => ({ value: t.id, label: t.name })),
+                    ]}
+                    value={selectedTemplateId}
+                    onChange={handleApplyTemplate}
+                    disabled={busy}
+                    fullWidth
+                  />
+                )}
+                {appliedTemplate && templateSummary ? (
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-text)' }}>{templateSummary}</p>
+                ) : null}
+              </div>
+            )}
+          </SectionCard>
+
           <SectionCard
-            title="Información Comercial del Ítem"
-            subtitle="Configura la clasificación comercial, identificación técnica y atributos de molde de categoría"
+            title="Datos del producto"
+            subtitle="Nombre, categoría y precio. Van en todos los productos."
           >
             {error ? (
               <div className="ecu-form-error-banner" role="alert">
@@ -567,97 +646,21 @@ export function CreateCatalogItemPage() {
               </div>
             ) : null}
 
-            {/* Template Arquetipo Selector */}
-            {productTemplates.length > 0 && (
-              <div
-                style={{
-                  marginBottom: '1.25rem',
-                  padding: '0.85rem 1rem',
-                  borderRadius: '8px',
-                  background: 'var(--shell-surface-subtle, rgba(255,255,255,0.03))',
-                  border: '1px solid var(--shell-border, rgba(255,255,255,0.08))',
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: '1 1 320px' }}>
-                  <Layers size={20} color="var(--shell-primary, #3b82f6)" />
-                  <div style={{ flex: 1, maxWidth: '380px' }}>
-                    <Select
-                      id="ci-template"
-                      label="Cargar estructura desde Plantilla"
-                      labelPosition="outlined"
-                      variant="outline"
-                      options={[
-                        { value: '', label: 'Sin plantilla (creación manual libre)' },
-                        ...productTemplates.map((t) => ({ value: t.id, label: t.name })),
-                      ]}
-                      value={selectedTemplateId}
-                      onChange={handleApplyTemplate}
-                      disabled={busy}
-                      fullWidth
-                    />
-                  </div>
-                </div>
-
-                {appliedTemplate && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--glb-muted)' }}>
-                      Jerarquía activa:
-                    </span>
-                    {appliedTemplateLevels.map((lvl, idx) => (
-                      <span
-                        key={lvl.id || idx}
-                        style={{
-                          fontSize: '0.75rem',
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '4px',
-                          background: 'rgba(59, 130, 246, 0.15)',
-                          color: 'var(--shell-primary, #60a5fa)',
-                          border: '1px solid rgba(59, 130, 246, 0.25)',
-                          fontWeight: 500,
-                        }}
-                      >
-                        N{idx + 1}: {lvl.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {appliedTemplate ? (
-              /* MODO CON PLANTILLA: atributos del modelo en el padre y ejes físicos en cada tarjeta de variante */
-              <>
-                <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: 'var(--glb-surface-variant, rgba(0,0,0,0.02))', borderRadius: '8px', border: '1px solid var(--glb-border, #e2e8f0)', fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
-                  Arquetipo: <strong style={{ color: 'var(--glb-text)' }}>{appliedTemplate.name}</strong>. Completa los atributos del modelo y selecciona las variaciones físicas ({templateAllDimensions?.map((d) => d.name).join(', ') || 'atributos'}) dentro de cada tarjeta de variante.
-                </div>
-                <ArchetypeModelFields
-                  fields={modelAttributeFields}
-                  values={customAttributes}
-                  dimensionValuesMap={dimensionValuesMap}
-                  onChangeValue={setAttributeValue}
-                  disabled={busy}
-                />
-              </>
-            ) : (
-              /* MODO MANUAL LIBRE (SIN PLANTILLA) */
-              <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
-                <div className="ecu-companies-form__field">
-                  <Select
-                    id="ci-kind"
-                    label="Tipo de ítem"
+            <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                  <TextBox
+                    id="ci-name"
+                    label="Nombre"
                     labelPosition="outlined"
                     variant="outline"
-                    options={[
-                      { value: String(CatalogItemKind.Service), label: 'Servicio (intangible)' },
-                      { value: String(CatalogItemKind.Physical), label: 'Físico (con inventario)' },
-                    ]}
-                    value={kind}
-                    onChange={setKind}
+                    value={name}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                    placeholder={
+                      entryMode === 'service'
+                        ? 'Ej. Asesoría contable mensual'
+                        : 'Ej. Calcetín running, Filtro de aceite'
+                    }
+                    required
                     disabled={busy}
                     fullWidth
                   />
@@ -675,33 +678,24 @@ export function CreateCatalogItemPage() {
                     fullWidth
                   />
                 </div>
-                <div className={`ecu-companies-form__field${hasVariants ? ' ecu-companies-form__field--span-2' : ''}`}>
+                <div className="ecu-companies-form__field">
                   <TextBox
-                    id="ci-name"
-                    label="Nombre del producto o servicio"
+                    id="ci-price"
+                    label="Precio base"
                     labelPosition="outlined"
                     variant="outline"
-                    value={name}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                    placeholder={
-                      kind === String(CatalogItemKind.Physical)
-                        ? 'Ej. Camiseta Deportiva, Monitor 27", Zapatos de Seguridad'
-                        : 'Ej. Consultoría, Soporte Técnico Mensual'
-                    }
-                    required
+                    value={basePrice}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
+                    placeholder="0.00"
                     disabled={busy}
                     fullWidth
                   />
                 </div>
-                {!hasVariants && (
+                {!usesMatrix && (
                   <div className="ecu-companies-form__field">
                     <TextBox
                       id="ci-sku"
-                      label={
-                        kind === String(CatalogItemKind.Physical)
-                          ? 'Código SKU (obligatorio)'
-                          : 'Código SKU (opcional)'
-                      }
+                      label={entryMode === 'service' ? 'Código (opcional)' : 'Código'}
                       labelPosition="outlined"
                       variant="outline"
                       value={sku}
@@ -709,22 +703,7 @@ export function CreateCatalogItemPage() {
                         setSku(e.target.value.toUpperCase())
                       }
                       placeholder="PROD-001"
-                      required={kind === String(CatalogItemKind.Physical)}
-                      disabled={busy}
-                      fullWidth
-                    />
-                  </div>
-                )}
-                {!hasVariants && (
-                  <div className="ecu-companies-form__field">
-                    <TextBox
-                      id="ci-price"
-                      label="Precio base de venta"
-                      labelPosition="outlined"
-                      variant="outline"
-                      value={basePrice}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
-                      placeholder="0.00"
+                      required={entryMode !== 'service'}
                       disabled={busy}
                       fullWidth
                     />
@@ -733,29 +712,45 @@ export function CreateCatalogItemPage() {
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
                   <TextBox
                     id="ci-desc"
-                    label="Descripción comercial o especificaciones"
+                    label="Descripción"
                     labelPosition="outlined"
                     variant="outline"
                     value={description}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
-                    placeholder="Detalles y características para facturación y reportes…"
+                    placeholder="Lo que verá quien compra o factura este producto"
                     disabled={busy}
                     fullWidth
                   />
                 </div>
               </div>
-            )}
           </SectionCard>
 
-          {/* Fotografías del Producto (siempre sin variantes; con variantes solo si el arquetipo las captura en el modelo) */}
-          {(!hasVariants || photoScope === 'model') && (
-            <div style={{ marginTop: '1.25rem' }}>
+          {entryMode === 'template' &&
+            appliedTemplate &&
+            modelFieldGroups.map((group) => (
               <SectionCard
-                title="Fotografías del Producto"
+                key={group.key}
+                title={group.title}
+                subtitle="Datos que se completan una sola vez en este nivel."
+              >
+                <ArchetypeModelFields
+                  fields={group.fields}
+                  values={customAttributes}
+                  dimensionValuesMap={dimensionValuesMap}
+                  onChangeValue={setAttributeValue}
+                  disabled={busy}
+                  bare
+                />
+              </SectionCard>
+            ))}
+
+          {showProductGallery && (
+              <SectionCard
+                title="Fotografías"
                 subtitle={
-                  photoScope === 'model' && hasVariants
-                    ? 'Se comparten automáticamente con todas las variantes del modelo.'
-                    : 'Anexa hasta 8 imágenes para este producto.'
+                  photoChoice === 'model' && usesMatrix
+                    ? 'Se comparten con todas las variaciones.'
+                    : 'Hasta 8 imágenes de este producto.'
                 }
               >
                 <StagedCatalogItemImages
@@ -767,15 +762,12 @@ export function CreateCatalogItemPage() {
                   hideBanner={true}
                 />
               </SectionCard>
-            </div>
           )}
 
-          {/* Variantes Físicas Dimensionales (Al final del formulario) */}
-          {kind === String(CatalogItemKind.Physical) && (
-            <div style={{ marginTop: '1.25rem' }}>
+          {usesMatrix && (
               <SectionCard
-                title="Variantes Físicas de Inventario"
-                subtitle="Configura las variantes físicas con sus tallas, colores, códigos SKU y fotografías independientes."
+                title={templateAllDimensions?.map((d) => d.name).join(', ') || 'Variaciones'}
+                subtitle="Cada combinación tiene su propio código y su stock."
               >
                 {remainingVariants != null && (
                   <div
@@ -806,19 +798,19 @@ export function CreateCatalogItemPage() {
                   </div>
                 )}
                 <VariantMatrixBuilder
+                  key={selectedTemplateId}
                   tenantId={tenantId}
                   baseName={name}
-                  basePrice={hasVariants ? '' : basePrice}
+                  basePrice={basePrice}
                   disabled={busy}
                   onChange={setMatrixData}
                   availableImages={stagedImages}
                   initialDimensions={templateAllDimensions}
-                  photoScope={appliedTemplate ? photoScope : undefined}
+                  photoScope={matrixPhotoScope}
                   variantAttributeFields={variantAttributeFields}
                   dimensionValuesMap={dimensionValuesMap}
                 />
               </SectionCard>
-            </div>
           )}
 
           <SectionCard>
@@ -831,7 +823,7 @@ export function CreateCatalogItemPage() {
               }}
             >
               <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-                {uploadStatus || (hasVariants ? 'Guardar con Variantes' : 'Guardar Ítem')}
+                {uploadStatus || 'Guardar producto'}
               </Button>
               <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
                 Cancelar

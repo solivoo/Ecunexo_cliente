@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.41.0`.
+* **Última Versión Publicada:** `v0.51.0`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Jerarquía por Niveles, Datos y Ejes en Plantillas y Alta Asistida (`HierarchyTemplateTreeBuilder.tsx`, `CreateCatalogItemPage.tsx`, `catalogArchetype.ts`, `ProductTemplateBuilderPage.tsx`, `ArchetypeModelFields.tsx`) [v0.51.0]:**
+    * **Plantillas con datos y ejes por nivel:** el constructor visual clasifica de forma explícita los atributos descriptivos de la ficha del modelo vs. los ejes de variante por nivel, con una decisión única de alcance fotográfico (`model`, `group`, `variant`).
+    * **Alta simplificada y transparente:** si la plantilla no declara ejes, el alta del ítem captura solo la ficha del modelo con un único código/SKU sin obligar matriz; si declara ejes, se despliega el constructor de matriz para completar solo los valores existentes sin duplicar jerarquías.
+    * **Pruebas y verificación:** 14/14 tests en `templates.formation.test.ts`, build frontend limpio y verificado.
   - **Catálogo — Regla de Posición para Ejes de Variante y Ajustes de Plantilla (`catalogArchetype.ts`, `HierarchyTemplateTreeBuilder.tsx`) [v0.45.1]:**
     * **Solo el nivel terminal genera ejes/SKU:** en niveles intermedios únicamente el color asciende como eje; el resto de atributos queda como ficha del modelo, aunque el diccionario los tenga como «genera variantes». Evita que Marca, Colección, Categoría o Material exploten las columnas de la matriz (caso detectado con plantillas de 6 niveles).
     * **Badges y simulación** ahora reflejan la regla real por posición, con nota «solo el nivel terminal genera SKUs; recomendado 2–3 niveles».

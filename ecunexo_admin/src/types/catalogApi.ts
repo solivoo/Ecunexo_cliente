@@ -230,7 +230,14 @@ export type ProductTemplateLevel = {
   name: string
   hasColor: boolean
   hasImages: boolean
+  /** Datos del nivel: se completan una vez y no generan códigos. */
   attributes: string[]
+  /**
+   * Ejes del nivel: se multiplican con los demás ejes y generan códigos.
+   * Ausente en plantillas anteriores; en ese caso el papel de cada atributo
+   * se deduce del diccionario y de la posición del nivel.
+   */
+  axes?: string[]
   photoScope?: 'none' | 'variant' | 'group' | 'model'
   photoGroupBy?: string[]
 }

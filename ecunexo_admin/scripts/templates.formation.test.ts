@@ -241,6 +241,71 @@ test('SKUs duplicados: reporta cada valor repetido una sola vez', () => {
   assert.deepEqual(findDuplicateSkuValues(['A', 'A', 'a', 'B', 'B']), ['A', 'B'])
 })
 
+test('Ejes explícitos: datos en varios niveles y ejes repartidos, sin inventar talla', () => {
+  const levels: ProductTemplateLevel[] = [
+    {
+      id: 'l1',
+      name: 'Colección',
+      hasColor: false,
+      hasImages: false,
+      attributes: ['Deporte'],
+      axes: [],
+      photoScope: 'none',
+    },
+    {
+      id: 'l2',
+      name: 'Modelo',
+      hasColor: false,
+      hasImages: false,
+      attributes: ['Material'],
+      axes: [],
+      photoScope: 'none',
+    },
+    {
+      id: 'l3',
+      name: 'Variaciones',
+      hasColor: true,
+      hasImages: true,
+      attributes: [],
+      axes: ['Tallas', 'Tipo de Caña', 'Color'],
+      photoScope: 'group',
+      photoGroupBy: ['Color'],
+    },
+  ]
+  const map = buildDictionary()
+  const dimensiones = resolveTemplateDimensions(levels, map)
+  assert.ok(dimensiones)
+  assert.deepEqual(
+    dimensiones.map((d) => d.name),
+    ['Tallas', 'Tipo de Caña', 'Color']
+  )
+  assert.deepEqual(
+    dimensiones.filter((d) => d.photoGroup).map((d) => d.name),
+    ['Color']
+  )
+  assert.deepEqual(
+    getModelAttributeFields(levels, map).map((f) => f.key),
+    ['Deporte', 'Material']
+  )
+})
+
+test('Ejes explícitos vacíos: el producto queda de un solo código', () => {
+  const levels: ProductTemplateLevel[] = [
+    {
+      id: 'l1',
+      name: 'Modelo',
+      hasColor: false,
+      hasImages: false,
+      attributes: ['Marca'],
+      axes: [],
+      photoScope: 'model',
+    },
+  ]
+  assert.equal(resolveTemplateDimensions(levels, buildDictionary()), undefined)
+  assert.deepEqual(getModelAttributeFields(levels, buildDictionary()).map((f) => f.key), ['Marca'])
+  assert.deepEqual(getVariantAttributeFields(levels, buildDictionary()), [])
+})
+
 test('Atributo descriptivo del terminal se captura por variante y sale de la ficha del modelo', () => {
   const levels: ProductTemplateLevel[] = [
     {

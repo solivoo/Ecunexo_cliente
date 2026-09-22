@@ -89,6 +89,117 @@ export type ArchetypeAttributeField = {
 
 export type PhotoScope = 'variant' | 'group' | 'model'
 
+export type TemplatePhotoChoice = 'none' | PhotoScope
+
+/** La plantilla declara ejes de forma explícita (aunque alguna lista vaya vacía). */
+export function templateDeclaresAxes(levels: readonly ProductTemplateLevel[]): boolean {
+  return levels.some((lvl) => Array.isArray(lvl.axes))
+}
+
+/**
+ * Separa datos y ejes para mostrar y editar.
+ * Las plantillas nuevas ya traen `axes`. Las anteriores se parten con la regla
+ * de diccionario y posición, y el color suelto del nivel entra como eje.
+ */
+export function normalizeTemplateLevels(
+  levels: readonly ProductTemplateLevel[],
+  map?: Map<string, DimensionLookup>
+): ProductTemplateLevel[] {
+  if (templateDeclaresAxes(levels)) {
+    return levels.map((lvl) => ({
+      ...lvl,
+      attributes: lvl.attributes ?? [],
+      axes: lvl.axes ?? [],
+    }))
+  }
+
+  return levels.map((lvl, idx) => {
+    const data: string[] = []
+    const axes: string[] = []
+    for (const attr of lvl.attributes ?? []) {
+      const clean = attr.trim()
+      if (!clean) continue
+      if (resolveIsVariantAxis(map, clean, idx + 1, levels.length)) axes.push(clean)
+      else data.push(clean)
+    }
+    if (lvl.hasColor && !axes.some((name) => isColorDimension(name))) {
+      axes.push('Color')
+    }
+    return { ...lvl, attributes: data, axes }
+  })
+}
+
+export function readPhotoChoice(levels: readonly ProductTemplateLevel[]): {
+  choice: TemplatePhotoChoice
+  groupBy: string[]
+} {
+  if (levels.some((lvl) => lvl.photoScope === 'model')) {
+    return { choice: 'model', groupBy: [] }
+  }
+  if (levels.some((lvl) => lvl.photoScope === 'group')) {
+    return { choice: 'group', groupBy: resolvePhotoGroupBy(levels) }
+  }
+  if (levels.some((lvl) => lvl.photoScope === 'variant' || (lvl.hasImages && !lvl.photoScope))) {
+    return { choice: 'variant', groupBy: [] }
+  }
+  return { choice: 'none', groupBy: [] }
+}
+
+/** Una sola decisión de fotos para toda la plantilla, anclada a un nivel. */
+export function writePhotoChoice(
+  levels: readonly ProductTemplateLevel[],
+  choice: TemplatePhotoChoice,
+  groupBy: readonly string[] = []
+): ProductTemplateLevel[] {
+  const last = levels.length - 1
+  return levels.map((lvl, idx) => {
+    const isAnchor = choice === 'model' ? idx === 0 : idx === last
+    if (choice === 'none' || !isAnchor) {
+      return { ...lvl, photoScope: 'none' as const, hasImages: false, photoGroupBy: [] }
+    }
+    return {
+      ...lvl,
+      photoScope: choice,
+      hasImages: true,
+      photoGroupBy: choice === 'group' ? [...groupBy] : [],
+    }
+  })
+}
+
+export function describeTemplateLine(
+  levels: readonly ProductTemplateLevel[],
+  map?: Map<string, DimensionLookup>
+): string {
+  const source = templateDeclaresAxes(levels) ? levels : normalizeTemplateLevels(levels, map)
+  const segments = source
+    .map((lvl) => {
+      const data = (lvl.attributes ?? []).map((name) => name.trim()).filter(Boolean)
+      const axes = (lvl.axes ?? []).map((name) => name.trim()).filter(Boolean)
+      const title = lvl.name.trim() || 'Nivel'
+      if (data.length > 0 && axes.length > 0) {
+        return `${title} (${data.join(', ')}) · ${axes.join(' × ')}`
+      }
+      if (data.length > 0) return `${title} (${data.join(', ')})`
+      if (axes.length > 0) return axes.join(' × ')
+      return title
+    })
+    .filter(Boolean)
+
+  const { choice, groupBy } = readPhotoChoice(levels)
+  const photo =
+    choice === 'none'
+      ? 'Sin fotos'
+      : choice === 'model'
+        ? 'Fotos del producto'
+        : choice === 'variant'
+          ? 'Fotos por cada código'
+          : `Fotos por ${groupBy.join(' + ') || 'eje'}`
+
+  const hasAxes = source.some((lvl) => (lvl.axes ?? []).some((name) => name.trim()))
+  const body = segments.join(' › ') || 'Sin niveles'
+  return hasAxes ? `${body}. ${photo}.` : `${body}. Un solo código. ${photo}.`
+}
+
 /**
  * Alcance de captura fotográfica declarado en el arquetipo.
  * Gana el más consolidado: modelo > grupo > variante.
@@ -153,6 +264,11 @@ export function resolveTemplateDimensions(
 ): TemplateDimension[] | undefined {
   if (levels.length === 0) return undefined
 
+  if (templateDeclaresAxes(levels)) {
+    const declared = getVariantDimensionFields(levels, map)
+    if (declared.length === 0) return undefined
+  }
+
   const photoScope = resolvePhotoScope(levels)
   const explicitGroupBy = resolvePhotoGroupBy(levels)
   const dims: TemplateDimension[] = []
@@ -161,13 +277,13 @@ export function resolveTemplateDimensions(
   const push = (rawName: string) => {
     const clean = rawName.trim()
     const lower = clean.toLowerCase()
+    const explicitAxes = templateDeclaresAxes(levels)
     if (
       !clean ||
       lower === 'tags' ||
       lower === 'tag' ||
-      lower.includes('actividad') ||
-      lower.includes('variante') ||
-      lower.includes('física')
+      (!explicitAxes &&
+        (lower.includes('actividad') || lower.includes('variante') || lower.includes('física')))
     ) {
       return
     }
@@ -192,6 +308,10 @@ export function resolveTemplateDimensions(
   }
 
   getVariantDimensionFields(levels, map).forEach((field) => push(field.key))
+
+  if (templateDeclaresAxes(levels)) {
+    return dims.length > 0 ? dims : undefined
+  }
 
   if (levels.some((lvl) => lvl.hasColor) && !dims.some((d) => d.isColor)) {
     dims.push({
@@ -252,6 +372,22 @@ export function getModelAttributeFields(
   const seen = new Set<string>()
   const fields: ArchetypeAttributeField[] = []
 
+  if (templateDeclaresAxes(levels)) {
+    const axisNames = new Set(
+      levels.flatMap((lvl) => (lvl.axes ?? []).map((name) => name.trim().toLowerCase()))
+    )
+    levels.forEach((lvl, idx) => {
+      lvl.attributes.forEach((attr) => {
+        const clean = attr.trim()
+        const lower = clean.toLowerCase()
+        if (!clean || seen.has(lower) || axisNames.has(lower)) return
+        seen.add(lower)
+        fields.push({ key: clean, levelName: lvl.name, levelIndex: idx + 1 })
+      })
+    })
+    return fields
+  }
+
   levels.forEach((lvl, idx) => {
     const names = lvl.attributes.length > 0 ? lvl.attributes : [lvl.name]
     names.forEach((attr) => {
@@ -274,6 +410,8 @@ export function getVariantAttributeFields(
   map?: Map<string, DimensionLookup>
 ): ArchetypeAttributeField[] {
   if (levels.length === 0) return []
+
+  if (templateDeclaresAxes(levels)) return []
 
   const terminalIndex = levels.length - 1
   const terminal = levels[terminalIndex]
@@ -309,6 +447,13 @@ export function getVariantDimensionFields(
     if (!clean || seen.has(lower)) return
     seen.add(lower)
     fields.push({ key: clean, levelName, levelIndex })
+  }
+
+  if (templateDeclaresAxes(levels)) {
+    levels.forEach((lvl, idx) => {
+      ;(lvl.axes ?? []).forEach((attr) => push(attr, lvl.name, idx + 1))
+    })
+    return fields
   }
 
   const isTerminal = (idx: number) => idx === levels.length - 1

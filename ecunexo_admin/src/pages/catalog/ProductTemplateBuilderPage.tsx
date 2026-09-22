@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, Popup, TextBox, useToast } from 'glubox'
+import { Button, TextBox, useToast } from 'glubox'
 import { ArrowLeft, Save } from 'lucide-react'
 import { PageHeader, SectionCard } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -20,34 +20,18 @@ import type {
   ProductTemplateLevel,
   VariantDimensionTemplateDto,
 } from '@/types/catalogApi'
+import { buildDimensionValuesMap, normalizeTemplateLevels } from '@/lib/catalogArchetype'
 import { HierarchyTemplateTreeBuilder } from './HierarchyTemplateTreeBuilder'
 
-const DEFAULT_LEVELS: ProductTemplateLevel[] = [
-  {
-    id: 'lvl-1',
-    name: 'Colección / Familia',
-    hasColor: false,
-    hasImages: false,
-    attributes: [],
-    photoScope: 'none',
-  },
-  {
-    id: 'lvl-2',
-    name: 'Modelo / Estilo',
-    hasColor: false,
-    hasImages: true,
-    attributes: [],
-    photoScope: 'model',
-  },
-  {
-    id: 'lvl-3',
-    name: 'Variantes Físicas',
-    hasColor: true,
-    hasImages: true,
-    attributes: [],
-    photoScope: 'variant',
-  },
-]
+const EMPTY_LEVEL: ProductTemplateLevel = {
+  id: 'lvl-1',
+  name: '',
+  hasColor: false,
+  hasImages: false,
+  attributes: [],
+  axes: [],
+  photoScope: 'none',
+}
 
 export function ProductTemplateBuilderPage() {
   const { templateId } = useParams<{ templateId?: string }>()
@@ -60,17 +44,11 @@ export function ProductTemplateBuilderPage() {
   const canManageScales = useHasPermission('catalog.scale.manage')
   const canManage = canCreateItems || canManageScales
   const { maxProductTemplates } = useCatalogLimits()
-  const [confirmTerminalOpen, setConfirmTerminalOpen] = useState(false)
-  const skipTerminalWarningRef = useRef(false)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [isActive, setIsActive] = useState(true)
-  const [levels, setLevels] = useState<ProductTemplateLevel[]>(DEFAULT_LEVELS)
-
-  const terminalLevel = levels.length > 0 ? levels[levels.length - 1] : null
-  const terminalWithoutAttributes =
-    terminalLevel !== null && terminalLevel.attributes.filter((a) => a.trim()).length === 0
+  const [levels, setLevels] = useState<ProductTemplateLevel[]>([EMPTY_LEVEL])
 
   const [availableAttributes, setAvailableAttributes] = useState<VariantDimensionTemplateDto[]>([])
   const [loading, setLoading] = useState(false)
@@ -92,7 +70,7 @@ export function ProductTemplateBuilderPage() {
         try {
           const parsed = JSON.parse(tpl.hierarchyTreeJson)
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setLevels(parsed)
+            setLevels(normalizeTemplateLevels(parsed, buildDimensionValuesMap(attrs)))
           }
         } catch {
           // Keep defaults if parse error
@@ -146,12 +124,6 @@ export function ProductTemplateBuilderPage() {
         return
       }
     }
-
-    if (terminalWithoutAttributes && !skipTerminalWarningRef.current) {
-      setConfirmTerminalOpen(true)
-      return
-    }
-    skipTerminalWarningRef.current = false
 
     if (!isEdit && maxProductTemplates != null) {
       try {
@@ -212,21 +184,15 @@ export function ProductTemplateBuilderPage() {
     }
   }
 
-  const handleConfirmWithoutTerminalAttributes = () => {
-    skipTerminalWarningRef.current = true
-    setConfirmTerminalOpen(false)
-    void handleSubmit()
-  }
-
   return (
     <TenantSessionGate
-      title="Plantilla de Producto"
-      lead="Configuración de arquetipos y niveles."
+      title="Plantilla de producto"
+      lead="Niveles, datos y variaciones de un tipo de producto."
     >
       <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
         <PageHeader
-          title={isEdit ? 'Editar Plantilla de Producto' : 'Nueva Plantilla de Producto'}
-          subtitle="Configura los niveles de agrupación (familias, submodelos y variantes físicas con colores y fotos) para reutilizar en tus productos."
+          title={isEdit ? 'Editar plantilla' : 'Nueva plantilla'}
+          subtitle="Arma los niveles, los datos y las variaciones de este tipo de producto."
           actions={
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <Button
@@ -253,7 +219,7 @@ export function ProductTemplateBuilderPage() {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem' }}>
           {/* General Information Section */}
-          <SectionCard title="Datos Principales de la Plantilla">
+          <SectionCard title="Nombre de la plantilla" subtitle="Así la vas a reconocer al crear un producto.">
             <div
               style={{
                 display: 'grid',
@@ -271,7 +237,7 @@ export function ProductTemplateBuilderPage() {
                     color: 'var(--glb-text)',
                   }}
                 >
-                  Nombre de la Plantilla *
+                  Nombre
                 </label>
                 <TextBox
                   variant="outline"
@@ -293,12 +259,12 @@ export function ProductTemplateBuilderPage() {
                     color: 'var(--glb-text)',
                   }}
                 >
-                  Descripción / Propósito del Arquetipo
+                  Para qué sirve
                 </label>
                 <TextBox
                   variant="outline"
                   value={description}
-                  placeholder="Explica qué líneas de producto o tipos de catálogo usan esta plantilla..."
+                  placeholder="Ej. Calcetines, camisas, aceites"
                   disabled={saving || loading || !canManage}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
                   fullWidth
@@ -331,77 +297,18 @@ export function ProductTemplateBuilderPage() {
           </SectionCard>
 
           {/* Hierarchical Builder Section */}
-          <SectionCard title="Configuración de Niveles Jerárquicos">
+          <SectionCard
+            title="Jerarquía del producto"
+            subtitle="Agrega los peldaños que necesite este tipo de producto. En cada uno, separa los datos de los ejes."
+          >
             <HierarchyTemplateTreeBuilder
               levels={levels}
               onChange={setLevels}
               availableAttributes={availableAttributes}
               disabled={saving || loading || !canManage}
             />
-            {terminalWithoutAttributes && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '0.625rem',
-                  marginTop: '1rem',
-                  padding: '0.75rem 1rem',
-                  borderRadius: '0.75rem',
-                  border:
-                    '1px solid color-mix(in srgb, #f59e0b 30%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
-                  backgroundColor: 'color-mix(in srgb, #f59e0b 8%, var(--glb-surface, transparent))',
-                  fontSize: '0.85rem',
-                }}
-              >
-                <span style={{ color: '#f59e0b', fontWeight: 700, flexShrink: 0 }}>Aviso</span>
-                <span>
-                  El nivel terminal «{terminalLevel?.name}» no tiene atributos. Al dar de alta un producto se usará
-                  una dimensión por defecto (Talla); agrega atributos al nivel final para controlar las variaciones
-                  y sus SKUs.
-                </span>
-              </div>
-            )}
           </SectionCard>
         </form>
-
-        <Popup
-          open={confirmTerminalOpen}
-          onClose={() => setConfirmTerminalOpen(false)}
-          title="El último nivel no tiene atributos"
-          width={480}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
-            <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5 }}>
-              La plantilla «{name.trim() || 'sin nombre'}» guardará el nivel terminal «{terminalLevel?.name}» sin
-              atributos. Los productos creados con ella usarán una <strong>dimensión por defecto (Talla)</strong> y
-              no se podrán distinguir variaciones como color, medida o caña.
-            </p>
-            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-muted, #64748b)' }}>
-              Recomendado: volver y agregar atributos al nivel final (ej. Talla, Color, Medida).
-            </p>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '0.5rem',
-                paddingTop: '0.75rem',
-                borderTop: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
-              }}
-            >
-              <Button type="button" variant="outline" onClick={() => setConfirmTerminalOpen(false)}>
-                Revisar niveles
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleConfirmWithoutTerminalAttributes}
-                disabled={saving}
-              >
-                Guardar de todas formas
-              </Button>
-            </div>
-          </div>
-        </Popup>
       </div>
     </TenantSessionGate>
   )
