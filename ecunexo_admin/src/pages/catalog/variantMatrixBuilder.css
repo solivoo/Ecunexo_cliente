@@ -1143,6 +1143,12 @@ html.sf-dark-mode .ecu-variant-group-photo-add {
   color: var(--glb-text, #1e293b);
 }
 
+.ecu-extra-color-chip--base {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--shell-primary, #3b82f6) 7%, transparent);
+  cursor: default;
+}
+
 .ecu-extra-color-chip button {
   background: transparent;
   border: none;

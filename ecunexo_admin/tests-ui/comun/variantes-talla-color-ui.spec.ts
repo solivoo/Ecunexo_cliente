@@ -87,12 +87,12 @@ test.describe('Variantes multidimensionales (Talla × Caña × Color) y tags/col
     const row = page.locator('.ecu-variant-sub-item-row').first()
     await expect(row).toBeVisible({ timeout: 10_000 })
 
-    // Los ejes físicos de la fila deben incluir Talla, Tipo de Caña y colores adicionales
-    // (el color principal lo define el grupo).
+    // Los ejes físicos de la fila deben incluir Talla, Tipo de Caña y Colores
+    // (el color base se hereda del grupo).
     const labels = await row.locator('.ecu-variant-sub-item-label').allInnerTexts()
     const labelsLower = labels.map((l) => l.toLowerCase())
     expect(labelsLower).toEqual(
-      expect.arrayContaining(['tallas', 'tipo de caña', 'colores adicionales'])
+      expect.arrayContaining(['tallas', 'tipo de caña', 'colores'])
     )
 
     // El grupo de color existe y el conteo refleja 1 color.

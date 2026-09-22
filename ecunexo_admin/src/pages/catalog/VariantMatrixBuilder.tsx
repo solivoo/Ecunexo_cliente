@@ -1323,19 +1323,33 @@ export function VariantMatrixBuilder({
                         )
                       })}
 
-                      {/* Colores de la variante: siempre disponible; el color principal lo define su grupo cuando existe */}
+                      {/* Colores de la variante: base del grupo (heredado) + adicionales del diseño */}
                       {(() => {
                         const extras = row.extraColors ?? []
+                        const baseHex =
+                          isPrimaryColor && primaryDim
+                            ? colorHexFor((row.dimensionValues[primaryDim.name] || '').trim())
+                            : ''
 
                         return (
                           <div
                             className="ecu-variant-sub-item-field"
                             style={{ minWidth: '210px', flex: '1.3 1 210px', maxWidth: '300px' }}
                           >
-                            <label className="ecu-variant-sub-item-label">
-                              {isPrimaryColor ? 'Colores adicionales' : 'Colores'}
-                            </label>
+                            <label className="ecu-variant-sub-item-label">Colores</label>
                             <div className="ecu-variant-color-field">
+                              {baseHex && (
+                                <span
+                                  className="ecu-extra-color-chip ecu-extra-color-chip--base"
+                                  title={`Color base heredado del grupo: ${baseHex}`}
+                                >
+                                  <span
+                                    className="ecu-extra-color-dot"
+                                    style={{ backgroundColor: baseHex }}
+                                  />
+                                  <span>{baseHex}</span>
+                                </span>
+                              )}
                               {extras.map((hex) => (
                                 <span key={hex} className="ecu-extra-color-chip" title={`Color adicional: ${hex}`}>
                                   <span
