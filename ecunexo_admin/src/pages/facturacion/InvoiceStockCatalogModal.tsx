@@ -111,7 +111,9 @@ export function InvoiceStockCatalogModal({
           listStock(tenantId).catch(() => []),
         ])
         if (!cancelled) {
-          setCatalogItems(items.filter((i) => i.status === CatalogItemStatus.Active))
+          setCatalogItems(
+            items.filter((i) => i.status === CatalogItemStatus.Active && !i.isMatrixParent)
+          )
           setStockItems(stocks)
         }
       } finally {

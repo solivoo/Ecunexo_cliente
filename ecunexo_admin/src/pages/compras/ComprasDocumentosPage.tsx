@@ -126,7 +126,7 @@ export function ComprasDocumentosPage() {
       setKpis(purchasesRes.kpis)
       setExpenseTypes(expenseTypesData)
       setWarehouses(warehousesData)
-      setCatalogItems(catalogData)
+      setCatalogItems(catalogData.filter((c) => !c.isMatrixParent))
     } catch (err) {
       toast.show({
         title: 'Error de carga',

@@ -98,7 +98,7 @@ export function InvoiceLinesSection({
       try {
         const items = await listCatalogItems(tenantId)
         if (!cancelled) {
-          setCatalogItems(items)
+          setCatalogItems(items.filter((i) => !i.isMatrixParent))
           setCatalogError(null)
         }
       } catch {

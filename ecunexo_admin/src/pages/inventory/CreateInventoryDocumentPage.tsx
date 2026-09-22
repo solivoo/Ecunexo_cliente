@@ -77,7 +77,7 @@ export function CreateInventoryDocumentPage() {
         setDestinationWarehouseId((current) => current || operational[1]?.id || operational[0]?.id || '')
         setItems(
           catalog
-            .filter((c) => c.status === CatalogItemStatus.Active)
+            .filter((c) => c.status === CatalogItemStatus.Active && !c.isMatrixParent)
             .map((c) => ({ id: c.id, name: c.name, sku: c.sku }))
         )
       } catch {

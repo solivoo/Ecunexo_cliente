@@ -63,7 +63,7 @@ export function ReceivePurchaseModal({
           listCatalogItems(tenantId).catch(() => [] as CatalogItemListItemDto[]),
         ])
         setPurchaseDetail(detail)
-        setCatalogItems(itemsList)
+        setCatalogItems(itemsList.filter((i) => !i.isMatrixParent))
 
         // Initialize line mapping
         const whMap: Record<string, string> = {}
