@@ -33,8 +33,6 @@ export type VariantRowState = {
   barcode: string
   basePrice: string
   isManualPrice?: boolean
-  initialStock: string
-  warehouseId: string
   stagedImage?: File | null
   stagedImagePreview?: string | null
   stagedImages?: VariantImageItem[]
@@ -271,8 +269,6 @@ export function VariantMatrixBuilder({
           barcode: '',
           basePrice: defaultPrice,
           isManualPrice: false,
-          initialStock: '',
-          warehouseId: '',
           stagedImage: null,
           stagedImagePreview: null,
           stagedImages: [],
@@ -755,8 +751,6 @@ export function VariantMatrixBuilder({
         barcode: '',
         basePrice: defaultPrice,
         isManualPrice: false,
-        initialStock: '0',
-        warehouseId: '',
         stagedImages: groupImages,
         stagedImagePreview: groupImages[0]?.previewUrl || null,
         variantTags: [],
@@ -1017,7 +1011,6 @@ export function VariantMatrixBuilder({
 
     const payloadVariants: MatrixVariantPayloadWithImage[] = rows.map((r) => {
       const parsedPrice = r.basePrice.trim() ? Number(r.basePrice.replace(',', '.')) : null
-      const parsedStock = r.initialStock.trim() ? Number(r.initialStock) : null
 
       const customAttrs: Record<string, unknown> = {}
       if (r.dimensionValues) {
@@ -1043,8 +1036,6 @@ export function VariantMatrixBuilder({
         barcode: r.barcode.trim() || null,
         basePrice: parsedPrice != null && !Number.isNaN(parsedPrice) ? parsedPrice : null,
         customAttributesJson: Object.keys(customAttrs).length > 0 ? JSON.stringify(customAttrs) : null,
-        initialStock: parsedStock != null && !Number.isNaN(parsedStock) && parsedStock > 0 ? parsedStock : null,
-        initialStockWarehouseId: null,
         stagedImage: r.stagedImages?.[0]?.file ?? r.stagedImage ?? null,
         stagedImages: r.stagedImages && r.stagedImages.length > 0
           ? r.stagedImages
@@ -1477,24 +1468,6 @@ export function VariantMatrixBuilder({
                         {!row.isManualPrice && basePrice.trim() && (
                           <span className="ecu-variant-sub-item-hint">Heredado (${basePrice.trim()})</span>
                         )}
-                      </div>
-
-                      {/* Stock Inicial */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '110px', flex: '0 1 130px' }}>
-                        <label className="ecu-variant-sub-item-label">Stock</label>
-                        <NumberBox
-                          size="sm"
-                          variant="outline"
-                          value={row.initialStock}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            updateRow(row.id, 'initialStock', e.target.value)
-                          }
-                          step={1}
-                          min={0}
-                          placeholder="0"
-                          disabled={disabled}
-                          fullWidth
-                        />
                       </div>
 
                       {/* Cód. Barras */}

@@ -14,8 +14,6 @@ import {
   updateCatalogItem,
   uploadCatalogItemImage,
 } from '@/services/catalogApi'
-import { listWarehouses } from '@/services/inventoryApi'
-import type { WarehouseListItemDto } from '@/types/inventoryApi'
 import {
   CatalogItemKind,
   type CatalogItemDetailDto,
@@ -151,9 +149,6 @@ export function EditCatalogItemVariantsSection({
   const [sku, setSku] = useState('')
   const [price, setPrice] = useState(parentItem.basePrice != null ? String(parentItem.basePrice) : '')
   const [dimValues, setDimValues] = useState<Record<string, string>>({})
-  const [initialStock, setInitialStock] = useState('')
-  const [warehouseId, setWarehouseId] = useState('')
-  const [warehouses, setWarehouses] = useState<WarehouseListItemDto[]>([])
   const [variantImage, setVariantImage] = useState<File | null>(null)
   const [variantImagePreview, setVariantImagePreview] = useState<string | null>(null)
 
@@ -182,23 +177,6 @@ export function EditCatalogItemVariantsSection({
     }
   }, [parentItem.variantDimensionsJson])
 
-  // Load warehouses when opening add modal
-  useEffect(() => {
-    if (!addModalOpen || !tenantId) return
-    let active = true
-    listWarehouses(tenantId)
-      .then((whs) => {
-        if (!active) return
-        setWarehouses(whs)
-        const def = whs.find((w) => w.isMain) ?? whs[0]
-        if (def) setWarehouseId(def.id)
-      })
-      .catch(() => {})
-    return () => {
-      active = false
-    }
-  }, [addModalOpen, tenantId])
-
   // Open modal and pre-fill fields
   const handleOpenAddModal = useCallback(() => {
     if (variantImagePreview) {
@@ -209,7 +187,6 @@ export function EditCatalogItemVariantsSection({
     setVariantTitle('')
     setSku('')
     setPrice(parentItem.basePrice != null ? String(parentItem.basePrice) : '')
-    setInitialStock('')
     const initialDims: Record<string, string> = {}
     for (const d of dimensions) {
       initialDims[d.name.toLowerCase()] = d.values[0] ?? ''
@@ -253,16 +230,6 @@ export function EditCatalogItemVariantsSection({
         parsedPrice = p
       }
 
-      let parsedQty: number | null = null
-      if (initialStock.trim()) {
-        const q = Number(initialStock.replace(',', '.'))
-        if (Number.isNaN(q) || q < 0) {
-          toast.show({ title: 'Stock inválido', message: 'La cantidad inicial no es válida.', variant: 'error' })
-          return
-        }
-        parsedQty = q
-      }
-
       setBusy(true)
       try {
         const createdVariant = await addCatalogItemVariant(tenantId, parentItem.id, {
@@ -270,8 +237,6 @@ export function EditCatalogItemVariantsSection({
           sku: sku.trim().toUpperCase(),
           basePrice: parsedPrice,
           customAttributesJson: JSON.stringify(dimValues),
-          initialStock: parsedQty,
-          initialStockWarehouseId: parsedQty && warehouseId ? warehouseId : null,
         })
 
         if (variantImage && createdVariant.variantItemId) {
@@ -312,7 +277,6 @@ export function EditCatalogItemVariantsSection({
     },
     [
       dimValues,
-      initialStock,
       onRefreshRequired,
       parentItem.id,
       price,
@@ -322,7 +286,6 @@ export function EditCatalogItemVariantsSection({
       variantImage,
       variantImagePreview,
       variantTitle,
-      warehouseId,
     ]
   )
 
@@ -716,17 +679,6 @@ export function EditCatalogItemVariantsSection({
     [canEdit, handleOpenColorsModal, handleOpenReassignModal, navigate, parseAttributes]
   )
 
-  const warehouseOptions = useMemo(
-    () => [
-      { value: '', label: 'Seleccionar bodega…' },
-      ...warehouses.map((w) => ({
-        value: w.id,
-        label: `${w.name} ${w.isMain ? '(Principal)' : ''}`,
-      })),
-    ],
-    [warehouses]
-  )
-
   return (
     <div style={{ marginTop: '1.5rem' }}>
       {/* Tira de KPIs de la matriz */}
@@ -917,41 +869,16 @@ export function EditCatalogItemVariantsSection({
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <TextBox
-                id="var-price"
-                label="Precio base de la variante"
-                labelPosition="outlined"
-                variant="outline"
-                value={price}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setPrice(e.target.value)}
-                placeholder="0.00"
-                fullWidth
-              />
-              <TextBox
-                id="var-stock"
-                label="Stock inicial (opcional)"
-                labelPosition="outlined"
-                variant="outline"
-                value={initialStock}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setInitialStock(e.target.value)}
-                placeholder="0"
-                fullWidth
-              />
-            </div>
-
-            {initialStock.trim() && Number(initialStock) > 0 ? (
-              <Select
-                id="var-wh"
-                label="Bodega para ingreso de stock inicial"
-                labelPosition="outlined"
-                variant="outline"
-                options={warehouseOptions}
-                value={warehouseId}
-                onChange={setWarehouseId}
-                fullWidth
-              />
-            ) : null}
+            <TextBox
+              id="var-price"
+              label="Precio base de la variante"
+              labelPosition="outlined"
+              variant="outline"
+              value={price}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setPrice(e.target.value)}
+              placeholder="0.00"
+              fullWidth
+            />
 
             {/* Selector de fotografía específica de la variante */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
