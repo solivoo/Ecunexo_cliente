@@ -56,6 +56,24 @@ import {
   type VariantDimensionTemplateDto,
 } from '@/types/catalogApi'
 
+function parseVariantDimensionNames(json: string | null | undefined): string[] {
+  if (!json) return []
+  try {
+    const parsed: unknown = JSON.parse(json)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map((dim) => {
+        if (dim && typeof dim === 'object' && typeof (dim as { name?: unknown }).name === 'string') {
+          return (dim as { name: string }).name.trim()
+        }
+        return ''
+      })
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
 export function EditCatalogItemPage() {
   const toast = useToast()
   const navigate = useNavigate()
@@ -126,6 +144,58 @@ export function EditCatalogItemPage() {
   const modelAttributeFields = useMemo(
     () => getModelAttributeFields(familyLevels, dimensionValuesMap),
     [familyLevels, dimensionValuesMap]
+  )
+
+  const variantDimensionNames = useMemo<string[]>(
+    () => parseVariantDimensionNames(item?.variantDimensionsJson),
+    [item?.variantDimensionsJson]
+  )
+
+  const reservedAttributeKeys = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...modelAttributeFields.map((field) => field.key.trim().toLowerCase()),
+          ...variantDimensionNames.map((name) => name.toLowerCase()),
+        ])
+      ),
+    [modelAttributeFields, variantDimensionNames]
+  )
+
+  const freeAttributeRows = useMemo(
+    () =>
+      customAttributes.filter(
+        (row) => !reservedAttributeKeys.includes(row.key.trim().toLowerCase())
+      ),
+    [customAttributes, reservedAttributeKeys]
+  )
+
+  const freeAttributeIds = useMemo(
+    () => new Set(freeAttributeRows.map((row) => row.id)),
+    [freeAttributeRows]
+  )
+
+  const handleFreeAttributesChange = useCallback(
+    (next: CustomAttributeRow[]) => {
+      setCustomAttributes((prev) => {
+        const nextById = new Map(next.map((row) => [row.id, row]))
+        const merged: CustomAttributeRow[] = []
+        for (const row of prev) {
+          if (freeAttributeIds.has(row.id)) {
+            const updated = nextById.get(row.id)
+            if (updated) merged.push(updated)
+            continue
+          }
+          merged.push(row)
+        }
+        const knownIds = new Set(prev.map((row) => row.id))
+        next.forEach((row) => {
+          if (!knownIds.has(row.id)) merged.push(row)
+        })
+        return merged
+      })
+    },
+    [freeAttributeIds]
   )
 
   const setAttributeValue = useCallback((key: string, value: string) => {
@@ -724,7 +794,11 @@ export function EditCatalogItemPage() {
             )}
             <SectionCard
               title="Ficha del Ítem"
-              subtitle="Parámetros comerciales, asignación taxonómica y atributos dinámicos"
+              subtitle={
+                familyTemplate
+                  ? 'Parámetros comerciales y asignación taxonómica'
+                  : 'Parámetros comerciales, asignación taxonómica y atributos dinámicos'
+              }
             >
               {error ? (
                 <div className="ecu-form-error-banner" role="alert">
@@ -797,7 +871,7 @@ export function EditCatalogItemPage() {
                     id="ei-sku"
                     label={
                       item?.isMatrixParent
-                        ? 'Código Modelo / Prefijo SKU (obligatorio)'
+                        ? 'Código Modelo / Prefijo SKU (opcional)'
                         : Number(kind) === CatalogItemKind.Physical
                           ? 'Código SKU (obligatorio)'
                           : 'Código SKU (opcional)'
@@ -808,7 +882,7 @@ export function EditCatalogItemPage() {
                     onChange={(e: ChangeEvent<HTMLInputElement>) =>
                       setSku(e.target.value.toUpperCase())
                     }
-                    required={Number(kind) === CatalogItemKind.Physical || Boolean(item?.isMatrixParent)}
+                    required={Number(kind) === CatalogItemKind.Physical && !item?.isMatrixParent}
                     disabled={busy}
                     fullWidth
                   />
@@ -858,20 +932,113 @@ export function EditCatalogItemPage() {
                   />
                 </div>
 
-                <div style={{ marginBottom: '1rem' }}>
-                  <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem', fontWeight: 600 }}>
-                    Especificaciones y Atributos Adicionales
-                  </h4>
-                  <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.85rem' }}>
-                    Define propiedades técnicas, comerciales o informativas propias de este producto (ej. Material, Marca, Garantía, etc.).
-                  </p>
-                </div>
-                <ItemCustomAttributesEditor
-                  attributes={customAttributes}
-                  onChange={setCustomAttributes}
-                  categorySuggestions={categorySuggestions}
-                  disabled={busy}
-                />
+                {familyTemplate ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '0.85rem',
+                      flexWrap: 'wrap',
+                      padding: '1rem 1.25rem',
+                      marginTop: '0.5rem',
+                      borderRadius: '0.75rem',
+                      border:
+                        '1px solid color-mix(in srgb, #8b5cf6 25%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
+                      backgroundColor:
+                        'color-mix(in srgb, #8b5cf6 6%, var(--glb-surface, transparent))',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: '50%',
+                        backgroundColor: 'color-mix(in srgb, #8b5cf6 15%, transparent)',
+                        color: '#8b5cf6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Layers size={18} />
+                    </div>
+                    <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
+                        Estructura definida por la plantilla «{familyTemplate.name}»
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '0.85rem',
+                          color: 'var(--glb-muted, #64748b)',
+                          marginTop: '0.125rem',
+                        }}
+                      >
+                        Los niveles y atributos del producto se administran en la plantilla; aquí
+                        solo completas sus valores. Para agregar o quitar atributos, edita la
+                        plantilla.
+                      </div>
+                      {freeAttributeRows.length > 0 && (
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: '0.35rem',
+                            flexWrap: 'wrap',
+                            marginTop: '0.6rem',
+                          }}
+                        >
+                          {freeAttributeRows.map((row) => (
+                            <span
+                              key={row.id}
+                              title="Atributo adicional registrado (solo lectura)"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.15rem 0.5rem',
+                                borderRadius: '999px',
+                                fontSize: '0.72rem',
+                                fontWeight: 600,
+                                border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.12))',
+                                backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.04))',
+                              }}
+                            >
+                              <span style={{ opacity: 0.75 }}>{row.key}:</span>
+                              <span>{row.value || '—'}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/catalogo/plantillas/${familyTemplate.id}`)}
+                    >
+                      Administrar plantilla
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ marginBottom: '1rem' }}>
+                      <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem', fontWeight: 600 }}>
+                        Especificaciones y Atributos Adicionales
+                      </h4>
+                      <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.85rem' }}>
+                        Define propiedades técnicas, comerciales o informativas propias de este
+                        producto (ej. Material, Marca, Garantía, etc.).
+                      </p>
+                    </div>
+                    <ItemCustomAttributesEditor
+                      attributes={freeAttributeRows}
+                      onChange={handleFreeAttributesChange}
+                      categorySuggestions={categorySuggestions}
+                      excludeKeys={reservedAttributeKeys}
+                      disabled={busy}
+                    />
+                  </>
+                )}
               </div>
 
               <div

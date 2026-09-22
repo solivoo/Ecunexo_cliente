@@ -265,9 +265,7 @@ export function VariantMatrixBuilder({
       })
 
       const variationLabel = Object.values(dimensionValues).filter(Boolean).join(' / ')
-      const autoTitle = baseName.trim()
-        ? (variationLabel ? `${baseName.trim()} - ${variationLabel}` : baseName.trim())
-        : (variationLabel || 'Variante 1')
+      const autoTitle = variationLabel || 'Variante 1'
 
       setRows([
         {
@@ -289,7 +287,7 @@ export function VariantMatrixBuilder({
         },
       ])
     }
-  }, [dimensions, baseName, basePrice, rows.length])
+  }, [dimensions, basePrice, rows.length])
 
   // Duplicar una fila de variante
   const handleDuplicateVariantRow = useCallback(
@@ -456,7 +454,7 @@ export function VariantMatrixBuilder({
           if (r.id !== rowId) return r
           const updatedDims = { ...r.dimensionValues, [dimName]: newValue }
           const variationLabel = buildRowLabel(updatedDims)
-          const autoTitle = baseName.trim() ? `${baseName.trim()} - ${variationLabel}` : variationLabel
+          const autoTitle = variationLabel || 'Variante'
 
           return {
             ...r,
@@ -468,7 +466,7 @@ export function VariantMatrixBuilder({
         })
       )
     },
-    [baseName, buildRowLabel]
+    [buildRowLabel]
   )
 
   // Group Image Toggle from general gallery
@@ -776,7 +774,7 @@ export function VariantMatrixBuilder({
         id: rowId,
         dimensionValues,
         variationLabel: `${groupVal} / ${availableVal}`,
-        variantTitle: `${baseName.trim() || 'Producto'} - ${groupVal} / ${availableVal}`,
+        variantTitle: `${groupVal} / ${availableVal}`,
         isManualTitle: false,
         sku: '',
         barcode: '',
@@ -791,7 +789,7 @@ export function VariantMatrixBuilder({
 
       setRows((prev) => [...prev, newRow])
     },
-    [baseName, basePrice, childDims, groupValueOf, photoScope, primaryDim, rows]
+    [basePrice, childDims, groupValueOf, photoScope, primaryDim, rows]
   )
 
   // Add new group (e.g. Color)
@@ -837,7 +835,7 @@ export function VariantMatrixBuilder({
           id: newId,
           dimensionValues: updatedDims,
           variationLabel: label,
-          variantTitle: `${baseName.trim() || 'Producto'} - ${label}`,
+          variantTitle: label,
           isManualTitle: false,
           sku: '',
           stagedImages: [],
@@ -852,7 +850,7 @@ export function VariantMatrixBuilder({
         variant: 'success',
       })
     },
-    [baseName, childDims, groupValueOf, primaryDim, rows, toast]
+    [childDims, groupValueOf, primaryDim, rows, toast]
   )
 
   const handleDuplicateGroup = useCallback(
@@ -931,7 +929,7 @@ export function VariantMatrixBuilder({
             ...r,
             dimensionValues: updatedDims,
             variationLabel: label,
-            variantTitle: r.isManualTitle ? r.variantTitle : `${baseName.trim() || 'Producto'} - ${label}`,
+            variantTitle: r.isManualTitle ? r.variantTitle : label,
           }
         })
       )
@@ -949,7 +947,7 @@ export function VariantMatrixBuilder({
         })
       }
     },
-    [baseName, childDims, groupValueOf, handleAddCustomOptionToDimension, photoGroupKeyOf, photoScope, primaryDim, rows]
+    [childDims, groupValueOf, handleAddCustomOptionToDimension, photoGroupKeyOf, photoScope, primaryDim, rows]
   )
 
   const handleConfirmColorModal = useCallback(() => {

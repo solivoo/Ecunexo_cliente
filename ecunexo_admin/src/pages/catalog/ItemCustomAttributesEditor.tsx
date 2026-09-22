@@ -16,6 +16,7 @@ export type ItemCustomAttributesEditorProps = {
   readonly attributes: readonly CustomAttributeRow[]
   readonly onChange: (attributes: CustomAttributeRow[]) => void
   readonly categorySuggestions?: readonly string[]
+  readonly excludeKeys?: readonly string[]
   readonly disabled?: boolean
 }
 
@@ -103,6 +104,7 @@ export function ItemCustomAttributesEditor({
   attributes,
   onChange,
   categorySuggestions = [],
+  excludeKeys = [],
   disabled = false,
 }: ItemCustomAttributesEditorProps) {
   const baseId = useId()
@@ -147,6 +149,11 @@ export function ItemCustomAttributesEditor({
     [attributes]
   )
 
+  const excludedKeysLower = useMemo(
+    () => new Set(excludeKeys.map((k) => k.trim().toLowerCase()).filter(Boolean)),
+    [excludeKeys]
+  )
+
   const availableSuggestions = useMemo(() => {
     const templateNames = templates.map((t) => t.name.trim())
     const combined = [...templateNames, ...categorySuggestions, ...DEFAULT_PRESET_SUGGESTIONS]
@@ -155,13 +162,13 @@ export function ItemCustomAttributesEditor({
     for (const s of combined) {
       const trimmed = s.trim()
       const lower = trimmed.toLowerCase()
-      if (trimmed && !seen.has(lower) && !currentKeysLower.has(lower)) {
+      if (trimmed && !seen.has(lower) && !currentKeysLower.has(lower) && !excludedKeysLower.has(lower)) {
         seen.add(lower)
         result.push(trimmed)
       }
     }
     return result.slice(0, 10)
-  }, [categorySuggestions, currentKeysLower, templates])
+  }, [categorySuggestions, currentKeysLower, excludedKeysLower, templates])
 
   const handleAddRow = useCallback(
     (initialKey = '', initialValue = '') => {
@@ -195,10 +202,14 @@ export function ItemCustomAttributesEditor({
     <div className="ecu-item-custom-attributes">
       {/* Datalist global para autocompletar nombres de atributos */}
       <datalist id={`${baseId}-known-attr-keys`}>
-        {templates.map((t) => (
-          <option key={t.id} value={t.name} />
-        ))}
-        {DEFAULT_PRESET_SUGGESTIONS.map((preset) => (
+        {templates
+          .filter((t) => !excludedKeysLower.has(t.name.trim().toLowerCase()))
+          .map((t) => (
+            <option key={t.id} value={t.name} />
+          ))}
+        {DEFAULT_PRESET_SUGGESTIONS.filter(
+          (preset) => !excludedKeysLower.has(preset.trim().toLowerCase())
+        ).map((preset) => (
           <option key={preset} value={preset} />
         ))}
       </datalist>
