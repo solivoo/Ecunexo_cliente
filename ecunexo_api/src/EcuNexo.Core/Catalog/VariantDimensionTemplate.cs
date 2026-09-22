@@ -21,9 +21,10 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
     public const string DataTypeNumber = "number";
     public const string DataTypeBoolean = "boolean";
     public const string DataTypeColor = "color";
+    public const string DataTypeMultiSelect = "multiselect";
 
     private static readonly string[] AllowedDataTypes =
-        [DataTypeText, DataTypeNumber, DataTypeBoolean, DataTypeColor];
+        [DataTypeText, DataTypeNumber, DataTypeBoolean, DataTypeColor, DataTypeMultiSelect];
 
     public static bool IsValidDataType(string? dataType) =>
         string.IsNullOrWhiteSpace(dataType)
@@ -51,7 +52,7 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
 
     /// <summary>
     /// Tipo de dato que gobierna el control de captura en la interfaz:
-    /// "text" | "number" | "boolean" | "color".
+    /// "text" | "number" | "boolean" | "color" | "multiselect".
     /// </summary>
     public string DataType { get; private set; }
 

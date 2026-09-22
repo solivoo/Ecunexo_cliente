@@ -41,6 +41,7 @@ const DATA_TYPE_LABELS: Record<string, string> = {
   number: 'Número',
   boolean: 'Sí / No',
   color: 'Color',
+  multiselect: 'Varios valores',
 }
 
 function photoScopeOf(level: ProductTemplateLevel): 'none' | 'variant' | 'group' | 'model' {

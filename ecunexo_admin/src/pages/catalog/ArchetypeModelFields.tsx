@@ -1,5 +1,6 @@
 import type { ChangeEvent } from 'react'
 import { ColorPicker, NumberBox, Select, TextBox } from 'glubox'
+import { EcuTagInput } from '@/components/ui'
 import type { ArchetypeAttributeField, DimensionLookup } from '@/lib/catalogArchetype'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 
@@ -62,6 +63,10 @@ export function ArchetypeModelFields({
           const unit = lookup?.unit ?? null
           const label = buildLabel(field, unit)
           const hasOptions = (lookup?.values.length ?? 0) > 0
+          const multiValues = value
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean)
 
           return (
             <div key={`${field.levelIndex}-${field.key}`} className="ecu-companies-form__field">
@@ -103,6 +108,14 @@ export function ArchetypeModelFields({
                   step={1}
                   disabled={disabled}
                   fullWidth
+                />
+              ) : dataType === 'multiselect' ? (
+                <EcuTagInput
+                  label={label}
+                  tags={multiValues}
+                  suggestedTags={lookup?.values ?? []}
+                  onChange={(tags: string[]) => onChangeValue(field.key, tags.join(', '))}
+                  disabled={disabled}
                 />
               ) : hasOptions ? (
                 <Select

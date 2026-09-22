@@ -75,6 +75,23 @@ public sealed class VariantDimensionTemplateTests
         result.Error!.Code.Should().Be("catalog.variant_template.data_type.invalid");
     }
 
+    [Fact(DisplayName = "Plantilla de selección múltiple (multiselect) es válida")]
+    public void Create_WithMultiSelectDataType_Succeeds()
+    {
+        var result = VariantDimensionTemplate.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "Actividad / Uso",
+            "custom",
+            "[\"Running\", \"Crossfit\"]",
+            dataType: VariantDimensionTemplate.DataTypeMultiSelect,
+            isVariantAxis: false);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.DataType.Should().Be(VariantDimensionTemplate.DataTypeMultiSelect);
+        result.Value.IsVariantAxis.Should().BeFalse();
+    }
+
     [Fact(DisplayName = "Actualización de plantilla actualiza nombre y valores")]
     public void Update_Template_Succeeds()
     {

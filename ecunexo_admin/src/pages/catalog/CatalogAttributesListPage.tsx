@@ -319,7 +319,9 @@ export function CatalogAttributesListPage() {
                 ? 'Número'
                 : row.dataType === 'boolean'
                   ? 'Sí / No'
-                  : 'Texto'
+                  : row.dataType === 'multiselect'
+                    ? 'Varios valores'
+                    : 'Texto'
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
               {row.dimensionType === 'size' ? (
@@ -629,11 +631,13 @@ export function CatalogAttributesListPage() {
                   { value: 'number', label: 'Número' },
                   { value: 'boolean', label: 'Sí / No' },
                   { value: 'color', label: 'Color (muestra)' },
+                  { value: 'multiselect', label: 'Varios valores (selección múltiple)' },
                 ]}
                 value={formDataType}
                 onChange={(v: string) => {
                   setFormDataType(v)
                   if (v === 'color') setFormType('color')
+                  if (v === 'multiselect') setFormType('custom')
                 }}
                 disabled={saving}
                 fullWidth
