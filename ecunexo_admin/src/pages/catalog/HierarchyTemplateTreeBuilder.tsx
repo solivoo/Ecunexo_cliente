@@ -84,6 +84,17 @@ export function HierarchyTemplateTreeBuilder({
     [levels, attributeLookup]
   )
 
+  const axisFieldNames = useMemo(() => {
+    const names = variantFields.map((f) => f.key)
+    if (
+      levels.some((lvl) => lvl.hasColor) &&
+      !names.some((name) => name.trim().toLowerCase().includes('color'))
+    ) {
+      names.push('Color')
+    }
+    return names
+  }, [levels, variantFields])
+
   const effectivePhotoScope = useMemo(() => resolvePhotoScope(levels), [levels])
 
   const attributeRoleLabel = (name: string, levelIndex: number): string =>
@@ -100,29 +111,23 @@ export function HierarchyTemplateTreeBuilder({
     const nextIdx = levels.length + 1
     let defaultName = `Nivel ${nextIdx}`
     let hasColor = false
-    let hasImages = false
-    let photoScope: 'none' | 'variant' | 'group' | 'model' = 'none'
 
     if (nextIdx === 1) {
       defaultName = 'Colección / Familia'
     } else if (nextIdx === 2) {
       defaultName = 'Modelo / Estilo'
-      hasImages = true
-      photoScope = 'model'
     } else if (nextIdx === 3) {
       defaultName = 'Variantes Físicas'
       hasColor = true
-      hasImages = true
-      photoScope = 'variant'
     }
 
     const newLevel: ProductTemplateLevel = {
       id: nextLevelId(),
       name: defaultName,
       hasColor,
-      hasImages,
+      hasImages: false,
       attributes: [],
-      photoScope,
+      photoScope: 'none',
     }
 
     onChange([...levels, newLevel])
@@ -991,8 +996,8 @@ export function HierarchyTemplateTreeBuilder({
                       {isLast && (
                         <div style={{ paddingLeft: '1.5rem', color: '#10b981' }}>
                           └── SKUs por combinación:{' '}
-                          {variantFields.length > 0
-                            ? variantFields.map((f) => f.key).join(' × ')
+                          {axisFieldNames.length > 0
+                            ? axisFieldNames.join(' × ')
                             : 'sin ejes definidos (se usará la dimensión por defecto)'}
                         </div>
                       )}
