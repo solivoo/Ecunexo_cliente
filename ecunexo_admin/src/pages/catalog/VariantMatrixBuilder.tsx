@@ -1337,42 +1337,42 @@ export function VariantMatrixBuilder({
                         return (
                           <div
                             className="ecu-variant-sub-item-field"
-                            style={{ minWidth: '210px', flex: '1.3 1 210px', maxWidth: '280px' }}
+                            style={{ minWidth: '210px', flex: '1.3 1 210px', maxWidth: '300px' }}
                           >
                             <label className="ecu-variant-sub-item-label">
                               {isPrimaryColor ? 'Colores adicionales' : 'Colores'}
                             </label>
-                            {extras.length > 0 && (
-                              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
-                                {extras.map((hex) => (
-                                  <span key={hex} className="ecu-extra-color-chip" title={`Color adicional: ${hex}`}>
-                                    <span
-                                      className="ecu-extra-color-dot"
-                                      style={{ backgroundColor: colorHexFor(hex) || '#94a3b8' }}
-                                    />
-                                    <span>{hex}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleExtraColorsChange(row.id, extras.filter((c) => c !== hex))}
-                                      disabled={disabled}
-                                      title={`Quitar ${hex}`}
-                                    >
-                                      <X size={10} />
-                                    </button>
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            <button
-                              type="button"
-                              className="ecu-extra-color-add"
-                              onClick={() =>
-                                setColorModal({ mode: 'extra', rowId: row.id, value: '', hex: '#3b82f6' })
-                              }
-                              disabled={disabled}
-                            >
-                              <Plus size={11} /> Añadir color
-                            </button>
+                            <div className="ecu-variant-color-field">
+                              {extras.map((hex) => (
+                                <span key={hex} className="ecu-extra-color-chip" title={`Color adicional: ${hex}`}>
+                                  <span
+                                    className="ecu-extra-color-dot"
+                                    style={{ backgroundColor: colorHexFor(hex) || '#94a3b8' }}
+                                  />
+                                  <span>{hex}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleExtraColorsChange(row.id, extras.filter((c) => c !== hex))}
+                                    disabled={disabled}
+                                    title={`Quitar ${hex}`}
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </span>
+                              ))}
+                              <button
+                                type="button"
+                                className="ecu-extra-color-add"
+                                onClick={() =>
+                                  setColorModal({ mode: 'extra', rowId: row.id, value: '', hex: '#3b82f6' })
+                                }
+                                disabled={disabled}
+                                aria-label="Añadir color"
+                                title="Añadir color"
+                              >
+                                <Plus size={13} />
+                              </button>
+                            </div>
                           </div>
                         )
                       })()}

@@ -955,7 +955,7 @@ html.sf-dark-mode .ecu-variant-card__select {
 
 .ecu-variant-sub-item-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   padding: 0.5rem 0.65rem;
   border-radius: 8px;
@@ -978,6 +978,7 @@ html.sf-dark-mode .ecu-variant-card__select {
   width: 24px;
   text-align: center;
   flex-shrink: 0;
+  align-self: center;
 }
 
 .ecu-variant-sub-item-field {
@@ -1109,14 +1110,34 @@ html.sf-dark-mode .ecu-variant-group-photo-add {
 }
 
 
+.ecu-variant-color-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 2.4rem;
+  padding: 0.25rem 0.35rem;
+  border: 1px solid var(--glb-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--glb-surface, #ffffff);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ecu-variant-color-field:hover,
+.ecu-variant-color-field:focus-within {
+  border-color: color-mix(in srgb, var(--shell-primary, #3b82f6) 55%, transparent);
+}
+
 .ecu-extra-color-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.15rem 0.4rem;
-  border-radius: 999px;
+  gap: 0.25rem;
+  padding: 0.12rem 0.3rem 0.12rem 0.35rem;
+  border-radius: 6px;
   font-size: 0.68rem;
   font-weight: 600;
+  line-height: 1.5;
+  max-width: 100%;
   background: var(--glb-surface-variant, rgba(0, 0, 0, 0.04));
   border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.12));
   color: var(--glb-text, #1e293b);
@@ -1130,16 +1151,24 @@ html.sf-dark-mode .ecu-variant-group-photo-add {
   align-items: center;
   color: inherit;
   cursor: pointer;
-  opacity: 0.7;
+  opacity: 0.65;
+  border-radius: 4px;
+  transition: opacity 0.12s ease, color 0.12s ease;
 }
 
 .ecu-extra-color-chip button:hover {
   opacity: 1;
+  color: #ef4444;
+}
+
+.ecu-extra-color-chip button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .ecu-extra-color-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.2);
   flex-shrink: 0;
@@ -1148,21 +1177,42 @@ html.sf-dark-mode .ecu-variant-group-photo-add {
 .ecu-extra-color-add {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  margin-top: 0.4rem;
-  padding: 0.2rem 0.45rem;
-  font-size: 0.7rem;
-  font-weight: 600;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
   border-radius: 6px;
-  border: 1px dashed var(--shell-primary, #3b82f6);
+  border: 1px dashed color-mix(in srgb, var(--shell-primary, #3b82f6) 60%, transparent);
   background: transparent;
   color: var(--shell-primary, #2563eb);
   cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ecu-extra-color-add:hover {
+  background: color-mix(in srgb, var(--shell-primary, #3b82f6) 10%, transparent);
+  border-color: var(--shell-primary, #3b82f6);
+}
+
+.ecu-extra-color-add:focus-visible {
+  outline: 2px solid var(--shell-primary, #3b82f6);
+  outline-offset: 2px;
 }
 
 .ecu-extra-color-add:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+html.sf-dark-mode .ecu-variant-color-field {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.sf-dark-mode .ecu-variant-color-field:hover,
+html.sf-dark-mode .ecu-variant-color-field:focus-within {
+  border-color: color-mix(in srgb, var(--shell-primary, #3b82f6) 60%, transparent);
 }
 
 .ecu-color-preset-title {
