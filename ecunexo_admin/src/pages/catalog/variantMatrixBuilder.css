@@ -1201,6 +1201,16 @@ html.sf-dark-mode .ecu-variant-group-photo-add {
   border-color: var(--shell-primary, #3b82f6);
 }
 
+.ecu-extra-color-add--empty {
+  width: auto;
+  height: auto;
+  gap: 0.25rem;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  align-self: flex-start;
+}
+
 .ecu-extra-color-add:focus-visible {
   outline: 2px solid var(--shell-primary, #3b82f6);
   outline-offset: 2px;

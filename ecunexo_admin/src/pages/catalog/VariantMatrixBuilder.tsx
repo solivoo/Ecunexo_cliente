@@ -1330,6 +1330,7 @@ export function VariantMatrixBuilder({
                           isPrimaryColor && primaryDim
                             ? colorHexFor((row.dimensionValues[primaryDim.name] || '').trim())
                             : ''
+                        const hasColors = Boolean(baseHex) || extras.length > 0
 
                         return (
                           <div
@@ -1337,39 +1338,54 @@ export function VariantMatrixBuilder({
                             style={{ minWidth: '210px', flex: '1.3 1 210px', maxWidth: '300px' }}
                           >
                             <label className="ecu-variant-sub-item-label">Colores</label>
-                            <div className="ecu-variant-color-field">
-                              {baseHex && (
-                                <span
-                                  className="ecu-extra-color-chip ecu-extra-color-chip--base"
-                                  title={`Color base heredado del grupo: ${baseHex}`}
-                                >
+                            {hasColors ? (
+                              <div className="ecu-variant-color-field">
+                                {baseHex && (
                                   <span
-                                    className="ecu-extra-color-dot"
-                                    style={{ backgroundColor: baseHex }}
-                                  />
-                                  <span>{baseHex}</span>
-                                </span>
-                              )}
-                              {extras.map((hex) => (
-                                <span key={hex} className="ecu-extra-color-chip" title={`Color adicional: ${hex}`}>
-                                  <span
-                                    className="ecu-extra-color-dot"
-                                    style={{ backgroundColor: colorHexFor(hex) || '#94a3b8' }}
-                                  />
-                                  <span>{hex}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleExtraColorsChange(row.id, extras.filter((c) => c !== hex))}
-                                    disabled={disabled}
-                                    title={`Quitar ${hex}`}
+                                    className="ecu-extra-color-chip ecu-extra-color-chip--base"
+                                    title={`Color base heredado del grupo: ${baseHex}`}
                                   >
-                                    <X size={10} />
-                                  </button>
-                                </span>
-                              ))}
+                                    <span
+                                      className="ecu-extra-color-dot"
+                                      style={{ backgroundColor: baseHex }}
+                                    />
+                                    <span>{baseHex}</span>
+                                  </span>
+                                )}
+                                {extras.map((hex) => (
+                                  <span key={hex} className="ecu-extra-color-chip" title={`Color adicional: ${hex}`}>
+                                    <span
+                                      className="ecu-extra-color-dot"
+                                      style={{ backgroundColor: colorHexFor(hex) || '#94a3b8' }}
+                                    />
+                                    <span>{hex}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleExtraColorsChange(row.id, extras.filter((c) => c !== hex))}
+                                      disabled={disabled}
+                                      title={`Quitar ${hex}`}
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  </span>
+                                ))}
+                                <button
+                                  type="button"
+                                  className="ecu-extra-color-add"
+                                  onClick={() =>
+                                    setColorModal({ mode: 'extra', rowId: row.id, value: '', hex: '#3b82f6' })
+                                  }
+                                  disabled={disabled}
+                                  aria-label="Añadir color"
+                                  title="Añadir color"
+                                >
+                                  <Plus size={13} />
+                                </button>
+                              </div>
+                            ) : (
                               <button
                                 type="button"
-                                className="ecu-extra-color-add"
+                                className="ecu-extra-color-add ecu-extra-color-add--empty"
                                 onClick={() =>
                                   setColorModal({ mode: 'extra', rowId: row.id, value: '', hex: '#3b82f6' })
                                 }
@@ -1377,9 +1393,9 @@ export function VariantMatrixBuilder({
                                 aria-label="Añadir color"
                                 title="Añadir color"
                               >
-                                <Plus size={13} />
+                                <Plus size={12} /> Añadir color
                               </button>
-                            </div>
+                            )}
                           </div>
                         )
                       })()}
