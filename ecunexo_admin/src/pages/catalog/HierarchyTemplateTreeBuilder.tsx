@@ -350,6 +350,7 @@ export function HierarchyTemplateTreeBuilder({
                     }}
                   >
                     <input
+                      id={`has-color-${lvl.id}`}
                       type="checkbox"
                       checked={lvl.hasColor}
                       disabled={disabled}
@@ -434,6 +435,7 @@ export function HierarchyTemplateTreeBuilder({
                     </label>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <Select
+                        id={`attr-select-${lvl.id}`}
                         placeholder="Seleccionar atributo corporativo..."
                         value={selectedAttrByLevel[lvl.id] ?? ''}
                         disabled={disabled}
@@ -474,6 +476,7 @@ export function HierarchyTemplateTreeBuilder({
                     </label>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <TextBox
+                        id={`attr-custom-${lvl.id}`}
                         variant="outline"
                         value={customAttrInputByLevel[lvl.id] ?? ''}
                         placeholder="Ej. Material, Acabado, Capacidad..."

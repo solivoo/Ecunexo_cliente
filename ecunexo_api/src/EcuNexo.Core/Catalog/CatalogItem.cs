@@ -491,14 +491,34 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
                 var photoGroup = dim.TryGetProperty("photoGroup", out var photoGroupEl)
                     && photoGroupEl.ValueKind == System.Text.Json.JsonValueKind.True;
+
+                string? axisType = null;
+                if (dim.TryGetProperty("type", out var typeEl)
+                    && typeEl.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    var candidate = typeEl.GetString()?.Trim().ToLowerInvariant();
+                    if (candidate is "size" or "color" or "custom")
+                    {
+                        axisType = candidate;
+                    }
+                }
+
+                var normalized = new Dictionary<string, object>
+                {
+                    ["name"] = name,
+                    ["values"] = values,
+                };
                 if (photoGroup)
                 {
-                    dimensions.Add(new { name, values, photoGroup = true });
+                    normalized["photoGroup"] = true;
                 }
-                else
+
+                if (axisType is not null)
                 {
-                    dimensions.Add(new { name, values });
+                    normalized["type"] = axisType;
                 }
+
+                dimensions.Add(normalized);
             }
 
             if (dimensions.Count == 0)

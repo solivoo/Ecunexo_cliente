@@ -239,7 +239,17 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 var photoGroup = dim.TryGetProperty("photoGroup", out var photoGroupEl)
                     && photoGroupEl.ValueKind == JsonValueKind.True;
 
-                axes.Add(new MatrixAxisDef(name.Trim(), values, photoGroup));
+                string? axisType = null;
+                if (dim.TryGetProperty("type", out var typeEl) && typeEl.ValueKind == JsonValueKind.String)
+                {
+                    var candidate = typeEl.GetString()?.Trim().ToLowerInvariant();
+                    if (candidate is "size" or "color" or "custom")
+                    {
+                        axisType = candidate;
+                    }
+                }
+
+                axes.Add(new MatrixAxisDef(name.Trim(), values, photoGroup, axisType));
             }
 
             return axes;
@@ -268,7 +278,7 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
         var descriptorAxes = matrixAxes
             .Select(a => new CatalogMatrixAxisDto(
                 a.Name,
-                ResolveAxisType(a.Name),
+                a.Type ?? ResolveAxisType(a.Name),
                 a.Values,
                 a.PhotoGroup
                     || (groupValues.Count > 0
@@ -340,7 +350,7 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
         }
     }
 
-    private sealed record MatrixAxisDef(string Name, IReadOnlyList<string> Values, bool PhotoGroup);
+    private sealed record MatrixAxisDef(string Name, IReadOnlyList<string> Values, bool PhotoGroup, string? Type);
 
     /// <summary>
     /// Claves candidatas de grupo de fotos para una variante. Con ejes marcados <c>photoGroup</c>

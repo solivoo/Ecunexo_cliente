@@ -32,6 +32,7 @@ const buildDictionary = () =>
     dict('Tallas', ['39-41', '42-44', '45-47'], { size: true }),
     dict('Color', [], { color: true }),
     dict('Tipo de Caña', ['Caña Alta', 'Caña Corta']),
+    dict('Medias / Calcetines', ['35-38', '39-41', '42-44', '45-47', '48-50'], { size: true }),
     dict('Largo', ['Corto', 'Medio', 'Largo']),
     dict('Presentación', ['500 g', '1 kg']),
     dict('Sabor', ['Chocolate', 'Vainilla']),
@@ -152,6 +153,24 @@ const casos: Caso[] = [
     gruposFoto: ['Color'],
     fichaModelo: ['Marca'],
     valoresPorEje: [3, 3],
+  },
+  {
+    nombre: '2D — Medias / Calcetines (escala size) × Color: la talla no se agrupa',
+    niveles: [
+      { id: 'l1', name: 'Modelo', hasColor: false, hasImages: false, photoScope: 'none', attributes: ['Marca'] },
+      {
+        id: 'l2',
+        name: 'Variante',
+        hasColor: true,
+        hasImages: true,
+        photoScope: 'group',
+        attributes: ['Medias / Calcetines'],
+      },
+    ],
+    ejes: ['Medias / Calcetines', 'Color'],
+    gruposFoto: ['Color'],
+    fichaModelo: ['Marca'],
+    valoresPorEje: [5, 3],
   },
   {
     nombre: '2D — Otro rubro (Sabor × Presentación)',

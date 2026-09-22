@@ -14,6 +14,7 @@ export type DimensionState = {
   activeValues: string[]
   isColor?: boolean
   photoGroup?: boolean
+  axisType?: 'color' | 'size' | 'custom'
 }
 export type VariantImageItem = {
   id: string
@@ -69,7 +70,13 @@ export type VariantMatrixBuilderProps = {
     groupImages: { groupValue: string; images: VariantImageItem[] }[]
   }) => void
   availableImages?: AvailableGalleryImage[]
-  initialDimensions?: { name: string; values?: string[]; isColor?: boolean; photoGroup?: boolean }[]
+  initialDimensions?: {
+    name: string
+    values?: string[]
+    isColor?: boolean
+    photoGroup?: boolean
+    type?: 'color' | 'size' | 'custom'
+  }[]
   photoScope?: 'variant' | 'group' | 'model'
 }
 
@@ -204,6 +211,7 @@ export function VariantMatrixBuilder({
         activeValues: values,
         isColor,
         photoGroup: d.photoGroup === true,
+        axisType: d.type,
       }
     })
     setDimensions(newDims)
@@ -231,7 +239,12 @@ export function VariantMatrixBuilder({
   useEffect(() => {
     if (hasInitializedRows.current) return
     const activeDims = dimensions.filter(isDimensionActive)
-    if (activeDims.length > 0 && rows.length === 0) {
+    // Si el eje principal es color y aún no tiene valores (hex), espera a que el usuario cree el primer color.
+    const colorDim = activeDims.find((d) => Boolean(d.isColor) || isColorDimension(d.name))
+    const needsColorFirst = Boolean(
+      colorDim && colorDim.values.length === 0 && colorDim.activeValues.length === 0
+    )
+    if (activeDims.length > 0 && rows.length === 0 && !needsColorFirst) {
       hasInitializedRows.current = true
       const defaultPrice = basePrice.trim() ? basePrice.trim() : ''
 
@@ -380,6 +393,15 @@ export function VariantMatrixBuilder({
     [photoGroupDims]
   )
 
+  /** Valor de grupo de una fila, normalizado igual que la proyección de grupos. */
+  const groupValueOf = useCallback(
+    (row: VariantRowState): string => {
+      if (!primaryDim) return 'General'
+      return (row.dimensionValues[primaryDim.name] || '').trim() || 'Sin definir'
+    },
+    [primaryDim]
+  )
+
   // Cambio de dimensión en una fila específica (selección por variante) - NO recrear el SKU
   const buildRowLabel = useCallback(
     (dimensionValues: Record<string, string>) => {
@@ -445,7 +467,7 @@ export function VariantMatrixBuilder({
 
       setRows((prev) =>
         prev.map((r) => {
-          if (primaryDim && r.dimensionValues[primaryDim.name] !== groupVal) return r
+          if (primaryDim && groupValueOf(r) !== groupVal) return r
           const current = r.stagedImages || []
           const exists = current.some((item) => item.previewUrl === img.previewUrl)
           let updated: VariantImageItem[]
@@ -471,7 +493,7 @@ export function VariantMatrixBuilder({
         })
       )
     },
-    [photoScope, primaryDim]
+    [photoScope, primaryDim, groupValueOf]
   )
 
   const handleRemoveAllGroupImages = useCallback(
@@ -483,7 +505,7 @@ export function VariantMatrixBuilder({
 
       setRows((prev) =>
         prev.map((r) => {
-          if (primaryDim && r.dimensionValues[primaryDim.name] !== groupVal) return r
+          if (primaryDim && groupValueOf(r) !== groupVal) return r
           return {
             ...r,
             stagedImages: [],
@@ -493,7 +515,7 @@ export function VariantMatrixBuilder({
         })
       )
     },
-    [photoScope, primaryDim]
+    [photoScope, primaryDim, groupValueOf]
   )
 
   const handleTriggerUploadForGroup = useCallback((groupVal: string) => {
@@ -520,7 +542,7 @@ export function VariantMatrixBuilder({
 
       setRows((prev) =>
         prev.map((r) => {
-          if (primaryDim && r.dimensionValues[primaryDim.name] !== groupVal) return r
+          if (primaryDim && groupValueOf(r) !== groupVal) return r
           const currentImages = r.stagedImages || []
           const combined = [...currentImages, ...newItems]
           return {
@@ -531,7 +553,7 @@ export function VariantMatrixBuilder({
         })
       )
     },
-    [photoScope, primaryDim]
+    [photoScope, primaryDim, groupValueOf]
   )
 
   const handleRemovePhotoFromGroup = useCallback(
@@ -546,7 +568,7 @@ export function VariantMatrixBuilder({
 
       setRows((prev) =>
         prev.map((r) => {
-          if (primaryDim && r.dimensionValues[primaryDim.name] !== groupVal) return r
+          if (primaryDim && groupValueOf(r) !== groupVal) return r
           const filtered = (r.stagedImages || []).filter((i) => i.id !== imgId)
           return {
             ...r,
@@ -556,7 +578,7 @@ export function VariantMatrixBuilder({
         })
       )
     },
-    [photoScope, primaryDim]
+    [photoScope, primaryDim, groupValueOf]
   )
 
   const handleTriggerUploadForRow = useCallback((rowId: string) => {
@@ -656,7 +678,7 @@ export function VariantMatrixBuilder({
     const map = new Map<string, { groupValue: string; rows: VariantRowState[]; images: VariantImageItem[] }>()
 
     rows.forEach((r) => {
-      const gVal = (r.dimensionValues[primaryDim.name] || '').trim() || 'Sin definir'
+      const gVal = groupValueOf(r)
       if (!map.has(gVal)) {
         map.set(gVal, {
           groupValue: gVal,
@@ -684,6 +706,7 @@ export function VariantMatrixBuilder({
     useCompositePhotoBars,
     photoGroupKeyOf,
     photoGroupLabelOf,
+    groupValueOf,
   ])
 
   // Add sub-variant (talla) to a specific group
@@ -694,7 +717,7 @@ export function VariantMatrixBuilder({
       const firstChildDim = childDims[0]
       const existingChildVals = new Set(
         rows
-          .filter((r) => (primaryDim ? r.dimensionValues[primaryDim.name] === groupVal : true))
+          .filter((r) => (primaryDim ? groupValueOf(r) === groupVal : true))
           .map((r) => (firstChildDim ? r.dimensionValues[firstChildDim.name] : ''))
           .filter(Boolean)
       )
@@ -702,7 +725,7 @@ export function VariantMatrixBuilder({
         firstChildDim?.values.find((v) => !existingChildVals.has(v)) || firstChildDim?.values[0] || 'Unica'
 
       const dimensionValues: Record<string, string> = {}
-      if (primaryDim && groupVal !== 'General') {
+      if (primaryDim && groupVal !== 'General' && groupVal !== 'Sin definir') {
         dimensionValues[primaryDim.name] = groupVal
       }
       if (firstChildDim) {
@@ -712,7 +735,7 @@ export function VariantMatrixBuilder({
         dimensionValues[cd.name] = cd.values[0] || ''
       })
 
-      const groupRows = rows.filter((r) => (primaryDim ? r.dimensionValues[primaryDim.name] === groupVal : true))
+      const groupRows = rows.filter((r) => (primaryDim ? groupValueOf(r) === groupVal : true))
       const groupImages =
         photoScope === 'group'
           ? []
@@ -740,7 +763,7 @@ export function VariantMatrixBuilder({
 
       setRows((prev) => [...prev, newRow])
     },
-    [baseName, basePrice, childDims, photoScope, primaryDim, rows]
+    [baseName, basePrice, childDims, groupValueOf, photoScope, primaryDim, rows]
   )
 
   // Add new group (e.g. Color)
@@ -755,7 +778,7 @@ export function VariantMatrixBuilder({
       return
     }
 
-    const existingGroupVals = new Set(rows.map((r) => r.dimensionValues[primaryDim.name]).filter(Boolean))
+    const existingGroupVals = new Set(rows.map(groupValueOf).filter((v) => v !== 'Sin definir'))
     const nextVal = primaryDim.values.find((v) => !existingGroupVals.has(v))
     let groupValToUse = nextVal
 
@@ -767,14 +790,14 @@ export function VariantMatrixBuilder({
     }
 
     handleAddSubVariantToGroup(groupValToUse)
-  }, [handleAddCustomOptionToDimension, handleAddSubVariantToGroup, isPrimaryColor, primaryDim, rows])
+  }, [handleAddCustomOptionToDimension, handleAddSubVariantToGroup, isPrimaryColor, primaryDim, rows, groupValueOf])
 
   // Duplicate group (e.g. copy all sizes from Negro to Blanco)
   const handleDuplicateGroupTo = useCallback(
     (sourceGroupVal: string, targetVal: string) => {
       if (!primaryDim) return
 
-      const sourceRows = rows.filter((r) => r.dimensionValues[primaryDim.name] === sourceGroupVal)
+      const sourceRows = rows.filter((r) => groupValueOf(r) === sourceGroupVal)
       const clonedRows: VariantRowState[] = sourceRows.map((r) => {
         const newId = `var-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
         const updatedDims = { ...r.dimensionValues, [primaryDim.name]: targetVal }
@@ -801,7 +824,7 @@ export function VariantMatrixBuilder({
         variant: 'success',
       })
     },
-    [baseName, childDims, primaryDim, rows, toast]
+    [baseName, childDims, groupValueOf, primaryDim, rows, toast]
   )
 
   const handleDuplicateGroup = useCallback(
@@ -817,7 +840,7 @@ export function VariantMatrixBuilder({
         return
       }
 
-      const existingGroupVals = new Set(rows.map((r) => r.dimensionValues[primaryDim.name]).filter(Boolean))
+      const existingGroupVals = new Set(rows.map(groupValueOf).filter((v) => v !== 'Sin definir'))
       const nextVal = primaryDim.values.find((v) => !existingGroupVals.has(v))
 
       if (nextVal) {
@@ -831,7 +854,7 @@ export function VariantMatrixBuilder({
       handleAddCustomOptionToDimension(primaryDim.id, targetVal)
       handleDuplicateGroupTo(sourceGroupVal, targetVal)
     },
-    [colorHexFor, handleAddCustomOptionToDimension, handleDuplicateGroupTo, isPrimaryColor, primaryDim, rows]
+    [colorHexFor, groupValueOf, handleAddCustomOptionToDimension, handleDuplicateGroupTo, isPrimaryColor, primaryDim, rows]
   )
 
   // Delete group
@@ -841,9 +864,9 @@ export function VariantMatrixBuilder({
         setRows([])
         return
       }
-      setRows((prev) => prev.filter((r) => r.dimensionValues[primaryDim.name] !== groupVal))
+      setRows((prev) => prev.filter((r) => groupValueOf(r) !== groupVal))
     },
-    [primaryDim]
+    [groupValueOf, primaryDim]
   )
 
   // Rename group value
@@ -858,9 +881,21 @@ export function VariantMatrixBuilder({
         handleAddCustomOptionToDimension(primaryDim.id, targetVal)
       }
 
+      // Migrar las galerías compuestas cuyo valor de grupo cambia (ej. «Sin definir» → #hex)
+      const photoMoves = new Map<string, string>()
+      if (photoScope === 'group') {
+        rows.forEach((r) => {
+          if (groupValueOf(r) !== oldVal) return
+          const updatedDims = { ...r.dimensionValues, [primaryDim.name]: targetVal }
+          const from = photoGroupKeyOf(r.dimensionValues)
+          const to = photoGroupKeyOf(updatedDims)
+          if (from !== to && !photoMoves.has(from)) photoMoves.set(from, to)
+        })
+      }
+
       setRows((prev) =>
         prev.map((r) => {
-          if (r.dimensionValues[primaryDim.name] !== oldVal) return r
+          if (groupValueOf(r) !== oldVal) return r
           const updatedDims = { ...r.dimensionValues, [primaryDim.name]: targetVal }
           const subVal = childDims.map((cd) => updatedDims[cd.name]).filter(Boolean).join(' / ')
           const label = `${targetVal}${subVal ? ` / ${subVal}` : ''}`
@@ -872,8 +907,21 @@ export function VariantMatrixBuilder({
           }
         })
       )
+
+      if (photoMoves.size > 0) {
+        setGroupStagedImages((prev) => {
+          const next = { ...prev }
+          photoMoves.forEach((to, from) => {
+            const images = next[from]
+            if (!images || images.length === 0) return
+            next[to] = [...(next[to] ?? []), ...images]
+            delete next[from]
+          })
+          return next
+        })
+      }
     },
-    [baseName, childDims, handleAddCustomOptionToDimension, primaryDim]
+    [baseName, childDims, groupValueOf, handleAddCustomOptionToDimension, photoGroupKeyOf, photoScope, primaryDim, rows]
   )
 
   const handleConfirmColorModal = useCallback(() => {
@@ -951,7 +999,12 @@ export function VariantMatrixBuilder({
               .map((v) => v.trim())
           )
         )
-        return { name, values, ...(d.photoGroup ? { photoGroup: true } : {}) }
+        return {
+          name,
+          values,
+          ...(d.photoGroup ? { photoGroup: true } : {}),
+          ...(d.axisType ? { type: d.axisType } : {}),
+        }
       })
       .filter((d) => d.values.length > 0)
 
@@ -1223,8 +1276,8 @@ export function VariantMatrixBuilder({
                   </div>
                 </div>
 
-                {/* Shared Photos Bar (por grupo compuesto o valor único) */}
-                {primaryDim && photoScope !== 'variant' && (
+                {/* Shared Photos Bar (solo con alcance "Compartidas por grupo") */}
+                {primaryDim && photoScope === 'group' && (
                   <>
                     {group.photoGroups.length > 0
                       ? group.photoGroups.map((pg) => renderGroupPhotosBar(pg.groupValue, pg.label, pg.images))
@@ -1275,11 +1328,9 @@ export function VariantMatrixBuilder({
                         )
                       })}
 
-                      {/* Color individual de la variante (hexadecimal, admite varios) */}
+                      {/* Colores adicionales de la variante (el color principal lo define su grupo) */}
                       {isPrimaryColor && primaryDim
                         ? (() => {
-                            const rowColor = row.dimensionValues[primaryDim.name] || ''
-                            const rowHex = colorHexFor(rowColor)
                             const extras = row.extraColors ?? []
 
                             return (
@@ -1287,24 +1338,9 @@ export function VariantMatrixBuilder({
                                 className="ecu-variant-sub-item-field"
                                 style={{ minWidth: '210px', flex: '1.3 1 210px', maxWidth: '280px' }}
                               >
-                                <label className="ecu-variant-sub-item-label">{primaryDim.name}</label>
-                                <ColorPicker
-                                  size="sm"
-                                  variant="outline"
-                                  value={rowHex}
-                                  placeholder="#000000"
-                                  onChange={(hex: string) => {
-                                    const target = normalizeHexColor(hex)
-                                    if (!target || target === rowColor) return
-                                    setColorHexMap((prev) => ({ ...prev, [target]: target }))
-                                    handleAddCustomOptionToDimension(primaryDim.id, target)
-                                    handleRowDimensionChange(row.id, primaryDim.name, target)
-                                  }}
-                                  disabled={disabled}
-                                  fullWidth
-                                />
+                                <label className="ecu-variant-sub-item-label">Colores adicionales</label>
                                 {extras.length > 0 && (
-                                  <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                                  <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
                                     {extras.map((hex) => (
                                       <span key={hex} className="ecu-extra-color-chip" title={`Color adicional: ${hex}`}>
                                         <span

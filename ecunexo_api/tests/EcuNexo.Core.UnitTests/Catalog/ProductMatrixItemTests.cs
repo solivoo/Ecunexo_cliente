@@ -324,6 +324,19 @@ public sealed class ProductMatrixItemTests
         doc.RootElement[1].GetProperty("photoGroup").GetBoolean().Should().BeTrue();
     }
 
+    [Fact(DisplayName = "NormalizeVariantDimensions conserva el tipo de eje declarado (size/color/custom)")]
+    public void NormalizeVariantDimensions_AxisType_IsPreserved()
+    {
+        var result = CatalogItem.NormalizeVariantDimensions(
+            """[{"name":"Medias / Calcetines","values":["39-41"],"type":"size"},{"name":"Color","values":["#457fc9"],"type":"color"},{"name":"Tipo de Caña","values":["Alta"],"type":"otro"}]""");
+
+        result.IsSuccess.Should().BeTrue();
+        using var doc = JsonDocument.Parse(result.Value!);
+        doc.RootElement[0].GetProperty("type").GetString().Should().Be("size");
+        doc.RootElement[1].GetProperty("type").GetString().Should().Be("color");
+        doc.RootElement[2].TryGetProperty("type", out _).Should().BeFalse();
+    }
+
     [Fact(DisplayName = "NormalizeVariantDimensions rechaza un formato desconocido")]
     public void NormalizeVariantDimensions_UnknownShape_ReturnsError()
     {

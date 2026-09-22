@@ -10,6 +10,7 @@ export type DimensionLookup = {
   dataType: string
   isVariantAxis: boolean
   unit: string | null
+  dimensionType: string
 }
 
 export function isColorDimension(name: string, type?: string, tplId?: string): boolean {
@@ -31,6 +32,7 @@ export function buildDimensionValuesMap(
 
       const isColor = (t.dimensionType || '').toLowerCase() === 'color' || isColorDimension(t.name)
       const dataType = (t.dataType || (isColor ? 'color' : 'text')).trim().toLowerCase()
+      const lowerType = (t.dimensionType || '').trim().toLowerCase()
 
       const entry: DimensionLookup = {
         values: parsed.map(String),
@@ -38,11 +40,11 @@ export function buildDimensionValuesMap(
         dataType,
         isVariantAxis: t.isVariantAxis !== false,
         unit: t.unit ?? null,
+        dimensionType: lowerType,
       }
       const lowerName = t.name.trim().toLowerCase()
       if (!map.has(lowerName)) map.set(lowerName, entry)
 
-      const lowerType = (t.dimensionType || '').trim().toLowerCase()
       if (lowerType && !map.has(lowerType)) map.set(lowerType, entry)
 
       if (lowerType === 'size' || lowerType === 'talla' || lowerName.includes('talla')) {
@@ -102,6 +104,7 @@ export type TemplateDimension = {
   values?: string[]
   isColor?: boolean
   photoGroup?: boolean
+  type: 'color' | 'size' | 'custom'
 }
 
 /** Ejes declarados explícitamente para compartir fotos (normalizados a minúsculas). */
@@ -126,16 +129,18 @@ export function isSizeAxisName(name: string): boolean {
 /**
  * Un eje comparte fotos cuando el alcance es `group` y está declarado en `photoGroupBy`;
  * sin declaración explícita se agrupan todos los ejes que no sean tallas/medidas.
+ * `isSize` permite reconocer escalas del diccionario cuyo nombre no contiene «talla».
  */
 export function isPhotoGroupAxis(
   axisName: string,
   photoScope: PhotoScope,
-  explicitGroupBy: readonly string[]
+  explicitGroupBy: readonly string[],
+  isSize = isSizeAxisName(axisName)
 ): boolean {
   if (photoScope !== 'group') return false
   const lower = axisName.trim().toLowerCase()
   if (explicitGroupBy.length > 0) return explicitGroupBy.includes(lower)
-  return !isSizeAxisName(lower)
+  return !isSize
 }
 
 /**
@@ -174,11 +179,15 @@ export function resolveTemplateDimensions(
       (lower.includes('talla') ? map.get('talla') : undefined) ||
       (lower.includes('color') ? map.get('color') : undefined)
 
+    const isSize = found?.dimensionType === 'size' || isSizeAxisName(clean)
+    const isColor = found?.isColor || isColorDimension(clean)
+
     dims.push({
       name: clean,
       values: found?.values,
-      isColor: found?.isColor || isColorDimension(clean),
-      photoGroup: isPhotoGroupAxis(clean, photoScope, explicitGroupBy),
+      isColor,
+      photoGroup: isPhotoGroupAxis(clean, photoScope, explicitGroupBy, isSize),
+      type: isColor ? 'color' : isSize || found?.dimensionType === 'size' ? 'size' : 'custom',
     })
   }
 
@@ -190,6 +199,7 @@ export function resolveTemplateDimensions(
       values: [],
       isColor: true,
       photoGroup: isPhotoGroupAxis('Color', photoScope, explicitGroupBy),
+      type: 'color',
     })
   }
 
@@ -200,6 +210,7 @@ export function resolveTemplateDimensions(
       values: sizeFound?.values || ['35-38', '39-41', '42-44'],
       isColor: false,
       photoGroup: false,
+      type: 'size',
     })
   }
 
