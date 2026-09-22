@@ -1164,3 +1164,44 @@ html.sf-dark-mode .ecu-variant-group-photo-add {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.ecu-color-preset-title {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--glb-text-secondary, #64748b);
+}
+
+.ecu-color-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.5rem;
+}
+
+.ecu-color-preset {
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.15));
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ecu-color-preset:hover {
+  transform: scale(1.06);
+}
+
+.ecu-color-preset:focus-visible {
+  outline: 2px solid var(--shell-primary, #3b82f6);
+  outline-offset: 2px;
+}
+
+.ecu-color-preset--active {
+  box-shadow:
+    0 0 0 2px var(--glb-surface, #fff),
+    0 0 0 4px var(--shell-primary, #3b82f6);
+}

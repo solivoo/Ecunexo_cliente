@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { Button, ColorPicker, NumberBox, Popup, Select, TextBox, useToast } from 'glubox'
+import { Button, ColorPicker, DEFAULT_COLOR_PRESETS, NumberBox, Popup, Select, TextBox, useToast } from 'glubox'
 import { Camera, Check, Copy, Layers, Plus, Trash2, Upload, X } from 'lucide-react'
 import { EcuTagInput } from '@/components/ui'
 import { isColorDimension } from '@/lib/catalogArchetype'
@@ -925,7 +925,7 @@ export function VariantMatrixBuilder({
   )
 
   const handleConfirmColorModal = useCallback(() => {
-    if (!colorModal || !primaryDim) return
+    if (!colorModal) return
     const targetVal = normalizeHexColor(colorModal.hex)
     if (!targetVal) return
 
@@ -943,6 +943,8 @@ export function VariantMatrixBuilder({
       setColorModal(null)
       return
     }
+
+    if (!primaryDim) return
 
     if (colorModal.mode === 'duplicate' && targetVal === colorModal.value) {
       toast.show({
@@ -1328,52 +1330,52 @@ export function VariantMatrixBuilder({
                         )
                       })}
 
-                      {/* Colores adicionales de la variante (el color principal lo define su grupo) */}
-                      {isPrimaryColor && primaryDim
-                        ? (() => {
-                            const extras = row.extraColors ?? []
+                      {/* Colores de la variante: siempre disponible; el color principal lo define su grupo cuando existe */}
+                      {(() => {
+                        const extras = row.extraColors ?? []
 
-                            return (
-                              <div
-                                className="ecu-variant-sub-item-field"
-                                style={{ minWidth: '210px', flex: '1.3 1 210px', maxWidth: '280px' }}
-                              >
-                                <label className="ecu-variant-sub-item-label">Colores adicionales</label>
-                                {extras.length > 0 && (
-                                  <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
-                                    {extras.map((hex) => (
-                                      <span key={hex} className="ecu-extra-color-chip" title={`Color adicional: ${hex}`}>
-                                        <span
-                                          className="ecu-extra-color-dot"
-                                          style={{ backgroundColor: colorHexFor(hex) || '#94a3b8' }}
-                                        />
-                                        <span>{hex}</span>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleExtraColorsChange(row.id, extras.filter((c) => c !== hex))}
-                                          disabled={disabled}
-                                          title={`Quitar ${hex}`}
-                                        >
-                                          <X size={10} />
-                                        </button>
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                                <button
-                                  type="button"
-                                  className="ecu-extra-color-add"
-                                  onClick={() =>
-                                    setColorModal({ mode: 'extra', rowId: row.id, value: '', hex: '#3b82f6' })
-                                  }
-                                  disabled={disabled}
-                                >
-                                  <Plus size={11} /> Añadir color
-                                </button>
+                        return (
+                          <div
+                            className="ecu-variant-sub-item-field"
+                            style={{ minWidth: '210px', flex: '1.3 1 210px', maxWidth: '280px' }}
+                          >
+                            <label className="ecu-variant-sub-item-label">
+                              {isPrimaryColor ? 'Colores adicionales' : 'Colores'}
+                            </label>
+                            {extras.length > 0 && (
+                              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+                                {extras.map((hex) => (
+                                  <span key={hex} className="ecu-extra-color-chip" title={`Color adicional: ${hex}`}>
+                                    <span
+                                      className="ecu-extra-color-dot"
+                                      style={{ backgroundColor: colorHexFor(hex) || '#94a3b8' }}
+                                    />
+                                    <span>{hex}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleExtraColorsChange(row.id, extras.filter((c) => c !== hex))}
+                                      disabled={disabled}
+                                      title={`Quitar ${hex}`}
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  </span>
+                                ))}
                               </div>
-                            )
-                          })()
-                        : null}
+                            )}
+                            <button
+                              type="button"
+                              className="ecu-extra-color-add"
+                              onClick={() =>
+                                setColorModal({ mode: 'extra', rowId: row.id, value: '', hex: '#3b82f6' })
+                              }
+                              disabled={disabled}
+                            >
+                              <Plus size={11} /> Añadir color
+                            </button>
+                          </div>
+                        )
+                      })()}
 
                       {/* Foto exclusiva de la variante (SKU) */}
                       {photoScope !== 'group' && photoScope !== 'model' && (
@@ -1702,22 +1704,44 @@ export function VariantMatrixBuilder({
         )
       })()}
 
-      {colorModal && primaryDim && (
+      {colorModal && (primaryDim || colorModal.mode === 'extra') && (
         <Popup
           open={true}
           onClose={() => setColorModal(null)}
           title={
             colorModal.mode === 'duplicate'
-              ? `Duplicar ${primaryDim.name} a un color nuevo`
+              ? `Duplicar ${primaryDim?.name} a un color nuevo`
               : colorModal.mode === 'extra'
                 ? 'Color adicional de la variante'
-                : `Nuevo ${primaryDim.name}`
+                : `Nuevo ${primaryDim?.name}`
           }
           width="420px"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
+            <div>
+              <span className="ecu-color-preset-title">Elige un color</span>
+              <div className="ecu-color-preset-grid">
+                {DEFAULT_COLOR_PRESETS.map((preset) => {
+                  const selected = normalizeHexColor(colorModal.hex) === preset
+                  return (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={`ecu-color-preset${selected ? ' ecu-color-preset--active' : ''}`}
+                      style={{ backgroundColor: preset }}
+                      aria-label={`Color ${preset}`}
+                      aria-pressed={selected}
+                      title={preset}
+                      onClick={() =>
+                        setColorModal((prev) => (prev ? { ...prev, hex: preset } : prev))
+                      }
+                    />
+                  )
+                })}
+              </div>
+            </div>
             <ColorPicker
-              label="Color (hexadecimal)"
+              label="Color personalizado (hexadecimal)"
               labelPosition="outlined"
               variant="outline"
               value={colorModal.hex}
@@ -1745,7 +1769,7 @@ export function VariantMatrixBuilder({
                 onClick={handleConfirmColorModal}
                 disabled={!normalizeHexColor(colorModal.hex)}
               >
-                <Check size={14} /> Guardar color
+                <Check size={14} /> Aceptar
               </Button>
             </div>
           </div>
