@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.51.1`.
+* **Última Versión Publicada:** `v0.51.2`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Adaptación de Galería del Padre según Alcance de Fotos (`EditCatalogItemPage.tsx`) [v0.51.2]:**
+    * **Ocultamiento condicional de galería general:** si la plantilla define fotos por variante (`variant`) o no lleva fotos (`none`), la ficha del producto matriz oculta la carga de fotos del padre y despliega un panel informativo (`SectionCard`) que orienta a cargar las fotos por código en la sección de variantes.
+    * **Subtítulos contextuales:** clarificación en la tarjeta de imágenes cuando las fotos se comparten por grupo (ej. color) o pertenecen al modelo.
   - **Catálogo — Galería por SKU, Visualización Limpia de Variantes y Feedback de Carga [v0.51.1]:**
     * **Administrador modal de fotos por SKU (`VariantMatrixBuilder.tsx`):** visualización interactiva de todas las fotos de cada código/SKU físico, reordenamiento con flechas izquierda/derecha, portada destacada, eliminación puntual y subida por lotes para ese código específico.
     * **Visualización limpia de variantes (`EditCatalogItemVariantsSection.tsx`, `catalogArchetype.ts`):** `formatVariantDisplayName` normaliza el nombre de la variante eliminando la repetición redundante del nombre del producto matriz y los códigos hexadecimales del texto; soporte para visualización de swatches de color tanto de atributos de eje como de colores secundarios.

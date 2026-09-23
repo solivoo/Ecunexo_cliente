@@ -17,6 +17,7 @@ import {
   buildDimensionValuesMap,
   buildHierarchyPathJson,
   getModelAttributeFields,
+  readPhotoChoice,
 } from '@/lib/catalogArchetype'
 import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
 import {
@@ -135,6 +136,28 @@ export function EditCatalogItemPage() {
       return []
     }
   }, [familyTemplate])
+
+  /** Alcance de fotos según la plantilla viva (o heurística del descriptor). */
+  const photoChoice = useMemo(() => {
+    if (familyLevels.length > 0) {
+      return readPhotoChoice(familyLevels).choice
+    }
+    if (item?.matrixDescriptor?.axes?.some((axis) => axis.isPhotoGroup)) {
+      return 'group' as const
+    }
+    if (item?.isMatrixParent) {
+      // Matriz sin plantilla: no asumir galería del padre (evita UI engañosa tipo calcetines).
+      return 'variant' as const
+    }
+    return 'model' as const
+  }, [familyLevels, item?.isMatrixParent, item?.matrixDescriptor?.axes])
+
+  const showParentImageGallery =
+    !!item &&
+    (!item.isMatrixParent || photoChoice === 'model' || photoChoice === 'group')
+
+  const showVariantPhotosHint =
+    !!item?.isMatrixParent && (photoChoice === 'variant' || photoChoice === 'none')
 
   const dimensionValuesMap = useMemo(
     () => buildDimensionValuesMap(dimensionTemplates),
@@ -1089,25 +1112,18 @@ export function EditCatalogItemPage() {
             />
           )}
 
-          {tenantId && item && (
+          {tenantId && item && showParentImageGallery && (
             <div className="mt-6">
               <SectionCard
                 title="Imágenes del Producto"
                 subtitle={
-                  item.isMatrixParent
-                    ? 'Galería del padre: solo si las fotos son del modelo o se comparten por color. Con plantilla «por cada código», sube las fotos en cada variante (lápiz en Variantes).'
-                    : 'Galería e-commerce con compresión WebP y 3 variantes responsive (sm / lg / xl)'
+                  item.isMatrixParent && photoChoice === 'group'
+                    ? 'Fotos compartidas por grupo (ej. color). Se heredan en las variantes de ese grupo.'
+                    : item.isMatrixParent
+                      ? 'Fotos del modelo: se comparten con todas las variaciones.'
+                      : 'Galería e-commerce con compresión WebP y 3 variantes responsive (sm / lg / xl)'
                 }
               >
-                {item.isMatrixParent && (
-                  <p
-                    className="app-shell__muted"
-                    style={{ margin: '0 0 0.85rem', fontSize: '0.82rem', lineHeight: 1.45 }}
-                  >
-                    Aquí no reemplaza las fotos de cada SKU. Si tu plantilla es foto por código, esta
-                    sección puede quedar vacía; abre cada variante para administrar su galería.
-                  </p>
-                )}
                 <CatalogItemImageGallery
                   tenantId={tenantId}
                   itemId={item.id}
@@ -1118,6 +1134,23 @@ export function EditCatalogItemPage() {
                     setItem(fresh)
                   }}
                 />
+              </SectionCard>
+            </div>
+          )}
+
+          {tenantId && item && showVariantPhotosHint && (
+            <div className="mt-6">
+              <SectionCard
+                title="Fotos por código"
+                subtitle="Esta plantilla no usa galería del producto padre."
+              >
+                <p
+                  className="app-shell__muted"
+                  style={{ margin: 0, fontSize: '0.85rem', lineHeight: 1.5 }}
+                >
+                  Cada SKU tiene su propia galería (varias imágenes × sm / lg / xl). Adminístralas
+                  desde <strong>Variantes</strong> con el lápiz de cada fila.
+                </p>
               </SectionCard>
             </div>
           )}
