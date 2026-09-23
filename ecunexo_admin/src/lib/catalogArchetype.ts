@@ -507,3 +507,37 @@ export function findDuplicateSkuValues(skus: readonly string[]): string[] {
 
   return Array.from(duplicates.values())
 }
+
+const HEX_TOKEN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i
+
+export function isHexColorToken(value: string): boolean {
+  return HEX_TOKEN.test(value.trim())
+}
+
+/** Quita el nombre del padre (incluso repetido) y los hex; deja solo la variación legible. */
+export function formatVariantDisplayName(fullName: string, parentName?: string | null): string {
+  let label = (fullName || '').trim()
+  if (!label) return '—'
+
+  const parent = (parentName || '').trim()
+  if (parent) {
+    const prefix = `${parent} - `
+    while (label.toLowerCase().startsWith(prefix.toLowerCase())) {
+      label = label.slice(prefix.length).trim()
+    }
+    if (label.toLowerCase() === parent.toLowerCase()) {
+      return '—'
+    }
+  }
+
+  const parts = label
+    .split(/\s*[·/|,]\s*/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0 && !isHexColorToken(part))
+
+  if (parts.length === 0) {
+    return label.replace(HEX_TOKEN, '').replace(/\s*[·/|,]\s*/g, ' · ').replace(/\s+/g, ' ').trim() || '—'
+  }
+
+  return parts.join(' · ')
+}

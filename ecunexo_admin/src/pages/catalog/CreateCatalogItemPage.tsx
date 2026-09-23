@@ -380,6 +380,8 @@ export function CreateCatalogItemPage() {
 
           // Subir fotos específicas por cada variante física si fueron seleccionadas
           if (createdMatrix.variantItemIds && createdMatrix.variantItemIds.length > 0) {
+            let variantPhotosOk = 0
+            let variantPhotosFail = 0
             for (let i = 0; i < matrixData.variants.length; i++) {
               const v = matrixData.variants[i]
               const variantItemId = createdMatrix.variantItemIds[i]
@@ -402,10 +404,25 @@ export function CreateCatalogItemPage() {
                     `${v.variantTitle} - ${imgIdx + 1}`,
                     imgIdx === 0
                   )
+                  variantPhotosOk++
                 } catch (imgErr) {
+                  variantPhotosFail++
                   console.error('Error al subir imagen de variante', imgErr)
                 }
               }
+            }
+            if (variantPhotosFail > 0) {
+              toast.show({
+                title: 'Fotos de variantes incompletas',
+                message: `Se subieron ${variantPhotosOk} y fallaron ${variantPhotosFail}. Revisa la conexión al almacenamiento de fotos (B2) o vuelve a subirlas en cada variante.`,
+                variant: 'warning',
+              })
+            } else if (variantPhotosOk > 0) {
+              toast.show({
+                title: 'Fotos de variantes',
+                message: `Se subieron ${variantPhotosOk} imágenes a los códigos.`,
+                variant: 'success',
+              })
             }
           }
 

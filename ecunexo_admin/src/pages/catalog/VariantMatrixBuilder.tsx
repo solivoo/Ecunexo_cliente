@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Button, ColorPicker, DEFAULT_COLOR_PRESETS, NumberBox, Popup, Select, TextBox, useToast } from 'glubox'
-import { Camera, Check, Copy, Layers, Plus, Trash2, Upload, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Camera, Check, Copy, Layers, Plus, Trash2, Upload, X } from 'lucide-react'
 import { EcuTagInput } from '@/components/ui'
 import {
   findDuplicateSkuValues,
@@ -171,6 +171,7 @@ export function VariantMatrixBuilder({
   const [groupTargetForUpload, setGroupTargetForUpload] = useState<string | null>(null)
   const rowFileInputRef = useRef<HTMLInputElement | null>(null)
   const [rowTargetForUpload, setRowTargetForUpload] = useState<string | null>(null)
+  const [rowPhotoModalTarget, setRowPhotoModalTarget] = useState<string | null>(null)
   const [groupStagedImages, setGroupStagedImages] = useState<Record<string, VariantImageItem[]>>({})
 
   // Color Hex Map
@@ -613,6 +614,10 @@ export function VariantMatrixBuilder({
     rowFileInputRef.current?.click()
   }, [])
 
+  const handleOpenRowPhotoModal = useCallback((rowId: string) => {
+    setRowPhotoModalTarget(rowId)
+  }, [])
+
   const handleAddImagesToRow = useCallback((rowId: string, files: File[]) => {
     const newItems: VariantImageItem[] = files.map((file) => ({
       id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -639,12 +644,36 @@ export function VariantMatrixBuilder({
     setRows((prev) =>
       prev.map((r) => {
         if (r.id !== rowId) return r
+        const removed = (r.stagedImages || []).find((i) => i.id === imgId)
+        if (removed?.previewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(removed.previewUrl)
+        }
         const filtered = (r.stagedImages || []).filter((i) => i.id !== imgId)
         return {
           ...r,
           stagedImages: filtered,
           stagedImage: filtered[0]?.file ?? null,
           stagedImagePreview: filtered[0]?.previewUrl ?? null,
+        }
+      })
+    )
+  }, [])
+
+  const handleMoveRowPhoto = useCallback((rowId: string, imgId: string, direction: -1 | 1) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== rowId) return r
+        const list = [...(r.stagedImages || [])]
+        const idx = list.findIndex((i) => i.id === imgId)
+        if (idx < 0) return r
+        const next = idx + direction
+        if (next < 0 || next >= list.length) return r
+        ;[list[idx], list[next]] = [list[next], list[idx]]
+        return {
+          ...r,
+          stagedImages: list,
+          stagedImage: list[0]?.file ?? null,
+          stagedImagePreview: list[0]?.previewUrl ?? null,
         }
       })
     )
@@ -1451,47 +1480,34 @@ export function VariantMatrixBuilder({
                         )
                       })()}
 
-                      {/* Foto exclusiva de la variante (SKU) */}
+                      {/* Foto exclusiva de la variante (SKU) — modal para galería y orden */}
                       {photoScope !== 'group' && photoScope !== 'model' && (
                         <div className="ecu-variant-sub-item-field" style={{ minWidth: '96px', maxWidth: '120px' }}>
                           <label className="ecu-variant-sub-item-label">Foto</label>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                             {row.stagedImages && row.stagedImages.length > 0 ? (
-                              <>
-                                <div className="ecu-variant-group-photo-thumb" style={{ width: 32, height: 32 }}>
-                                  <img src={row.stagedImages[0].previewUrl} alt={row.variantTitle} />
-                                  {row.stagedImages.length > 1 && (
-                                    <span className="ecu-variant-sub-item-photo-count">
-                                      +{row.stagedImages.length - 1}
-                                    </span>
-                                  )}
-                                  <button
-                                    type="button"
-                                    className="ecu-variant-group-photo-remove"
-                                    onClick={() => handleRemovePhotoFromRow(row.id, row.stagedImages![0].id)}
-                                    disabled={disabled}
-                                    title="Quitar la foto principal de esta variante"
-                                  >
-                                    <X size={10} />
-                                  </button>
-                                </div>
-                                <button
-                                  type="button"
-                                  className="ecu-variant-card__icon-btn"
-                                  onClick={() => handleTriggerUploadForRow(row.id)}
-                                  disabled={disabled}
-                                  title="Añadir otra foto a esta variante"
-                                >
-                                  <Upload size={12} />
-                                </button>
-                              </>
+                              <button
+                                type="button"
+                                className="ecu-variant-group-photo-thumb"
+                                style={{ width: 36, height: 36, cursor: 'pointer', border: 'none', padding: 0 }}
+                                onClick={() => handleOpenRowPhotoModal(row.id)}
+                                disabled={disabled}
+                                title="Administrar fotos de este código"
+                              >
+                                <img src={row.stagedImages[0].previewUrl} alt={row.variantTitle} />
+                                {row.stagedImages.length > 1 && (
+                                  <span className="ecu-variant-sub-item-photo-count">
+                                    +{row.stagedImages.length - 1}
+                                  </span>
+                                )}
+                              </button>
                             ) : (
                               <button
                                 type="button"
                                 className="ecu-variant-sub-item-photo-add"
-                                onClick={() => handleTriggerUploadForRow(row.id)}
+                                onClick={() => handleOpenRowPhotoModal(row.id)}
                                 disabled={disabled}
-                                title="Subir foto exclusiva para esta variante"
+                                title="Administrar fotos de este código"
                               >
                                 <Camera size={12} /> Foto
                               </button>
@@ -1850,6 +1866,138 @@ export function VariantMatrixBuilder({
                   variant="primary"
                   size="sm"
                   onClick={() => setGroupPhotoModalTarget(null)}
+                >
+                  Listo ({assigned.length})
+                </Button>
+              </div>
+            </div>
+          </Popup>
+        )
+      })()}
+
+      {rowPhotoModalTarget && (() => {
+        const targetRow = rows.find((r) => r.id === rowPhotoModalTarget)
+        const assigned = targetRow?.stagedImages ?? []
+        const label =
+          targetRow?.sku?.trim() ||
+          targetRow?.variationLabel ||
+          targetRow?.variantTitle ||
+          'variante'
+
+        return (
+          <Popup
+            open={true}
+            onClose={() => setRowPhotoModalTarget(null)}
+            title={`Fotos del código «${label}»`}
+            width="540px"
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--glb-muted)' }}>
+                Galería propia de este SKU. La primera foto es la portada. Usa las flechas para
+                reordenar. Al guardar el producto cada imagen se genera en sm / lg / xl.
+              </p>
+
+              {assigned.length > 0 ? (
+                <div className="ecu-var-gallery-grid" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  {assigned.map((img, idx) => (
+                    <div
+                      key={img.id}
+                      style={{
+                        width: 112,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      <div
+                        className="ecu-variant-group-photo-thumb"
+                        style={{ width: 112, height: 112, position: 'relative' }}
+                      >
+                        <img
+                          src={img.previewUrl}
+                          alt={img.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }}
+                        />
+                        {idx === 0 && (
+                          <span
+                            style={{
+                              position: 'absolute',
+                              left: 6,
+                              bottom: 6,
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                              padding: '0.1rem 0.35rem',
+                              borderRadius: 4,
+                              background: 'rgba(0,0,0,0.65)',
+                              color: '#fff',
+                            }}
+                          >
+                            Portada
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
+                        <button
+                          type="button"
+                          className="ecu-variant-card__icon-btn"
+                          onClick={() => handleMoveRowPhoto(rowPhotoModalTarget, img.id, -1)}
+                          disabled={disabled || idx === 0}
+                          title="Mover a la izquierda"
+                        >
+                          <ArrowLeft size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          className="ecu-variant-card__icon-btn"
+                          onClick={() => handleMoveRowPhoto(rowPhotoModalTarget, img.id, 1)}
+                          disabled={disabled || idx === assigned.length - 1}
+                          title="Mover a la derecha"
+                        >
+                          <ArrowRight size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          className="ecu-variant-card__icon-btn ecu-variant-card__icon-btn--danger"
+                          onClick={() => handleRemovePhotoFromRow(rowPhotoModalTarget, img.id)}
+                          disabled={disabled}
+                          title="Quitar foto"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: '1.25rem 1rem',
+                    borderRadius: 8,
+                    border: '2px dashed var(--shell-border, rgba(148,163,184,0.35))',
+                    textAlign: 'center',
+                    fontSize: '0.85rem',
+                    color: 'var(--glb-muted)',
+                  }}
+                >
+                  Aún no hay fotos en este código.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTriggerUploadForRow(rowPhotoModalTarget)}
+                  disabled={disabled}
+                >
+                  <Upload size={14} /> Añadir fotos
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setRowPhotoModalTarget(null)}
                 >
                   Listo ({assigned.length})
                 </Button>

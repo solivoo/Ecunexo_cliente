@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   buildDimensionValuesMap,
   findDuplicateSkuValues,
+  formatVariantDisplayName,
   getModelAttributeFields,
   getVariantAttributeFields,
   resolvePhotoScope,
@@ -226,6 +227,21 @@ for (const caso of casos) {
     )
   })
 }
+
+test('Nombre de variante: quita padre repetido y hex del color', () => {
+  assert.equal(
+    formatVariantDisplayName(
+      'Calcetines Deportivos - Calcetines Deportivos - #ffffff / 35-38 / 4-6 / Caña Media',
+      'Calcetines Deportivos'
+    ),
+    '35-38 · 4-6 · Caña Media'
+  )
+  assert.equal(
+    formatVariantDisplayName('Calcetines Deportivos - #ffffff / 6-8 / Caña Larga', 'Calcetines Deportivos'),
+    '6-8 · Caña Larga'
+  )
+  assert.equal(formatVariantDisplayName('Producto - S / Negro', 'Producto'), 'S · Negro')
+})
 
 test('SKUs duplicados: detecta repeticiones ignorando mayúsculas y espacios', () => {
   assert.deepEqual(findDuplicateSkuValues(['NIK-001', ' nik-001 ', 'NIK-002']), ['NIK-001'])

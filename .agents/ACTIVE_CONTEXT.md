@@ -7,8 +7,13 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.51.0`.
+* **Última Versión Publicada:** `v0.51.1`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Galería por SKU, Visualización Limpia de Variantes y Feedback de Carga [v0.51.1]:**
+    * **Administrador modal de fotos por SKU (`VariantMatrixBuilder.tsx`):** visualización interactiva de todas las fotos de cada código/SKU físico, reordenamiento con flechas izquierda/derecha, portada destacada, eliminación puntual y subida por lotes para ese código específico.
+    * **Visualización limpia de variantes (`EditCatalogItemVariantsSection.tsx`, `catalogArchetype.ts`):** `formatVariantDisplayName` normaliza el nombre de la variante eliminando la repetición redundante del nombre del producto matriz y los códigos hexadecimales del texto; soporte para visualización de swatches de color tanto de atributos de eje como de colores secundarios.
+    * **Notificación de subida de imágenes (`CreateCatalogItemPage.tsx`):** toast informativo con balance de fotos subidas exitosamente y alertas si alguna imagen falla por conectividad/almacenamiento B2.
+    * **Documentación y seeding (`doc/ejercicio-catalogo-estructuras.md`, `seed-ejercicio-catalogo.mjs`):** guía de ejercicios y script para poblar plantillas y productos de diversas estructuras.
   - **Catálogo — Jerarquía por Niveles, Datos y Ejes en Plantillas y Alta Asistida (`HierarchyTemplateTreeBuilder.tsx`, `CreateCatalogItemPage.tsx`, `catalogArchetype.ts`, `ProductTemplateBuilderPage.tsx`, `ArchetypeModelFields.tsx`) [v0.51.0]:**
     * **Plantillas con datos y ejes por nivel:** el constructor visual clasifica de forma explícita los atributos descriptivos de la ficha del modelo vs. los ejes de variante por nivel, con una decisión única de alcance fotográfico (`model`, `group`, `variant`).
     * **Alta simplificada y transparente:** si la plantilla no declara ejes, el alta del ítem captura solo la ficha del modelo con un único código/SKU sin obligar matriz; si declara ejes, se despliega el constructor de matriz para completar solo los valores existentes sin duplicar jerarquías.

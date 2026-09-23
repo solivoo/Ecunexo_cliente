@@ -20,6 +20,7 @@ import {
   type CatalogItemListItemDto,
   type CatalogItemVariantSummaryDto,
 } from '@/types/catalogApi'
+import { formatVariantDisplayName, isHexColorToken } from '@/lib/catalogArchetype'
 
 export type EditCatalogItemVariantsSectionProps = {
   readonly tenantId: string
@@ -515,103 +516,102 @@ export function EditCatalogItemVariantsSection({
         },
       },
       {
-        key: 'dimensions',
-        header: 'Tallas / Atributos',
-        width: 180,
+        key: 'name',
+        header: 'Variación',
+        width: 260,
         renderCell: (_value: unknown, row: VariantRow) => {
           const attrs = parseAttributes(row.customAttributesJson)
-          const entries = Object.entries(attrs)
-          if (entries.length === 0) {
-            return <span className="app-shell__muted" style={{ fontSize: '0.8rem' }}>General</span>
+          const values = Object.entries(attrs)
+            .filter(([key, value]) => {
+              const k = key.trim().toLowerCase()
+              const v = String(value ?? '').trim()
+              if (!v) return false
+              if (k === 'extracolors' || k === 'extra_colors' || k === 'colors') return false
+              if (isHexColorToken(v)) return false
+              return true
+            })
+            .map(([, value]) => String(value).trim())
+
+          if (values.length > 0) {
+            return (
+              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }} title={row.name}>
+                {values.map((value) => (
+                  <span
+                    key={value}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      backgroundColor:
+                        'color-mix(in srgb, var(--shell-primary, #4f46e5) 10%, var(--glb-surface, #ffffff))',
+                      color: 'var(--shell-primary, #4f46e5)',
+                      border: '1px solid color-mix(in srgb, var(--shell-primary, #4f46e5) 20%, transparent)',
+                    }}
+                  >
+                    {value}
+                  </span>
+                ))}
+              </div>
+            )
           }
+
           return (
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              {entries.map(([k, v]) => (
-                <span
-                  key={k}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    padding: '0.15rem 0.5rem',
-                    borderRadius: '4px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    backgroundColor: 'color-mix(in srgb, var(--shell-primary, #4f46e5) 10%, var(--glb-surface, #ffffff))',
-                    color: 'var(--shell-primary, #4f46e5)',
-                    border: '1px solid color-mix(in srgb, var(--shell-primary, #4f46e5) 20%, transparent)',
-                  }}
-                >
-                  <span style={{ opacity: 0.7, textTransform: 'capitalize' }}>{k}:</span>
-                  <span>{String(v)}</span>
-                </span>
-              ))}
-            </div>
+            <span
+              title={row.name}
+              style={{ fontWeight: 600, color: 'var(--glb-text, #1e293b)', fontSize: '0.875rem' }}
+            >
+              {formatVariantDisplayName(row.name, parentItem.name)}
+            </span>
           )
         },
       },
       {
         key: 'extraColors',
         header: 'Colores',
-        width: 160,
+        width: 120,
         renderCell: (_value: unknown, row: VariantRow) => {
           const colors = Array.isArray(row.extraColors) ? row.extraColors : []
-          if (colors.length === 0) {
+          const attrs = parseAttributes(row.customAttributesJson)
+          const axisHexes = Object.values(attrs)
+            .map((value) => String(value ?? '').trim())
+            .filter((value) => isHexColorToken(value))
+            .map((value) => value.toLowerCase())
+          const swatches = Array.from(new Set([...colors, ...axisHexes]))
+          if (swatches.length === 0) {
             return (
               <span className="app-shell__muted" style={{ fontSize: '0.8rem' }}>
-                Sin colores
+                —
               </span>
             )
           }
           return (
-            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-              {colors.map((hex) => (
+            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              {swatches.map((hex) => (
                 <span
                   key={hex}
-                  title={`Color ${hex}`}
+                  title={hex}
+                  aria-label={`Color ${hex}`}
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    padding: '0.15rem 0.45rem',
-                    borderRadius: '999px',
-                    border: '1px solid var(--glb-border, #e2e8f0)',
-                    backgroundColor: 'var(--glb-surface, #ffffff)',
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    border: '1px solid rgba(148, 163, 184, 0.55)',
+                    backgroundColor: hex,
+                    flexShrink: 0,
                   }}
-                >
-                  <span
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      border: '1px solid rgba(0, 0, 0, 0.2)',
-                      backgroundColor: hex,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span>{hex}</span>
-                </span>
+                />
               ))}
             </div>
           )
         },
       },
       {
-        key: 'name',
-        header: 'Nombre de Variante',
-        width: 240,
-        renderCell: (_value: unknown, row: VariantRow) => (
-          <span style={{ fontWeight: 600, color: 'var(--glb-text, #1e293b)' }}>
-            {row.name}
-          </span>
-        ),
-      },
-      {
         key: 'sku',
-        header: 'SKU Físico',
-        width: 160,
+        header: 'SKU',
+        width: 140,
         renderCell: (_value: unknown, row: VariantRow) => (
           <code className="ecu-code" style={{ fontSize: '0.8rem' }}>
             {row.sku || '—'}
@@ -620,8 +620,8 @@ export function EditCatalogItemVariantsSection({
       },
       {
         key: 'basePrice',
-        header: 'Precio Base',
-        width: 130,
+        header: 'Precio',
+        width: 110,
         renderCell: (_value: unknown, row: VariantRow) => (
           <span style={{ fontWeight: 700, color: 'var(--shell-primary, #4f46e5)' }}>
             {row.basePrice != null ? `$${Number(row.basePrice).toFixed(2)}` : '—'}
@@ -631,7 +631,7 @@ export function EditCatalogItemVariantsSection({
       {
         key: 'status',
         header: 'Estado',
-        width: 120,
+        width: 110,
         renderCell: (_value: unknown, row: VariantRow) => (
           <StatusBadge
             tone={Number(row.status) === 0 ? 'success' : 'neutral'}
@@ -645,6 +645,7 @@ export function EditCatalogItemVariantsSection({
         key: 'actions',
         header: 'Acciones',
         width: 128,
+        sticky: 'right',
         renderCell: (_value: unknown, row: VariantRow) => (
           <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
             <GridIconButton
@@ -676,7 +677,7 @@ export function EditCatalogItemVariantsSection({
         ),
       },
     ],
-    [canEdit, handleOpenColorsModal, handleOpenReassignModal, navigate, parseAttributes]
+    [canEdit, handleOpenColorsModal, handleOpenReassignModal, navigate, parentItem.name, parseAttributes]
   )
 
   return (
@@ -714,8 +715,8 @@ export function EditCatalogItemVariantsSection({
       </div>
 
       <SectionCard
-        title={`Variantes Registradas (${variants.length})`}
-        subtitle="Control independiente de SKU, precio, código de barras, fotos y existencias por variante"
+        title="Variantes"
+        subtitle="SKU, precio, colores y stock de cada combinación"
         action={
           canEdit ? (
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -1068,7 +1069,13 @@ export function EditCatalogItemVariantsSection({
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '0.5rem' }}>
           <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.85rem' }}>
-            Variante: <strong>{colorsModalVariant?.name}</strong>
+            Variante:{' '}
+            <strong>
+              {formatVariantDisplayName(
+                colorsModalVariant?.name ?? '',
+                parentItem.name
+              )}
+            </strong>
             {colorsModalVariant?.sku ? ` (${colorsModalVariant.sku})` : ''}
           </p>
 

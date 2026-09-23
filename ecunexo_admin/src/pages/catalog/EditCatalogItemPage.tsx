@@ -1093,8 +1093,21 @@ export function EditCatalogItemPage() {
             <div className="mt-6">
               <SectionCard
                 title="Imágenes del Producto"
-                subtitle="Galería e-commerce con compresión WebP y 3 variantes responsive"
+                subtitle={
+                  item.isMatrixParent
+                    ? 'Galería del padre: solo si las fotos son del modelo o se comparten por color. Con plantilla «por cada código», sube las fotos en cada variante (lápiz en Variantes).'
+                    : 'Galería e-commerce con compresión WebP y 3 variantes responsive (sm / lg / xl)'
+                }
               >
+                {item.isMatrixParent && (
+                  <p
+                    className="app-shell__muted"
+                    style={{ margin: '0 0 0.85rem', fontSize: '0.82rem', lineHeight: 1.45 }}
+                  >
+                    Aquí no reemplaza las fotos de cada SKU. Si tu plantilla es foto por código, esta
+                    sección puede quedar vacía; abre cada variante para administrar su galería.
+                  </p>
+                )}
                 <CatalogItemImageGallery
                   tenantId={tenantId}
                   itemId={item.id}
