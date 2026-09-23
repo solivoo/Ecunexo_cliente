@@ -539,5 +539,77 @@ export function formatVariantDisplayName(fullName: string, parentName?: string |
     return label.replace(HEX_TOKEN, '').replace(/\s*[·/|,]\s*/g, ' · ').replace(/\s+/g, ' ').trim() || '—'
   }
 
-  return parts.join(' · ')
+  const seen = new Set<string>()
+  const unique: string[] = []
+  for (const part of parts) {
+    const key = part.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push(part)
+  }
+
+  return unique.join(' · ')
+}
+
+export type VariantAdminSummary = {
+  sku: string
+  axisLines: { name: string; value: string; isColor: boolean }[]
+  fallbackLabel: string
+}
+
+/** Etiqueta corta para modales y auditoría (SKU + ejes; sin nombre largo del padre). */
+export function buildVariantAdminSummary(
+  variant: {
+    sku?: string | null
+    name?: string | null
+    dimensionValues?: Record<string, string> | null
+    customAttributesJson?: string | null
+  },
+  parentName?: string | null,
+  axes?: readonly { name: string; type?: string }[]
+): VariantAdminSummary {
+  const sku = variant.sku?.trim() || 'Sin SKU'
+  const axisLines: VariantAdminSummary['axisLines'] = []
+
+  const attrs: Record<string, string> = {}
+  if (variant.dimensionValues) {
+    for (const [k, v] of Object.entries(variant.dimensionValues)) {
+      if (v?.trim()) attrs[k] = v.trim()
+    }
+  }
+  if (Object.keys(attrs).length === 0 && variant.customAttributesJson) {
+    try {
+      const parsed: unknown = JSON.parse(variant.customAttributesJson)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+          if (typeof v === 'string' && v.trim()) attrs[k] = v.trim()
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  for (const axis of axes ?? []) {
+    const target = axis.name.trim().toLowerCase()
+    let value = ''
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k.trim().toLowerCase() === target) {
+        value = v
+        break
+      }
+    }
+    if (!value) continue
+    axisLines.push({
+      name: axis.name,
+      value,
+      isColor: axis.type === 'color' || isHexColorToken(value),
+    })
+  }
+
+  return {
+    sku,
+    axisLines,
+    fallbackLabel: formatVariantDisplayName(variant.name ?? '', parentName),
+  }
 }

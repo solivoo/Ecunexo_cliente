@@ -85,6 +85,8 @@ export type VariantMatrixBuilderProps = {
   photoScope?: 'variant' | 'group' | 'model'
   variantAttributeFields?: ArchetypeAttributeField[]
   dimensionValuesMap?: Map<string, DimensionLookup>
+  /** Sin banner interno cuando ya está dentro de una SectionCard. */
+  embedded?: boolean
 }
 
 
@@ -162,6 +164,7 @@ export function VariantMatrixBuilder({
   photoScope,
   variantAttributeFields = [],
   dimensionValuesMap,
+  embedded = false,
 }: VariantMatrixBuilderProps) {
   const toast = useToast()
 
@@ -1178,25 +1181,23 @@ export function VariantMatrixBuilder({
 
   return (
     <div className="ecu-matrix-builder">
-      {/* Header Banner */}
-      <div className="ecu-matrix-builder__header">
-        <div className="ecu-matrix-builder__header-info">
-          <div className="ecu-matrix-builder__header-icon">
-            <Layers size={18} />
-          </div>
-          <div>
-            <h4 className="ecu-matrix-builder__header-title">
-              Variantes
-            </h4>
-            <p className="ecu-matrix-builder__header-desc">
-              {baseName.trim()
-                ? `Configura las variantes para «${baseName.trim()}» con sus tallas, caña/largo, colores y fotos independientes.`
-                : 'Configura las variantes con sus tallas, caña/largo, colores y fotos independientes.'}
-            </p>
+      {!embedded && (
+        <div className="ecu-matrix-builder__header">
+          <div className="ecu-matrix-builder__header-info">
+            <div className="ecu-matrix-builder__header-icon">
+              <Layers size={18} />
+            </div>
+            <div>
+              <h4 className="ecu-matrix-builder__header-title">Variantes</h4>
+              <p className="ecu-matrix-builder__header-desc">
+                {baseName.trim()
+                  ? `Combinaciones de «${baseName.trim()}» con código y fotos propias.`
+                  : 'Cada fila es un código vendible con stock.'}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-
+      )}
 
       {/* Actions Bar */}
       <div className="ecu-matrix-bulk-bar">

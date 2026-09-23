@@ -18,7 +18,11 @@ import {
   buildHierarchyPathJson,
   getModelAttributeFields,
   readPhotoChoice,
+  buildVariantAdminSummary,
+  formatVariantDisplayName,
+  isHexColorToken,
 } from '@/lib/catalogArchetype'
+import { VariantAdminSummaryBlock } from '@/pages/catalog/VariantAdminSummaryBlock'
 import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
 import {
   ItemCustomAttributesEditor,
@@ -30,7 +34,7 @@ import {
 } from '@/pages/catalog/ItemCustomAttributesEditor'
 import { CatalogItemImageGallery } from '@/pages/catalog/CatalogItemImageGallery'
 import { EditCatalogItemVariantsSection } from '@/pages/catalog/EditCatalogItemVariantsSection'
-import { ArrowLeft, ArrowLeftRight, Layers } from 'lucide-react'
+import { ArrowLeftRight, Layers } from 'lucide-react'
 import { readApiError } from '@/lib/readApiError'
 import {
   getCatalogItem,
@@ -152,12 +156,29 @@ export function EditCatalogItemPage() {
     return 'model' as const
   }, [familyLevels, item?.isMatrixParent, item?.matrixDescriptor?.axes])
 
+  const isVariantChild = Boolean(item?.parentId)
+
   const showParentImageGallery =
     !!item &&
+    !isVariantChild &&
     (!item.isMatrixParent || photoChoice === 'model' || photoChoice === 'group')
+
+  const showVariantImageGallery = isVariantChild
 
   const showVariantPhotosHint =
     !!item?.isMatrixParent && (photoChoice === 'variant' || photoChoice === 'none')
+
+  const variantAxisEntries = useMemo(() => {
+    if (!item?.parentId || !item.matrixDescriptor?.axes?.length) return []
+    const attrMap = new Map(
+      customAttributes.map((row) => [row.key.trim().toLowerCase(), row.value.trim()])
+    )
+    return item.matrixDescriptor.axes.map((axis) => {
+      const key = axis.name.trim().toLowerCase()
+      const value = attrMap.get(key) ?? ''
+      return { name: axis.name, value, type: axis.type }
+    })
+  }, [customAttributes, item?.matrixDescriptor?.axes, item?.parentId])
 
   const dimensionValuesMap = useMemo(
     () => buildDimensionValuesMap(dimensionTemplates),
@@ -376,6 +397,11 @@ export function EditCatalogItemPage() {
     return opts
   }, [item?.parentId, matrixParents])
 
+  const reassignVariantSummary = useMemo(() => {
+    if (!item?.parentId) return null
+    return buildVariantAdminSummary(item, item.parentName, item.matrixDescriptor?.axes)
+  }, [item])
+
   const reassignmentHistory = useMemo<ReassignmentAuditRecord[]>(() => {
     return extractReassignmentHistory(item?.customAttributesJson)
   }, [item?.customAttributesJson])
@@ -384,8 +410,8 @@ export function EditCatalogItemPage() {
     void navigate('/catalogo/items')
   }, [navigate])
 
-  const actionItems = useMemo<PageActionItem[]>(
-    () => [
+  const actionItems = useMemo<PageActionItem[]>(() => {
+    const items: PageActionItem[] = [
       {
         id: 'list',
         label: 'Listado de ítems',
@@ -407,8 +433,37 @@ export function EditCatalogItemPage() {
         route: '/catalogo/plantillas',
         disabled: false,
       },
-    ],
-    []
+    ]
+
+    if (item?.parentId) {
+      items.push({
+        id: 'view-parent',
+        label: 'Ver Ítem Principal',
+        icon: 'arrow-left',
+        route: `/catalogo/items/${item.parentId}`,
+        disabled: false,
+      })
+      if (canEdit) {
+        items.push({
+          id: 'reassign-variant',
+          label: 'Mover / Reasignar Variante',
+          icon: 'arrow-left-right',
+          route: null,
+          disabled: false,
+        })
+      }
+    }
+
+    return items
+  }, [canEdit, item?.parentId])
+
+  const handlePageActionSelect = useCallback(
+    (action: PageActionItem) => {
+      if (action.id === 'reassign-variant') {
+        void handleOpenReassignModal()
+      }
+    },
+    [handleOpenReassignModal]
   )
 
   const categoryOptions = useMemo(
@@ -545,11 +600,29 @@ export function EditCatalogItemPage() {
     <TenantSessionGate title="Editar ítem" lead="Cambios en el maestro de catálogo.">
       <div className="ecu-dashboard-layout">
         <PageHeader
-          title={item ? item.name : 'Editar Ítem'}
+          title={
+            item
+              ? item.parentId
+                ? item.sku || formatVariantDisplayName(item.name, item.parentName)
+                : item.name
+              : 'Editar Ítem'
+          }
           subtitle={
             item
-              ? `${item.kind === CatalogItemKind.Physical ? 'Producto Físico con SKU' : 'Servicio Intangible'} · ${item.sku ? `SKU: ${item.sku}` : 'Sin código SKU'} · ${item.categoryName ? `Categoría: ${item.categoryName}` : 'Sin categoría'}`
-              : 'Cargando información del ítem…'
+              ? item.parentId
+                ? [
+                    `Variante de «${item.parentName || 'matriz'}»`,
+                    formatVariantDisplayName(item.name, item.parentName),
+                  ].join(' · ')
+                : [
+                    item.kind === CatalogItemKind.Physical ? 'Físico' : 'Servicio',
+                    item.categoryName ?? 'Sin categoría',
+                    item.familyName ? `Plantilla: ${item.familyName}` : null,
+                    item.sku ? `SKU ${item.sku}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+              : 'Cargando…'
           }
           badge={
             item ? (
@@ -559,11 +632,7 @@ export function EditCatalogItemPage() {
                     Variantes ({item.variants?.length ?? 0})
                   </StatusBadge>
                 )}
-                {item.parentId && (
-                  <StatusBadge tone="neutral">
-                    Variante Física
-                  </StatusBadge>
-                )}
+                {item.parentId && <StatusBadge tone="neutral">Variante</StatusBadge>}
                 <StatusBadge
                   tone={Number(status) === CatalogItemStatus.Active ? 'success' : 'neutral'}
                   withDot={Number(status) === CatalogItemStatus.Active}
@@ -580,6 +649,7 @@ export function EditCatalogItemPage() {
               triggerLabel="Acciones de ítem"
               renderIcon={renderSidebarIcon}
               onNavigate={(route: string) => navigate(route)}
+              onActionSelect={handlePageActionSelect}
             />
           }
         />
@@ -590,74 +660,6 @@ export function EditCatalogItemPage() {
           </SectionCard>
         ) : (
           <>
-            {/* Banner contextual si es una variante individual (hijo) */}
-            {item?.parentId && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                  flexWrap: 'wrap',
-                  padding: '1rem 1.25rem',
-                  marginBottom: '1.25rem',
-                  borderRadius: '0.75rem',
-                  border: '1px solid color-mix(in srgb, var(--shell-primary, #4f46e5) 25%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
-                  backgroundColor: 'color-mix(in srgb, var(--shell-primary, #4f46e5) 6%, var(--glb-surface, transparent))',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
-                      backgroundColor: 'color-mix(in srgb, var(--shell-primary, #4f46e5) 15%, transparent)',
-                      color: 'var(--shell-primary, #4f46e5)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Layers size={20} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>Variante Física Individual</span>
-                      <StatusBadge tone="primary">Hijo</StatusBadge>
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--glb-muted, #64748b)', marginTop: '0.125rem' }}>
-                      Pertenece al ítem principal:{' '}
-                      <strong style={{ color: 'var(--glb-text, #1e293b)' }}>«{item.parentName || 'Ítem Principal'}»</strong>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`/catalogo/items/${item.parentId}`)}
-                  >
-                    <ArrowLeft size={14} style={{ marginRight: '0.375rem' }} />
-                    Ver Ítem Principal
-                  </Button>
-                  {canEdit && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void handleOpenReassignModal()}
-                    >
-                      <ArrowLeftRight size={14} style={{ marginRight: '0.375rem' }} />
-                      Mover / Reasignar Variante
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Banner si es producto físico independiente para vincularlo como variante */}
             {!item?.parentId && !item?.isMatrixParent && Number(kind) === CatalogItemKind.Physical && canEdit && (
               <div
@@ -677,7 +679,7 @@ export function EditCatalogItemPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <Layers size={18} style={{ color: 'var(--glb-muted, #64748b)' }} />
                   <div style={{ fontSize: '0.85rem', color: 'var(--glb-muted, #64748b)' }}>
-                    Este es un producto individual sin producto matriz padre. Puedes vincularlo como variante de una matriz existente.
+                    Producto suelto: puedes vincularlo a una matriz existente.
                   </div>
                 </div>
                 <Button
@@ -692,118 +694,77 @@ export function EditCatalogItemPage() {
               </div>
             )}
 
-            {/* Banner informativo si es un producto matriz (padre) */}
-            {item?.isMatrixParent && (
+            {isVariantChild && variantAxisEntries.length > 0 && (
               <div
                 style={{
                   display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                  marginBottom: '1rem',
                   alignItems: 'center',
-                  gap: '0.875rem',
-                  padding: '1rem 1.25rem',
-                  marginBottom: '1.25rem',
-                  borderRadius: '0.75rem',
-                  border: '1px solid color-mix(in srgb, #3b82f6 25%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
-                  backgroundColor: 'color-mix(in srgb, #3b82f6 6%, var(--glb-surface, transparent))',
                 }}
               >
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    backgroundColor: 'color-mix(in srgb, #3b82f6 15%, transparent)',
-                    color: '#3b82f6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Layers size={20} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                    Ítem con Variantes (Tallas / Colores)
-                  </div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--glb-muted, #64748b)', marginTop: '0.125rem' }}>
-                    Este ítem agrupa la vitrina comercial. Las variantes gestionan el inventario independiente, fotos, códigos de barras y ventas en la sección inferior.
-                  </div>
-                </div>
+                <span className="app-shell__muted" style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                  Combinación:
+                </span>
+                {variantAxisEntries.map((entry) => (
+                  <StatusBadge key={entry.name} tone="neutral">
+                    {entry.name}:{' '}
+                    {entry.type === 'color' || isHexColorToken(entry.value) ? (
+                      <span
+                        aria-hidden
+                        style={{
+                          display: 'inline-block',
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          marginLeft: 4,
+                          verticalAlign: 'middle',
+                          backgroundColor: entry.value || '#ccc',
+                          border: '1px solid rgba(0,0,0,0.15)',
+                        }}
+                      />
+                    ) : (
+                      entry.value || '—'
+                    )}
+                  </StatusBadge>
+                ))}
               </div>
             )}
 
-            {(item?.familyName || hierarchyPath.length > 0) && (
+            {hierarchyPath.length > 0 && !isVariantChild && (
               <div
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
                   flexWrap: 'wrap',
-                  padding: '1rem 1.25rem',
-                  marginBottom: '1.25rem',
-                  borderRadius: '0.75rem',
-                  border: '1px solid color-mix(in srgb, #8b5cf6 25%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
-                  backgroundColor: 'color-mix(in srgb, #8b5cf6 6%, var(--glb-surface, transparent))',
+                  gap: '0.4rem',
+                  marginBottom: '1rem',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
-                      backgroundColor: 'color-mix(in srgb, #8b5cf6 15%, transparent)',
-                      color: '#8b5cf6',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Layers size={20} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                      Arquetipo: {item?.familyName || 'Familia de producto'}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--glb-muted, #64748b)', marginTop: '0.125rem' }}>
-                      Contexto jerárquico registrado al crear el ítem.
-                    </div>
-                  </div>
-                </div>
-                {hierarchyPath.length > 0 && (
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {hierarchyPath.map((entry, idx) => (
-                      <span
-                        key={`${entry.level}-${entry.name}-${idx}`}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          padding: '0.25rem 0.625rem',
-                          borderRadius: '999px',
-                          fontSize: '0.8rem',
-                          backgroundColor: 'color-mix(in srgb, #8b5cf6 12%, var(--glb-surface, transparent))',
-                          border: '1px solid color-mix(in srgb, #8b5cf6 25%, transparent)',
-                        }}
-                      >
-                        <strong>{entry.name}:</strong> {entry.value}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {hierarchyPath.map((entry, idx) => (
+                  <StatusBadge key={`${entry.level}-${entry.name}-${idx}`} tone="neutral">
+                    {entry.name}: {entry.value}
+                  </StatusBadge>
+                ))}
               </div>
             )}
 
             <form onSubmit={(e) => void onSubmit(e)} noValidate>
-            {modelAttributeFields.length > 0 && (
+            {modelAttributeFields.length > 0 && !isVariantChild && (
               <SectionCard
-                title="Modelo del Arquetipo"
-                subtitle={
-                  familyTemplate
-                    ? `Estructura guiada por «${familyTemplate.name}»`
-                    : 'Estructura guiada por el arquetipo del producto'
+                title="Datos del modelo"
+                subtitle={familyTemplate?.name}
+                action={
+                  familyTemplate ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/catalogo/plantillas/${familyTemplate.id}`)}
+                    >
+                      Editar plantilla
+                    </Button>
+                  ) : undefined
                 }
               >
                 <ArchetypeModelFields
@@ -815,14 +776,7 @@ export function EditCatalogItemPage() {
                 />
               </SectionCard>
             )}
-            <SectionCard
-              title="Ficha del Ítem"
-              subtitle={
-                familyTemplate
-                  ? 'Parámetros comerciales y asignación taxonómica'
-                  : 'Parámetros comerciales, asignación taxonómica y atributos dinámicos'
-              }
-            >
+            <SectionCard title={isVariantChild ? 'Datos del código' : 'Ficha comercial'}>
               {error ? (
                 <div className="ecu-form-error-banner" role="alert">
                   <span className="material-symbols-outlined">error</span>
@@ -843,23 +797,25 @@ export function EditCatalogItemPage() {
                     ]}
                     value={kind}
                     onChange={setKind}
-                    disabled={busy}
+                    disabled={busy || isVariantChild}
                     fullWidth
                   />
                 </div>
-                <div className="ecu-companies-form__field">
-                  <Select
-                    id="ei-cat"
-                    label="Categoría"
-                    labelPosition="outlined"
-                    variant="outline"
-                    options={categoryOptions}
-                    value={categoryId}
-                    onChange={setCategoryId}
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
+                {!isVariantChild && (
+                  <div className="ecu-companies-form__field">
+                    <Select
+                      id="ei-cat"
+                      label="Categoría"
+                      labelPosition="outlined"
+                      variant="outline"
+                      options={categoryOptions}
+                      value={categoryId}
+                      onChange={setCategoryId}
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
                 <div className="ecu-companies-form__field">
                   <Select
                     id="ei-status"
@@ -943,116 +899,39 @@ export function EditCatalogItemPage() {
                   borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
                 }}
               >
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <EcuTagInput
-                    tags={tags}
-                    onChange={setTags}
-                    label="Etiquetas Jerárquicas del Producto (Tags)"
-                    placeholder="Añadir etiqueta (ej. Deportivo, Premium, Temporada 2026)..."
-                    helperText="Estas etiquetas indexan el producto para búsquedas en Punto de Venta (POS), tienda online y se heredan automáticamente a todas las variantes físicas."
-                    suggestedTags={suggestedTags}
-                    disabled={busy}
-                  />
-                </div>
+                {!isVariantChild && (
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <EcuTagInput
+                      tags={tags}
+                      onChange={setTags}
+                      label="Etiquetas"
+                      placeholder="Deportivo, Premium, temporada…"
+                      helperText="Búsqueda en POS y tienda; se heredan a las variantes."
+                      suggestedTags={suggestedTags}
+                      disabled={busy}
+                    />
+                  </div>
+                )}
 
-                {familyTemplate ? (
+                {familyTemplate && freeAttributeRows.length > 0 && (
                   <div
                     style={{
                       display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '0.85rem',
+                      gap: '0.35rem',
                       flexWrap: 'wrap',
-                      padding: '1rem 1.25rem',
-                      marginTop: '0.5rem',
-                      borderRadius: '0.75rem',
-                      border:
-                        '1px solid color-mix(in srgb, #8b5cf6 25%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
-                      backgroundColor:
-                        'color-mix(in srgb, #8b5cf6 6%, var(--glb-surface, transparent))',
+                      marginBottom: '1rem',
                     }}
                   >
-                    <div
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: '50%',
-                        backgroundColor: 'color-mix(in srgb, #8b5cf6 15%, transparent)',
-                        color: '#8b5cf6',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Layers size={18} />
-                    </div>
-                    <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                        Estructura definida por la plantilla «{familyTemplate.name}»
-                      </div>
-                      <div
-                        style={{
-                          fontSize: '0.85rem',
-                          color: 'var(--glb-muted, #64748b)',
-                          marginTop: '0.125rem',
-                        }}
-                      >
-                        Los niveles y atributos del producto se administran en la plantilla; aquí
-                        solo completas sus valores. Para agregar o quitar atributos, edita la
-                        plantilla.
-                      </div>
-                      {freeAttributeRows.length > 0 && (
-                        <div
-                          style={{
-                            display: 'flex',
-                            gap: '0.35rem',
-                            flexWrap: 'wrap',
-                            marginTop: '0.6rem',
-                          }}
-                        >
-                          {freeAttributeRows.map((row) => (
-                            <span
-                              key={row.id}
-                              title="Atributo adicional registrado (solo lectura)"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.3rem',
-                                padding: '0.15rem 0.5rem',
-                                borderRadius: '999px',
-                                fontSize: '0.72rem',
-                                fontWeight: 600,
-                                border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.12))',
-                                backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.04))',
-                              }}
-                            >
-                              <span style={{ opacity: 0.75 }}>{row.key}:</span>
-                              <span>{row.value || '—'}</span>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/catalogo/plantillas/${familyTemplate.id}`)}
-                    >
-                      Administrar plantilla
-                    </Button>
+                    {freeAttributeRows.map((row) => (
+                      <StatusBadge key={row.id} tone="neutral">
+                        {row.key}: {row.value || '—'}
+                      </StatusBadge>
+                    ))}
                   </div>
-                ) : (
+                )}
+
+                {!familyTemplate && (
                   <>
-                    <div style={{ marginBottom: '1rem' }}>
-                      <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem', fontWeight: 600 }}>
-                        Especificaciones y Atributos Adicionales
-                      </h4>
-                      <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.85rem' }}>
-                        Define propiedades técnicas, comerciales o informativas propias de este
-                        producto (ej. Material, Marca, Garantía, etc.).
-                      </p>
-                    </div>
                     <ItemCustomAttributesEditor
                       attributes={freeAttributeRows}
                       onChange={handleFreeAttributesChange}
@@ -1105,6 +984,9 @@ export function EditCatalogItemPage() {
               canEdit={canEdit}
               remainingVariants={remainingVariants}
               maxVariants={maxVariants}
+              photoHint={
+                showVariantPhotosHint ? 'Fotos por SKU en Administrar (sm / lg / xl)' : null
+              }
               onRefreshRequired={async () => {
                 const fresh = await getCatalogItem(tenantId, item.id)
                 setItem(fresh)
@@ -1112,16 +994,16 @@ export function EditCatalogItemPage() {
             />
           )}
 
-          {tenantId && item && showParentImageGallery && (
+          {tenantId && item && (showParentImageGallery || showVariantImageGallery) && (
             <div className="mt-6">
               <SectionCard
-                title="Imágenes del Producto"
+                title={showVariantImageGallery ? 'Fotos de este código' : 'Imágenes'}
                 subtitle={
-                  item.isMatrixParent && photoChoice === 'group'
-                    ? 'Fotos compartidas por grupo (ej. color). Se heredan en las variantes de ese grupo.'
-                    : item.isMatrixParent
-                      ? 'Fotos del modelo: se comparten con todas las variaciones.'
-                      : 'Galería e-commerce con compresión WebP y 3 variantes responsive (sm / lg / xl)'
+                  showVariantImageGallery
+                    ? 'Galería del SKU · WebP sm / lg / xl · orden y portada'
+                    : item.isMatrixParent && photoChoice === 'group'
+                      ? 'Compartidas por grupo (ej. color)'
+                      : 'Del producto · WebP sm / lg / xl'
                 }
               >
                 <CatalogItemImageGallery
@@ -1129,28 +1011,12 @@ export function EditCatalogItemPage() {
                   itemId={item.id}
                   images={item.images ?? []}
                   canEdit={canEdit}
+                  compact
                   onImagesChanged={async () => {
                     const fresh = await getCatalogItem(tenantId, item.id)
                     setItem(fresh)
                   }}
                 />
-              </SectionCard>
-            </div>
-          )}
-
-          {tenantId && item && showVariantPhotosHint && (
-            <div className="mt-6">
-              <SectionCard
-                title="Fotos por código"
-                subtitle="Esta plantilla no usa galería del producto padre."
-              >
-                <p
-                  className="app-shell__muted"
-                  style={{ margin: 0, fontSize: '0.85rem', lineHeight: 1.5 }}
-                >
-                  Cada SKU tiene su propia galería (varias imágenes × sm / lg / xl). Adminístralas
-                  desde <strong>Variantes</strong> con el lápiz de cada fila.
-                </p>
               </SectionCard>
             </div>
           )}
@@ -1264,7 +1130,7 @@ export function EditCatalogItemPage() {
 
       <Popup
         open={reassignModalOpen}
-        title="Reasignar Producto Matriz / Mover Variante"
+        title="Mover variante a otra matriz"
         onClose={() => {
           if (!reassigning) setReassignModalOpen(false)
         }}
@@ -1301,10 +1167,15 @@ export function EditCatalogItemPage() {
               fontSize: '0.85rem',
             }}
           >
-            <div>
-              <strong>Ítem a mover:</strong> {item?.name} {item?.sku ? `(${item.sku})` : ''}
-            </div>
-            <div style={{ marginTop: '0.25rem', color: 'var(--glb-muted, #64748b)' }}>
+            {reassignVariantSummary ? (
+              <VariantAdminSummaryBlock summary={reassignVariantSummary} label="Variante" />
+            ) : null}
+            <div style={{ marginTop: '0.5rem', color: 'var(--glb-muted, #64748b)' }}>
+              {item?.parentName ? (
+                <>
+                  Matriz actual: <strong>«{item.parentName}»</strong>.{' '}
+                </>
+              ) : null}
               El SKU, código de barras, facturación histórica y stock en bodega se conservan intactos.
               El cambio quedará registrado en el historial inmutable de auditoría.
             </div>

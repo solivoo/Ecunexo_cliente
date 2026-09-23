@@ -339,18 +339,6 @@ export function CreateCatalogItemPage() {
           dimensionValuesMap
         )
 
-        console.log('[Crear Ítem] Guardando con plantilla', {
-          plantillaId: familyId,
-          plantillaNombre: appliedTemplate?.name ?? null,
-          nivelesPlantilla: appliedTemplateLevels,
-          alcanceFotos: appliedTemplate ? photoChoice : null,
-          atributosModelo: customAttributes,
-          rutaJerarquica: hierarchyPathJson,
-          dimensionesVariantes: matrixData.variantDimensionsJson,
-          variantes: matrixData.variants,
-          fotosPorGrupo: matrixData.groupImages,
-        })
-
         if (usesMatrix && kindNum === CatalogItemKind.Physical) {
           if (!matrixData.isValid || matrixData.variants.length === 0) {
             throw new Error(matrixData.invalidReason ?? 'Debes configurar al menos una variante con SKU.')
@@ -563,7 +551,7 @@ export function CreateCatalogItemPage() {
       <div className="ecu-dashboard-layout">
         <PageHeader
           title="Nuevo producto"
-          subtitle="Completa la ficha. Si eliges una plantilla, los niveles y las variaciones ya vienen armados."
+          subtitle="Elige plantilla o producto simple; el formulario muestra solo lo necesario."
           badge={
             <StatusBadge tone="primary" withDot>
               Alta
@@ -587,7 +575,7 @@ export function CreateCatalogItemPage() {
         />
 
         <form id="create-catalog-item" onSubmit={(e) => void onSubmit(e)} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <SectionCard title="Cómo lo registras" subtitle="Elige la forma. El resto del formulario muestra solo lo que ese camino necesita.">
+          <SectionCard title="Cómo lo registras">
             <div
               style={{
                 display: 'grid',
@@ -652,10 +640,7 @@ export function CreateCatalogItemPage() {
             )}
           </SectionCard>
 
-          <SectionCard
-            title="Datos del producto"
-            subtitle="Nombre, categoría y precio. Van en todos los productos."
-          >
+          <SectionCard title="Datos del producto">
             {error ? (
               <div className="ecu-form-error-banner" role="alert">
                 <span className="material-symbols-outlined">error</span>
@@ -748,7 +733,6 @@ export function CreateCatalogItemPage() {
               <SectionCard
                 key={group.key}
                 title={group.title}
-                subtitle="Datos que se completan una sola vez en este nivel."
               >
                 <ArchetypeModelFields
                   fields={group.fields}
@@ -783,8 +767,12 @@ export function CreateCatalogItemPage() {
 
           {usesMatrix && (
               <SectionCard
-                title={templateAllDimensions?.map((d) => d.name).join(', ') || 'Variaciones'}
-                subtitle="Cada combinación tiene su propio código y su stock."
+                title="Variaciones"
+                subtitle={
+                  templateAllDimensions?.length
+                    ? `Ejes: ${templateAllDimensions.map((d) => d.name).join(' × ')}`
+                    : undefined
+                }
               >
                 {remainingVariants != null && (
                   <div
@@ -826,27 +814,19 @@ export function CreateCatalogItemPage() {
                   photoScope={matrixPhotoScope}
                   variantAttributeFields={variantAttributeFields}
                   dimensionValuesMap={dimensionValuesMap}
+                  embedded
                 />
               </SectionCard>
           )}
 
-          <SectionCard>
-            <div
-              className="ecu-companies-form__actions"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-              }}
-            >
-              <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-                {uploadStatus || 'Guardar producto'}
-              </Button>
-              <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
-                Cancelar
-              </Button>
-            </div>
-          </SectionCard>
+          <div
+            className="ecu-companies-form__actions"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingTop: '0.25rem' }}
+          >
+            <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
+              Cancelar
+            </Button>
+          </div>
         </form>
       </div>
     </TenantSessionGate>

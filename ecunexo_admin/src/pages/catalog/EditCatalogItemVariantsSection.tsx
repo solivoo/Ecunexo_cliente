@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormE
 import { useNavigate } from 'react-router-dom'
 import { Button, ColorPicker, DataGrid, DEFAULT_COLOR_PRESETS, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
 import { ArrowLeftRight, Camera, Palette, Pencil, Plus, RefreshCw, Sparkles, X } from 'lucide-react'
-import { SectionCard, StatCard, StatusBadge } from '@/components/ui'
+import { SectionCard, StatusBadge } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
@@ -20,7 +20,26 @@ import {
   type CatalogItemListItemDto,
   type CatalogItemVariantSummaryDto,
 } from '@/types/catalogApi'
-import { formatVariantDisplayName, isHexColorToken } from '@/lib/catalogArchetype'
+import { buildVariantAdminSummary, formatVariantDisplayName, isHexColorToken } from '@/lib/catalogArchetype'
+import { VariantAdminSummaryBlock } from '@/pages/catalog/VariantAdminSummaryBlock'
+import type { CatalogMatrixAxisDto } from '@/types/catalogApi'
+
+function resolveRowAxisValue(
+  row: CatalogItemVariantSummaryDto,
+  axisName: string,
+  parseAttributes: (json: string) => Record<string, string>
+): string {
+  const fromMap = row.dimensionValues?.[axisName]
+  if (fromMap?.trim()) return fromMap.trim()
+  const attrs = parseAttributes(row.customAttributesJson || '{}')
+  const target = axisName.trim().toLowerCase()
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key.trim().toLowerCase() === target) {
+      return String(value ?? '').trim()
+    }
+  }
+  return ''
+}
 
 export type EditCatalogItemVariantsSectionProps = {
   readonly tenantId: string
@@ -29,6 +48,8 @@ export type EditCatalogItemVariantsSectionProps = {
   readonly canEdit: boolean
   readonly remainingVariants?: number | null
   readonly maxVariants?: number | null
+  /** Aviso breve cuando las fotos van por SKU (no en el padre). */
+  readonly photoHint?: string | null
 }
 
 type VariantDimensionDef = {
@@ -48,6 +69,7 @@ export function EditCatalogItemVariantsSection({
   canEdit,
   remainingVariants = null,
   maxVariants = null,
+  photoHint = null,
 }: EditCatalogItemVariantsSectionProps) {
   const toast = useToast()
   const navigate = useNavigate()
@@ -93,6 +115,15 @@ export function EditCatalogItemVariantsSection({
     [parentItem.id, tenantId, toast]
   )
 
+  const selectedVariantSummary = useMemo(() => {
+    if (!selectedVariant) return null
+    return buildVariantAdminSummary(
+      selectedVariant,
+      parentItem.name,
+      parentItem.matrixDescriptor?.axes
+    )
+  }, [parentItem.matrixDescriptor?.axes, parentItem.name, selectedVariant])
+
   const handleReassignSubmit = useCallback(async () => {
     if (!tenantId || !selectedVariant) return
     if (!reassignReason.trim() || reassignReason.trim().length < 3) {
@@ -112,7 +143,7 @@ export function EditCatalogItemVariantsSection({
       })
       toast.show({
         title: 'Variante reasignada',
-        message: `La variante «${selectedVariant.name}» se movió exitosamente.`,
+        message: `La variante ${selectedVariant.sku?.trim() || selectedVariant.name} se movió exitosamente.`,
         variant: 'success',
       })
       setReassignModalOpen(false)
@@ -437,185 +468,82 @@ export function EditCatalogItemVariantsSection({
     }
   }, [colorDraft, colorsModalVariant, onRefreshRequired, parentItem, tenantId, toast])
 
-  const columns = useMemo<ColumnDef<VariantRow>[]>(
-    () => [
-      {
-        key: 'mainImageThumbUrl',
-        header: 'Foto',
-        width: 65,
-        renderCell: (_value: unknown, row: VariantRow) => {
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {row.mainImageThumbUrl ? (
-                <div style={{ position: 'relative' }}>
-                  <img
-                    src={row.mainImageThumbUrl}
-                    alt={row.name}
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 6,
-                      objectFit: 'cover',
-                      border: '1px solid var(--glb-border, #e2e8f0)',
-                    }}
-                    title={
-                      row.imageInherited
-                        ? row.imageInheritedFrom === 'group'
-                          ? 'Imagen compartida del grupo'
-                          : 'Imagen heredada del modelo'
-                        : row.name
-                    }
-                  />
-                  {row.imageInherited && (
-                    <span
-                      style={{
-                        position: 'absolute',
-                        bottom: -4,
-                        right: -4,
-                        padding: '0 4px',
-                        borderRadius: 4,
-                        fontSize: '0.6rem',
-                        fontWeight: 700,
-                        lineHeight: 1.4,
-                        background:
-                          row.imageInheritedFrom === 'group'
-                            ? 'color-mix(in srgb, #0d9488 90%, #000)'
-                            : 'color-mix(in srgb, #8b5cf6 85%, #000)',
-                        color: '#fff',
-                      }}
-                      title={
-                        row.imageInheritedFrom === 'group'
-                          ? 'Imagen compartida del grupo'
-                          : 'Imagen heredada del modelo'
-                      }
-                    >
-                      {row.imageInheritedFrom === 'group' ? 'G' : 'M'}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 6,
-                    border: '1px dashed var(--glb-border, #cbd5e1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--glb-muted, #94a3b8)',
-                    background: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.02))',
-                  }}
-                  title="Sin foto asignada"
-                >
-                  <Camera size={16} />
-                </div>
-              )}
-            </div>
-          )
-        },
-      },
-      {
-        key: 'name',
-        header: 'Variación',
-        width: 260,
-        renderCell: (_value: unknown, row: VariantRow) => {
-          const attrs = parseAttributes(row.customAttributesJson)
-          const values = Object.entries(attrs)
-            .filter(([key, value]) => {
-              const k = key.trim().toLowerCase()
-              const v = String(value ?? '').trim()
-              if (!v) return false
-              if (k === 'extracolors' || k === 'extra_colors' || k === 'colors') return false
-              if (isHexColorToken(v)) return false
-              return true
-            })
-            .map(([, value]) => String(value).trim())
+  const matrixAxes = useMemo<CatalogMatrixAxisDto[]>(
+    () => parentItem.matrixDescriptor?.axes ?? [],
+    [parentItem.matrixDescriptor?.axes]
+  )
 
-          if (values.length > 0) {
-            return (
-              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }} title={row.name}>
-                {values.map((value) => (
-                  <span
-                    key={value}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '0.15rem 0.5rem',
-                      borderRadius: '4px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      backgroundColor:
-                        'color-mix(in srgb, var(--shell-primary, #4f46e5) 10%, var(--glb-surface, #ffffff))',
-                      color: 'var(--shell-primary, #4f46e5)',
-                      border: '1px solid color-mix(in srgb, var(--shell-primary, #4f46e5) 20%, transparent)',
-                    }}
-                  >
-                    {value}
-                  </span>
-                ))}
-              </div>
-            )
-          }
+  const openVariantAdmin = useCallback(
+    (variantId: string) => {
+      navigate(`/catalogo/items/${variantId}`)
+    },
+    [navigate]
+  )
 
+  const columns = useMemo<ColumnDef<VariantRow>[]>(() => {
+    const axisColumns = matrixAxes.map((axis) => ({
+      key: `axis-${axis.name}`,
+      header: axis.name,
+      width: axis.type === 'color' ? 76 : 108,
+      renderCell: (_value: unknown, row: VariantRow) => {
+        const raw = resolveRowAxisValue(row, axis.name, parseAttributes)
+        if (!raw) {
           return (
-            <span
-              title={row.name}
-              style={{ fontWeight: 600, color: 'var(--glb-text, #1e293b)', fontSize: '0.875rem' }}
-            >
-              {formatVariantDisplayName(row.name, parentItem.name)}
+            <span className="app-shell__muted" style={{ fontSize: '0.8rem' }}>
+              —
             </span>
           )
-        },
-      },
-      {
-        key: 'extraColors',
-        header: 'Colores',
-        width: 120,
-        renderCell: (_value: unknown, row: VariantRow) => {
-          const colors = Array.isArray(row.extraColors) ? row.extraColors : []
-          const attrs = parseAttributes(row.customAttributesJson)
-          const axisHexes = Object.values(attrs)
-            .map((value) => String(value ?? '').trim())
-            .filter((value) => isHexColorToken(value))
-            .map((value) => value.toLowerCase())
-          const swatches = Array.from(new Set([...colors, ...axisHexes]))
-          if (swatches.length === 0) {
-            return (
-              <span className="app-shell__muted" style={{ fontSize: '0.8rem' }}>
-                —
-              </span>
-            )
-          }
+        }
+        if (axis.type === 'color' || isHexColorToken(raw)) {
+          const hex = raw.toLowerCase()
           return (
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              {swatches.map((hex) => (
-                <span
-                  key={hex}
-                  title={hex}
-                  aria-label={`Color ${hex}`}
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: '50%',
-                    border: '1px solid rgba(148, 163, 184, 0.55)',
-                    backgroundColor: hex,
-                    flexShrink: 0,
-                  }}
-                />
-              ))}
-            </div>
+            <span
+              title={hex}
+              aria-label={`Color ${hex}`}
+              style={{
+                display: 'inline-block',
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                border: '1px solid rgba(148, 163, 184, 0.55)',
+                backgroundColor: hex,
+              }}
+            />
           )
-        },
+        }
+        return (
+          <span style={{ fontSize: '0.82rem', fontWeight: 600 }} title={raw}>
+            {raw}
+          </span>
+        )
       },
+    })) as unknown as ColumnDef<VariantRow>[]
+
+    return [
+      ...axisColumns,
       {
         key: 'sku',
         header: 'SKU',
-        width: 140,
+        width: 168,
         renderCell: (_value: unknown, row: VariantRow) => (
-          <code className="ecu-code" style={{ fontSize: '0.8rem' }}>
+          <button
+            type="button"
+            onClick={() => openVariantAdmin(row.id)}
+            className="ecu-code"
+            style={{
+              fontSize: '0.8rem',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              color: 'var(--shell-primary, #4f46e5)',
+              fontWeight: 700,
+              textAlign: 'left',
+            }}
+            title="Administrar esta variante (fotos, precio, datos)"
+          >
             {row.sku || '—'}
-          </code>
+          </button>
         ),
       },
       {
@@ -643,17 +571,15 @@ export function EditCatalogItemVariantsSection({
       },
       {
         key: 'actions',
-        header: 'Acciones',
-        width: 128,
+        header: '',
+        width: 112,
         sticky: 'right',
         renderCell: (_value: unknown, row: VariantRow) => (
           <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
             <GridIconButton
-              label="Editar variante"
+              label="Administrar variante"
               icon={Pencil}
-              onClick={() => {
-                navigate(`/catalogo/items/${row.id}`)
-              }}
+              onClick={() => openVariantAdmin(row.id)}
             />
             {canEdit && (
               <GridIconButton
@@ -676,47 +602,32 @@ export function EditCatalogItemVariantsSection({
           </div>
         ),
       },
-    ],
-    [canEdit, handleOpenColorsModal, handleOpenReassignModal, navigate, parentItem.name, parseAttributes]
-  )
+    ]
+  }, [
+    canEdit,
+    handleOpenColorsModal,
+    handleOpenReassignModal,
+    matrixAxes,
+    openVariantAdmin,
+    parseAttributes,
+  ])
+
+  const variantsSubtitle = useMemo(() => {
+    const parts: string[] = []
+    parts.push('Listado compacto; fotos y ficha completa en Administrar')
+    if (photoHint?.trim()) parts.push(photoHint.trim())
+    parts.push(
+      `${variants.length} ${variants.length === 1 ? 'combinación' : 'combinaciones'} · ${activeCount} activas`
+    )
+    if (priceRangeLabel !== '—') parts.push(`Precios ${priceRangeLabel}`)
+    return parts.join(' · ')
+  }, [activeCount, photoHint, priceRangeLabel, variants.length])
 
   return (
-    <div style={{ marginTop: '1.5rem' }}>
-      {/* Tira de KPIs de la matriz */}
-      <div className="ecu-stat-grid" aria-label="Métricas de la matriz de variantes" style={{ marginBottom: '1rem' }}>
-        <StatCard
-          label="Total Variantes"
-          value={String(variants.length)}
-          icon="layers"
-          toneColor="#4f46e5"
-          footerText="Combinaciones registradas"
-        />
-        <StatCard
-          label="Variantes Activas"
-          value={String(activeCount)}
-          icon="check_circle"
-          toneColor="#10b981"
-          footerText="Disponibles para venta"
-        />
-        <StatCard
-          label="Rango de Precios"
-          value={priceRangeLabel}
-          icon="attach_money"
-          toneColor="#8b5cf6"
-          footerText="Precios por variante"
-        />
-        <StatCard
-          label="SKU del Modelo"
-          value={parentItem.sku || 'Sin código'}
-          icon="qr_code_2"
-          toneColor="#0ea5e9"
-          footerText="Código agrupador de la matriz"
-        />
-      </div>
-
+    <div style={{ marginTop: '1.25rem' }}>
       <SectionCard
         title="Variantes"
-        subtitle="SKU, precio, colores y stock de cada combinación"
+        subtitle={variantsSubtitle}
         action={
           canEdit ? (
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -973,7 +884,7 @@ export function EditCatalogItemVariantsSection({
         onClose={() => {
           if (!reassigning) setReassignModalOpen(false)
         }}
-        title="Reasignar / Mover Variante a Otro Producto Matriz"
+        title="Mover variante a otra matriz"
         width="min(92vw, 32rem)"
         actions={[
           {
@@ -1002,10 +913,8 @@ export function EditCatalogItemVariantsSection({
               fontSize: '0.85rem',
             }}
           >
-            <div>
-              <strong>Variante:</strong> {selectedVariant?.name} {selectedVariant?.sku ? `(${selectedVariant.sku})` : ''}
-            </div>
-            <div style={{ marginTop: '0.25rem', color: 'var(--glb-muted, #64748b)' }}>
+            {selectedVariantSummary ? <VariantAdminSummaryBlock summary={selectedVariantSummary} /> : null}
+            <div style={{ marginTop: '0.5rem', color: 'var(--glb-muted, #64748b)' }}>
               Matriz actual: <strong>«{parentItem.name}»</strong>. El SKU, historial de facturación y stock en bodega se conservan intactos.
             </div>
           </div>

@@ -30,6 +30,8 @@ export type CatalogItemImageGalleryProps = {
   readonly images: CatalogItemImageDto[]
   readonly canEdit: boolean
   readonly onImagesChanged: () => Promise<void>
+  /** Oculta título/banner interno cuando la SectionCard ya contextualiza la galería. */
+  readonly compact?: boolean
 }
 
 const MAX_IMAGES = 8
@@ -40,6 +42,7 @@ export function CatalogItemImageGallery({
   images,
   canEdit,
   onImagesChanged,
+  compact = false,
 }: CatalogItemImageGalleryProps) {
   const toast = useToast()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -286,16 +289,22 @@ export function CatalogItemImageGallery({
 
   return (
     <div className="ecu-product-gallery">
-      {/* Banner Informativo con cuota e-commerce */}
-      <div className="ecu-product-gallery__banner">
-        <div>
-          <h4 className="ecu-product-gallery__title">
-            Galería E-commerce & Catálogo Digital
-          </h4>
-          <p className="ecu-product-gallery__subtitle">
-            Compresión automática a WebP Full HD en 3 variantes responsive (Thumb 200px, Medium 800px, Large 1600px).
-          </p>
-        </div>
+      <div
+        className="ecu-product-gallery__banner"
+        style={
+          compact
+            ? { alignItems: 'center', justifyContent: 'flex-end', marginBottom: '0.65rem' }
+            : undefined
+        }
+      >
+        {!compact ? (
+          <div>
+            <h4 className="ecu-product-gallery__title">Galería E-commerce & Catálogo Digital</h4>
+            <p className="ecu-product-gallery__subtitle">
+              WebP en 3 tamaños (sm / lg / xl) para listados, ficha y zoom.
+            </p>
+          </div>
+        ) : null}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           <span className="ecu-product-gallery__count-badge">
@@ -415,39 +424,43 @@ export function CatalogItemImageGallery({
       )}
 
       {/* Grid de imágenes de producto */}
-      {sortedImages.length === 0 ? (
+      {sortedImages.length === 0 && !(compact && canEdit) ? (
         <div
           style={{
-            padding: '2.5rem 1rem',
+            padding: compact ? '1.25rem 1rem' : '2.5rem 1rem',
             textAlign: 'center',
             borderRadius: '0.75rem',
             background: 'var(--glb-surface-muted)',
             border: '1px solid var(--shell-border)',
           }}
         >
-          <div
-            style={{
-              width: '3rem',
-              height: '3rem',
-              borderRadius: '50%',
-              background: 'var(--glb-surface)',
-              border: '1px solid var(--shell-border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 0.75rem auto',
-              color: 'var(--shell-muted)',
-            }}
-          >
-            <ImageIcon size={24} aria-hidden />
-          </div>
+          {!compact && (
+            <div
+              style={{
+                width: '3rem',
+                height: '3rem',
+                borderRadius: '50%',
+                background: 'var(--glb-surface)',
+                border: '1px solid var(--shell-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 0.75rem auto',
+                color: 'var(--shell-muted)',
+              }}
+            >
+              <ImageIcon size={24} aria-hidden />
+            </div>
+          )}
           <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--shell-text)' }}>
             Sin imágenes de producto aún
           </h4>
-          <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.75rem', color: 'var(--shell-muted)' }}>
-            Las fotos que subas aquí definirán la portada y el carrusel interactivo en tu tienda online.
-          </p>
-          {canEdit && (
+          {!compact && (
+            <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.75rem', color: 'var(--shell-muted)' }}>
+              Las fotos que subas aquí definirán la portada y el carrusel interactivo en tu tienda online.
+            </p>
+          )}
+          {canEdit && !compact && (
             <div style={{ marginTop: '0.85rem' }}>
               <Button
                 type="button"

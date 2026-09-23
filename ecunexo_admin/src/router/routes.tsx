@@ -86,6 +86,7 @@ import JournalEntryCreatePage from '@/pages/accounting/JournalEntryCreatePage'
 import TaxDeclarationsPage from '@/pages/accounting/TaxDeclarationsPage'
 import FinancialStatementsPage from '@/pages/accounting/FinancialStatementsPage'
 import { DashboardLayout } from '@/shell/DashboardLayout'
+import { NotFoundPage, RouteErrorPage } from '@/pages/errors'
 
 const placeholder = (title: string): RouteObject => ({
   element: <ModulePlaceholderPage />,
@@ -104,9 +105,11 @@ export const routes: RouteObject[] = [
   },
   {
     element: <RequireAuth />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         element: <DashboardLayout />,
+        errorElement: <RouteErrorPage />,
         children: [
           { path: 'inicio', element: <DashboardPage /> },
           { path: 'organizacion/perfil', element: <OrganizationProfilePage /> },
@@ -252,8 +255,10 @@ export const routes: RouteObject[] = [
             element: <Navigate to="/organizacion/facturacion-electronica" replace />,
           },
           { path: 'contabilidad/configuracion/impuestos', ...placeholder('Impuestos') },
+          { path: '*', element: <NotFoundPage embedded /> },
         ],
       },
     ],
   },
+  { path: '*', element: <NotFoundPage /> },
 ]

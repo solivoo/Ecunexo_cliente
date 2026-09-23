@@ -40,19 +40,12 @@ export function CatalogItemsListPage() {
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(
-    async (opts?: { silent?: boolean }) => {
+    async (_opts?: { silent?: boolean }) => {
       if (!tenantId) return
       setLoading(true)
       try {
         setRows(await listCatalogItems(tenantId, { onlyRoots: true }))
         setError(null)
-        if (!opts?.silent) {
-          toast.show({
-            title: 'Actualizado',
-            message: 'Listado de ítems sincronizado.',
-            variant: 'success',
-          })
-        }
       } catch (err: unknown) {
         const message = readApiError(err, 'No se pudo cargar el catálogo.')
         setError(message)
@@ -184,7 +177,7 @@ export function CatalogItemsListPage() {
       <div className="ecu-dashboard-layout">
         <PageHeader
           title="Ítems del Catálogo"
-          subtitle="Maestro unificado de productos físicos y servicios. Los productos físicos requieren SKU para trazabilidad en inventario; los servicios se facturan sin control de existencias."
+          subtitle="Productos y servicios de la empresa. El stock se gestiona en inventario."
           badge={
             <StatusBadge tone="primary" withDot>
               {rows.length} {rows.length === 1 ? 'Ítem' : 'Ítems'}

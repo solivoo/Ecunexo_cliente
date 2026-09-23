@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react'
 import {
+  ArrowLeft,
+  ArrowLeftRight,
   BarChart3,
   Building2,
   Calculator,
@@ -43,6 +45,8 @@ import {
 import type { LucideIcon } from 'lucide-react'
 
 const iconMap: Record<string, LucideIcon> = {
+  'arrow-left': ArrowLeft,
+  'arrow-left-right': ArrowLeftRight,
   dashboard: LayoutDashboard,
   'layout-dashboard': LayoutDashboard,
   'building-2': Building2,

@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.51.2`.
+* **Última Versión Publicada:** `v0.52.0`.
 * **Hitos Recientes Completados:**
+  - **Plataforma & Catálogo — Páginas 404, Rutas de Error y Desglose de Variantes por Ejes (`NotFoundPage.tsx`, `RouteErrorPage.tsx`, `EditCatalogItemVariantsSection.tsx`, `VariantAdminSummaryBlock.tsx`, `CatalogItemImageGallery.tsx`) [v0.52.0]:**
+    * **Enrutamiento resiliente y páginas de error:** vistas dedicadas `NotFoundPage` (embebida y pantalla completa) y `RouteErrorPage` con `errorElement` en React Router, botón de copia de diagnóstico y acciones de regreso seguro.
+    * **Tabla de variantes con columnas dinámicas por eje:** desglosa atributos de eje (Talla, Caña, swatches de Color) en columnas dedicadas en lugar del nombre compuesto largo; enlace interactivo en SKU para administrar la variante de inmediato.
+    * **Bloque de resumen y ergonomía:** componente `VariantAdminSummaryBlock` para modales de reasignación y auditoría; modo `compact` en galerías de imágenes suprimiendo banners repetitivos; limpieza de toasts automáticos en listados.
   - **Catálogo — Adaptación de Galería del Padre según Alcance de Fotos (`EditCatalogItemPage.tsx`) [v0.51.2]:**
     * **Ocultamiento condicional de galería general:** si la plantilla define fotos por variante (`variant`) o no lleva fotos (`none`), la ficha del producto matriz oculta la carga de fotos del padre y despliega un panel informativo (`SectionCard`) que orienta a cargar las fotos por código en la sección de variantes.
     * **Subtítulos contextuales:** clarificación en la tarjeta de imágenes cuando las fotos se comparten por grupo (ej. color) o pertenecen al modelo.
