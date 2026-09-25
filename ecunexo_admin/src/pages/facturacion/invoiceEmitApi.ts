@@ -1,5 +1,6 @@
 import { readApiError } from '@/lib/readApiError'
-import { computeTotals, normalizeEstablishmentCode } from '@/pages/facturacion/invoiceFormTypes'
+import { normalizeEstablishmentCode } from '@/pages/facturacion/invoiceFormTypes'
+import { sendAuthorizedInvoiceEmail } from '@/pages/facturacion/invoiceEmail'
 import type {
   InvoiceCounterpartyValues,
   InvoiceHeaderValues,
@@ -16,7 +17,6 @@ import {
   retryInvoiceSri,
   signInvoice,
 } from '@/services/billingApi'
-import { sendInvoiceAuthorizedEmail } from '@/services/settingsApi'
 import { normalizeEmissionPoint } from '@/lib/billingSriEmission'
 import {
   parseRimpeKind,
@@ -117,6 +117,8 @@ export type SaveInvoiceResult = {
   readonly sriTransmissionState: string | null
   /** success | warning | error — para el toast de la UI */
   readonly outcome: 'success' | 'warning' | 'error'
+  /** Resultado del correo al cliente con RIDE + XML (solo modo sri). */
+  readonly emailStatus?: 'sent' | 'failed' | 'skipped'
   readonly trace?: SriEmitTrace | null
 }
 
@@ -391,24 +393,24 @@ export async function saveInvoiceDraft(args: {
               : 'No se obtuvo un resultado definitivo del SRI a tiempo.'
 
     const isAuthorized = signed.state === 'Authorized' || polled.state === 'Authorized'
-    if (isAuthorized && args.counterparty.email?.trim()) {
-      const currentTenantId = args.tenantId || emitterId
-      const grandTotal = computeTotals(args.lines).grandTotal
-      const seqStr = requestedSeq
-      const serieSecuencial = `${header.establishment}-${header.emissionPoint}-${seqStr}`
-      const accessKey = polled.accessKey ?? signed.accessKey
-
-      sendInvoiceAuthorizedEmail(currentTenantId, {
-        billingInvoiceId: created.invoiceId,
-        counterpartyEmail: args.counterparty.email.trim(),
-        counterpartyName: args.counterparty.businessName.trim() || 'Cliente',
-        documentType: '01',
-        serieSecuencial,
-        accessKey,
-        grandTotal,
-      }).catch((err: unknown) => {
-        console.warn('⚠️ No se pudo enviar el correo de la factura autorizada al cliente:', err)
-      })
+    let emailStatus: SaveInvoiceResult['emailStatus']
+    if (isAuthorized) {
+      if (args.counterparty.email?.trim()) {
+        try {
+          await sendAuthorizedInvoiceEmail({
+            emitterId,
+            invoiceId: created.invoiceId,
+            tenantId: args.tenantId,
+          })
+          emailStatus = 'sent'
+          console.log('✉️ Correo al cliente enviado con RIDE PDF y XML adjuntos.')
+        } catch (emailErr: unknown) {
+          emailStatus = 'failed'
+          console.warn('⚠️ No se pudo enviar el correo con RIDE y XML al cliente:', emailErr)
+        }
+      } else {
+        emailStatus = 'skipped'
+      }
     }
 
     setLastSriEmitTrace(trace)
@@ -423,6 +425,7 @@ export async function saveInvoiceDraft(args: {
       state: polled.state,
       sriTransmissionState: polled.sriTransmissionState,
       outcome,
+      emailStatus,
       message:
         outcome === 'success'
           ? 'Factura generada con éxito.'
@@ -513,6 +516,8 @@ export type ResendInvoiceResult = {
   readonly sriTransmissionState: string | null
   readonly outcome: 'success' | 'warning' | 'error'
   readonly message: string
+  /** Resultado del correo al cliente con RIDE + XML tras autorizar el reenvío. */
+  readonly emailStatus?: 'sent' | 'failed'
 }
 
 /** Reencola al SRI y espera Authorized / Returned / NotAuthorized. */
@@ -540,6 +545,18 @@ export async function resendInvoiceAndWait(
         ? 'warning'
         : 'error'
 
+  let emailStatus: ResendInvoiceResult['emailStatus']
+  if (polled.state === 'Authorized') {
+    try {
+      await sendAuthorizedInvoiceEmail({ emitterId, invoiceId })
+      emailStatus = 'sent'
+      console.log('✉️ Correo al cliente enviado con RIDE PDF y XML tras el reenvío autorizado.')
+    } catch (emailErr: unknown) {
+      emailStatus = 'failed'
+      console.warn('⚠️ No se pudo enviar el correo con RIDE y XML tras el reenvío:', emailErr)
+    }
+  }
+
   const msgSummary =
     polled.messages.length > 0
       ? polled.messages.map((m) => `[${m.identifier}] ${m.text}`).join(' | ')
@@ -563,6 +580,7 @@ export async function resendInvoiceAndWait(
     state: polled.state,
     sriTransmissionState: polled.sriTransmissionState,
     outcome,
+    emailStatus,
     message: [resultLead, `Estado ${polled.state}.`, msgSummary, seq.trim() || null]
       .filter(Boolean)
       .join(' '),

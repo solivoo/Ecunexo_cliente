@@ -284,7 +284,7 @@ export function CreditNoteCreatePage() {
         title="Nueva Nota de Crédito"
         lead="Emisión de notas de crédito electrónicas ante el SRI"
       >
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <EmptyState
             icon="gpp_bad"
             title="Sin permisos"
@@ -300,7 +300,7 @@ export function CreditNoteCreatePage() {
       title="Nueva Nota de Crédito"
       lead="Emisión de notas de crédito electrónicas ante el SRI"
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Nueva Nota de Crédito Electrónica"
           badge={<StatusBadge tone="info">SRI 04</StatusBadge>}

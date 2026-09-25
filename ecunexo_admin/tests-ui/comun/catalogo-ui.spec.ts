@@ -49,7 +49,7 @@ test.describe('Catálogo UI — Ítems y Categorías', () => {
     await expect(page.getByLabel('Resumen de categorías')).toBeVisible()
   })
 
-  test('Nuevo Ítem servicio: muestra la sección de fotografías del producto', async ({ page }) => {
+  test('Nuevo producto servicio: muestra la sección de fotografías', async ({ page }) => {
     const session = await readPersistedSession(page)
     test.skip(!hasRoute(session.routes, '/catalogo'), 'Este plan no incluye Catálogo.')
 
@@ -57,48 +57,35 @@ test.describe('Catálogo UI — Ítems y Categorías', () => {
     await expect(page.locator('.app-shell')).toBeVisible()
 
     // PageHeader
-    await expect(page.getByRole('heading', { name: /Nuevo Ítem/i })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Nuevo producto/i })).toBeVisible({
       timeout: 20_000,
     })
 
     // Los servicios no generan variantes de inventario: se habilita la galería
-    await page.getByRole('combobox', { name: 'Tipo de ítem' }).click()
-    await page.getByRole('option', { name: /Servicio/i }).click()
-    await expect(page.getByText(/Fotografías del Producto/i)).toBeVisible()
+    await page.getByRole('button', { name: /Servicio/i }).click()
+    await expect(page.getByRole('heading', { name: /Datos del producto/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Fotografías/i })).toBeVisible()
     await expect(page.getByText(/Arrastra tus fotografías aquí/i)).toBeVisible()
-    await expect(page.getByRole('button', { name: /Añadir Fotos/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Seleccionar archivos/i })).toBeVisible()
   })
 
-  test('Nuevo Ítem físico: despliega el constructor de variantes con tarjetas por dimensión', async ({
-    page,
-  }) => {
+  test('Nuevo producto con un solo código: no genera constructor de variantes', async ({ page }) => {
     const session = await readPersistedSession(page)
     test.skip(!hasRoute(session.routes, '/catalogo'), 'Este plan no incluye Catálogo.')
 
     await page.goto('/catalogo/items/nuevo')
     await expect(page.locator('.app-shell')).toBeVisible()
-    await expect(page.getByRole('heading', { name: /Nuevo Ítem/i })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Nuevo producto/i })).toBeVisible({
       timeout: 20_000,
     })
 
-    // Para productos físicos (tipo por defecto) el constructor de variantes aparece automáticamente
-    const matrix = page.locator('.ecu-matrix-builder')
-    await expect(matrix).toBeVisible()
-    await expect(matrix.getByRole('heading', { name: 'Variantes' })).toBeVisible()
-
-    // Arranca con una variante inicial agrupada por su dimensión principal
-    await expect(matrix.locator('.ecu-variant-group-card')).toHaveCount(1)
-
-    // Cada variante/SKU gestiona su propia fotografía
-    await expect(matrix.getByTitle('Subir foto exclusiva para esta variante').first()).toBeVisible()
-
-    // Agregar una segunda talla desde la barra de acciones
-    await matrix.locator('.ecu-matrix-bulk-bar').getByRole('button', { name: /Añadir|Agregar/ }).click()
-    await expect(matrix.locator('.ecu-variant-sub-item-row')).toHaveCount(2)
-    await expect(matrix.locator('.ecu-matrix-bulk-bar__count')).toContainText(/variante/i)
+    await page.getByRole('button', { name: /Producto con un solo código/i }).click()
+    await expect(page.locator('#ci-name')).toBeVisible()
+    await expect(page.locator('#ci-sku')).toBeVisible()
+    await expect(page.locator('.ecu-matrix-builder')).toHaveCount(0)
   })
 
-  test('Nuevo Ítem físico: sin bucle de render y el sidebar navega', async ({ page }) => {
+  test('Nuevo producto: sin bucle de render y el sidebar navega', async ({ page }) => {
     const session = await readPersistedSession(page)
     test.skip(!hasRoute(session.routes, '/catalogo'), 'Este plan no incluye Catálogo.')
 
@@ -110,10 +97,11 @@ test.describe('Catálogo UI — Ítems y Categorías', () => {
     })
 
     await page.goto('/catalogo/items/nuevo')
-    await expect(page.getByRole('heading', { name: /Nuevo Ítem/i })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Nuevo producto/i })).toBeVisible({
       timeout: 20_000,
     })
-    await expect(page.locator('.ecu-matrix-builder')).toBeVisible()
+    await page.getByRole('button', { name: /Producto con un solo código/i }).click()
+    await expect(page.locator('#ci-name')).toBeVisible()
     await page.waitForTimeout(1500)
 
     await page.locator('.sidebar__link--option', { hasText: 'Atributos' }).first().click()

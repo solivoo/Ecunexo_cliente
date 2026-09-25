@@ -247,16 +247,6 @@ export function EcommerceOrdersListPage() {
           title="Pedidos Ecommerce"
           badge={<StatusBadge tone="primary">Ventas Online</StatusBadge>}
           subtitle="Administración y despacho de pedidos online con reserva automática de stock e integración SRI."
-          actions={
-            <Button
-              variant="outline"
-              iconLeft={<RotateCw size={16} />}
-              onClick={() => void loadData()}
-              disabled={loading}
-            >
-              Actualizar
-            </Button>
-          }
         />
 
         {/* Strip de KPIs */}
@@ -334,6 +324,14 @@ export function EcommerceOrdersListPage() {
                 onChange={setRange}
                 lookback={lookback}
               />
+              <Button
+                variant="outline"
+                iconLeft={<RotateCw size={16} />}
+                onClick={() => void loadData()}
+                disabled={loading}
+              >
+                Actualizar
+              </Button>
             </div>
           </div>
 

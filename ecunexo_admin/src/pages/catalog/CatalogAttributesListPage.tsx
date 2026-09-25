@@ -14,9 +14,6 @@ import {
   Lock,
   Pencil,
   Plus,
-  RefreshCw,
-  SlidersHorizontal,
-  Sparkles,
   Tag,
   Trash2,
   X,
@@ -26,7 +23,7 @@ import {
   PageHeader,
   SectionCard,
   StatCard,
-  StatusBadge,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -44,6 +41,125 @@ import {
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { VariantDimensionTemplateDto } from '@/types/catalogApi'
+
+export type AttributeKind =
+  | 'text_descriptive'
+  | 'size_axis'
+  | 'color_axis'
+  | 'options_axis'
+  | 'number'
+  | 'boolean'
+  | 'multiselect'
+
+export interface AttributeKindConfig {
+  value: AttributeKind
+  label: string
+  shortLabel: string
+  description: string
+  dimensionType: 'custom' | 'size' | 'color'
+  dataType: 'text' | 'number' | 'boolean' | 'color' | 'multiselect'
+  isVariantAxis: boolean
+  requiresPredefinedValues: boolean
+  hasUnit: boolean
+}
+
+export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
+  {
+    value: 'text_descriptive',
+    label: 'Texto Libre / Descripción',
+    shortLabel: 'Texto Libre',
+    description: 'Para notas, descripciones, especificaciones o composición. Campo abierto en cada producto.',
+    dimensionType: 'custom',
+    dataType: 'text',
+    isVariantAxis: false,
+    requiresPredefinedValues: false,
+    hasUnit: false,
+  },
+  {
+    value: 'size_axis',
+    label: 'Escala de Tallas o Medidas',
+    shortLabel: 'Tallas / Medidas',
+    description: 'Para variantes con opciones fijas de tallas (ej. S, M, L o 38, 39, 40).',
+    dimensionType: 'size',
+    dataType: 'text',
+    isVariantAxis: true,
+    requiresPredefinedValues: true,
+    hasUnit: false,
+  },
+  {
+    value: 'color_axis',
+    label: 'Muestras de Color',
+    shortLabel: 'Color',
+    description: 'Para variantes con muestras cromáticas o tonos (ej. Blanco, Negro, Azul).',
+    dimensionType: 'color',
+    dataType: 'color',
+    isVariantAxis: true,
+    requiresPredefinedValues: true,
+    hasUnit: false,
+  },
+  {
+    value: 'options_axis',
+    label: 'Opciones de Variante (Caña, Calibre, etc.)',
+    shortLabel: 'Opciones de Variante',
+    description: 'Para características con opciones fijas que generan variantes (ej. Caña Alta/Baja).',
+    dimensionType: 'custom',
+    dataType: 'text',
+    isVariantAxis: true,
+    requiresPredefinedValues: true,
+    hasUnit: false,
+  },
+  {
+    value: 'number',
+    label: 'Número o Medida técnica con unidad',
+    shortLabel: 'Número',
+    description: 'Para valores numéricos (ej. Peso, Potencia, Capacidad) con unidad de medida.',
+    dimensionType: 'custom',
+    dataType: 'number',
+    isVariantAxis: false,
+    requiresPredefinedValues: false,
+    hasUnit: true,
+  },
+  {
+    value: 'boolean',
+    label: 'Sí / No (Interruptor)',
+    shortLabel: 'Sí / No',
+    description: 'Para características que se activan o desactivan (ej. ¿Impermeable?, ¿Con Bluetooth?).',
+    dimensionType: 'custom',
+    dataType: 'boolean',
+    isVariantAxis: false,
+    requiresPredefinedValues: false,
+    hasUnit: false,
+  },
+  {
+    value: 'multiselect',
+    label: 'Selección múltiple (Etiquetas informativas)',
+    shortLabel: 'Selección Múltiple',
+    description: 'Lista de opciones para etiquetar el producto en ficha técnica (sin generar variantes).',
+    dimensionType: 'custom',
+    dataType: 'multiselect',
+    isVariantAxis: false,
+    requiresPredefinedValues: false,
+    hasUnit: false,
+  },
+]
+
+export function resolveAttributeKind(template: {
+  dimensionType?: string | null
+  dataType?: string | null
+  isVariantAxis?: boolean | null
+}): AttributeKind {
+  if (template.dimensionType === 'size' && template.isVariantAxis !== false) return 'size_axis'
+  if (
+    (template.dimensionType === 'color' || template.dataType === 'color') &&
+    template.isVariantAxis !== false
+  )
+    return 'color_axis'
+  if (template.dataType === 'number') return 'number'
+  if (template.dataType === 'boolean') return 'boolean'
+  if (template.dataType === 'multiselect') return 'multiselect'
+  if (template.isVariantAxis === true) return 'options_axis'
+  return 'text_descriptive'
+}
 
 type TemplateGridRow = VariantDimensionTemplateDto & {
   parsedValues: string[]
@@ -68,13 +184,16 @@ export function CatalogAttributesListPage() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<VariantDimensionTemplateDto | null>(null)
   const [formName, setFormName] = useState('')
-  const [formType, setFormType] = useState('custom')
-  const [formDataType, setFormDataType] = useState('text')
-  const [formIsVariantAxis, setFormIsVariantAxis] = useState(true)
+  const [formKind, setFormKind] = useState<AttributeKind>('text_descriptive')
   const [formUnit, setFormUnit] = useState('')
   const [formValues, setFormValues] = useState<string[]>([])
   const [newValueInput, setNewValueInput] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const selectedKindConfig = useMemo(
+    () => ATTRIBUTE_KINDS.find((k) => k.value === formKind) ?? ATTRIBUTE_KINDS[0],
+    [formKind]
+  )
 
   // Modal Confirmar Eliminar
   const [confirmDelete, setConfirmDelete] = useState<VariantDimensionTemplateDto | null>(null)
@@ -114,9 +233,7 @@ export function CatalogAttributesListPage() {
   const openCreateModal = useCallback(() => {
     setEditingTemplate(null)
     setFormName('')
-    setFormType('custom')
-    setFormDataType('text')
-    setFormIsVariantAxis(true)
+    setFormKind('text_descriptive')
     setFormUnit('')
     setFormValues([])
     setNewValueInput('')
@@ -126,11 +243,7 @@ export function CatalogAttributesListPage() {
   const openEditModal = useCallback((template: VariantDimensionTemplateDto) => {
     setEditingTemplate(template)
     setFormName(template.name)
-    setFormType(template.dimensionType || 'custom')
-    setFormDataType(
-      template.dataType || (template.dimensionType === 'color' ? 'color' : 'text')
-    )
-    setFormIsVariantAxis(template.isVariantAxis !== false)
+    setFormKind(resolveAttributeKind(template))
     setFormUnit(template.unit ?? '')
     try {
       const parsed = JSON.parse(template.predefinedValuesJson)
@@ -167,15 +280,17 @@ export function CatalogAttributesListPage() {
     if (!name) {
       toast.show({
         title: 'Nombre requerido',
-        message: 'Ingresa un nombre para el atributo o escala.',
+        message: 'Ingresa un nombre para el atributo.',
         variant: 'warning',
       })
       return
     }
-    if (formValues.length === 0) {
+
+    const kindConfig = ATTRIBUTE_KINDS.find((k) => k.value === formKind) ?? ATTRIBUTE_KINDS[0]
+    if (kindConfig.requiresPredefinedValues && formValues.length === 0) {
       toast.show({
-        title: 'Valores requeridos',
-        message: 'Añade al menos un valor predefinido (ej. Corta, Media, Larga).',
+        title: 'Opciones requeridas',
+        message: `Para «${kindConfig.label}», debes añadir al menos una opción predefinida (ej. S, M, L o Rojo, Azul).`,
         variant: 'warning',
       })
       return
@@ -185,11 +300,11 @@ export function CatalogAttributesListPage() {
     try {
       const payload = {
         name,
-        dimensionType: formType,
+        dimensionType: kindConfig.dimensionType,
         predefinedValuesJson: JSON.stringify(formValues),
-        dataType: formDataType,
-        isVariantAxis: formIsVariantAxis,
-        unit: formUnit.trim() || null,
+        dataType: kindConfig.dataType,
+        isVariantAxis: kindConfig.isVariantAxis,
+        unit: kindConfig.hasUnit && formUnit.trim() ? formUnit.trim() : null,
       }
       if (editingTemplate) {
         await updateVariantDimensionTemplate(tenantId, editingTemplate.id, payload)
@@ -202,7 +317,7 @@ export function CatalogAttributesListPage() {
         await createVariantDimensionTemplate(tenantId, payload)
         toast.show({
           title: 'Atributo registrado',
-          message: `«${name}» se agregó al diccionario de catálogo.`,
+          message: `«${name}» se agregó al catálogo.`,
           variant: 'success',
         })
       }
@@ -214,7 +329,7 @@ export function CatalogAttributesListPage() {
     } finally {
       setSaving(false)
     }
-  }, [editingTemplate, formDataType, formIsVariantAxis, formName, formType, formUnit, formValues, loadData, tenantId, toast])
+  }, [editingTemplate, formKind, formName, formUnit, formValues, loadData, tenantId, toast])
 
   const handleDelete = useCallback(async () => {
     if (!tenantId || !confirmDelete) return
@@ -263,7 +378,14 @@ export function CatalogAttributesListPage() {
     const q = searchQuery.trim().toLowerCase()
     return rows
       .filter((r) => {
-        if (filterType !== 'all' && r.dimensionType !== filterType) return false
+        if (filterType !== 'all') {
+          const kind = resolveAttributeKind(r)
+          if (filterType === 'text' && kind !== 'text_descriptive') return false
+          if (filterType === 'size' && kind !== 'size_axis') return false
+          if (filterType === 'color' && kind !== 'color_axis') return false
+          if (filterType === 'options_axis' && kind !== 'options_axis') return false
+          if (filterType === 'number' && kind !== 'number') return false
+        }
         if (!q) return true
         const inName = r.name.toLowerCase().includes(q)
         const inValues = r.predefinedValuesJson.toLowerCase().includes(q)
@@ -292,50 +414,30 @@ export function CatalogAttributesListPage() {
         width: 240,
         sortable: true,
         renderCell: (_val: unknown, row: TemplateGridRow) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-              {row.isInUse ? (
-                <span title="Inmutable: asociado a productos en el catálogo">
-                  <Lock size={13} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                </span>
-              ) : (
-                <Tag size={13} style={{ color: 'var(--shell-primary, #4f46e5)', flexShrink: 0 }} />
-              )}
-              <strong>{row.name}</strong>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            {row.isInUse ? (
+              <span title="Inmutable: asociado a productos en el catálogo">
+                <Lock size={13} style={{ color: 'var(--idt-warn, #b45309)', flexShrink: 0 }} />
+              </span>
+            ) : (
+              <Tag size={13} style={{ color: 'var(--idt-muted, #64748b)', flexShrink: 0 }} />
+            )}
+            <strong>{row.name}</strong>
           </div>
         ),
       },
       {
         key: 'dimensionType',
-        header: 'Clasificación',
-        width: 180,
+        header: 'Tipo de Atributo',
+        width: 190,
         sortable: true,
         renderCell: (_val: unknown, row: TemplateGridRow) => {
-          const typeLabel =
-            row.dataType === 'color'
-              ? 'Color'
-              : row.dataType === 'number'
-                ? 'Número'
-                : row.dataType === 'boolean'
-                  ? 'Sí / No'
-                  : row.dataType === 'multiselect'
-                    ? 'Varios valores'
-                    : 'Texto'
+          const kind = resolveAttributeKind(row)
+          const config = ATTRIBUTE_KINDS.find((k) => k.value === kind) ?? ATTRIBUTE_KINDS[0]
           return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              {row.dimensionType === 'size' ? (
-                <StatusBadge tone="info">Tallas / Medidas</StatusBadge>
-              ) : row.dimensionType === 'color' ? (
-                <StatusBadge tone="warning">Color / Acabado</StatusBadge>
-              ) : (
-                <StatusBadge tone="neutral">Especificación</StatusBadge>
-              )}
-              <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
-                {typeLabel}
-                {row.unit ? ` · ${row.unit}` : ''}
-                {row.isVariantAxis === false ? ' · Solo descriptivo' : ''}
-              </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <span className="ecu-chip">{config.shortLabel}</span>
+              {row.unit && <span className="ecu-hint">Unidad: {row.unit}</span>}
             </div>
           )
         },
@@ -346,32 +448,17 @@ export function CatalogAttributesListPage() {
         width: 420,
         renderCell: (_val: unknown, row: TemplateGridRow) => (
           <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            {row.parsedValues.slice(0, 7).map((val) => (
-              <span
-                key={val}
-                style={{
-                  fontSize: '0.78rem',
-                  padding: '0.15rem 0.5rem',
-                  borderRadius: '12px',
-                  background: 'var(--glb-surface-ground, rgba(0, 0, 0, 0.04))',
-                  border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.12))',
-                  color: 'var(--glb-text, #1e293b)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {val}
-              </span>
-            ))}
+            {row.parsedValues.length === 0 ? (
+              <span className="ecu-hint">Texto libre</span>
+            ) : (
+              row.parsedValues.slice(0, 7).map((val) => (
+                <span key={val} className="ecu-token">
+                  {val}
+                </span>
+              ))
+            )}
             {row.parsedValues.length > 7 && (
-              <span
-                style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--glb-muted, #64748b)',
-                  fontWeight: 600,
-                }}
-              >
-                +{row.parsedValues.length - 7} más
-              </span>
+              <span className="ecu-token-more">+{row.parsedValues.length - 7} más</span>
             )}
           </div>
         ),
@@ -382,15 +469,19 @@ export function CatalogAttributesListPage() {
         width: 170,
         sortable: true,
         renderCell: (_val: unknown, row: TemplateGridRow) => (
-          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             {row.isInUse ? (
-              <StatusBadge tone="warning">En Uso</StatusBadge>
+              <span className="ecu-status ecu-status--warning">
+                <span className="ecu-status__dot" aria-hidden />
+                En uso
+              </span>
             ) : (
-              <StatusBadge tone="neutral">Sin Registros</StatusBadge>
+              <span className="ecu-status ecu-status--inactive">
+                <span className="ecu-status__dot" aria-hidden />
+                Sin registros
+              </span>
             )}
-            <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
-              {row.isSystemDefault ? 'Base' : 'Empresa'}
-            </span>
+            <span className="ecu-source">{row.isSystemDefault ? 'Base' : 'Empresa'}</span>
           </div>
         ),
       },
@@ -451,112 +542,63 @@ export function CatalogAttributesListPage() {
       title="Atributos"
       lead="Administra las opciones de tallas, colores y medidas para tus productos."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid ecu-section-page ecu-catalog-page">
         <PageHeader
           title="Atributos"
-          subtitle="Administra las opciones de tallas, colores y medidas para tus productos."
-          badge={
-            <StatusBadge tone="info">
-              {rows.length} {rows.length === 1 ? 'Atributo' : 'Atributos'}
-            </StatusBadge>
-          }
-          actions={
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void loadData()}
-                disabled={loading}
-                title="Refrescar diccionario"
-              >
-                <RefreshCw size={15} className={loading ? 'app-shell__spin' : undefined} />
-                <span>Refrescar</span>
-              </Button>
-              {canManage && (
-                <Button type="button" variant="primary" onClick={openCreateModal}>
-                  <Plus size={15} />
-                  <span>Nuevo Atributo</span>
-                </Button>
-              )}
-            </div>
-          }
+          subtitle="Tallas, colores y medidas reutilizables en todo el catálogo."
         />
 
-        <EcuPageActions
-          items={actionItems}
-          triggerLabel="Acciones de catálogo"
-          renderIcon={renderSidebarIcon}
-          onNavigate={(route: string) => void navigate(route)}
-        />
-
-        <div className="ecu-stat-grid" style={{ marginTop: '1rem', marginBottom: '1.25rem' }}>
-          <StatCard
-            label="Total Atributos"
-            value={stats.total}
-            icon={<SlidersHorizontal size={20} />}
-            toneColor="#4f46e5"
-            footerText="Atributos disponibles"
-          />
-          <StatCard
-            label="En Uso"
-            value={stats.inUse}
-            icon={<Lock size={20} />}
-            toneColor="#f59e0b"
-            footerText="Asociados a productos (Inmutables)"
-          />
-          <StatCard
-            label="Disponibles"
-            value={stats.available}
-            icon={<Tag size={20} />}
-            toneColor="#0ea5e9"
-            footerText="Sin registros asociados (Editables)"
-          />
-          <StatCard
-            label="Valores Normalizados"
-            value={stats.values}
-            icon={<Sparkles size={20} />}
-            toneColor="#10b981"
-            footerText="Opciones precargadas para 1 clic"
-          />
+        <div className="ecu-stat-grid">
+          <StatCard label="Atributos" value={stats.total} />
+          <StatCard label="En uso" value={stats.inUse} />
+          <StatCard label="Disponibles" value={stats.available} />
+          <StatCard label="Valores" value={stats.values} />
         </div>
 
-        <SectionCard
-          title="Directorio de Atributos"
-          subtitle="Selecciona o gestiona los atributos que se reutilizan en variantes (tallas, colores) y campos adicionales de productos."
-        >
-          <div
-            style={{
-              display: 'flex',
-              gap: '1rem',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              marginBottom: '1rem',
-              paddingBottom: '0.75rem',
-              borderBottom: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
-            }}
-          >
-            <div style={{ flex: '1 1 280px', maxWidth: '400px' }}>
+        <SectionCard title="Directorio">
+          <div className="ecu-commandbar">
+            <div className="ecu-commandbar__search">
               <TextBox
                 id="search-attr"
-                placeholder="Buscar por nombre o valor (ej. Talla, Color, Material)…"
+                placeholder="Buscar..."
                 value={searchQuery}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                 fullWidth
               />
             </div>
-            <div style={{ width: '220px' }}>
+            <div className="ecu-commandbar__filter">
               <Select
                 id="filter-type"
                 options={[
-                  { value: 'all', label: 'Todas las clasificaciones' },
+                  { value: 'all', label: 'Todos los tipos' },
+                  { value: 'text', label: 'Texto Libre / Descripción' },
                   { value: 'size', label: 'Tallas y Medidas' },
-                  { value: 'color', label: 'Colores y Acabados' },
-                  { value: 'custom', label: 'Especificaciones' },
+                  { value: 'color', label: 'Colores' },
+                  { value: 'options_axis', label: 'Opciones de Variante' },
+                  { value: 'number', label: 'Números con unidad' },
                 ]}
                 value={filterType}
                 onChange={setFilterType}
                 fullWidth
               />
+            </div>
+            <div className="ecu-commandbar__spacer" />
+            <div className="ecu-commandbar__action">
+              <div className="ecu-grid-toolbar-actions">
+                <GridToolbarRefresh loading={loading} onRefresh={() => void loadData()} />
+                {canManage && (
+                  <Button type="button" variant="primary" onClick={openCreateModal}>
+                    <Plus size={15} />
+                    <span>Nuevo Atributo</span>
+                  </Button>
+                )}
+                <EcuPageActions
+                  items={actionItems}
+                  triggerLabel="Acciones de catálogo"
+                  renderIcon={renderSidebarIcon}
+                  onNavigate={(route: string) => void navigate(route)}
+                />
+              </div>
             </div>
           </div>
 
@@ -565,6 +607,7 @@ export function CatalogAttributesListPage() {
             columns={columns}
             loading={loading}
             keyExpr="id"
+            showSearch={false}
             emptyMessage={
               searchQuery || filterType !== 'all'
                 ? 'No se encontraron atributos con los filtros seleccionados.'
@@ -582,16 +625,16 @@ export function CatalogAttributesListPage() {
         <Popup
           open={editModalOpen}
           onClose={() => !saving && setEditModalOpen(false)}
-          title={editingTemplate ? `Editar Atributo «${editingTemplate.name}»` : 'Nuevo Atributo'}
-          width={560}
+          title={editingTemplate ? `Editar «${editingTemplate.name}»` : 'Nuevo Atributo'}
+          width={480}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.25rem 0' }}>
             <TextBox
               id="template-name"
-              label="Nombre del Atributo"
+              label="Nombre"
               labelPosition="outlined"
               variant="outline"
-              placeholder="Ej. Talla, Color, Material, Capacidad"
+              placeholder="Escriba aquí..."
               value={formName}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setFormName(e.target.value)}
               disabled={saving || Boolean(editingTemplate?.isInUse)}
@@ -599,182 +642,137 @@ export function CatalogAttributesListPage() {
               fullWidth
             />
             {editingTemplate?.isInUse && (
-              <p style={{ fontSize: '0.78rem', color: '#b45309', margin: '-0.5rem 0 0.5rem', fontWeight: 500 }}>
-                * El nombre está protegido porque tiene productos asociados en el catálogo. Puedes agregar más opciones estandarizadas.
-              </p>
+              <span style={{ fontSize: '0.75rem', color: '#b45309', fontWeight: 500 }}>
+                * Nombre inmutable por estar asociado a productos.
+              </span>
             )}
 
             <Select
-              id="template-type"
-              label="Tipo / Clasificación"
+              id="template-kind"
+              label="Tipo de Atributo"
               labelPosition="outlined"
               variant="outline"
-              options={[
-                { value: 'custom', label: 'Especificación / Dimensión Personalizada' },
-                { value: 'size', label: 'Talla o Medida Física' },
-                { value: 'color', label: 'Color o Muestra Cromática' },
-              ]}
-              value={formType}
-              onChange={setFormType}
+              options={ATTRIBUTE_KINDS.map((k) => ({
+                value: k.value,
+                label: k.label,
+              }))}
+              value={formKind}
+              onChange={(v: string) => setFormKind(v as AttributeKind)}
               disabled={saving}
               fullWidth
             />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <Select
-                id="template-data-type"
-                label="Tipo de dato"
+            {selectedKindConfig.hasUnit && (
+              <TextBox
+                id="template-unit"
+                label="Unidad"
                 labelPosition="outlined"
                 variant="outline"
-                options={[
-                  { value: 'text', label: 'Texto libre' },
-                  { value: 'number', label: 'Número' },
-                  { value: 'boolean', label: 'Sí / No' },
-                  { value: 'color', label: 'Color (muestra)' },
-                  { value: 'multiselect', label: 'Varios valores (selección múltiple)' },
-                ]}
-                value={formDataType}
-                onChange={(v: string) => {
-                  setFormDataType(v)
-                  if (v === 'color') setFormType('color')
-                  if (v === 'multiselect') setFormType('custom')
-                }}
+                placeholder="Escriba aquí (ej. cm, kg)..."
+                value={formUnit}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setFormUnit(e.target.value)}
                 disabled={saving}
                 fullWidth
               />
-              <Select
-                id="template-axis"
-                label="Uso en variantes"
-                labelPosition="outlined"
-                variant="outline"
-                options={[
-                  { value: 'true', label: 'Genera variantes con SKU' },
-                  { value: 'false', label: 'Solo descriptivo del producto' },
-                ]}
-                value={formIsVariantAxis ? 'true' : 'false'}
-                onChange={(v: string) => setFormIsVariantAxis(v === 'true')}
-                disabled={saving}
-                fullWidth
-              />
-            </div>
+            )}
 
-            <TextBox
-              id="template-unit"
-              label="Unidad (opcional)"
-              labelPosition="outlined"
-              variant="outline"
-              placeholder="Ej. cm, mm, g, pulgadas"
-              value={formUnit}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setFormUnit(e.target.value)}
-              disabled={saving}
-              fullWidth
-            />
-
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  marginBottom: '0.4rem',
-                  color: 'var(--glb-text, #1e293b)',
-                }}
-              >
-                Valores Predefinidos (Opciones Estandarizadas)
-              </label>
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                <TextBox
-                  id="new-val-input"
-                  placeholder="Ej. Pequeño, Mediano, Grande o 100% Algodón…"
-                  value={newValueInput}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setNewValueInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      handleAddValueToForm()
-                    }
-                  }}
-                  disabled={saving}
-                  fullWidth
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAddValueToForm}
-                  disabled={saving || !newValueInput.trim()}
-                >
-                  <Plus size={15} />
-                  <span>Añadir</span>
-                </Button>
-              </div>
-
-              {formValues.length === 0 ? (
-                <p
-                  className="app-shell__muted"
+            {selectedKindConfig.requiresPredefinedValues && (
+              <div>
+                <label
                   style={{
+                    display: 'block',
                     fontSize: '0.82rem',
-                    margin: 0,
-                    padding: '0.75rem',
-                    borderRadius: '6px',
-                    background: 'var(--glb-surface-ground, rgba(0, 0, 0, 0.03))',
-                    border: '1px dashed var(--shell-border, rgba(0, 0, 0, 0.12))',
+                    fontWeight: 600,
+                    marginBottom: '0.35rem',
+                    color: 'var(--glb-text, #1e293b)',
                   }}
                 >
-                  No has añadido valores. Escribe una opción arriba y pulsa «Añadir» o Enter.
-                </p>
-              ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '0.4rem',
-                    maxHeight: '160px',
-                    overflowY: 'auto',
-                    padding: '0.5rem',
-                    borderRadius: '6px',
-                    background: 'var(--glb-surface-ground, rgba(0, 0, 0, 0.02))',
-                    border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.12))',
-                  }}
-                >
-                  {formValues.map((val, idx) => (
-                    <span
-                      key={val}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                        fontSize: '0.8rem',
-                        fontWeight: 500,
-                        padding: '0.2rem 0.6rem',
-                        borderRadius: '12px',
-                        background: 'var(--glb-surface, #fff)',
-                        border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.15))',
-                        color: 'var(--glb-text, #1e293b)',
-                      }}
-                    >
-                      <span>{val}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveValueFromForm(idx)}
-                        disabled={saving}
+                  Opciones
+                </label>
+                <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                  <TextBox
+                    id="new-val-input"
+                    placeholder="Escriba aquí..."
+                    value={newValueInput}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setNewValueInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleAddValueToForm()
+                      }
+                    }}
+                    disabled={saving}
+                    fullWidth
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddValueToForm}
+                    disabled={saving || !newValueInput.trim()}
+                  >
+                    <Plus size={15} />
+                    <span>Añadir</span>
+                  </Button>
+                </div>
+
+                {formValues.length === 0 ? (
+                  <span style={{ fontSize: '0.78rem', color: 'var(--glb-muted, #64748b)' }}>
+                    Sin opciones agregadas
+                  </span>
+                ) : (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '0.35rem',
+                      maxHeight: '140px',
+                      overflowY: 'auto',
+                      padding: '0.4rem',
+                      borderRadius: '6px',
+                      background: 'var(--glb-surface-ground, rgba(0, 0, 0, 0.02))',
+                      border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.1))',
+                    }}
+                  >
+                    {formValues.map((val, idx) => (
+                      <span
+                        key={val}
                         style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: 0,
-                          color: 'var(--glb-muted, #94a3b8)',
                           display: 'inline-flex',
                           alignItems: 'center',
+                          gap: '0.3rem',
+                          fontSize: '0.78rem',
+                          fontWeight: 500,
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: '12px',
+                          background: 'var(--glb-surface, #fff)',
+                          border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.15))',
+                          color: 'var(--glb-text, #1e293b)',
                         }}
-                        title="Quitar opción"
                       >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+                        <span>{val}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveValueFromForm(idx)}
+                          disabled={saving}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: 0,
+                            color: 'var(--glb-muted, #94a3b8)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                          }}
+                          title="Quitar"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div
               style={{

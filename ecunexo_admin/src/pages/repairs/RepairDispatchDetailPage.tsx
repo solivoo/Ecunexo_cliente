@@ -4,6 +4,7 @@ import { Button, DataGrid, Popup, useToast, type ColumnDef, type PageActionItem 
 import {
   EcuPageActions,
   EmptyState,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
@@ -31,12 +32,10 @@ import { useAppSelector } from '@/store/hooks'
 import type { InvoiceDetail } from '@/types/billingApi'
 import {
   DamageLevel,
-  damageLevelBadgeTone,
   damageLevelLabel,
-  dispatchExitTypeBadgeTone,
   dispatchExitTypeLabel,
   RepairDispatchStatus,
-  repairEquipmentStatusBadgeTone,
+  RepairEquipmentStatus,
   repairEquipmentStatusLabel,
   type BatchDetailDto,
   type RepairDispatchDto,
@@ -47,14 +46,43 @@ type EqRow = RepairEquipmentDto & { actions?: unknown } & Record<string, unknown
 
 const messages = createSpanishDataGridMessages('equipo', 'equipos')
 
-function dispatchStatusBadge(status: RepairDispatchStatus) {
+function dispatchStatusLabel(status: RepairDispatchStatus): string {
   switch (status) {
     case RepairDispatchStatus.Invoiced:
-      return <StatusBadge tone="success" withDot>Facturado</StatusBadge>
+      return 'Facturado'
     case RepairDispatchStatus.Confirmed:
-      return <StatusBadge tone="primary" withDot>Confirmado</StatusBadge>
+      return 'Confirmado'
     default:
-      return <StatusBadge tone="neutral" withDot>Borrador</StatusBadge>
+      return 'Borrador'
+  }
+}
+
+function dispatchStatusClass(status: RepairDispatchStatus): string {
+  switch (status) {
+    case RepairDispatchStatus.Invoiced:
+      return 'ecu-status--active'
+    case RepairDispatchStatus.Confirmed:
+      return 'ecu-status--warning'
+    default:
+      return 'ecu-status--inactive'
+  }
+}
+
+function equipmentStatusClass(status: RepairEquipmentStatus): string {
+  switch (status) {
+    case RepairEquipmentStatus.ReadyToDispatch:
+    case RepairEquipmentStatus.Dispatched:
+      return 'ecu-status--active'
+    case RepairEquipmentStatus.Diagnosing:
+    case RepairEquipmentStatus.InRepair:
+    case RepairEquipmentStatus.QualityCheck:
+    case RepairEquipmentStatus.ReturnedClient:
+      return 'ecu-status--warning'
+    case RepairEquipmentStatus.Irreparable:
+    case RepairEquipmentStatus.ReturnedUnrepaired:
+      return 'ecu-status--danger'
+    default:
+      return 'ecu-status--inactive'
   }
 }
 
@@ -171,13 +199,12 @@ export function RepairDispatchDetailPage() {
                 navigate(`/taller/lotes/${dispatch.batchId}/equipos/${row.id}`)
               }
             }}
+            className="ecu-code"
             style={{
               background: 'none',
               border: 'none',
               padding: 0,
               cursor: 'pointer',
-              fontFamily: 'ui-monospace, monospace',
-              fontWeight: 700,
               color: 'var(--shell-primary)',
               textDecoration: 'underline',
               textAlign: 'left',
@@ -195,19 +222,18 @@ export function RepairDispatchDetailPage() {
         header: 'Nivel',
         width: 150,
         renderCell: (_v, row) => (
-          <StatusBadge tone={damageLevelBadgeTone(row.damageLevel)}>
-            {damageLevelLabel(row.damageLevel)}
-          </StatusBadge>
+          <span className="ecu-chip">{damageLevelLabel(row.damageLevel)}</span>
         ),
       },
       {
         key: 'status',
         header: 'Estado Técnico',
-        width: 160,
+        width: 170,
         renderCell: (_v, row) => (
-          <StatusBadge tone={repairEquipmentStatusBadgeTone(row.status)}>
+          <span className={`ecu-status ${equipmentStatusClass(row.status)}`}>
+            <span className="ecu-status__dot" aria-hidden />
             {repairEquipmentStatusLabel(row.status)}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -258,15 +284,8 @@ export function RepairDispatchDetailPage() {
         disabled: false,
       })
     }
-    items.push({
-      id: 'refresh',
-      label: 'Actualizar',
-      icon: 'refresh-cw',
-      route: null,
-      disabled: loading,
-    })
     return items
-  }, [dispatch?.batchId, publicVerifyUrl, loading])
+  }, [dispatch?.batchId, publicVerifyUrl])
 
   const copyVerifyUrl = async () => {
     if (!publicVerifyUrl) return
@@ -336,7 +355,7 @@ export function RepairDispatchDetailPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Acta de Despacho" lead="Detalle y entrega del acta de despacho.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso restringido"
             subtitle="Requieres repairs.dispatches.read."
@@ -352,7 +371,7 @@ export function RepairDispatchDetailPage() {
       title="Acta de Despacho"
       lead="Certificación QR, equipos incluidos y entrega de taller."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title={dispatch ? `Acta ${dispatch.dispatchNumber}` : 'Acta de Despacho'}
           subtitle={
@@ -362,18 +381,13 @@ export function RepairDispatchDetailPage() {
                 ? `Lote ${dispatch.batchNumber} · ${dispatch.customerName ?? 'Taller'}`
                 : 'Detalle operativo del despacho de equipos'
           }
-          badge={
-            dispatch ? (
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                {dispatchStatusBadge(dispatch.status)}
-                <StatusBadge tone={dispatchExitTypeBadgeTone(dispatch.exitType)}>
-                  {dispatchExitTypeLabel(dispatch.exitType)}
-                </StatusBadge>
-              </div>
-            ) : undefined
-          }
           actions={
             <>
+              <GridToolbarRefresh
+                loading={loading}
+                onRefresh={() => void load()}
+                label="Actualizar acta"
+              />
               <Button type="button" variant="outline" onClick={() => navigate('/taller/despachos')}>
                 <ArrowLeft size={16} strokeWidth={2} aria-hidden />
                 Volver
@@ -417,7 +431,6 @@ export function RepairDispatchDetailPage() {
                 renderIcon={renderSidebarIcon}
                 onNavigate={(route: string) => navigate(route)}
                 onActionSelect={(item) => {
-                  if (item.id === 'refresh') void load()
                   if (item.id === 'public-qr' && publicVerifyUrl) window.open(publicVerifyUrl, '_blank')
                   if (item.id === 'copy-url') void copyVerifyUrl()
                 }}
@@ -434,53 +447,17 @@ export function RepairDispatchDetailPage() {
         )}
 
         {/* Franja de Indicadores KPI */}
-        <div className="ecu-stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-          <StatCard
-            label="Equipos en acta"
-            value={String(dispatch?.items?.length ?? 0)}
-            icon="inventory_2"
-            toneColor="var(--shell-primary)"
-            footerText={
-              equipments.length > 0
-                ? `N1: ${damageBreakdown.n1} · N2: ${damageBreakdown.n2} · N3: ${damageBreakdown.n3}${
-                    damageBreakdown.irr > 0 ? ` · Irr: ${damageBreakdown.irr}` : ''
-                  }`
-                : undefined
-            }
-          />
-          <StatCard
-            label="Tipo de salida"
-            value={dispatch ? dispatchExitTypeLabel(dispatch.exitType) : '—'}
-            icon="local_shipping"
-            toneColor="var(--shell-primary)"
-            footerText="Egreso autorizado de taller"
-          />
-          <StatCard
-            label="Salida del taller"
-            value={dispatch?.dispatchedAt ? formatDateTime(dispatch.dispatchedAt) : 'En preparación'}
-            icon="event_available"
-            toneColor="var(--shell-primary)"
-            footerText={dispatch?.dispatchedAt ? 'Fecha y hora de retiro' : 'Pendiente de entrega'}
-          />
-          {dispatch?.invoiceId && (
-            <StatCard
-              label="Comprobante SRI"
-              value={
-                linkedInvoice
-                  ? `${linkedInvoice.establishment}-${linkedInvoice.emissionPoint}-${linkedInvoice.sequential}`
-                  : 'Facturado'
-              }
-              icon="description"
-              toneColor="var(--shell-success, #10b981)"
-              footerText="RIDE oficial disponible"
-            />
-          )}
+        <div className="ecu-stat-grid">
+          <StatCard label="Equipos" value={dispatch?.items?.length ?? 0} />
+          <StatCard label="Daño N1" value={damageBreakdown.n1} />
+          <StatCard label="Daño N2" value={damageBreakdown.n2} />
+          <StatCard label="Daño N3" value={damageBreakdown.n3} />
         </div>
 
         {/* Datos del Despacho y Transportista */}
         <SectionCard
           title="Datos del Despacho"
-          subtitle="Custodia de transporte y certificación"
+          bodyClassName="ecu-section-card__body--padded"
           action={
             publicVerifyUrl ? (
               <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
@@ -519,6 +496,29 @@ export function RepairDispatchDetailPage() {
               <span className="ecu-property-tile__label">Vehículo / Placa</span>
               <span className="ecu-property-tile__value ecu-property-tile__value--mono">
                 {dispatch?.carrierVehiclePlate || '—'}
+              </span>
+            </div>
+            <div className="ecu-property-tile">
+              <span className="ecu-property-tile__label">Estado del acta</span>
+              <span className="ecu-property-tile__value">
+                {dispatch ? (
+                  <span className={`ecu-status ${dispatchStatusClass(dispatch.status)}`}>
+                    <span className="ecu-status__dot" aria-hidden />
+                    {dispatchStatusLabel(dispatch.status)}
+                  </span>
+                ) : (
+                  '—'
+                )}
+              </span>
+            </div>
+            <div className="ecu-property-tile">
+              <span className="ecu-property-tile__label">Tipo de salida</span>
+              <span className="ecu-property-tile__value">
+                {dispatch ? (
+                  <span className="ecu-chip">{dispatchExitTypeLabel(dispatch.exitType)}</span>
+                ) : (
+                  '—'
+                )}
               </span>
             </div>
             {dispatch?.batchId && (
@@ -579,10 +579,7 @@ export function RepairDispatchDetailPage() {
         </SectionCard>
 
         {/* Tabla de Equipos Despachados con enlaces interactivos */}
-        <SectionCard
-          title={`Equipos despachados (${equipments.length})`}
-          subtitle="Haz clic en cualquier número de serie o en el botón para ver su ficha técnica individual"
-        >
+        <SectionCard title={`Equipos despachados (${equipments.length})`}>
           {loading ? (
             <p className="ecu-modal-section-lead" style={{ textAlign: 'center', padding: '1.5rem 0' }}>
               Cargando detalle de equipos...
@@ -618,7 +615,7 @@ export function RepairDispatchDetailPage() {
         {/* Custodia y Responsabilidad */}
         <SectionCard
           title="Custodia y Responsabilidad"
-          subtitle="Responsables del retiro y autorización de salida"
+          bodyClassName="ecu-section-card__body--padded"
         >
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.85rem' }}>
             <div className="ecu-property-tile" style={{ padding: '0.85rem 1rem' }}>

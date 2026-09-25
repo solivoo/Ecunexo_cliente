@@ -1161,7 +1161,7 @@ export function ImportPurchasesPage() {
       title="Importación y Auditoría SRI de Compras"
       lead="Audita comprobantes electrónicos con el algoritmo Módulo 11, clasifica compras de bienes o servicios y sincroniza con tu inventario."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid ecu-import-purchases-page">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid ecu-import-purchases-page">
         {/* Page Header */}
         <PageHeader
           title="Importación y Auditoría SRI de Compras"

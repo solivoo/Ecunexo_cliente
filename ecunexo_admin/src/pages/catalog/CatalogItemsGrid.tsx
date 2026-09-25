@@ -4,9 +4,8 @@ import { Button, DataGrid, type ColumnDef, type DataGridCardRenderContext } from
 import { Layers, Package, Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
-import { StatusBadge } from '@/components/ui'
 import { catalogItemKindLabel, catalogItemStatusLabel } from '@/lib/catalogLabels'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import {
   CatalogItemKind,
@@ -25,6 +24,36 @@ export type CatalogItemsGridProps = {
   readonly deletingId?: string | null
   readonly onDelete?: (row: CatalogItemListItemDto) => void
   readonly toolbarRight?: ReactNode
+}
+
+
+function CatalogKindMark({ kind }: { readonly kind: CatalogItemListItemDto['kind'] }) {
+  const isPhysical = kind === CatalogItemKind.Physical
+  return (
+    <span className={`ecu-kind ${isPhysical ? 'ecu-kind--physical' : 'ecu-kind--service'}`}>
+      <span className="ecu-kind__mark" aria-hidden />
+      {catalogItemKindLabel(kind)}
+    </span>
+  )
+}
+
+function CatalogStatusMark({ status }: { readonly status: CatalogItemListItemDto['status'] }) {
+  const isActive = status === CatalogItemStatus.Active
+  return (
+    <span className={`ecu-status ${isActive ? 'ecu-status--active' : 'ecu-status--inactive'}`}>
+      <span className="ecu-status__dot" aria-hidden />
+      {catalogItemStatusLabel(status)}
+    </span>
+  )
+}
+
+function CatalogVariantNote({ count }: { readonly count: number }) {
+  return (
+    <span className="ecu-variant-note">
+      <Layers size={13} aria-hidden />
+      Variantes ({count})
+    </span>
+  )
 }
 
 function resolveCatalogItemThumbUrl(row: CatalogItemGridRow): string | null {
@@ -147,35 +176,17 @@ export function CatalogItemsGrid({
         renderCell: (_value: CatalogItemGridRow['name'], row: CatalogItemGridRow) => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <strong>{row.name}</strong>
-            {row.isMatrixParent ? (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '0.75rem',
-                  color: 'var(--shell-primary, #4f46e5)',
-                  fontWeight: 600,
-                }}
-              >
-                <Layers size={13} />
-                <span>
-                  Variantes ({row.variantCount ?? 0})
-                </span>
-              </span>
-            ) : null}
+            {row.isMatrixParent ? <CatalogVariantNote count={row.variantCount ?? 0} /> : null}
           </div>
         ),
       },
       {
         key: 'kind',
         header: 'Tipo',
-        width: 120,
+        width: 110,
         sortable: true,
         renderCell: (_value: CatalogItemGridRow['kind'], row: CatalogItemGridRow) => (
-          <StatusBadge tone={row.kind === CatalogItemKind.Physical ? 'info' : 'neutral'}>
-            {catalogItemKindLabel(row.kind)}
-          </StatusBadge>
+          <CatalogKindMark kind={row.kind} />
         ),
       },
       {
@@ -185,22 +196,11 @@ export function CatalogItemsGrid({
         sortable: true,
         renderCell: (_value: CatalogItemGridRow['sku'], row: CatalogItemGridRow) =>
           row.sku ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
               <code className="ecu-code">{row.sku}</code>
               {row.isMatrixParent ? (
-                <span
-                  style={{
-                    fontSize: '0.65rem',
-                    textTransform: 'uppercase',
-                    padding: '1px 4px',
-                    borderRadius: '3px',
-                    background: 'rgba(79, 70, 229, 0.08)',
-                    color: 'var(--shell-primary, #4f46e5)',
-                    fontWeight: 600,
-                  }}
-                  title="Código de modelo matriz"
-                >
-                  Mod
+                <span className="ecu-chip ecu-chip--accent" title="Código de modelo matriz">
+                  Modelo
                 </span>
               ) : null}
             </span>
@@ -209,42 +209,21 @@ export function CatalogItemsGrid({
           ),
       },
       {
-        key: 'categoryName',
-        header: 'Categoría',
-        width: 180,
-        sortable: true,
-        renderCell: (_value: CatalogItemGridRow['categoryName'], row: CatalogItemGridRow) =>
-          row.categoryName ?? '—',
-      },
-      {
-        key: 'basePrice',
-        header: 'Precio base',
-        width: 120,
-        sortable: true,
-        renderCell: (_value: CatalogItemGridRow['basePrice'], row: CatalogItemGridRow) =>
-          row.basePrice == null ? '—' : `$ ${row.basePrice.toFixed(2)}`,
-      },
-      {
         key: 'status',
         header: 'Estado',
-        width: 120,
+        width: 110,
         sortable: true,
         renderCell: (_value: CatalogItemGridRow['status'], row: CatalogItemGridRow) => (
-          <StatusBadge
-            tone={row.status === CatalogItemStatus.Active ? 'success' : 'neutral'}
-            withDot={row.status === CatalogItemStatus.Active}
-          >
-            {catalogItemStatusLabel(row.status)}
-          </StatusBadge>
+          <CatalogStatusMark status={row.status} />
         ),
       },
       {
         key: 'createdAt',
         header: 'Alta',
-        width: 170,
+        width: 110,
         sortable: true,
         renderCell: (_value: CatalogItemGridRow['createdAt'], row: CatalogItemGridRow) =>
-          formatDateTime(row.createdAt),
+          formatDate(row.createdAt),
       },
     ]
 
@@ -292,15 +271,7 @@ export function CatalogItemsGrid({
           </div>
           <div className="ecu-catalog-card__header-main">
             <div className="ecu-catalog-card__meta-badges">
-              <span className="ecu-catalog-card__category" title={row.categoryName ?? 'Sin categoría'}>
-                {row.categoryName ?? 'Sin categoría'}
-              </span>
-              <StatusBadge
-                tone={row.status === CatalogItemStatus.Active ? 'success' : 'neutral'}
-                withDot={row.status === CatalogItemStatus.Active}
-              >
-                {catalogItemStatusLabel(row.status)}
-              </StatusBadge>
+              <CatalogStatusMark status={row.status} />
             </div>
 
             <h4 className="ecu-catalog-card__title" title={row.name}>
@@ -309,21 +280,7 @@ export function CatalogItemsGrid({
 
             {row.isMatrixParent ? (
               <div style={{ margin: '2px 0 6px 0' }}>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '0.75rem',
-                    color: 'var(--shell-primary, #4f46e5)',
-                    fontWeight: 600,
-                  }}
-                >
-                  <Layers size={13} />
-                  <span>
-                    Variantes ({row.variantCount ?? 0})
-                  </span>
-                </span>
+                <CatalogVariantNote count={row.variantCount ?? 0} />
               </div>
             ) : null}
 
@@ -336,20 +293,12 @@ export function CatalogItemsGrid({
                   <code className="ecu-code">{row.sku}</code>
                 </span>
               ) : null}
-              <StatusBadge tone={row.kind === CatalogItemKind.Physical ? 'info' : 'neutral'}>
-                {catalogItemKindLabel(row.kind)}
-              </StatusBadge>
+              <CatalogKindMark kind={row.kind} />
             </div>
           </div>
         </div>
 
         <div className="ecu-catalog-card__body">
-          <div className="ecu-catalog-card__price-box">
-            <span className="ecu-catalog-card__price-label">Precio base</span>
-            <span className="ecu-catalog-card__price-value">
-              {row.basePrice == null ? '—' : `$ ${row.basePrice.toFixed(2)}`}
-            </span>
-          </div>
 
           {(canEdit || canDelete) && (
             <div className="ecu-catalog-card__actions">
@@ -394,7 +343,7 @@ export function CatalogItemsGrid({
 
         <div className="ecu-catalog-card__footer">
           <span className="ecu-catalog-card__created-at">
-            Alta: {formatDateTime(row.createdAt)}
+            Alta: {formatDate(row.createdAt)}
           </span>
         </div>
       </div>

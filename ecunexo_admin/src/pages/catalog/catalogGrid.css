@@ -7,7 +7,7 @@
 .ecu-companies-grid.glb-datagrid--card-layout .glb-datagrid__cards {
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
+  gap: 0.75rem;
   padding: 0.35rem 0 1rem;
   width: 100%;
   touch-action: pan-y !important;
@@ -15,34 +15,32 @@
 
 .ecu-companies-grid.glb-datagrid--card-layout .glb-datagrid__card {
   box-sizing: border-box;
-  border-radius: 12px;
-  border: 1px solid var(--shell-border, #e2e8f0);
+  border-radius: 10px;
+  border: 1px solid var(--idt-rule, var(--shell-border, #e2e8f0));
   background-color: var(--glb-surface, #ffffff);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: none;
   padding: 0.875rem 1rem;
   width: 100%;
   touch-action: pan-y !important;
-  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   position: relative;
 }
 
 .ecu-companies-grid.glb-datagrid--card-layout .glb-datagrid__card:hover {
-  border-color: var(--shell-primary, #6366f1);
-  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  border-color: color-mix(in srgb, var(--shell-primary, #6366f1) 55%, var(--idt-rule, #d8dce3));
+  box-shadow: none;
 }
 
 html.sf-dark-mode .ecu-companies-grid.glb-datagrid--card-layout .glb-datagrid__card {
   background-color: var(--glb-surface, #1e293b);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: none;
 }
 
 html.sf-dark-mode .ecu-companies-grid.glb-datagrid--card-layout .glb-datagrid__card:hover {
-  border-color: var(--shell-primary, #818cf8);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+  border-color: color-mix(in srgb, var(--shell-primary, #818cf8) 60%, rgba(255, 255, 255, 0.12));
+  box-shadow: none;
 }
 
 /* --- Tarjeta Personalizada de Catálogo --- */
@@ -117,22 +115,6 @@ html.sf-dark-mode .ecu-catalog-card__thumb--empty {
   flex-wrap: wrap;
 }
 
-.ecu-catalog-card__category {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--glb-muted, #64748b);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 170px;
-}
-
-html.sf-dark-mode .ecu-catalog-card__category {
-  color: var(--glb-muted, #94a3b8);
-}
-
 .ecu-catalog-card__title {
   font-size: 0.95rem;
   font-weight: 700;
@@ -172,45 +154,20 @@ html.sf-dark-mode .ecu-catalog-card__title {
   letter-spacing: 0.02em;
 }
 
-/* Cuerpo / Barra de Precio y Acciones */
+/* Cuerpo / Barra de Acciones */
 .ecu-catalog-card__body {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   padding-top: 0.625rem;
-  border-top: 1px solid var(--shell-border, #f1f5f9);
+  border-top: 1px solid var(--idt-rule, var(--shell-border, #f1f5f9));
 }
 
 html.sf-dark-mode .ecu-catalog-card__body {
   border-top-color: rgba(255, 255, 255, 0.07);
 }
 
-.ecu-catalog-card__price-box {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.ecu-catalog-card__price-label {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--glb-muted, #64748b);
-}
-
-.ecu-catalog-card__price-value {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: var(--shell-primary, #0284c7);
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-}
-
-html.sf-dark-mode .ecu-catalog-card__price-value {
-  color: var(--shell-primary, #38bdf8);
-}
 
 .ecu-catalog-card__actions {
   display: flex;
@@ -284,4 +241,15 @@ html.sf-dark-mode .ecu-catalog-card__created-at {
     min-width: 44px;
     min-height: 44px;
   }
+}
+
+/* Miniatura del ítem en el DataGrid */
+.ecu-catalog-page .catalog-item-thumb {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  border-radius: 8px;
 }

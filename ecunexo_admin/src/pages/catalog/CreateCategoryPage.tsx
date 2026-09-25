@@ -99,7 +99,7 @@ export function CreateCategoryPage() {
   if (!canManage) {
     return (
       <TenantSessionGate title="Nueva categoría" lead="Alta de una clasificación del catálogo.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres el permiso catalog.category.manage para crear categorías en la empresa."
@@ -120,7 +120,7 @@ export function CreateCategoryPage() {
 
   return (
     <TenantSessionGate title="Nueva categoría" lead="Alta de una clasificación del catálogo.">
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Nueva Categoría"
           subtitle="Crea una categoría para estructurar productos y servicios, y definir moldes de atributos personalizados dinámicos."

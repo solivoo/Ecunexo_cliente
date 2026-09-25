@@ -2,7 +2,6 @@ import { Button } from 'glubox'
 import {
   EcuPageActions,
   PageHeader,
-  StatusBadge,
 } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { EditUserPasswordSection } from '@/features/identity/EditUserPasswordSection'
@@ -17,7 +16,7 @@ export function EditUserPage() {
   if (!page.canUpdate) {
     return (
       <TenantSessionGate title="Editar usuario" lead="Actualiza la ficha de la persona.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <p className="app-shell__page-lead">
             Requieres identity.users.update para editar usuarios.
           </p>
@@ -31,18 +30,11 @@ export function EditUserPage() {
 
   return (
     <TenantSessionGate title="Editar usuario" lead="Actualiza la ficha de la persona.">
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title={page.user ? `Editar a ${page.user.name}` : 'Editar Usuario'}
           subtitle={
-            page.user
-              ? `${page.user.email} · Modifica datos de contacto, departamento, rol o contraseña.`
-              : 'Actualiza los datos de la cuenta en esta empresa.'
-          }
-          badge={
-            <StatusBadge tone="primary" withDot>
-              Edición de Cuenta
-            </StatusBadge>
+            page.user ? page.user.email : 'Actualiza los datos de la cuenta en esta empresa.'
           }
           actions={
             <>
@@ -72,9 +64,10 @@ export function EditUserPage() {
           {page.user ? (
             <>
               {page.error ? (
-                <p className="welcome-onboarding__error" role="alert">
-                  {page.error}
-                </p>
+<div className="ecu-form-error-banner" role="alert">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{page.error}</span>
+                </div>
               ) : null}
 
               <EditUserProfileSection

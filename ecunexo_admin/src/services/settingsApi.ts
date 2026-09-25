@@ -138,6 +138,12 @@ export async function previewEmailTemplate(
   return data
 }
 
+export interface SendInvoiceAuthorizedEmailAttachmentDto {
+  readonly fileName: string
+  readonly contentType: string
+  readonly contentBase64: string
+}
+
 export interface SendInvoiceAuthorizedEmailDto {
   readonly billingInvoiceId: string
   readonly counterpartyEmail: string
@@ -146,13 +152,20 @@ export interface SendInvoiceAuthorizedEmailDto {
   readonly serieSecuencial: string
   readonly accessKey?: string | null
   readonly grandTotal: number
+  readonly attachments?: readonly SendInvoiceAuthorizedEmailAttachmentDto[]
+}
+
+export interface SendInvoiceAuthorizedEmailResponse {
+  readonly sent: boolean
+  readonly to: string
+  readonly attachments?: readonly string[]
 }
 
 export async function sendInvoiceAuthorizedEmail(
   tenantId: string,
   body: SendInvoiceAuthorizedEmailDto,
-): Promise<{ sent: boolean; to: string }> {
-  const { data } = await api.post<{ sent: boolean; to: string }>(
+): Promise<SendInvoiceAuthorizedEmailResponse> {
+  const { data } = await api.post<SendInvoiceAuthorizedEmailResponse>(
     `/api/v1/tenants/${tenantId}/billing/invoice-authorized-email`,
     body,
   )

@@ -4,6 +4,7 @@
  */
 @import "./styles/ecu-companies-form.css";
 @import "./components/ui/enterpriseUi.css";
+@import "./styles/ecuSectionIdentity.css";
 
 html,
 body,
@@ -16,9 +17,9 @@ body,
 }
 
 :root {
-  /* glubox Sidebar usa var(--glb-font-family); su default es Poppins.
-     Se redefine aquí (después de glubox/style.css) para alinear con Inter. */
-  --glb-font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* glubox Sidebar usa var(--glb-font-family); su default también es Poppins.
+     Familia única para toda la aplicación. */
+  --glb-font-family: Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --sf-color-primary: rgb(79, 70, 229);
 
   --c-surface: #ffffff;

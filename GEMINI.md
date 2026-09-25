@@ -47,4 +47,10 @@ When creating or modifying UI components, views, layouts, or styles in this repo
 10. **Proactive Dead Code & Garbage Cleanup (Zero Remnants)**:
    - Whenever adding new functionality, evolving existing flows, or refactoring architecture: PROACTIVELY detect and purge obsolete logic, dead functions, orphan components, unused DTO fields, legacy routes, and redundant duplicate code.
    - NEVER leave commented-out blocks of legacy code, unused imports, obsolete mocks, or parallel abandoned implementations behind. Keep the codebase unified, cohesive, and completely free of residual garbage.
+11. **Compact, Agnostic Enterprise UI (Zero Tutorial Mindset)**:
+   - Interfaces must be compact, dense, ergonomic, and agnostic per skill `ui-compacta-sin-tutoriales`.
+   - Strictly avoid adding tutorial-like commentary, narrative descriptions, or educational paragraphs inside cards, inputs, empty states, or modals.
+   - Use simple, concise, generic placeholders (`Escriba aquí...`, `Seleccione uno...`, `Buscar...`).
+   - Treat the user as a professional enterprise operator: eliminate didactic blocks and keep forms concise and fast to operate.
+
 

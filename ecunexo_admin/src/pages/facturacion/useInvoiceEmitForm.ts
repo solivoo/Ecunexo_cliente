@@ -547,6 +547,21 @@ export function useInvoiceEmitForm({
           message: result.outcome === 'success' ? 'Factura generada con éxito.' : result.message,
           variant: result.outcome === 'success' ? 'success' : result.outcome === 'warning' ? 'warning' : 'error',
         })
+        if (result.emailStatus === 'failed') {
+          toast.show({
+            title: 'Correo al cliente',
+            message:
+              'La factura se autorizó, pero no se pudo enviar el correo con RIDE y XML. Puedes reenviarlo desde el listado de facturas.',
+            variant: 'warning',
+          })
+        } else if (result.emailStatus === 'skipped') {
+          toast.show({
+            title: 'Correo al cliente',
+            message:
+              'El cliente no tiene correo registrado en la factura; no se envió el RIDE ni el XML por email.',
+            variant: 'warning',
+          })
+        }
         await refreshSequentialPreview()
         if (result.outcome !== 'error') {
           resetFormAfterSuccessfulEmit()

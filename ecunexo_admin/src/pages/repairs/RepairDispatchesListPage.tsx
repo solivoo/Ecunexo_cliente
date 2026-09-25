@@ -4,6 +4,7 @@ import { Button, DataGrid, Popup, useToast, type ColumnDef, type PageActionItem 
 import {
   EcuPageActions,
   EmptyState,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
@@ -15,7 +16,7 @@ import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { downloadDispatchDeliveryNotePdf } from '@/pages/repairs/pdf/dispatchPdfDownloads'
@@ -27,7 +28,6 @@ import {
   RepairDispatchStatus,
   DispatchExitType,
   dispatchExitTypeLabel,
-  dispatchExitTypeBadgeTone,
   type RepairDispatchDto,
 } from '@/types/repairsApi'
 
@@ -35,14 +35,25 @@ type Row = RepairDispatchDto & Record<string, unknown>
 
 const messages = createSpanishDataGridMessages('despacho', 'despachos')
 
-function statusBadge(status: RepairDispatchStatus) {
+function dispatchStatusLabel(status: RepairDispatchStatus): string {
   switch (status) {
     case RepairDispatchStatus.Invoiced:
-      return <StatusBadge tone="success" withDot>Facturado</StatusBadge>
+      return 'Facturado'
     case RepairDispatchStatus.Confirmed:
-      return <StatusBadge tone="primary" withDot>Confirmado</StatusBadge>
+      return 'Confirmado'
     default:
-      return <StatusBadge tone="neutral" withDot>Borrador</StatusBadge>
+      return 'Borrador'
+  }
+}
+
+function dispatchStatusClass(status: RepairDispatchStatus): string {
+  switch (status) {
+    case RepairDispatchStatus.Invoiced:
+      return 'ecu-status--active'
+    case RepairDispatchStatus.Confirmed:
+      return 'ecu-status--warning'
+    default:
+      return 'ecu-status--inactive'
   }
 }
 
@@ -143,15 +154,8 @@ export function RepairDispatchesListPage() {
       route: null,
       disabled: false,
     })
-    items.push({
-      id: 'refresh',
-      label: 'Actualizar',
-      icon: 'refresh-cw',
-      route: null,
-      disabled: loading,
-    })
     return items
-  }, [canReadBatches, canViewPortal, loading])
+  }, [canReadBatches, canViewPortal])
 
   const columns = useMemo(
     (): ColumnDef<Row>[] => [
@@ -175,7 +179,7 @@ export function RepairDispatchesListPage() {
             }}
             onClick={() => navigate(`/taller/despachos/${row.id}`)}
           >
-            {row.dispatchNumber}
+            <code className="ecu-code">{row.dispatchNumber}</code>
           </button>
         ),
       },
@@ -190,9 +194,7 @@ export function RepairDispatchesListPage() {
               {row.customerName || 'Cliente Corporativo'}
             </div>
             {row.batchNumber && (
-              <span className="app-shell__muted" style={{ fontSize: '0.75rem', fontFamily: 'ui-monospace, monospace' }}>
-                Lote: {row.batchNumber}
-              </span>
+              <code className="ecu-code">Lote: {row.batchNumber}</code>
             )}
           </div>
         ),
@@ -209,9 +211,7 @@ export function RepairDispatchesListPage() {
                 {row.carrierName || 'No registrado'}
               </div>
               {row.carrierVehiclePlate && (
-                <span className="app-shell__muted" style={{ fontSize: '0.75rem', fontFamily: 'ui-monospace, monospace' }}>
-                  Placa: {row.carrierVehiclePlate}
-                </span>
+                <code className="ecu-code">Placa: {row.carrierVehiclePlate}</code>
               )}
             </div>
             {row.verificationHash && (
@@ -239,11 +239,7 @@ export function RepairDispatchesListPage() {
         width: 170,
         renderCell: (_v, row) => {
           const et = (row.exitType ?? DispatchExitType.Repaired) as DispatchExitType
-          return (
-            <StatusBadge tone={dispatchExitTypeBadgeTone(et)} withDot>
-              {dispatchExitTypeLabel(et)}
-            </StatusBadge>
-          )
+          return <span className="ecu-chip">{dispatchExitTypeLabel(et)}</span>
         },
       },
       {
@@ -258,17 +254,22 @@ export function RepairDispatchesListPage() {
       {
         key: 'dispatchedAt',
         header: 'Fecha salida',
-        width: 160,
+        width: 120,
         sortable: true,
         renderCell: (_v, row) => (
-          <span>{row.dispatchedAt ? formatDateTime(row.dispatchedAt) : '—'}</span>
+          <span>{row.dispatchedAt ? formatDate(row.dispatchedAt) : '—'}</span>
         ),
       },
       {
         key: 'status',
         header: 'Estado',
-        width: 120,
-        renderCell: (_v, row) => statusBadge(row.status),
+        width: 140,
+        renderCell: (_v, row) => (
+          <span className={`ecu-status ${dispatchStatusClass(row.status)}`}>
+            <span className="ecu-status__dot" aria-hidden />
+            {dispatchStatusLabel(row.status)}
+          </span>
+        ),
       },
       {
         key: 'verificationHash',
@@ -316,7 +317,7 @@ export function RepairDispatchesListPage() {
         title="Despachos"
         lead="Entrega certificada de electrodomésticos reparados con código QR."
       >
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso restringido"
             subtitle="Requieres repairs.dispatches.read para visualizar las actas de despacho."
@@ -332,32 +333,10 @@ export function RepairDispatchesListPage() {
       title="Actas y Despachos"
       lead="Despachos parciales o totales con acta QR y facturación por salida."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title="Actas y Despachos"
-          subtitle="Cada salida puede incluir un subconjunto de equipos listos; luego facturas el servicio del acta."
-          badge={<StatusBadge tone="primary" withDot>Operaciones</StatusBadge>}
-          actions={
-            <>
-              {canCreate && (
-                <Button type="button" variant="primary" onClick={() => navigate('/taller/despachos/nuevo')}>
-                  <Plus size={16} strokeWidth={2} aria-hidden />
-                  Nueva Acta
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={(item) => {
-                  if (item.id === 'refresh') void load()
-                  if (item.id === 'carriers') setIsCarriersModalOpen(true)
-                }}
-              />
-            </>
-          }
+          subtitle="Salidas parciales o totales con acta QR y facturación por servicio."
         />
 
         {error && (
@@ -368,12 +347,12 @@ export function RepairDispatchesListPage() {
         )}
 
         <div className="ecu-stat-grid">
-          <StatCard label="Actas emitidas" value={String(dispatches.length)} icon="receipt_long" toneColor="var(--shell-primary)" />
-          <StatCard label="Equipos despachados" value={String(totalDispatchedEquipments)} icon="inventory_2" toneColor="var(--shell-primary)" />
-          <StatCard label="Actas facturadas" value={String(invoicedCount)} icon="payments" toneColor="var(--shell-primary)" />
+          <StatCard label="Actas emitidas" value={dispatches.length} />
+          <StatCard label="Equipos despachados" value={totalDispatchedEquipments} />
+          <StatCard label="Actas facturadas" value={invoicedCount} />
         </div>
 
-        <SectionCard title="Historial de actas" subtitle="Haz clic en el número de acta para ver detalle, QR y facturación">
+        <SectionCard title="Historial de actas">
           {!loading && dispatches.length === 0 ? (
             <EmptyState
               icon="local_shipping"
@@ -399,6 +378,28 @@ export function RepairDispatchesListPage() {
               searchPosition="left"
               searchWidth={280}
               searchPlaceholder="Buscar por acta o transportista..."
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canCreate && (
+                    <Button type="button" variant="primary" onClick={() => navigate('/taller/despachos/nuevo')}>
+                      <Plus size={16} strokeWidth={2} aria-hidden />
+                      Nueva Acta
+                    </Button>
+                  )}
+                  <EcuPageActions
+                    items={actionItems}
+                    variant="outline"
+                    triggerLabel="Acciones"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
+                    onActionSelect={(item) => {
+                      if (item.id === 'refresh') void load()
+                      if (item.id === 'carriers') setIsCarriersModalOpen(true)
+                    }}
+                  />
+                </div>
+              }
               loading={loading}
               paging={paging}
               pageSizeOptions={pageSizeOptions}

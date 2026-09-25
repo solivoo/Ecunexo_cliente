@@ -11,12 +11,14 @@ import {
   SectionCard,
   StatCard,
   StatusBadge,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
-import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
@@ -60,13 +62,6 @@ function formatSustento(code: string): string {
     default:
       return `${code} — Sustento ATS SRI`
   }
-}
-
-function formatValidity(validFrom: string | null, validUntil: string | null): string {
-  if (!validFrom && !validUntil) return 'Indefinida'
-  if (validFrom && !validUntil) return `Desde ${validFrom}`
-  if (!validFrom && validUntil) return `Hasta ${validUntil}`
-  return `${validFrom} — ${validUntil}`
 }
 
 export function ExpenseTypesListPage() {
@@ -222,9 +217,7 @@ export function ExpenseTypesListPage() {
         header: 'Código',
         width: 120,
         sortable: true,
-        renderCell: (_value, row: ExpenseRow) => (
-          <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{row.code}</span>
-        ),
+        renderCell: (_value, row: ExpenseRow) => <code className="ecu-code">{row.code}</code>,
       },
       {
         key: 'name',
@@ -235,7 +228,7 @@ export function ExpenseTypesListPage() {
           <div>
             <div style={{ fontWeight: 600 }}>{row.name}</div>
             {row.description ? (
-              <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #6b7280)' }}>
+              <div className="ecu-clip" title={row.description}>
                 {row.description}
               </div>
             ) : null}
@@ -248,7 +241,9 @@ export function ExpenseTypesListPage() {
         width: 240,
         sortable: true,
         renderCell: (_value, row: ExpenseRow) => (
-          <span style={{ fontSize: '0.8rem' }}>{formatSustento(row.sriSustentoCode)}</span>
+          <span className="ecu-clip" title={formatSustento(row.sriSustentoCode)}>
+            {formatSustento(row.sriSustentoCode)}
+          </span>
         ),
       },
       {
@@ -256,12 +251,14 @@ export function ExpenseTypesListPage() {
         header: 'Afecta Stock',
         width: 130,
         sortable: true,
-        renderCell: (_value, row: ExpenseRow) =>
-          row.affectsInventory ? (
-            <StatusBadge tone="success">Sí (Kárdex)</StatusBadge>
-          ) : (
-            <StatusBadge tone="neutral">No (Gasto)</StatusBadge>
-          ),
+        renderCell: (_value, row: ExpenseRow) => (
+          <span
+            className={`ecu-status ${row.affectsInventory ? 'ecu-status--active' : 'ecu-status--inactive'}`}
+          >
+            <span className="ecu-status__dot" aria-hidden />
+            {row.affectsInventory ? 'Sí (Kárdex)' : 'No (Gasto)'}
+          </span>
+        ),
       },
       {
         key: 'suggestedRetentionCode',
@@ -273,33 +270,17 @@ export function ExpenseTypesListPage() {
           return (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.825rem' }}>
+                <code className="ecu-code">
                   {row.suggestedRetentionCode ? `AIR ${row.suggestedRetentionCode}` : '—'}
-                </span>
+                </code>
                 {row.retentionPercentage != null ? (
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: row.retentionPercentage === 0 ? 'var(--glb-muted, #6b7280)' : 'var(--shell-primary, #2563eb)',
-                    }}
-                  >
+                  <span className="ecu-source">
                     ({row.retentionPercentage.toFixed(2)}%)
                   </span>
                 ) : null}
               </div>
               {air ? (
-                <div
-                  title={air.description}
-                  style={{
-                    fontSize: '0.725rem',
-                    color: 'var(--glb-muted, #6b7280)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: '12rem',
-                  }}
-                >
+                <div className="ecu-clip" title={air.description}>
                   {air.description}
                 </div>
               ) : null}
@@ -309,14 +290,17 @@ export function ExpenseTypesListPage() {
       },
       {
         key: 'validFrom',
-        header: 'Vigencia SRI',
-        width: 150,
+        header: 'Desde',
+        width: 110,
         sortable: true,
-        renderCell: (_value, row: ExpenseRow) => (
-          <span style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #6b7280)' }}>
-            {formatValidity(row.validFrom, row.validUntil)}
-          </span>
-        ),
+        renderCell: (_value, row: ExpenseRow) => formatDate(row.validFrom),
+      },
+      {
+        key: 'validUntil',
+        header: 'Hasta',
+        width: 110,
+        sortable: true,
+        renderCell: (_value, row: ExpenseRow) => formatDate(row.validUntil),
       },
       {
         key: 'isSystem',
@@ -325,9 +309,9 @@ export function ExpenseTypesListPage() {
         sortable: true,
         renderCell: (_value, row: ExpenseRow) =>
           row.isSystem ? (
-            <StatusBadge tone="info">Catálogo SRI</StatusBadge>
+            <span className="ecu-chip">Catálogo SRI</span>
           ) : (
-            <StatusBadge tone="primary">Personalizado</StatusBadge>
+            <span className="ecu-chip ecu-chip--muted">Personalizado</span>
           ),
       },
       {
@@ -336,9 +320,10 @@ export function ExpenseTypesListPage() {
         width: 100,
         sortable: true,
         renderCell: (_value, row: ExpenseRow) => (
-          <StatusBadge tone={row.isActive ? 'success' : 'neutral'}>
+          <span className={`ecu-status ${row.isActive ? 'ecu-status--active' : 'ecu-status--inactive'}`}>
+            <span className="ecu-status__dot" aria-hidden />
             {row.isActive ? 'Activo' : 'Inactivo'}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -380,7 +365,7 @@ export function ExpenseTypesListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Categorías de Compra" lead="Catálogo de sustentación tributaria ATS.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres permisos de compras para ver el catálogo de categorías."
@@ -396,71 +381,20 @@ export function ExpenseTypesListPage() {
       title="Categorías de Compra SRI"
       lead="Deducción tributaria, sustento ATS Tabla 5, porcentaje de retención en la fuente (AIR) y afectación de inventario."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Categorías de Compra y Sustentos SRI"
-          subtitle="Conceptos esenciales para clasificar compras de bienes y servicios, asignación de crédito tributario ATS, tarifas de retención en la fuente (AIR) y vigencia oficial."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              Módulo Compras
-            </StatusBadge>
-          }
-          actions={
-            canManage ? (
-              <Button variant="primary" onClick={openCreate}>
-                <Plus size={16} />
-                Nueva Categoría
-              </Button>
-            ) : undefined
-          }
+          subtitle="Conceptos de compra con sustento ATS, retención AIR y afectación de inventario."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de categorías de compra">
-          <StatCard
-            label="Total Conceptos"
-            value={String(stats.total)}
-            icon="category"
-            toneColor="#4f46e5"
-            footerText="Categorías configuradas"
-          />
-          <StatCard
-            label="Afectan Inventario"
-            value={String(stats.inventariables)}
-            icon="inventory_2"
-            toneColor="#10b981"
-            footerText="Mercadería y productos físicos"
-          />
-          <StatCard
-            label="Servicios y Gastos"
-            value={String(stats.noInventariables)}
-            icon="receipt_long"
-            toneColor="#0ea5e9"
-            footerText="Honorarios, fletes, arriendos"
-          />
-          <StatCard
-            label="Semillero SRI"
-            value={String(stats.sistema)}
-            icon="verified_user"
-            toneColor="#8b5cf6"
-            footerText="Catálogo ATS agosto 2026"
-          />
+          <StatCard label="Total Conceptos" value={stats.total} />
+          <StatCard label="Afectan Inventario" value={stats.inventariables} />
+          <StatCard label="Servicios y Gastos" value={stats.noInventariables} />
+          <StatCard label="Catálogo SRI" value={stats.sistema} />
         </div>
 
-        <SectionCard
-          title="Catálogo de Categorías y Conceptos"
-          subtitle="Mapeo directo de compras al Anexo Transaccional Simplificado (ATS), retención en la fuente (AIR) y vigencias normativas"
-          action={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void loadData()}
-              disabled={loading}
-            >
-              <RefreshCw size={14} className={loading ? 'ecu-spin' : ''} />
-              Actualizar
-            </Button>
-          }
-        >
+        <SectionCard title="Catálogo de Categorías y Conceptos">
           {!loading && expenseTypes.length === 0 ? (
             <EmptyState
               icon="category"
@@ -485,6 +419,17 @@ export function ExpenseTypesListPage() {
               searchPosition="left"
               searchWidth={300}
               searchPlaceholder="Buscar concepto, código, sustento..."
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void loadData()} />
+                  {canManage && (
+                    <Button variant="primary" onClick={openCreate}>
+                      <Plus size={16} />
+                      Nueva Categoría
+                    </Button>
+                  )}
+                </div>
+              }
               loading={loading}
               paging={paging}
               pageSizeOptions={pageSizeOptions}

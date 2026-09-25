@@ -6,8 +6,8 @@ import {
   PageHeader,
   StatCard,
   SectionCard,
-  StatusBadge,
   EmptyState,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -62,42 +62,22 @@ export function RolesListPage() {
 
   const systemCount = useMemo(() => rows.filter((r) => r.isSystem).length, [rows])
 
-  const actionItems = useMemo<PageActionItem[]>(() => {
-    const items: PageActionItem[] = []
-    items.push(
-      {
-        id: 'users',
-        label: 'Usuarios',
-        icon: 'users',
-        route: '/equipo/usuarios',
-        disabled: false,
-      },
-      {
-        id: 'permissions',
-        label: 'Permisos',
-        icon: 'key',
-        route: '/seguridad/permisos',
-        disabled: false,
-      },
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        route: null,
-        disabled: loading,
-      }
-    )
-    return items
-  }, [canManage, loading])
-
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-      }
+  const actionItems: PageActionItem[] = [
+    {
+      id: 'users',
+      label: 'Usuarios',
+      icon: 'users',
+      route: '/equipo/usuarios',
+      disabled: false,
     },
-    [load]
-  )
+    {
+      id: 'permissions',
+      label: 'Permisos',
+      icon: 'key',
+      route: '/seguridad/permisos',
+      disabled: false,
+    },
+  ]
 
   const handleDelete = useCallback(async () => {
     if (!tenantId || !confirmDelete) return
@@ -129,87 +109,31 @@ export function RolesListPage() {
       title="Roles"
       lead="Roles agrupan permisos y se asignan a usuarios."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Roles y Privilegios"
-          subtitle="Catálogo de roles de esta empresa. Administra los roles predeterminados o crea perfiles a medida con permisos específicos."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {rows.length} {rows.length === 1 ? 'Rol' : 'Roles'}
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {canManage && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/equipo/roles/nuevo')}
-                >
-                  + Nuevo Rol
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de roles"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
-              />
-            </>
-          }
+          subtitle="Perfiles de permisos de esta empresa. Del sistema o a medida."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de roles">
-          <StatCard
-            label="Total Roles"
-            value={rows.length}
-            icon="shield"
-            toneColor="#4f46e5"
-            footerText="Perfiles de seguridad"
-          />
-          <StatCard
-            label="Roles del Sistema"
-            value={systemCount}
-            icon="verified_user"
-            toneColor="#059669"
-            badge={<StatusBadge tone="success">Protegidos</StatusBadge>}
-            footerText="Predefinidos por la plataforma"
-          />
-          <StatCard
-            label="Personalizados"
-            value={rows.length - systemCount}
-            icon="tune"
-            toneColor="#0284c7"
-            badge={rows.length - systemCount > 0 ? <StatusBadge tone="info">A medida</StatusBadge> : undefined}
-            footerText="Creados para la empresa"
-          />
-          <StatCard
-            label="Modelo de Control"
-            value="RBAC"
-            icon="lock"
-            toneColor="#7c3aed"
-            badge={<StatusBadge tone="neutral">Granular</StatusBadge>}
-            footerText="Basado en roles y directivas"
-          />
+          <StatCard label="Roles" value={rows.length} />
+          <StatCard label="Del sistema" value={systemCount} />
+          <StatCard label="Personalizados" value={rows.length - systemCount} />
         </div>
 
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
+        <SectionCard title="Catálogo">
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
+            </div>
+          ) : null}
 
-        <SectionCard
-          title="Catálogo de Roles"
-          subtitle="Configura y asigna permisos detallados a cada rol del sistema"
-        >
           {isEmpty ? (
             <EmptyState
               icon="admin_panel_settings"
               title="Aún no hay roles configurados"
-              description="Crea el primer rol personalizado para agrupar permisos operativos y asignarlos a colaboradores."
+              description="Crea el primer rol para agrupar permisos y asignarlos a colaboradores."
               action={
                 canManage ? (
                   <Button
@@ -232,6 +156,27 @@ export function RolesListPage() {
               loading={loading}
               actionBusyId={deleteBusy && confirmDelete ? confirmDelete.id : null}
               onDelete={setConfirmDelete}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canManage && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/equipo/roles/nuevo')}
+                    >
+                      + Nuevo Rol
+                    </Button>
+                  )}
+                  <EcuPageActions
+                    items={actionItems}
+                    variant="outline"
+                    triggerLabel="Acciones de roles"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
+                  />
+                </div>
+              }
             />
           )}
         </SectionCard>

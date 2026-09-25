@@ -1,0 +1,606 @@
+/* ==========================================================================
+   EcuNexo · Identidad de Sección («Sección como registro»)
+
+   Sistema visual compartido por las secciones operativas (Catálogo, Seguridad).
+   Cada página es un registro: portada con recuento vivo (riel), barra de mando
+   y un cuerpo tabulado tipo ledger. Un solo acento: el color del tenant
+   (--shell-primary). Una sola familia tipográfica: Poppins.
+
+   Estructura:
+   1. Tokens de sección y tema del DataGrid
+   2. Portada (PageHeader)
+   3. Riel de recuento (StatCards en banda conectada)
+   4. Cuerpo (SectionCard aplanada + barra de mando)
+   5. DataGrid tipo ledger
+   6. Marcas: tipo, estado, fichas, tokens, precio, niveles
+   7. Modo oscuro
+   8. Responsive y movimiento reducido
+   ========================================================================== */
+
+/* --- 1. Tokens de sección ------------------------------------------------- */
+
+.ecu-section-page {
+  --idt-rule: color-mix(in srgb, var(--shell-border, #e2e8f0) 78%, transparent);
+  --idt-field: color-mix(in srgb, var(--shell-muted, #64748b) 7%, transparent);
+  --idt-ink: var(--shell-text, #1b1b24);
+  --idt-muted: var(--shell-muted, #64748b);
+  --idt-ok: #0f8a5f;
+  --idt-warn: #b45309;
+  --idt-danger: #b91c1c;
+
+  /* Tema del DataGrid: superficies planas, reglas internas, sin sombras */
+  --datagrid-header-bg: transparent;
+  --datagrid-header-text: var(--idt-muted);
+  --datagrid-header-border: var(--idt-rule);
+  --datagrid-border: var(--idt-rule);
+  --datagrid-row-bg: transparent;
+  --datagrid-row-alt-bg: transparent;
+  --datagrid-row-text: var(--idt-ink);
+  --datagrid-row-hover-bg: color-mix(in srgb, var(--shell-primary, #3525cd) 5%, transparent);
+  --datagrid-empty-text: var(--idt-muted);
+  --datagrid-shadow: none;
+  --datagrid-radius: 0;
+}
+
+/* --- 2. Portada (PageHeader) --------------------------------------------- */
+
+.ecu-section-page .ecu-page-header {
+  border-bottom: 1px solid var(--idt-rule);
+  padding-bottom: 1rem;
+}
+
+.ecu-section-page .ecu-page-header__title {
+  font-size: clamp(1.55rem, 1.2rem + 0.7vw, 1.9rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+}
+
+.ecu-section-page .ecu-page-header__subtitle {
+  font-size: 0.8125rem;
+  color: var(--idt-muted);
+  max-width: 46rem;
+}
+
+/* --- 3. Riel de recuento -------------------------------------------------- */
+
+.ecu-section-page .ecu-stat-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 0;
+  margin-bottom: 0;
+  background: var(--shell-surface, #ffffff);
+  border: 1px solid var(--shell-border, #e2e8f0);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.ecu-section-page .ecu-stat-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'value'
+    'label';
+  align-content: end;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.8rem 1.1rem 0.75rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ecu-section-page .ecu-stat-grid > .ecu-stat-card + .ecu-stat-card {
+  border-left: 1px solid var(--idt-rule);
+}
+
+.ecu-section-page .ecu-stat-card:hover {
+  transform: none;
+  border-color: transparent;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--shell-primary, #3525cd) 3%, transparent);
+}
+
+.ecu-section-page .ecu-stat-card__header {
+  display: contents;
+}
+
+/* El riel no usa iconos: se ocultan si la página aún los declara */
+.ecu-section-page .ecu-stat-card__icon-wrap {
+  display: none;
+}
+
+.ecu-section-page .ecu-stat-card__value {
+  grid-area: value;
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--idt-ink);
+}
+
+.ecu-section-page .ecu-stat-card__label {
+  grid-area: label;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  text-transform: none;
+  color: var(--idt-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ecu-section-page .ecu-stat-card__footer {
+  display: none;
+}
+
+/* --- 4. Cuerpo (SectionCard + barra de mando) ----------------------------- */
+
+.ecu-section-page .ecu-section-card {
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.ecu-section-page .ecu-section-card__header {
+  padding: 0.95rem 1.15rem;
+  border-bottom: 1px solid var(--idt-rule);
+}
+
+.ecu-section-page .ecu-section-card__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.ecu-section-page .ecu-section-card__subtitle {
+  display: none;
+}
+
+/* El cuerpo cede el padding al DataGrid para que todo quede a plomo */
+.ecu-section-page .ecu-section-card__body:has(.glb-datagrid) {
+  padding: 0;
+}
+
+/* Cuerpo sin DataGrid: conserva aire propio */
+.ecu-section-page .ecu-section-card__body--padded {
+  padding: 1.35rem;
+}
+
+/* Banners de error como hijo directo del cuerpo sin padding */
+.ecu-section-page .ecu-section-card__body:has(.glb-datagrid) > .ecu-form-error-banner {
+  margin: 0.9rem 1.15rem 0;
+}
+
+.ecu-commandbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 1.15rem;
+  border-bottom: 1px solid var(--idt-rule);
+}
+
+.ecu-commandbar__search {
+  flex: 1 1 260px;
+  max-width: 26rem;
+  min-width: 0;
+}
+
+.ecu-commandbar__filter {
+  width: min(15rem, 100%);
+}
+
+.ecu-commandbar__spacer {
+  flex: 1 1 auto;
+}
+
+.ecu-commandbar__action {
+  flex-shrink: 0;
+}
+
+/* Acciones agrupadas en el encabezado de un DataGrid */
+.ecu-grid-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ecu-grid-toolbar-actions > .glb-btn:last-child {
+  flex-shrink: 0;
+}
+
+/* --- 5. DataGrid tipo ledger ---------------------------------------------- */
+
+.ecu-section-page .glb-datagrid__toolbar {
+  margin-bottom: 0;
+  padding: 0.7rem 1.15rem;
+  border-bottom: 1px solid var(--idt-rule);
+}
+
+.ecu-section-page .glb-datagrid__search {
+  border-radius: 9px;
+}
+
+.ecu-section-page .glb-datagrid__viewport,
+.ecu-section-page .glb-datagrid__surface {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.ecu-section-page .glb-datagrid__header-cell {
+  padding: 0.55rem 0.7rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--idt-muted);
+  background: transparent;
+  border-bottom: 1px solid var(--idt-rule);
+}
+
+.ecu-section-page .glb-datagrid__cell {
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--idt-rule);
+}
+
+/* Bordes alineados con la barra de mando */
+.ecu-section-page .glb-datagrid__table tr > :first-child {
+  padding-left: 1.15rem;
+}
+
+.ecu-section-page .glb-datagrid__table tr > :last-child {
+  padding-right: 1.15rem;
+}
+
+.ecu-section-page .glb-datagrid__row--interactive:hover {
+  background: var(--datagrid-row-hover-bg);
+}
+
+/* La columna fija tapa el scroll: fondo opaco para que no se transparente */
+.ecu-section-page .glb-datagrid__cell--sticky {
+  background: var(--shell-surface, #ffffff);
+}
+
+.ecu-section-page .glb-datagrid__row:hover .glb-datagrid__cell--sticky {
+  background: color-mix(
+    in srgb,
+    var(--shell-primary, #3525cd) 5%,
+    var(--shell-surface, #ffffff)
+  );
+}
+
+.ecu-section-page .glb-datagrid__summary,
+.ecu-section-page .glb-datagrid__pagination {
+  border: 0;
+  border-top: 1px solid var(--idt-rule);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.55rem 1.15rem;
+}
+
+.ecu-section-page .glb-datagrid__row-count {
+  font-size: 0.75rem;
+}
+
+.ecu-section-page .glb-datagrid__empty {
+  padding: 2rem 1.15rem;
+  color: var(--idt-muted);
+}
+
+.ecu-section-page .glb-datagrid__loading-text {
+  color: var(--idt-muted);
+}
+
+/* --- 6. Marcas, fichas y precio ------------------------------------------- */
+
+/* Tipo: bloque sólido = materia, contorno discontinuo = intangible */
+.ecu-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--idt-ink);
+  white-space: nowrap;
+}
+
+.ecu-kind__mark {
+  width: 0.6rem;
+  height: 0.6rem;
+  box-sizing: border-box;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.ecu-kind--physical .ecu-kind__mark {
+  background: var(--idt-ink);
+}
+
+.ecu-kind--service {
+  color: var(--idt-muted);
+}
+
+.ecu-kind--service .ecu-kind__mark {
+  border: 1.5px dashed color-mix(in srgb, var(--idt-ink) 65%, transparent);
+}
+
+/* Estado operativo: punto + palabra, sin píldora */
+.ecu-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ecu-status__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.ecu-status--active {
+  color: var(--idt-ok);
+}
+
+.ecu-status--inactive {
+  color: var(--idt-muted);
+}
+
+.ecu-status--warning {
+  color: var(--idt-warn);
+}
+
+.ecu-status--danger {
+  color: var(--idt-danger);
+}
+
+/* Fichas neutras (módulo, tipo de atributo, raíz, modelo) */
+.ecu-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  align-self: flex-start;
+  padding: 0.12rem 0.45rem;
+  border: 1px solid var(--idt-rule);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--idt-ink);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.ecu-chip--accent {
+  border-color: color-mix(in srgb, var(--shell-primary, #3525cd) 35%, transparent);
+  color: var(--shell-primary, #3525cd);
+}
+
+.ecu-chip--muted {
+  border-style: dashed;
+  color: var(--idt-muted);
+}
+
+.ecu-hint {
+  font-size: 0.75rem;
+  color: var(--idt-muted);
+}
+
+/* Recorte de textos largos que ensancharían el ledger */
+.ecu-clip {
+  display: inline-block;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.ecu-clip--wide {
+  max-width: 24rem;
+}
+
+.ecu-source {
+  font-size: 0.72rem;
+  color: var(--idt-muted);
+}
+
+/* Código técnico como ancla de fila (permisos, directivas) */
+.ecu-perm-code {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--idt-ink);
+  word-break: break-all;
+}
+
+/* Valores discretos: tokens de tinta plana */
+.ecu-token {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 5px;
+  background: var(--idt-field);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--idt-ink);
+  white-space: nowrap;
+}
+
+.ecu-token-more {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--idt-muted);
+}
+
+/* Jerarquía numerada (N1 › N2 › N3) */
+.ecu-levels {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.ecu-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.5rem 0.15rem 0.3rem;
+  border: 1px solid var(--idt-rule);
+  border-radius: 7px;
+  font-size: 0.75rem;
+  color: var(--idt-ink);
+  white-space: nowrap;
+}
+
+.ecu-level__key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding-inline: 0.15rem;
+  border-radius: 4px;
+  background: var(--idt-field);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--idt-muted);
+}
+
+.ecu-level__flag {
+  display: inline-flex;
+  align-items: center;
+  color: var(--idt-muted);
+}
+
+.ecu-level__sep {
+  color: color-mix(in srgb, var(--idt-muted) 60%, transparent);
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.ecu-variant-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--shell-primary, #3525cd);
+}
+
+/* Banner de error (usado en páginas de sección y formularios) */
+.ecu-form-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--idt-danger, #b91c1c) 32%, var(--shell-border, #e2e8f0));
+  background: color-mix(in srgb, var(--idt-danger, #b91c1c) 7%, var(--shell-surface, #ffffff));
+  color: var(--idt-danger, #b91c1c);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+html.sf-dark-mode .ecu-form-error-banner {
+  color: var(--idt-danger, #f87171);
+  border-color: color-mix(in srgb, var(--idt-danger, #f87171) 35%, transparent);
+  background: color-mix(in srgb, var(--idt-danger, #f87171) 10%, transparent);
+}
+
+.ecu-form-error-banner .material-symbols-outlined {
+  font-size: 1.05rem;
+  line-height: 1.35;
+  flex-shrink: 0;
+}
+
+/* Aviso de límite de plan */
+.ecu-limit-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--idt-warn) 30%, var(--shell-border, #e2e8f0));
+  background: color-mix(in srgb, var(--idt-warn) 7%, var(--shell-surface, #ffffff));
+  font-size: 0.8125rem;
+  color: var(--idt-ink);
+}
+
+/* --- 7. Modo oscuro ------------------------------------------------------- */
+
+html.sf-dark-mode .ecu-section-page {
+  --idt-ok: #34d399;
+  --idt-warn: #fbbf24;
+  --idt-danger: #f87171;
+  --idt-field: color-mix(in srgb, var(--shell-muted, #94a3b8) 12%, transparent);
+}
+
+html.sf-dark-mode .ecu-section-page .ecu-stat-grid {
+  background: color-mix(in srgb, var(--shell-surface, #1e293b) 92%, #ffffff 2%);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+html.sf-dark-mode .ecu-section-page .ecu-stat-card:hover {
+  background: color-mix(in srgb, var(--shell-primary, #818cf8) 6%, transparent);
+}
+
+html.sf-dark-mode .ecu-section-page .ecu-chip {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* --- 8. Responsive y movimiento reducido ---------------------------------- */
+
+@media (max-width: 760px) {
+  .ecu-section-page .ecu-stat-grid {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  }
+
+  .ecu-section-page .ecu-stat-grid > .ecu-stat-card + .ecu-stat-card {
+    border-left: 0;
+    border-top: 1px solid var(--idt-rule);
+  }
+
+  .ecu-section-page .ecu-stat-card {
+    padding: 0.7rem 0.9rem;
+  }
+
+  .ecu-section-page .ecu-stat-card__value {
+    font-size: 1.45rem;
+  }
+
+  .ecu-section-page .glb-datagrid__toolbar,
+  .ecu-commandbar {
+    padding-inline: 0.9rem;
+  }
+
+  .ecu-section-page .glb-datagrid__header-cell,
+  .ecu-section-page .glb-datagrid__cell,
+  .ecu-section-page .glb-datagrid__summary,
+  .ecu-section-page .glb-datagrid__pagination {
+    padding-inline: 0.9rem;
+  }
+
+  .ecu-section-page .glb-datagrid__table tr > :first-child,
+  .ecu-section-page .glb-datagrid__table tr > :last-child {
+    padding-inline: 0.9rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ecu-section-page .ecu-stat-card,
+  .ecu-section-page .ecu-stat-card:hover {
+    transition: none;
+    transform: none;
+  }
+}

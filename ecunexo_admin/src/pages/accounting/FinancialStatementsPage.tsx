@@ -2,14 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button, Select } from 'glubox'
 import {
   AlertCircle,
-  Building2,
   CheckCircle2,
   PieChart,
   Printer,
   RefreshCw,
   Scale,
-  TrendingDown,
-  TrendingUp,
 } from 'lucide-react'
 import { PageHeader, SectionCard, StatCard, StatusBadge } from '@/components/ui'
 import { useAppToast } from '@/components/toast/useAppToast'
@@ -80,6 +77,14 @@ export default function FinancialStatementsPage() {
     }).format(num)
   }
 
+  const formatAmount = (val: number | undefined | null) => {
+    const num = val ?? 0
+    return new Intl.NumberFormat('es-EC', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num)
+  }
+
   const handlePrint = () => {
     window.print()
   }
@@ -89,15 +94,11 @@ export default function FinancialStatementsPage() {
       title="Estados Financieros Oficiales S.A.S."
       lead="Balance General y Estado de Resultados Integral conforme a NIIF para PYMES y SuperCompañías Ecuador."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title="Estados Financieros NIIF & Balances S.A.S."
-          subtitle="Reportes contables oficiales para gerencia, directorio y presentación ante la Superintendencia de Compañías (SCVS)."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              NIIF PYMES / SCVS Ecuador
-            </StatusBadge>
-          }
+          subtitle="Balance general y estado de resultados por período."
+          badge={<StatusBadge tone="neutral">NIIF PYMES / SCVS Ecuador</StatusBadge>}
           actions={
             <div className="flex items-center gap-3">
               <div className="w-36">
@@ -135,44 +136,23 @@ export default function FinancialStatementsPage() {
           }
         />
 
-        {/* KPIs Strip en ecu-stat-grid según Regla 2 */}
         {data && (
-          <div className="ecu-stat-grid mb-6">
+          <div className="ecu-stat-grid" aria-label="Resumen de estados financieros">
             <StatCard
               label="Total Activos (Inversión)"
               value={formatCurrency(data.balanceGeneral.totalActivos)}
-              icon={<Scale size={20} />}
-              toneColor="#0284c7"
-              footerText={`Al corte ${data.cutoffDate}`}
             />
             <StatCard
               label="Total Pasivos (Obligaciones)"
               value={formatCurrency(data.balanceGeneral.totalPasivos)}
-              icon={<TrendingDown size={20} />}
-              toneColor="#d97706"
-              footerText="Deudas con terceros y SRI"
             />
             <StatCard
               label="Patrimonio Neto"
               value={formatCurrency(data.balanceGeneral.totalPatrimonioNeto)}
-              icon={<Building2 size={20} />}
-              toneColor="#4f46e5"
-              footerText="Capital + Reservas + Utilidad"
             />
             <StatCard
-              label="Utilidad Neta del Ejercicio"
-              value={formatCurrency(data.estadoResultados.utilidadNetaEjercicio)}
-              icon={
-                data.estadoResultados.utilidadNetaEjercicio >= 0 ? (
-                  <TrendingUp size={20} />
-                ) : (
-                  <TrendingDown size={20} />
-                )
-              }
-              toneColor={
-                data.estadoResultados.utilidadNetaEjercicio >= 0 ? '#10b981' : '#ef4444'
-              }
-              footerText="Después de 15% trab. y 25% IR"
+              label="Utilidad neta (USD)"
+              value={formatAmount(data.estadoResultados.utilidadNetaEjercicio)}
             />
           </div>
         )}
@@ -247,7 +227,7 @@ export default function FinancialStatementsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Lado Izquierdo: 1. ACTIVOS */}
               <div className="space-y-6">
-                <SectionCard title="1. ACTIVOS">
+                <SectionCard title="1. ACTIVOS" bodyClassName="ecu-section-card__body--padded">
                   {/* Activo Corriente */}
                   <div className="mb-4">
                     <div className="flex justify-between items-center py-2 px-3 bg-slate-100 dark:bg-slate-800/80 rounded-lg font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
@@ -321,7 +301,7 @@ export default function FinancialStatementsPage() {
               {/* Lado Derecho: 2. PASIVOS Y 3. PATRIMONIO */}
               <div className="space-y-6">
                 {/* 2. PASIVOS */}
-                <SectionCard title="2. PASIVOS">
+                <SectionCard title="2. PASIVOS" bodyClassName="ecu-section-card__body--padded">
                   <div className="mb-4">
                     <div className="flex justify-between items-center py-2 px-3 bg-slate-100 dark:bg-slate-800/80 rounded-lg font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
                       <span>2.1 Pasivo Corriente</span>
@@ -366,7 +346,7 @@ export default function FinancialStatementsPage() {
                 </SectionCard>
 
                 {/* 3. PATRIMONIO */}
-                <SectionCard title="3. PATRIMONIO NETO">
+                <SectionCard title="3. PATRIMONIO NETO" bodyClassName="ecu-section-card__body--padded">
                   <div className="space-y-2 pl-2 mb-4">
                     {data.balanceGeneral.patrimonio.map((grp) => (
                       <div
@@ -425,7 +405,10 @@ export default function FinancialStatementsPage() {
         ) : (
           /* PESTAÑA: ESTADO DE RESULTADOS INTEGRAL (P&G) */
           <div className="space-y-6">
-            <SectionCard title={`Estado de Resultados Integral — ${data.periodName}`}>
+            <SectionCard
+              title={`Estado de Resultados Integral — ${data.periodName}`}
+              bodyClassName="ecu-section-card__body--padded"
+            >
               <div className="max-w-4xl mx-auto divide-y divide-slate-100 dark:divide-slate-800">
                 {/* 1. Ingresos Operacionales */}
                 <div className="py-4 space-y-2">

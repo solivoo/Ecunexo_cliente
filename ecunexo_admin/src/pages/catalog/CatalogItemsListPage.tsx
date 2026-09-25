@@ -8,6 +8,7 @@ import {
   SectionCard,
   StatusBadge,
   EmptyState,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -63,42 +64,22 @@ export function CatalogItemsListPage() {
     void load({ silent: true })
   }, [canRead, load])
 
-  const actionItems = useMemo<PageActionItem[]>(() => {
-    const items: PageActionItem[] = []
-    items.push(
-      {
-        id: 'attributes',
-        label: 'Atributos',
-        icon: 'tag',
-        route: '/catalogo/atributos',
-        disabled: false,
-      },
-      {
-        id: 'templates',
-        label: 'Plantillas',
-        icon: 'layers',
-        route: '/catalogo/plantillas',
-        disabled: false,
-      },
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        route: null,
-        disabled: loading,
-      }
-    )
-    return items
-  }, [canCreate, loading])
-
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-      }
+  const actionItems: PageActionItem[] = [
+    {
+      id: 'attributes',
+      label: 'Atributos',
+      icon: 'tag',
+      route: '/catalogo/atributos',
+      disabled: false,
     },
-    [load]
-  )
+    {
+      id: 'templates',
+      label: 'Plantillas',
+      icon: 'layers',
+      route: '/catalogo/plantillas',
+      disabled: false,
+    },
+  ]
 
   const handleDelete = useCallback(async () => {
     if (!tenantId || !canDelete || !confirmDelete) return
@@ -174,73 +155,20 @@ export function CatalogItemsListPage() {
       title="Ítems"
       lead="Maestro de productos y servicios. Las existencias físicas se gestionan en inventario."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-catalog-page">
         <PageHeader
           title="Ítems del Catálogo"
-          subtitle="Productos y servicios de la empresa. El stock se gestiona en inventario."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {rows.length} {rows.length === 1 ? 'Ítem' : 'Ítems'}
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {canCreate && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/catalogo/items/nuevo')}
-                >
-                  + Nuevo Ítem
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de catálogo"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
-              />
-            </>
-          }
+          subtitle="Productos y servicios. El stock se controla en inventario."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de catálogo">
-          <StatCard
-            label="Total Ítems"
-            value={rows.length}
-            icon="inventory_2"
-            toneColor="#4f46e5"
-            footerText="Catálogo registrado"
-          />
-          <StatCard
-            label="Productos Físicos"
-            value={physicalCount}
-            icon="qr_code_2"
-            toneColor="#0ea5e9"
-            footerText="Con SKU e inventario"
-          />
-          <StatCard
-            label="Servicios"
-            value={serviceCount}
-            icon="design_services"
-            toneColor="#10b981"
-            footerText="Sin control de existencias"
-          />
-          <StatCard
-            label="Ítems Activos"
-            value={activeCount}
-            icon="verified"
-            toneColor="#8b5cf6"
-            footerText="Habilitados comercialmente"
-          />
+          <StatCard label="Ítems" value={rows.length} />
+          <StatCard label="Físicos" value={physicalCount} />
+          <StatCard label="Servicios" value={serviceCount} />
+          <StatCard label="Activos" value={activeCount} />
         </div>
 
-        <SectionCard
-          title="Inventario de Productos y Servicios"
-          subtitle="Listado maestro de prestaciones comerciales y trazabilidad de códigos"
-        >
+        <SectionCard title="Listado maestro">
           {error ? (
             <div className="ecu-form-error-banner" role="alert">
               <span className="material-symbols-outlined">error</span>
@@ -252,7 +180,7 @@ export function CatalogItemsListPage() {
             <EmptyState
               icon="inventory_2"
               title="Aún no hay ítems registrados"
-              description="Empieza creando un servicio (intangible) o un producto físico con su respectivo código SKU para control de almacén."
+              description="Crea un servicio o un producto físico con su código SKU."
               action={
                 canCreate ? (
                   <Button
@@ -274,18 +202,37 @@ export function CatalogItemsListPage() {
               deletingId={deletingId}
               onDelete={setConfirmDelete}
               toolbarRight={
-                <div style={{ minWidth: 170 }}>
-                  <Select
-                    id="catalog-items-status-filter"
-                    aria-label="Filtrar por estado"
+                <div className="ecu-grid-toolbar-actions">
+                  <div style={{ minWidth: 170 }}>
+                    <Select
+                      id="catalog-items-status-filter"
+                      aria-label="Filtrar por estado"
+                      variant="outline"
+                      options={[
+                        { value: 'all', label: `Todos (${rows.length})` },
+                        { value: 'active', label: `Activos (${activeCount})` },
+                        { value: 'inactive', label: `Inactivos (${inactiveCount})` },
+                      ]}
+                      value={statusFilter}
+                      onChange={(val) => setStatusFilter(val as 'all' | 'active' | 'inactive')}
+                    />
+                  </div>
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canCreate && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/catalogo/items/nuevo')}
+                    >
+                      + Nuevo Ítem
+                    </Button>
+                  )}
+                  <EcuPageActions
+                    items={actionItems}
                     variant="outline"
-                    options={[
-                      { value: 'all', label: `Todos (${rows.length})` },
-                      { value: 'active', label: `Activos (${activeCount})` },
-                      { value: 'inactive', label: `Inactivos (${inactiveCount})` },
-                    ]}
-                    value={statusFilter}
-                    onChange={(val) => setStatusFilter(val as 'all' | 'active' | 'inactive')}
+                    triggerLabel="Acciones de catálogo"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
                   />
                 </div>
               }

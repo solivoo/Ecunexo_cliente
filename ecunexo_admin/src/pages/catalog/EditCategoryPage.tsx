@@ -163,7 +163,7 @@ export function EditCategoryPage() {
   if (!canManage) {
     return (
       <TenantSessionGate title="Editar categoría" lead="Modificar clasificación del catálogo.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres el permiso catalog.category.manage para editar categorías en la empresa."
@@ -184,7 +184,7 @@ export function EditCategoryPage() {
 
   return (
     <TenantSessionGate title="Editar categoría" lead="Modificar clasificación del catálogo.">
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title={name.trim() ? `Editar: ${name}` : 'Editar Categoría'}
           subtitle="Modifica la denominación, descripción o el molde de campos dinámicos para los ítems pertenecientes a esta categoría."

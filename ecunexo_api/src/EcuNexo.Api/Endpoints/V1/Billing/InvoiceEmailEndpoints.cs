@@ -14,6 +14,17 @@ public static class InvoiceEmailEndpoints
 {
     private const string BillingKeyHeader = "X-EcuNexo-Billing-Key";
 
+    private const int MaxAttachmentCount = 4;
+    private const int MaxAttachmentBytes = 4 * 1024 * 1024;
+    private const int MaxTotalAttachmentBytes = 5 * 1024 * 1024;
+
+    private static readonly HashSet<string> AllowedAttachmentContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "application/pdf",
+        "application/xml",
+        "text/xml",
+    };
+
     // LoggerMessage delegates para evitar CA1848 / CA1873
     private static readonly Action<ILogger, string, Guid, Guid, Exception?> LogEmailSent =
         LoggerMessage.Define<string, Guid, Guid>(
@@ -126,6 +137,11 @@ public static class InvoiceEmailEndpoints
         var (renderedSubject, renderedBody) = EmailTemplateRenderer.Render("sri.invoice.authorized", subjectTpl, bodyTpl, placeholders);
         var plainBody = $"Estimado/a {request.CounterpartyName},\n\nSu {docTypeLabel} #{request.SerieSecuencial} ha sido autorizada por el SRI.\nTotal: $ {request.GrandTotal.ToString("N2", CultureInfo.InvariantCulture)}\nClave de Acceso: {request.AccessKey}\n\nEste correo es generado automáticamente por {tenantName}.";
 
+        if (!TryBuildAttachments(request.Attachments, out var attachments, out var attachmentError))
+        {
+            return Results.BadRequest(new { error = attachmentError });
+        }
+
         try
         {
             await emailSender.SendAsync(
@@ -135,12 +151,18 @@ public static class InvoiceEmailEndpoints
                     Subject: renderedSubject,
                     PlainTextBody: plainBody,
                     HtmlBody: renderedBody,
-                    TenantId: tenantId),
+                    TenantId: tenantId,
+                    Attachments: attachments),
                 ct).ConfigureAwait(false);
 
             LogEmailSent(logger, request.CounterpartyEmail.Trim(), tenantId, request.BillingInvoiceId, null);
 
-            return Results.Ok(new { sent = true, to = request.CounterpartyEmail.Trim() });
+            return Results.Ok(new
+            {
+                sent = true,
+                to = request.CounterpartyEmail.Trim(),
+                attachments = attachments?.Select(a => a.FileName).ToArray() ?? []
+            });
         }
         catch (Exception ex)
         {
@@ -148,7 +170,97 @@ public static class InvoiceEmailEndpoints
             return Results.Problem($"Error enviando correo: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Decodifica y valida los adjuntos base64 (RIDE PDF y XML firmado/autorizado).
+    /// Restringe cantidad, tamaño y tipos MIME para evitar abuso del endpoint.
+    /// </summary>
+    internal static bool TryBuildAttachments(
+        IReadOnlyList<InvoiceAuthorizedEmailAttachment>? requested,
+        out List<EmailAttachment>? attachments,
+        out string? error)
+    {
+        attachments = null;
+        error = null;
+
+        if (requested is not { Count: > 0 })
+        {
+            return true;
+        }
+
+        if (requested.Count > MaxAttachmentCount)
+        {
+            error = $"Máximo {MaxAttachmentCount} adjuntos por correo.";
+            return false;
+        }
+
+        var decoded = new List<EmailAttachment>(requested.Count);
+        var totalBytes = 0;
+
+        foreach (var item in requested)
+        {
+            if (string.IsNullOrWhiteSpace(item.FileName) || string.IsNullOrWhiteSpace(item.ContentBase64))
+            {
+                error = "Cada adjunto requiere fileName y contentBase64.";
+                return false;
+            }
+
+            var contentType = item.ContentType?.Trim() ?? string.Empty;
+            if (!AllowedAttachmentContentTypes.Contains(contentType))
+            {
+                error = $"Tipo de adjunto no permitido: {item.ContentType}. Solo se aceptan PDF y XML.";
+                return false;
+            }
+
+            var safeName = Path.GetFileName(item.FileName.Trim());
+            if (string.IsNullOrWhiteSpace(safeName) || safeName.Length > 160)
+            {
+                error = "El nombre del adjunto no es válido.";
+                return false;
+            }
+
+            byte[] content;
+            try
+            {
+                content = Convert.FromBase64String(item.ContentBase64);
+            }
+            catch (FormatException)
+            {
+                error = $"El adjunto «{safeName}» no contiene base64 válido.";
+                return false;
+            }
+
+            if (content.Length == 0)
+            {
+                error = $"El adjunto «{safeName}» está vacío.";
+                return false;
+            }
+
+            if (content.Length > MaxAttachmentBytes)
+            {
+                error = $"El adjunto «{safeName}» supera el máximo de {MaxAttachmentBytes / (1024 * 1024)} MB.";
+                return false;
+            }
+
+            totalBytes += content.Length;
+            if (totalBytes > MaxTotalAttachmentBytes)
+            {
+                error = $"Los adjuntos superan el máximo total de {MaxTotalAttachmentBytes / (1024 * 1024)} MB.";
+                return false;
+            }
+
+            decoded.Add(new EmailAttachment(safeName, contentType, content));
+        }
+
+        attachments = decoded;
+        return true;
+    }
 }
+
+public sealed record InvoiceAuthorizedEmailAttachment(
+    string FileName,
+    string ContentType,
+    string ContentBase64);
 
 public sealed record InvoiceAuthorizedEmailRequest(
     Guid BillingInvoiceId,
@@ -157,4 +269,5 @@ public sealed record InvoiceAuthorizedEmailRequest(
     string DocumentType,
     string SerieSecuencial,
     string? AccessKey,
-    decimal GrandTotal);
+    decimal GrandTotal,
+    IReadOnlyList<InvoiceAuthorizedEmailAttachment>? Attachments = null);

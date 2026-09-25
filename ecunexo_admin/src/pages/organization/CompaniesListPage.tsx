@@ -1,17 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Popup, useToast, type PageActionItem } from 'glubox'
+import { Button, Popup, useToast } from 'glubox'
 import { Plus } from 'lucide-react'
 import {
   EmptyState,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
-  StatusBadge,
 } from '@/components/ui'
-import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { CompaniesGrid } from '@/pages/organization/CompaniesGrid'
-import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
 import { fetchSession } from '@/services/authApi'
@@ -34,16 +32,6 @@ import type {
   ListSubscriptionCompaniesDto,
   SubscriptionCompanyListItemDto,
 } from '@/types/companiesApi'
-
-/** Trial = 0, Active = 1 (TenantStatus). */
-function companyStatusFooter(companies: readonly SubscriptionCompanyListItemDto[]): string {
-  const active = companies.filter((c) => c.status === 1).length
-  const trial = companies.filter((c) => c.status === 0).length
-  if (active > 0 && trial > 0) return `${active} activas · ${trial} en prueba`
-  if (active > 0) return `${active} ${active === 1 ? 'activa' : 'activas'}`
-  if (trial > 0) return `${trial} en prueba`
-  return 'Sin empresas operativas'
-}
 
 export function CompaniesListPage() {
   const toast = useToast()
@@ -169,96 +157,20 @@ export function CompaniesListPage() {
   const isEmpty = summary !== null && summary.companies.length === 0
   const canCreateMore = summary?.canCreateMore ?? false
 
-  const actionItems = useMemo((): PageActionItem[] => {
-    return [
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        route: null,
-        disabled: loading,
-      },
-    ]
-  }, [loading])
-
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-      }
-    },
-    [load]
-  )
-
   return (
     <>
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Empresas de la Licencia"
-          subtitle="Modo titular: gestiona las empresas asociadas a tu suscripción. Pulsa Entrar para operar dentro de una de ellas con su equipo, catálogo y facturación."
-          badge={
-            summary ? (
-              <StatusBadge tone="primary" withDot>
-                {summary.usedCount} / {summary.maxTenants} Cupos Usados
-              </StatusBadge>
-            ) : undefined
-          }
-          actions={
-            <>
-              {canCreate ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  disabled={!canCreateMore}
-                  title={canCreateMore ? undefined : 'No quedan cupos en la licencia'}
-                  onClick={() => navigate('/organizacion/empresas/nueva')}
-                >
-                  <Plus size={16} strokeWidth={2} aria-hidden />
-                  Crear empresa
-                </Button>
-              ) : null}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de empresas"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
-              />
-            </>
-          }
+          subtitle="Empresas asociadas a tu suscripción."
         />
 
         {summary ? (
           <div className="ecu-stat-grid" aria-label="Resumen de cupos y empresas">
-            <StatCard
-              label="Cupo Usado"
-              value={`${summary.usedCount} / ${summary.maxTenants}`}
-              icon="domain"
-              toneColor="#4f46e5"
-              footerText={summary.slotsRemaining > 0 ? `${summary.slotsRemaining} cupos disponibles` : 'Sin cupos disponibles'}
-            />
-            <StatCard
-              label="Cupos Restantes"
-              value={summary.slotsRemaining}
-              icon="check_circle"
-              toneColor="#10b981"
-              footerText={summary.canCreateMore ? 'Habilitado para nuevas altas' : 'Límite alcanzado'}
-            />
-            <StatCard
-              label="Empresas Registradas"
-              value={summary.companies.length}
-              icon="layers"
-              toneColor="#0284c7"
-              footerText={companyStatusFooter(summary.companies)}
-            />
-            <StatCard
-              label="Tipo de Licencia"
-              value={singleCompanyPlan ? '1 Empresa' : 'Multiempresa'}
-              icon="verified_user"
-              toneColor="#8b5cf6"
-              footerText={singleCompanyPlan ? 'Plan inicial monopuesto' : 'Plan corporativo multitenant'}
-            />
+            <StatCard label="Cupos usados" value={summary.usedCount} />
+            <StatCard label="Cupos libres" value={summary.slotsRemaining} />
+            <StatCard label="Empresas" value={summary.companies.length} />
+            <StatCard label="Cupo total" value={summary.maxTenants} />
           </div>
         ) : null}
 
@@ -275,10 +187,7 @@ export function CompaniesListPage() {
           </p>
         ) : null}
 
-        <SectionCard
-          title="Directorio de Empresas"
-          subtitle="Catálogo de tenants y organizaciones vinculadas a tu suscripción"
-        >
+        <SectionCard title="Directorio de Empresas">
           {isEmpty && !loading ? (
             <EmptyState
               title="Aún no hay empresas registradas"
@@ -313,6 +222,23 @@ export function CompaniesListPage() {
                 void navigate(`/organizacion/empresas/${id}/editar`)
               }}
               onDelete={setConfirmDelete}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canCreate ? (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      disabled={!canCreateMore}
+                      title={canCreateMore ? undefined : 'No quedan cupos en la licencia'}
+                      onClick={() => navigate('/organizacion/empresas/nueva')}
+                    >
+                      <Plus size={16} strokeWidth={2} aria-hidden />
+                      Crear empresa
+                    </Button>
+                  ) : null}
+                </div>
+              }
             />
           )}
         </SectionCard>

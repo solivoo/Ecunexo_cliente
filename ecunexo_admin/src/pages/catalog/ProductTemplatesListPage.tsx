@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button,
@@ -15,15 +15,13 @@ import {
   Palette,
   Pencil,
   Plus,
-  RefreshCw,
-  Sparkles,
   Trash2,
 } from 'lucide-react'
 import {
   PageHeader,
   SectionCard,
   StatCard,
-  StatusBadge,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -191,46 +189,34 @@ export function ProductTemplatesListPage() {
       header: 'Jerarquía y Niveles',
       width: 420,
       renderCell: (_val: unknown, row: TemplateGridRow) => (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+        <div className="ecu-levels">
           {row.parsedLevels.map((lvl: ProductTemplateLevel, idx: number) => (
-            <div
-              key={lvl.id || idx}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                fontSize: '0.75rem',
-                padding: '0.2rem 0.5rem',
-                borderRadius: '6px',
-                background: 'var(--shell-surface-subtle, rgba(255,255,255,0.04))',
-                border: '1px solid var(--shell-border, rgba(255,255,255,0.08))',
-                color: 'var(--glb-text)',
-              }}
-            >
-              <span style={{ fontWeight: 600, color: 'var(--shell-primary, #3b82f6)' }}>
-                N{idx + 1}:
-              </span>
-              <span>{lvl.name}</span>
-              {lvl.hasColor && (
-                <span title="Lleva color" style={{ display: 'inline-flex', alignItems: 'center' }}>
-                  <Palette size={12} color="#10b981" />
-                </span>
-              )}
-              {(lvl.photoScope ?? (lvl.hasImages ? 'variant' : 'none')) !== 'none' && (
-                <span
-                  title={
-                    lvl.photoScope === 'model'
-                      ? 'Fotos del modelo (todas las variantes las heredan)'
-                      : lvl.photoScope === 'group'
-                        ? 'Fotos compartidas por grupo'
-                        : 'Fotos por variante (SKU)'
-                  }
-                  style={{ display: 'inline-flex', alignItems: 'center' }}
-                >
-                  <Camera size={12} color="#a78bfa" />
-                </span>
-              )}
-            </div>
+            <Fragment key={lvl.id || idx}>
+              {idx > 0 && <span className="ecu-level__sep">›</span>}
+              <div className="ecu-level">
+                <span className="ecu-level__key">N{idx + 1}</span>
+                <span>{lvl.name}</span>
+                {lvl.hasColor && (
+                  <span className="ecu-level__flag" title="Lleva color">
+                    <Palette size={12} />
+                  </span>
+                )}
+                {(lvl.photoScope ?? (lvl.hasImages ? 'variant' : 'none')) !== 'none' && (
+                  <span
+                    className="ecu-level__flag"
+                    title={
+                      lvl.photoScope === 'model'
+                        ? 'Fotos del modelo (todas las variantes las heredan)'
+                        : lvl.photoScope === 'group'
+                          ? 'Fotos compartidas por grupo'
+                          : 'Fotos por variante (SKU)'
+                    }
+                  >
+                    <Camera size={12} />
+                  </span>
+                )}
+              </div>
+            </Fragment>
           ))}
         </div>
       ),
@@ -240,7 +226,7 @@ export function ProductTemplatesListPage() {
       header: 'Profundidad',
       width: 130,
       renderCell: (_val: unknown, row: TemplateGridRow) => (
-        <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--glb-text)' }}>
+        <span style={{ fontSize: '0.8125rem', color: 'var(--idt-muted, #64748b)' }}>
           {row.parsedLevels.length} {row.parsedLevels.length === 1 ? 'nivel' : 'niveles'}
         </span>
       ),
@@ -250,9 +236,10 @@ export function ProductTemplatesListPage() {
       header: 'Estado',
       width: 130,
       renderCell: (_val: unknown, row: TemplateGridRow) => (
-        <StatusBadge tone={row.isActive ? 'success' : 'neutral'}>
+        <span className={`ecu-status ${row.isActive ? 'ecu-status--active' : 'ecu-status--inactive'}`}>
+          <span className="ecu-status__dot" aria-hidden />
           {row.isActive ? 'Activo' : 'Inactivo'}
-        </StatusBadge>
+        </span>
       ),
     },
     {
@@ -262,7 +249,7 @@ export function ProductTemplatesListPage() {
       renderCell: (_val: unknown, row: TemplateGridRow) => {
         const date = new Date(row.createdAt)
         return (
-          <span style={{ fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--idt-muted, #64748b)' }}>
             {date.toLocaleDateString('es-EC', {
               year: 'numeric',
               month: 'short',
@@ -278,11 +265,20 @@ export function ProductTemplatesListPage() {
       width: 140,
       sortable: true,
       renderCell: (_val: unknown, row: TemplateGridRow) => (
-        <StatusBadge tone={row.usageCount && row.usageCount > 0 ? 'info' : 'neutral'}>
+        <span
+          style={{
+            fontSize: '0.8125rem',
+            fontWeight: row.usageCount && row.usageCount > 0 ? 600 : 400,
+            color:
+              row.usageCount && row.usageCount > 0
+                ? 'var(--shell-primary, #3525cd)'
+                : 'var(--idt-muted, #64748b)',
+          }}
+        >
           {row.usageCount && row.usageCount > 0
             ? `${row.usageCount} ${row.usageCount === 1 ? 'producto' : 'productos'}`
             : 'Sin uso'}
-        </StatusBadge>
+        </span>
       ),
     },
     {
@@ -319,61 +315,15 @@ export function ProductTemplatesListPage() {
       title="Plantillas de Producto"
       lead="Diseña arquetipos y jerarquías para estructurar familias, modelos y variantes sin repetir configuración."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid ecu-section-page ecu-catalog-page">
         <PageHeader
           title="Plantillas de Producto"
-          subtitle="Diseña arquetipos y jerarquías para estructurar familias, modelos y variantes sin repetir configuración."
-          badge={
-            <StatusBadge tone="info">
-              {rows.length} {rows.length === 1 ? 'Plantilla' : 'Plantillas'}
-            </StatusBadge>
-          }
-          actions={
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void loadData()}
-                disabled={loading}
-              >
-                <RefreshCw size={15} className={loading ? 'app-shell__spin' : undefined} />
-                <span>Actualizar</span>
-              </Button>
-              {canManage && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/catalogo/plantillas/nueva')}
-                  disabled={templateLimitReached}
-                  title={
-                    templateLimitReached
-                      ? `Tu plan permite hasta ${maxProductTemplates} plantillas de producto.`
-                      : undefined
-                  }
-                >
-                  <Plus size={16} />
-                  <span>Nueva Plantilla</span>
-                </Button>
-              )}
-            </div>
-          }
+          subtitle="Arquetipos y jerarquías para estructurar familias, modelos y variantes."
         />
 
         {templateLimitReached && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.625rem',
-              padding: '0.75rem 1rem',
-              marginBottom: '1.25rem',
-              borderRadius: '0.75rem',
-              border: '1px solid color-mix(in srgb, #f59e0b 30%, var(--shell-border, rgba(255, 255, 255, 0.1)))',
-              backgroundColor: 'color-mix(in srgb, #f59e0b 8%, var(--glb-surface, transparent))',
-              fontSize: '0.85rem',
-            }}
-          >
-            <Layers size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
+          <div className="ecu-limit-banner">
+            <Layers size={18} style={{ flexShrink: 0 }} />
             <span>
               Alcanzaste el máximo de <strong>{maxProductTemplates}</strong> plantillas de producto de tu plan.
               Actualiza tu plan para crear más arquetipos.
@@ -381,47 +331,15 @@ export function ProductTemplatesListPage() {
           </div>
         )}
 
-        {/* KPIs in ecu-stat-grid */}
-        <div className="ecu-stat-grid" style={{ marginBottom: '1.25rem' }}>
-          <StatCard
-            label="Total Plantillas"
-            value={totalCount}
-            icon={<Layers size={20} />}
-            toneColor="#4f46e5"
-            footerText="Arquetipos configurados"
-          />
-          <StatCard
-            label="Plantillas Activas"
-            value={activeCount}
-            icon={<Sparkles size={20} />}
-            toneColor="#10b981"
-            footerText="Listas para usar en catálogo"
-          />
-          <StatCard
-            label="Máximo de Niveles"
-            value={`${maxDepth} ${maxDepth === 1 ? 'nivel' : 'niveles'}`}
-            icon={<Layers size={20} />}
-            toneColor="#0ea5e9"
-            footerText="Profundidad máxima alcanzada"
-          />
+        <div className="ecu-stat-grid">
+          <StatCard label="Total Plantillas" value={totalCount} />
+          <StatCard label="Plantillas Activas" value={activeCount} />
+          <StatCard label="Máximo de Niveles" value={maxDepth} />
         </div>
 
-        {/* SectionCard with DataGrid */}
-        <SectionCard
-          title="Directorio de Plantillas Jerárquicas"
-          subtitle="Administra los modelos estructurales para organizar productos simples y multinivel."
-        >
-          {/* Filters Bar */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '1rem',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              marginBottom: '1rem',
-            }}
-          >
-            <div style={{ flex: '1 1 260px', maxWidth: '400px' }}>
+        <SectionCard title="Directorio">
+          <div className="ecu-commandbar">
+            <div className="ecu-commandbar__search">
               <TextBox
                 id="search-template"
                 variant="outline"
@@ -431,7 +349,7 @@ export function ProductTemplatesListPage() {
                 fullWidth
               />
             </div>
-            <div style={{ width: '200px' }}>
+            <div className="ecu-commandbar__filter">
               <Select
                 id="filter-template-status"
                 value={filterStatus}
@@ -444,6 +362,28 @@ export function ProductTemplatesListPage() {
                 fullWidth
               />
             </div>
+            <div className="ecu-commandbar__spacer" />
+            <div className="ecu-commandbar__action">
+              <div className="ecu-grid-toolbar-actions">
+                <GridToolbarRefresh loading={loading} onRefresh={() => void loadData()} />
+                {canManage && (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => navigate('/catalogo/plantillas/nueva')}
+                    disabled={templateLimitReached}
+                    title={
+                      templateLimitReached
+                        ? `Tu plan permite hasta ${maxProductTemplates} plantillas de producto.`
+                        : undefined
+                    }
+                  >
+                    <Plus size={16} />
+                    <span>Nueva Plantilla</span>
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
 
           <DataGrid<TemplateGridRow>
@@ -451,6 +391,7 @@ export function ProductTemplatesListPage() {
             dataSource={filteredRows}
             loading={loading}
             keyExpr="id"
+            showSearch={false}
             paging={paging}
             pageSizeOptions={pageSizeOptions}
             onPageChange={onPageChange}

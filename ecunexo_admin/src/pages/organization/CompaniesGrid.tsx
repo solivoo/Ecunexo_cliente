@@ -1,11 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { DataGrid, type ColumnDef } from 'glubox'
 import { LogIn, Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
-import { StatusBadge } from '@/components/ui'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import { tenantStatusLabel } from '@/lib/enumLabels'
 import type { SubscriptionCompanyListItemDto } from '@/types/companiesApi'
 
@@ -23,6 +22,7 @@ export type CompaniesGridProps = {
   readonly onEnter: (companyId: string) => void
   readonly onEdit: (companyId: string) => void
   readonly onDelete: (company: SubscriptionCompanyListItemDto) => void
+  readonly toolbarRight?: ReactNode
 }
 
 const gridMessages = createSpanishDataGridMessages('empresa', 'empresas')
@@ -39,6 +39,7 @@ export function CompaniesGrid({
   onEnter,
   onEdit,
   onDelete,
+  toolbarRight,
 }: CompaniesGridProps) {
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
 
@@ -61,26 +62,27 @@ export function CompaniesGrid({
         renderCell: (_value: CompanyGridRow['status'], row: CompanyGridRow) => {
           const tone =
             row.status === 1
-              ? 'success'
+              ? 'active'
               : row.status === 2
                 ? 'danger'
                 : row.status === 0
                   ? 'warning'
-                  : 'neutral'
+                  : 'inactive'
           return (
-            <StatusBadge tone={tone} withDot>
+            <span className={`ecu-status ecu-status--${tone}`}>
+              <span className="ecu-status__dot" aria-hidden />
               {tenantStatusLabel(row.status)}
-            </StatusBadge>
+            </span>
           )
         },
       },
       {
         key: 'createdAt',
         header: 'Alta',
-        width: 170,
+        width: 110,
         sortable: true,
         renderCell: (_value: CompanyGridRow['createdAt'], row: CompanyGridRow) =>
-          formatDateTime(row.createdAt),
+          formatDate(row.createdAt),
       },
       {
         key: 'id',
@@ -158,6 +160,7 @@ export function CompaniesGrid({
       showSearch
       searchPosition="left"
       searchWidth={280}
+      toolbarRight={toolbarRight}
       paging={paging}
       onPageChange={onPageChange}
       onPageSizeChange={onPageSizeChange}

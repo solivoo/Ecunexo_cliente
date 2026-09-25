@@ -357,7 +357,7 @@ public static class CatalogEndpoints
             tenantId,
             body.Name,
             body.DimensionType,
-            body.PredefinedValuesJson,
+            body.PredefinedValuesJson ?? "[]",
             body.DataType,
             body.IsVariantAxis,
             body.Unit);
@@ -381,7 +381,7 @@ public static class CatalogEndpoints
             tenantId,
             body.Name,
             body.DimensionType,
-            body.PredefinedValuesJson,
+            body.PredefinedValuesJson ?? "[]",
             body.DataType,
             body.IsVariantAxis,
             body.Unit);

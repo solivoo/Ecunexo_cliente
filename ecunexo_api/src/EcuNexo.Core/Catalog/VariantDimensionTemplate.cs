@@ -122,7 +122,7 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
             return Result.Failure<VariantDimensionTemplate>(unitNorm.Error!);
         }
 
-        var valuesNorm = NormalizeValuesJson(predefinedValuesJson);
+        var valuesNorm = NormalizeValuesJson(predefinedValuesJson, dataNorm.Value!, isVariantAxis);
         if (valuesNorm.IsFailure)
         {
             return Result.Failure<VariantDimensionTemplate>(valuesNorm.Error!);
@@ -177,7 +177,7 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
             return Result.Failure(unitNorm.Error!);
         }
 
-        var valuesNorm = NormalizeValuesJson(predefinedValuesJson);
+        var valuesNorm = NormalizeValuesJson(predefinedValuesJson, dataNorm.Value!, isVariantAxis);
         if (valuesNorm.IsFailure)
         {
             return Result.Failure(valuesNorm.Error!);
@@ -278,12 +278,60 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
         return Result.Success<string?>(trimmed);
     }
 
-    private static Result<string> NormalizeValuesJson(string json)
+    private static Result<string> NormalizeValuesJson(string? json, string dataType, bool isVariantAxis = true)
     {
+        if (isVariantAxis)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return Result.Failure<string>(
+                    new Error("catalog.variant_template.values.required", "Un atributo que genera variantes con SKU debe contener al menos un valor.", ErrorType.Validation));
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                {
+                    return Result.Failure<string>(
+                        new Error("catalog.variant_template.values.array", "Los valores de la escala deben ser un arreglo JSON.", ErrorType.Validation));
+                }
+
+                var values = new List<string>();
+                foreach (var el in doc.RootElement.EnumerateArray())
+                {
+                    if (el.ValueKind != JsonValueKind.String)
+                    {
+                        return Result.Failure<string>(
+                            new Error("catalog.variant_template.values.string", "Cada valor de la escala debe ser texto.", ErrorType.Validation));
+                    }
+
+                    var val = el.GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(val))
+                    {
+                        values.Add(val);
+                    }
+                }
+
+                if (values.Count == 0)
+                {
+                    return Result.Failure<string>(
+                        new Error("catalog.variant_template.values.empty", "La escala debe contener al menos un valor no vacío.", ErrorType.Validation));
+                }
+
+                return Result.Success(JsonSerializer.Serialize(values));
+            }
+            catch (JsonException)
+            {
+                return Result.Failure<string>(
+                    new Error("catalog.variant_template.values.json", "El formato JSON de los valores no es válido.", ErrorType.Validation));
+            }
+        }
+
+        // Si es solo descriptivo (isVariantAxis == false), los valores predefinidos son opcionales
         if (string.IsNullOrWhiteSpace(json))
         {
-            return Result.Failure<string>(
-                new Error("catalog.variant_template.values.required", "Debe especificar al menos un valor para la escala.", ErrorType.Validation));
+            return Result.Success("[]");
         }
 
         try
@@ -292,7 +340,7 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
             if (doc.RootElement.ValueKind != JsonValueKind.Array)
             {
                 return Result.Failure<string>(
-                    new Error("catalog.variant_template.values.array", "Los valores de la escala deben ser un arreglo JSON.", ErrorType.Validation));
+                    new Error("catalog.variant_template.values.array", "Los valores del atributo deben ser un arreglo JSON.", ErrorType.Validation));
             }
 
             var values = new List<string>();
@@ -301,7 +349,7 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
                 if (el.ValueKind != JsonValueKind.String)
                 {
                     return Result.Failure<string>(
-                        new Error("catalog.variant_template.values.string", "Cada valor de la escala debe ser texto.", ErrorType.Validation));
+                        new Error("catalog.variant_template.values.string", "Cada valor del atributo debe ser texto.", ErrorType.Validation));
                 }
 
                 var val = el.GetString()?.Trim();
@@ -309,12 +357,6 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
                 {
                     values.Add(val);
                 }
-            }
-
-            if (values.Count == 0)
-            {
-                return Result.Failure<string>(
-                    new Error("catalog.variant_template.values.empty", "La escala debe contener al menos un valor no vacío.", ErrorType.Validation));
             }
 
             return Result.Success(JsonSerializer.Serialize(values));

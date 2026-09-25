@@ -29,4 +29,5 @@ public sealed record CatalogItemListItemResponse(
     string? VariantDimensionsJson = null,
     Guid? FamilyId = null,
     string? FamilyName = null,
-    string? HierarchyPathJson = null);
+    string? HierarchyPathJson = null,
+    string? CustomAttributesJson = null);

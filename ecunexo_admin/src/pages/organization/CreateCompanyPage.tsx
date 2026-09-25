@@ -159,7 +159,7 @@ export function CreateCompanyPage() {
 
   if (!canCreate) {
     return (
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Nueva Empresa"
           subtitle="Requieres el permiso tenancy.tenants.create para crear empresas."
@@ -173,7 +173,7 @@ export function CreateCompanyPage() {
   }
 
   return (
-    <div className="ecu-dashboard-layout">
+    <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
       <PageHeader
         title="Crear Empresa"
         subtitle={

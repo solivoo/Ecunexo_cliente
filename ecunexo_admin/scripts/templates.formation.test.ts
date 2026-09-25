@@ -358,3 +358,43 @@ test('Atributo descriptivo del terminal se captura por variante y sale de la fic
     'La ficha del modelo no duplica el atributo de variante'
   )
 })
+
+test('Ejes explícitos: atributo de texto libre descriptivo en terminal se captura por variante', () => {
+  const levels: ProductTemplateLevel[] = [
+    {
+      id: 'l1',
+      name: 'Modelo',
+      hasColor: false,
+      hasImages: false,
+      attributes: ['Material'],
+      axes: [],
+      photoScope: 'none',
+    },
+    {
+      id: 'l2',
+      name: 'Variante',
+      hasColor: false,
+      hasImages: true,
+      attributes: ['Descripción de la Variante'],
+      axes: ['Tallas'],
+      photoScope: 'variant',
+    },
+  ]
+  const map = buildDimensionValuesMap([
+    dict('Tallas', ['S', 'M'], { size: true }),
+    dict('Material', ['100% Algodón'], { axis: false }),
+    dict('Descripción de la Variante', [], { axis: false }), // campo solo texto abierto
+  ])
+
+  assert.deepEqual(
+    getVariantAttributeFields(levels, map).map((f) => f.key),
+    ['Descripción de la Variante'],
+    'El atributo de texto abierto en el terminal se captura por variante'
+  )
+  assert.deepEqual(
+    getModelAttributeFields(levels, map).map((f) => f.key),
+    ['Material'],
+    'La ficha del modelo mantiene sus datos descriptivos sin mezclar el texto de la variante'
+  )
+})
+

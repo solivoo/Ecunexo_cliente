@@ -1,23 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useToast, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   PageHeader,
-  StatCard,
   SectionCard,
-  StatusBadge,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import { permissionStatusLabel } from '@/lib/enumLabels'
 import { moduleLabel } from '@/lib/moduleLabels'
 import { readApiError } from '@/lib/readApiError'
 import { PermissionPoliciesSection } from '@/pages/security/PermissionPoliciesSection'
 import { getPermission, listPermissionPolicies } from '@/services/identityApi'
 import type { PermissionDetailDto, PolicyListItemDto } from '@/types/identityApi'
+import './securitySection.css'
 
 export function PermissionDetailPage() {
   const { permissionId = '' } = useParams<{ permissionId: string }>()
@@ -61,112 +61,96 @@ export function PermissionDetailPage() {
     void load({ silent: true })
   }, [load])
 
-  const actionItems = useMemo<PageActionItem[]>(
-    () => [
-      {
-        id: 'list',
-        label: 'Catálogo de permisos',
-        icon: 'key',
-        route: '/seguridad/permisos',
-        disabled: false,
-      },
-      { id: 'roles', label: 'Roles', icon: 'shield', route: '/equipo/roles', disabled: false },
-      { id: 'refresh', label: 'Actualizar', icon: 'refresh-cw', route: null, disabled: loading },
-    ],
-    [loading]
-  )
+  const actionItems: PageActionItem[] = [
+    {
+      id: 'list',
+      label: 'Catálogo de permisos',
+      icon: 'key',
+      route: '/seguridad/permisos',
+      disabled: false,
+    },
+    { id: 'roles', label: 'Roles', icon: 'shield', route: '/equipo/roles', disabled: false },
+  ]
 
   return (
-    <div className="ecu-dashboard-layout">
+    <div className="ecu-dashboard-layout ecu-section-page">
       <PageLoadState loading={loading && !perm} error={error} empty={!perm && !loading}>
         {perm ? (
           <>
             <PageHeader
               title={perm.displayName ?? perm.code}
-              subtitle={`Código de directiva: ${perm.code} · Las políticas ABAC se definen aquí; los roles eligen qué permisos heredar.`}
-              badge={
-                <StatusBadge
-                  tone={perm.status === 0 ? 'success' : 'neutral'}
-                  withDot={perm.status === 0}
-                >
-                  {permissionStatusLabel(perm.status)}
-                </StatusBadge>
-              }
+              subtitle="Directiva de autorización del catálogo global."
               actions={
-                <EcuPageActions
-                  items={actionItems}
-                  variant="outline"
-                  triggerLabel="Acciones de permiso"
-                  renderIcon={renderSidebarIcon}
-                  onNavigate={(route: string) => navigate(route)}
-                  onActionSelect={(item) => {
-                    if (item.id === 'refresh') void load()
-                  }}
-                />
+                <>
+                  <GridToolbarRefresh
+                    loading={loading}
+                    onRefresh={() => void load()}
+                    label="Actualizar ficha"
+                  />
+                  <EcuPageActions
+                    items={actionItems}
+                    variant="outline"
+                    triggerLabel="Acciones de permiso"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
+                  />
+                </>
               }
             />
 
-            <div className="ecu-stat-grid" aria-label="Resumen del permiso">
-              <StatCard
-                label="Políticas ABAC"
-                value={policies.length}
-                icon="policy"
-                toneColor="#4f46e5"
-                footerText="Reglas contextuales"
-              />
-              <StatCard
-                label="Estado"
-                value={permissionStatusLabel(perm.status)}
-                icon="verified_user"
-                toneColor={perm.status === 0 ? '#10b981' : '#6b7280'}
-                footerText="Disponibilidad global"
-              />
-              <StatCard
-                label="Módulo"
-                value={perm.module ? moduleLabel(perm.module) : 'Global'}
-                icon="view_quilt"
-                toneColor="#0ea5e9"
-                footerText="Contexto funcional"
-              />
-              <StatCard
-                label="Fecha de Alta"
-                value={formatDateTime(perm.createdAt)}
-                icon="calendar_today"
-                toneColor="#8b5cf6"
-                footerText="Registro en plataforma"
-              />
-            </div>
-
-            <SectionCard
-              title="Definición del Permiso"
-              subtitle="Parámetros técnicos e identificación en el modelo de control de acceso"
-            >
-              <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
-                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                  <p className="ecu-companies-form__hint">Código técnico</p>
-                  <p>
-                    <code className="ecu-code">{perm.code}</code>
-                  </p>
+            <SectionCard title="Definición" bodyClassName="ecu-section-card__body--padded">
+              <div className="ecu-property-grid">
+                <div className="ecu-property-tile ecu-property-tile--full">
+                  <span className="ecu-property-tile__label">Código técnico</span>
+                  <span className="ecu-property-tile__value ecu-property-tile__value--mono">
+                    {perm.code}
+                  </span>
                 </div>
-                <div className="ecu-companies-form__field">
-                  <p className="ecu-companies-form__hint">Nombre visible</p>
-                  <p style={{ fontWeight: 500 }}>{perm.displayName ?? '—'}</p>
+                <div className="ecu-property-tile">
+                  <span className="ecu-property-tile__label">Nombre visible</span>
+                  <span className="ecu-property-tile__value">{perm.displayName ?? '—'}</span>
                 </div>
-                <div className="ecu-companies-form__field">
-                  <p className="ecu-companies-form__hint">Orden relativo</p>
-                  <p>{perm.sortOrder}</p>
+                <div className="ecu-property-tile">
+                  <span className="ecu-property-tile__label">Módulo</span>
+                  <span className="ecu-property-tile__value">
+                    {perm.module ? (
+                      <span className="ecu-chip">{moduleLabel(perm.module)}</span>
+                    ) : (
+                      'Global'
+                    )}
+                  </span>
                 </div>
-                <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
-                  <p className="ecu-companies-form__hint">Descripción funcional</p>
-                  <p className="app-shell__muted">{perm.description ?? 'Sin descripción'}</p>
+                <div className="ecu-property-tile">
+                  <span className="ecu-property-tile__label">Orden relativo</span>
+                  <span className="ecu-property-tile__value">{perm.sortOrder}</span>
+                </div>
+                <div className="ecu-property-tile">
+                  <span className="ecu-property-tile__label">Estado</span>
+                  <span className="ecu-property-tile__value">
+                    <span
+                      className={`ecu-status ${
+                        perm.status === 0 ? 'ecu-status--active' : 'ecu-status--inactive'
+                      }`}
+                    >
+                      <span className="ecu-status__dot" aria-hidden />
+                      {permissionStatusLabel(perm.status)}
+                    </span>
+                  </span>
+                </div>
+                <div className="ecu-property-tile">
+                  <span className="ecu-property-tile__label">Alta</span>
+                  <span className="ecu-property-tile__value">{formatDate(perm.createdAt)}</span>
+                </div>
+                <div className="ecu-property-tile ecu-property-tile--full">
+                  <span className="ecu-property-tile__label">Descripción</span>
+                  <span className="ecu-property-tile__value">
+                    {perm.description ?? 'Sin descripción'}
+                  </span>
                 </div>
               </div>
             </SectionCard>
 
-            <SectionCard
-              title="Políticas de Control de Acceso (ABAC)"
-              subtitle="Reglas evaluadas dinámicamente según el contexto de la petición"
-            >
+            <SectionCard title="Políticas ABAC">
               <PermissionPoliciesSection
                 permissionId={permissionId}
                 policies={policies}

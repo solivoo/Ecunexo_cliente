@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Select, useToast, type PageActionItem } from 'glubox'
-import {
-  EcuPageActions,
-  PageHeader,
-  StatCard,
-  SectionCard,
-  StatusBadge,
-} from '@/components/ui'
-import { renderSidebarIcon } from '@/config/sidebarIcons'
+import { Button, Select, useToast } from 'glubox'
+import { PageHeader, StatCard, SectionCard, GridToolbarRefresh } from '@/components/ui'
 import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
@@ -16,6 +9,7 @@ import { moduleKey, uniqueModuleSelectOptions } from '@/lib/moduleLabels'
 import { PermissionsGrid } from '@/pages/security/PermissionsGrid'
 import { listPermissions } from '@/services/identityApi'
 import type { PermissionListItemDto } from '@/types/identityApi'
+import './securitySection.css'
 
 export function PermissionsCatalogPage() {
   const toast = useToast()
@@ -53,26 +47,8 @@ export function PermissionsCatalogPage() {
   )
 
   useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      try {
-        const data = await listPermissions()
-        if (cancelled) return
-        setRows(data)
-        setError(null)
-      } catch (err: unknown) {
-        if (cancelled) return
-        const message = readApiError(err, 'No se pudo cargar el catálogo de permisos.')
-        setError(message)
-        setRows([])
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+    void load({ silent: true })
+  }, [load])
 
   const moduleOptions = useMemo(
     () => [
@@ -90,103 +66,25 @@ export function PermissionsCatalogPage() {
   }, [moduleFilter, rows])
 
   const activeCount = useMemo(() => rows.filter((r) => r.status === 0).length, [rows])
-
-  const actionItems = useMemo<PageActionItem[]>(() => {
-    const items: PageActionItem[] = []
-    if (canManage) {
-      items.push({
-        id: 'create',
-        label: 'Nuevo permiso',
-        icon: 'key',
-        route: '/seguridad/permisos/nuevo',
-        disabled: false,
-      })
-    }
-    items.push(
-      {
-        id: 'roles',
-        label: 'Roles',
-        icon: 'shield',
-        route: '/equipo/roles',
-        disabled: false,
-      },
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        route: null,
-        disabled: loading,
-      }
-    )
-    return items
-  }, [canManage, loading])
-
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-      }
-    },
-    [load]
+  const moduleCount = useMemo(
+    () => new Set(rows.map((r) => moduleKey(r.module)).filter(Boolean)).size,
+    [rows]
   )
 
   return (
-    <div className="ecu-dashboard-layout">
+    <div className="ecu-dashboard-layout ecu-section-page">
       <PageHeader
         title="Catálogo de Permisos"
-        subtitle="Directivas de autorización del sistema. Las políticas contextuales (ABAC) se definen en cada permiso; los roles agrupan y asignan estos permisos a los usuarios."
-        badge={
-          <StatusBadge tone="primary" withDot>
-            RBAC + ABAC
-          </StatusBadge>
-        }
-        actions={
-          <EcuPageActions
-            items={actionItems}
-            variant="outline"
-            triggerLabel="Acciones de permisos"
-            renderIcon={renderSidebarIcon}
-            onNavigate={(route: string) => navigate(route)}
-            onActionSelect={handleActionSelect}
-          />
-        }
+        subtitle="Directivas de autorización RBAC. Los roles las agrupan; cada directiva puede llevar políticas ABAC."
       />
 
       <div className="ecu-stat-grid" aria-label="Resumen de permisos">
-        <StatCard
-          label="Total Permisos"
-          value={rows.length}
-          icon="key"
-          toneColor="#4f46e5"
-          footerText="Capacidades en el catálogo"
-        />
-        <StatCard
-          label="Permisos Activos"
-          value={activeCount}
-          icon="verified_user"
-          toneColor="#10b981"
-          footerText="Habilitados para roles"
-        />
-        <StatCard
-          label="Visibles"
-          value={filteredRows.length}
-          icon="filter_list"
-          toneColor="#0ea5e9"
-          footerText={moduleFilter ? `Módulo: ${moduleFilter}` : 'Todos los módulos'}
-        />
-        <StatCard
-          label="Modelo de Acceso"
-          value="RBAC + ABAC"
-          icon="admin_panel_settings"
-          toneColor="#8b5cf6"
-          footerText="Rol hereda + Regla evalúa"
-        />
+        <StatCard label="Permisos" value={rows.length} />
+        <StatCard label="Activos" value={activeCount} />
+        <StatCard label="Módulos" value={moduleCount} />
       </div>
 
-      <SectionCard
-        title="Directivas de Autorización"
-        subtitle="Catálogo maestro de permisos y capacidades granulares de la plataforma"
-      >
+      <SectionCard title="Directivas de autorización">
         {error ? (
           <div className="ecu-form-error-banner" role="alert">
             <span className="material-symbols-outlined">error</span>
@@ -198,17 +96,36 @@ export function PermissionsCatalogPage() {
           rows={filteredRows}
           loading={loading}
           toolbarRight={
-            <Select
-              id="perms-module"
-              aria-label="Módulo"
-              variant="outline"
-              options={moduleOptions}
-              value={moduleFilter}
-              onChange={setModuleFilter}
-              placeholder="Filtrar por módulo"
-              width="15rem"
-              size={size}
-            />
+            <div className="ecu-grid-toolbar-actions">
+              <Select
+                id="perms-module"
+                aria-label="Módulo"
+                variant="outline"
+                options={moduleOptions}
+                value={moduleFilter}
+                onChange={setModuleFilter}
+                placeholder="Filtrar por módulo"
+                width="15rem"
+                size={size}
+              />
+              <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+              {canManage && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => navigate('/seguridad/permisos/nuevo')}
+                >
+                  + Nuevo Permiso
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/equipo/roles')}
+              >
+                Roles
+              </Button>
+            </div>
           }
         />
       </SectionCard>

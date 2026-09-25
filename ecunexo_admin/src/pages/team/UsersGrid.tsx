@@ -1,11 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataGrid, type ColumnDef } from 'glubox'
 import { Eye, Pencil, Trash2, UserCheck, UserX } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import type { UserListItemDto } from '@/types/identityApi'
 
 export type UserGridRow = UserListItemDto & Record<string, unknown>
@@ -20,6 +20,7 @@ export type UsersGridProps = {
   readonly onDisable: (user: UserListItemDto) => void
   readonly onEnable: (user: UserListItemDto) => void
   readonly onDelete: (user: UserListItemDto) => void
+  readonly toolbarRight?: ReactNode
 }
 
 const gridMessages = createSpanishDataGridMessages('usuario', 'usuarios')
@@ -34,6 +35,7 @@ export function UsersGrid({
   onDisable,
   onEnable,
   onDelete,
+  toolbarRight,
 }: UsersGridProps) {
   const navigate = useNavigate()
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
@@ -58,15 +60,21 @@ export function UsersGrid({
       {
         key: 'isDisabled',
         header: 'Estado',
-        width: 120,
+        width: 130,
         sortable: true,
-        renderCell: (_value: UserGridRow['isDisabled'], row: UserGridRow) =>
-          row.isDisabled ? 'Deshabilitado' : 'Activo',
+        renderCell: (_value: UserGridRow['isDisabled'], row: UserGridRow) => (
+          <span
+            className={`ecu-status ${row.isDisabled ? 'ecu-status--inactive' : 'ecu-status--active'}`}
+          >
+            <span className="ecu-status__dot" aria-hidden />
+            {row.isDisabled ? 'Deshabilitado' : 'Activo'}
+          </span>
+        ),
       },
       {
         key: 'department',
         header: 'Departamento',
-        width: 140,
+        width: 150,
         sortable: true,
         renderCell: (_value: UserGridRow['department'], row: UserGridRow) =>
           row.department ?? '—',
@@ -74,18 +82,18 @@ export function UsersGrid({
       {
         key: 'lastLoginAt',
         header: 'Último acceso',
-        width: 160,
+        width: 120,
         sortable: true,
         renderCell: (_value: UserGridRow['lastLoginAt'], row: UserGridRow) =>
-          formatDateTime(row.lastLoginAt),
+          formatDate(row.lastLoginAt),
       },
       {
         key: 'createdAt',
         header: 'Alta',
-        width: 160,
+        width: 110,
         sortable: true,
         renderCell: (_value: UserGridRow['createdAt'], row: UserGridRow) =>
-          formatDateTime(row.createdAt),
+          formatDate(row.createdAt),
       },
       {
         key: 'id',
@@ -163,6 +171,7 @@ export function UsersGrid({
       showSearch
       searchPosition="left"
       searchWidth={280}
+      toolbarRight={toolbarRight}
       paging={paging}
       onPageChange={onPageChange}
       onPageSizeChange={onPageSizeChange}

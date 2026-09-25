@@ -1,20 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, OptionGroup, useToast, type ColumnDef } from 'glubox'
-import {
-  CheckCircle2,
-  FileCode,
-  FileText,
-  RefreshCw,
-  Send,
-  ShieldCheck,
-} from 'lucide-react'
+import { FileCode, FileText, Send } from 'lucide-react'
 import {
   EmptyState,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
-  StatusBadge,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
@@ -22,6 +15,7 @@ import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useGridDateRange } from '@/hooks/useGridDateRange'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
@@ -40,6 +34,13 @@ import { useBillingInvoices } from '@/pages/facturacion/useBillingInvoices'
 import type { InvoiceListItem } from '@/types/billingApi'
 
 const gridMessages = createSpanishDataGridMessages('nota de crédito', 'notas de crédito')
+
+function invoiceStatusClass(tone: ReturnType<typeof invoiceStateTone>): string {
+  if (tone === 'success') return 'ecu-status--active'
+  if (tone === 'danger') return 'ecu-status--danger'
+  if (tone === 'warning' || tone === 'info') return 'ecu-status--warning'
+  return 'ecu-status--inactive'
+}
 
 export function CreditNotesListPage() {
   const navigate = useNavigate()
@@ -134,6 +135,7 @@ export function CreditNotesListPage() {
         header: 'Fecha',
         width: 110,
         sortable: true,
+        renderCell: (_v: unknown, row: InvoiceListItem) => formatDate(row.issueDate),
       },
       {
         key: 'establishment',
@@ -148,9 +150,11 @@ export function CreditNotesListPage() {
       {
         key: 'sequential',
         header: 'Secuencial',
-        width: 110,
+        width: 120,
         sortable: true,
-        renderCell: (_v: unknown, row: InvoiceListItem) => <strong>{row.sequential}</strong>,
+        renderCell: (_v: unknown, row: InvoiceListItem) => (
+          <code className="ecu-code">{row.sequential}</code>
+        ),
       },
       {
         key: 'counterpartyName',
@@ -159,8 +163,10 @@ export function CreditNotesListPage() {
         sortable: true,
         renderCell: (_v: unknown, row: InvoiceListItem) => (
           <div>
-            <div className="ecu-companies-cell-primary">{row.counterpartyName}</div>
-            <div className="ecu-companies-cell-secondary">{row.counterpartyIdentification}</div>
+            <strong className="ecu-clip" title={row.counterpartyName}>
+              {row.counterpartyName}
+            </strong>
+            <div className="ecu-hint">{row.counterpartyIdentification}</div>
           </div>
         ),
       },
@@ -178,9 +184,10 @@ export function CreditNotesListPage() {
         width: 130,
         sortable: true,
         renderCell: (_v: unknown, row: InvoiceListItem) => (
-          <StatusBadge tone={invoiceStateTone(row.state)}>
+          <span className={`ecu-status ${invoiceStatusClass(invoiceStateTone(row.state))}`}>
+            <span className="ecu-status__dot" aria-hidden />
             {invoiceStateLabel(row.state)}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -188,9 +195,14 @@ export function CreditNotesListPage() {
         header: 'Transmisión',
         width: 130,
         renderCell: (_v: unknown, row: InvoiceListItem) => (
-          <StatusBadge tone={sriTransmissionTone(row.sriTransmissionState)}>
+          <span
+            className={`ecu-status ${invoiceStatusClass(
+              sriTransmissionTone(row.sriTransmissionState)
+            )}`}
+          >
+            <span className="ecu-status__dot" aria-hidden />
             {sriTransmissionLabel(row.sriTransmissionState)}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -235,7 +247,7 @@ export function CreditNotesListPage() {
         title="Notas de Crédito SRI"
         lead="Gestión de anulaciones y devoluciones tributarias SRI"
       >
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <EmptyState
             icon="receipt"
             title="Sin permisos"
@@ -251,83 +263,23 @@ export function CreditNotesListPage() {
       title="Notas de Crédito SRI"
       lead="Gestión de anulaciones y devoluciones tributarias SRI"
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Notas de Crédito SRI"
-          badge={<StatusBadge tone="info">SRI 04</StatusBadge>}
-          subtitle="Emisión y gestión de anulaciones y devoluciones tributarias con esquema offline v1.1.0."
-          actions={
-            canCreate ? (
-              <Button
-                type="button"
-                variant="primary"
-                onClick={() => navigate('/facturacion/notas-credito/nueva')}
-              >
-                + Nueva Nota de Crédito
-              </Button>
-            ) : undefined
-          }
+          subtitle="Notas de crédito electrónicas vinculadas a facturas autorizadas."
         />
 
-        <div className="ecu-stat-grid">
-          <StatCard
-            label="Total Registradas"
-            value={stats.total.toString()}
-            icon={<FileText size={20} />}
-            footerText="Comprobantes 04"
-          />
-          <StatCard
-            label="Autorizadas SRI"
-            value={stats.authorized.toString()}
-            icon={<ShieldCheck size={20} />}
-            footerText="Válidas tributariamente"
-          />
-          <StatCard
-            label="Borradores / En Proceso"
-            value={stats.draft.toString()}
-            icon={<RefreshCw size={20} />}
-            footerText="Pendientes de firma"
-          />
-          <StatCard
-            label="Monto Modificado"
-            value={formatMoney(stats.grandTotalSum)}
-            icon={<CheckCircle2 size={20} />}
-            footerText="Total devoluciones"
-          />
+        <div className="ecu-stat-grid" aria-label="Resumen de notas de crédito">
+          <StatCard label="Total Registradas" value={stats.total} />
+          <StatCard label="Autorizadas SRI" value={stats.authorized} />
+          <StatCard label="Borradores" value={stats.draft} />
+          <StatCard label="Monto Modificado USD" value={formatMoney(stats.grandTotalSum)} />
         </div>
 
-        <SectionCard title="Directorio de Comprobantes 04">
-          <div
-            style={{
-              display: 'flex',
-              gap: '1rem',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '1rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            <OptionGroup
-              id="nc-status-filter"
-              name="nc-status-filter"
-              options={[
-                { value: 'all', label: 'Todas' },
-                { value: 'Authorized', label: 'Autorizadas' },
-                { value: 'Draft', label: 'Borradores' },
-              ]}
-              value={statusFilter}
-              onChange={(val) => setStatusFilter(val)}
-              layout="segmented"
-              variant="outline"
-            />
-            <GridDateRangeBox
-              from={from}
-              to={to}
-              lookback={lookback}
-              onChange={setRange}
-            />
-          </div>
-
+        <SectionCard
+          title="Directorio de Comprobantes 04"
+          action={<span className="ecu-chip">SRI 04</span>}
+        >
           {creditNotes.length === 0 && !loading ? (
             <EmptyState
               icon="receipt"
@@ -347,11 +299,46 @@ export function CreditNotesListPage() {
             />
           ) : (
             <DataGrid
+              className="ecu-companies-grid"
               dataSource={creditNotes as Record<string, unknown>[]}
               keyExpr="invoiceId"
               columns={columns as unknown as ColumnDef<Record<string, unknown>>[]}
               loading={loading}
               messages={gridMessages}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <OptionGroup
+                    id="nc-status-filter"
+                    name="nc-status-filter"
+                    options={[
+                      { value: 'all', label: 'Todas' },
+                      { value: 'Authorized', label: 'Autorizadas' },
+                      { value: 'Draft', label: 'Borradores' },
+                    ]}
+                    value={statusFilter}
+                    onChange={(val) => setStatusFilter(val)}
+                    layout="segmented"
+                    variant="outline"
+                  />
+                  <GridDateRangeBox
+                    from={from}
+                    to={to}
+                    lookback={lookback}
+                    disabled={loading}
+                    onChange={setRange}
+                  />
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canCreate && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/facturacion/notas-credito/nueva')}
+                    >
+                      + Nueva Nota de Crédito
+                    </Button>
+                  )}
+                </div>
+              }
               paging={paging}
               pageSizeOptions={pageSizeOptions}
               onPageChange={onPageChange}

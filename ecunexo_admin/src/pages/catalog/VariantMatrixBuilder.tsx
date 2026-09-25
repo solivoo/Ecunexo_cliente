@@ -196,6 +196,27 @@ export function VariantMatrixBuilder({
     [colorHexMap]
   )
 
+  /** Obtiene la etiqueta legible de un valor (ej. #1e293b -> Negro si existe en mapa de colores). */
+  const resolveHumanDimensionValue = useCallback(
+    (_dimName: string, val: string): string => {
+      const clean = val.trim()
+      if (!clean) return ''
+      if (HEX_COLOR_PATTERN.test(clean)) {
+        const lower = clean.toLowerCase()
+        const found = Object.entries(DEFAULT_COLOR_MAP).find(
+          ([, hex]) => hex.toLowerCase() === lower
+        )
+        if (found) return found[0]
+        const fromDynamic = Object.entries(colorHexMap).find(
+          ([name, hex]) => hex.toLowerCase() === lower && !HEX_COLOR_PATTERN.test(name)
+        )
+        if (fromDynamic) return fromDynamic[0]
+      }
+      return clean
+    },
+    [colorHexMap]
+  )
+
   // Dimensions Array
   const [dimensions, setDimensions] = useState<DimensionState[]>([
     {
@@ -438,17 +459,23 @@ export function VariantMatrixBuilder({
     (dimensionValues: Record<string, string>) => {
       const parts: string[] = []
       if (primaryDim) {
-        const main = dimensionValues[primaryDim.name]
-        if (main) parts.push(main)
+        const rawMain = dimensionValues[primaryDim.name]
+        if (rawMain) {
+          const main = resolveHumanDimensionValue(primaryDim.name, rawMain)
+          if (main && !parts.includes(main)) parts.push(main)
+        }
       }
-      Object.entries(dimensionValues).forEach(([key, value]) => {
-        if (!value) return
+      Object.entries(dimensionValues).forEach(([key, rawValue]) => {
+        if (!rawValue) return
         if (primaryDim && key === primaryDim.name) return
-        parts.push(value)
+        const val = resolveHumanDimensionValue(key, rawValue)
+        if (val && !parts.includes(val)) {
+          parts.push(val)
+        }
       })
       return parts.join(' / ')
     },
-    [primaryDim]
+    [primaryDim, resolveHumanDimensionValue]
   )
 
   const handleRowDimensionChange = useCallback(
@@ -1078,7 +1105,16 @@ export function VariantMatrixBuilder({
       if (r.dimensionValues) {
         Object.entries(r.dimensionValues).forEach(([dimName, val]) => {
           if (val && typeof val === 'string' && val.trim()) {
-            customAttrs[dimName.toLowerCase()] = val.trim()
+            const trimmed = val.trim()
+            const humanVal = resolveHumanDimensionValue(dimName, trimmed)
+            customAttrs[dimName.toLowerCase()] = humanVal
+
+            // Si es color, registrar también color_hex explícito
+            if (HEX_COLOR_PATTERN.test(trimmed)) {
+              customAttrs[`${dimName.toLowerCase()}_hex`] = trimmed.toLowerCase()
+            } else if (colorHexFor(trimmed)) {
+              customAttrs[`${dimName.toLowerCase()}_hex`] = colorHexFor(trimmed)
+            }
           }
         })
       }
@@ -1099,8 +1135,13 @@ export function VariantMatrixBuilder({
         customAttrs['tags'] = combinedTags
       }
 
+      const rowLabel = buildRowLabel(r.dimensionValues)
+      const finalTitle = r.isManualTitle && r.variantTitle.trim()
+        ? r.variantTitle.trim()
+        : rowLabel || r.variantTitle.trim() || 'Variante'
+
       return {
-        variantTitle: r.variantTitle.trim(),
+        variantTitle: finalTitle,
         sku: r.sku.trim(),
         barcode: r.barcode.trim() || null,
         basePrice: parsedPrice != null && !Number.isNaN(parsedPrice) ? parsedPrice : null,
@@ -1109,7 +1150,7 @@ export function VariantMatrixBuilder({
         stagedImages: r.stagedImages && r.stagedImages.length > 0
           ? r.stagedImages
           : r.stagedImage && r.stagedImagePreview
-            ? [{ id: '1', file: r.stagedImage, previewUrl: r.stagedImagePreview, name: r.variantTitle }]
+            ? [{ id: '1', file: r.stagedImage, previewUrl: r.stagedImagePreview, name: finalTitle }]
             : [],
       }
     })
@@ -1290,9 +1331,13 @@ export function VariantMatrixBuilder({
                             onChange={(hex: string) => {
                               const target = normalizeHexColor(hex)
                               if (!target || target === group.groupValue) return
-                              setColorHexMap((prev) => ({ ...prev, [target]: target }))
-                              handleAddCustomOptionToDimension(primaryDim.id, target)
-                              handleRenameGroupValue(group.groupValue, target)
+                              const knownName = Object.entries(DEFAULT_COLOR_MAP).find(
+                                ([, h]) => h.toLowerCase() === target.toLowerCase()
+                              )?.[0]
+                              const valToUse = knownName || target
+                              setColorHexMap((prev) => ({ ...prev, [valToUse]: target, [target]: target }))
+                              handleAddCustomOptionToDimension(primaryDim.id, valToUse)
+                              handleRenameGroupValue(group.groupValue, valToUse)
                             }}
                             disabled={disabled}
                             fullWidth

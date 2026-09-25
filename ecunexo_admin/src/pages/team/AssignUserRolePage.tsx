@@ -5,9 +5,7 @@ import {
   EcuPageActions,
   PageHeader,
   SectionCard,
-  StatusBadge,
 } from '@/components/ui'
-import { Shield } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -144,18 +142,11 @@ export function AssignUserRolePage() {
 
   return (
     <TenantSessionGate title="Asignar rol" lead="Vincula un rol RBAC al usuario.">
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Asignar Rol"
           subtitle={
-            user
-              ? `Vincular un perfil de seguridad a ${user.name} (${user.email}).`
-              : 'Selecciona un rol para heredar permisos.'
-          }
-          badge={
-            <StatusBadge tone="primary" withDot>
-              Permisos RBAC
-            </StatusBadge>
+            user ? `Vincular un perfil de seguridad a ${user.name}.` : 'Selecciona un rol.'
           }
           actions={
             <>
@@ -177,18 +168,16 @@ export function AssignUserRolePage() {
           {user ? (
             <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
               {error ? (
-                <p className="welcome-onboarding__error" role="alert">
-                  {error}
-                </p>
+<div className="ecu-form-error-banner" role="alert">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{error}</span>
+                </div>
               ) : null}
 
               <SectionCard
-                title={
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Shield size={18} strokeWidth={1.75} aria-hidden /> Selección de Rol
-                  </span>
-                }
-                subtitle="Solo aparecen los roles que este usuario aún no tiene vinculados."
+
+                bodyClassName="ecu-section-card__body--padded"
+                title="Selección de Rol"
               >
                 {assignableRoles.length === 0 ? (
                   <p className="app-shell__muted">

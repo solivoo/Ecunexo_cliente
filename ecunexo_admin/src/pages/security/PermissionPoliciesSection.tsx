@@ -7,8 +7,8 @@ import { createPermissionPolicy } from '@/services/identityApi'
 import type { PolicyListItemDto } from '@/types/identityApi'
 
 const effectOptions = [
-  { value: '0', label: 'Allow — permitir si se cumple la condición' },
-  { value: '1', label: 'Deny — denegar si se cumple la condición' },
+  { value: '0', label: 'Permitir si se cumple' },
+  { value: '1', label: 'Denegar si se cumple' },
 ]
 
 type PermissionPoliciesSectionProps = {
@@ -74,41 +74,19 @@ export function PermissionPoliciesSection({
       {policies.length === 0 ? (
         <EmptyState
           icon="policy"
-          title="Sin políticas condicionales ABAC"
-          description="Este permiso opera bajo autorización RBAC tradicional. Agrega una regla condicional abajo para evaluar atributos de contexto en tiempo de ejecución (ej. ctx.Department == 'Ventas')."
+          title="Sin políticas condicionales"
+          description="El permiso opera solo con RBAC. Agrega una regla para evaluar contexto en tiempo de ejecución."
         />
       ) : (
         <PoliciesGrid rows={policies} loading={loading} />
       )}
 
       <form
-        className="ecu-companies-form"
-        style={{
-          marginTop: '1.5rem',
-          paddingTop: '1.5rem',
-          borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
-        }}
+        className="ecu-companies-form ecu-policies-form"
         onSubmit={(e) => void handleCreate(e)}
         noValidate
       >
-        <div>
-          <h3
-            style={{
-              fontSize: '1rem',
-              fontWeight: 600,
-              color: 'var(--glb-text)',
-              marginBottom: '0.25rem',
-            }}
-          >
-            Nueva política ABAC
-          </h3>
-          <p
-            className="app-shell__muted"
-            style={{ marginBottom: '1rem', fontSize: '0.85rem' }}
-          >
-            Allow = conceder si la condición es verdadera. Deny = rechazar si es verdadera. Condición vacía = regla fija. Variable disponible: <code>ctx</code>.
-          </p>
-        </div>
+        <h3 className="ecu-policies-form__title">Nueva política ABAC</h3>
 
         {formError ? (
           <div className="ecu-form-error-banner" role="alert">
@@ -139,14 +117,14 @@ export function PermissionPoliciesSection({
               variant="outline"
               value={condition}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setCondition(e.target.value)}
-              placeholder='ctx.Department == "Ventas"'
+              placeholder='Escriba aquí… ej. ctx.Department == "Ventas"'
               disabled={saving}
               fullWidth
             />
           </div>
         </div>
 
-        <div className="ecu-companies-form__actions" style={{ marginTop: '1rem' }}>
+        <div className="ecu-companies-form__actions">
           <Button type="submit" variant="primary" loading={saving} disabled={saving}>
             Guardar política
           </Button>

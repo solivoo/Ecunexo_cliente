@@ -13,7 +13,6 @@ import {
   Building2,
   FileCheck2,
   Plus,
-  RefreshCw,
   ShieldCheck,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -39,7 +38,6 @@ export function PurchaseWithholdingsListPage() {
 
   const [tenant, setTenant] = useState<GetTenantByIdDto | null>(null)
   const [certStatus, setCertStatus] = useState<SigningCertificateStatusDto | null>(null)
-  const [loading, setLoading] = useState(false)
 
   const emitProfile = useMemo(() => {
     return getBillingEmitProfile(readBillingEmitProfile(tenantId))
@@ -48,7 +46,6 @@ export function PurchaseWithholdingsListPage() {
   useEffect(() => {
     if (!tenantId) return
     let active = true
-    setLoading(true)
     Promise.all([
       getTenant(tenantId).catch(() => null),
       getSigningCertificateStatus(tenantId).catch(() => null),
@@ -58,9 +55,6 @@ export function PurchaseWithholdingsListPage() {
           if (tenantData) setTenant(tenantData)
           if (certData) setCertStatus(certData)
         }
-      })
-      .finally(() => {
-        if (active) setLoading(false)
       })
     return () => {
       active = false
@@ -79,7 +73,7 @@ export function PurchaseWithholdingsListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Retenciones" lead="Comprobantes de retención electrónica en compras.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres permisos para consultar comprobantes de retención en compras."
@@ -95,36 +89,20 @@ export function PurchaseWithholdingsListPage() {
       title="Retenciones en Compras"
       lead="Comprobantes de retención electrónica (SRI Tipo 07) emitidos a proveedores de bienes y servicios."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Comprobantes de Retención SRI"
-          subtitle="Emisión, firma electrónica (XAdES-BES) y autorización ante el SRI de retenciones de Impuesto a la Renta e IVA aplicadas a facturas de compra."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              SRI Tipo 07
-            </StatusBadge>
-          }
+          subtitle="Retenciones SRI Tipo 07 de Impuesto a la Renta e IVA sobre facturas de compra."
           actions={
             canIssue ? (
-              <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-                <Button
-                  variant="outline"
-                  size="md"
-                  onClick={() => {}}
-                  disabled={loading}
-                >
-                  <RefreshCw size={15} className={loading ? 'ecu-spin' : ''} />
-                  Actualizar
-                </Button>
-                <Button
-                  variant="primary"
-                  size="md"
-                  onClick={() => {}}
-                >
-                  <Plus size={16} />
-                  Nueva Retención
-                </Button>
-              </div>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => {}}
+              >
+                <Plus size={16} />
+                Nueva Retención
+              </Button>
             ) : undefined
           }
         />
@@ -232,41 +210,14 @@ export function PurchaseWithholdingsListPage() {
 
         {/* Tira de KPIs de Retenciones */}
         <div className="ecu-stat-grid" aria-label="Resumen de retenciones en compras">
-          <StatCard
-            label="Total Retenciones"
-            value={String(stats.total)}
-            icon="receipt"
-            toneColor="#4f46e5"
-            footerText="Emitidas en el ejercicio"
-          />
-          <StatCard
-            label="Autorizadas SRI"
-            value={String(stats.authorized)}
-            icon="verified"
-            toneColor="#10b981"
-            footerText="Con autorización electrónica"
-          />
-          <StatCard
-            label="Pendientes / En Cola"
-            value={String(stats.pendingSri)}
-            icon="schedule"
-            toneColor="#f59e0b"
-            footerText="Por transmitir o firmar"
-          />
-          <StatCard
-            label="Monto Retenido"
-            value={`$${stats.totalWithheld.toFixed(2)}`}
-            icon="monetization_on"
-            toneColor="#8b5cf6"
-            footerText="Total retenciones IR e IVA"
-          />
+          <StatCard label="Total Retenciones" value={stats.total} />
+          <StatCard label="Autorizadas SRI" value={stats.authorized} />
+          <StatCard label="Pendientes" value={stats.pendingSri} />
+          <StatCard label="Retenido ($)" value={stats.totalWithheld} />
         </div>
 
         {/* Listado / Estado de Retenciones */}
-        <SectionCard
-          title="Retenciones Electrónicas Emitidas"
-          subtitle="Historial de comprobantes de retención transmitidos al SRI conforme a la Ficha Técnica v2.32"
-        >
+        <SectionCard title="Retenciones Electrónicas Emitidas">
           <EmptyState
             icon="receipt"
             title="No hay retenciones emitidas registradas"

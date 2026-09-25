@@ -1,5 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
-import { Button, OptionGroup, Select, TextBox } from 'glubox'
+import { Button, OptionGroup, Select, TextBox, useToast } from 'glubox'
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react'
 import type { ProductTemplateLevel, VariantDimensionTemplateDto } from '@/types/catalogApi'
 import {
@@ -52,6 +52,7 @@ export function HierarchyTemplateTreeBuilder({
   availableAttributes,
   disabled = false,
 }: HierarchyTemplateTreeBuilderProps) {
+  const toast = useToast()
   const [customByLevel, setCustomByLevel] = useState<Record<string, { data: string; axis: string }>>({})
 
   const attributeLookup = useMemo(
@@ -97,6 +98,19 @@ export function HierarchyTemplateTreeBuilder({
     if (!name) return
     const key = name.toLowerCase()
     if (usedNames(levels).has(key)) return
+
+    if (list === 'axes') {
+      const match = availableAttributes.find((a) => a.name.trim().toLowerCase() === key)
+      if (match && match.isVariantAxis === false) {
+        toast.show({
+          title: 'Campo de texto o datos',
+          message: `«${match.name}» está registrado como campo de texto o datos y no es una escala para variantes físicas. Agrégalo en «Datos de este nivel».`,
+          variant: 'warning',
+        })
+        return
+      }
+    }
+
     const level = levels[index]
     const current = list === 'axes' ? (level.axes ?? []) : level.attributes
     patchLevel(index, { [list]: [...current, name] })
@@ -110,6 +124,19 @@ export function HierarchyTemplateTreeBuilder({
   }
 
   const moveAcross = (index: number, from: 'attributes' | 'axes', name: string) => {
+    if (from === 'attributes') {
+      const key = name.trim().toLowerCase()
+      const match = availableAttributes.find((a) => a.name.trim().toLowerCase() === key)
+      if (match && match.isVariantAxis === false) {
+        toast.show({
+          title: 'No puede ser eje',
+          message: `«${match.name}» es un campo de texto o datos. Las variantes físicas requieren escalas como tallas, colores u opciones.`,
+          variant: 'warning',
+        })
+        return
+      }
+    }
+
     const to = from === 'attributes' ? 'axes' : 'attributes'
     const level = levels[index]
     const key = name.trim().toLowerCase()
@@ -120,21 +147,28 @@ export function HierarchyTemplateTreeBuilder({
     patchLevel(index, { [from]: source, [to]: target })
   }
 
-  const dictionaryOptions = (preferAxis: boolean) => {
+  const canMoveToAxes = (name: string): boolean => {
+    const match = availableAttributes.find(
+      (a) => a.name.trim().toLowerCase() === name.trim().toLowerCase()
+    )
+    if (!match) return true
+    return match.isVariantAxis !== false
+  }
+
+  const dictionaryOptions = (forAxesOnly: boolean) => {
     const taken = usedNames(levels)
     return availableAttributes
-      .filter((attr) => !taken.has(attr.name.trim().toLowerCase()))
-      .slice()
-      .sort((a, b) => {
-        const aAxis = a.isVariantAxis !== false
-        const bAxis = b.isVariantAxis !== false
-        if (aAxis !== bAxis) {
-          if (preferAxis) return aAxis ? -1 : 1
-          return aAxis ? 1 : -1
-        }
-        return a.name.localeCompare(b.name, 'es')
+      .filter((attr) => {
+        if (taken.has(attr.name.trim().toLowerCase())) return false
+        if (forAxesOnly && attr.isVariantAxis === false) return false
+        return true
       })
-      .map((attr) => ({ value: attr.name, label: attr.name }))
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      .map((attr) => ({
+        value: attr.name,
+        label: `${attr.name}${attr.isVariantAxis === false ? ' (Texto / Datos)' : ''}`,
+      }))
   }
 
   return (
@@ -221,10 +255,11 @@ export function HierarchyTemplateTreeBuilder({
 
           <LevelList
             title="Datos de este nivel"
-            hint="Se completan una vez en este peldaño."
+            hint="Se completan una vez en este peldaño (ficha o notas)."
             items={lvl.attributes}
             disabled={disabled}
             options={dictionaryOptions(false)}
+            canMoveItem={canMoveToAxes}
             customValue={customByLevel[lvl.id]?.data ?? ''}
             onCustomChange={(value) =>
               setCustomByLevel((prev) => ({
@@ -392,6 +427,7 @@ function LevelList({
   onRemove,
   onMove,
   moveLabel,
+  canMoveItem,
 }: {
   title: string
   hint: string
@@ -405,6 +441,7 @@ function LevelList({
   onRemove: (name: string) => void
   onMove: (name: string) => void
   moveLabel: string
+  canMoveItem?: (name: string) => boolean
 }) {
   return (
     <div
@@ -456,48 +493,67 @@ function LevelList({
         {items.length === 0 ? (
           <span style={{ fontSize: '0.78rem', color: 'var(--glb-muted)' }}>Ninguno todavía.</span>
         ) : (
-          items.map((item) => (
-            <span
-              key={item}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                padding: '0.2rem 0.45rem 0.2rem 0.6rem',
-                borderRadius: '999px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                background: 'var(--glb-surface, #fff)',
-                border: '1px solid var(--shell-border, rgba(0,0,0,0.1))',
-              }}
-            >
-              {item}
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => onMove(item)}
+          items.map((item) => {
+            const isMoveable = canMoveItem ? canMoveItem(item) : true
+            return (
+              <span
+                key={item}
                 style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--shell-primary, #2563eb)',
-                  cursor: 'pointer',
-                  fontSize: '0.72rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.2rem 0.45rem 0.2rem 0.6rem',
+                  borderRadius: '999px',
+                  fontSize: '0.78rem',
                   fontWeight: 600,
+                  background: 'var(--glb-surface, #fff)',
+                  border: '1px solid var(--shell-border, rgba(0,0,0,0.1))',
                 }}
               >
-                {moveLabel}
-              </button>
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => onRemove(item)}
-                aria-label={`Quitar ${item}`}
-                style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex' }}
-              >
-                <X size={13} />
-              </button>
-            </span>
-          ))
+                {item}
+                {isMoveable ? (
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onMove(item)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--shell-primary, #2563eb)',
+                      cursor: 'pointer',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {moveLabel}
+                  </button>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      padding: '0.08rem 0.35rem',
+                      borderRadius: '4px',
+                      background: 'var(--glb-surface-ground, rgba(0, 0, 0, 0.05))',
+                      color: 'var(--glb-muted, #64748b)',
+                      fontWeight: 500,
+                    }}
+                    title="Campo de texto o datos: no forma parte de las escalas de variantes."
+                  >
+                    Dato / Texto
+                  </span>
+                )}
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onRemove(item)}
+                  aria-label={`Quitar ${item}`}
+                  style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex' }}
+                >
+                  <X size={13} />
+                </button>
+              </span>
+            )
+          })
         )}
       </div>
     </div>

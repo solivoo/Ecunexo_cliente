@@ -12,12 +12,14 @@ import {
   SectionCard,
   StatCard,
   StatusBadge,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
-import { Check, ExternalLink, Plus, RefreshCw, X } from 'lucide-react'
+import { Check, ExternalLink, Plus, X } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
@@ -35,20 +37,23 @@ import '@/pages/repairs/ecu-customer-form.css'
 
 type ProformaRow = PurchaseProformaDto & Record<string, unknown>
 
-function formatStatus(status: PurchaseProformaStatus): { label: string; tone: 'primary' | 'success' | 'warning' | 'neutral' | 'danger' | 'info' } {
+function formatStatus(status: PurchaseProformaStatus): {
+  label: string
+  variant: 'active' | 'warning' | 'inactive' | 'danger'
+} {
   switch (status) {
     case 1:
-      return { label: 'Borrador', tone: 'neutral' }
+      return { label: 'Borrador', variant: 'warning' }
     case 2:
-      return { label: 'Aprobada', tone: 'success' }
+      return { label: 'Aprobada', variant: 'active' }
     case 3:
-      return { label: 'Convertida en Compra', tone: 'primary' }
+      return { label: 'Convertida en Compra', variant: 'active' }
     case 4:
-      return { label: 'Rechazada', tone: 'danger' }
+      return { label: 'Rechazada', variant: 'danger' }
     case 5:
-      return { label: 'Expirada', tone: 'warning' }
+      return { label: 'Expirada', variant: 'inactive' }
     default:
-      return { label: 'Borrador', tone: 'neutral' }
+      return { label: 'Borrador', variant: 'warning' }
   }
 }
 
@@ -158,7 +163,7 @@ export function PurchaseProformasListPage() {
         sortable: true,
         renderCell: (_value, row: ProformaRow) => (
           <div>
-            <div style={{ fontWeight: 600, fontFamily: 'monospace' }}>{row.proformaNumber}</div>
+            <code className="ecu-code">{row.proformaNumber}</code>
             {row.attachmentUrl ? (
               <a
                 href={row.attachmentUrl}
@@ -185,24 +190,24 @@ export function PurchaseProformasListPage() {
         width: 250,
         sortable: true,
         renderCell: (_value, row: ProformaRow) => (
-          <div style={{ fontWeight: 500 }}>
+          <span className="ecu-clip ecu-clip--wide" style={{ fontWeight: 500 }}>
             {row.supplierBusinessName ?? 'Proveedor no disponible'}
-          </div>
+          </span>
         ),
       },
       {
         key: 'issueDate',
-        header: 'Emisión / Vigencia',
-        width: 160,
+        header: 'Emisión',
+        width: 110,
         sortable: true,
-        renderCell: (_value, row: ProformaRow) => (
-          <div style={{ fontSize: '0.8rem' }}>
-            <div>Emisión: {row.issueDate}</div>
-            {row.expirationDate ? (
-              <div style={{ color: 'var(--glb-muted, #6b7280)' }}>Vence: {row.expirationDate}</div>
-            ) : null}
-          </div>
-        ),
+        renderCell: (_value, row: ProformaRow) => formatDate(row.issueDate),
+      },
+      {
+        key: 'expirationDate',
+        header: 'Vigencia',
+        width: 110,
+        sortable: true,
+        renderCell: (_value, row: ProformaRow) => formatDate(row.expirationDate),
       },
       {
         key: 'subtotal',
@@ -239,8 +244,13 @@ export function PurchaseProformasListPage() {
         width: 130,
         sortable: true,
         renderCell: (_value, row: ProformaRow) => {
-          const { label, tone } = formatStatus(row.status)
-          return <StatusBadge tone={tone}>{label}</StatusBadge>
+          const { label, variant } = formatStatus(row.status)
+          return (
+            <span className={`ecu-status ecu-status--${variant}`}>
+              <span className="ecu-status__dot" aria-hidden />
+              {label}
+            </span>
+          )
         },
       },
       {
@@ -288,7 +298,7 @@ export function PurchaseProformasListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Proformas" lead="Gestión de cotizaciones y proformas de compra.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres permisos de compras para ver las proformas de compra."
@@ -304,71 +314,20 @@ export function PurchaseProformasListPage() {
       title="Proformas de Compra"
       lead="Control y cotizaciones de proveedores antes de formalizar la compra o ingreso de mercadería a bodegas."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Proformas y Cotizaciones de Compra"
-          subtitle="Registra y autoriza las cotizaciones recibidas de proveedores antes de generar la compra o recepcionar stock."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              Módulo Compras
-            </StatusBadge>
-          }
-          actions={
-            canManage ? (
-              <Button variant="primary" onClick={openCreate}>
-                <Plus size={16} />
-                Nueva Cotización
-              </Button>
-            ) : undefined
-          }
+          subtitle="Cotizaciones de proveedores previas a la compra o al ingreso de stock."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de proformas">
-          <StatCard
-            label="Total Cotizaciones"
-            value={String(stats.total)}
-            icon="request_quote"
-            toneColor="#4f46e5"
-            footerText="Proformas registradas"
-          />
-          <StatCard
-            label="En Borrador"
-            value={String(stats.borrador)}
-            icon="edit_note"
-            toneColor="#eab308"
-            footerText="Pendientes de aprobación"
-          />
-          <StatCard
-            label="Aprobadas"
-            value={String(stats.aprobadas)}
-            icon="verified"
-            toneColor="#10b981"
-            footerText="Listas para facturación"
-          />
-          <StatCard
-            label="Convertidas / Rechazadas"
-            value={String(stats.finalizadas)}
-            icon="receipt_long"
-            toneColor="#6b7280"
-            footerText="Ciclo completado"
-          />
+          <StatCard label="Total Cotizaciones" value={stats.total} />
+          <StatCard label="En Borrador" value={stats.borrador} />
+          <StatCard label="Aprobadas" value={stats.aprobadas} />
+          <StatCard label="Finalizadas" value={stats.finalizadas} />
         </div>
 
-        <SectionCard
-          title="Listado de Proformas"
-          subtitle="Historial de cotizaciones recibidas y su estado de aprobación"
-          action={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void loadData()}
-              disabled={loading}
-            >
-              <RefreshCw size={14} className={loading ? 'ecu-spin' : ''} />
-              Actualizar
-            </Button>
-          }
-        >
+        <SectionCard title="Listado de Proformas">
           {!loading && proformas.length === 0 ? (
             <EmptyState
               icon="request_quote"
@@ -393,6 +352,17 @@ export function PurchaseProformasListPage() {
               searchPosition="left"
               searchWidth={300}
               searchPlaceholder="Buscar por n° proforma, proveedor..."
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void loadData()} />
+                  {canManage && (
+                    <Button variant="primary" onClick={openCreate}>
+                      <Plus size={16} />
+                      Nueva Cotización
+                    </Button>
+                  )}
+                </div>
+              }
               loading={loading}
               paging={paging}
               pageSizeOptions={pageSizeOptions}

@@ -35,7 +35,7 @@ export function NotFoundPage({ embedded = false }: NotFoundPageProps) {
 
   if (embedded) {
     return (
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Página no encontrada"
           subtitle="Error 404"
@@ -48,7 +48,7 @@ export function NotFoundPage({ embedded = false }: NotFoundPageProps) {
 
   return (
     <div
-      className="ecu-dashboard-layout"
+      className="ecu-dashboard-layout ecu-section-page ecu-section-page"
       style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
     >
       <PageHeader

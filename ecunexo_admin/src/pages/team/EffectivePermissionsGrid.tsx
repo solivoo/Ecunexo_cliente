@@ -44,7 +44,7 @@ export function EffectivePermissionsGrid({
         width: 260,
         sortable: true,
         renderCell: (_value: EffectivePermissionRow['code'], row: EffectivePermissionRow) => (
-          <strong>{row.code}</strong>
+          <code className="ecu-code ecu-perm-code">{row.code}</code>
         ),
       },
       {
@@ -61,15 +61,21 @@ export function EffectivePermissionsGrid({
         width: 300,
         sortable: true,
         renderCell: (_value: EffectivePermissionRow['description'], row: EffectivePermissionRow) =>
-          row.description ?? '—',
+          row.description ? (
+            <span className="ecu-clip ecu-clip--wide" title={row.description}>
+              {row.description}
+            </span>
+          ) : (
+            '—'
+          ),
       },
       {
         key: 'module',
         header: 'Módulo',
-        width: 140,
+        width: 150,
         sortable: true,
         renderCell: (_value: EffectivePermissionRow['module'], row: EffectivePermissionRow) =>
-          row.module ? moduleLabel(row.module) : '—',
+          row.module ? <span className="ecu-chip">{moduleLabel(row.module)}</span> : '—',
       },
       {
         key: 'id',
@@ -98,7 +104,7 @@ export function EffectivePermissionsGrid({
               ) : null}
             </div>
           ) : (
-            <span className="app-shell__muted">—</span>
+            <span className="ecu-hint">—</span>
           ),
       },
     ]

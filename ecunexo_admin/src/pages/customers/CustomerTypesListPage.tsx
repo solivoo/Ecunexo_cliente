@@ -14,10 +14,10 @@ import {
 import {
   EcuPageActions,
   EmptyState,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
-  StatusBadge,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { Pencil, Plus, Power, Trash2 } from 'lucide-react'
@@ -259,21 +259,8 @@ export default function CustomerTypesListPage() {
         route: '/clientes',
         disabled: false,
       },
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        disabled: loading,
-      },
     ]
-  }, [loading])
-
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') void load()
-    },
-    [load]
-  )
+  }, [])
 
   const columns = useMemo(
     (): ColumnDef<TypeRow>[] => [
@@ -284,8 +271,10 @@ export default function CustomerTypesListPage() {
         sortable: true,
         renderCell: (_v, row: TypeRow) => (
           <div className="flex flex-col py-1 gap-0.5">
-            <span className="font-semibold text-slate-900 dark:text-slate-100">{row.name}</span>
-            <span className="text-xs text-slate-500">Código {row.code}</span>
+            <strong>{row.name}</strong>
+            <span className="ecu-hint">
+              Código <code className="ecu-code">{row.code}</code>
+            </span>
           </div>
         ),
       },
@@ -294,22 +283,19 @@ export default function CustomerTypesListPage() {
         header: 'Etiqueta',
         width: 160,
         sortable: true,
-        renderCell: (_v, row: TypeRow) => (
-          <StatusBadge tone={normalizeCustomerTypeTone(row.tone)} withDot>
-            {row.shortLabel}
-          </StatusBadge>
-        ),
+        renderCell: (_v, row: TypeRow) => <span className="ecu-chip">{row.shortLabel}</span>,
       },
       {
         key: 'isSystem',
         header: 'Origen',
         width: 120,
         sortable: true,
-        renderCell: (_v, row: TypeRow) => (
-          <StatusBadge tone={row.isSystem ? 'primary' : 'info'}>
-            {row.isSystem ? 'Sistema' : 'Personalizado'}
-          </StatusBadge>
-        ),
+        renderCell: (_v, row: TypeRow) =>
+          row.isSystem ? (
+            <span className="ecu-chip">Sistema</span>
+          ) : (
+            <span className="ecu-chip ecu-chip--muted">Personalizado</span>
+          ),
       },
       {
         key: 'sortOrder',
@@ -323,9 +309,12 @@ export default function CustomerTypesListPage() {
         width: 110,
         sortable: true,
         renderCell: (_v, row: TypeRow) => (
-          <StatusBadge tone={row.isActive ? 'success' : 'neutral'} withDot>
+          <span
+            className={`ecu-status ${row.isActive ? 'ecu-status--active' : 'ecu-status--inactive'}`}
+          >
+            <span className="ecu-status__dot" aria-hidden />
             {row.isActive ? 'Activo' : 'Inactivo'}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -362,11 +351,10 @@ export default function CustomerTypesListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Tipos de cliente" lead="Clasificación comercial del directorio.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres customers.read o customers.manage para consultar los tipos."
-            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
           />
         </div>
       </TenantSessionGate>
@@ -378,70 +366,20 @@ export default function CustomerTypesListPage() {
       title="Tipos de cliente"
       lead="Clasificaciones comerciales usadas en el directorio, facturación y taller."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Tipos de Cliente"
-          subtitle="Define y mantiene las clasificaciones del directorio comercial. Los tipos de sistema se pueden desactivar pero no eliminar."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {stats.total} {stats.total === 1 ? 'tipo' : 'tipos'}
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {canManage && (
-                <Button type="button" variant="primary" onClick={openCreate}>
-                  <Plus size={16} strokeWidth={2} aria-hidden />
-                  Nuevo Tipo
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de tipos"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
-              />
-            </>
-          }
+          subtitle="Clasificaciones comerciales del directorio de clientes."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de tipos de cliente">
-          <StatCard
-            label="Total tipos"
-            value={stats.total}
-            icon="sell"
-            toneColor="#4f46e5"
-            footerText="Sistema y personalizados"
-          />
-          <StatCard
-            label="Activos"
-            value={stats.active}
-            icon="verified"
-            toneColor="#10b981"
-            footerText="Disponibles al registrar clientes"
-          />
-          <StatCard
-            label="De sistema"
-            value={stats.system}
-            icon="settings"
-            toneColor="#6366f1"
-            footerText="Predefinidos por EcuNexo"
-          />
-          <StatCard
-            label="Personalizados"
-            value={stats.custom}
-            icon="new_label"
-            toneColor="#0284c7"
-            footerText="Creados por la empresa"
-          />
+          <StatCard label="Total tipos" value={stats.total} />
+          <StatCard label="Activos" value={stats.active} />
+          <StatCard label="De sistema" value={stats.system} />
+          <StatCard label="Personalizados" value={stats.custom} />
         </div>
 
-        <SectionCard
-          title="Catálogo de clasificaciones"
-          subtitle="Etiquetas usadas en el directorio y en los selectores de operaciones"
-        >
+        <SectionCard title="Catálogo de clasificaciones">
           {error ? (
             <div className="ecu-form-error-banner" role="alert">
               <span className="material-symbols-outlined">error</span>
@@ -464,6 +402,7 @@ export default function CustomerTypesListPage() {
             />
           ) : (
             <DataGrid
+              className="ecu-companies-grid"
               dataSource={rows as TypeRow[]}
               keyExpr="id"
               columns={columns}
@@ -478,6 +417,24 @@ export default function CustomerTypesListPage() {
               onPageChange={onPageChange}
               onPageSizeChange={onPageSizeChange}
               messages={messages}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canManage && (
+                    <Button type="button" variant="primary" onClick={openCreate}>
+                      <Plus size={16} strokeWidth={2} aria-hidden />
+                      Nuevo Tipo
+                    </Button>
+                  )}
+                  <EcuPageActions
+                    items={actionItems}
+                    variant="outline"
+                    triggerLabel="Acciones de tipos"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
+                  />
+                </div>
+              }
             />
           )}
         </SectionCard>

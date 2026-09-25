@@ -6,7 +6,6 @@ import {
   PageHeader,
   SectionCard,
   StatCard,
-  StatusBadge,
 } from '@/components/ui'
 import {
   AlertCircle,
@@ -17,8 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Cpu,
-  DollarSign,
   ExternalLink,
   Eye,
   Tag,
@@ -43,19 +40,34 @@ import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
   DamageLevel,
-  damageLevelBadgeTone,
   damageLevelLabel,
-  photoStageBadgeTone,
   photoStageLabel,
   PhotoStage,
   RepairEquipmentStatus,
-  repairEquipmentStatusBadgeTone,
   repairEquipmentStatusLabel,
   type RepairEquipmentDetailDto,
   type RepairEquipmentDto,
   type RepairEquipmentPhotoDto,
 } from '@/types/repairsApi'
 import './repair-equipment-detail.css'
+
+function equipmentStatusClass(status: RepairEquipmentStatus): string {
+  switch (status) {
+    case RepairEquipmentStatus.ReadyToDispatch:
+    case RepairEquipmentStatus.Dispatched:
+      return 'ecu-status--active'
+    case RepairEquipmentStatus.Diagnosing:
+    case RepairEquipmentStatus.InRepair:
+    case RepairEquipmentStatus.QualityCheck:
+    case RepairEquipmentStatus.ReturnedClient:
+      return 'ecu-status--warning'
+    case RepairEquipmentStatus.Irreparable:
+    case RepairEquipmentStatus.ReturnedUnrepaired:
+      return 'ecu-status--danger'
+    default:
+      return 'ecu-status--inactive'
+  }
+}
 
 export function RepairEquipmentDetailPage() {
   const { batchId, equipmentId } = useParams<{ batchId: string; equipmentId: string }>()
@@ -420,8 +432,8 @@ export function RepairEquipmentDetailPage() {
         title="Ficha del Equipo"
         lead="Gestión operativa, trazabilidad y evidencias fotográficas."
       >
-        <div className="ecu-dashboard-layout">
-          <SectionCard title="Cargando equipo…">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
+          <SectionCard title="Cargando equipo…" bodyClassName="ecu-section-card__body--padded">
             <p className="app-shell__muted" style={{ margin: 0 }}>
               Recuperando información técnica y evidencias fotográficas…
             </p>
@@ -437,7 +449,7 @@ export function RepairEquipmentDetailPage() {
         title="Ficha del Equipo"
         lead="Gestión operativa, trazabilidad y evidencias fotográficas."
       >
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <EmptyState
             title="Equipo no encontrado"
             description="El electrodoméstico o equipo solicitado no existe o fue removido."
@@ -463,7 +475,7 @@ export function RepairEquipmentDetailPage() {
       title="Ficha del Equipo"
       lead="Gestión operativa, trazabilidad y evidencias fotográficas."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         {/* Breadcrumb de Navegación Jerárquica */}
         <nav className="ecu-breadcrumb" aria-label="Navegación jerárquica">
           <Link to="/taller/lotes" className="ecu-breadcrumb__item">
@@ -485,24 +497,6 @@ export function RepairEquipmentDetailPage() {
           subtitle={`${equipment.brand} · ${equipment.model} ${
             equipment.productLine ? `· Línea ${equipment.productLine}` : ''
           }`}
-          badge={
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
-              <StatusBadge
-                tone={repairEquipmentStatusBadgeTone(equipment.status)}
-                withDot={!isCancelled}
-              >
-                {repairEquipmentStatusLabel(equipment.status)}
-              </StatusBadge>
-              <StatusBadge tone={damageLevelBadgeTone(equipment.damageLevel)}>
-                {damageLevelLabel(equipment.damageLevel)}
-              </StatusBadge>
-              {equipment.passedQualityCheck !== null && (
-                <StatusBadge tone={equipment.passedQualityCheck ? 'success' : 'danger'}>
-                  {equipment.passedQualityCheck ? 'QC Aprobado' : 'QC Rechazado'}
-                </StatusBadge>
-              )}
-            </div>
-          }
           actions={
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
               <Button
@@ -605,34 +599,10 @@ export function RepairEquipmentDetailPage() {
 
         {/* Tira de Métricas KPI */}
         <div className="ecu-stat-grid">
-          <StatCard
-            label="Identificación"
-            value={equipment.serialNumber}
-            footerText={`${equipment.brand} - ${equipment.model}`}
-            icon={<Cpu size={22} color="#3b82f6" />}
-          />
-          <StatCard
-            label="Fase Operativa"
-            value={repairEquipmentStatusLabel(equipment.status)}
-            footerText={equipment.updatedAt ? `Act.: ${formatDate(equipment.updatedAt)}` : 'Sin cambios'}
-            icon={<Wrench size={22} color="#f59e0b" />}
-          />
-          <StatCard
-            label="Nivel & Tarifa"
-            value={damageLevelLabel(equipment.damageLevel)}
-            footerText={
-              equipment.serviceFeeApplied
-                ? `Tarifa: $${equipment.serviceFeeApplied.toFixed(2)}`
-                : 'Tarifa pendiente'
-            }
-            icon={<DollarSign size={22} color="#10b981" />}
-          />
-          <StatCard
-            label="Evidencias S3"
-            value={`${photos.length} ${photos.length === 1 ? 'foto' : 'fotos'}`}
-            footerText="Cloud Storage B2"
-            icon={<Camera size={22} color="#a855f7" />}
-          />
+          <StatCard label="Serie" value={equipment.serialNumber} />
+          <StatCard label="Fase" value={repairEquipmentStatusLabel(equipment.status)} />
+          <StatCard label="Daño" value={damageLevelLabel(equipment.damageLevel)} />
+          <StatCard label="Evidencias" value={photos.length} />
         </div>
 
         {/* Cuadrícula de 2 Columnas: Ficha Técnica (Izq) + Trazabilidad (Der) */}
@@ -642,7 +612,7 @@ export function RepairEquipmentDetailPage() {
             {/* Especificaciones y Datos de Entrada */}
             <SectionCard
               title="Especificaciones & Datos de Entrada"
-              subtitle="Información de origen proporcionada en el manifiesto o plantilla Excel del lote."
+              bodyClassName="ecu-section-card__body--padded"
             >
               <div className="ecu-equipment-spec-grid">
                 <div className="ecu-equipment-spec-tile">
@@ -715,7 +685,7 @@ export function RepairEquipmentDetailPage() {
             {/* Fases Operativas y Notas de Taller */}
             <SectionCard
               title="Diagnóstico, Reparación & Control de Calidad"
-              subtitle="Notas técnicas registradas por el personal operativo a lo largo del flujo de trabajo."
+              bodyClassName="ecu-section-card__body--padded"
             >
               <div className="ecu-equipment-phases">
                 {/* Diagnóstico */}
@@ -775,9 +745,16 @@ export function RepairEquipmentDetailPage() {
                       />
                       <h4 className="ecu-equipment-phase-card__title">Control de Calidad (QC)</h4>
                       {equipment.passedQualityCheck !== null && (
-                        <StatusBadge tone={equipment.passedQualityCheck ? 'success' : 'danger'}>
+                        <span
+                          className={`ecu-status ${
+                            equipment.passedQualityCheck
+                              ? 'ecu-status--active'
+                              : 'ecu-status--danger'
+                          }`}
+                        >
+                          <span className="ecu-status__dot" aria-hidden />
                           {equipment.passedQualityCheck ? 'Aprobado' : 'Rechazado'}
-                        </StatusBadge>
+                        </span>
                       )}
                     </div>
                     <span className="ecu-equipment-phase-card__date">
@@ -803,7 +780,7 @@ export function RepairEquipmentDetailPage() {
           <div className="ecu-equipment-detail__aside">
             <SectionCard
               title="Trazabilidad & Eventos"
-              subtitle="Historial inmutable de cambios de estado y acciones técnicas."
+              bodyClassName="ecu-section-card__body--padded"
             >
               {equipment.events && equipment.events.length > 0 ? (
                 <div className="ecu-equipment-timeline">
@@ -814,16 +791,18 @@ export function RepairEquipmentDetailPage() {
                         <div className="ecu-equipment-timeline__badges">
                           {ev.fromStatus !== null && ev.fromStatus !== undefined ? (
                             <>
-                              <StatusBadge tone={repairEquipmentStatusBadgeTone(ev.fromStatus)}>
+                              <span className={`ecu-status ${equipmentStatusClass(ev.fromStatus)}`}>
+                                <span className="ecu-status__dot" aria-hidden />
                                 {repairEquipmentStatusLabel(ev.fromStatus)}
-                              </StatusBadge>
+                              </span>
                               <span className="ecu-equipment-timeline__arrow">➔</span>
                             </>
                           ) : null}
                           {ev.toStatus !== null && ev.toStatus !== undefined ? (
-                            <StatusBadge tone={repairEquipmentStatusBadgeTone(ev.toStatus)}>
+                            <span className={`ecu-status ${equipmentStatusClass(ev.toStatus)}`}>
+                              <span className="ecu-status__dot" aria-hidden />
                               {repairEquipmentStatusLabel(ev.toStatus)}
-                            </StatusBadge>
+                            </span>
                           ) : null}
                         </div>
 
@@ -853,7 +832,7 @@ export function RepairEquipmentDetailPage() {
         {/* Galería Multimedia de Evidencias */}
         <SectionCard
           title="Galería Multimedia de Evidencias"
-          subtitle="Fotografías optimizadas (WebP) almacenadas de forma segura en la nube para auditoría B2B."
+          bodyClassName="ecu-section-card__body--padded"
           action={
             canUploadPhoto && !isCancelled ? (
               <Button
@@ -917,9 +896,7 @@ export function RepairEquipmentDetailPage() {
                       className="ecu-equipment-photo-card__img"
                     />
                     <div className="ecu-equipment-photo-card__badge">
-                      <StatusBadge tone={photoStageBadgeTone(photo.stage)}>
-                        {photoStageLabel(photo.stage)}
-                      </StatusBadge>
+                      <span className="ecu-chip">{photoStageLabel(photo.stage)}</span>
                     </div>
                     <div className="ecu-equipment-photo-card__overlay">
                       <span className="ecu-equipment-photo-card__zoom-pill">

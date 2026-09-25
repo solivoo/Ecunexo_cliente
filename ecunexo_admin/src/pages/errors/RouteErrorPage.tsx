@@ -33,7 +33,7 @@ export function RouteErrorPage() {
   }
 
   return (
-    <div className="ecu-dashboard-layout">
+    <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
       <PageHeader
         title={title}
         subtitle={status ? `Código ${status}` : 'Error de aplicación'}

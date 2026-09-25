@@ -5,9 +5,7 @@ import {
   EcuPageActions,
   PageHeader,
   SectionCard,
-  StatusBadge,
 } from '@/components/ui'
-import { KeyRound } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -135,18 +133,11 @@ export function ResetUserPasswordPage() {
       title="Restablecer contraseña"
       lead="Define una nueva contraseña para el usuario."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Restablecer Contraseña"
           subtitle={
-            user
-              ? `Actualizar credenciales de acceso para ${user.name} (${user.email}).`
-              : 'Asignar nueva contraseña de acceso.'
-          }
-          badge={
-            <StatusBadge tone="warning" withDot>
-              Seguridad
-            </StatusBadge>
+            user ? `Nueva contraseña de acceso para ${user.name}.` : 'Asignar nueva contraseña.'
           }
           actions={
             <>
@@ -168,18 +159,16 @@ export function ResetUserPasswordPage() {
           {user ? (
             <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
               {error ? (
-                <p className="welcome-onboarding__error" role="alert">
-                  {error}
-                </p>
+<div className="ecu-form-error-banner" role="alert">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{error}</span>
+                </div>
               ) : null}
 
               <SectionCard
-                title={
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <KeyRound size={18} strokeWidth={1.75} aria-hidden /> Nueva Clave de Acceso
-                  </span>
-                }
-                subtitle="Mínimo 8 caracteres requeridos. Comunícasela al colaborador de forma segura."
+
+                bodyClassName="ecu-section-card__body--padded"
+                title="Nueva Clave de Acceso"
               >
                 <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                   <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
@@ -220,9 +209,10 @@ export function ResetUserPasswordPage() {
                   </div>
                 </div>
                 {user.isDisabled ? (
-                  <p className="welcome-onboarding__error" role="status" style={{ marginTop: '1rem' }}>
-                    El usuario está deshabilitado. Habilítalo antes de cambiar la contraseña.
-                  </p>
+<div className="ecu-form-error-banner" role="status" style={{ marginTop: '1rem' }}>
+                    <span className="material-symbols-outlined">error</span>
+                    <span>El usuario está deshabilitado. Habilítalo antes de cambiar la contraseña.</span>
+                  </div>
                 ) : null}
               </SectionCard>
 

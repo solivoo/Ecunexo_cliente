@@ -12,6 +12,7 @@ import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
 import { moduleKey } from '@/lib/moduleLabels'
 import { createPermission } from '@/services/identityApi'
+import './securitySection.css'
 
 export function CreatePermissionPage() {
   const toast = useToast()
@@ -104,15 +105,10 @@ export function CreatePermissionPage() {
   }
 
   return (
-    <div className="ecu-dashboard-layout">
+    <div className="ecu-dashboard-layout ecu-section-page">
       <PageHeader
         title="Nuevo Permiso"
-        subtitle="Registra una nueva directiva en el catálogo global de permisos reutilizable por todas las entidades."
-        badge={
-          <StatusBadge tone="primary" withDot>
-            Catálogo Global
-          </StatusBadge>
-        }
+        subtitle="Registra una directiva reutilizable por todas las entidades de la plataforma."
         actions={
           <EcuPageActions
             items={actionItems}
@@ -126,8 +122,8 @@ export function CreatePermissionPage() {
 
       <form onSubmit={(e) => void onSubmit(e)} noValidate>
         <SectionCard
-          title="Definición de la Directiva"
-          subtitle="El código jerárquico identifica la capacidad en RBAC. El módulo se guarda en minúsculas. Las políticas condicionales ABAC se pueden añadir posteriormente en la ficha."
+          title="Definición de la directiva"
+          bodyClassName="ecu-section-card__body--padded"
         >
           {error ? (
             <div className="ecu-form-error-banner" role="alert">
@@ -158,7 +154,7 @@ export function CreatePermissionPage() {
                 variant="outline"
                 value={displayName}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setDisplayName(e.target.value)}
-                placeholder="Ej. Crear usuarios"
+                placeholder="Escriba aquí..."
                 disabled={busy}
                 fullWidth
               />
@@ -186,21 +182,14 @@ export function CreatePermissionPage() {
                 variant="outline"
                 value={description}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
-                placeholder="Describe el alcance y límites de esta directiva…"
+                placeholder="Escriba aquí..."
                 disabled={busy}
                 fullWidth
               />
             </div>
           </div>
 
-          <div
-            className="ecu-companies-form__actions"
-            style={{
-              marginTop: '1.5rem',
-              paddingTop: '1rem',
-              borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
-            }}
-          >
+          <div className="ecu-companies-form__actions ecu-form-actions-divider">
             <Button
               type="submit"
               variant="primary"

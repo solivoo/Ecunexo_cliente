@@ -17,7 +17,7 @@ export function AppSettingsPage() {
 
   if (!canRead) {
     return (
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Preferencias"
           subtitle="No tienes permiso para ver las preferencias de la aplicación."
@@ -28,7 +28,7 @@ export function AppSettingsPage() {
   }
 
   return (
-    <div className="ecu-dashboard-layout">
+    <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
       <PageHeader
         title="Preferencias del Sistema"
         subtitle="Personaliza la apariencia, densidad, tema de interfaz, notificaciones, motor de correo y comportamiento de listados."

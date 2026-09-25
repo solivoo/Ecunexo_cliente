@@ -3,10 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, useToast, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
+  GridDateRangeBox,
+  GridToolbarRefresh,
   PageHeader,
   StatCard,
   SectionCard,
-  StatusBadge,
   EmptyState,
 } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -43,7 +44,7 @@ export function ComprobantesPage() {
     useHasPermission('facturacion.comprobantes.read') ||
     useHasPermission('facturacion.facturas.read') ||
     useHasPermission('facturacion.facturas.read.all')
-  const { from, to } = useGridDateRange()
+  const { from, to, lookback, setRange } = useGridDateRange()
   const { rows, loading, error, emitterId, load } = useBillingInvoices({ from, to })
 
   const typeCode = sriDocumentTypeByCode(params.get('tipo'), SALE_DOCUMENT_TYPES).code
@@ -54,17 +55,6 @@ export function ComprobantesPage() {
   }, [rows, typeCode])
 
   const authorizedCount = visibleRows.filter((r) => r.state === 'Authorized' && !r.isVoided).length
-  const authorizedProdCount = visibleRows.filter(
-    (r) =>
-      r.state === 'Authorized' &&
-      !r.isVoided &&
-      r.accessKey &&
-      r.accessKey.length >= 24 &&
-      r.accessKey[23] === '2'
-  ).length
-  const testCount = visibleRows.filter(
-    (r) => r.accessKey && r.accessKey.length >= 24 && r.accessKey[23] === '1'
-  ).length
   const voidedCount = visibleRows.filter((r) => r.isVoided).length
   const totalSalesUsd = useMemo(() => {
     return visibleRows
@@ -73,15 +63,7 @@ export function ComprobantesPage() {
   }, [visibleRows])
 
   const actionItems = useMemo((): PageActionItem[] => {
-    const items: PageActionItem[] = [
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        route: null,
-        disabled: loading,
-      },
-    ]
+    const items: PageActionItem[] = []
 
     for (const doc of SALE_DOCUMENT_TYPES) {
       if (!doc.sriCode || doc.code === FACTURA_CODE || !doc.available) continue
@@ -105,10 +87,6 @@ export function ComprobantesPage() {
 
   const handleActionSelect = useCallback(
     (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-        return
-      }
       if (item.id === `nuevo-${NC_CODE}`) {
         toast.show({
           title: 'Nota de crédito',
@@ -124,17 +102,16 @@ export function ComprobantesPage() {
         variant: 'info',
       })
     },
-    [load, toast]
+    [toast]
   )
 
   if (!canRead && !canCreateInvoice) {
     return (
       <TenantSessionGate title="Facturas" lead="Facturas de venta electrónicas.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Sin permiso para consultar facturas de venta electrónicas."
-            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
           />
         </div>
       </TenantSessionGate>
@@ -146,103 +123,20 @@ export function ComprobantesPage() {
       title="Facturas"
       lead="Emisión y consulta de facturas electrónicas autorizadas ante el SRI."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Facturas Electrónicas"
-          subtitle="Facturas de venta autorizadas ante el SRI. Para retenciones en compras y liquidaciones, consulta el módulo de Compras."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {visibleRows.length} {visibleRows.length === 1 ? 'Factura' : 'Facturas'}
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {canCreateInvoice && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/facturacion/facturas/emitir')}
-                >
-                  + Nueva Factura
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Más tipos SRI"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
-              />
-            </>
-          }
+          subtitle="Facturas de venta electrónicas autorizadas ante el SRI."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de comprobantes y ventas">
-          <StatCard
-            label="Total Facturado ($)"
-            value={`$${formatMoney(totalSalesUsd)}`}
-            icon="payments"
-            toneColor="#059669"
-            footerText="Ventas en el período seleccionado"
-          />
-          <StatCard
-            label="Autorizadas por SRI"
-            value={authorizedCount}
-            icon="verified"
-            toneColor="#10b981"
-            footerText={
-              testCount > 0
-                ? `${authorizedProdCount} en prod. · ${testCount} en pruebas (sin validez)`
-                : 'Con validez fiscal'
-            }
-          />
-          <StatCard
-            label="En Listado"
-            value={visibleRows.length}
-            icon="receipt"
-            toneColor="#4f46e5"
-            footerText="Comprobantes filtrados"
-          />
-          <StatCard
-            label="Anuladas"
-            value={voidedCount}
-            icon="cancel"
-            toneColor={voidedCount > 0 ? '#ef4444' : '#6b7280'}
-            footerText="Comprobantes invalidados"
-          />
+          <StatCard label="Facturado USD" value={formatMoney(totalSalesUsd)} />
+          <StatCard label="Autorizadas SRI" value={authorizedCount} />
+          <StatCard label="En Listado" value={visibleRows.length} />
+          <StatCard label="Anuladas" value={voidedCount} />
         </div>
 
-        <SectionCard
-          title="Listado de Comprobantes de Venta"
-          subtitle="Facturas, notas de crédito y débito emitidas en el rango de fechas seleccionado"
-          action={
-            <div
-              className="ecu-comprobantes-filters"
-              style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}
-            >
-                {/* <GridDateRangeBox
-                  from={from}
-                  to={to}
-                  lookback={lookback}
-                  disabled={loading}
-                  onChange={setRange}
-                /> */}
-              <ComprobantesTypeFilters
-                value={typeCode}
-                options={sriTypeFilterOptions(SALE_DOCUMENT_TYPES)}
-                ariaLabel="Tipo de comprobante de venta"
-                disabled={loading}
-                onChange={(next) => {
-                  const copy = new URLSearchParams(params)
-                  if (next === 'all') copy.delete('tipo')
-                  else copy.set('tipo', next)
-                  setParams(copy, { replace: true })
-                }}
-              />
-            </div>
-          }
-        >
+        <SectionCard title="Listado de Comprobantes de Venta">
           {error ? (
             <div className="ecu-form-error-banner" role="alert">
               <span className="material-symbols-outlined">error</span>
@@ -274,6 +168,49 @@ export function ComprobantesPage() {
               emitterId={emitterId}
               canOperateInvoice={canCreateInvoice}
               onResent={() => void load({ silent: true })}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridDateRangeBox
+                    from={from}
+                    to={to}
+                    lookback={lookback}
+                    disabled={loading}
+                    onChange={setRange}
+                  />
+                  <ComprobantesTypeFilters
+                    value={typeCode}
+                    options={sriTypeFilterOptions(SALE_DOCUMENT_TYPES)}
+                    ariaLabel="Tipo de comprobante de venta"
+                    disabled={loading}
+                    onChange={(next) => {
+                      const copy = new URLSearchParams(params)
+                      if (next === 'all') copy.delete('tipo')
+                      else copy.set('tipo', next)
+                      setParams(copy, { replace: true })
+                    }}
+                  />
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canCreateInvoice && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/facturacion/facturas/emitir')}
+                    >
+                      + Nueva Factura
+                    </Button>
+                  )}
+                  {actionItems.length > 0 && (
+                    <EcuPageActions
+                      items={actionItems}
+                      variant="outline"
+                      triggerLabel="Más tipos SRI"
+                      renderIcon={renderSidebarIcon}
+                      onNavigate={(route: string) => navigate(route)}
+                      onActionSelect={handleActionSelect}
+                    />
+                  )}
+                </div>
+              }
             />
           )}
         </SectionCard>

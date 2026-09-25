@@ -228,7 +228,7 @@ export default function JournalEntryCreatePage() {
       title="Nuevo Asiento Contable"
       lead="Comprobante de diario manual para ajustes, aperturas o transacciones operativas."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title="Nuevo Asiento Contable"
           subtitle="Comprobante de diario manual para ajustes, aperturas o transacciones operativas."

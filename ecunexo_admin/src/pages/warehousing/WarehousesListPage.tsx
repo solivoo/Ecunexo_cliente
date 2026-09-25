@@ -1,21 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, DataGrid, useToast, type ColumnDef, type PageActionItem } from 'glubox'
+import { Button, DataGrid, useToast, type ColumnDef } from 'glubox'
 import {
-  EcuPageActions,
   PageHeader,
   StatCard,
   SectionCard,
   StatusBadge,
   EmptyState,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { Pencil } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
-import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { listWarehouses } from '@/services/inventoryApi'
@@ -67,18 +66,6 @@ export function WarehousesListPage() {
     if (canRead) void load({ silent: true })
   }, [canRead, load])
 
-  const actionItems = useMemo<PageActionItem[]>(() => {
-    const items: PageActionItem[] = []
-    items.push({
-      id: 'refresh',
-      label: 'Actualizar',
-      icon: 'refresh-cw',
-      route: null,
-      disabled: loading,
-    })
-    return items
-  }, [canManage, loading])
-
   const columns = useMemo(
     (): ColumnDef<Row>[] => [
       {
@@ -101,14 +88,14 @@ export function WarehousesListPage() {
         header: 'Principal',
         width: 130,
         sortable: true,
-        renderCell: (_v: Row['isMain'], row: Row) =>
-          row.isMain ? (
-            <StatusBadge tone="success" withDot>
-              Principal
-            </StatusBadge>
-          ) : (
-            '—'
-          ),
+        renderCell: (_v: Row['isMain'], row: Row) => (
+          <span
+            className={`ecu-status ${row.isMain ? 'ecu-status--active' : 'ecu-status--inactive'}`}
+          >
+            <span className="ecu-status__dot" aria-hidden />
+            {row.isMain ? 'Sí' : 'No'}
+          </span>
+        ),
       },
       {
         key: 'isSystem',
@@ -117,19 +104,19 @@ export function WarehousesListPage() {
         sortable: true,
         renderCell: (_v: Row['isSystem'], row: Row) =>
           row.systemRole === 1 ? (
-            <StatusBadge tone="warning">En tránsito</StatusBadge>
+            <span className="ecu-chip ecu-chip--muted">En tránsito</span>
           ) : row.isSystem ? (
-            <StatusBadge tone="neutral">Sistema</StatusBadge>
+            <span className="ecu-chip">Sistema</span>
           ) : (
-            <StatusBadge tone="info">Operativa</StatusBadge>
+            <span className="ecu-chip ecu-chip--accent">Operativa</span>
           ),
       },
       {
         key: 'createdAt',
         header: 'Alta',
-        width: 170,
+        width: 120,
         sortable: true,
-        renderCell: (_v: Row['createdAt'], row: Row) => formatDateTime(row.createdAt),
+        renderCell: (_v: Row['createdAt'], row: Row) => formatDate(row.createdAt),
       },
       ...(canManage
         ? ([
@@ -162,7 +149,7 @@ export function WarehousesListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Bodegas" lead="Ubicaciones de stock.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres warehousing.read para visualizar las bodegas de la empresa."
@@ -182,75 +169,20 @@ export function WarehousesListPage() {
       title="Bodegas"
       lead="Ubicaciones de stock físico. Las transferencias usan la bodega de tránsito de sistema."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Bodegas y Almacenes"
-          subtitle="Centros logísticos y ubicaciones operativas de almacenamiento. Permite controlar las existencias físicas y transferencias entre sucursales."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {rows.length} {rows.length === 1 ? 'Bodega' : 'Bodegas'}
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {canManage && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/bodegas/nueva')}
-                >
-                  + Nueva Bodega
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de bodegas"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={(item: PageActionItem) => {
-                  if (item.id === 'refresh') void load()
-                }}
-              />
-            </>
-          }
+          subtitle="Centros logísticos y ubicaciones operativas de almacenamiento."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de bodegas">
-          <StatCard
-            label="Total Bodegas"
-            value={rows.length}
-            icon="warehouse"
-            toneColor="#4f46e5"
-            footerText="Ubicaciones en plataforma"
-          />
-          <StatCard
-            label="Bodega Principal"
-            value={mainCount}
-            icon="home_work"
-            toneColor="#10b981"
-            footerText="Punto predeterminado"
-          />
-          <StatCard
-            label="Operativas"
-            value={operationalCount}
-            icon="store"
-            toneColor="#0ea5e9"
-            footerText="Almacenamiento y despacho"
-          />
-          <StatCard
-            label="En Tránsito"
-            value={transitCount}
-            icon="local_shipping"
-            toneColor="#8b5cf6"
-            footerText="Movimientos entre sedes"
-          />
+          <StatCard label="Bodegas" value={rows.length} />
+          <StatCard label="Principal" value={mainCount} />
+          <StatCard label="Operativas" value={operationalCount} />
+          <StatCard label="En tránsito" value={transitCount} />
         </div>
 
-        <SectionCard
-          title="Ubicaciones de Inventario"
-          subtitle="Puntos de control físico donde reside el stock de productos"
-        >
+        <SectionCard title="Ubicaciones">
           {error ? (
             <div className="ecu-form-error-banner" role="alert">
               <span className="material-symbols-outlined">error</span>
@@ -287,6 +219,20 @@ export function WarehousesListPage() {
               searchWidth={280}
               searchPlaceholder="Buscar bodega o código…"
               searchKeys={['name', 'code']}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canManage && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/bodegas/nueva')}
+                    >
+                      + Nueva Bodega
+                    </Button>
+                  )}
+                </div>
+              }
               paging={paging}
               onPageChange={onPageChange}
               onPageSizeChange={onPageSizeChange}

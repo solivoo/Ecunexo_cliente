@@ -4,6 +4,7 @@ import { Button, DataGrid, Select, useToast, type ColumnDef, type PageActionItem
 import {
   EcuPageActions,
   EmptyState,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
@@ -25,7 +26,6 @@ import { downloadRepairTemplate, listRepairBatches } from '@/services/repairsApi
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
-  repairBatchStatusBadgeTone,
   repairBatchStatusLabel,
   RepairBatchStatus,
   type BatchListItemDto,
@@ -34,6 +34,15 @@ import {
 type Row = BatchListItemDto & Record<string, unknown>
 
 const messages = createSpanishDataGridMessages('lote', 'lotes')
+
+function batchStatusClass(status: RepairBatchStatus): string {
+  if (status === RepairBatchStatus.Cancelled) return 'ecu-status--danger'
+  if (status === RepairBatchStatus.InProgress || status === RepairBatchStatus.PartiallyDispatched) {
+    return 'ecu-status--warning'
+  }
+  if (status === RepairBatchStatus.Completed) return 'ecu-status--active'
+  return 'ecu-status--inactive'
+}
 
 export function RepairsBatchesListPage() {
   const toast = useToast()
@@ -109,7 +118,7 @@ export function RepairsBatchesListPage() {
     void load({ silent: true })
   }, [load])
 
-  const handleDownloadTemplate = async () => {
+  const handleDownloadTemplate = useCallback(async () => {
     if (!tenantId) return
     setDownloadingTemplate(true)
     try {
@@ -136,7 +145,7 @@ export function RepairsBatchesListPage() {
     } finally {
       setDownloadingTemplate(false)
     }
-  }
+  }, [tenantId, toast])
 
   const totals = useMemo(() => {
     let totalEquipments = 0
@@ -170,7 +179,7 @@ export function RepairsBatchesListPage() {
             style={{ fontWeight: 600, padding: 0, height: 'auto', color: 'var(--shell-primary)', justifyContent: 'flex-start' }}
             onClick={() => navigate(`/taller/lotes/${row.id}`)}
           >
-            {row.batchNumber}
+            <code className="ecu-code">{row.batchNumber}</code>
           </Button>
         ),
       },
@@ -250,9 +259,10 @@ export function RepairsBatchesListPage() {
         width: 140,
         sortable: true,
         renderCell: (_v: Row['status'], row: Row) => (
-          <StatusBadge tone={repairBatchStatusBadgeTone(row.status)} withDot>
+          <span className={`ecu-status ${batchStatusClass(row.status)}`}>
+            <span className="ecu-status__dot" aria-hidden />
             {repairBatchStatusLabel(row.status)}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -281,13 +291,6 @@ export function RepairsBatchesListPage() {
         route: null,
         disabled: downloadingTemplate,
       },
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        route: null,
-        disabled: loading,
-      },
     ]
     if (canReadDispatches) {
       items.push({
@@ -308,17 +311,15 @@ export function RepairsBatchesListPage() {
       })
     }
     return items
-  }, [canReadDispatches, canViewPortal, downloadingTemplate, loading])
+  }, [canReadDispatches, canViewPortal, downloadingTemplate])
 
   const handleActionSelect = useCallback(
     (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-      } else if (item.id === 'template') {
+      if (item.id === 'template') {
         void handleDownloadTemplate()
       }
     },
-    [load, tenantId]
+    [handleDownloadTemplate]
   )
 
   if (!canRead) {
@@ -327,7 +328,7 @@ export function RepairsBatchesListPage() {
         title="Reparaciones"
         lead="Recepción masiva de electrodomésticos y servicio técnico autorizado."
       >
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres el permiso repairs.batches.read para visualizar los lotes de reparación."
@@ -343,79 +344,21 @@ export function RepairsBatchesListPage() {
       title="Lotes de Reparación"
       lead="Control masivo de electrodomésticos en reacondicionamiento y contratos aliados."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Lotes de Reparación B2B"
-          subtitle="Recepción masiva de electrodomésticos, control de avance por fases técnicas y actas de despacho para fabricantes aliados."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {rows.length} {rows.length === 1 ? 'Lote registrado' : 'Lotes registrados'}
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {canImport && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/taller/lotes/nuevo')}
-                >
-                  <Plus size={16} strokeWidth={2} aria-hidden />
-                  Importar Lote
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de lotes"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
-              />
-            </>
-          }
+          subtitle="Recepción masiva de equipos y control por fases técnicas."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen operativo del taller">
-          <StatCard
-            label="Total Equipos"
-            value={totals.totalEquipments}
-            icon="inventory_2"
-            toneColor="#4f46e5"
-            footerText={`En ${rows.length} ${rows.length === 1 ? 'lote recibido' : 'lotes recibidos'}`}
-          />
-          <StatCard
-            label="En Diagnóstico / Proceso"
-            value={totals.inRepair}
-            icon="build"
-            toneColor="#f59e0b"
-            footerText="En mesas de trabajo técnicas"
-          />
-          <StatCard
-            label="Listos para Retiro"
-            value={totals.ready}
-            icon="verified"
-            toneColor="#10b981"
-            footerText="Control de calidad superado"
-          />
-          <StatCard
-            label="Despachados"
-            value={totals.dispatched}
-            icon="local_shipping"
-            toneColor="#3b82f6"
-            footerText="Con acta oficial y código QR"
-          />
+          <StatCard label="Total Equipos" value={totals.totalEquipments} />
+          <StatCard label="En Taller" value={totals.inRepair} />
+          <StatCard label="Listos para Retiro" value={totals.ready} />
+          <StatCard label="Despachados" value={totals.dispatched} />
         </div>
 
         <SectionCard
           title="Lotes Recibidos"
-          subtitle={
-            statusFilter === 'active'
-              ? 'Lotes activos en proceso técnico o despacho (excluye lotes anulados)'
-              : statusFilter === 'cancelled'
-                ? 'Lotes anulados administrativamente para trazabilidad y auditoría'
-                : 'Listado completo de lotes registrados en el taller'
-          }
           action={
             <div className="flex items-center gap-2">
               <Select
@@ -493,13 +436,34 @@ export function RepairsBatchesListPage() {
               searchWidth={280}
               searchPlaceholder="Buscar por lote o cliente..."
               toolbarRight={
-                <GridDateRangeBox
-                  from={from}
-                  to={to}
-                  lookback={lookback}
-                  disabled={loading}
-                  onChange={setRange}
-                />
+                <div className="ecu-grid-toolbar-actions">
+                  <GridDateRangeBox
+                    from={from}
+                    to={to}
+                    lookback={lookback}
+                    disabled={loading}
+                    onChange={setRange}
+                  />
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canImport && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/taller/lotes/nuevo')}
+                    >
+                      <Plus size={16} strokeWidth={2} aria-hidden />
+                      Importar Lote
+                    </Button>
+                  )}
+                  <EcuPageActions
+                    items={actionItems}
+                    variant="outline"
+                    triggerLabel="Acciones de lotes"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
+                    onActionSelect={handleActionSelect}
+                  />
+                </div>
               }
               loading={loading}
               paging={paging}

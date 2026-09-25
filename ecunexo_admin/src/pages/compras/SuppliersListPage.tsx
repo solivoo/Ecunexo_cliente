@@ -11,9 +11,10 @@ import {
   SectionCard,
   StatCard,
   StatusBadge,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
-import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -40,20 +41,20 @@ import '@/pages/repairs/ecu-customer-form.css'
 
 type SupplierRow = SupplierDto & Record<string, unknown>
 
-function formatRegime(regime: SupplierTaxRegime): { label: string; tone: 'primary' | 'success' | 'warning' | 'neutral' | 'info' } {
+function formatRegime(regime: SupplierTaxRegime): string {
   switch (regime) {
     case 1:
-      return { label: 'General', tone: 'neutral' }
+      return 'General'
     case 2:
-      return { label: 'RIMPE Emprendedor', tone: 'primary' }
+      return 'RIMPE Emprendedor'
     case 3:
-      return { label: 'RIMPE Popular', tone: 'info' }
+      return 'RIMPE Popular'
     case 4:
-      return { label: 'Contrib. Especial', tone: 'warning' }
+      return 'Contrib. Especial'
     case 5:
-      return { label: 'Entidad Pública', tone: 'success' }
+      return 'Entidad Pública'
     default:
-      return { label: 'General', tone: 'neutral' }
+      return 'General'
   }
 }
 
@@ -211,8 +212,8 @@ export function SuppliersListPage() {
         sortable: true,
         renderCell: (_value, row: SupplierRow) => (
           <div>
-            <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{row.taxId}</span>
-            <div style={{ fontSize: '0.7rem', color: 'var(--glb-muted, #6b7280)' }}>
+            <code className="ecu-code">{row.taxId}</code>
+            <div className="ecu-source">
               {row.identificationType === 1 ? 'RUC' : row.identificationType === 2 ? 'Cédula' : 'Pasaporte'}
             </div>
           </div>
@@ -223,22 +224,23 @@ export function SuppliersListPage() {
         header: 'Régimen SRI',
         width: 170,
         sortable: true,
-        renderCell: (_value, row: SupplierRow) => {
-          const { label, tone } = formatRegime(row.taxRegime)
-          return <StatusBadge tone={tone}>{label}</StatusBadge>
-        },
+        renderCell: (_value, row: SupplierRow) => (
+          <span className="ecu-chip">{formatRegime(row.taxRegime)}</span>
+        ),
       },
       {
         key: 'isRetentionAgent',
         header: 'Agente Retención',
         width: 150,
         sortable: true,
-        renderCell: (_value, row: SupplierRow) =>
-          row.isRetentionAgent ? (
-            <StatusBadge tone="primary">Agente SRI</StatusBadge>
-          ) : (
-            <span style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #9ca3af)' }}>No</span>
-          ),
+        renderCell: (_value, row: SupplierRow) => (
+          <span
+            className={`ecu-status ${row.isRetentionAgent ? 'ecu-status--active' : 'ecu-status--inactive'}`}
+          >
+            <span className="ecu-status__dot" aria-hidden />
+            {row.isRetentionAgent ? 'Agente SRI' : 'No'}
+          </span>
+        ),
       },
       {
         key: 'contactEmail',
@@ -246,7 +248,7 @@ export function SuppliersListPage() {
         width: 220,
         renderCell: (_value: unknown, row: SupplierRow) => (
           <div style={{ fontSize: '0.8rem' }}>
-            {row.contactEmail ? <div>{row.contactEmail}</div> : null}
+            {row.contactEmail ? <div className="ecu-clip">{row.contactEmail}</div> : null}
             {row.contactPhone ? (
               <div style={{ color: 'var(--glb-muted, #6b7280)' }}>{row.contactPhone}</div>
             ) : null}
@@ -285,7 +287,7 @@ export function SuppliersListPage() {
           }
           return (
             <div>
-              <div style={{ fontWeight: 500, fontSize: '0.8rem', color: 'var(--glb-text, #111827)' }}>
+              <div className="ecu-clip" style={{ fontWeight: 500, fontSize: '0.8rem', color: 'var(--glb-text, #111827)' }} title={et.name}>
                 {et.name}
               </div>
               <div style={{ fontSize: '0.7rem', color: 'var(--glb-muted, #6b7280)' }}>
@@ -301,9 +303,10 @@ export function SuppliersListPage() {
         width: 110,
         sortable: true,
         renderCell: (_value, row: SupplierRow) => (
-          <StatusBadge tone={row.isActive ? 'success' : 'neutral'}>
+          <span className={`ecu-status ${row.isActive ? 'ecu-status--active' : 'ecu-status--inactive'}`}>
+            <span className="ecu-status__dot" aria-hidden />
             {row.isActive ? 'Activo' : 'Inactivo'}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -345,7 +348,7 @@ export function SuppliersListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Proveedores" lead="Gestión del catálogo y condiciones fiscales de compra.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres permisos de compras o facturación para ver el directorio de proveedores."
@@ -361,73 +364,20 @@ export function SuppliersListPage() {
       title="Directorio de Proveedores"
       lead="Administra proveedores, validaciones tributarias RUC ante SRI y condiciones de crédito para compras."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Directorio de Proveedores"
-          subtitle="Catálogo maestro de proveedores para facturas de compra, proformas y emisión de retenciones SRI (07)."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              Módulo Compras
-            </StatusBadge>
-          }
-          actions={
-            canManage ? (
-              <Button variant="primary" onClick={openCreate}>
-                <Plus size={16} />
-                Nuevo Proveedor
-              </Button>
-            ) : undefined
-          }
+          subtitle="Proveedores registrados con su RUC, régimen SRI y condiciones de crédito."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de proveedores">
-          <StatCard
-            label="Total Proveedores"
-            value={String(stats.total)}
-            icon="local_shipping"
-            toneColor="#4f46e5"
-            footerText="Registrados en la empresa"
-          />
-          <StatCard
-            label="Proveedores Activos"
-            value={String(stats.activos)}
-            icon="verified"
-            toneColor="#10b981"
-            footerText="Disponibles para compras"
-          />
-          <StatCard
-            label="Agentes de Retención"
-            value={String(stats.agentesRetencion)}
-            icon="verified_user"
-            toneColor="#0ea5e9"
-            footerText="Calificados por el SRI"
-          />
-          <StatCard
-            label="Régimen RIMPE"
-            value={String(stats.rimpe)}
-            icon="sell"
-            toneColor="#8b5cf6"
-            footerText="Emprendedor y Negocio Popular"
-          />
+          <StatCard label="Total Proveedores" value={stats.total} />
+          <StatCard label="Proveedores Activos" value={stats.activos} />
+          <StatCard label="Agentes de Retención" value={stats.agentesRetencion} />
+          <StatCard label="Régimen RIMPE" value={stats.rimpe} />
         </div>
 
-        <SectionCard
-          title="Listado de Proveedores"
-          subtitle="Búsqueda rápida por razón social, nombre comercial o RUC/Cédula"
-          action={
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void loadData()}
-                disabled={loading}
-              >
-                <RefreshCw size={14} className={loading ? 'ecu-spin' : ''} />
-                Actualizar
-              </Button>
-            </div>
-          }
-        >
+        <SectionCard title="Listado de Proveedores">
           {!loading && suppliers.length === 0 ? (
             <EmptyState
               icon="local_shipping"
@@ -452,6 +402,17 @@ export function SuppliersListPage() {
               searchPosition="left"
               searchWidth={300}
               searchPlaceholder="Buscar por razón social, RUC..."
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void loadData()} />
+                  {canManage && (
+                    <Button variant="primary" onClick={openCreate}>
+                      <Plus size={16} />
+                      Nuevo Proveedor
+                    </Button>
+                  )}
+                </div>
+              }
               loading={loading}
               paging={paging}
               pageSizeOptions={pageSizeOptions}

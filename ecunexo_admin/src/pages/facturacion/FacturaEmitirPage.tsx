@@ -23,6 +23,8 @@ export function FacturaEmitirPage() {
   const form = useInvoiceEmitForm({ tenantId, branding, canCreate })
   const profile = form.emitProfile
   const totals = computeTotals(form.lines)
+  /** Validar/firmar sin enviar al SRI son ayudas de certificación: solo en ambiente de pruebas. */
+  const showDevActions = profile.isDevelopment
 
   const primaryLabel =
     profile.emitMode === 'draft'
@@ -35,7 +37,7 @@ export function FacturaEmitirPage() {
 
   if (!canCreate) {
     return (
-      <div className="ecu-dashboard-layout factura-emitir">
+      <div className="ecu-dashboard-layout ecu-section-page factura-emitir">
         <PageHeader
           title="Emitir Factura"
           subtitle="Sin permiso para emitir facturas (facturacion.facturas.create)."
@@ -46,7 +48,7 @@ export function FacturaEmitirPage() {
   }
 
   return (
-    <div className="ecu-dashboard-layout factura-emitir">
+    <div className="ecu-dashboard-layout ecu-section-page factura-emitir">
       <PageHeader
         title={form.requiresNotaVenta ? 'Nota de Venta' : 'Emitir Factura Electrónica'}
         subtitle={
@@ -207,7 +209,7 @@ export function FacturaEmitirPage() {
                 >
                   {form.previewing ? 'Generando…' : 'Previsualizar RIDE'}
                 </Button>
-                {profile.emitMode !== 'draft' ? (
+                {showDevActions && profile.emitMode !== 'draft' ? (
                   <Button
                     type="button"
                     variant="ghost"
@@ -218,7 +220,7 @@ export function FacturaEmitirPage() {
                     Solo validar
                   </Button>
                 ) : null}
-                {profile.emitMode === 'sri' ? (
+                {showDevActions && profile.emitMode === 'sri' ? (
                   <Button
                     type="button"
                     variant="ghost"

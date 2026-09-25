@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { DataGrid, useToast, type ColumnDef, type PageActionItem } from 'glubox'
+import { DataGrid, useToast, type ColumnDef } from 'glubox'
 import {
   EcuPageActions,
   PageHeader,
@@ -8,6 +8,7 @@ import {
   SectionCard,
   StatusBadge,
   EmptyState,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -15,7 +16,7 @@ import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useGridDateRange } from '@/hooks/useGridDateRange'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { isoInstantInRange } from '@/lib/gridLookback'
 import { inventoryMovementDirectionLabel } from '@/lib/inventoryLabels'
@@ -73,23 +74,27 @@ export function InventoryKardexPage() {
     (): ColumnDef<Row>[] => [
       {
         key: 'occurredAt',
-        header: 'Fecha y hora',
-        width: 170,
+        header: 'Fecha',
+        width: 120,
         sortable: true,
-        renderCell: (_v: Row['occurredAt'], row: Row) => formatDateTime(row.occurredAt),
+        renderCell: (_v: Row['occurredAt'], row: Row) => formatDate(row.occurredAt),
       },
       {
         key: 'direction',
-        header: 'Tipo de flujo',
+        header: 'Flujo',
         width: 130,
         sortable: true,
         renderCell: (_v: Row['direction'], row: Row) => (
-          <StatusBadge
-            tone={row.direction === InventoryMovementDirection.In ? 'success' : 'danger'}
-            withDot
+          <span
+            className={`ecu-status ${
+              row.direction === InventoryMovementDirection.In
+                ? 'ecu-status--active'
+                : 'ecu-status--danger'
+            }`}
           >
+            <span className="ecu-status__dot" aria-hidden />
             {inventoryMovementDirectionLabel(row.direction)}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -101,10 +106,12 @@ export function InventoryKardexPage() {
       },
       {
         key: 'warehouseName',
-        header: 'Bodega afectada',
+        header: 'Bodega',
         width: 180,
         sortable: true,
-        renderCell: (_v: Row['warehouseName'], row: Row) => row.warehouseName,
+        renderCell: (_v: Row['warehouseName'], row: Row) => (
+          <span className="ecu-chip">{row.warehouseName}</span>
+        ),
       },
       {
         key: 'quantity',
@@ -138,7 +145,7 @@ export function InventoryKardexPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Kárdex" lead="Historial de movimientos.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres inventory.movement.read para consultar la trazabilidad de kárdex."
@@ -157,79 +164,19 @@ export function InventoryKardexPage() {
       title="Kárdex"
       lead="Auditoría inmutable de movimientos logísticos de stock."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Kárdex de Movimientos"
-          subtitle="Registro inmutable de todas las transacciones físicas de inventario (entradas, salidas y ajustes). Los saldos históricos garantizan trazabilidad total."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {visibleRows.length} {visibleRows.length === 1 ? 'Movimiento' : 'Movimientos'}
-            </StatusBadge>
-          }
-          actions={
-            <EcuPageActions
-              items={[
-                {
-                  id: 'stock',
-                  label: 'Stock',
-                  icon: 'package',
-                  route: '/inventario/stock',
-                  disabled: false,
-                },
-                {
-                  id: 'docs',
-                  label: 'Documentos',
-                  icon: 'file-text',
-                  route: '/inventario/documentos',
-                  disabled: false,
-                },
-                {
-                  id: 'refresh',
-                  label: 'Actualizar',
-                  icon: 'refresh-cw',
-                  route: null,
-                  disabled: loading,
-                },
-              ]}
-              variant="outline"
-              triggerLabel="Acciones de kárdex"
-              renderIcon={renderSidebarIcon}
-              onNavigate={(route: string) => navigate(route)}
-              onActionSelect={(item: PageActionItem) => {
-                if (item.id === 'refresh') void load()
-              }}
-            />
-          }
+          subtitle="Registro cronológico de entradas, salidas y ajustes de existencias."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de kárdex">
-          <StatCard
-            label="Total Movimientos"
-            value={visibleRows.length}
-            icon="receipt_long"
-            toneColor="#4f46e5"
-            footerText="En el período seleccionado"
-          />
-          <StatCard
-            label="Entradas (Ingresos)"
-            value={inbound}
-            icon="arrow_downward"
-            toneColor="#10b981"
-            footerText="Recepciones y ajustes (+)"
-          />
-          <StatCard
-            label="Salidas (Egresos)"
-            value={outbound}
-            icon="arrow_upward"
-            toneColor="#ef4444"
-            footerText="Despachos y salidas (-)"
-          />
+          <StatCard label="Movimientos" value={visibleRows.length} />
+          <StatCard label="Entradas" value={inbound} />
+          <StatCard label="Salidas" value={outbound} />
         </div>
 
-        <SectionCard
-          title="Trazabilidad Cronológica"
-          subtitle="Auditoría secuencial de movimientos con filtro configurable por rango de fechas"
-        >
+        <SectionCard title="Trazabilidad">
           {error ? (
             <div className="ecu-form-error-banner" role="alert">
               <span className="material-symbols-outlined">error</span>
@@ -256,13 +203,38 @@ export function InventoryKardexPage() {
               searchPlaceholder="Buscar ítem o bodega…"
               searchKeys={['catalogItemName', 'warehouseName']}
               toolbarRight={
-                <GridDateRangeBox
-                  from={from}
-                  to={to}
-                  lookback={lookback}
-                  disabled={loading}
-                  onChange={setRange}
-                />
+                <div className="ecu-grid-toolbar-actions">
+                  <GridDateRangeBox
+                    from={from}
+                    to={to}
+                    lookback={lookback}
+                    disabled={loading}
+                    onChange={setRange}
+                  />
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  <EcuPageActions
+                    items={[
+                      {
+                        id: 'stock',
+                        label: 'Stock',
+                        icon: 'package',
+                        route: '/inventario/stock',
+                        disabled: false,
+                      },
+                      {
+                        id: 'docs',
+                        label: 'Documentos',
+                        icon: 'file-text',
+                        route: '/inventario/documentos',
+                        disabled: false,
+                      },
+                    ]}
+                    variant="outline"
+                    triggerLabel="Acciones de kárdex"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
+                  />
+                </div>
               }
               paging={paging}
               onPageChange={onPageChange}

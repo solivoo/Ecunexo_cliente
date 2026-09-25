@@ -12,7 +12,6 @@ import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { useCatalogLimits } from '@/hooks/useCatalogLimits'
-import { parseAttributeSchema } from '@/lib/catalogAttributes'
 import {
   buildDimensionValuesMap,
   buildHierarchyPathJson,
@@ -38,7 +37,6 @@ import { ArrowLeftRight, Layers } from 'lucide-react'
 import { readApiError } from '@/lib/readApiError'
 import {
   getCatalogItem,
-  listCatalogCategories,
   listCatalogItems,
   listProductTemplates,
   listVariantDimensionTemplates,
@@ -53,7 +51,6 @@ import {
   CatalogItemStatus,
   type CatalogItemDetailDto,
   type CatalogItemListItemDto,
-  type CategoryListItemDto,
   type HierarchyPathEntry,
   type ProductTemplateDto,
   type ProductTemplateLevel,
@@ -93,7 +90,6 @@ export function EditCatalogItemPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [item, setItem] = useState<CatalogItemDetailDto | null>(null)
-  const [categories, setCategories] = useState<CategoryListItemDto[]>([])
   const [productTemplates, setProductTemplates] = useState<ProductTemplateDto[]>([])
   const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
   const [usedVariants, setUsedVariants] = useState(0)
@@ -105,16 +101,9 @@ export function EditCatalogItemPage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [sku, setSku] = useState('')
-  const [basePrice, setBasePrice] = useState('')
-  const [categoryId, setCategoryId] = useState('')
   const [status, setStatus] = useState(String(CatalogItemStatus.Active))
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
   const [tags, setTags] = useState<string[]>([])
-
-  const categorySuggestions = useMemo<string[]>(() => {
-    const category = categories.find((c) => c.id === categoryId)
-    return parseAttributeSchema(category?.attributeSchemaJson).map((f) => f.label || f.key)
-  }, [categories, categoryId])
 
   const hierarchyPath = useMemo<HierarchyPathEntry[]>(() => {
     if (!item?.hierarchyPathJson) return []
@@ -262,15 +251,13 @@ export function EditCatalogItemPage() {
 
   const suggestedTags = useMemo<string[]>(() => {
     const list = new Set<string>()
-    const cat = categories.find((c) => c.id === categoryId)
-    if (cat?.name) list.add(cat.name.trim())
     customAttributes.forEach((attr) => {
       if (attr.value.trim() && attr.value.length < 25) {
         list.add(attr.value.trim())
       }
     })
     return Array.from(list)
-  }, [categories, categoryId, customAttributes])
+  }, [customAttributes])
 
   const [reassignModalOpen, setReassignModalOpen] = useState(false)
   const [reassignTargetParentId, setReassignTargetParentId] = useState('')
@@ -283,15 +270,13 @@ export function EditCatalogItemPage() {
     if (!tenantId || !itemId) return
     setLoading(true)
     try {
-      const [detail, cats, templates, dims, items] = await Promise.all([
+      const [detail, templates, dims, items] = await Promise.all([
         getCatalogItem(tenantId, itemId),
-        listCatalogCategories(tenantId).catch(() => [] as CategoryListItemDto[]),
         listProductTemplates(tenantId).catch(() => [] as ProductTemplateDto[]),
         listVariantDimensionTemplates(tenantId).catch(() => [] as VariantDimensionTemplateDto[]),
         listCatalogItems(tenantId, { onlyRoots: true }).catch(() => []),
       ])
       setItem(detail)
-      setCategories(cats)
       setProductTemplates(templates)
       setDimensionTemplates(dims)
       setUsedVariants(items.reduce((sum, i) => sum + (i.variantCount ?? 0), 0))
@@ -299,8 +284,6 @@ export function EditCatalogItemPage() {
       setName(detail.name)
       setDescription(detail.description ?? '')
       setSku(detail.sku ?? '')
-      setBasePrice(detail.basePrice == null ? '' : String(detail.basePrice))
-      setCategoryId(detail.categoryId ?? '')
       setStatus(String(detail.status))
       setCustomAttributes(deserializeCustomAttributes(detail.customAttributesJson))
       setTags(extractTagsFromCustomAttributes(detail.customAttributesJson))
@@ -466,14 +449,6 @@ export function EditCatalogItemPage() {
     [handleOpenReassignModal]
   )
 
-  const categoryOptions = useMemo(
-    () => [
-      { value: '', label: 'Sin categoría' },
-      ...categories.map((c) => ({ value: c.id, label: c.name })),
-    ],
-    [categories]
-  )
-
   const onSubmit = useCallback(
     async (e?: FormEvent) => {
       e?.preventDefault()
@@ -486,14 +461,6 @@ export function EditCatalogItemPage() {
         if (kindNum === CatalogItemKind.Physical && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
         }
-        let price: number | null = null
-        if (basePrice.trim()) {
-          const parsed = Number(basePrice.replace(',', '.'))
-          if (Number.isNaN(parsed) || parsed < 0) {
-            throw new Error('El precio base no es válido.')
-          }
-          price = parsed
-        }
 
         const hierarchyPathJson =
           buildHierarchyPathJson(familyLevels, customAttributes, dimensionValuesMap) ??
@@ -505,8 +472,8 @@ export function EditCatalogItemPage() {
           name: name.trim(),
           description: description.trim() || null,
           sku: sku.trim() || null,
-          basePrice: price,
-          categoryId: categoryId || null,
+          basePrice: null,
+          categoryId: null,
           customAttributesJson: serializeCustomAttributes(customAttributes, tags),
           status: Number(status) as typeof CatalogItemStatus.Active,
           familyId: item.familyId ?? null,
@@ -529,8 +496,6 @@ export function EditCatalogItemPage() {
       }
     },
     [
-      basePrice,
-      categoryId,
       customAttributes,
       description,
       dimensionValuesMap,
@@ -577,7 +542,7 @@ export function EditCatalogItemPage() {
   if (!canEdit) {
     return (
       <TenantSessionGate title="Editar ítem" lead="Cambios en el maestro de catálogo.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres catalog.item.update para modificar ítems del catálogo."
@@ -598,7 +563,7 @@ export function EditCatalogItemPage() {
 
   return (
     <TenantSessionGate title="Editar ítem" lead="Cambios en el maestro de catálogo.">
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title={
             item
@@ -801,21 +766,6 @@ export function EditCatalogItemPage() {
                     fullWidth
                   />
                 </div>
-                {!isVariantChild && (
-                  <div className="ecu-companies-form__field">
-                    <Select
-                      id="ei-cat"
-                      label="Categoría"
-                      labelPosition="outlined"
-                      variant="outline"
-                      options={categoryOptions}
-                      value={categoryId}
-                      onChange={setCategoryId}
-                      disabled={busy}
-                      fullWidth
-                    />
-                  </div>
-                )}
                 <div className="ecu-companies-form__field">
                   <Select
                     id="ei-status"
@@ -832,7 +782,7 @@ export function EditCatalogItemPage() {
                     fullWidth
                   />
                 </div>
-                <div className="ecu-companies-form__field">
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                   <TextBox
                     id="ei-name"
                     label="Nombre"
@@ -840,6 +790,7 @@ export function EditCatalogItemPage() {
                     variant="outline"
                     value={name}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                    placeholder="Escriba aquí..."
                     required
                     disabled={busy}
                     fullWidth
@@ -861,24 +812,13 @@ export function EditCatalogItemPage() {
                     onChange={(e: ChangeEvent<HTMLInputElement>) =>
                       setSku(e.target.value.toUpperCase())
                     }
+                    placeholder="Escriba aquí..."
                     required={Number(kind) === CatalogItemKind.Physical && !item?.isMatrixParent}
                     disabled={busy}
                     fullWidth
                   />
                 </div>
-                <div className="ecu-companies-form__field">
-                  <TextBox
-                    id="ei-price"
-                    label={item?.isMatrixParent ? 'Precio base de referencia' : 'Precio base'}
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={basePrice}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
-                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
                   <TextBox
                     id="ei-desc"
                     label="Descripción comercial"
@@ -886,6 +826,7 @@ export function EditCatalogItemPage() {
                     variant="outline"
                     value={description}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+                    placeholder="Escriba aquí..."
                     disabled={busy}
                     fullWidth
                   />
@@ -935,7 +876,6 @@ export function EditCatalogItemPage() {
                     <ItemCustomAttributesEditor
                       attributes={freeAttributeRows}
                       onChange={handleFreeAttributesChange}
-                      categorySuggestions={categorySuggestions}
                       excludeKeys={reservedAttributeKeys}
                       disabled={busy}
                     />

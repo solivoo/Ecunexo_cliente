@@ -438,7 +438,7 @@ export function CreateRepairDispatchPage() {
   if (!canCreate) {
     return (
       <TenantSessionGate title="Nueva Acta" lead="Despacho parcial de equipos listos para retiro.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso restringido"
             subtitle="Requieres repairs.dispatches.create para generar actas de despacho."
@@ -460,7 +460,7 @@ export function CreateRepairDispatchPage() {
       title="Generar Acta de Despacho"
       lead="Selecciona un subconjunto de equipos listos y emite el acta parcial o total."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title="Generar Acta de Despacho"
           subtitle="Despacho parcial o total de equipos en estado «Listo para Retiro», con datos de transporte y estimación de tarifas."

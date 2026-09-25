@@ -806,64 +806,6 @@ html.sf-dark-mode .app-shell__chip--active {
   margin-top: 1rem;
 }
 
-.ecu-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  background: rgba(15, 23, 42, 0.45);
-}
-
-.ecu-modal {
-  width: min(100%, 32rem);
-  max-height: min(90vh, 640px);
-  overflow: auto;
-  border-radius: 0.75rem;
-  border: 1px solid var(--shell-border);
-  background: var(--shell-surface);
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
-}
-
-.ecu-modal__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--shell-border);
-}
-
-.ecu-modal__title {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.ecu-modal__close {
-  display: inline-flex;
-  padding: 0.25rem;
-  border: none;
-  background: transparent;
-  color: var(--shell-muted);
-  cursor: pointer;
-  border-radius: 0.35rem;
-}
-
-.ecu-modal__body {
-  padding: 1rem 1.25rem;
-}
-
-.ecu-modal__footer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  padding: 0.75rem 1.25rem 1rem;
-  border-top: 1px solid var(--shell-border);
-}
 
 .ecu-rbac-hint {
   margin: 0 0 1rem;

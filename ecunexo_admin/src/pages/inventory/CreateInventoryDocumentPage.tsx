@@ -7,7 +7,7 @@ import {
   SectionCard,
   StatusBadge,
 } from '@/components/ui'
-import { Plus, Trash2 } from 'lucide-react'
+import { Boxes, Layers, Plus, ScanBarcode, Trash2 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -16,12 +16,14 @@ import { listCatalogItems } from '@/services/catalogApi'
 import { approveInventoryDocument, createInventoryDocument, listWarehouses } from '@/services/inventoryApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import { CatalogItemKind, CatalogItemStatus } from '@/types/catalogApi'
+import { CatalogItemKind, CatalogItemStatus, type CatalogItemListItemDto } from '@/types/catalogApi'
 import {
   InventoryDocumentType,
   InventoryReceiptOrigin,
   type WarehouseListItemDto,
 } from '@/types/inventoryApi'
+import { InventoryItemSelectModal } from './InventoryItemSelectModal'
+import './inventoryItemSelectModal.css'
 
 const PURCHASE_INVOICE = /^\d{3}-\d{3}-\d{9}$/
 
@@ -46,6 +48,7 @@ export function CreateInventoryDocumentPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [warehouses, setWarehouses] = useState<WarehouseListItemDto[]>([])
+  const [fullCatalog, setFullCatalog] = useState<CatalogItemListItemDto[]>([])
   const [items, setItems] = useState<{ id: string; name: string; sku: string | null }[]>([])
   const [documentType, setDocumentType] = useState(() => initialDocumentType(params))
   const [warehouseId, setWarehouseId] = useState('')
@@ -54,6 +57,10 @@ export function CreateInventoryDocumentPage() {
   const [receiptOrigin, setReceiptOrigin] = useState(String(InventoryReceiptOrigin.Opening))
   const [sourceDocumentNumber, setSourceDocumentNumber] = useState('')
   const [lines, setLines] = useState<LineDraft[]>([{ catalogItemId: '', quantity: '1' }])
+
+  const [isSelectModalOpen, setIsSelectModalOpen] = useState(false)
+  const [selectModalMode, setSelectModalMode] = useState<'search' | 'matrix'>('search')
+  const [scannedBarcode, setScannedBarcode] = useState('')
 
   const isTransfer = Number(documentType) === InventoryDocumentType.Transfer
   const isAdjustment = Number(documentType) === InventoryDocumentType.Adjustment
@@ -73,6 +80,7 @@ export function CreateInventoryDocumentPage() {
         if (cancelled) return
         const operational = wh.filter((w) => w.systemRole !== 1)
         setWarehouses(operational)
+        setFullCatalog(catalog)
         setWarehouseId((current) => current || operational[0]?.id || '')
         setDestinationWarehouseId((current) => current || operational[1]?.id || operational[0]?.id || '')
         setItems(
@@ -83,6 +91,7 @@ export function CreateInventoryDocumentPage() {
       } catch {
         if (!cancelled) {
           setWarehouses([])
+          setFullCatalog([])
           setItems([])
         }
       }
@@ -91,6 +100,97 @@ export function CreateInventoryDocumentPage() {
       cancelled = true
     }
   }, [canCreate, tenantId])
+
+  const selectedWarehouseName = useMemo(() => {
+    return warehouses.find((w) => w.id === warehouseId)?.name || 'Bodega'
+  }, [warehouses, warehouseId])
+
+  const handleScanSubmit = useCallback(() => {
+    const code = scannedBarcode.trim()
+    if (!code) return
+
+    const matched = fullCatalog.find((c) => {
+      if (c.isMatrixParent || c.kind !== CatalogItemKind.Physical) return false
+      if (c.sku && c.sku.toLowerCase() === code.toLowerCase()) return true
+      if (c.customAttributesJson) {
+        try {
+          const attrs = JSON.parse(c.customAttributesJson) as Record<string, unknown>
+          if (attrs && typeof attrs === 'object') {
+            const barcode = attrs.barcode || attrs.codigo_barras || attrs.ean
+            if (barcode && String(barcode).toLowerCase() === code.toLowerCase()) return true
+          }
+        } catch {
+          // ignore
+        }
+      }
+      return false
+    })
+
+    if (!matched) {
+      toast.show({
+        title: 'No encontrado',
+        message: `El código o SKU «${code}» no coincide con ningún ítem físico activo.`,
+        variant: 'error',
+      })
+      return
+    }
+
+    setLines((prev) => {
+      const updated = [...prev]
+      if (updated.length === 1 && !updated[0].catalogItemId) {
+        return [{ catalogItemId: matched.id, quantity: '1' }]
+      }
+      const idx = updated.findIndex((l) => l.catalogItemId === matched.id)
+      if (idx >= 0) {
+        const cur = Number(updated[idx].quantity) || 0
+        updated[idx] = { ...updated[idx], quantity: String(cur + 1) }
+      } else {
+        updated.push({ catalogItemId: matched.id, quantity: '1' })
+      }
+      return updated
+    })
+
+    toast.show({
+      title: 'Ítem agregado',
+      message: `${matched.name} (${matched.sku || 'Sin SKU'})`,
+      variant: 'success',
+    })
+    setScannedBarcode('')
+  }, [scannedBarcode, fullCatalog, toast])
+
+  const handleAddLinesFromModal = useCallback(
+    (newItems: { catalogItemId: string; quantity: number }[]) => {
+      setLines((prev) => {
+        let updated = [...prev]
+        if (updated.length === 1 && !updated[0].catalogItemId) {
+          updated = []
+        }
+        for (const item of newItems) {
+          const existingIdx = updated.findIndex((l) => l.catalogItemId === item.catalogItemId)
+          if (existingIdx >= 0) {
+            const cur = Number(updated[existingIdx].quantity) || 0
+            updated[existingIdx] = {
+              ...updated[existingIdx],
+              quantity: String(cur + item.quantity),
+            }
+          } else {
+            updated.push({
+              catalogItemId: item.catalogItemId,
+              quantity: String(item.quantity),
+            })
+          }
+        }
+        return updated
+      })
+
+      toast.show({
+        title: 'Artículos cargados',
+        message: `Se agregaron ${newItems.length} ítem(s) al documento.`,
+        variant: 'success',
+      })
+    },
+    [toast]
+  )
 
   const warehouseOptions = useMemo(
     () => warehouses.map((w) => ({ value: w.id, label: w.isMain ? `${w.name} (principal)` : w.name })),
@@ -227,7 +327,6 @@ export function CreateInventoryDocumentPage() {
       destinationWarehouseId,
       documentType,
       isAdjustment,
-      isPurchaseReceipt,
       isReceipt,
       isTransfer,
       lines,
@@ -244,7 +343,7 @@ export function CreateInventoryDocumentPage() {
   if (!canCreate) {
     return (
       <TenantSessionGate title="Nuevo documento" lead="Recepción, egreso, transferencia o ajuste.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres inventory.documents.create para generar comprobantes de movimiento."
@@ -268,7 +367,7 @@ export function CreateInventoryDocumentPage() {
       title="Nuevo documento"
       lead="Movimiento físico de stock: recepción, egreso, transferencia o ajuste de inventario."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Nuevo Documento de Inventario"
           subtitle={
@@ -446,6 +545,67 @@ export function CreateInventoryDocumentPage() {
             title="Detalle de Artículos"
             subtitle="Indica los ítems físicos del catálogo y las cantidades correspondientes"
           >
+            <div className="ecu-inv-quick-bar">
+              <div className="ecu-inv-quick-bar__scanner">
+                <TextBox
+                  id="inv-quick-scan"
+                  placeholder="Escanear código de barras o escribir SKU y presionar Enter…"
+                  variant="outline"
+                  size="sm"
+                  value={scannedBarcode}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setScannedBarcode(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleScanSubmit()
+                    }
+                  }}
+                  disabled={busy}
+                  fullWidth
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleScanSubmit}
+                  disabled={busy || !scannedBarcode.trim()}
+                  title="Escanear o agregar SKU"
+                >
+                  <ScanBarcode size={16} strokeWidth={1.75} aria-hidden />
+                  Escanear
+                </Button>
+              </div>
+
+              <div className="ecu-inv-quick-bar__buttons">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => {
+                    setSelectModalMode('search')
+                    setIsSelectModalOpen(true)
+                  }}
+                >
+                  <Boxes size={16} strokeWidth={1.75} aria-hidden />
+                  Buscar en Catálogo
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => {
+                    setSelectModalMode('matrix')
+                    setIsSelectModalOpen(true)
+                  }}
+                >
+                  <Layers size={16} strokeWidth={1.75} aria-hidden />
+                  Cargar por Matriz / Modelo
+                </Button>
+              </div>
+            </div>
+
             <div className="ecu-doc-lines__wrap">
               <table className="ecu-doc-lines">
                 <thead>
@@ -477,24 +637,43 @@ export function CreateInventoryDocumentPage() {
                         )}
                       </td>
                       <td>
-                        <Select
-                          id={`inv-item-${index}`}
-                          aria-label={`Ítem línea ${index + 1}`}
-                          variant="outline"
-                          size="sm"
-                          options={itemOptions}
-                          value={line.catalogItemId}
-                          placeholder="Seleccionar ítem…"
-                          onChange={(value: string) =>
-                            setLines((prev) =>
-                              prev.map((row, i) =>
-                                i === index ? { ...row, catalogItemId: value } : row
-                              )
-                            )
-                          }
-                          disabled={busy}
-                          fullWidth
-                        />
+                        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <Select
+                              id={`inv-item-${index}`}
+                              aria-label={`Ítem línea ${index + 1}`}
+                              variant="outline"
+                              size="sm"
+                              options={itemOptions}
+                              value={line.catalogItemId}
+                              placeholder="Seleccionar ítem…"
+                              onChange={(value: string) =>
+                                setLines((prev) =>
+                                  prev.map((row, i) =>
+                                    i === index ? { ...row, catalogItemId: value } : row
+                                  )
+                                )
+                              }
+                              disabled={busy}
+                              fullWidth
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            style={{ minWidth: '32px', width: '32px', height: '32px', padding: 0, flexShrink: 0 }}
+                            title="Buscar en catálogo"
+                            aria-label="Buscar en catálogo"
+                            disabled={busy}
+                            onClick={() => {
+                              setSelectModalMode('search')
+                              setIsSelectModalOpen(true)
+                            }}
+                          >
+                            <Boxes size={15} strokeWidth={1.75} aria-hidden />
+                          </Button>
+                        </div>
                       </td>
                       <td className="ecu-doc-lines__qty">
                         <NumberBox
@@ -568,6 +747,17 @@ export function CreateInventoryDocumentPage() {
             </div>
           </SectionCard>
         </form>
+
+        <InventoryItemSelectModal
+          key={`${warehouseId}-${selectModalMode}-${isSelectModalOpen}`}
+          open={isSelectModalOpen}
+          tenantId={tenantId}
+          warehouseId={warehouseId}
+          warehouseName={selectedWarehouseName}
+          initialMode={selectModalMode}
+          onClose={() => setIsSelectModalOpen(false)}
+          onAddLines={handleAddLinesFromModal}
+        />
       </div>
     </TenantSessionGate>
   )

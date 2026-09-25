@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from 'glubox'
 import {
+  GridToolbarRefresh,
   PageHeader,
   StatCard,
   SectionCard,
-  StatusBadge,
   EmptyState,
 } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -58,11 +58,10 @@ export function SriMonitorPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Monitoreo SRI" lead="Monitoreo tributario de comprobantes.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres facturacion.sri.read para monitorear las respuestas del SRI."
-            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
           />
         </div>
       </TenantSessionGate>
@@ -74,85 +73,20 @@ export function SriMonitorPage() {
       title="Monitoreo SRI"
       lead="Supervisión en tiempo real de las respuestas emitidas por los servicios del SRI."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Monitoreo SRI"
-          subtitle="Supervisión de estados de autorización, devolución y procesamiento ante los Web Services del SRI. Para emitir, ingresa a Comprobantes."
-          badge={
-            <StatusBadge
-              tone={returned > 0 || rejected > 0 ? 'warning' : 'success'}
-              withDot
-            >
-              {authorized} Autorizadas
-            </StatusBadge>
-          }
-          actions={
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate('/facturacion/comprobantes')}
-            >
-              Ir a Comprobantes
-            </Button>
-          }
+          subtitle="Estados de autorización, devolución y procesamiento ante los Web Services del SRI."
         />
 
         <div className="ecu-stat-grid" aria-label="Estados SRI">
-          <StatCard
-            label="Autorizadas por SRI"
-            value={authorized}
-            icon="verified"
-            toneColor="#10b981"
-            footerText="Aprobadas con validez fiscal"
-          />
-          <StatCard
-            label="Devueltas (Revisión)"
-            value={returned}
-            icon="replay"
-            toneColor={returned > 0 ? '#f59e0b' : '#10b981'}
-            footerText={returned > 0 ? 'Requieren corrección y reenvío' : 'Sin devoluciones'}
-          />
-          <StatCard
-            label="No Autorizadas"
-            value={rejected}
-            icon="error"
-            toneColor={rejected > 0 ? '#ef4444' : '#6b7280'}
-            footerText={rejected > 0 ? 'Rechazadas formalmente' : 'Sin rechazos'}
-          />
-          <StatCard
-            label="Pendientes en Cola"
-            value={pending}
-            icon="pending"
-            toneColor="#0ea5e9"
-            footerText="En proceso de transmisión"
-          />
+          <StatCard label="Autorizadas SRI" value={authorized} />
+          <StatCard label="Devueltas" value={returned} />
+          <StatCard label="No Autorizadas" value={rejected} />
+          <StatCard label="Pendientes" value={pending} />
         </div>
 
-        <SectionCard
-          title="Cola de Transmisión Tributaria"
-          subtitle="Monitoreo del ciclo de firma electrónica, envío y validación de comprobantes"
-          action={
-            <div
-              className="ecu-comprobantes-filters"
-              style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}
-            >
-              <GridDateRangeBox
-                from={from}
-                to={to}
-                lookback={lookback}
-                disabled={loading}
-                onChange={setRange}
-              />
-              <ComprobantesTypeFilters
-                value={filter}
-                options={[...STATE_OPTIONS]}
-                ariaLabel="Estado SRI"
-                disabled={loading}
-                onChange={(value: string) => setFilter(value as SriFilter)}
-              />
-            </div>
-          }
-        >
+        <SectionCard title="Cola de Transmisión Tributaria">
           {error ? (
             <div className="ecu-form-error-banner" role="alert">
               <span className="material-symbols-outlined">error</span>
@@ -173,6 +107,32 @@ export function SriMonitorPage() {
               emitterId={emitterId}
               canOperateInvoice={canOperate}
               onResent={() => void load({ silent: true })}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridDateRangeBox
+                    from={from}
+                    to={to}
+                    lookback={lookback}
+                    disabled={loading}
+                    onChange={setRange}
+                  />
+                  <ComprobantesTypeFilters
+                    value={filter}
+                    options={[...STATE_OPTIONS]}
+                    ariaLabel="Estado SRI"
+                    disabled={loading}
+                    onChange={(value: string) => setFilter(value as SriFilter)}
+                  />
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate('/facturacion/comprobantes')}
+                  >
+                    Ir a Comprobantes
+                  </Button>
+                </div>
+              }
             />
           )}
         </SectionCard>

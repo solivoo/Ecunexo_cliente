@@ -1,11 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataGrid, type ColumnDef } from 'glubox'
 import { Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import type { DepartmentListItemDto } from '@/types/identityApi'
 
 export type DepartmentGridRow = DepartmentListItemDto & Record<string, unknown>
@@ -16,6 +16,7 @@ export type DepartmentsGridProps = {
   readonly canManage?: boolean
   readonly actionBusyId?: string | null
   readonly onDelete?: (row: DepartmentGridRow) => void
+  readonly toolbarRight?: ReactNode
 }
 
 const gridMessages = createSpanishDataGridMessages('departamento', 'departamentos')
@@ -26,6 +27,7 @@ export function DepartmentsGrid({
   canManage = false,
   actionBusyId = null,
   onDelete,
+  toolbarRight,
 }: DepartmentsGridProps) {
   const navigate = useNavigate()
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
@@ -47,15 +49,21 @@ export function DepartmentsGrid({
         width: 400,
         sortable: true,
         renderCell: (_value: DepartmentGridRow['description'], row: DepartmentGridRow) =>
-          row.description ?? '—',
+          row.description ? (
+            <span className="ecu-clip ecu-clip--wide" title={row.description}>
+              {row.description}
+            </span>
+          ) : (
+            '—'
+          ),
       },
       {
         key: 'createdAt',
         header: 'Alta',
-        width: 170,
+        width: 110,
         sortable: true,
         renderCell: (_value: DepartmentGridRow['createdAt'], row: DepartmentGridRow) =>
-          formatDateTime(row.createdAt),
+          formatDate(row.createdAt),
       },
       ...(canManage
         ? [
@@ -116,6 +124,7 @@ export function DepartmentsGrid({
       showSearch
       searchPosition="left"
       searchWidth={280}
+      toolbarRight={toolbarRight}
       paging={paging}
       onPageChange={onPageChange}
       onPageSizeChange={onPageSizeChange}

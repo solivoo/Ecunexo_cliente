@@ -376,7 +376,14 @@ export function getModelAttributeFields(
     const axisNames = new Set(
       levels.flatMap((lvl) => (lvl.axes ?? []).map((name) => name.trim().toLowerCase()))
     )
+    const hasAnyAxes = axisNames.size > 0
+    const terminalIndex = levels.length - 1
+
     levels.forEach((lvl, idx) => {
+      // Si la plantilla genera variantes físicas y este es el nivel terminal,
+      // sus atributos descriptivos pertenecen a la variante y no a la ficha del modelo
+      if (hasAnyAxes && idx === terminalIndex) return
+
       lvl.attributes.forEach((attr) => {
         const clean = attr.trim()
         const lower = clean.toLowerCase()
@@ -411,13 +418,28 @@ export function getVariantAttributeFields(
 ): ArchetypeAttributeField[] {
   if (levels.length === 0) return []
 
-  if (templateDeclaresAxes(levels)) return []
-
   const terminalIndex = levels.length - 1
   const terminal = levels[terminalIndex]
   const names = terminal.attributes.length > 0 ? terminal.attributes : [terminal.name]
   const seen = new Set<string>()
   const fields: ArchetypeAttributeField[] = []
+
+  if (templateDeclaresAxes(levels)) {
+    const axisNames = new Set(
+      levels.flatMap((lvl) => (lvl.axes ?? []).map((name) => name.trim().toLowerCase()))
+    )
+    // Si la plantilla no genera variantes (no tiene ejes físicos declarados), no hay atributos por variante
+    if (axisNames.size === 0) return []
+
+    terminal.attributes.forEach((attr) => {
+      const clean = attr.trim()
+      const lower = clean.toLowerCase()
+      if (!clean || seen.has(lower) || axisNames.has(lower)) return
+      seen.add(lower)
+      fields.push({ key: clean, levelName: terminal.name, levelIndex: levels.length })
+    })
+    return fields
+  }
 
   names.forEach((attr) => {
     const clean = attr.trim()

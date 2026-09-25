@@ -395,7 +395,7 @@ export function ContabilidadSriConfigPage() {
 
   if (!canRead) {
     return (
-      <div className="ecu-dashboard-layout sri-config-page">
+      <div className="ecu-dashboard-layout ecu-section-page sri-config-page">
         <PageHeader
           title={title}
           subtitle="Requieres permiso de emisor, empresa o contabilidad para ver esta configuración."
@@ -406,7 +406,7 @@ export function ContabilidadSriConfigPage() {
   }
 
   return (
-    <div className="ecu-dashboard-layout sri-config-page">
+    <div className="ecu-dashboard-layout ecu-section-page sri-config-page">
       <PageHeader
         title={title}
         subtitle={

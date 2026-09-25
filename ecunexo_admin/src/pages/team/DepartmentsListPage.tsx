@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Popup, useToast, type PageActionItem } from 'glubox'
 import {
@@ -6,8 +6,8 @@ import {
   PageHeader,
   StatCard,
   SectionCard,
-  StatusBadge,
   EmptyState,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -60,42 +60,22 @@ export function DepartmentsListPage() {
     void load({ silent: true })
   }, [load])
 
-  const actionItems = useMemo<PageActionItem[]>(() => {
-    const items: PageActionItem[] = []
-    items.push(
-      {
-        id: 'users',
-        label: 'Usuarios',
-        icon: 'users',
-        route: '/equipo/usuarios',
-        disabled: false,
-      },
-      {
-        id: 'roles',
-        label: 'Roles',
-        icon: 'shield',
-        route: '/equipo/roles',
-        disabled: false,
-      },
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        route: null,
-        disabled: loading,
-      }
-    )
-    return items
-  }, [canManage, loading])
-
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-      }
+  const actionItems: PageActionItem[] = [
+    {
+      id: 'users',
+      label: 'Usuarios',
+      icon: 'users',
+      route: '/equipo/usuarios',
+      disabled: false,
     },
-    [load]
-  )
+    {
+      id: 'roles',
+      label: 'Roles',
+      icon: 'shield',
+      route: '/equipo/roles',
+      disabled: false,
+    },
+  ]
 
   const handleDelete = useCallback(async () => {
     if (!tenantId || !confirmDelete) return
@@ -127,79 +107,30 @@ export function DepartmentsListPage() {
       title="Departamentos"
       lead="Catálogo organizacional para asignar a usuarios."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Departamentos y Áreas"
-          subtitle="Crea departamentos y asígnalos a los usuarios para estructurar las áreas de la empresa."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {rows.length} {rows.length === 1 ? 'Área' : 'Áreas'}
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {canManage && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/equipo/departamentos/nuevo')}
-                >
-                  + Nuevo Departamento
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de departamentos"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
-              />
-            </>
-          }
+          subtitle="Unidades organizacionales para asignar a los usuarios de la empresa."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de departamentos">
-          <StatCard
-            label="Total Áreas"
-            value={rows.length}
-            icon="corporate_fare"
-            toneColor="#4f46e5"
-            footerText="Departamentos registrados"
-          />
-          <StatCard
-            label="Clasificación"
-            value="Organizacional"
-            icon="hub"
-            toneColor="#059669"
-            badge={<StatusBadge tone="success">Activa</StatusBadge>}
-            footerText="Vinculación a colaboradores"
-          />
-          <StatCard
-            label="Alcance"
-            value="Empresa"
-            icon="domain"
-            toneColor="#0284c7"
-            badge={<StatusBadge tone="info">Sede</StatusBadge>}
-            footerText="Áreas de este entorno"
-          />
+          <StatCard label="Áreas" value={rows.length} />
+          <StatCard label="Con detalle" value={rows.filter((r) => Boolean(r.description)).length} />
         </div>
 
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
+        <SectionCard title="Catálogo">
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
+            </div>
+          ) : null}
 
-        <SectionCard
-          title="Catálogo de Departamentos"
-          subtitle="Unidades operativas y divisiones organizacionales de la empresa"
-        >
           {isEmpty ? (
             <EmptyState
               icon="corporate_fare"
               title="Aún no hay departamentos registrados"
-              description="Crea el primer departamento para organizar a los usuarios y asignarles su área de pertenencia."
+              description="Crea el primer departamento para organizar a los usuarios por área."
               action={
                 canManage ? (
                   <Button
@@ -223,6 +154,27 @@ export function DepartmentsListPage() {
               canManage={canManage}
               actionBusyId={deleteBusy && confirmDelete ? confirmDelete.id : null}
               onDelete={setConfirmDelete}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canManage && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/equipo/departamentos/nuevo')}
+                    >
+                      + Nuevo Departamento
+                    </Button>
+                  )}
+                  <EcuPageActions
+                    items={actionItems}
+                    variant="outline"
+                    triggerLabel="Acciones de departamentos"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
+                  />
+                </div>
+              }
             />
           )}
         </SectionCard>

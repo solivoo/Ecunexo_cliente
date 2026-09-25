@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast, type PageActionItem } from 'glubox'
-import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
+import { PageHeader, SectionCard } from '@/components/ui'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { ApplyLicenseSection } from '@/features/organization/components/ApplyLicenseSection'
 import {
@@ -87,18 +87,13 @@ export function OrganizationPlanPage() {
   const tenantModules = tenant?.enabledModules ?? []
 
   return (
-    <div className="ecu-dashboard-layout ecu-plan-page">
+    <div className="ecu-dashboard-layout ecu-section-page ecu-plan-page">
       <PageHeader
         title="Plan de Servicio y Licencia"
         subtitle={
           isSubscriptionHolder
-            ? 'Límites del plan de servicio de la suscripción y entitlements de módulos.'
-            : 'Capacidad contratada y consumo actual del tenant activo.'
-        }
-        badge={
-          <StatusBadge tone="info" withDot>
-            {subscription?.servicePlanName ?? tenant?.servicePlanName ?? 'Plan de Servicio'}
-          </StatusBadge>
+            ? 'Límites y módulos de tu suscripción.'
+            : 'Capacidad contratada y consumo de tu empresa.'
         }
         actions={
           isSubscriptionHolder ? (
@@ -124,14 +119,14 @@ export function OrganizationPlanPage() {
 
           <SectionCard
             title="Módulos Habilitados"
-            subtitle="Capacidad incluida en la licencia. Entra a una empresa para operar con roles y menú."
+            bodyClassName="ecu-section-card__body--padded"
           >
             <ModuleChips modules={holderModules} />
           </SectionCard>
 
           <SectionCard
             title="Capacidad por Módulo"
-            subtitle="Tier y límites efectivos asignados a cada módulo del sistema."
+            bodyClassName="ecu-section-card__body--padded"
           >
             <EntitlementCards entitlements={holderEntitlements} />
           </SectionCard>
@@ -170,7 +165,7 @@ export function OrganizationPlanPage() {
 
               <SectionCard
                 title="Módulos Habilitados"
-                subtitle="Módulos autorizados para esta empresa."
+                bodyClassName="ecu-section-card__body--padded"
               >
                 <ModuleChips modules={tenantModules} />
               </SectionCard>

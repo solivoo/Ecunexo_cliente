@@ -6,7 +6,6 @@ import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { moduleLabel } from '@/lib/moduleLabels'
-import { StatusBadge } from '@/components/ui'
 import { permissionStatusLabel } from '@/lib/enumLabels'
 import type { PermissionListItemDto } from '@/types/identityApi'
 
@@ -32,9 +31,7 @@ export function PermissionsGrid({ rows, loading = false, toolbarRight }: Permiss
         width: 280,
         sortable: true,
         renderCell: (_value: PermissionGridRow['code'], row: PermissionGridRow) => (
-          <strong>
-            <code className="ecu-code">{row.code}</code>
-          </strong>
+          <code className="ecu-code ecu-perm-code">{row.code}</code>
         ),
       },
       {
@@ -48,23 +45,21 @@ export function PermissionsGrid({ rows, loading = false, toolbarRight }: Permiss
       {
         key: 'module',
         header: 'Módulo',
-        width: 140,
+        width: 150,
         sortable: true,
         renderCell: (_value: PermissionGridRow['module'], row: PermissionGridRow) =>
-          row.module ? moduleLabel(row.module) : '—',
+          row.module ? <span className="ecu-chip">{moduleLabel(row.module)}</span> : '—',
       },
       {
         key: 'status',
         header: 'Estado',
-        width: 130,
+        width: 120,
         sortable: true,
         renderCell: (_value: PermissionGridRow['status'], row: PermissionGridRow) => (
-          <StatusBadge
-            tone={row.status === 0 ? 'success' : 'neutral'}
-            withDot={row.status === 0}
-          >
+          <span className={`ecu-status ${row.status === 0 ? 'ecu-status--active' : 'ecu-status--inactive'}`}>
+            <span className="ecu-status__dot" aria-hidden />
             {permissionStatusLabel(row.status)}
-          </StatusBadge>
+          </span>
         ),
       },
       {

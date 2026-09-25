@@ -9,6 +9,7 @@ import {
 } from 'glubox'
 import {
   EmptyState,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
@@ -19,7 +20,6 @@ import {
   CornerDownRight,
   Pencil,
   Plus,
-  RefreshCw,
   Sparkles,
   Trash2,
 } from 'lucide-react'
@@ -225,16 +225,15 @@ export function ChartOfAccountsPage() {
                   style={{ marginRight: '6px', opacity: 0.45, flexShrink: 0 }}
                 />
               )}
-              <span
+              <code
+                className="ecu-code"
                 style={{
-                  fontFamily: 'monospace',
                   fontSize: isGroup ? '0.875rem' : '0.8125rem',
                   fontWeight: isGroup ? 700 : 500,
-                  color: isGroup ? 'var(--shell-primary, #6366f1)' : 'var(--glb-text, #f1f5f9)',
                 }}
               >
                 {row.code}
-              </span>
+              </code>
             </div>
           )
         },
@@ -252,15 +251,18 @@ export function ChartOfAccountsPage() {
                 style={{
                   fontWeight: isGroup ? 700 : 500,
                   fontSize: '0.875rem',
-                  color: isGroup ? 'var(--glb-text)' : 'inherit',
+                  color: isGroup ? 'var(--idt-ink)' : 'inherit',
                 }}
               >
                 {row.name}
               </div>
               {row.description && (
-                <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)', marginTop: '2px' }}>
+                <span
+                  className="ecu-hint ecu-clip ecu-clip--wide"
+                  title={row.description}
+                >
                   {row.description}
-                </div>
+                </span>
               )}
             </div>
           )
@@ -273,14 +275,7 @@ export function ChartOfAccountsPage() {
         sortable: true,
         renderCell: (_value, row: AccountRow) => {
           const config = ACCOUNT_TYPES.find((t) => t.id === row.typeId)
-          let tone: 'info' | 'warning' | 'neutral' | 'success' | 'danger' = 'neutral'
-          if (row.typeId === 1) tone = 'info'
-          else if (row.typeId === 2) tone = 'warning'
-          else if (row.typeId === 3) tone = 'neutral'
-          else if (row.typeId === 4) tone = 'success'
-          else if (row.typeId === 5) tone = 'danger'
-
-          return <StatusBadge tone={tone}>{config?.label || row.type}</StatusBadge>
+          return <span className="ecu-chip">{config?.label || row.type}</span>
         },
       },
       {
@@ -290,16 +285,10 @@ export function ChartOfAccountsPage() {
         sortable: true,
         renderCell: (_value, row: AccountRow) => {
           const isDebit = row.natureId === 1
-          return (
-            <span
-              style={{
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                color: isDebit ? 'var(--glb-info, #38bdf8)' : 'var(--glb-warning, #fbbf24)',
-              }}
-            >
-              {isDebit ? 'Deudora (Debe)' : 'Acreedora (Haber)'}
-            </span>
+          return isDebit ? (
+            <span className="ecu-chip">Deudora (Debe)</span>
+          ) : (
+            <span className="ecu-chip ecu-chip--muted">Acreedora (Haber)</span>
           )
         },
       },
@@ -310,9 +299,9 @@ export function ChartOfAccountsPage() {
         sortable: true,
         renderCell: (_value, row: AccountRow) =>
           row.allowsMovement ? (
-            <StatusBadge tone="success">Movimiento</StatusBadge>
+            <span className="ecu-chip">Movimiento</span>
           ) : (
-            <StatusBadge tone="neutral">Mayor / Título</StatusBadge>
+            <span className="ecu-chip ecu-chip--muted">Mayor / Título</span>
           ),
       },
       {
@@ -321,9 +310,12 @@ export function ChartOfAccountsPage() {
         width: 100,
         sortable: true,
         renderCell: (_value, row: AccountRow) => (
-          <StatusBadge tone={row.isActive ? 'success' : 'neutral'}>
+          <span
+            className={`ecu-status ${row.isActive ? 'ecu-status--active' : 'ecu-status--inactive'}`}
+          >
+            <span className="ecu-status__dot" aria-hidden />
             {row.isActive ? 'Activa' : 'Inactiva'}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -374,11 +366,10 @@ export function ChartOfAccountsPage() {
         title="Plan de Cuentas"
         lead="Plan General de Cuentas NIIF / SCVS Ecuador."
       >
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres permisos de contabilidad para ver el plan de cuentas."
-            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
           />
         </div>
       </TenantSessionGate>
@@ -390,129 +381,21 @@ export function ChartOfAccountsPage() {
       title="Plan General de Cuentas"
       lead="Catálogo oficial NIIF SCVS para imputación de compras, ventas, retenciones SRI, bancos y kárdex contable."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title="Plan General de Cuentas"
-          subtitle="Estructura oficial NIIF / SCVS Ecuador para asientos de compras, proveedores, facturación y activos."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              NIIF / SCVS Ecuador
-            </StatusBadge>
-          }
-          actions={
-            canManage ? (
-              <div style={{ display: 'flex', gap: '0.625rem' }}>
-                <Button
-                  variant="outline"
-                  onClick={() => void handleSeed()}
-                  disabled={saving}
-                >
-                  <Sparkles size={16} />
-                  Sembrar Oficial SCVS
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={() => handleCreate()}
-                  disabled={saving}
-                >
-                  <Plus size={16} />
-                  Nueva Cuenta
-                </Button>
-              </div>
-            ) : undefined
-          }
+          subtitle="Catálogo de cuentas NIIF para la operación contable."
+          badge={<StatusBadge tone="neutral">NIIF / SCVS Ecuador</StatusBadge>}
         />
 
-        {/* Strip de métricas M3 wrap en ecu-stat-grid obligatorio */}
         <div className="ecu-stat-grid" aria-label="Resumen del plan de cuentas">
-          <StatCard
-            label="Total Cuentas"
-            value={String(kpis.total)}
-            footerText="Cuentas registradas"
-            icon="menu_book"
-            toneColor="#6366f1"
-          />
-          <StatCard
-            label="1. Activos"
-            value={String(kpis.activos)}
-            footerText="Bancos, inventario, crédito SRI"
-            icon="account_balance_wallet"
-            toneColor="#0ea5e9"
-          />
-          <StatCard
-            label="2. Pasivos"
-            value={String(kpis.pasivos)}
-            footerText="Proveedores, retenciones SRI"
-            icon="payment"
-            toneColor="#f59e0b"
-          />
-          <StatCard
-            label="5. Costos y Gastos"
-            value={String(kpis.gastos)}
-            footerText="Costos y gastos operacionales"
-            icon="receipt_long"
-            toneColor="#ef4444"
-          />
-          <StatCard
-            label="Imputables"
-            value={String(kpis.imputables)}
-            footerText="Cuentas con movimiento directo"
-            icon="account_tree"
-            toneColor="#10b981"
-          />
+          <StatCard label="Total cuentas" value={kpis.total} />
+          <StatCard label="1. Activos" value={kpis.activos} />
+          <StatCard label="2. Pasivos" value={kpis.pasivos} />
+          <StatCard label="Imputables" value={kpis.imputables} />
         </div>
 
-        <SectionCard
-          title="Árbol y Catálogo de Cuentas"
-          subtitle="Estructura jerárquica conforme al marco normativo de la Superintendencia de Compañías, Valores y Seguros del Ecuador."
-          action={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void loadData()}
-              disabled={loading}
-            >
-              <RefreshCw size={14} className={loading ? 'ecu-spin' : ''} />
-              Refrescar
-            </Button>
-          }
-        >
-          {/* Toolbar de filtros secundarios */}
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '0.875rem',
-              alignItems: 'center',
-              marginBottom: '1rem',
-              padding: '0.75rem',
-              borderRadius: '8px',
-              backgroundColor: 'var(--glb-surface-2, rgba(255,255,255,0.02))',
-              border: '1px solid var(--shell-border, rgba(255,255,255,0.08))',
-            }}
-          >
-            <div style={{ width: '250px' }}>
-              <Select
-                value={selectedType}
-                onChange={(val) => setSelectedType(val || 'all')}
-                options={[
-                  { value: 'all', label: '— Todos los Grupos NIIF —' },
-                  ...ACCOUNT_TYPES.map((t) => ({ value: String(t.id), label: t.label })),
-                ]}
-              />
-            </div>
-
-            <div>
-              <CheckButton
-                checked={allowsMovementOnly}
-                onChange={(checked: boolean) => setAllowsMovementOnly(checked)}
-              >
-                Solo Cuentas Imputables (de Movimiento)
-              </CheckButton>
-            </div>
-          </div>
-
-          {/* Grid o Empty State */}
+        <SectionCard title="Árbol y Catálogo de Cuentas">
           {!loading && accounts.length === 0 ? (
             <EmptyState
               icon="menu_book"
@@ -532,22 +415,75 @@ export function ChartOfAccountsPage() {
               }
             />
           ) : (
-            <DataGrid
-              dataSource={accounts as AccountRow[]}
-              keyExpr="id"
-              columns={columns}
-              selectionMode="none"
-              showSearch
-              searchPosition="left"
-              searchWidth={320}
-              searchPlaceholder="Filtrar por código o denominación..."
-              loading={loading}
-              paging={paging}
-              pageSizeOptions={pageSizeOptions}
-              onPageChange={onPageChange}
-              onPageSizeChange={onPageSizeChange}
-              messages={messages}
-            />
+            <>
+              <div className="ecu-commandbar">
+                <div className="ecu-commandbar__filter">
+                  <Select
+                    value={selectedType}
+                    onChange={(val) => setSelectedType(val || 'all')}
+                    options={[
+                      { value: 'all', label: '— Todos los Grupos NIIF —' },
+                      ...ACCOUNT_TYPES.map((t) => ({ value: String(t.id), label: t.label })),
+                    ]}
+                    fullWidth
+                  />
+                </div>
+                <div className="ecu-commandbar__action">
+                  <CheckButton
+                    checked={allowsMovementOnly}
+                    onChange={(checked: boolean) => setAllowsMovementOnly(checked)}
+                  >
+                    Solo imputables
+                  </CheckButton>
+                </div>
+                <div className="ecu-commandbar__spacer" />
+                <div className="ecu-commandbar__action">
+                  <div className="ecu-grid-toolbar-actions">
+                    <GridToolbarRefresh
+                      loading={loading}
+                      onRefresh={() => void loadData()}
+                    />
+                    {canManage ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => void handleSeed()}
+                          disabled={saving}
+                        >
+                          <Sparkles size={16} />
+                          Sembrar Oficial SCVS
+                        </Button>
+                        <Button
+                          variant="primary"
+                          onClick={() => handleCreate()}
+                          disabled={saving}
+                        >
+                          <Plus size={16} />
+                          Nueva Cuenta
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <DataGrid
+                dataSource={accounts as AccountRow[]}
+                keyExpr="id"
+                columns={columns}
+                selectionMode="none"
+                showSearch
+                searchPosition="left"
+                searchWidth={320}
+                searchPlaceholder="Filtrar por código o denominación..."
+                loading={loading}
+                paging={paging}
+                pageSizeOptions={pageSizeOptions}
+                onPageChange={onPageChange}
+                onPageSizeChange={onPageSizeChange}
+                messages={messages}
+              />
+            </>
           )}
         </SectionCard>
 

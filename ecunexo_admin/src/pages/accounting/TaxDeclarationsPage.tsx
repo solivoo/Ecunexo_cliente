@@ -7,9 +7,6 @@ import {
   FileText,
   Receipt,
   RefreshCw,
-  Scale,
-  TrendingDown,
-  TrendingUp,
 } from 'lucide-react'
 import { PageHeader, SectionCard, StatCard, StatusBadge } from '@/components/ui'
 import { useAppToast } from '@/components/toast/useAppToast'
@@ -74,20 +71,22 @@ export default function TaxDeclarationsPage() {
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(val)
 
+  const formatAmount = (val: number) =>
+    new Intl.NumberFormat('es-EC', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(val)
+
   return (
     <TenantSessionGate
       title="Declaraciones Tributarias"
       lead="Cálculo preventivo y conciliación fiscal para declaraciones de IVA y Retenciones SRI."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title="Pre-Declaración Tributaria y Cierre Fiscal"
-          subtitle="Liquidación preventiva de IVA mensual (F104), Retenciones en la Fuente (F103) y cruce contable para empresas S.A.S."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              SRI F104 & F103
-            </StatusBadge>
-          }
+          subtitle="Liquidación mensual de IVA y retenciones SRI."
+          badge={<StatusBadge tone="neutral">SRI F104 & F103</StatusBadge>}
           actions={
             <div className="flex items-center gap-3">
               <div className="w-36">
@@ -117,50 +116,33 @@ export default function TaxDeclarationsPage() {
           }
         />
 
-        {/* KPIs Strip en ecu-stat-grid según Regla 2 */}
         {data && (
-          <div className="ecu-stat-grid mb-6">
+          <div className="ecu-stat-grid" aria-label="Resumen de la pre-declaración">
             <StatCard
-              label="IVA Cobrado en Ventas"
-              value={formatCurrency(data.formulario104.ventas.casillero411IvaGenerado)}
-              icon={<TrendingUp size={20} />}
-              toneColor="#0284c7"
-              footerText="Casillero 411 SRI"
+              label="IVA Cobrado en Ventas (USD)"
+              value={formatAmount(data.formulario104.ventas.casillero411IvaGenerado)}
             />
             <StatCard
-              label="IVA Compras Soportado"
-              value={formatCurrency(data.formulario104.compras.casillero569CreditoTributarioAplicable)}
-              icon={<TrendingDown size={20} />}
-              toneColor="#059669"
-              footerText="Casillero 569 Crédito Fiscal"
+              label="IVA Compras Soportado (USD)"
+              value={formatAmount(
+                data.formulario104.compras.casillero569CreditoTributarioAplicable
+              )}
             />
             <StatCard
-              label="Retenciones en Fuente IR"
-              value={formatCurrency(data.formulario103.totalRetenidoAPagar)}
-              icon={<Receipt size={20} />}
-              toneColor="#d97706"
-              footerText="F103 Retenciones a Pagar"
+              label="Retenciones en Fuente IR (USD)"
+              value={formatAmount(data.formulario103.totalRetenidoAPagar)}
             />
             <StatCard
               label={
                 data.formulario104.liquidacion.generaImpuestoAPagar
-                  ? 'Saldo IVA a Pagar'
-                  : 'Crédito Fiscal Próximo Mes'
+                  ? 'Saldo IVA a Pagar (USD)'
+                  : 'Crédito fiscal (USD)'
               }
-              value={
+              value={formatAmount(
                 data.formulario104.liquidacion.generaImpuestoAPagar
-                  ? formatCurrency(data.formulario104.liquidacion.saldoNetoAPagar)
-                  : formatCurrency(data.formulario104.liquidacion.casillero615CreditoTributarioMesSiguiente)
-              }
-              icon={<Scale size={20} />}
-              toneColor={
-                data.formulario104.liquidacion.generaImpuestoAPagar ? '#dc2626' : '#10b981'
-              }
-              footerText={
-                data.formulario104.liquidacion.generaImpuestoAPagar
-                  ? 'A favor del fisco (SRI)'
-                  : 'A favor de la empresa'
-              }
+                  ? data.formulario104.liquidacion.saldoNetoAPagar
+                  : data.formulario104.liquidacion.casillero615CreditoTributarioMesSiguiente
+              )}
             />
           </div>
         )}
@@ -214,7 +196,10 @@ export default function TaxDeclarationsPage() {
         ) : activeTab === 'f104' ? (
           <div className="space-y-6">
             {/* Sección Ventas F104 */}
-            <SectionCard title="1. Resumen de Ventas e Ingresos (F104 - Casilleros 400)">
+            <SectionCard
+              title="1. Resumen de Ventas e Ingresos (F104 - Casilleros 400)"
+              bodyClassName="ecu-section-card__body--padded"
+            >
               <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
                 <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
                   <thead className="bg-slate-50 dark:bg-slate-800/60 text-xs uppercase font-semibold text-slate-500">
@@ -276,7 +261,10 @@ export default function TaxDeclarationsPage() {
             </SectionCard>
 
             {/* Sección Compras F104 */}
-            <SectionCard title="2. Resumen de Adquisiciones y Crédito Tributario (F104 - Casilleros 500)">
+            <SectionCard
+              title="2. Resumen de Adquisiciones y Crédito Tributario (F104 - Casilleros 500)"
+              bodyClassName="ecu-section-card__body--padded"
+            >
               <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
                 <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
                   <thead className="bg-slate-50 dark:bg-slate-800/60 text-xs uppercase font-semibold text-slate-500">
@@ -353,7 +341,10 @@ export default function TaxDeclarationsPage() {
             </SectionCard>
 
             {/* Liquidación F104 */}
-            <SectionCard title="3. Liquidación del Impuesto al Valor Agregado (F104 - Casilleros 600)">
+            <SectionCard
+              title="3. Liquidación del Impuesto al Valor Agregado (F104 - Casilleros 600)"
+              bodyClassName="ecu-section-card__body--padded"
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm">
@@ -409,7 +400,10 @@ export default function TaxDeclarationsPage() {
             </SectionCard>
           </div>
         ) : activeTab === 'f103' ? (
-          <SectionCard title="Formulario 103 — Retenciones en la Fuente de Impuesto a la Renta">
+          <SectionCard
+            title="Formulario 103 — Retenciones en la Fuente de Impuesto a la Renta"
+            bodyClassName="ecu-section-card__body--padded"
+          >
             {data.formulario103.lineas.length === 0 ? (
               <div className="py-12 text-center text-slate-500">
                 <Receipt className="w-12 h-12 text-slate-400 mx-auto mb-3" />
@@ -466,7 +460,10 @@ export default function TaxDeclarationsPage() {
         ) : (
           /* Conciliación S.A.S. */
           <div className="space-y-6">
-            <SectionCard title="Ajuste de Cuentas Integral para la Contadora & Directorio S.A.S.">
+            <SectionCard
+              title="Ajuste de Cuentas Integral para la Contadora & Directorio S.A.S."
+              bodyClassName="ecu-section-card__body--padded"
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                   <span className="text-xs text-slate-400 uppercase font-semibold block mb-1">

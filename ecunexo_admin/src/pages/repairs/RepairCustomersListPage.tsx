@@ -16,6 +16,7 @@ import {
 import {
   EcuPageActions,
   EmptyState,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
@@ -523,12 +524,6 @@ export default function RepairCustomersListPage() {
   const actionItems = useMemo((): PageActionItem[] => {
     const items: PageActionItem[] = [
       {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        disabled: loading,
-      },
-      {
         id: 'types',
         label: 'Tipos de cliente',
         icon: 'tags',
@@ -546,16 +541,7 @@ export default function RepairCustomersListPage() {
       })
     }
     return items
-  }, [canReadBatches, loading])
-
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void loadCustomers()
-      }
-    },
-    [loadCustomers]
-  )
+  }, [canReadBatches])
 
   // Columnas DataGrid
   const columns = useMemo(
@@ -584,11 +570,7 @@ export default function RepairCustomersListPage() {
         renderCell: (_v, row: CustomerRow) => {
           const type = row.customerType ?? CustomerType.CorporativoB2B
           const meta = resolveCustomerTypeMeta(type, customerTypes)
-          return (
-            <StatusBadge tone={meta.tone} withDot>
-              {meta.shortLabel}
-            </StatusBadge>
-          )
+          return <span className="ecu-chip">{meta.shortLabel}</span>
         },
       },
       {
@@ -600,11 +582,7 @@ export default function RepairCustomersListPage() {
           if (!row.taxId) {
             return <span className="text-xs text-slate-400 italic">No registrado</span>
           }
-          return (
-            <span className="font-mono font-medium text-slate-800 dark:text-slate-200 text-xs">
-              {row.taxId}
-            </span>
-          )
+          return <code className="ecu-code">{row.taxId}</code>
         },
       },
       {
@@ -624,7 +602,9 @@ export default function RepairCustomersListPage() {
             }}
           >
             {row.contactEmail ? (
-              <span style={{ display: 'block', wordBreak: 'break-all' }}>{row.contactEmail}</span>
+              <span className="ecu-clip" style={{ display: 'block' }} title={row.contactEmail}>
+                {row.contactEmail}
+              </span>
             ) : null}
             {row.contactPhone ? (
               <span style={{ display: 'block', fontVariantNumeric: 'tabular-nums' }}>{row.contactPhone}</span>
@@ -645,7 +625,9 @@ export default function RepairCustomersListPage() {
         renderCell: (_v, row: CustomerRow) => (
           <div className="text-xs text-slate-600 dark:text-slate-300 py-1">
             {row.address ? (
-              <span className="line-clamp-2">{row.address}</span>
+              <span className="ecu-clip" title={row.address}>
+                {row.address}
+              </span>
             ) : (
               <span className="text-slate-400 italic">—</span>
             )}
@@ -655,7 +637,7 @@ export default function RepairCustomersListPage() {
       {
         key: 'createdAt',
         header: 'Fecha Registro',
-        width: 130,
+        width: 110,
         sortable: true,
         renderCell: (_v, row: CustomerRow) => (
           <span className="text-xs text-slate-600 dark:text-slate-300">
@@ -666,12 +648,15 @@ export default function RepairCustomersListPage() {
       {
         key: 'isActive',
         header: 'Estado',
-        width: 100,
+        width: 120,
         sortable: true,
         renderCell: (_v, row: CustomerRow) => (
-          <StatusBadge tone={row.isActive ? 'success' : 'neutral'} withDot>
+          <span
+            className={`ecu-status ${row.isActive ? 'ecu-status--active' : 'ecu-status--inactive'}`}
+          >
+            <span className="ecu-status__dot" aria-hidden />
             {row.isActive ? 'Activo' : 'Inactivo'}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -734,7 +719,7 @@ export default function RepairCustomersListPage() {
         title="Directorio de Clientes"
         lead="Gestión y clasificación comercial de clientes."
       >
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres el permiso customers.read para consultar el directorio de clientes."
@@ -750,75 +735,21 @@ export default function RepairCustomersListPage() {
       title="Directorio de Clientes"
       lead="Gestión y clasificación comercial de clientes, fabricantes aliados y personas naturales con validación SRI."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Directorio de Clientes"
-          subtitle="Clasificación comercial, empresas aliadas y clientes corporativos con validación oficial de cédula y RUC."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {customers.length} {customers.length === 1 ? 'Cliente registrado' : 'Clientes registrados'}
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {canManage && (
-                <Button type="button" variant="primary" onClick={handleOpenCreate}>
-                  <Plus size={16} strokeWidth={2} aria-hidden />
-                  Nuevo Cliente
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de clientes"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
-              />
-            </>
-          }
+          subtitle="Clientes corporativos y personas naturales con validación de RUC."
         />
 
         <div className="ecu-stat-grid" aria-label="Métricas del directorio de clientes">
-          <StatCard
-            label="Total Clientes"
-            value={stats.total}
-            icon="group"
-            toneColor="#4f46e5"
-            footerText="En la empresa activa"
-          />
-          <StatCard
-            label="Clientes Activos"
-            value={stats.active}
-            icon="verified"
-            toneColor="#10b981"
-            footerText="Operativos para transacciones"
-          />
-          <StatCard
-            label="Corporativos B2B"
-            value={stats.corporativos}
-            icon="domain"
-            toneColor="#6366f1"
-            footerText="Marcas y fabricantes aliados"
-          />
-          <StatCard
-            label="Personas Naturales"
-            value={stats.personas}
-            icon="person"
-            toneColor="#0284c7"
-            footerText="Clientes finales y particulares"
-          />
+          <StatCard label="Total Clientes" value={stats.total} />
+          <StatCard label="Clientes Activos" value={stats.active} />
+          <StatCard label="Corporativos B2B" value={stats.corporativos} />
+          <StatCard label="Personas Naturales" value={stats.personas} />
         </div>
 
         <SectionCard
           title="Cartera y Directorio"
-          subtitle={
-            statusFilter === 'active'
-              ? 'Clientes habilitados para operaciones comerciales y de taller'
-              : statusFilter === 'inactive'
-                ? 'Clientes desactivados; no participan en nuevas operaciones'
-                : 'Consulta, segmentación por tipo y mantenimiento de la cartera'
-          }
           action={
             <OptionGroup
               name="customers-status-queue"
@@ -881,7 +812,7 @@ export default function RepairCustomersListPage() {
               searchWidth={280}
               searchPlaceholder="Buscar por razón social, RUC o contacto…"
               toolbarRight={
-                <div className="ecu-comprobantes-filters">
+                <div className="ecu-grid-toolbar-actions">
                   <div style={{ minWidth: 170 }}>
                     <Select
                       id="filter-customers-type"
@@ -898,6 +829,20 @@ export default function RepairCustomersListPage() {
                     lookback={lookback}
                     disabled={loading}
                     onChange={setRange}
+                  />
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void loadCustomers()} />
+                  {canManage && (
+                    <Button type="button" variant="primary" onClick={handleOpenCreate}>
+                      <Plus size={16} strokeWidth={2} aria-hidden />
+                      Nuevo Cliente
+                    </Button>
+                  )}
+                  <EcuPageActions
+                    items={actionItems}
+                    variant="outline"
+                    triggerLabel="Acciones de clientes"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
                   />
                 </div>
               }

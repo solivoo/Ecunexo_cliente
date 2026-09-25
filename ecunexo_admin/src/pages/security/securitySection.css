@@ -1,0 +1,24 @@
+/* ==========================================================================
+   EcuNexo · Seguridad — Ajustes de la sección (sobre la identidad compartida)
+   ========================================================================== */
+
+/* Formulario de políticas ABAC dentro de la ficha del permiso */
+.ecu-policies-form {
+  margin-top: 1.25rem;
+  padding: 1.15rem 1.15rem 1.35rem;
+  border-top: 1px solid var(--idt-rule, var(--shell-border, #e2e8f0));
+}
+
+.ecu-policies-form__title {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--idt-ink, var(--shell-text, #1b1b24));
+}
+
+/* Separador de acciones en formularios de sección */
+.ecu-form-actions-divider {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--idt-rule, var(--shell-border, #e2e8f0));
+}

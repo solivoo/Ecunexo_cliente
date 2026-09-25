@@ -7,17 +7,18 @@ import {
   SectionCard,
   StatCard,
   StatusBadge,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import {
   AlertCircle,
   Building2,
   FilePlus,
-  RefreshCw,
   ShieldCheck,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { listPurchaseSettlements } from '@/services/purchasesApi'
@@ -117,11 +118,7 @@ export function PurchaseSettlementsListPage() {
       key: 'issueDate',
       header: 'Fecha',
       width: 110,
-      renderCell: (_value, row: SettlementRow) => (
-        <span style={{ fontSize: '0.85rem' }}>
-          {row.issueDate ? String(row.issueDate).substring(0, 10) : '—'}
-        </span>
-      ),
+      renderCell: (_value, row: SettlementRow) => formatDate(row.issueDate),
     },
     {
       key: 'invoiceNumber',
@@ -129,12 +126,8 @@ export function PurchaseSettlementsListPage() {
       width: 170,
       renderCell: (_value, row: SettlementRow) => (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.85rem' }}>
-            {row.invoiceNumber}
-          </span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
-            SRI Tipo 03
-          </span>
+          <code className="ecu-code">{row.invoiceNumber}</code>
+          <span className="ecu-source">SRI Tipo 03</span>
         </div>
       ),
     },
@@ -144,12 +137,10 @@ export function PurchaseSettlementsListPage() {
       width: 240,
       renderCell: (_value, row: SettlementRow) => (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontWeight: 500, fontSize: '0.85rem' }}>
+          <span className="ecu-clip ecu-clip--wide" style={{ fontWeight: 500, fontSize: '0.85rem' }}>
             {row.supplierBusinessName}
           </span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)', fontFamily: 'monospace' }}>
-            Doc: {row.supplierTaxId}
-          </span>
+          <span className="ecu-source">Doc: {row.supplierTaxId}</span>
         </div>
       ),
     },
@@ -158,9 +149,7 @@ export function PurchaseSettlementsListPage() {
       header: 'Sustento SRI',
       width: 120,
       renderCell: (_value, row: SettlementRow) => (
-        <span style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>
-          {row.sriSustentoCode || '01'}
-        </span>
+        <code className="ecu-code">{row.sriSustentoCode || '01'}</code>
       ),
     },
     {
@@ -204,12 +193,27 @@ export function PurchaseSettlementsListPage() {
       width: 140,
       renderCell: (_value, row: SettlementRow) => {
         if (row.authorizationNumber || row.status === 2 || row.status === 3) {
-          return <StatusBadge tone="success" withDot>Emitida / SRI</StatusBadge>
+          return (
+            <span className="ecu-status ecu-status--active">
+              <span className="ecu-status__dot" aria-hidden />
+              Emitida / SRI
+            </span>
+          )
         }
         if (row.status === 4) {
-          return <StatusBadge tone="danger" withDot>Anulada</StatusBadge>
+          return (
+            <span className="ecu-status ecu-status--danger">
+              <span className="ecu-status__dot" aria-hidden />
+              Anulada
+            </span>
+          )
         }
-        return <StatusBadge tone="warning" withDot>Borrador</StatusBadge>
+        return (
+          <span className="ecu-status ecu-status--warning">
+            <span className="ecu-status__dot" aria-hidden />
+            Borrador
+          </span>
+        )
       },
     },
   ], [])
@@ -217,7 +221,7 @@ export function PurchaseSettlementsListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Liquidaciones de Compra" lead="Liquidaciones de compra de bienes y servicios.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres permisos de compras o facturación para consultar liquidaciones de compra."
@@ -233,38 +237,10 @@ export function PurchaseSettlementsListPage() {
       title="Liquidaciones de Compra"
       lead="Liquidaciones de compra de bienes y prestación de servicios (SRI Tipo 03) emitidas a personas sin RUC."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Liquidaciones de Compra SRI"
-          subtitle="Comprobante electrónico emitido por la empresa al adquirir bienes o servicios a personas naturales no obligadas a tener RUC (artesanos, mano de obra rural)."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              SRI Tipo 03
-            </StatusBadge>
-          }
-          actions={
-            canIssue ? (
-              <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-                <Button
-                  variant="outline"
-                  size="md"
-                  onClick={loadData}
-                  disabled={loading}
-                >
-                  <RefreshCw size={15} className={loading ? 'ecu-spin' : ''} />
-                  Actualizar
-                </Button>
-                <Button
-                  variant="primary"
-                  size="md"
-                  onClick={() => navigate('/compras/liquidaciones/nueva')}
-                >
-                  <FilePlus size={16} />
-                  Nueva Liquidación
-                </Button>
-              </div>
-            ) : undefined
-          }
+          subtitle="Emisión de liquidaciones SRI Tipo 03 a personas naturales sin RUC."
         />
 
         {/* Tarjeta de Conexión Fiscal con Ajustes de Empresa */}
@@ -366,41 +342,14 @@ export function PurchaseSettlementsListPage() {
 
         {/* Tira de KPIs de Liquidaciones */}
         <div className="ecu-stat-grid" aria-label="Resumen de liquidaciones de compra">
-          <StatCard
-            label="Total Liquidaciones"
-            value={String(stats.total)}
-            icon="receipt_long"
-            toneColor="#4f46e5"
-            footerText="Emitidas en el ejercicio"
-          />
-          <StatCard
-            label="Autorizadas SRI"
-            value={String(stats.authorized)}
-            icon="verified"
-            toneColor="#10b981"
-            footerText="Con autorización electrónica"
-          />
-          <StatCard
-            label="En Borrador"
-            value={String(stats.draft)}
-            icon="edit_note"
-            toneColor="#f59e0b"
-            footerText="Pendientes de emisión"
-          />
-          <StatCard
-            label="Monto Liquidado"
-            value={`$${stats.totalAmount.toFixed(2)}`}
-            icon="monetization_on"
-            toneColor="#8b5cf6"
-            footerText="Total compras liquidadas"
-          />
+          <StatCard label="Total Liquidaciones" value={stats.total} />
+          <StatCard label="Autorizadas SRI" value={stats.authorized} />
+          <StatCard label="En Borrador" value={stats.draft} />
+          <StatCard label="Monto Liquidado ($)" value={stats.totalAmount} />
         </div>
 
         {/* Listado / Estado de Liquidaciones */}
-        <SectionCard
-          title="Liquidaciones de Compra Emitidas"
-          subtitle="Comprobantes autorizados ante el SRI conforme al Art. 48 del Reglamento de Comprobantes de Venta y Retención"
-        >
+        <SectionCard title="Liquidaciones de Compra Emitidas">
           {!loading && settlements.length === 0 ? (
             <EmptyState
               icon="receipt_long"
@@ -425,6 +374,21 @@ export function PurchaseSettlementsListPage() {
               searchPosition="left"
               searchWidth={300}
               searchPlaceholder="Buscar por secuencial, proveedor..."
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void loadData()} />
+                  {canIssue && (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => navigate('/compras/liquidaciones/nueva')}
+                    >
+                      <FilePlus size={16} />
+                      Nueva Liquidación
+                    </Button>
+                  )}
+                </div>
+              }
               loading={loading}
               paging={paging}
               pageSizeOptions={pageSizeOptions}

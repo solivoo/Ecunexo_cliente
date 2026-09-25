@@ -4,6 +4,7 @@ import { Button, DataGrid, OptionGroup, Popup, Select, TextBox, useToast, type C
 import {
   EcuPageActions,
   EmptyState,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
@@ -37,11 +38,9 @@ import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
   DamageLevel,
-  damageLevelBadgeTone,
   damageLevelLabel,
   RepairBatchStatus,
   RepairEquipmentStatus,
-  repairEquipmentStatusBadgeTone,
   repairEquipmentStatusLabel,
   type BatchDetailDto,
   type RepairEquipmentDto,
@@ -51,6 +50,24 @@ import './ecu-customer-form.css'
 type Row = RepairEquipmentDto & Record<string, unknown>
 
 const messages = createSpanishDataGridMessages('equipo', 'equipos')
+
+function equipmentStatusClass(status: RepairEquipmentStatus): string {
+  switch (status) {
+    case RepairEquipmentStatus.ReadyToDispatch:
+    case RepairEquipmentStatus.Dispatched:
+      return 'ecu-status--active'
+    case RepairEquipmentStatus.Diagnosing:
+    case RepairEquipmentStatus.InRepair:
+    case RepairEquipmentStatus.QualityCheck:
+    case RepairEquipmentStatus.ReturnedClient:
+      return 'ecu-status--warning'
+    case RepairEquipmentStatus.Irreparable:
+    case RepairEquipmentStatus.ReturnedUnrepaired:
+      return 'ecu-status--danger'
+    default:
+      return 'ecu-status--inactive'
+  }
+}
 
 export function RepairBatchDetailPage() {
   const toast = useToast()
@@ -158,24 +175,8 @@ export function RepairBatchDetailPage() {
         disabled: false,
       })
     }
-    items.push({
-      id: 'refresh',
-      label: 'Actualizar',
-      icon: 'refresh-cw',
-      route: null,
-      disabled: loading,
-    })
     return items
-  }, [canReadDispatches, loading])
-
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-      }
-    },
-    [load]
-  )
+  }, [canReadDispatches])
 
   // Modal Estado
   const [statusModalOpen, setStatusModalOpen] = useState(false)
@@ -296,10 +297,10 @@ export function RepairBatchDetailPage() {
         renderCell: (_v: Row['serialNumber'], row: Row) => (
           <Link
             to={`/taller/lotes/${batchId}/equipos/${row.id}`}
-            className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 group"
+            className="hover:underline inline-flex items-center gap-1 group"
             title="Ver gestión completa del equipo"
           >
-            <span>{row.serialNumber}</span>
+            <code className="ecu-code">{row.serialNumber}</code>
             <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
           </Link>
         ),
@@ -326,23 +327,19 @@ export function RepairBatchDetailPage() {
         width: 150,
         sortable: true,
         renderCell: (_v: Row['damageLevel'], row: Row) => (
-          <StatusBadge tone={damageLevelBadgeTone(row.damageLevel)}>
-            {damageLevelLabel(row.damageLevel)}
-          </StatusBadge>
+          <span className="ecu-chip">{damageLevelLabel(row.damageLevel)}</span>
         ),
       },
       {
         key: 'status',
         header: 'Estado Actual',
-        width: 160,
+        width: 170,
         sortable: true,
         renderCell: (_v: Row['status'], row: Row) => (
-          <StatusBadge
-            tone={repairEquipmentStatusBadgeTone(row.status)}
-            withDot={row.status !== RepairEquipmentStatus.Cancelled}
-          >
+          <span className={`ecu-status ${equipmentStatusClass(row.status)}`}>
+            <span className="ecu-status__dot" aria-hidden />
             {repairEquipmentStatusLabel(row.status)}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -424,7 +421,7 @@ export function RepairBatchDetailPage() {
         title="Detalle de Lote"
         lead="Trazabilidad por serie, fases operativas y evidencia fotográfica en Amazon S3."
       >
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres el permiso repairs.batches.read para visualizar el detalle de los lotes de reparación."
@@ -440,32 +437,21 @@ export function RepairBatchDetailPage() {
       title={batch ? `Lote ${batch.batchNumber}` : 'Detalle de Lote'}
       lead="Trazabilidad por serie, fases operativas y evidencia fotográfica en Amazon S3."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title={batch ? `Lote ${batch.batchNumber}` : 'Cargando Lote...'}
           subtitle={
-            batch ? (
-              <span>
-                Cliente: <strong>{batch.customerName}</strong>
-                {batch.customerTaxId ? ` (${batch.customerTaxId})` : ''} · Recibido el{' '}
-                {formatDate(batch.receivedAt)}
-                {batch.contractReference ? ` · Ref: ${batch.contractReference}` : ''}
-              </span>
-            ) : undefined
-          }
-          badge={
-            batch ? (
-              batch.status === RepairBatchStatus.Cancelled ? (
-                <StatusBadge tone="danger">Lote Anulado</StatusBadge>
-              ) : (
-                <StatusBadge tone="primary" withDot>
-                  Avance {batch.progressPercentage}%
-                </StatusBadge>
-              )
-            ) : undefined
+            batch
+              ? `${batch.customerName} · Ingreso ${formatDate(batch.receivedAt)}`
+              : undefined
           }
           actions={
             <>
+              <GridToolbarRefresh
+                loading={loading}
+                onRefresh={() => void load()}
+                label="Actualizar lote"
+              />
               <Button
                 type="button"
                 variant="outline"
@@ -506,7 +492,6 @@ export function RepairBatchDetailPage() {
                 triggerLabel="Acciones del lote"
                 renderIcon={renderSidebarIcon}
                 onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
               />
             </>
           }
@@ -532,40 +517,15 @@ export function RepairBatchDetailPage() {
 
         {batch && (
           <div className="ecu-stat-grid" aria-label="Métricas del lote">
-            <StatCard
-              label="Total en Lote"
-              value={batch.totalCount}
-              icon="inventory_2"
-              toneColor="#4f46e5"
-              footerText="Equipos importados"
-            />
-            <StatCard
-              label="En Proceso / Taller"
-              value={batch.inRepairCount + batch.receivedCount}
-              icon="build"
-              toneColor="#f59e0b"
-              footerText="En diagnóstico o reparación"
-            />
-            <StatCard
-              label="Listos para Retiro"
-              value={batch.readyCount}
-              icon="verified"
-              toneColor="#10b981"
-              footerText="Control de calidad superado"
-            />
-            <StatCard
-              label="Despachados"
-              value={batch.dispatchedCount}
-              icon="local_shipping"
-              toneColor="#3b82f6"
-              footerText="Con acta oficial entregada"
-            />
+            <StatCard label="Total en Lote" value={batch.totalCount} />
+            <StatCard label="En Taller" value={batch.inRepairCount + batch.receivedCount} />
+            <StatCard label="Listos para Retiro" value={batch.readyCount} />
+            <StatCard label="Despachados" value={batch.dispatchedCount} />
           </div>
         )}
 
         <SectionCard
           title="Equipos del Lote"
-          subtitle="Trazabilidad individual por número de serie, daño y control de avance"
           action={
             <OptionGroup
               id="batch-equipments-queue"

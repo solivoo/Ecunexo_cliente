@@ -114,7 +114,7 @@ export function InventoryDocumentDetailPage() {
       title="Documento de inventario"
       lead="Detalle de comprobante y trazabilidad de líneas físicas."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         {!doc ? (
           <SectionCard title="Cargando…">
             <p className="app-shell__muted">Recuperando detalles del documento de inventario…</p>

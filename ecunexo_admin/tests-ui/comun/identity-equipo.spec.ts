@@ -28,7 +28,7 @@ test.describe('Identity — equipo y seguridad (UI)', () => {
 
   test('Roles: listado carga', async ({ page }) => {
     await page.goto('/equipo/roles')
-    await expect(page.getByText(/Catálogo de roles de esta empresa/i)).toBeVisible({
+    await expect(page.getByText(/Perfiles de permisos de esta empresa/i)).toBeVisible({
       timeout: 20_000,
     })
     await expect(page.getByRole('button', { name: 'Acciones de roles' })).toBeVisible()
@@ -37,23 +37,23 @@ test.describe('Identity — equipo y seguridad (UI)', () => {
 
   test('Departamentos: listado carga', async ({ page }) => {
     await page.goto('/equipo/departamentos')
-    await expect(page.getByText(/Crea departamentos y asígnalos/i)).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText(/Unidades organizacionales/i)).toBeVisible({ timeout: 20_000 })
     await expect(page.getByRole('button', { name: 'Acciones de departamentos' })).toBeVisible()
     await expect(page.getByLabel('Resumen de departamentos')).toBeVisible()
   })
 
   test('Permisos: catálogo de seguridad carga', async ({ page }) => {
     await page.goto('/seguridad/permisos')
-    await expect(page.getByText(/Catálogo global|políticas ABAC|RBAC/i).first()).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Catálogo de Permisos/i })).toBeVisible({
       timeout: 20_000,
     })
     await expect(page.getByLabel('Resumen de permisos')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Acciones de permisos' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Roles/i })).toBeVisible()
   })
 
   test('Formulario nuevo usuario abre', async ({ page }) => {
     await page.goto('/equipo/usuarios/nueva')
-    await expect(page.getByText(/Completa la ficha|identity\.users\.create/i).first()).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Nuevo Usuario/i })).toBeVisible({
       timeout: 20_000,
     })
     const email = page.locator('#cu-email')
@@ -64,7 +64,7 @@ test.describe('Identity — equipo y seguridad (UI)', () => {
 
   test('Formulario nuevo rol abre', async ({ page }) => {
     await page.goto('/equipo/roles/nuevo')
-    await expect(page.getByText(/Define el rol|identity\.roles\.manage/i).first()).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Nuevo Rol/i })).toBeVisible({
       timeout: 20_000,
     })
   })

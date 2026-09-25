@@ -26,7 +26,7 @@ public sealed class VariantDimensionTemplateTests
         result.Value!.IsSystemDefault.Should().BeFalse();
     }
 
-    [Fact(DisplayName = "Plantilla con valores JSON vacíos o inválidos es rechazada")]
+    [Fact(DisplayName = "Plantilla con valores JSON vacíos o inválidos para escalas físicas es rechazada")]
     public void Create_InvalidValuesJson_Fails()
     {
         var id = Guid.CreateVersion7();
@@ -35,12 +35,54 @@ public sealed class VariantDimensionTemplateTests
         var result = VariantDimensionTemplate.Create(
             id,
             tenantId,
-            "Tallas",
+            "Tallas Numéricas",
             "size",
-            "[]");
+            "[]",
+            dataType: VariantDimensionTemplate.DataTypeNumber);
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("catalog.variant_template.values.empty");
+    }
+
+    [Fact(DisplayName = "Atributo de texto libre sin valores predefinidos es permitido")]
+    public void Create_TextAttributeWithoutPredefinedValues_Succeeds()
+    {
+        var id = Guid.CreateVersion7();
+        var tenantId = Guid.CreateVersion7();
+
+        var result = VariantDimensionTemplate.Create(
+            id,
+            tenantId,
+            "Descripción de Variante",
+            "custom",
+            "[]",
+            dataType: VariantDimensionTemplate.DataTypeText,
+            isVariantAxis: false);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Name.Should().Be("Descripción de Variante");
+        result.Value!.PredefinedValuesJson.Should().Be("[]");
+        result.Value!.DataType.Should().Be(VariantDimensionTemplate.DataTypeText);
+    }
+
+    [Fact(DisplayName = "Atributo descriptivo no-eje sin valores predefinidos es permitido")]
+    public void Create_DescriptiveAttributeWithoutValues_Succeeds()
+    {
+        var id = Guid.CreateVersion7();
+        var tenantId = Guid.CreateVersion7();
+
+        var result = VariantDimensionTemplate.Create(
+            id,
+            tenantId,
+            "Observación Técnica",
+            "custom",
+            "[]",
+            dataType: VariantDimensionTemplate.DataTypeText,
+            isVariantAxis: false);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Name.Should().Be("Observación Técnica");
+        result.Value!.PredefinedValuesJson.Should().Be("[]");
     }
 
     [Fact(DisplayName = "Plantilla con tipo de dato y eje de variante se persiste")]

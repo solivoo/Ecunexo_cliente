@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useToast } from 'glubox'
 import {
+  GridToolbarRefresh,
   PageHeader,
   StatCard,
   SectionCard,
-  StatusBadge,
 } from '@/components/ui'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -90,11 +90,10 @@ export function TaxRulesCatalogPage() {
         title="Reglas SRI"
         lead="Entra a una empresa para ver el catálogo de políticas tributarias."
       >
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres facturacion.catalogos.read para consultar las reglas tributarias del SRI."
-            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
           />
         </div>
       </TenantSessionGate>
@@ -106,45 +105,19 @@ export function TaxRulesCatalogPage() {
       title="Reglas SRI"
       lead="Catálogo unificado de políticas tributarias y vigencias normativas del SRI."
     >
-      <div className="ecu-dashboard-layout tax-rules-catalog">
+      <div className="ecu-dashboard-layout ecu-section-page tax-rules-catalog">
         <PageHeader
           title="Reglas y Catálogos SRI"
-          subtitle="Políticas tributarias y vigencias normativas dictadas por el SRI (plazos de transmisión, retenciones, tarifas). Cada grupo se administra de forma histórica."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {kinds.length} {kinds.length === 1 ? 'Grupo' : 'Grupos'}
-            </StatusBadge>
-          }
+          subtitle="Vigencias normativas del SRI para la emisión de comprobantes."
+          actions={<GridToolbarRefresh loading={loading} onRefresh={() => void load()} />}
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de reglas">
-          <StatCard
-            label="Grupos Normativos"
-            value={kinds.length}
-            icon="policy"
-            toneColor="#4f46e5"
-            footerText="Tipos de políticas fiscales"
-          />
-          <StatCard
-            label="Vigencias Registradas"
-            value={rows.length}
-            icon="rule"
-            toneColor="#10b981"
-            footerText="Reglas activas e históricas"
-          />
-          <StatCard
-            label="Servicio de Facturación"
-            value="Billing API"
-            icon="cloud_done"
-            toneColor="#0ea5e9"
-            footerText="Motor tributario conectado"
-          />
+          <StatCard label="Grupos" value={kinds.length} />
+          <StatCard label="Vigencias" value={rows.length} />
         </div>
 
-        <SectionCard
-          title="Políticas Tributarias Vigentes"
-          subtitle="Esquemas de validación normativa y vigencias aplicadas en la emisión de comprobantes"
-        >
+        <SectionCard title="Políticas Tributarias Vigentes">
           <PageLoadState
             loading={loading}
             error={error}

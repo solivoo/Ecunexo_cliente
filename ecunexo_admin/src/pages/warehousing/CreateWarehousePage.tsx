@@ -66,7 +66,7 @@ export function CreateWarehousePage() {
   if (!canManage) {
     return (
       <TenantSessionGate title="Nueva bodega" lead="Alta de una ubicación de stock.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres warehousing.locations.manage para dar de alta nuevas ubicaciones."
@@ -87,7 +87,7 @@ export function CreateWarehousePage() {
 
   return (
     <TenantSessionGate title="Nueva bodega" lead="Alta de una ubicación operativa de stock.">
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Nueva Bodega"
           subtitle="Alta de una ubicación física operativa para el almacenamiento y despacho de productos."

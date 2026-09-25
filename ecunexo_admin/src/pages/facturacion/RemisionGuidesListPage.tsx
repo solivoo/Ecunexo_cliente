@@ -1,29 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, OptionGroup, Popup, useToast, type ColumnDef } from 'glubox'
-import {
-  CheckCircle2,
-  Download,
-  Eye,
-  FileText,
-  Navigation,
-  Plus,
-  RefreshCw,
-  ShieldCheck,
-  Truck,
-} from 'lucide-react'
+import { CheckCircle2, Download, Eye, Plus, Truck } from 'lucide-react'
 import {
   EmptyState,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
-  StatusBadge,
 } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useGridDateRange } from '@/hooks/useGridDateRange'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
@@ -178,33 +169,17 @@ export function RemisionGuidesListPage() {
       width: 160,
       renderCell: (_val: unknown, row: RemisionRow) => (
         <div>
-          <span style={{ fontWeight: 600, color: 'var(--glb-text)' }}>
-            {row.documentNumber}
-          </span>
-          <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
-            {row.issueDate}
-          </div>
+          <code className="ecu-code">{row.documentNumber}</code>
+          <div className="ecu-hint">{formatDate(row.issueDate)}</div>
         </div>
       ),
     },
     {
       key: 'licensePlate',
       header: 'Vehículo / Placa',
-      width: 140,
+      width: 130,
       renderCell: (_val: unknown, row: RemisionRow) => (
-        <span
-          style={{
-            fontFamily: 'monospace',
-            fontWeight: 700,
-            padding: '2px 8px',
-            borderRadius: '4px',
-            background: 'color-mix(in srgb, var(--glb-primary) 10%, transparent)',
-            color: 'var(--glb-primary)',
-            letterSpacing: '0.05em',
-          }}
-        >
-          {row.licensePlate}
-        </span>
+        <code className="ecu-code">{row.licensePlate}</code>
       ),
     },
     {
@@ -212,9 +187,9 @@ export function RemisionGuidesListPage() {
       header: 'Transportista / Chofer',
       width: 220,
       renderCell: (_val: unknown, row: RemisionRow) => (
-        <div title={row.carrierName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          <span style={{ fontWeight: 500 }}>{row.carrierName}</span>
-        </div>
+        <span className="ecu-clip ecu-clip--wide" title={row.carrierName}>
+          {row.carrierName}
+        </span>
       ),
     },
     {
@@ -222,9 +197,9 @@ export function RemisionGuidesListPage() {
       header: 'Destinatario',
       width: 200,
       renderCell: (_val: unknown, row: RemisionRow) => (
-        <div title={row.recipientName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          <span>{row.recipientName}</span>
-        </div>
+        <span className="ecu-clip ecu-clip--wide" title={row.recipientName}>
+          {row.recipientName}
+        </span>
       ),
     },
     {
@@ -232,29 +207,19 @@ export function RemisionGuidesListPage() {
       header: 'Ruta de Traslado',
       width: 220,
       renderCell: (_val: unknown, row: RemisionRow) => (
-        <div
-          title={row.routeDescription}
-          style={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            fontSize: '0.8125rem',
-            color: 'var(--glb-muted)',
-          }}
-        >
-          <Navigation size={12} style={{ display: 'inline', marginRight: 4 }} />
+        <span className="ecu-clip ecu-clip--wide" title={row.routeDescription}>
           {row.routeDescription}
-        </div>
+        </span>
       ),
     },
     {
       key: 'startDate',
       header: 'Fechas Traslado',
-      width: 170,
+      width: 120,
       renderCell: (_val: unknown, row: RemisionRow) => (
-        <div style={{ fontSize: '0.8125rem' }}>
-          <div>{row.startDate}</div>
-          <div style={{ color: 'var(--glb-muted)' }}>al {row.endDate}</div>
+        <div>
+          <div>{formatDate(row.startDate)}</div>
+          <div className="ecu-hint">al {formatDate(row.endDate)}</div>
         </div>
       ),
     },
@@ -265,17 +230,47 @@ export function RemisionGuidesListPage() {
       renderCell: (_val: unknown, row: RemisionRow) => {
         switch (row.status) {
           case RemisionGuideStatus.Authorized:
-            return <StatusBadge tone="success" withDot>Autorizada SRI</StatusBadge>
+            return (
+              <span className="ecu-status ecu-status--active">
+                <span className="ecu-status__dot" aria-hidden />
+                Autorizada SRI
+              </span>
+            )
           case RemisionGuideStatus.InTransit:
-            return <StatusBadge tone="warning" withDot>En Tránsito</StatusBadge>
+            return (
+              <span className="ecu-status ecu-status--warning">
+                <span className="ecu-status__dot" aria-hidden />
+                En Tránsito
+              </span>
+            )
           case RemisionGuideStatus.Delivered:
-            return <StatusBadge tone="primary" withDot>Entregada</StatusBadge>
+            return (
+              <span className="ecu-status ecu-status--active">
+                <span className="ecu-status__dot" aria-hidden />
+                Entregada
+              </span>
+            )
           case RemisionGuideStatus.Cancelled:
-            return <StatusBadge tone="danger">Anulada</StatusBadge>
+            return (
+              <span className="ecu-status ecu-status--danger">
+                <span className="ecu-status__dot" aria-hidden />
+                Anulada
+              </span>
+            )
           case RemisionGuideStatus.Issued:
-            return <StatusBadge tone="neutral" withDot>Emitida</StatusBadge>
+            return (
+              <span className="ecu-status ecu-status--inactive">
+                <span className="ecu-status__dot" aria-hidden />
+                Emitida
+              </span>
+            )
           default:
-            return <StatusBadge tone="neutral">Borrador</StatusBadge>
+            return (
+              <span className="ecu-status ecu-status--inactive">
+                <span className="ecu-status__dot" aria-hidden />
+                Borrador
+              </span>
+            )
         }
       },
     },
@@ -336,11 +331,10 @@ export function RemisionGuidesListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Guías de Remisión" lead="Comprobantes electrónicos de transporte.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Sin permiso para consultar guías de remisión (facturacion.guias.remision.read)."
-            badge={<StatusBadge tone="danger">Restringido</StatusBadge>}
           />
         </div>
       </TenantSessionGate>
@@ -352,95 +346,20 @@ export function RemisionGuidesListPage() {
       title="Guías de Remisión SRI"
       lead="Emisión y seguimiento logístico de guías de remisión (SRI Tipo 06) para fletes y traslados."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title="Guías de Remisión SRI"
-          subtitle="Comprobantes oficiales de traslado de mercadería (Tipo 06). Control de transportistas, placas vehiculares, rutas y entregas."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {stats.total} {stats.total === 1 ? 'Guía' : 'Guías'}
-            </StatusBadge>
-          }
-          actions={
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void loadData()}
-                disabled={loading}
-              >
-                <RefreshCw size={14} style={{ marginRight: 4 }} />
-                Actualizar
-              </Button>
-              {canCreate && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={() => navigate('/facturacion/guias-remision/nueva')}
-                >
-                  <Plus size={16} style={{ marginRight: 4 }} />
-                  + Nueva Guía de Remisión
-                </Button>
-              )}
-            </div>
-          }
+          subtitle="Comprobantes de traslado de mercadería (SRI Tipo 06) con transportistas, rutas y entregas."
         />
 
-        {/* Tira analítica de KPIs obligatoria dentro de .ecu-stat-grid */}
         <div className="ecu-stat-grid" aria-label="Métricas de Guías de Remisión">
-          <StatCard
-            label="Total Guías Registradas"
-            value={stats.total}
-            icon={<FileText size={20} />}
-            toneColor="#4f46e5"
-            footerText="En el período seleccionado"
-          />
-          <StatCard
-            label="Autorizadas por el SRI"
-            value={stats.authorized}
-            icon={<ShieldCheck size={20} />}
-            toneColor="#10b981"
-            footerText="Validez fiscal vigente"
-          />
-          <StatCard
-            label="En Tránsito / Ruta"
-            value={stats.inTransit}
-            icon={<Truck size={20} />}
-            toneColor="#f59e0b"
-            footerText="Mercadería en camino"
-          />
-          <StatCard
-            label="Entregadas con Éxito"
-            value={stats.delivered}
-            icon={<CheckCircle2 size={20} />}
-            toneColor="#06b6d4"
-            footerText="Despachos completados"
-          />
+          <StatCard label="Total Guías Registradas" value={stats.total} />
+          <StatCard label="Autorizadas por el SRI" value={stats.authorized} />
+          <StatCard label="En Tránsito / Ruta" value={stats.inTransit} />
+          <StatCard label="Entregadas con Éxito" value={stats.delivered} />
         </div>
 
-        {/* Grilla Canónica Enterprise */}
-        <SectionCard
-          title="Historial de Guías de Remisión"
-          subtitle="Listado cronológico de comprobantes de transporte y estado en carretera."
-          action={
-            <OptionGroup
-              layout="segmented"
-              variant="outline"
-              size="sm"
-              value={statusFilter}
-              onChange={(val) => setStatusFilter(String(val))}
-              options={[
-                { value: 'all', label: `Todas (${stats.total})` },
-                { value: 'in_transit', label: `En Tránsito (${stats.inTransit})` },
-                { value: 'authorized', label: `Autorizadas (${stats.authorized})` },
-                { value: 'delivered', label: `Entregadas (${stats.delivered})` },
-                { value: 'draft', label: `Borrador (${stats.draft})` },
-              ]}
-            />
-          }
-        >
+        <SectionCard title="Historial de Guías de Remisión">
           {guides.length === 0 && !loading ? (
             <EmptyState
               title="No se encontraron guías de remisión"
@@ -472,13 +391,41 @@ export function RemisionGuidesListPage() {
               searchPlaceholder="Buscar por placa, chofer, ruta…"
               searchKeys={['licensePlate', 'carrierName', 'recipientName', 'routeDescription', 'documentNumber']}
               toolbarRight={
-                <GridDateRangeBox
-                  from={from}
-                  to={to}
-                  lookback={lookback}
-                  disabled={loading}
-                  onChange={setRange}
-                />
+                <div className="ecu-grid-toolbar-actions">
+                  <OptionGroup
+                    layout="segmented"
+                    variant="outline"
+                    size="sm"
+                    value={statusFilter}
+                    onChange={(val) => setStatusFilter(String(val))}
+                    options={[
+                      { value: 'all', label: `Todas (${stats.total})` },
+                      { value: 'in_transit', label: `En Tránsito (${stats.inTransit})` },
+                      { value: 'authorized', label: `Autorizadas (${stats.authorized})` },
+                      { value: 'delivered', label: `Entregadas (${stats.delivered})` },
+                      { value: 'draft', label: `Borrador (${stats.draft})` },
+                    ]}
+                  />
+                  <GridDateRangeBox
+                    from={from}
+                    to={to}
+                    lookback={lookback}
+                    disabled={loading}
+                    onChange={setRange}
+                  />
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void loadData()} />
+                  {canCreate && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={() => navigate('/facturacion/guias-remision/nueva')}
+                    >
+                      <Plus size={16} style={{ marginRight: 4 }} />
+                      + Nueva Guía de Remisión
+                    </Button>
+                  )}
+                </div>
               }
               paging={paging}
               onPageChange={onPageChange}

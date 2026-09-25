@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
 import { DataGrid, type ColumnDef } from 'glubox'
-import { StatusBadge } from '@/components/ui'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import { policyEffectLabel } from '@/lib/enumLabels'
 import type { PolicyListItemDto } from '@/types/identityApi'
 
@@ -35,12 +34,17 @@ export function PoliciesGrid({ rows, loading = false }: PoliciesGridProps) {
       {
         key: 'effectLabel',
         header: 'Efecto',
-        width: 140,
+        width: 150,
         sortable: true,
         renderCell: (_value: PolicyGridRow['effectLabel'], row: PolicyGridRow) => (
-          <StatusBadge tone={row.effect === 0 ? 'success' : 'danger'} withDot>
+          <span
+            className={`ecu-status ${
+              row.effect === 0 ? 'ecu-status--active' : 'ecu-status--danger'
+            }`}
+          >
+            <span className="ecu-status__dot" aria-hidden />
             {row.effectLabel}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -49,15 +53,21 @@ export function PoliciesGrid({ rows, loading = false }: PoliciesGridProps) {
         width: 420,
         sortable: true,
         renderCell: (_value: PolicyGridRow['condition'], row: PolicyGridRow) =>
-          row.condition ? <code className="ecu-code">{row.condition}</code> : '— (siempre)',
+          row.condition ? (
+            <code className="ecu-code ecu-clip ecu-clip--wide" title={row.condition}>
+              {row.condition}
+            </code>
+          ) : (
+            <span className="ecu-hint">Siempre</span>
+          ),
       },
       {
         key: 'createdAt',
         header: 'Creada',
-        width: 180,
+        width: 120,
         sortable: true,
         renderCell: (_value: PolicyGridRow['createdAt'], row: PolicyGridRow) =>
-          formatDateTime(row.createdAt),
+          formatDate(row.createdAt),
       },
     ]
   }, [])

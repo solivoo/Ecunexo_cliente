@@ -123,7 +123,7 @@ export function EditWarehousePage() {
   if (!canManage) {
     return (
       <TenantSessionGate title="Editar bodega" lead="Corrige la ficha de una ubicación operativa.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres warehousing.locations.manage para editar bodegas."
@@ -145,7 +145,7 @@ export function EditWarehousePage() {
   if (warehouse?.isSystem) {
     return (
       <TenantSessionGate title="Editar bodega" lead="Las bodegas de sistema no se editan.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Bodega de Sistema"
             subtitle={`«${warehouse.name}» es una ubicación reservada para transferencias de stock en tránsito.`}
@@ -166,7 +166,7 @@ export function EditWarehousePage() {
 
   return (
     <TenantSessionGate title="Editar bodega" lead="Corrige nombre, código y dirección. El stock no se mueve.">
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title={warehouse ? `Editar: ${warehouse.name}` : 'Editar Bodega'}
           subtitle={

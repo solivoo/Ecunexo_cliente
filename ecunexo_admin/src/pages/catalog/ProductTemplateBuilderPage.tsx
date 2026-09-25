@@ -189,7 +189,7 @@ export function ProductTemplateBuilderPage() {
       title="Plantilla de producto"
       lead="Niveles, datos y variaciones de un tipo de producto."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title={isEdit ? 'Editar plantilla' : 'Nueva plantilla'}
           subtitle="Arma los niveles, los datos y las variaciones de este tipo de producto."

@@ -489,7 +489,7 @@ export function CreateRepairBatchPage() {
         title="Importar Lote"
         lead="Recepción masiva de equipos mediante plantilla Excel."
       >
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres el permiso repairs.batches.import para importar lotes de equipos."
@@ -514,7 +514,7 @@ export function CreateRepairBatchPage() {
       title="Importar Lote de Reparación"
       lead="Recepción masiva de equipos mediante plantilla Excel con mapeo dinámico de atributos y tarifas por nivel de daño."
     >
-      <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title="Importar Lote de Reparación"
           subtitle="Recepción masiva de equipos mediante plantilla Excel con mapeo dinámico de atributos y tarifas por nivel de daño."

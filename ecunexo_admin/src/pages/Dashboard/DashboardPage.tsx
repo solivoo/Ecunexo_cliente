@@ -7,7 +7,6 @@ import {
   selectTenantBranding,
   selectSubscription,
   selectUserName,
-  selectUserEmail,
   selectPermissions,
 } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
@@ -92,7 +91,6 @@ export function DashboardPage() {
   const tenant = useAppSelector(selectTenantBranding)
   const subscription = useAppSelector(selectSubscription)
   const userName = useAppSelector(selectUserName)
-  const userEmail = useAppSelector(selectUserEmail)
   const permissions = useAppSelector(selectPermissions)
 
   const holderOnly = isSubscriptionHolder && !tenantId
@@ -115,21 +113,15 @@ export function DashboardPage() {
 
   // --- MODO TITULAR (Gestión global de la suscripción) ---
   if (holderOnly) {
-    const planName = subscription?.servicePlanName || 'Plan Profesional'
     const maxTenants = subscription?.subscriptionMaxTenants ?? 1
     const maxUsers = subscription?.maxUsers ?? 'Ilimitado'
     const maxWarehouses = subscription?.maxWarehouses ?? 'Sin límite'
 
     return (
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title={`Bienvenido, ${userName || 'Titular'}`}
-          subtitle="Panel global de administración. Supervisa el estado de tu suscripción, cupos contratados y gestiona todas tus organizaciones."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              Titular de Licencia
-            </StatusBadge>
-          }
+          subtitle="Panel global de tu suscripción y empresas."
           actions={
             <>
               <Button
@@ -151,43 +143,17 @@ export function DashboardPage() {
         />
 
         {/* Métricas Principales (KPI Strip) */}
-        <div className="ecu-stat-grid">
-          <StatCard
-            label="Plan Actual"
-            value={planName}
-            icon="workspace_premium"
-            toneColor="#4f46e5"
-            badge={<StatusBadge tone="success">Activo</StatusBadge>}
-            footerText="Suscripción vigente"
-          />
-          <StatCard
-            label="Cupo de Empresas"
-            value={`${maxTenants} autorizadas`}
-            icon="apartment"
-            toneColor="#0284c7"
-            footerText="Organizaciones permitidas"
-          />
-          <StatCard
-            label="Límite de Usuarios"
-            value={String(maxUsers)}
-            icon="group"
-            toneColor="#059669"
-            footerText="Cuentas para tu equipo"
-          />
-          <StatCard
-            label="Capacidad de Bodegas"
-            value={String(maxWarehouses)}
-            icon="warehouse"
-            toneColor="#d97706"
-            footerText="Almacenes por licencia"
-          />
+        <div className="ecu-stat-grid" aria-label="Resumen de la licencia">
+          <StatCard label="Empresas (máx.)" value={String(maxTenants)} />
+          <StatCard label="Usuarios (máx.)" value={String(maxUsers)} />
+          <StatCard label="Bodegas (máx.)" value={String(maxWarehouses)} />
         </div>
 
         {/* Distribución en 2 Columnas */}
         <div className="ecu-dashboard-columns">
           <SectionCard
             title="Espacios de Trabajo y Licencia"
-            subtitle="Acciones principales para orquestar tus sedes y módulos"
+            bodyClassName="ecu-section-card__body--padded"
           >
             <div className="ecu-action-grid">
               <QuickActionCard
@@ -216,7 +182,7 @@ export function DashboardPage() {
 
           <SectionCard
             title="Guía Operativa para Titulares"
-            subtitle="Pasos recomendados para comenzar a operar"
+            bodyClassName="ecu-section-card__body--padded"
           >
             <div className="ecu-dashboard-guide-list">
               <div className="ecu-dashboard-guide-item">
@@ -260,15 +226,10 @@ export function DashboardPage() {
   const orgLabel = tenant.name || 'Tu Organización'
 
   return (
-    <div className="ecu-dashboard-layout">
+    <div className="ecu-dashboard-layout ecu-section-page">
       <PageHeader
         title={orgLabel}
-        subtitle={`Entorno de operación activo · Usuario: ${userName || 'Colaborador'}${userEmail ? ` (${userEmail})` : ''} · ${permissions.length} permisos`}
-        badge={
-          <StatusBadge tone="success" withDot>
-            Empresa Activa
-          </StatusBadge>
-        }
+        subtitle={`Operando como ${userName || 'Colaborador'}.`}
       />
 
       {/* Accesos Rápidos Principales (5 Atajos Esenciales de Alta Frecuencia) */}

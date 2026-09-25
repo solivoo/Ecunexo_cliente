@@ -91,7 +91,7 @@ export function EditCompanyPage() {
 
   if (!canUpdate) {
     return (
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Editar Empresa"
           subtitle="Requieres el permiso tenancy.tenants.update para editar empresas."
@@ -105,7 +105,7 @@ export function EditCompanyPage() {
   }
 
   return (
-    <div className="ecu-dashboard-layout">
+    <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
       <PageHeader
         title="Editar Empresa"
         subtitle="Edita el nombre comercial, branding corporativo e identidad legal. Puntos de emisión, secuencial y modo SRI están en Facturación electrónica."

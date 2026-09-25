@@ -5,9 +5,7 @@ import {
   EcuPageActions,
   PageHeader,
   SectionCard,
-  StatusBadge,
 } from '@/components/ui'
-import { Shield, UserRound } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -217,15 +215,10 @@ export function CreateUserPage() {
 
   return (
     <TenantSessionGate title="Nuevo usuario" lead="Alta de una persona en la empresa.">
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Nuevo Usuario"
-          subtitle="Completa la ficha de contacto, área organizacional y —si tienes permisos— asigna el rol inicial del colaborador."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              Alta de Cuenta
-            </StatusBadge>
-          }
+          subtitle="Alta de un colaborador en la empresa."
           actions={
             <>
               <Button
@@ -248,19 +241,16 @@ export function CreateUserPage() {
         />
 
         {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
+<div className="ecu-form-error-banner" role="alert">
+            <span className="material-symbols-outlined">error</span>
+            <span>{error}</span>
+          </div>
         ) : null}
 
         <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
           <SectionCard
-            title={
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                <UserRound size={18} strokeWidth={1.75} aria-hidden /> Credenciales y Datos Personales
-              </span>
-            }
-            subtitle="Correo, nombre y contraseña inicial (mínimo 8 caracteres) requeridos para iniciar sesión."
+            bodyClassName="ecu-section-card__body--padded"
+            title="Credenciales y Datos Personales"
           >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
               <div className="ecu-companies-form__field">
@@ -328,9 +318,10 @@ export function CreateUserPage() {
                 {canReadDepartments ? (
                   <>
                     {departmentsError ? (
-                      <p className="welcome-onboarding__error" role="alert">
-                        {departmentsError}
-                      </p>
+<div className="ecu-form-error-banner" role="alert">
+                        <span className="material-symbols-outlined">error</span>
+                        <span>{departmentsError}</span>
+                      </div>
                     ) : null}
                     {departments.length === 0 && !departmentsError ? (
                       <p className="app-shell__muted">
@@ -384,17 +375,14 @@ export function CreateUserPage() {
 
           {canAssignRole ? (
             <SectionCard
-              title={
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Shield size={18} strokeWidth={1.75} aria-hidden /> Asignación de Rol Inicial
-                </span>
-              }
-              subtitle="Opcional. Si seleccionas un rol, se vinculará de inmediato al crear el usuario."
+              bodyClassName="ecu-section-card__body--padded"
+              title="Asignación de Rol Inicial"
             >
               {rolesError ? (
-                <p className="welcome-onboarding__error" role="alert">
-                  {rolesError}
-                </p>
+<div className="ecu-form-error-banner" role="alert">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{rolesError}</span>
+                </div>
               ) : null}
               {roles.length === 0 && !rolesError ? (
                 <p className="app-shell__muted">

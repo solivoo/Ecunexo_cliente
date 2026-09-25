@@ -5,9 +5,7 @@ import {
   EcuPageActions,
   PageHeader,
   SectionCard,
-  StatusBadge,
 } from '@/components/ui'
-import { Building2 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -168,15 +166,10 @@ export function EditDepartmentPage() {
       title="Editar departamento"
       lead="Corrige el nombre o la descripción. El identificador no cambia."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title={name ? `Editar Área: ${name}` : 'Editar Departamento'}
-          subtitle="Modifica el nombre o descripción del departamento. Los usuarios asignados conservarán su vinculación."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              Unidad Organizacional
-            </StatusBadge>
-          }
+          subtitle="Nombre y descripción del departamento."
           actions={
             <>
               <Button
@@ -204,18 +197,15 @@ export function EditDepartmentPage() {
           empty={false}
         >
           {hydrated && error ? (
-            <p className="welcome-onboarding__error" role="alert">
-              {error}
-            </p>
+<div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
+            </div>
           ) : null}
           <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
             <SectionCard
-              title={
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Building2 size={18} strokeWidth={1.75} aria-hidden /> Propiedades del Departamento
-                </span>
-              }
-              subtitle="El nombre es único en esta empresa. Puedes corregir ortografía y tildes libremente."
+              bodyClassName="ecu-section-card__body--padded"
+              title="Propiedades del Departamento"
             >
               <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-2">

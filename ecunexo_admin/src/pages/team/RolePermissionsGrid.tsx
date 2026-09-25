@@ -40,7 +40,7 @@ export function RolePermissionsGrid({
         width: 260,
         sortable: true,
         renderCell: (_value: RolePermissionRow['code'], row: RolePermissionRow) => (
-          <strong>{row.code}</strong>
+          <code className="ecu-code ecu-perm-code">{row.code}</code>
         ),
       },
       {
@@ -54,10 +54,10 @@ export function RolePermissionsGrid({
       {
         key: 'module',
         header: 'Módulo',
-        width: 140,
+        width: 150,
         sortable: true,
         renderCell: (_value: RolePermissionRow['module'], row: RolePermissionRow) =>
-          row.module ? moduleLabel(row.module) : '—',
+          row.module ? <span className="ecu-chip">{moduleLabel(row.module)}</span> : '—',
       },
       {
         key: 'description',
@@ -65,7 +65,13 @@ export function RolePermissionsGrid({
         width: 320,
         sortable: true,
         renderCell: (_value: RolePermissionRow['description'], row: RolePermissionRow) =>
-          row.description ?? '—',
+          row.description ? (
+            <span className="ecu-clip ecu-clip--wide" title={row.description}>
+              {row.description}
+            </span>
+          ) : (
+            '—'
+          ),
       },
     ]
   }, [])

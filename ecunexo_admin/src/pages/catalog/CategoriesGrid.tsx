@@ -1,11 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataGrid, type ColumnDef } from 'glubox'
 import { Pencil, Trash2 } from 'lucide-react'
-import { StatusBadge } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import type { CategoryListItemDto } from '@/types/catalogApi'
 
@@ -18,6 +17,7 @@ export type CategoriesGridProps = {
   readonly canDelete?: boolean
   readonly deletingId?: string | null
   readonly onDelete?: (row: CategoryListItemDto) => void
+  readonly toolbarRight?: ReactNode
 }
 
 const gridMessages = createSpanishDataGridMessages('categoría', 'categorías')
@@ -29,6 +29,7 @@ export function CategoriesGrid({
   canDelete = false,
   deletingId = null,
   onDelete,
+  toolbarRight,
 }: CategoriesGridProps) {
   const navigate = useNavigate()
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
@@ -54,7 +55,7 @@ export function CategoriesGrid({
           row.parentId ? (
             <span>{byId.get(row.parentId) ?? 'Subcategoría'}</span>
           ) : (
-            <StatusBadge tone="neutral">Categoría Raíz</StatusBadge>
+            <span className="ecu-chip ecu-chip--muted">Raíz</span>
           ),
       },
       {
@@ -68,10 +69,10 @@ export function CategoriesGrid({
       {
         key: 'createdAt',
         header: 'Alta',
-        width: 170,
+        width: 110,
         sortable: true,
         renderCell: (_value: CategoryGridRow['createdAt'], row: CategoryGridRow) =>
-          formatDateTime(row.createdAt),
+          formatDate(row.createdAt),
       },
     ]
 
@@ -122,6 +123,7 @@ export function CategoriesGrid({
       searchWidth={280}
       searchPlaceholder="Buscar categoría…"
       searchKeys={['name', 'description']}
+      toolbarRight={toolbarRight}
       paging={paging}
       onPageChange={onPageChange}
       onPageSizeChange={onPageSizeChange}

@@ -49,7 +49,7 @@ public sealed partial class SmtpEmailSender : IEmailSender
         }
 
         var logProtocol = _configuration.GetValue("Smtp:ProtocolLogEnabled", false);
-        await SendMimeMessageAsync(config, message.ToAddress, message.ToDisplayName, message.Subject, message.PlainTextBody, message.HtmlBody, ct, logProtocol)
+        await SendMimeMessageAsync(config, message.ToAddress, message.ToDisplayName, message.Subject, message.PlainTextBody, message.HtmlBody, ct, logProtocol, message.Attachments)
             .ConfigureAwait(false);
     }
 
@@ -139,7 +139,8 @@ public sealed partial class SmtpEmailSender : IEmailSender
         string plainTextBody,
         string? htmlBody,
         CancellationToken ct,
-        bool logProtocol = false)
+        bool logProtocol = false,
+        IReadOnlyList<EmailAttachment>? attachments = null)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(20));
@@ -152,7 +153,7 @@ public sealed partial class SmtpEmailSender : IEmailSender
 
         try
         {
-            await SendSingleMimeMessageAsync(config, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, timeoutToken).ConfigureAwait(false);
+            await SendSingleMimeMessageAsync(config, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, timeoutToken, attachments).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is SmtpCommandException or AuthenticationException or OperationCanceledException || ex.Message.Contains("535", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("Authentication", StringComparison.OrdinalIgnoreCase))
         {
@@ -166,12 +167,12 @@ public sealed partial class SmtpEmailSender : IEmailSender
             if (string.Equals(config.Host, "smtp.zoho.com", StringComparison.OrdinalIgnoreCase))
             {
                 var altConfig = config with { Host = "smtppro.zoho.com" };
-                await SendSingleMimeMessageAsync(altConfig, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, timeoutToken).ConfigureAwait(false);
+                await SendSingleMimeMessageAsync(altConfig, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, timeoutToken, attachments).ConfigureAwait(false);
             }
             else if (string.Equals(config.Host, "smtppro.zoho.com", StringComparison.OrdinalIgnoreCase))
             {
                 var altConfig = config with { Host = "smtp.zoho.com" };
-                await SendSingleMimeMessageAsync(altConfig, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, timeoutToken).ConfigureAwait(false);
+                await SendSingleMimeMessageAsync(altConfig, toAddress, toDisplayName, subject, plainTextBody, htmlBody, protocolLogger, timeoutToken, attachments).ConfigureAwait(false);
             }
             else
             {
@@ -205,7 +206,8 @@ public sealed partial class SmtpEmailSender : IEmailSender
         string plainTextBody,
         string? htmlBody,
         ProtocolLogger? protocolLogger,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyList<EmailAttachment>? attachments = null)
     {
         using var client = protocolLogger is not null
             ? new SmtpClient(protocolLogger)
@@ -242,6 +244,23 @@ public sealed partial class SmtpEmailSender : IEmailSender
         else
         {
             bodyBuilder.TextBody = plainTextBody;
+        }
+
+        if (attachments is { Count: > 0 })
+        {
+            foreach (var attachment in attachments)
+            {
+                if (attachment.Content.Length == 0 || string.IsNullOrWhiteSpace(attachment.FileName))
+                {
+                    continue;
+                }
+
+                var contentType = ContentType.TryParse(attachment.ContentType, out var parsed)
+                    ? parsed
+                    : new ContentType("application", "octet-stream");
+
+                bodyBuilder.Attachments.Add(attachment.FileName, attachment.Content, contentType);
+            }
         }
 
         mime.Body = bodyBuilder.ToMessageBody();

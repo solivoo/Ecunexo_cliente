@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DataGrid, type ColumnDef } from 'glubox'
 import { Eye, KeyRound, Pencil, Trash2 } from 'lucide-react'
@@ -6,7 +6,7 @@ import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import type { RoleListItemDto } from '@/types/identityApi'
 
 export type RoleGridRow = RoleListItemDto & Record<string, unknown>
@@ -16,6 +16,7 @@ export type RolesGridProps = {
   readonly loading?: boolean
   readonly actionBusyId?: string | null
   readonly onDelete?: (row: RoleGridRow) => void
+  readonly toolbarRight?: ReactNode
 }
 
 const gridMessages = createSpanishDataGridMessages('rol', 'roles')
@@ -25,6 +26,7 @@ export function RolesGrid({
   loading = false,
   actionBusyId = null,
   onDelete,
+  toolbarRight,
 }: RolesGridProps) {
   const navigate = useNavigate()
   const canManage = useHasPermission('identity.roles.manage')
@@ -51,19 +53,23 @@ export function RolesGrid({
       },
       {
         key: 'isSystem',
-        header: 'Sistema',
-        width: 110,
+        header: 'Origen',
+        width: 120,
         sortable: true,
         renderCell: (_value: RoleGridRow['isSystem'], row: RoleGridRow) =>
-          row.isSystem ? 'Sí' : 'No',
+          row.isSystem ? (
+            <span className="ecu-chip">Sistema</span>
+          ) : (
+            <span className="ecu-source">Empresa</span>
+          ),
       },
       {
         key: 'createdAt',
         header: 'Alta',
-        width: 170,
+        width: 110,
         sortable: true,
         renderCell: (_value: RoleGridRow['createdAt'], row: RoleGridRow) =>
-          formatDateTime(row.createdAt),
+          formatDate(row.createdAt),
       },
       {
         key: 'id',
@@ -135,6 +141,7 @@ export function RolesGrid({
       showSearch
       searchPosition="left"
       searchWidth={280}
+      toolbarRight={toolbarRight}
       paging={paging}
       onPageChange={onPageChange}
       onPageSizeChange={onPageSizeChange}

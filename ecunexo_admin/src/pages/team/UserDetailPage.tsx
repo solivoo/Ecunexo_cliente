@@ -4,16 +4,14 @@ import { Button, Popup, useToast, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   PageHeader,
-  StatCard,
   SectionCard,
-  StatusBadge,
+  GridToolbarRefresh,
 } from '@/components/ui'
-import { UserRound } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate, formatDateTime } from '@/lib/formatDate'
 import { readApiError } from '@/lib/readApiError'
 import { getTenantUser, listPermissions, listTenantRoles, setTenantUserDisabled, deleteTenantUser } from '@/services/identityApi'
 import { selectTenantId, selectUserId } from '@/store/authSlice'
@@ -124,13 +122,6 @@ export function UserDetailPage() {
     ]
     if (canUpdate) {
       items.push({
-        id: 'edit',
-        label: 'Editar',
-        icon: 'pencil',
-        route: `/equipo/usuarios/${userId}/editar`,
-        disabled: false,
-      })
-      items.push({
         id: 'password',
         label: 'Restablecer contraseña',
         icon: 'key',
@@ -159,21 +150,6 @@ export function UserDetailPage() {
         disabledReason: isSelf ? 'No puedes eliminarte a ti mismo' : null,
       })
     }
-    if (canAssignRole) {
-      items.push({
-        id: 'assign',
-        label: 'Asignar rol',
-        icon: 'shield',
-        route: `/equipo/usuarios/${userId}/roles/asignar`,
-        disabled: user?.isCompanyOwner === true || assignableCount === 0,
-        disabledReason:
-          user?.isCompanyOwner === true
-            ? 'El administrador raíz no puede cambiar de rol'
-            : assignableCount === 0
-              ? 'No hay roles disponibles para asignar'
-              : null,
-      })
-    }
     items.push(
       {
         id: 'roles',
@@ -181,35 +157,20 @@ export function UserDetailPage() {
         icon: 'shield-check',
         route: '/equipo/roles',
         disabled: false,
-      },
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        route: null,
-        disabled: loading,
       }
     )
     return items
   }, [
     actionBusy,
-    assignableCount,
-    canAssignRole,
     canDelete,
     canUpdate,
     currentUserId,
-    loading,
-    user?.isCompanyOwner,
     user?.isDisabled,
     userId,
   ])
 
   const handleActionSelect = useCallback(
     (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-        return
-      }
       if (item.id === 'toggle-disabled' && tenantId && user) {
         void (async () => {
           setActionBusy(true)
@@ -265,23 +226,20 @@ export function UserDetailPage() {
 
   return (
     <TenantSessionGate title="Usuario" lead="Ficha, roles y permisos efectivos.">
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageLoadState loading={loading && !user} error={error} empty={!user && !loading}>
           {user ? (
             <>
               <PageHeader
                 title={user.name}
-                subtitle={`${user.email}${user.jobTitle ? ` · ${user.jobTitle}` : ''}${user.department ? ` (${user.department})` : ''}`}
-                badge={
-                  <StatusBadge
-                    tone={user.isDisabled ? 'danger' : 'success'}
-                    withDot
-                  >
-                    {user.isDisabled ? 'Deshabilitado' : 'Activo'}
-                  </StatusBadge>
-                }
+                subtitle={user.email}
                 actions={
                   <>
+                    <GridToolbarRefresh
+                      loading={loading}
+                      onRefresh={() => void load()}
+                      label="Actualizar ficha"
+                    />
                     {canUpdate && (
                       <Button
                         type="button"
@@ -312,89 +270,60 @@ export function UserDetailPage() {
                 }
               />
 
-              <div className="ecu-stat-grid" aria-label="Resumen del usuario">
-                <StatCard
-                  label="Estado de Cuenta"
-                  value={user.isDisabled ? 'Deshabilitado' : 'Activo'}
-                  icon={user.isDisabled ? 'person_off' : 'how_to_reg'}
-                  toneColor={user.isDisabled ? '#dc2626' : '#059669'}
-                  badge={
-                    <StatusBadge tone={user.isDisabled ? 'danger' : 'success'}>
-                      {user.isDisabled ? 'Sin acceso' : 'Habilitado'}
-                    </StatusBadge>
-                  }
-                  footerText={user.isCompanyOwner ? 'Administrador principal' : 'Cuenta de usuario'}
-                />
-                <StatCard
-                  label="Roles Asignados"
-                  value={user.roleIds.length}
-                  icon="shield"
-                  toneColor="#4f46e5"
-                  footerText="Perfiles asociados"
-                />
-                <StatCard
-                  label="Permisos Efectivos"
-                  value={user.effectivePermissionCodes.length}
-                  icon="key"
-                  toneColor="#0284c7"
-                  footerText="Directivas en runtime"
-                />
-                <StatCard
-                  label="Último Acceso"
-                  value={user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Sin registro'}
-                  icon="history"
-                  toneColor="#7c3aed"
-                  footerText="Historial de ingreso"
-                />
-              </div>
-
-              <SectionCard
-                title={
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <UserRound size={18} strokeWidth={1.75} aria-hidden /> Datos de Perfil y Contacto
-                  </span>
-                }
-                subtitle="Información de identidad y departamento en esta empresa"
-              >
-                <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
-                  <div className="ecu-companies-form__field">
-                    <p className="ecu-companies-page__metric-label">Departamento</p>
-                    <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
-                      {user.department ?? '—'}
-                    </p>
+              <SectionCard title="Perfil" bodyClassName="ecu-section-card__body--padded">
+                <div className="ecu-property-grid">
+                  <div className="ecu-property-tile">
+                    <span className="ecu-property-tile__label">Estado</span>
+                    <span className="ecu-property-tile__value">
+                      <span
+                        className={`ecu-status ${
+                          user.isDisabled ? 'ecu-status--inactive' : 'ecu-status--active'
+                        }`}
+                      >
+                        <span className="ecu-status__dot" aria-hidden />
+                        {user.isDisabled ? 'Deshabilitado' : 'Activo'}
+                      </span>
+                    </span>
                   </div>
-                  <div className="ecu-companies-form__field">
-                    <p className="ecu-companies-page__metric-label">Teléfono</p>
-                    <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
-                      {user.phone ?? '—'}
-                    </p>
+                  <div className="ecu-property-tile">
+                    <span className="ecu-property-tile__label">Departamento</span>
+                    <span className="ecu-property-tile__value">{user.department ?? '—'}</span>
                   </div>
-                  <div className="ecu-companies-form__field">
-                    <p className="ecu-companies-page__metric-label">Puesto o Cargo</p>
-                    <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
-                      {user.jobTitle ?? '—'}
-                    </p>
+                  <div className="ecu-property-tile">
+                    <span className="ecu-property-tile__label">Puesto o cargo</span>
+                    <span className="ecu-property-tile__value">{user.jobTitle ?? '—'}</span>
                   </div>
-                  <div className="ecu-companies-form__field">
-                    <p className="ecu-companies-page__metric-label">Correo Electrónico</p>
-                    <p className="ecu-companies-page__metric-value ecu-companies-page__metric-value--sm">
-                      {user.email}
-                    </p>
+                  <div className="ecu-property-tile">
+                    <span className="ecu-property-tile__label">Teléfono</span>
+                    <span className="ecu-property-tile__value">{user.phone ?? '—'}</span>
+                  </div>
+                  <div className="ecu-property-tile">
+                    <span className="ecu-property-tile__label">Último acceso</span>
+                    <span className="ecu-property-tile__value">
+                      {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Sin registro'}
+                    </span>
+                  </div>
+                  <div className="ecu-property-tile">
+                    <span className="ecu-property-tile__label">Alta</span>
+                    <span className="ecu-property-tile__value">{formatDate(user.createdAt)}</span>
+                  </div>
+                  <div className="ecu-property-tile ecu-property-tile--full">
+                    <span className="ecu-property-tile__label">Perfil</span>
+                    <span className="ecu-property-tile__value">
+                      {user.isCompanyOwner ? 'Administrador principal' : 'Cuenta de usuario'}
+                    </span>
                   </div>
                 </div>
               </SectionCard>
 
-              <SectionCard
-                title="Roles de Seguridad"
-                subtitle="Herencia de directivas y privilegios. Agrega más roles desde las acciones de página."
-              >
+              <SectionCard title="Roles de seguridad" bodyClassName="ecu-section-card__body--padded">
                 {user.roleIds.length === 0 ? (
-                  <p className="app-shell__muted">Sin roles asignados actualmente.</p>
+                  <span className="ecu-hint">Sin roles asignados.</span>
                 ) : (
                   <ul className="ecu-plan-page__chips" aria-label="Roles asignados">
                     {user.roleIds.map((rid) => (
                       <li key={rid}>
-                        <Link to={`/equipo/roles/${rid}`} className="ecu-plan-page__chip">
+                        <Link to={`/equipo/roles/${rid}`} className="ecu-chip ecu-chip--accent">
                           {roleNameById.get(rid) ?? rid}
                         </Link>
                       </li>
@@ -403,12 +332,11 @@ export function UserDetailPage() {
                 )}
               </SectionCard>
 
-              <SectionCard
-                title="Matriz de Permisos Efectivos"
-                subtitle="Unión consolidada de capacidades calculadas en tiempo de ejecución para este usuario"
-              >
+              <SectionCard title="Permisos efectivos">
                 {permissionRows.length === 0 ? (
-                  <p className="app-shell__muted">No cuenta con directivas asignadas.</p>
+                  <div className="ecu-section-card__body--padded">
+                    <span className="ecu-hint">No cuenta con directivas asignadas.</span>
+                  </div>
                 ) : (
                   <EffectivePermissionsGrid rows={permissionRows} loading={loading} />
                 )}

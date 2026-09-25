@@ -1,8 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { DataGrid, Popup, useToast, type ColumnDef } from 'glubox'
-import { Ban, Eye, FileCode, FileText, Send, Trash2 } from 'lucide-react'
+import { Ban, Eye, FileCode, FileText, Mail, Send, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
@@ -14,6 +15,7 @@ import {
 } from '@/pages/facturacion/invoiceDownloads'
 import { InvoiceRidePreviewPopup } from '@/pages/facturacion/InvoiceRidePreviewPopup'
 import { resendInvoiceAndWait, voidInvoiceAndWait } from '@/pages/facturacion/invoiceEmitApi'
+import { sendAuthorizedInvoiceEmail } from '@/pages/facturacion/invoiceEmail'
 import { formatMoney } from '@/pages/facturacion/invoiceFormTypes'
 import {
   invoiceStateLabel,
@@ -42,14 +44,11 @@ export type FacturasGridProps = {
 
 const gridMessages = createSpanishDataGridMessages('comprobante', 'comprobantes')
 
-function StatusBadge({
-  label,
-  tone,
-}: {
-  readonly label: string
-  readonly tone: ReturnType<typeof invoiceStateTone>
-}) {
-  return <span className={`ecu-invoice-status ecu-invoice-status--${tone}`}>{label}</span>
+function invoiceStatusClass(tone: ReturnType<typeof invoiceStateTone>): string {
+  if (tone === 'success') return 'ecu-status--active'
+  if (tone === 'danger') return 'ecu-status--danger'
+  if (tone === 'warning' || tone === 'info') return 'ecu-status--warning'
+  return 'ecu-status--inactive'
 }
 
 export function FacturasGrid({
@@ -64,7 +63,7 @@ export function FacturasGrid({
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
   const [busyId, setBusyId] = useState<string | null>(null)
   const [busyAction, setBusyAction] = useState<
-    'preview' | 'xml' | 'ride' | 'resend' | 'void' | 'delete' | null
+    'preview' | 'xml' | 'ride' | 'email' | 'resend' | 'void' | 'delete' | null
   >(null)
   const [ridePrint, setRidePrint] = useState<RidePdfResult | null>(null)
   const [previewRide, setPreviewRide] = useState<RidePdfResult | null>(null)
@@ -80,6 +79,7 @@ export function FacturasGrid({
         header: 'Fecha',
         width: 110,
         sortable: true,
+        renderCell: (_v, row) => formatDate(row.issueDate),
       },
       {
         key: 'establishment',
@@ -96,22 +96,29 @@ export function FacturasGrid({
       {
         key: 'sequential',
         header: 'Secuencial',
-        width: 110,
+        width: 120,
         sortable: true,
+        renderCell: (_v, row) => <code className="ecu-code">{row.sequential}</code>,
       },
       {
         key: 'documentType',
         header: 'Tipo',
-        width: 70,
+        width: 80,
         sortable: true,
-        renderCell: (_v, row) => (row.documentType === '04' ? 'NC' : 'Factura'),
+        renderCell: (_v, row) => (
+          <span className="ecu-chip">{row.documentType === '04' ? 'NC' : 'Factura'}</span>
+        ),
       },
       {
         key: 'counterpartyName',
         header: 'Cliente',
         width: 180,
         sortable: true,
-        renderCell: (_v, row) => <strong>{row.counterpartyName}</strong>,
+        renderCell: (_v, row) => (
+          <strong className="ecu-clip" title={row.counterpartyName}>
+            {row.counterpartyName}
+          </strong>
+        ),
       },
       {
         key: 'grandTotal',
@@ -127,22 +134,30 @@ export function FacturasGrid({
         width: 130,
         sortable: true,
         renderCell: (_v, row) => (
-          <StatusBadge
-            label={row.isVoided ? 'Anulada' : invoiceStateLabel(row.state)}
-            tone={row.isVoided ? 'warning' : invoiceStateTone(row.state)}
-          />
+          <span
+            className={`ecu-status ${invoiceStatusClass(
+              row.isVoided ? 'warning' : invoiceStateTone(row.state)
+            )}`}
+          >
+            <span className="ecu-status__dot" aria-hidden />
+            {row.isVoided ? 'Anulada' : invoiceStateLabel(row.state)}
+          </span>
         ),
       },
       {
         key: 'sriTransmissionState',
         header: 'SRI',
-        width: 120,
+        width: 130,
         sortable: true,
         renderCell: (_v, row) => (
-          <StatusBadge
-            label={sriTransmissionLabel(row.sriTransmissionState)}
-            tone={sriTransmissionTone(row.sriTransmissionState)}
-          />
+          <span
+            className={`ecu-status ${invoiceStatusClass(
+              sriTransmissionTone(row.sriTransmissionState)
+            )}`}
+          >
+            <span className="ecu-status__dot" aria-hidden />
+            {sriTransmissionLabel(row.sriTransmissionState)}
+          </span>
         ),
       },
       {
@@ -153,12 +168,7 @@ export function FacturasGrid({
         renderCell: (_v, row) => {
           const env = sriEnvironmentInfo(row.accessKey)
           return (
-            <span
-              title={env.tooltip}
-              className={`ecu-invoice-status ecu-invoice-status--${env.tone}`}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-            >
-              {env.isTest ? '🧪 ' : env.isProduction ? '🚀 ' : ''}
+            <span className="ecu-chip" title={env.tooltip}>
               {env.label}
             </span>
           )
@@ -168,13 +178,20 @@ export function FacturasGrid({
         key: 'invoiceId',
         header: 'Acciones',
         sticky: 'right',
-        width: canOperateInvoice ? 200 : 132,
+        width: canOperateInvoice ? 240 : 132,
         align: 'center',
         sortable: false,
         renderCell: (_v, row) => {
           const busy = busyId === row.invoiceId
           const canResend = Boolean(canOperateInvoice && row.canResend && emitterId)
           const canVoid = Boolean(canOperateInvoice && row.canVoid && emitterId)
+          const canEmail = Boolean(
+            canOperateInvoice &&
+              emitterId &&
+              row.state === 'Authorized' &&
+              !row.isVoided &&
+              row.documentType !== '04'
+          )
           const isDraft = row.state === 'Draft'
           const resendTitle = !canOperateInvoice
             ? 'Se requiere permiso para emitir (facturacion.facturas.create)'
@@ -274,6 +291,46 @@ export function FacturasGrid({
               />
               {canOperateInvoice ? (
                 <GridIconButton
+                  label="Reenviar correo al cliente"
+                  icon={Mail}
+                  disabled={busy || !canEmail}
+                  loading={busy && busyAction === 'email'}
+                  title={
+                    canEmail
+                      ? 'Enviar RIDE PDF y XML al correo del cliente'
+                      : 'Solo facturas autorizadas con correo del cliente'
+                  }
+                  onClick={() => {
+                    if (!emitterId || !canEmail) return
+                    setBusyId(row.invoiceId)
+                    setBusyAction('email')
+                    void sendAuthorizedInvoiceEmail({ emitterId, invoiceId: row.invoiceId })
+                      .then((r) => {
+                        toast.show({
+                          title: 'Correo enviado',
+                          message: `RIDE y XML enviados a ${r.to}.`,
+                          variant: 'success',
+                        })
+                      })
+                      .catch((err: unknown) => {
+                        toast.show({
+                          title: 'Correo al cliente',
+                          message: readApiError(
+                            err,
+                            'No se pudo enviar el correo con RIDE y XML.'
+                          ),
+                          variant: 'error',
+                        })
+                      })
+                      .finally(() => {
+                        setBusyId(null)
+                        setBusyAction(null)
+                      })
+                  }}
+                />
+              ) : null}
+              {canOperateInvoice ? (
+                <GridIconButton
                   label={resendLabel}
                   icon={Send}
                   disabled={busy || !canResend}
@@ -309,6 +366,14 @@ export function FacturasGrid({
                                 ? 'warning'
                                 : 'error',
                         })
+                        if (r.emailStatus === 'failed') {
+                          toast.show({
+                            title: 'Correo al cliente',
+                            message:
+                              'La factura se autorizó, pero no se pudo enviar el correo con RIDE y XML.',
+                            variant: 'warning',
+                          })
+                        }
                         onResent?.()
                       })
                       .catch((err: unknown) => {

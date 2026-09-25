@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Popup, useToast, type PageActionItem } from 'glubox'
 import {
@@ -8,6 +8,7 @@ import {
   SectionCard,
   StatusBadge,
   EmptyState,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -64,33 +65,15 @@ export function CategoriesListPage() {
     void load({ silent: true })
   }, [canRead, load])
 
-  const actionItems = useMemo<PageActionItem[]>(() => {
-    const items: PageActionItem[] = []
-    items.push(
-      {
-        id: 'items',
-        label: 'Ítems',
-        icon: 'package',
-        route: '/catalogo/items',
-        disabled: false,
-      },
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        route: null,
-        disabled: loading,
-      }
-    )
-    return items
-  }, [canManage, loading])
-
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') void load()
+  const actionItems: PageActionItem[] = [
+    {
+      id: 'items',
+      label: 'Ítems',
+      icon: 'package',
+      route: '/catalogo/items',
+      disabled: false,
     },
-    [load]
-  )
+  ]
 
   const handleDelete = useCallback(async () => {
     if (!tenantId || !canManage || !confirmDelete) return
@@ -142,66 +125,19 @@ export function CategoriesListPage() {
       title="Categorías"
       lead="Clasifican ítems y pueden definir un molde de atributos dinámicos."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-catalog-page">
         <PageHeader
           title="Categorías del Catálogo"
-          subtitle="Clasificación taxonómica de productos y servicios. Permiten estructurar jerarquías y definir atributos personalizados dinámicos para los ítems."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {rows.length} {rows.length === 1 ? 'Categoría' : 'Categorías'}
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {canManage && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/catalogo/categorias/nueva')}
-                >
-                  + Nueva Categoría
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de categorías"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
-              />
-            </>
-          }
+          subtitle="Clasificación de productos y servicios. Cada familia puede definir atributos propios."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de categorías">
-          <StatCard
-            label="Total Categorías"
-            value={rows.length}
-            icon="category"
-            toneColor="#4f46e5"
-            footerText="Familias registradas"
-          />
-          <StatCard
-            label="Con Atributos Extra"
-            value={withSchema}
-            icon="schema"
-            toneColor="#0ea5e9"
-            footerText="Moldes dinámicos definidos"
-          />
-          <StatCard
-            label="Categorías Raíz"
-            value={roots}
-            icon="account_tree"
-            toneColor="#10b981"
-            footerText="Nivel superior en árbol"
-          />
+          <StatCard label="Categorías" value={rows.length} />
+          <StatCard label="Con atributos" value={withSchema} />
+          <StatCard label="Raíz" value={roots} />
         </div>
 
-        <SectionCard
-          title="Estructura de Categorías"
-          subtitle="Árbol de familias y configuración de moldes adicionales para ítems"
-        >
+        <SectionCard title="Estructura">
           {error ? (
             <div className="ecu-form-error-banner" role="alert">
               <span className="material-symbols-outlined">error</span>
@@ -213,7 +149,7 @@ export function CategoriesListPage() {
             <EmptyState
               icon="folder_tree"
               title="Aún no hay categorías registradas"
-              description="Las categorías te permiten organizar el catálogo y solicitar campos específicos como talla, color o material al registrar productos."
+              description="Organiza el catálogo en familias y solicita campos como talla, color o material."
               action={
                 canManage ? (
                   <Button
@@ -234,6 +170,27 @@ export function CategoriesListPage() {
               canDelete={canManage}
               deletingId={deletingId}
               onDelete={setConfirmDelete}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canManage && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/catalogo/categorias/nueva')}
+                    >
+                      + Nueva Categoría
+                    </Button>
+                  )}
+                  <EcuPageActions
+                    items={actionItems}
+                    variant="outline"
+                    triggerLabel="Acciones de categorías"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
+                  />
+                </div>
+              }
             />
           )}
         </SectionCard>

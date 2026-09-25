@@ -343,7 +343,7 @@ export function PurchaseSettlementCreatePage() {
   if (!canIssue) {
     return (
       <TenantSessionGate title="Nueva Liquidación de Compra" lead="Emisión de comprobante SRI Tipo 03.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="No cuentas con permisos suficientes para emitir liquidaciones de compra."
@@ -359,7 +359,7 @@ export function PurchaseSettlementCreatePage() {
       title="Nueva Liquidación de Compra"
       lead="Emisión de liquidaciones de compra de bienes y servicios (SRI Tipo 03) conforme al Art. 48 RCVR."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Nueva Liquidación de Compra"
           subtitle="Comprobante fiscal emitido por el comprador a personas naturales no obligadas a tener RUC (mano de obra ocasional, artesanos, productores agrícolas)."

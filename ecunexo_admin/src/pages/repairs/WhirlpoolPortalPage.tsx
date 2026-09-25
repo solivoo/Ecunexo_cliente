@@ -4,6 +4,7 @@ import { Button, DataGrid, Select, TextBox, useToast, type ColumnDef, type PageA
 import {
   EcuPageActions,
   EmptyState,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
@@ -31,12 +32,11 @@ import {
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
-  damageLevelBadgeTone,
   damageLevelLabel,
   photoStageLabel,
-  repairBatchStatusBadgeTone,
+  RepairBatchStatus,
   repairBatchStatusLabel,
-  repairEquipmentStatusBadgeTone,
+  RepairEquipmentStatus,
   repairEquipmentStatusLabel,
   type BatchListItemDto,
   type RepairCustomerDto,
@@ -52,6 +52,33 @@ type EquipmentRow = RepairEquipmentDto & {
 } & Record<string, unknown>
 
 const messages = createSpanishDataGridMessages('lote', 'lotes')
+
+function batchStatusClass(status: BatchListItemDto['status']): string {
+  if (status === RepairBatchStatus.Cancelled) return 'ecu-status--danger'
+  if (status === RepairBatchStatus.InProgress || status === RepairBatchStatus.PartiallyDispatched) {
+    return 'ecu-status--warning'
+  }
+  if (status === RepairBatchStatus.Completed) return 'ecu-status--active'
+  return 'ecu-status--inactive'
+}
+
+function equipmentStatusClass(status: RepairEquipmentDto['status']): string {
+  switch (status) {
+    case RepairEquipmentStatus.ReadyToDispatch:
+    case RepairEquipmentStatus.Dispatched:
+      return 'ecu-status--active'
+    case RepairEquipmentStatus.Diagnosing:
+    case RepairEquipmentStatus.InRepair:
+    case RepairEquipmentStatus.QualityCheck:
+    case RepairEquipmentStatus.ReturnedClient:
+      return 'ecu-status--warning'
+    case RepairEquipmentStatus.Irreparable:
+    case RepairEquipmentStatus.ReturnedUnrepaired:
+      return 'ecu-status--danger'
+    default:
+      return 'ecu-status--inactive'
+  }
+}
 
 export function CorporatePortalPage() {
   const toast = useToast()
@@ -136,24 +163,8 @@ export function CorporatePortalPage() {
         disabled: false,
       })
     }
-    items.push({
-      id: 'refresh',
-      label: 'Actualizar',
-      icon: 'refresh-cw',
-      route: null,
-      disabled: loading,
-    })
     return items
-  }, [canReadBatches, canReadDispatches, loading])
-
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-      }
-    },
-    [load]
-  )
+  }, [canReadBatches, canReadDispatches])
 
   // KPIs
   const totals = useMemo(() => {
@@ -227,14 +238,14 @@ export function CorporatePortalPage() {
             style={{ fontWeight: 700, padding: 0, height: 'auto', color: 'var(--shell-primary)', justifyContent: 'flex-start' }}
             onClick={() => navigate(`/taller/lotes/${row.id}`)}
           >
-            {row.batchNumber}
+            <code className="ecu-code">{row.batchNumber}</code>
           </Button>
         ),
       },
       {
         key: 'receivedAt',
         header: 'Fecha Ingreso',
-        width: 130,
+        width: 120,
         sortable: true,
         renderCell: (_v: BatchRow['receivedAt'], row: BatchRow) => (
           <span>{formatDate(row.receivedAt)}</span>
@@ -283,9 +294,10 @@ export function CorporatePortalPage() {
         header: 'Estado',
         width: 140,
         renderCell: (_v: BatchRow['status'], row: BatchRow) => (
-          <StatusBadge tone={repairBatchStatusBadgeTone(row.status)} withDot>
+          <span className={`ecu-status ${batchStatusClass(row.status)}`}>
+            <span className="ecu-status__dot" aria-hidden />
             {repairBatchStatusLabel(row.status)}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -311,7 +323,7 @@ export function CorporatePortalPage() {
         title="Portal Corporativo B2B"
         lead="Auditoría y trazabilidad para clientes corporativos y marcas aliadas."
       >
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres el permiso repairs.b2b.portal.view para acceder al portal corporativo."
@@ -327,86 +339,22 @@ export function CorporatePortalPage() {
       title="Portal Corporativo B2B"
       lead="Supervisión en tiempo real de equipos en garantía y órdenes de reacondicionamiento."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Portal Corporativo B2B"
-          subtitle="Monitoreo en tiempo real de lotes en reacondicionamiento, disponibilidad inmediata para coordinación logística de transporte y verificación de series auditada."
-          badge={
-            <StatusBadge tone="info" withDot>
-              Auditoría B2B Certificada
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {customers.length > 1 && (
-                <Select
-                  id="portal-customer-filter"
-                  aria-label="Filtrar por empresa cliente"
-                  options={[
-                    { value: '', label: 'Todos los clientes' },
-                    ...customers.map((c) => ({ value: c.id, label: c.name })),
-                  ]}
-                  value={selectedCustomerId}
-                  onChange={handleCustomerChange}
-                  placeholder="Empresa cliente..."
-                  width="14rem"
-                />
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleDownloadReport}
-                disabled={downloadingReport}
-              >
-                <Download size={16} strokeWidth={2} aria-hidden />
-                {downloadingReport ? 'Generando...' : 'Descargar Informe Excel'}
-              </Button>
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de portal"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
-              />
-            </>
-          }
+          subtitle="Auditoría B2B certificada de lotes, series y disponibilidad de retiro."
         />
 
         <div className="ecu-stat-grid" aria-label="Métricas operativas corporativas">
-          <StatCard
-            label="Total Equipos Entregados"
-            value={totals.total}
-            icon="inventory_2"
-            toneColor="#4f46e5"
-            footerText="En custodia del taller"
-          />
-          <StatCard
-            label="En Mesa de Trabajo"
-            value={totals.inRepair}
-            icon="build"
-            toneColor="#f59e0b"
-            footerText="En fase de diagnóstico o chapa"
-          />
-          <StatCard
-            label="Listos para Retiro Inmediato"
-            value={totals.ready}
-            icon="verified"
-            toneColor="#10b981"
-            footerText="Coordinar transporte de retiro"
-          />
-          <StatCard
-            label="Nivel de Cumplimiento"
-            value={`${totals.efficiency}%`}
-            icon="task_alt"
-            toneColor="#3b82f6"
-            footerText="Tasa de equipos recuperados"
-          />
+          <StatCard label="Equipos en Taller" value={totals.total} />
+          <StatCard label="En Proceso" value={totals.inRepair} />
+          <StatCard label="Listos para Retiro" value={totals.ready} />
+          <StatCard label="Eficiencia (%)" value={totals.efficiency} />
         </div>
 
         <SectionCard
           title="Rastreo Instantáneo por Número de Serie"
-          subtitle="Consulta el estado exacto de cualquier electrodoméstico o equipo registrado en los lotes"
+          bodyClassName="ecu-section-card__body--padded"
         >
           <div className="ecu-portal-track__toolbar">
             <div className="ecu-portal-track__search">
@@ -442,9 +390,9 @@ export function CorporatePortalPage() {
             <>
               <div className="ecu-portal-track__results-head">
                 <h3 className="ecu-portal-track__results-title">Resultados</h3>
-                <StatusBadge tone={searchResults.length > 0 ? 'primary' : 'neutral'} withDot>
+                <span className="ecu-chip">
                   {searchResults.length} {searchResults.length === 1 ? 'equipo' : 'equipos'}
-                </StatusBadge>
+                </span>
               </div>
 
               {searchResults.length === 0 ? (
@@ -462,10 +410,8 @@ export function CorporatePortalPage() {
                       <li key={eq.id} className="ecu-portal-track__card">
                         <div className="ecu-portal-track__card-main">
                           <div className="ecu-portal-track__serial-row">
-                            <span className="ecu-portal-track__serial">{eq.serialNumber}</span>
-                            <StatusBadge tone={damageLevelBadgeTone(eq.damageLevel)}>
-                              {damageLevelLabel(eq.damageLevel)}
-                            </StatusBadge>
+                            <code className="ecu-code">{eq.serialNumber}</code>
+                            <span className="ecu-chip">{damageLevelLabel(eq.damageLevel)}</span>
                           </div>
 
                           <p className="ecu-portal-track__product">
@@ -476,15 +422,16 @@ export function CorporatePortalPage() {
                             {eq.batchNumber ? (
                               <li className="ecu-portal-track__meta-item">
                                 <span className="ecu-portal-track__meta-label">Lote</span>
-                                <span className="ecu-portal-track__meta-value">{eq.batchNumber}</span>
+                                <code className="ecu-code">{eq.batchNumber}</code>
                               </li>
                             ) : null}
                             {eq.batchStatus !== undefined ? (
                               <li className="ecu-portal-track__meta-item">
                                 <span className="ecu-portal-track__meta-label">Estado del lote</span>
-                                <StatusBadge tone={repairBatchStatusBadgeTone(eq.batchStatus)} withDot>
+                                <span className={`ecu-status ${batchStatusClass(eq.batchStatus)}`}>
+                                  <span className="ecu-status__dot" aria-hidden />
                                   {repairBatchStatusLabel(eq.batchStatus)}
-                                </StatusBadge>
+                                </span>
                               </li>
                             ) : null}
                           </ul>
@@ -531,9 +478,10 @@ export function CorporatePortalPage() {
                         </div>
 
                         <div className="ecu-portal-track__aside">
-                          <StatusBadge tone={repairEquipmentStatusBadgeTone(eq.status)} withDot>
+                          <span className={`ecu-status ${equipmentStatusClass(eq.status)}`}>
+                            <span className="ecu-status__dot" aria-hidden />
                             {repairEquipmentStatusLabel(eq.status)}
-                          </StatusBadge>
+                          </span>
                           <Button
                             type="button"
                             variant="primary"
@@ -553,10 +501,7 @@ export function CorporatePortalPage() {
         </SectionCard>
 
         {/* Lotes Activos Corporativos */}
-        <SectionCard
-          title="Lotes en Taller"
-          subtitle="Avance consolidado de los lotes entregados bajo contrato corporativo"
-        >
+        <SectionCard title="Lotes en Taller">
           {error && (
             <div className="ecu-form-error-banner mb-4" role="alert">
               <span className="material-symbols-outlined">error</span>
@@ -581,6 +526,41 @@ export function CorporatePortalPage() {
               searchPosition="left"
               searchWidth={260}
               searchPlaceholder="Filtrar lotes..."
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  {customers.length > 1 && (
+                    <Select
+                      id="portal-customer-filter"
+                      aria-label="Filtrar por empresa cliente"
+                      options={[
+                        { value: '', label: 'Todos los clientes' },
+                        ...customers.map((c) => ({ value: c.id, label: c.name })),
+                      ]}
+                      value={selectedCustomerId}
+                      onChange={handleCustomerChange}
+                      placeholder="Empresa cliente..."
+                      width="14rem"
+                    />
+                  )}
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleDownloadReport}
+                    disabled={downloadingReport}
+                  >
+                    <Download size={16} strokeWidth={2} aria-hidden />
+                    {downloadingReport ? 'Generando...' : 'Descargar Informe Excel'}
+                  </Button>
+                  <EcuPageActions
+                    items={actionItems}
+                    variant="outline"
+                    triggerLabel="Acciones de portal"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
+                  />
+                </div>
+              }
               loading={loading}
               paging={paging}
               pageSizeOptions={pageSizeOptions}
@@ -603,7 +583,7 @@ export function CorporatePortalPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <StatusBadge tone="info">{photoStageLabel(previewPhoto.stage)}</StatusBadge>
+                  <span className="ecu-chip">{photoStageLabel(previewPhoto.stage)}</span>
                   <span className="text-sm font-semibold text-[var(--glb-text)]">
                     {previewPhoto.caption || previewPhoto.fileName}
                   </span>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
+import { PageHeader, SectionCard } from '@/components/ui'
 import { ColorSwatch } from '@/features/organization/components/ColorSwatch'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { resolveAssetUrl } from '@/features/organization/resolveTenantMark'
@@ -49,11 +49,10 @@ export function OrganizationProfilePage() {
   }, [load])
 
   return (
-    <div className="ecu-dashboard-layout">
+    <div className="ecu-dashboard-layout ecu-section-page">
       <PageHeader
         title="Perfil y Branding"
-        subtitle="Identidad de la organización activa y datos de tu cuenta de usuario."
-        badge={<StatusBadge tone="primary">Organización</StatusBadge>}
+        subtitle="Identidad y datos de tu organización activa."
         actions={
           <Link
             to="/organizacion/facturacion-electronica"
@@ -69,7 +68,7 @@ export function OrganizationProfilePage() {
           <>
             <SectionCard
               title="Identidad de la Organización"
-              subtitle="Parámetros corporativos, zona horaria y branding visual"
+              bodyClassName="ecu-section-card__body--padded"
             >
               <dl className="ecu-dl">
                 <dt>Nombre de la empresa</dt>
@@ -109,7 +108,7 @@ export function OrganizationProfilePage() {
 
             <SectionCard
               title="Tu Cuenta de Usuario"
-              subtitle="Credenciales, contacto y roles asignados a tu sesión activa"
+              bodyClassName="ecu-section-card__body--padded"
             >
               <dl className="ecu-dl">
                 <dt>Nombre</dt>

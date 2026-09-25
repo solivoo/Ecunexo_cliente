@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
+import { PageHeader, SectionCard } from '@/components/ui'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { formatDateTime } from '@/lib/formatDate'
 import {
@@ -50,11 +50,10 @@ export function OrganizationSettingsPage() {
   }, [settings])
 
   return (
-    <div className="ecu-dashboard-layout">
+    <div className="ecu-dashboard-layout ecu-section-page">
       <PageHeader
         title="Configuración de la Organización"
-        subtitle="Metadatos de la organización y preferencias resueltas por la plataforma."
-        badge={<StatusBadge tone="neutral">Sistema</StatusBadge>}
+        subtitle="Datos y preferencias de la organización activa."
       />
 
       <PageLoadState loading={loading} error={error} empty={!tenant}>
@@ -62,7 +61,7 @@ export function OrganizationSettingsPage() {
           <>
             <SectionCard
               title="Metadatos de la Organización"
-              subtitle="Identificador único y marcas de tiempo del tenant"
+              bodyClassName="ecu-section-card__body--padded"
             >
               <dl className="ecu-dl">
                 <dt>Identificador</dt>
@@ -80,7 +79,7 @@ export function OrganizationSettingsPage() {
 
             <SectionCard
               title="Preferencias Resueltas"
-              subtitle="Parámetros efectivos activos para la sesión actual"
+              bodyClassName="ecu-section-card__body--padded"
             >
               {settingEntries.length > 0 ? (
                 <dl className="ecu-dl">

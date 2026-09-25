@@ -313,7 +313,7 @@ export function PurchaseProformaCreatePage() {
   if (!canManage) {
     return (
       <TenantSessionGate title="Proformas" lead="Gestión de cotizaciones comerciales de compra.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres permisos de compras para registrar proformas."
@@ -329,7 +329,7 @@ export function PurchaseProformaCreatePage() {
       title="Nueva Proforma de Compra"
       lead="Registra cotizaciones formales de proveedores con fecha de vencimiento y modalidad documental o desglosada."
     >
-      <div className="ecu-dashboard-layout" style={{ maxWidth: '1100px', margin: '0 auto' }}>
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page" style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <PageHeader
           title="Registrar Proforma / Cotización"
           subtitle="Documento comercial precontractual para comparar ofertas de proveedores antes de formalizar la compra."

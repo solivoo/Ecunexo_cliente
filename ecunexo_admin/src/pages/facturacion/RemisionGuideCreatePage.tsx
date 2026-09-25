@@ -247,7 +247,7 @@ export function RemisionGuideCreatePage() {
   if (!canCreate) {
     return (
       <TenantSessionGate title="Emitir Guía" lead="Emisión de comprobante de remisión.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Sin permiso para emitir guías de remisión (facturacion.guias.remision.create)."
@@ -263,7 +263,7 @@ export function RemisionGuideCreatePage() {
       title="Nueva Guía de Remisión"
       lead="Emisión de Guía de Remisión electrónica (SRI Tipo 06) conforme a la Ficha Técnica v2.32."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Emitir Guía de Remisión SRI"
           subtitle={

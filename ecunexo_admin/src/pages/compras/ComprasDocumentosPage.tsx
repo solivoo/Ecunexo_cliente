@@ -4,7 +4,6 @@ import { Button, DataGrid, Select, TextBox, useToast, type ColumnDef } from 'glu
 import {
   Eye,
   PackageCheck,
-  RefreshCw,
   UploadCloud,
 } from 'lucide-react'
 import {
@@ -13,11 +12,13 @@ import {
   SectionCard,
   StatCard,
   StatusBadge,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { listCatalogItems } from '@/services/catalogApi'
@@ -43,19 +44,19 @@ type PurchaseRow = PurchaseSummaryDto & Record<string, unknown> & { actions?: un
 
 function formatStatus(status: PurchaseStatus): {
   label: string
-  tone: 'neutral' | 'primary' | 'success' | 'danger' | 'warning'
+  variant: 'active' | 'warning' | 'danger'
 } {
   switch (status) {
     case 1:
-      return { label: 'Borrador', tone: 'neutral' }
+      return { label: 'Borrador', variant: 'warning' }
     case 2:
-      return { label: 'Mercadería Recibida', tone: 'success' }
+      return { label: 'Mercadería Recibida', variant: 'active' }
     case 3:
-      return { label: 'Facturado', tone: 'primary' }
+      return { label: 'Facturado', variant: 'active' }
     case 4:
-      return { label: 'Cancelado', tone: 'danger' }
+      return { label: 'Cancelado', variant: 'danger' }
     default:
-      return { label: 'Borrador', tone: 'neutral' }
+      return { label: 'Borrador', variant: 'warning' }
   }
 }
 
@@ -188,8 +189,8 @@ export function ComprasDocumentosPage() {
         sortable: true,
         renderCell: (_v: unknown, row: PurchaseRow) => (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{row.invoiceNumber}</span>
-            <span style={{ fontSize: '0.6875rem', color: 'var(--glb-muted, #64748b)' }}>
+            <code className="ecu-code">{row.invoiceNumber}</code>
+            <span className="ecu-source">
               {row.documentType === '01' ? 'Factura Electrónica' : `Doc. ${row.documentType}`}
             </span>
           </div>
@@ -202,18 +203,19 @@ export function ComprasDocumentosPage() {
         sortable: true,
         renderCell: (_v: unknown, row: PurchaseRow) => (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontWeight: 600 }}>{row.supplierBusinessName}</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #64748b)' }}>
-              RUC: {row.supplierTaxId}
+            <span className="ecu-clip ecu-clip--wide" style={{ fontWeight: 600 }}>
+              {row.supplierBusinessName}
             </span>
+            <span className="ecu-source">RUC: {row.supplierTaxId}</span>
           </div>
         ),
       },
       {
         key: 'issueDate',
         header: 'Fecha Emisión',
-        width: 120,
+        width: 110,
         sortable: true,
+        renderCell: (_v: unknown, row: PurchaseRow) => formatDate(row.issueDate),
       },
       {
         key: 'itemsCount',
@@ -221,19 +223,11 @@ export function ComprasDocumentosPage() {
         width: 140,
         renderCell: (_v: unknown, row: PurchaseRow) => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-            {row.affectsInventory === false ? (
-              <span className="ecu-tag ecu-tag--service" style={{ margin: 0, width: 'fit-content' }}>
-                💼 Servicio
-              </span>
-            ) : (
-              <span className="ecu-tag ecu-tag--goods" style={{ margin: 0, width: 'fit-content' }}>
-                📦 Bienes ({row.itemsCount})
-              </span>
-            )}
+            <span className="ecu-chip">
+              {row.affectsInventory === false ? 'Servicio' : `Bienes (${row.itemsCount})`}
+            </span>
             {row.expenseTypeName ? (
-              <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted)' }}>
-                {row.expenseTypeName}
-              </span>
+              <span className="ecu-source ecu-clip">{row.expenseTypeName}</span>
             ) : null}
           </div>
         ),
@@ -275,7 +269,12 @@ export function ComprasDocumentosPage() {
         sortable: true,
         renderCell: (_v: unknown, row: PurchaseRow) => {
           const s = formatStatus(row.status)
-          return <StatusBadge tone={s.tone} withDot>{s.label}</StatusBadge>
+          return (
+            <span className={`ecu-status ecu-status--${s.variant}`}>
+              <span className="ecu-status__dot" aria-hidden />
+              {s.label}
+            </span>
+          )
         },
       },
       {
@@ -319,7 +318,7 @@ export function ComprasDocumentosPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Compras" lead="Entra a una empresa para ver compras e inventario.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres permisos de compras o facturación para consultar las facturas de proveedores."
@@ -335,108 +334,24 @@ export function ComprasDocumentosPage() {
       title="Compras"
       lead="Gestión de adquisiciones a proveedores, parseo automático de XML del SRI e ingreso a inventario."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         {/* PageHeader adhering strictly to Rule 3 (no duplicate buttons in actions) */}
         <PageHeader
           title="Documentos y Facturas de Compra"
-          subtitle="Adquisiciones de bienes y servicios, parseo automático de comprobantes electrónicos SRI e ingreso directo a bodega."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              Módulo Compras
-            </StatusBadge>
-          }
-          actions={
-            canManage ? (
-              <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-                <Button
-                  variant="outline"
-                  onClick={() => void loadData()}
-                  disabled={loading}
-                >
-                  <RefreshCw size={15} className={loading ? 'ecu-spin' : ''} />
-                  Actualizar
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={() => navigate('/compras/documentos/importar')}
-                >
-                  <UploadCloud size={16} />
-                  Importar Facturas SRI (Lote / XML)
-                </Button>
-              </div>
-            ) : undefined
-          }
+          subtitle="Facturas de proveedores, parsing XML SRI e ingreso a bodega."
+          badge={<StatusBadge tone="neutral">Módulo Compras</StatusBadge>}
         />
 
         {/* KPI Strip */}
         <div className="ecu-stat-grid" aria-label="Resumen de facturas de compra">
-          <StatCard
-            label="Total Facturas"
-            value={String(kpis.totalPurchases)}
-            icon="shopping_bag"
-            toneColor="#4f46e5"
-            footerText="Registradas en el sistema"
-          />
-          <StatCard
-            label="Mercadería Recibida"
-            value={String(kpis.totalReceived)}
-            icon="inventory_2"
-            toneColor="#10b981"
-            footerText="Con ingreso físico a bodega"
-          />
-          <StatCard
-            label="En Borrador"
-            value={String(kpis.totalDraft)}
-            icon="description"
-            toneColor="#f59e0b"
-            footerText="Pendientes de recepcionar"
-          />
-          <StatCard
-            label="Total Facturado"
-            value={`$${kpis.totalBilledAmount.toFixed(2)}`}
-            icon="receipt_long"
-            toneColor="#8b5cf6"
-            footerText="Monto consolidado compras"
-          />
+          <StatCard label="Total Facturas" value={kpis.totalPurchases} />
+          <StatCard label="Mercadería Recibida" value={kpis.totalReceived} />
+          <StatCard label="En Borrador" value={kpis.totalDraft} />
+          <StatCard label="Total Facturado ($)" value={kpis.totalBilledAmount} />
         </div>
 
         {/* Section Container with DataGrid */}
-        <SectionCard
-          title="Facturas de Proveedores"
-          subtitle="Listado general de compras recibidas y autorizadas ante el SRI"
-          action={
-            <div
-              style={{
-                display: 'flex',
-                gap: '0.75rem',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-              }}
-            >
-              <div style={{ width: '220px' }}>
-                <TextBox
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar proveedor o factura..."
-                  variant="outline"
-                  size="sm"
-                  fullWidth
-                />
-              </div>
-
-              <div style={{ width: '200px' }}>
-                <Select
-                  value={statusFilter}
-                  options={statusOptions}
-                  onChange={(val: string) => setStatusFilter(val)}
-                  variant="outline"
-                  size="sm"
-                  fullWidth
-                />
-              </div>
-            </div>
-          }
-        >
+        <SectionCard title="Facturas de Proveedores">
           {purchases.length === 0 && !loading ? (
             <EmptyState
               icon="shopping_bag"
@@ -462,6 +377,40 @@ export function ComprasDocumentosPage() {
               columns={columns}
               selectionMode="none"
               showSearch={false}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <div style={{ width: '220px' }}>
+                    <TextBox
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Buscar proveedor o factura..."
+                      variant="outline"
+                      size="sm"
+                      fullWidth
+                    />
+                  </div>
+                  <div style={{ width: '200px' }}>
+                    <Select
+                      value={statusFilter}
+                      options={statusOptions}
+                      onChange={(val: string) => setStatusFilter(val)}
+                      variant="outline"
+                      size="sm"
+                      fullWidth
+                    />
+                  </div>
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void loadData()} />
+                  {canManage && (
+                    <Button
+                      variant="primary"
+                      onClick={() => navigate('/compras/documentos/importar')}
+                    >
+                      <UploadCloud size={16} />
+                      Importar Facturas SRI (Lote / XML)
+                    </Button>
+                  )}
+                </div>
+              }
               paging={paging}
               onPageChange={onPageChange}
               onPageSizeChange={onPageSizeChange}

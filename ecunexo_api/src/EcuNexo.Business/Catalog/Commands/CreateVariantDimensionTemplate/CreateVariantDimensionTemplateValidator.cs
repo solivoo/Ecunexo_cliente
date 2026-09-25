@@ -19,7 +19,8 @@ public sealed class CreateVariantDimensionTemplateValidator : AbstractValidator<
 
         RuleFor(c => c.PredefinedValuesJson)
             .NotEmpty()
-            .WithMessage("Los valores predefinidos son obligatorios.");
+            .When(c => c.IsVariantAxis)
+            .WithMessage("Los atributos que generan variantes con SKU deben incluir al menos un valor predefinido.");
 
         RuleFor(c => c.DataType)
             .Must(VariantDimensionTemplate.IsValidDataType)

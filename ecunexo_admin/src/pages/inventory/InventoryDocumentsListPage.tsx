@@ -8,6 +8,7 @@ import {
   SectionCard,
   StatusBadge,
   EmptyState,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { GridIconButton } from '@/components/ui/GridIconButton'
@@ -18,7 +19,7 @@ import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useGridDateRange } from '@/hooks/useGridDateRange'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { isoInstantInRange } from '@/lib/gridLookback'
 import { inventoryDocumentStatusLabel, inventoryDocumentTypeLabel } from '@/lib/inventoryLabels'
@@ -49,16 +50,16 @@ function isPendingReceipt(row: InventoryDocumentListItemDto): boolean {
   )
 }
 
-function getDocStatusBadgeTone(status: InventoryDocumentStatus) {
+function getDocStatusClass(status: InventoryDocumentStatus) {
   switch (status) {
     case InventoryDocumentStatus.Approved:
-      return 'success'
+      return 'ecu-status--active'
     case InventoryDocumentStatus.InTransit:
-      return 'warning'
+      return 'ecu-status--warning'
     case InventoryDocumentStatus.Cancelled:
-      return 'danger'
+      return 'ecu-status--danger'
     default:
-      return 'neutral'
+      return 'ecu-status--inactive'
   }
 }
 
@@ -184,17 +185,10 @@ export function InventoryDocumentsListPage() {
         icon: 'receipt',
         route: '/inventario/kardex',
         disabled: false,
-      },
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        route: null,
-        icon: 'refresh-cw',
-        disabled: loading,
       }
     )
     return items
-  }, [canCreate, loading])
+  }, [canCreate])
 
   const columns = useMemo(
     (): ColumnDef<Row>[] => [
@@ -204,9 +198,7 @@ export function InventoryDocumentsListPage() {
         width: 140,
         sortable: true,
         renderCell: (_v: Row['documentType'], row: Row) => (
-          <StatusBadge tone="neutral">
-            {inventoryDocumentTypeLabel(row.documentType)}
-          </StatusBadge>
+          <span className="ecu-chip">{inventoryDocumentTypeLabel(row.documentType)}</span>
         ),
       },
       {
@@ -215,12 +207,10 @@ export function InventoryDocumentsListPage() {
         width: 130,
         sortable: true,
         renderCell: (_v: Row['status'], row: Row) => (
-          <StatusBadge
-            tone={getDocStatusBadgeTone(row.status)}
-            withDot={row.status === InventoryDocumentStatus.Approved}
-          >
+          <span className={`ecu-status ${getDocStatusClass(row.status)}`}>
+            <span className="ecu-status__dot" aria-hidden />
             {inventoryDocumentStatusLabel(row.status)}
-          </StatusBadge>
+          </span>
         ),
       },
       {
@@ -231,11 +221,12 @@ export function InventoryDocumentsListPage() {
         renderCell: (_v: Row['warehouseName'], row: Row) =>
           row.destinationWarehouseName ? (
             <span>
-              {row.warehouseName} <span style={{ color: 'var(--shell-primary, #6366f1)' }}>→</span>{' '}
-              {row.destinationWarehouseName}
+              <span className="ecu-chip">{row.warehouseName}</span>{' '}
+              <span className="ecu-source" aria-hidden>→</span>{' '}
+              <span className="ecu-chip">{row.destinationWarehouseName}</span>
             </span>
           ) : (
-            <span>{row.warehouseName}</span>
+            <span className="ecu-chip">{row.warehouseName}</span>
           ),
       },
       {
@@ -248,10 +239,10 @@ export function InventoryDocumentsListPage() {
       },
       {
         key: 'createdAt',
-        header: 'Fecha de emisión',
-        width: 170,
+        header: 'Emisión',
+        width: 120,
         sortable: true,
-        renderCell: (_v: Row['createdAt'], row: Row) => formatDateTime(row.createdAt),
+        renderCell: (_v: Row['createdAt'], row: Row) => formatDate(row.createdAt),
       },
       {
         key: 'id',
@@ -286,7 +277,7 @@ export function InventoryDocumentsListPage() {
   if (!canRead) {
     return (
       <TenantSessionGate title="Documentos" lead="Recepciones y egresos logísticos.">
-        <div className="ecu-dashboard-layout">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
             subtitle="Requieres permisos de inventario para visualizar los documentos logísticos."
@@ -304,77 +295,21 @@ export function InventoryDocumentsListPage() {
       title="Documentos"
       lead="Recepciones, egresos y transferencias entre bodegas. El stock solo se modifica al aprobar o recibir."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Documentos de Inventario"
-          subtitle="Comprobantes de movimiento logístico. Despachar saca existencias del origen; recibir ingresa al destino. El stock formal solo cambia al aprobar."
-          badge={
-            <StatusBadge
-              tone={pendingReceipts.length > 0 ? 'warning' : 'primary'}
-              withDot={pendingReceipts.length > 0}
-            >
-              {rows.length} {rows.length === 1 ? 'Documento' : 'Documentos'}
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {canCreate && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/inventario/documentos/nuevo')}
-                >
-                  + Nuevo Documento
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de documentos"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={(item: PageActionItem) => {
-                  if (item.id === 'refresh') void load()
-                }}
-              />
-            </>
-          }
+          subtitle="Comprobantes logísticos de recepción, egreso y transferencia entre bodegas."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de documentos">
-          <StatCard
-            label="Total Documentos"
-            value={rows.length}
-            icon="file_copy"
-            toneColor="#4f46e5"
-            footerText="Registros globales"
-          />
-          <StatCard
-            label="Por Recibir"
-            value={pendingReceipts.length}
-            icon="local_shipping"
-            toneColor="#f59e0b"
-            footerText="Transferencias en camino"
-          />
-          <StatCard
-            label="Recepciones"
-            value={receipts}
-            icon="input"
-            toneColor="#10b981"
-            footerText="Entradas al almacén"
-          />
-          <StatCard
-            label="Borradores"
-            value={drafts.length}
-            icon="edit_note"
-            toneColor="#6b7280"
-            footerText="Pendientes de aprobación"
-          />
+          <StatCard label="Documentos" value={rows.length} />
+          <StatCard label="Por recibir" value={pendingReceipts.length} />
+          <StatCard label="Recepciones" value={receipts} />
+          <StatCard label="Borradores" value={drafts.length} />
         </div>
 
         <SectionCard
-          title="Historial de Documentos Logísticos"
-          subtitle="Comprobantes de movimiento de existencias, transferencias y ajustes físicos"
+          title="Historial"
           action={
             <OptionGroup
               id="inv-docs-queue"
@@ -445,13 +380,32 @@ export function InventoryDocumentsListPage() {
               searchPlaceholder="Buscar bodega o nota…"
               searchKeys={['warehouseName', 'destinationWarehouseName', 'notes']}
               toolbarRight={
-                <GridDateRangeBox
-                  from={from}
-                  to={to}
-                  lookback={lookback}
-                  disabled={loading}
-                  onChange={setRange}
-                />
+                <div className="ecu-grid-toolbar-actions">
+                  <GridDateRangeBox
+                    from={from}
+                    to={to}
+                    lookback={lookback}
+                    disabled={loading}
+                    onChange={setRange}
+                  />
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canCreate && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/inventario/documentos/nuevo')}
+                    >
+                      + Nuevo Documento
+                    </Button>
+                  )}
+                  <EcuPageActions
+                    items={actionItems}
+                    variant="outline"
+                    triggerLabel="Acciones de documentos"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
+                  />
+                </div>
               }
               paging={paging}
               onPageChange={onPageChange}

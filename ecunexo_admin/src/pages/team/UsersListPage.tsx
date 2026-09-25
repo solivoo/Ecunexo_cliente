@@ -6,8 +6,8 @@ import {
   PageHeader,
   StatCard,
   SectionCard,
-  StatusBadge,
   EmptyState,
+  GridToolbarRefresh,
 } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -116,36 +116,17 @@ export function UsersListPage() {
   }, [confirmDelete, load, tenantId, toast])
 
   const disabledCount = useMemo(() => rows.filter((r) => r.isDisabled).length, [rows])
+  const recentLoginCount = useMemo(() => rows.filter((r) => r.lastLoginAt).length, [rows])
 
-  const actionItems = useMemo<PageActionItem[]>(() => {
-    const items: PageActionItem[] = []
-    items.push(
-      {
-        id: 'roles',
-        label: 'Roles',
-        icon: 'shield',
-        route: '/equipo/roles',
-        disabled: false,
-      },
-      {
-        id: 'refresh',
-        label: 'Actualizar',
-        icon: 'refresh-cw',
-        route: null,
-        disabled: loading,
-      }
-    )
-    return items
-  }, [canCreate, loading])
-
-  const handleActionSelect = useCallback(
-    (item: PageActionItem) => {
-      if (item.id === 'refresh') {
-        void load()
-      }
+  const actionItems: PageActionItem[] = [
+    {
+      id: 'roles',
+      label: 'Roles',
+      icon: 'shield',
+      route: '/equipo/roles',
+      disabled: false,
     },
-    [load]
-  )
+  ]
 
   const isEmpty = !loading && rows.length === 0 && !error
 
@@ -154,85 +135,32 @@ export function UsersListPage() {
       title="Usuarios"
       lead="Alta de personas en la empresa y asignación de roles."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Gestión de Usuarios"
-          subtitle="Personas de esta empresa. Edita perfiles, asigna roles o gestiona el estado de acceso de cada cuenta."
-          badge={
-            <StatusBadge tone="primary" withDot>
-              {rows.length} {rows.length === 1 ? 'Usuario' : 'Usuarios'}
-            </StatusBadge>
-          }
-          actions={
-            <>
-              {canCreate && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => navigate('/equipo/usuarios/nueva')}
-                >
-                  + Nuevo Usuario
-                </Button>
-              )}
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de usuarios"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-                onActionSelect={handleActionSelect}
-              />
-            </>
-          }
+          subtitle="Personas de esta empresa. Perfiles, roles y estado de acceso."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de usuarios">
-          <StatCard
-            label="Total Cuentas"
-            value={rows.length}
-            icon="group"
-            toneColor="#4f46e5"
-            footerText="Usuarios en la empresa"
-          />
-          <StatCard
-            label="Usuarios Activos"
-            value={rows.length - disabledCount}
-            icon="how_to_reg"
-            toneColor="#059669"
-            badge={<StatusBadge tone="success">Habilitados</StatusBadge>}
-          />
-          <StatCard
-            label="Deshabilitados"
-            value={disabledCount}
-            icon="person_off"
-            toneColor="#dc2626"
-            badge={disabledCount > 0 ? <StatusBadge tone="danger">Sin acceso</StatusBadge> : undefined}
-            footerText={disabledCount === 0 ? 'Sin bajas registradas' : undefined}
-          />
-          <StatCard
-            label="Con Acceso Reciente"
-            value={rows.filter((r) => r.lastLoginAt).length}
-            icon="history"
-            toneColor="#0284c7"
-            footerText="Sesión registrada"
-          />
+          <StatCard label="Usuarios" value={rows.length} />
+          <StatCard label="Activos" value={rows.length - disabledCount} />
+          <StatCard label="Sin acceso" value={disabledCount} />
+          <StatCard label="Con acceso" value={recentLoginCount} />
         </div>
 
-        {error ? (
-          <p className="welcome-onboarding__error" role="alert">
-            {error}
-          </p>
-        ) : null}
+        <SectionCard title="Directorio">
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
+            </div>
+          ) : null}
 
-        <SectionCard
-          title="Directorio del Equipo"
-          subtitle="Listado general con credenciales, roles asignados y acciones de cuenta"
-        >
           {isEmpty ? (
             <EmptyState
               icon="group_add"
               title="Aún no hay usuarios registrados"
-              description="Crea el primer usuario para asignarle roles y permitirle operar dentro del entorno de esta empresa."
+              description="Crea el primer usuario para asignarle roles dentro de esta empresa."
               action={
                 canCreate ? (
                   <Button
@@ -260,6 +188,27 @@ export function UsersListPage() {
               onDisable={(u) => void setDisabled(u, true)}
               onEnable={(u) => void setDisabled(u, false)}
               onDelete={setConfirmDelete}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  {canCreate && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/equipo/usuarios/nueva')}
+                    >
+                      + Nuevo Usuario
+                    </Button>
+                  )}
+                  <EcuPageActions
+                    items={actionItems}
+                    variant="outline"
+                    triggerLabel="Acciones de usuarios"
+                    renderIcon={renderSidebarIcon}
+                    onNavigate={(route: string) => navigate(route)}
+                  />
+                </div>
+              }
             />
           )}
         </SectionCard>

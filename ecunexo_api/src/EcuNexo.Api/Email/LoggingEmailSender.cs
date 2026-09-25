@@ -17,18 +17,22 @@ public sealed partial class LoggingEmailSender : IEmailSender
 
     public Task SendAsync(EmailMessage message, CancellationToken ct)
     {
-        LogEmail(_logger, message.ToAddress, message.ToDisplayName, message.Subject, message.PlainTextBody);
+        var attachmentNames = message.Attachments is { Count: > 0 }
+            ? string.Join(", ", message.Attachments.Select(a => a.FileName))
+            : null;
+        LogEmail(_logger, message.ToAddress, message.ToDisplayName, message.Subject, message.PlainTextBody, attachmentNames);
         return Task.CompletedTask;
     }
 
     [LoggerMessage(
         EventId = 9101,
         Level = LogLevel.Information,
-        Message = "Email → To={ToAddress} ({ToDisplayName}) | Subject={Subject} | Body={Body}")]
+        Message = "Email → To={ToAddress} ({ToDisplayName}) | Subject={Subject} | Attachments={Attachments} | Body={Body}")]
     private static partial void LogEmail(
         ILogger logger,
         string toAddress,
         string toDisplayName,
         string subject,
-        string body);
+        string body,
+        string? attachments);
 }

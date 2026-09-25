@@ -5,9 +5,7 @@ import {
   EcuPageActions,
   PageHeader,
   SectionCard,
-  StatusBadge,
 } from '@/components/ui'
-import { Shield } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -173,15 +171,10 @@ export function EditRolePage() {
       title="Editar rol"
       lead="Corrige el nombre o la descripción. El identificador y permisos vinculados no cambian."
     >
-      <div className="ecu-dashboard-layout">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title={name ? `Editar Rol: ${name}` : 'Editar Rol'}
-          subtitle="Modifica el nombre y descripción del rol. Los permisos vinculados se mantienen intactos."
-          badge={
-            <StatusBadge tone={role?.isSystem ? 'success' : 'primary'} withDot>
-              {role?.isSystem ? 'Rol de Sistema' : 'Edición de Rol'}
-            </StatusBadge>
-          }
+          subtitle="Nombre y descripción del rol."
           actions={
             <>
               <Button
@@ -209,17 +202,15 @@ export function EditRolePage() {
           empty={false}
         >
           {hydrated && error ? (
-            <p className="welcome-onboarding__error" role="alert">
-              {error}
-            </p>
+<div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
+            </div>
           ) : null}
           <form className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
             <SectionCard
-              title={
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Shield size={18} strokeWidth={1.75} aria-hidden /> Propiedades del Rol
-                </span>
-              }
+              bodyClassName="ecu-section-card__body--padded"
+              title="Propiedades del Rol"
               subtitle={
                 role?.isSystem
                   ? 'Este es un rol protegido de sistema. Puedes actualizar su descripción para tu organización.'

@@ -63,7 +63,8 @@ public sealed class ListCatalogItemsHandler
                     i.VariantDimensionsJson,
                     i.FamilyId,
                     i.FamilyId is { } fid && familyNames.TryGetValue(fid, out var fn) ? fn : null,
-                    i.HierarchyPathJson);
+                    i.HierarchyPathJson,
+                    i.CustomAttributesJson);
             })
             .ToList();
         return Result.Success(items);
