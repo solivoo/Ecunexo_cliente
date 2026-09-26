@@ -7,7 +7,7 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.55.0`.
+* **Última Versión Publicada:** `v0.55.1`.
 * **Hitos Recientes Completados:**
   - **Licenciamiento Cloud — Fase 1: Módulos Efectivos y Menú «Visible pero Bloqueado» (`GetSessionHandler`, `MenuNavigationMapper`, `filterNavigation`) + Skill de Escalabilidad [sin bump de versión]:**
     * **Fuente única:** `GetSessionHandler.ResolveEnabledModules` deriva los módulos efectivos de `ModuleEntitlements` (mandan sobre la lista legacy `EnabledModuleCodes`); sin ninguna fuente = todos (compatibilidad).
