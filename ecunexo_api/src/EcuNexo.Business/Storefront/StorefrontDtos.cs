@@ -19,7 +19,27 @@ public sealed record StorefrontProductListItemDto(
     bool InStock,
     bool HasVariants,
     int VariantCount,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? SecondMediumUrl,
+    IReadOnlyList<string> Colors,
+    bool IsNew);
+
+public sealed record StorefrontFacetsDto(
+    IReadOnlyList<StorefrontFacetAttributeDto> Attributes,
+    decimal? PriceMin,
+    decimal? PriceMax,
+    int InStockCount,
+    int NewCount);
+
+public sealed record StorefrontFacetAttributeDto(
+    string Key,
+    string Label,
+    IReadOnlyList<StorefrontFacetValueDto> Values);
+
+public sealed record StorefrontFacetValueDto(
+    string Value,
+    string Label,
+    int Count);
 
 public sealed record StorefrontProductDetailDto(
     Guid Id,

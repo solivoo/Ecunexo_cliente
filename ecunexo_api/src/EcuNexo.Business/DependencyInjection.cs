@@ -121,6 +121,7 @@ using EcuNexo.Business.Storefront.Commands.SetPrimaryStorefrontDomain;
 using EcuNexo.Business.Storefront.Commands.VerifyStorefrontDomain;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontDomains;
+using EcuNexo.Business.Storefront.Queries.ListStorefrontFacets;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontProducts;
 using EcuNexo.Business.Storefront.Queries.ResolveStorefront;
 using EcuNexo.Business.RemisionGuides.Commands.CreateRemisionGuide;
@@ -384,7 +385,9 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.GetDashboardAnalyticsQuery, EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.DashboardAnalyticsDto>, EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.GetDashboardAnalyticsHandler>();
 
         // Storefront público (Ecommerce)
+        services.AddScoped<StorefrontCatalogReader>();
         services.AddScoped<IQueryHandler<ListStorefrontProductsQuery, StorefrontProductPageDto>, ListStorefrontProductsHandler>();
+        services.AddScoped<IQueryHandler<ListStorefrontFacetsQuery, StorefrontFacetsDto>, ListStorefrontFacetsHandler>();
         services.AddScoped<IQueryHandler<GetStorefrontProductQuery, StorefrontProductDetailDto>, GetStorefrontProductHandler>();
         services.AddScoped<IQueryHandler<ResolveStorefrontQuery, StorefrontResolveResponse>, ResolveStorefrontHandler>();
         services.AddScoped<IQueryHandler<ListStorefrontDomainsQuery, IReadOnlyList<StorefrontDomainDto>>, ListStorefrontDomainsHandler>();

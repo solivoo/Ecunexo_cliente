@@ -1,6 +1,4 @@
 using EcuNexo.Business.Abstractions;
-using EcuNexo.Business.Inventory;
-using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
@@ -12,24 +10,15 @@ public sealed class ListStorefrontProductsHandler
 {
     private const int MaxPageSize = 48;
 
-    private readonly IStorefrontCatalogRepository _products;
-    private readonly IStockRepository _stock;
     private readonly ITenantRepository _tenants;
-    private readonly IPriceListRepository _priceLists;
-    private readonly IProductPriceRepository _productPrices;
+    private readonly StorefrontCatalogReader _reader;
 
     public ListStorefrontProductsHandler(
-        IStorefrontCatalogRepository products,
-        IStockRepository stock,
         ITenantRepository tenants,
-        IPriceListRepository priceLists,
-        IProductPriceRepository productPrices)
+        StorefrontCatalogReader reader)
     {
-        _products = products;
-        _stock = stock;
         _tenants = tenants;
-        _priceLists = priceLists;
-        _productPrices = productPrices;
+        _reader = reader;
     }
 
     public async Task<Result<StorefrontProductPageDto>> Handle(
@@ -47,100 +36,161 @@ public sealed class ListStorefrontProductsHandler
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
 
-        var defaultList = await _priceLists.GetDefaultAsync(query.TenantId, ct).ConfigureAwait(false);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var products = await _reader.LoadAsync(query.TenantId, ct).ConfigureAwait(false);
 
-        var filter = new StorefrontProductFilter(
-            query.Search,
-            query.Sort,
-            page,
-            pageSize,
-            defaultList?.Id,
-            today);
+        var filtered = products
+            .Where(product => Matches(product, query))
+            .ToList();
 
-        var (items, totalCount) = await _products
-            .ListActiveRootsAsync(query.TenantId, filter, ct)
-            .ConfigureAwait(false);
+        var ordered = ApplySort(filtered, query.Sort);
+        var totalCount = ordered.Count;
 
-        var availability = await LoadAvailabilityAsync(query.TenantId, items, ct).ConfigureAwait(false);
-
-        var resolvedPrices = defaultList is null
-            ? new Dictionary<Guid, decimal>()
-            : await _productPrices
-                .ListVigentByItemIdsAsync(
-                    query.TenantId,
-                    defaultList.Id,
-                    items.Select(i => i.Id).ToList(),
-                    today,
-                    ct)
-                .ConfigureAwait(false);
-
-        var dtos = items
-            .Select(item =>
-            {
-                var image = ResolveMainImage(item);
-                var available = SumAvailability(item, availability);
-                var price = resolvedPrices.TryGetValue(item.Id, out var resolved)
-                    ? resolved
-                    : item.BasePrice;
-
-                return new StorefrontProductListItemDto(
-                    item.Id,
-                    item.Kind,
-                    item.Name,
-                    item.Description,
-                    price,
-                    image?.ThumbUrl,
-                    image?.MediumUrl,
-                    available > 0m,
-                    item.Variants.Count > 0,
-                    item.Variants.Count,
-                    item.CreatedAt);
-            })
+        var dtos = ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(MapItem)
             .ToList();
 
         return Result.Success(new StorefrontProductPageDto(dtos, totalCount, page, pageSize));
     }
 
-    private async Task<IReadOnlyDictionary<Guid, decimal>> LoadAvailabilityAsync(
-        Guid tenantId,
-        IReadOnlyList<CatalogItem> items,
-        CancellationToken ct)
+    private static bool Matches(StorefrontCatalogProduct product, ListStorefrontProductsQuery query)
     {
-        var ids = new HashSet<Guid>();
-        foreach (var item in items)
+        if (!MatchesSearch(product.Item, query.Search))
         {
-            ids.Add(item.Id);
-            foreach (var variant in item.Variants)
-            {
-                ids.Add(variant.Id);
-            }
+            return false;
         }
 
-        if (ids.Count == 0)
+        if (query.PriceMin is { } min && (product.Price is null || product.Price < min))
         {
-            return new Dictionary<Guid, decimal>();
+            return false;
         }
 
-        return await _stock
-            .SumAvailableByItemIdsAsync(tenantId, ids, ct)
-            .ConfigureAwait(false);
+        if (query.PriceMax is { } max && (product.Price is null || product.Price > max))
+        {
+            return false;
+        }
+
+        if (query.InStock && !product.InStock)
+        {
+            return false;
+        }
+
+        if (query.New && !product.IsNew)
+        {
+            return false;
+        }
+
+        return MatchesFacets(product, query.Facets);
     }
 
-    private static decimal SumAvailability(
-        CatalogItem item,
-        IReadOnlyDictionary<Guid, decimal> availability)
+    private static bool MatchesSearch(CatalogItem item, string? search)
     {
-        var total = availability.TryGetValue(item.Id, out var own) ? own : 0m;
-        foreach (var variant in item.Variants)
+        if (string.IsNullOrWhiteSpace(search))
         {
-            if (availability.TryGetValue(variant.Id, out var available))
+            return true;
+        }
+
+        var needle = StorefrontFacetCatalog.NormalizeForMatch(search);
+        if (needle.Length == 0)
+        {
+            return true;
+        }
+
+        return Contains(item.Name, needle)
+            || Contains(item.Sku, needle)
+            || Contains(item.Description, needle);
+    }
+
+    private static bool Contains(string? value, string needle) =>
+        !string.IsNullOrEmpty(value)
+        && StorefrontFacetCatalog.NormalizeForMatch(value).Contains(needle, StringComparison.Ordinal);
+
+    private static bool MatchesFacets(
+        StorefrontCatalogProduct product,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? facets)
+    {
+        if (facets is null || facets.Count == 0)
+        {
+            return true;
+        }
+
+        foreach (var (rawKey, selected) in facets)
+        {
+            if (selected.Count == 0
+                || !StorefrontFacetCatalog.TryCanonicalizeKey(rawKey, out var key, out _))
             {
-                total += available;
+                continue;
+            }
+
+            if (!product.Attributes.TryGetValue(key, out var productValues)
+                || productValues.Count == 0)
+            {
+                return false;
+            }
+
+            var available = productValues
+                .Select(StorefrontFacetCatalog.NormalizeForMatch)
+                .ToHashSet(StringComparer.Ordinal);
+
+            if (!selected.Any(value => available.Contains(StorefrontFacetCatalog.NormalizeForMatch(value))))
+            {
+                return false;
             }
         }
 
-        return total;
+        return true;
+    }
+
+    private static List<StorefrontCatalogProduct> ApplySort(
+        List<StorefrontCatalogProduct> products,
+        string? sort) => sort switch
+    {
+        "name" => products
+            .OrderBy(p => p.Item.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(p => p.Item.Id)
+            .ToList(),
+        "price_asc" => products
+            .OrderBy(p => p.Price is null)
+            .ThenBy(p => p.Price)
+            .ThenBy(p => p.Item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList(),
+        "price_desc" => products
+            .OrderBy(p => p.Price is null)
+            .ThenByDescending(p => p.Price)
+            .ThenBy(p => p.Item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList(),
+        "newest" => products
+            .OrderByDescending(p => p.Item.CreatedAt)
+            .ThenBy(p => p.Item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList(),
+        _ => products
+            .OrderByDescending(p => p.InStock)
+            .ThenByDescending(p => p.Item.CreatedAt)
+            .ThenBy(p => p.Item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList(),
+    };
+
+    private static StorefrontProductListItemDto MapItem(StorefrontCatalogProduct product)
+    {
+        var item = product.Item;
+        var image = ResolveMainImage(item);
+
+        return new StorefrontProductListItemDto(
+            item.Id,
+            item.Kind,
+            item.Name,
+            item.Description,
+            product.Price,
+            image?.ThumbUrl,
+            image?.MediumUrl,
+            product.InStock,
+            item.Variants.Count > 0,
+            item.Variants.Count,
+            item.CreatedAt,
+            ResolveSecondImage(item)?.MediumUrl,
+            product.Colors,
+            product.IsNew);
     }
 
     private static CatalogItemImage? ResolveMainImage(CatalogItem item)
@@ -155,4 +205,11 @@ public sealed class ListStorefrontProductsHandler
             ?? item.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault(i => i.IsMain)
             ?? item.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault();
     }
+
+    private static CatalogItemImage? ResolveSecondImage(CatalogItem item) =>
+        item.Images
+            .Where(i => i.GroupValue is null)
+            .OrderBy(i => i.DisplayOrder)
+            .Skip(1)
+            .FirstOrDefault();
 }
