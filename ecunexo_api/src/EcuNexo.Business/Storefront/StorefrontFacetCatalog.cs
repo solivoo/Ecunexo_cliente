@@ -284,17 +284,40 @@ public static class StorefrontFacetCatalog
         }
     }
 
+    private static readonly char[] ValueSeparators = [',', ';', '|'];
+
     private static void AddValue(
         string key,
         string? raw,
         Dictionary<string, List<string>> attributes,
         Dictionary<string, HashSet<string>> seen)
     {
-        var display = NormalizeValue(raw);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return;
+        }
+
+        // Valores compuestos heredados ("Running, Skater, Crossfit") se exponen como opciones separadas.
+        foreach (var part in raw.Split(
+            ValueSeparators,
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            AddSingleValue(key, NormalizeValue(part), attributes, seen);
+        }
+    }
+
+    private static void AddSingleValue(
+        string key,
+        string display,
+        Dictionary<string, List<string>> attributes,
+        Dictionary<string, HashSet<string>> seen)
+    {
         if (display.Length == 0)
         {
             return;
         }
+
+        display = Prettify(display);
 
         if (!seen.TryGetValue(key, out var keys))
         {
@@ -314,6 +337,38 @@ public static class StorefrontFacetCatalog
         }
 
         values.Add(display);
+    }
+
+    /// <summary>Uniforma el display: "deportiva" → "Deportiva", "ALGODÓN" → "Algodón".</summary>
+    private static string Prettify(string value)
+    {
+        var hasLower = false;
+        var hasUpper = false;
+        foreach (var character in value)
+        {
+            if (char.IsLower(character))
+            {
+                hasLower = true;
+            }
+            else if (char.IsUpper(character))
+            {
+                hasUpper = true;
+            }
+        }
+
+        if (!hasLower && !hasUpper)
+        {
+            return value;
+        }
+
+        if (hasLower && hasUpper)
+        {
+            return value;
+        }
+
+        var first = char.ToUpperInvariant(value[0]);
+        var rest = hasLower ? value[1..] : value[1..].ToLowerInvariant();
+        return string.Concat(first, rest);
     }
 }
 

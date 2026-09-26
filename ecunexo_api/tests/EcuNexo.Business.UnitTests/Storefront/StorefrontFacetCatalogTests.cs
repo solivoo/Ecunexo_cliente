@@ -111,4 +111,32 @@ public sealed class StorefrontFacetCatalogTests
         attributes["cana"].Should().Equal("Corta");
         attributes["marca"].Should().Equal("Nike");
     }
+
+    [Fact(DisplayName = "Los valores compuestos se separan en opciones independientes")]
+    public void ExtractAttributes_SplitsCompositeValues()
+    {
+        var item = CatalogItem.CreateMatrixParent(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            CatalogItemKind.Physical,
+            "Colección Alo",
+            null,
+            "MOD-02",
+            4.5m,
+            """[{"name":"Tallas","values":["M","L"]}]""",
+            """
+                {
+                  "Actividad / Uso": "Running, Skater, Crossfit, Gym, deportiva, Alo, yoga",
+                  "Tallas Calcetín": "35-38; 39-42"
+                }
+                """,
+            CatalogAttributeSchema.EmptyArrayJson,
+            hierarchyPathJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var attributes = StorefrontFacetCatalog.ExtractAttributes(item);
+
+        attributes["actividad"].Should().Equal(
+            "Running", "Skater", "Crossfit", "Gym", "Deportiva", "Alo", "Yoga");
+        attributes["talla"].Should().Equal("35-38", "39-42");
+    }
 }
