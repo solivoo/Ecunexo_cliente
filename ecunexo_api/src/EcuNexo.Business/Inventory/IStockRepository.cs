@@ -16,6 +16,7 @@ public interface IStockRepository
 
     Task<IReadOnlyDictionary<Guid, decimal>> SumAvailableByItemIdsAsync(
         Guid tenantId,
+        Guid? warehouseId,
         IReadOnlyCollection<Guid> catalogItemIds,
         CancellationToken ct);
 }

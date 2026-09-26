@@ -1,0 +1,23 @@
+using EcuNexo.Business.Ecommerce.Storefront.Commands.UpdateEcommerceStorefrontSettings;
+
+namespace EcuNexo.Api.Contracts.V1.Storefront;
+
+public sealed record EcommerceStorefrontShippingMethodRequest(string Code, decimal Cost);
+
+public sealed record UpdateEcommerceStorefrontSettingsRequest(
+    IReadOnlyList<string> PaymentMethods,
+    IReadOnlyList<EcommerceStorefrontShippingMethodRequest> ShippingMethods,
+    string? BankTransferInstructions,
+    int PaymentHoldHours)
+{
+    public UpdateEcommerceStorefrontSettingsCommand ToCommand(Guid tenantId, Guid? updatedBy) =>
+        new(
+            tenantId,
+            PaymentMethods ?? [],
+            ShippingMethods?
+                .Select(method => new UpdateEcommerceStorefrontShippingMethodInput(method.Code, method.Cost))
+                .ToList() ?? [],
+            BankTransferInstructions,
+            PaymentHoldHours,
+            updatedBy);
+}

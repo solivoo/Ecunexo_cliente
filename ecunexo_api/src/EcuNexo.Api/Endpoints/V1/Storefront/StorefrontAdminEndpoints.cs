@@ -10,6 +10,9 @@ using EcuNexo.Business.Storefront.Commands.DeleteStorefrontDomain;
 using EcuNexo.Business.Storefront.Commands.SetPrimaryStorefrontDomain;
 using EcuNexo.Business.Storefront.Commands.VerifyStorefrontDomain;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontDomains;
+using EcuNexo.Business.Ecommerce.Storefront;
+using EcuNexo.Business.Ecommerce.Storefront.Commands.UpdateEcommerceStorefrontSettings;
+using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceStorefrontSettings;
 
 namespace EcuNexo.Api.Endpoints.V1.Storefront;
 
@@ -39,7 +42,48 @@ public static class StorefrontAdminEndpoints
         domains.MapPost("/{domainId:guid}/verify", VerifyAsync)
             .AddEndpointFilter(PermissionFilters.Require("ecommerce.storefront.manage"));
 
+        RouteGroupBuilder settings = app
+            .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/ecommerce/storefront/settings")
+            .WithApiVersionSet(versionSet)
+            .WithTags("Storefront")
+            .RequireAuthorization();
+
+        settings.MapGet("/", GetSettingsAsync)
+            .AddEndpointFilter(PermissionFilters.Require("ecommerce.storefront.manage"));
+        settings.MapPut("/", UpdateSettingsAsync)
+            .AddEndpointFilter(PermissionFilters.Require("ecommerce.storefront.manage"));
+
         return app;
+    }
+
+    private static async Task<IResult> GetSettingsAsync(
+        Guid tenantId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<GetEcommerceStorefrontSettingsQuery, EcommerceStorefrontSettingsDto>(
+                new GetEcommerceStorefrontSettingsQuery(tenantId),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> UpdateSettingsAsync(
+        Guid tenantId,
+        UpdateEcommerceStorefrontSettingsRequest body,
+        ISender sender,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<UpdateEcommerceStorefrontSettingsCommand, EcommerceStorefrontSettingsDto>(
+                body.ToCommand(tenantId, caller.UserId),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
     }
 
     private static async Task<IResult> ListAsync(

@@ -3,6 +3,7 @@ using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontProducts;
 using EcuNexo.Business.Tenancy;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Catalog.ValueObjects;
 using EcuNexo.Core.Common;
@@ -19,6 +20,7 @@ public sealed class ListStorefrontProductsHandlerTests
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IPriceListRepository _priceLists = Substitute.For<IPriceListRepository>();
     private readonly IProductPriceRepository _productPrices = Substitute.For<IProductPriceRepository>();
+    private readonly IWarehouseRepository _warehouses = Substitute.For<IWarehouseRepository>();
     private readonly ListStorefrontProductsHandler _sut;
 
     public ListStorefrontProductsHandlerTests()
@@ -29,13 +31,14 @@ public sealed class ListStorefrontProductsHandlerTests
         _stock
             .SumAvailableByItemIdsAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<Guid?>(),
                 Arg.Any<IReadOnlyCollection<Guid>>(),
                 Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, decimal>());
 
         _sut = new ListStorefrontProductsHandler(
             _tenants,
-            new StorefrontCatalogReader(_products, _stock, _priceLists, _productPrices));
+            new StorefrontCatalogReader(_products, _stock, _priceLists, _productPrices, _warehouses));
     }
 
     [Fact(DisplayName = "Lista productos activos con imagen y paginación")]
@@ -484,6 +487,7 @@ public sealed class ListStorefrontProductsHandlerTests
         _stock
             .SumAvailableByItemIdsAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<Guid?>(),
                 Arg.Any<IReadOnlyCollection<Guid>>(),
                 Arg.Any<CancellationToken>())
             .Returns(entries.ToDictionary(entry => entry.ItemId, entry => entry.Available));

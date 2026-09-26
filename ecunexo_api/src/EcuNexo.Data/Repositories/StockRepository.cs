@@ -46,6 +46,7 @@ public sealed class StockRepository : IStockRepository
 
     public async Task<IReadOnlyDictionary<Guid, decimal>> SumAvailableByItemIdsAsync(
         Guid tenantId,
+        Guid? warehouseId,
         IReadOnlyCollection<Guid> catalogItemIds,
         CancellationToken ct)
     {
@@ -55,7 +56,9 @@ public sealed class StockRepository : IStockRepository
         }
 
         var rows = await _db.Stocks.AsNoTracking()
-            .Where(s => s.TenantId == tenantId && catalogItemIds.Contains(s.CatalogItemId))
+            .Where(s => s.TenantId == tenantId
+                && (warehouseId == null || s.WarehouseId == warehouseId)
+                && catalogItemIds.Contains(s.CatalogItemId))
             .GroupBy(s => s.CatalogItemId)
             .Select(g => new
             {

@@ -5,6 +5,7 @@ using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
 using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Tenancy;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
 
@@ -18,19 +19,22 @@ public sealed class GetStorefrontProductHandler
     private readonly ITenantRepository _tenants;
     private readonly IPriceListRepository _priceLists;
     private readonly IProductPriceRepository _productPrices;
+    private readonly IWarehouseRepository _warehouses;
 
     public GetStorefrontProductHandler(
         ISender sender,
         IStockRepository stock,
         ITenantRepository tenants,
         IPriceListRepository priceLists,
-        IProductPriceRepository productPrices)
+        IProductPriceRepository productPrices,
+        IWarehouseRepository warehouses)
     {
         _sender = sender;
         _stock = stock;
         _tenants = tenants;
         _priceLists = priceLists;
         _productPrices = productPrices;
+        _warehouses = warehouses;
     }
 
     public async Task<Result<StorefrontProductDetailDto>> Handle(
@@ -67,8 +71,13 @@ public sealed class GetStorefrontProductHandler
             ids.Add(variant.Id);
         }
 
+        // Mismo criterio que el listado: disponible de la bodega de despacho (principal).
+        var dispatchWarehouse = await _warehouses
+            .GetMainAsync(query.TenantId, ct)
+            .ConfigureAwait(false);
+
         var availability = await _stock
-            .SumAvailableByItemIdsAsync(query.TenantId, ids, ct)
+            .SumAvailableByItemIdsAsync(query.TenantId, dispatchWarehouse?.Id, ids, ct)
             .ConfigureAwait(false);
 
         var totalAvailable = SumAvailability(item.Id, variants, availability);

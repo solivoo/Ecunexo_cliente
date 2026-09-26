@@ -3,6 +3,7 @@ using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontFacets;
 using EcuNexo.Business.Tenancy;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Tenancy;
 using NSubstitute;
@@ -16,6 +17,7 @@ public sealed class ListStorefrontFacetsHandlerTests
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IPriceListRepository _priceLists = Substitute.For<IPriceListRepository>();
     private readonly IProductPriceRepository _productPrices = Substitute.For<IProductPriceRepository>();
+    private readonly IWarehouseRepository _warehouses = Substitute.For<IWarehouseRepository>();
     private readonly ListStorefrontFacetsHandler _sut;
 
     public ListStorefrontFacetsHandlerTests()
@@ -26,13 +28,14 @@ public sealed class ListStorefrontFacetsHandlerTests
         _stock
             .SumAvailableByItemIdsAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<Guid?>(),
                 Arg.Any<IReadOnlyCollection<Guid>>(),
                 Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, decimal>());
 
         _sut = new ListStorefrontFacetsHandler(
             _tenants,
-            new StorefrontCatalogReader(_products, _stock, _priceLists, _productPrices));
+            new StorefrontCatalogReader(_products, _stock, _priceLists, _productPrices, _warehouses));
     }
 
     [Fact(DisplayName = "Construye facetas canónicas con counts y orden de valores")]
@@ -137,6 +140,7 @@ public sealed class ListStorefrontFacetsHandlerTests
         _stock
             .SumAvailableByItemIdsAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<Guid?>(),
                 Arg.Any<IReadOnlyCollection<Guid>>(),
                 Arg.Any<CancellationToken>())
             .Returns(entries.ToDictionary(entry => entry.ItemId, entry => entry.Available));

@@ -1,3 +1,4 @@
+using EcuNexo.Core.Ecommerce;
 using FluentValidation;
 
 namespace EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
@@ -22,5 +23,9 @@ public sealed class CreateEcommerceOrderValidator : AbstractValidator<CreateEcom
             item.RuleFor(i => i.CatalogItemId).NotEmpty().WithMessage("El producto del catálogo es obligatorio.");
             item.RuleFor(i => i.Quantity).GreaterThan(0).WithMessage("La cantidad del ítem debe ser mayor a cero.");
         });
+
+        RuleFor(x => x.ClientRequestId)
+            .MaximumLength(EcommerceOrder.ClientRequestIdMaxLength)
+            .WithMessage($"El identificador de solicitud no puede superar {EcommerceOrder.ClientRequestIdMaxLength} caracteres.");
     }
 }

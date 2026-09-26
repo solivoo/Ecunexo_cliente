@@ -19,6 +19,19 @@ public interface IEcommerceOrderRepository
 
     Task<EcommerceOrder?> GetTrackedWithDetailsAsync(Guid tenantId, Guid orderId, CancellationToken ct = default);
 
+    Task<EcommerceOrder?> FindByClientRequestIdAsync(
+        Guid tenantId,
+        string requestId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Pedidos pendientes de pago anteriores al umbral, de todos los tenants, ordenados del más antiguo al más reciente.
+    /// </summary>
+    Task<IReadOnlyList<EcommerceOrder>> ListPendingPaymentBeforeAsync(
+        DateTimeOffset threshold,
+        int limit,
+        CancellationToken ct = default);
+
     Task<(IReadOnlyList<EcommerceOrder> Items, int TotalCount)> ListAsync(
         Guid tenantId,
         EcommerceOrderStatus? status,

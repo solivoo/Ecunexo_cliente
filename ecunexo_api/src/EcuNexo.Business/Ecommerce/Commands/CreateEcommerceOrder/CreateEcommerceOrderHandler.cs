@@ -57,6 +57,21 @@ public sealed class CreateEcommerceOrderHandler
                 new Error("ecommerce.order.create.validation", message, ErrorType.Validation));
         }
 
+        var clientRequestId = string.IsNullOrWhiteSpace(command.ClientRequestId)
+            ? null
+            : command.ClientRequestId.Trim();
+
+        if (clientRequestId is not null)
+        {
+            var existing = await _orders
+                .FindByClientRequestIdAsync(command.TenantId, clientRequestId, ct)
+                .ConfigureAwait(false);
+            if (existing is not null)
+            {
+                return ToResponse(existing);
+            }
+        }
+
         var warehouse = await _warehouses.GetActiveByIdAsync(command.TenantId, command.WarehouseId, ct).ConfigureAwait(false);
         if (warehouse is null)
         {
@@ -80,7 +95,8 @@ public sealed class CreateEcommerceOrderHandler
             command.InternalNotes,
             command.CustomerNotes,
             command.CreatedBy,
-            command.CreatedByName);
+            command.CreatedByName,
+            clientRequestId);
 
         if (orderResult.IsFailure)
         {
@@ -123,8 +139,19 @@ public sealed class CreateEcommerceOrderHandler
         await _orders.AddAsync(order, ct).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        return new CreateEcommerceOrderResponse(order.Id, order.OrderNumber, order.Status, order.TotalAmount);
+        return ToResponse(order);
     }
+
+    private static CreateEcommerceOrderResponse ToResponse(EcommerceOrder order) =>
+        new(
+            order.Id,
+            order.OrderNumber,
+            order.Status,
+            order.Subtotal,
+            order.TaxAmount,
+            order.ShippingCost,
+            order.TotalAmount,
+            order.PaymentMethod);
 
     private async Task<Result<EcommerceOrderItem>> BuildItem(
         CreateEcommerceOrderCommand command,

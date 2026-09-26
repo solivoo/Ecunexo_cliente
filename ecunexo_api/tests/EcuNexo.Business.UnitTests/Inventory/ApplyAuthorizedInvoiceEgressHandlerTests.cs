@@ -327,11 +327,14 @@ public sealed class ApplyAuthorizedInvoiceEgressHandlerTests
 
         public Task<IReadOnlyDictionary<Guid, decimal>> SumAvailableByItemIdsAsync(
             Guid tenantId,
+            Guid? warehouseId,
             IReadOnlyCollection<Guid> catalogItemIds,
             CancellationToken ct) =>
             Task.FromResult<IReadOnlyDictionary<Guid, decimal>>(
                 _stocks
-                    .Where(s => s.TenantId == tenantId && catalogItemIds.Contains(s.CatalogItemId))
+                    .Where(s => s.TenantId == tenantId
+                    && (warehouseId is null || s.WarehouseId == warehouseId)
+                    && catalogItemIds.Contains(s.CatalogItemId))
                     .GroupBy(s => s.CatalogItemId)
                     .ToDictionary(
                         g => g.Key,

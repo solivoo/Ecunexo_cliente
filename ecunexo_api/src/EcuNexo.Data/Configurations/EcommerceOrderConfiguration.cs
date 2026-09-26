@@ -38,6 +38,9 @@ public sealed class EcommerceOrderConfiguration : IEntityTypeConfiguration<Ecomm
             .HasMaxLength(EcommerceOrder.OrderNumberMaxLength)
             .IsRequired();
 
+        builder.Property(o => o.ClientRequestId)
+            .HasMaxLength(EcommerceOrder.ClientRequestIdMaxLength);
+
         builder.Property(o => o.OrderDate)
             .HasColumnType("timestamptz")
             .IsRequired();
@@ -161,8 +164,13 @@ public sealed class EcommerceOrderConfiguration : IEntityTypeConfiguration<Ecomm
         builder.HasIndex(o => new { o.TenantId, o.OrderNumber })
             .IsUnique();
 
+        builder.HasIndex(o => new { o.TenantId, o.ClientRequestId })
+            .IsUnique()
+            .HasFilter("client_request_id IS NOT NULL");
+
         builder.HasIndex(o => new { o.TenantId, o.Status });
         builder.HasIndex(o => new { o.TenantId, o.OrderDate });
         builder.HasIndex(o => new { o.TenantId, o.BillingInvoiceId });
+        builder.HasIndex(o => new { o.Status, o.PaymentStatus, o.OrderDate });
     }
 }

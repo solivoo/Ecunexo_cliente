@@ -13,8 +13,19 @@ public sealed class EfUnitOfWork : IUnitOfWork
         _db = db;
     }
 
-    public Task SaveChangesAsync(CancellationToken ct) =>
-        _db.SaveChangesAsync(ct);
+    public async Task SaveChangesAsync(CancellationToken ct)
+    {
+        try
+        {
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new ConcurrencyConflictException(
+                "La operación entró en conflicto con otro cambio concurrente sobre los mismos datos.",
+                ex);
+        }
+    }
 
     public async Task<bool> TrySaveChangesAsync(CancellationToken ct)
     {

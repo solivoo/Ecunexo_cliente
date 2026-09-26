@@ -20,6 +20,7 @@ using EcuNexo.Api.Endpoints.V1.Tenancy;
 using EcuNexo.Api.Middleware;
 using EcuNexo.Api.Security;
 using EcuNexo.Api.Tenancy;
+using EcuNexo.Api.Workers;
 using EcuNexo.Business;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Identity;
@@ -95,6 +96,8 @@ builder.Services.AddScoped<IEmailSender>(sp => sp.GetRequiredService<SmtpEmailSe
 
 builder.Services.AddBusiness(builder.Configuration);
 builder.Services.AddData(connectionString);
+
+builder.Services.AddHostedService<EcommercePaymentHoldWorker>();
 
 var corsOrigins = ParseCorsOrigins(builder.Configuration);
 builder.Services.AddCors(options =>

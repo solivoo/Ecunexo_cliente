@@ -14,6 +14,7 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
     public const int OrderNumberMaxLength = 50;
     public const int PaymentReferenceMaxLength = 100;
     public const int NotesMaxLength = 1000;
+    public const int ClientRequestIdMaxLength = 100;
 
     private readonly List<EcommerceOrderItem> _items = [];
     private readonly List<EcommerceOrderTimeline> _timeline = [];
@@ -27,6 +28,9 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
     public Tenant? Tenant { get; private set; }
 
     public string OrderNumber { get; private set; } = string.Empty;
+
+    /// <summary>Identificador idempotente enviado por el cliente de la tienda pública (checkout invitado).</summary>
+    public string? ClientRequestId { get; private set; }
 
     public Guid WarehouseId { get; private set; }
 
@@ -99,7 +103,8 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
         string? internalNotes = null,
         string? customerNotes = null,
         Guid? createdBy = null,
-        string? createdByName = null)
+        string? createdByName = null,
+        string? clientRequestId = null)
     {
         if (id == Guid.Empty)
         {
@@ -125,6 +130,16 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
                 new Error("ecommerce.order.number_empty", "El número de orden es obligatorio.", ErrorType.Validation));
         }
 
+        var normalizedClientRequestId = string.IsNullOrWhiteSpace(clientRequestId) ? null : clientRequestId.Trim();
+        if (normalizedClientRequestId is { Length: > ClientRequestIdMaxLength })
+        {
+            return Result.Failure<EcommerceOrder>(
+                new Error(
+                    "ecommerce.order.client_request_id_length",
+                    $"El identificador de solicitud no puede superar {ClientRequestIdMaxLength} caracteres.",
+                    ErrorType.Validation));
+        }
+
         if (customer is null)
         {
             return Result.Failure<EcommerceOrder>(
@@ -148,6 +163,7 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
             Id = id,
             TenantId = tenantId,
             OrderNumber = orderNumber.Trim(),
+            ClientRequestId = normalizedClientRequestId,
             WarehouseId = warehouseId,
             OrderDate = DateTimeOffset.UtcNow,
             Status = EcommerceOrderStatus.Placed,

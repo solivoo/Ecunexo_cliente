@@ -1,7 +1,11 @@
 using Asp.Versioning;
 using Asp.Versioning.Builder;
+using EcuNexo.Api.Contracts.V1.Storefront;
 using EcuNexo.Api.Extensions;
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Ecommerce.Storefront;
+using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateStorefrontOrder;
+using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceCheckoutOptions;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontFacets;
@@ -28,6 +32,8 @@ public static class StorefrontEndpoints
         storefront.MapGet("/facets", ListFacetsAsync);
         storefront.MapGet("/products", ListProductsAsync);
         storefront.MapGet("/products/{productId:guid}", GetProductAsync);
+        storefront.MapGet("/checkout-options", GetCheckoutOptionsAsync);
+        storefront.MapPost("/orders", CreateOrderAsync);
 
         RouteGroupBuilder publicStorefront = app
             .MapGroup("/api/v{version:apiVersion}/public/storefront")
@@ -128,6 +134,48 @@ public static class StorefrontEndpoints
             .ConfigureAwait(false);
 
         return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetCheckoutOptionsAsync(
+        Guid tenantId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<GetEcommerceCheckoutOptionsQuery, EcommerceCheckoutOptionsDto>(
+                new GetEcommerceCheckoutOptionsQuery(tenantId),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> CreateOrderAsync(
+        Guid tenantId,
+        CreateStorefrontOrderRequest? body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (body is null)
+        {
+            return Results.BadRequest(new { error = "El cuerpo de la solicitud es obligatorio." });
+        }
+
+        var result = await sender
+            .SendAsync<CreateStorefrontOrderCommand, StorefrontOrderCreatedDto>(
+                body.ToCommand(tenantId),
+                ct)
+            .ConfigureAwait(false);
+
+        if (!result.IsSuccess)
+        {
+            return result.ToHttpResult();
+        }
+
+        var created = result.Value!;
+        return Results.Created(
+            $"/api/v1/public/tenants/{tenantId}/storefront/orders/{created.OrderId}",
+            created);
     }
 
     private static Dictionary<string, IReadOnlyList<string>>? BuildFacetFilters(

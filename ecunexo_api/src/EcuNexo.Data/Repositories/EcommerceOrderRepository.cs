@@ -33,6 +33,36 @@ public sealed class EcommerceOrderRepository : IEcommerceOrderRepository
             .Include(o => o.Timeline)
             .FirstOrDefaultAsync(o => o.TenantId == tenantId && o.Id == orderId, ct);
 
+    public Task<EcommerceOrder?> FindByClientRequestIdAsync(
+        Guid tenantId,
+        string requestId,
+        CancellationToken ct = default)
+    {
+        var normalized = requestId.Trim();
+        return _db.EcommerceOrders.AsNoTracking()
+            .FirstOrDefaultAsync(
+                o => o.TenantId == tenantId && o.ClientRequestId == normalized,
+                ct);
+    }
+
+    public async Task<IReadOnlyList<EcommerceOrder>> ListPendingPaymentBeforeAsync(
+        DateTimeOffset threshold,
+        int limit,
+        CancellationToken ct = default)
+    {
+        var take = limit > 0 ? limit : 50;
+
+        return await _db.EcommerceOrders.AsNoTracking()
+            .Include(o => o.Items)
+            .Where(o => o.Status == EcommerceOrderStatus.Placed
+                && o.PaymentStatus == EcommercePaymentStatus.Pending
+                && o.OrderDate < threshold)
+            .OrderBy(o => o.OrderDate)
+            .Take(take)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+    }
+
     public async Task<(IReadOnlyList<EcommerceOrder> Items, int TotalCount)> ListAsync(
         Guid tenantId,
         EcommerceOrderStatus? status,

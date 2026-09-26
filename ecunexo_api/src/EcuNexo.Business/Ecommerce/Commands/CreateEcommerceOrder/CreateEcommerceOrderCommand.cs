@@ -19,10 +19,15 @@ public sealed record CreateEcommerceOrderCommand(
     string? InternalNotes = null,
     string? CustomerNotes = null,
     Guid? CreatedBy = null,
-    string? CreatedByName = null) : ICommand<CreateEcommerceOrderResponse>;
+    string? CreatedByName = null,
+    string? ClientRequestId = null) : ICommand<CreateEcommerceOrderResponse>;
 
 public sealed record CreateEcommerceOrderResponse(
     Guid OrderId,
     string OrderNumber,
     EcommerceOrderStatus Status,
-    decimal TotalAmount);
+    decimal Subtotal,
+    decimal TaxAmount,
+    decimal ShippingCost,
+    decimal TotalAmount,
+    EcommercePaymentMethod PaymentMethod);

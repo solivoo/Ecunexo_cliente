@@ -65,6 +65,11 @@ using EcuNexo.Business.Ecommerce.Queries.GetEcommerceMetrics;
 using EcuNexo.Business.Ecommerce.Queries.GetEcommerceOrderById;
 using EcuNexo.Business.Ecommerce.Queries.ListEcommerceOrders;
 using EcuNexo.Business.Ecommerce.Repositories;
+using EcuNexo.Business.Ecommerce.Storefront;
+using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateStorefrontOrder;
+using EcuNexo.Business.Ecommerce.Storefront.Commands.UpdateEcommerceStorefrontSettings;
+using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceCheckoutOptions;
+using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceStorefrontSettings;
 using EcuNexo.Business.Purchases.Expenses;
 using EcuNexo.Business.Purchases.Expenses.Commands.CreateExpenseType;
 using EcuNexo.Business.Purchases.Expenses.Commands.DeleteExpenseType;
@@ -324,6 +329,14 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<ListEcommerceOrdersQuery, ListEcommerceOrdersResponse>, ListEcommerceOrdersHandler>();
         services.AddScoped<IQueryHandler<GetEcommerceOrderByIdQuery, EcommerceOrderDetailDto>, GetEcommerceOrderByIdHandler>();
         services.AddScoped<IQueryHandler<GetEcommerceMetricsQuery, EcommerceOrderMetrics>, GetEcommerceMetricsHandler>();
+
+        // Storefront configurable (checkout público)
+        services.AddScoped<IEcommerceStorefrontSettingsReader, EcommerceStorefrontSettingsReader>();
+        services.AddScoped<EcommercePaymentHoldService>();
+        services.AddScoped<IQueryHandler<GetEcommerceStorefrontSettingsQuery, EcommerceStorefrontSettingsDto>, GetEcommerceStorefrontSettingsHandler>();
+        services.AddScoped<ICommandHandler<UpdateEcommerceStorefrontSettingsCommand, EcommerceStorefrontSettingsDto>, UpdateEcommerceStorefrontSettingsHandler>();
+        services.AddScoped<IQueryHandler<GetEcommerceCheckoutOptionsQuery, EcommerceCheckoutOptionsDto>, GetEcommerceCheckoutOptionsHandler>();
+        services.AddScoped<ICommandHandler<CreateStorefrontOrderCommand, StorefrontOrderCreatedDto>, CreateStorefrontOrderHandler>();
 
         // Purchases (Proveedores / Proformas / Gastos SRI)
         services.AddScoped<ICommandHandler<CreateSupplierCommand, SupplierResponse>, CreateSupplierHandler>();

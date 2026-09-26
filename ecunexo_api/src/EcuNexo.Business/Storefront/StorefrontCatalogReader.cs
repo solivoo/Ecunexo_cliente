@@ -1,5 +1,6 @@
 using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Pricing;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Catalog;
 
 namespace EcuNexo.Business.Storefront;
@@ -17,17 +18,20 @@ public sealed class StorefrontCatalogReader
     private readonly IStockRepository _stock;
     private readonly IPriceListRepository _priceLists;
     private readonly IProductPriceRepository _productPrices;
+    private readonly IWarehouseRepository _warehouses;
 
     public StorefrontCatalogReader(
         IStorefrontCatalogRepository products,
         IStockRepository stock,
         IPriceListRepository priceLists,
-        IProductPriceRepository productPrices)
+        IProductPriceRepository productPrices,
+        IWarehouseRepository warehouses)
     {
         _products = products;
         _stock = stock;
         _priceLists = priceLists;
         _productPrices = productPrices;
+        _warehouses = warehouses;
     }
 
     public async Task<IReadOnlyList<StorefrontCatalogProduct>> LoadAsync(
@@ -44,8 +48,12 @@ public sealed class StorefrontCatalogReader
 
         var ids = CollectIds(items);
 
+        // La vitrina muestra el disponible de la bodega de despacho (principal),
+        // que es la misma que reserva el checkout público.
+        var dispatchWarehouse = await _warehouses.GetMainAsync(tenantId, ct).ConfigureAwait(false);
+
         var availability = await _stock
-            .SumAvailableByItemIdsAsync(tenantId, ids, ct)
+            .SumAvailableByItemIdsAsync(tenantId, dispatchWarehouse?.Id, ids, ct)
             .ConfigureAwait(false);
 
         var defaultList = await _priceLists

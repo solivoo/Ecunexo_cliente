@@ -6,6 +6,7 @@ using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 using EcuNexo.Business.Tenancy;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Tenancy;
@@ -20,6 +21,7 @@ public sealed class GetStorefrontProductHandlerTests
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IPriceListRepository _priceLists = Substitute.For<IPriceListRepository>();
     private readonly IProductPriceRepository _productPrices = Substitute.For<IProductPriceRepository>();
+    private readonly IWarehouseRepository _warehouses = Substitute.For<IWarehouseRepository>();
 
     [Fact(DisplayName = "El detalle sanitiza la ficha, parsea atributos y expone disponibilidad por variante")]
     public async Task Handle_ReturnsSanitizedDetail()
@@ -82,10 +84,10 @@ public sealed class GetStorefrontProductHandlerTests
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(detail));
         _stock
-            .SumAvailableByItemIdsAsync(tenantId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .SumAvailableByItemIdsAsync(tenantId, Arg.Any<Guid?>(), Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, decimal> { [productId] = 0m, [variantId] = 3m });
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses);
         var result = await sut.Handle(new GetStorefrontProductQuery(tenantId, productId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -121,7 +123,7 @@ public sealed class GetStorefrontProductHandlerTests
             .Returns(Result.Failure<CatalogItemDetailResponse>(
                 new Error("catalog.item.not_found", "No existe.", ErrorType.NotFound)));
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses);
         var result = await sut.Handle(
             new GetStorefrontProductQuery(tenantId, Guid.CreateVersion7()),
             CancellationToken.None);
@@ -157,12 +159,12 @@ public sealed class GetStorefrontProductHandlerTests
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(detail));
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses);
         var result = await sut.Handle(new GetStorefrontProductQuery(tenantId, productId), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("storefront.product.not_found");
-        await _stock.DidNotReceiveWithAnyArgs().SumAvailableByItemIdsAsync(default, default!, default);
+        await _stock.DidNotReceiveWithAnyArgs().SumAvailableByItemIdsAsync(default, default, default!, default);
     }
 
     [Fact(DisplayName = "Un servicio no se expone en la tienda")]
@@ -192,12 +194,12 @@ public sealed class GetStorefrontProductHandlerTests
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(detail));
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses);
         var result = await sut.Handle(new GetStorefrontProductQuery(tenantId, productId), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("storefront.product.not_found");
-        await _stock.DidNotReceiveWithAnyArgs().SumAvailableByItemIdsAsync(default, default!, default);
+        await _stock.DidNotReceiveWithAnyArgs().SumAvailableByItemIdsAsync(default, default, default!, default);
     }
 
     [Fact(DisplayName = "Un producto simple expone su SKU y atributos JSONB de ficha")]
@@ -227,10 +229,10 @@ public sealed class GetStorefrontProductHandlerTests
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(detail));
         _stock
-            .SumAvailableByItemIdsAsync(tenantId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .SumAvailableByItemIdsAsync(tenantId, Arg.Any<Guid?>(), Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, decimal>());
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses);
         var result = await sut.Handle(new GetStorefrontProductQuery(tenantId, productId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
