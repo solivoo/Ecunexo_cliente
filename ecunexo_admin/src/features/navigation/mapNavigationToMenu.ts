@@ -87,18 +87,32 @@ function toPath(route: string | null): string | undefined {
 }
 
 function formatNodeLabel(node: NavigationNode): string {
-  let label = node.label
+  const label = node.label
   // Diferenciar la sección operativa de empresa de las preferencias de usuario
   if (node.id === 'configuracion' && label.toLowerCase() === 'configuración') {
-    label = 'Ajustes de Empresa'
-  }
-  if (node.placeholder) {
-    return `${label} · Próximamente`
-  }
-  if (node.disabled && node.disabledReason) {
-    return `${label} · ${node.disabledReason}`
+    return 'Ajustes de Empresa'
   }
   return label
+}
+
+/**
+ * Estado de bloqueo para el Sidebar: candado + tooltip con el motivo.
+ * El label se mantiene limpio (sin concatenar el motivo).
+ */
+function lockProps(
+  node: NavigationNode,
+): Pick<MenuItem, 'disabled' | 'locked' | 'disabledReason'> {
+  const locked =
+    node.disabled &&
+    (node.lockKind === 'module' ||
+      node.lockKind === 'permission' ||
+      node.lockKind === 'placeholder')
+
+  return {
+    disabled: node.disabled,
+    locked: Boolean(locked),
+    disabledReason: node.disabledReason ?? undefined,
+  }
 }
 
 function resolveNodePath(node: NavigationNode): string | undefined {
@@ -119,6 +133,7 @@ function mapNode(node: NavigationNode): MenuItem {
     path: children ? undefined : resolveNodePath(node),
     position: 'top',
     children,
+    ...lockProps(node),
   }
 }
 
@@ -131,6 +146,7 @@ function mapNodeAsSubItem(node: NavigationNode): MenuSubItem {
     label: formatNodeLabel(node),
     path: children ? undefined : resolveNodePath(node),
     children,
+    ...lockProps(node),
   }
 }
 
