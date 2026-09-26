@@ -7,7 +7,7 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.53.0`.
+* **Última Versión Publicada:** `v0.54.0`.
 * **Hitos Recientes Completados:**
   - **Ecommerce — UI de Vitrina y Dominios en el Admin + Despliegue Docker/Compose de la SPA (`StorefrontDomainsPage`, `storefrontApi`, `Dockerfile`, `nginx-spa.conf.template`, `docker-compose.yml`) [sin bump de versión]:**
     * **Admin:** nueva vista `ecommerce/vitrina` (permiso `ecommerce.storefront.manage`) con métricas, DataGrid de dominios, alta por dominio, instrucciones TXT con copiar, verificar, marcar principal y despublicar; ítem de menú `ecommerce-storefront` en `MenuCatalogSeedData`; servicio/tipos `storefrontApi`; E2E `tests-ui/comun/ecommerce-vitrina.spec.ts`.
