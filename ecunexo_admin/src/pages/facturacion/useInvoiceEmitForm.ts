@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from 'glubox'
 import {
   getBillingEmitProfile,
@@ -37,6 +37,7 @@ import {
   isConsumidorFinalType,
   normalizeCounterpartyForEmit,
   normalizeLineIvaRate,
+  pricingToLinePatch,
   sriTypeToCustomerIdentificationType,
   validateCounterpartyForEmit,
   type InvoiceCounterpartyValues,
@@ -44,6 +45,7 @@ import {
   type InvoiceLineDraft,
 } from '@/pages/facturacion/invoiceFormTypes'
 import { getOrCreateCustomer } from '@/services/customersApi'
+import { resolvePrice } from '@/services/pricingApi'
 import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
 import type { TenantBranding } from '@/types/tenantBranding'
 import { readApiError } from '@/lib/readApiError'
@@ -103,6 +105,7 @@ export function useInvoiceEmitForm({
   const [counterparty, setCounterparty] =
     useState<InvoiceCounterpartyValues>(INITIAL_COUNTERPARTY)
   const [lines, setLines] = useState(() => [createEmptyLine(newLineId())])
+  const resolveTokens = useRef(new Map<string, number>())
   const [rideOffer, setRideOffer] = useState<{
     readonly emitterId: string
     readonly invoiceId: string
@@ -318,46 +321,99 @@ export function useInvoiceEmitForm({
     })
   }, [ensureTrailingEmptyLine])
 
-  const patchLine = useCallback((lineId: string, patch: Partial<InvoiceLineDraft>) => {
-    setLines((prev) => {
-      const updated = prev.map((l) => (l.id === lineId ? { ...l, ...patch } : l))
-      return ensureTrailingEmptyLine(updated)
-    })
-  }, [ensureTrailingEmptyLine])
+  const patchLine = useCallback(
+    (lineId: string, patch: Partial<InvoiceLineDraft>) => {
+      setLines((prev) => {
+        const updated = prev.map((l) => (l.id === lineId ? { ...l, ...patch } : l))
+        return ensureTrailingEmptyLine(updated)
+      })
+
+      if (patch.quantity === undefined || !tenantId) return
+
+      const target = lines.find((l) => l.id === lineId)
+      if (!target?.catalogItemId || target.itemKind !== 'physical') return
+
+      const quantity = Math.max(1, patch.quantity)
+      const token = (resolveTokens.current.get(lineId) ?? 0) + 1
+      resolveTokens.current.set(lineId, token)
+
+      void resolvePrice(tenantId, {
+        catalogItemId: target.catalogItemId,
+        quantity,
+        date: todayIsoDate(),
+      })
+        .then((resolved) => {
+          if (resolveTokens.current.get(lineId) !== token) return
+          setLines((prev) =>
+            ensureTrailingEmptyLine(
+              prev.map((l) =>
+                l.id === lineId ? { ...l, ...pricingToLinePatch(resolved, quantity) } : l
+              )
+            )
+          )
+        })
+        .catch(() => {
+          // Sin pricing configurado se conserva el precio actual de la línea.
+        })
+    },
+    [ensureTrailingEmptyLine, lines, tenantId]
+  )
 
   const addProductLine = useCallback(
     (item: CatalogItemListItemDto, quantity = 1, targetLineId?: string | null) => {
-      setLines((prev) => {
-        const linePatch: Partial<InvoiceLineDraft> = {
-          productId: item.id,
-          catalogItemId: item.id,
-          itemKind: item.kind === CatalogItemKind.Physical ? 'physical' : 'service',
-          sku: (item.sku ?? '').trim().slice(0, 25),
-          description: item.name,
-          unitPrice: item.basePrice ?? 0,
-          quantity: Math.max(1, quantity),
-          ivaRate: normalizeLineIvaRate(15),
-        }
+      const normalizedQuantity = Math.max(1, quantity)
 
-        let updated: InvoiceLineDraft[]
-        if (targetLineId) {
-          updated = prev.map((l) => (l.id === targetLineId ? { ...l, ...linePatch } : l))
-        } else {
-          const emptyLine = prev.find((l) => !l.productId && !l.description.trim())
-          if (emptyLine) {
-            updated = prev.map((l) => (l.id === emptyLine.id ? { ...l, ...linePatch } : l))
-          } else {
-            const newLine: InvoiceLineDraft = {
-              ...createEmptyLine(newLineId()),
-              ...linePatch,
-            }
-            updated = [...prev, newLine]
+      const applyLine = (pricePatch: Partial<InvoiceLineDraft>) => {
+        setLines((prev) => {
+          const linePatch: Partial<InvoiceLineDraft> = {
+            productId: item.id,
+            catalogItemId: item.id,
+            itemKind: item.kind === CatalogItemKind.Physical ? 'physical' : 'service',
+            sku: (item.sku ?? '').trim().slice(0, 25),
+            description: item.name,
+            unitPrice: item.basePrice ?? 0,
+            quantity: normalizedQuantity,
+            ivaRate: normalizeLineIvaRate(15),
+            ...pricePatch,
           }
-        }
-        return ensureTrailingEmptyLine(updated)
+
+          let updated: InvoiceLineDraft[]
+          if (targetLineId) {
+            updated = prev.map((l) => (l.id === targetLineId ? { ...l, ...linePatch } : l))
+          } else {
+            const emptyLine = prev.find((l) => !l.productId && !l.description.trim())
+            if (emptyLine) {
+              updated = prev.map((l) => (l.id === emptyLine.id ? { ...l, ...linePatch } : l))
+            } else {
+              const newLine: InvoiceLineDraft = {
+                ...createEmptyLine(newLineId()),
+                ...linePatch,
+              }
+              updated = [...prev, newLine]
+            }
+          }
+          return ensureTrailingEmptyLine(updated)
+        })
+      }
+
+      if (!tenantId || item.kind !== CatalogItemKind.Physical) {
+        applyLine({})
+        return
+      }
+
+      void resolvePrice(tenantId, {
+        catalogItemId: item.id,
+        quantity: normalizedQuantity,
+        date: todayIsoDate(),
       })
+        .then((resolved) => {
+          applyLine(pricingToLinePatch(resolved, normalizedQuantity))
+        })
+        .catch(() => {
+          applyLine({})
+        })
     },
-    [ensureTrailingEmptyLine]
+    [ensureTrailingEmptyLine, tenantId]
   )
 
   /** Limpia cliente/líneas/notas tras crear comprobante; conserva emisor y punto de emisión. */

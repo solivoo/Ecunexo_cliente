@@ -8,6 +8,7 @@ using EcuNexo.Core.Identity;
 using EcuNexo.Core.Inventory;
 using EcuNexo.Core.Platform;
 using EcuNexo.Core.Platform.Navigation;
+using EcuNexo.Core.Pricing;
 using EcuNexo.Core.Purchases;
 using EcuNexo.Core.RemisionGuides;
 using EcuNexo.Core.Repairs;
@@ -58,6 +59,8 @@ public sealed class EcuNexoDbContext : DbContext
     public DbSet<ModuleUsageCounter> ModuleUsageCounters => Set<ModuleUsageCounter>();
 
     public DbSet<TenantBrandLogo> TenantBrandLogos => Set<TenantBrandLogo>();
+
+    public DbSet<StorefrontDomain> StorefrontDomains => Set<StorefrontDomain>();
 
     public DbSet<TenantSigningCertificate> TenantSigningCertificates => Set<TenantSigningCertificate>();
 
@@ -134,6 +137,18 @@ public sealed class EcuNexoDbContext : DbContext
     public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
 
     public DbSet<CreditNoteItem> CreditNoteItems => Set<CreditNoteItem>();
+
+    public DbSet<PriceList> PriceLists => Set<PriceList>();
+
+    public DbSet<ProductPrice> ProductPrices => Set<ProductPrice>();
+
+    public DbSet<QuantityTier> QuantityTiers => Set<QuantityTier>();
+
+    public DbSet<Promotion> Promotions => Set<Promotion>();
+
+    public DbSet<PromotionTarget> PromotionTargets => Set<PromotionTarget>();
+
+    public DbSet<PriceChangeLog> PriceChangeLogs => Set<PriceChangeLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

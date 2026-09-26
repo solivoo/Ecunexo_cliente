@@ -5,11 +5,15 @@ using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.ShipEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Business.Inventory;
+using EcuNexo.Business.Pricing;
+using EcuNexo.Business.UnitTests.Pricing.Support;
 using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Catalog;
+using EcuNexo.Core.Common;
 using EcuNexo.Core.Ecommerce;
 using EcuNexo.Core.Inventory;
+using EcuNexo.Core.Pricing;
 using EcuNexo.Core.Warehousing;
 using NSubstitute;
 
@@ -83,7 +87,7 @@ public sealed class EcommerceOrderHandlersTests
 
         var uow = Substitute.For<IUnitOfWork>();
 
-        var sut = new CreateEcommerceOrderHandler(validator, idGen, warehouses, items, stocks, orders, uow);
+        var sut = new CreateEcommerceOrderHandler(validator, idGen, warehouses, items, stocks, orders, StubPricing(), uow);
 
         var (customer, shipping) = CreateSampleInfo();
         var command = new CreateEcommerceOrderCommand(
@@ -93,7 +97,7 @@ public sealed class EcommerceOrderHandlersTests
             ShippingMethod: EcommerceShippingMethod.Courier,
             Customer: customer,
             Shipping: shipping,
-            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 3m, UnitPrice: 80m)],
+            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 3m)],
             ShippingCost: 5m);
 
         var result = await sut.Handle(command, CancellationToken.None);
@@ -146,7 +150,7 @@ public sealed class EcommerceOrderHandlersTests
 
         var uow = Substitute.For<IUnitOfWork>();
 
-        var sut = new CreateEcommerceOrderHandler(validator, idGen, warehouses, items, stocks, orders, uow);
+        var sut = new CreateEcommerceOrderHandler(validator, idGen, warehouses, items, stocks, orders, StubPricing(), uow);
 
         var (customer, shipping) = CreateSampleInfo();
         var command = new CreateEcommerceOrderCommand(
@@ -156,7 +160,7 @@ public sealed class EcommerceOrderHandlersTests
             ShippingMethod: EcommerceShippingMethod.Courier,
             Customer: customer,
             Shipping: shipping,
-            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 5m, UnitPrice: 250m)]); // Pide 5 habiendo 2
+            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 5m)]); // Pide 5 habiendo 2
 
         var result = await sut.Handle(command, CancellationToken.None);
 
@@ -272,5 +276,197 @@ public sealed class EcommerceOrderHandlersTests
         stock.ReservedQuantity.Should().Be(0m); // Liquidado de la reserva
         stock.AvailableQuantity.Should().Be(7m);
         await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact(DisplayName = "CreateEcommerceOrderHandler resuelve el precio con el motor y guarda snapshot")]
+    public async Task Handle_CreateOrder_UsesPricingEngineSnapshot()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var warehouseId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var warehouse = Warehouse.Create(warehouseId, tenantId, "Bodega Principal", "BOD-01", isMain: true).Value!;
+        var catalogItem = CatalogItem.Create(
+            itemId,
+            tenantId,
+            CatalogItemKind.Physical,
+            "Aceite 10W40",
+            description: null,
+            sku: "ACE-10W40",
+            basePrice: null,
+            categoryId: null,
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var stock = Stock.Create(Guid.CreateVersion7(), tenantId, itemId, warehouseId).Value!;
+        stock.Increase(10m, null);
+
+        var lists = new InMemoryPriceListRepository();
+        var list = PriceList.Create(
+            Guid.CreateVersion7(),
+            tenantId,
+            "PUBLICO",
+            "Precio público",
+            null,
+            null,
+            pricesIncludeTax: false,
+            today,
+            null,
+            priority: 0,
+            isDefault: true).Value!;
+        lists.Seed(list);
+
+        var prices = new InMemoryProductPriceRepository();
+        prices.Seed(ProductPrice.Create(Guid.CreateVersion7(), tenantId, list.Id, itemId, 90m, today, null).Value!);
+
+        var items = Substitute.For<ICatalogItemRepository>();
+        items.GetActiveByIdAsync(tenantId, itemId, Arg.Any<CancellationToken>()).Returns(catalogItem);
+
+        var pricing = new PricingService(
+            lists,
+            prices,
+            new InMemoryPromotionRepository(),
+            items,
+            new EcuadorTaxRateProvider());
+
+        var validator = new CreateEcommerceOrderValidator();
+        var idGen = Substitute.For<IIdGenerator>();
+        idGen.NewId().Returns(Guid.CreateVersion7());
+
+        var warehouses = Substitute.For<IWarehouseRepository>();
+        warehouses.GetActiveByIdAsync(tenantId, warehouseId, Arg.Any<CancellationToken>()).Returns(warehouse);
+
+        var stocks = Substitute.For<IStockRepository>();
+        stocks.GetTrackedAsync(tenantId, itemId, warehouseId, Arg.Any<CancellationToken>()).Returns(stock);
+
+        EcommerceOrder? createdOrder = null;
+        var orders = Substitute.For<IEcommerceOrderRepository>();
+        orders.GenerateNextOrderNumberAsync(tenantId, Arg.Any<CancellationToken>()).Returns("ECO-202609-0005");
+        orders.AddAsync(Arg.Do<EcommerceOrder>(order => createdOrder = order), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var sut = new CreateEcommerceOrderHandler(validator, idGen, warehouses, items, stocks, orders, pricing, uow);
+
+        var (customer, shipping) = CreateSampleInfo();
+        var command = new CreateEcommerceOrderCommand(
+            TenantId: tenantId,
+            WarehouseId: warehouseId,
+            PaymentMethod: EcommercePaymentMethod.CreditCard,
+            ShippingMethod: EcommerceShippingMethod.Courier,
+            Customer: customer,
+            Shipping: shipping,
+            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 3m)]);
+
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        createdOrder.Should().NotBeNull();
+        var line = createdOrder!.Items.Single();
+        line.UnitPrice.Should().Be(90m);
+        line.PriceListId.Should().Be(list.Id);
+        line.ListPrice.Should().Be(90m);
+        line.TaxAmount.Should().Be(40.5m);
+        line.TotalAmount.Should().Be(310.5m);
+        line.AppliedRulesJson.Should().Contain("LISTA_PUBLICO");
+    }
+
+    [Fact(DisplayName = "Sin lista o precio el pedido se rechaza en lugar de usar el precio del cliente")]
+    public async Task Handle_CreateOrderWithoutPricing_Fails()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var warehouseId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+
+        var warehouse = Warehouse.Create(warehouseId, tenantId, "Bodega Principal", "BOD-01", isMain: true).Value!;
+        var catalogItem = CatalogItem.Create(
+            itemId,
+            tenantId,
+            CatalogItemKind.Physical,
+            "Teclado Mecánico RGB",
+            description: null,
+            sku: "TEC-RGB-01",
+            basePrice: 80m,
+            categoryId: null,
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+        var stock = Stock.Create(Guid.CreateVersion7(), tenantId, itemId, warehouseId).Value!;
+        stock.Increase(10m, null);
+
+        var validator = new CreateEcommerceOrderValidator();
+        var idGen = Substitute.For<IIdGenerator>();
+        idGen.NewId().Returns(Guid.CreateVersion7());
+
+        var warehouses = Substitute.For<IWarehouseRepository>();
+        warehouses.GetActiveByIdAsync(tenantId, warehouseId, Arg.Any<CancellationToken>()).Returns(warehouse);
+
+        var items = Substitute.For<ICatalogItemRepository>();
+        items.GetActiveByIdAsync(tenantId, itemId, Arg.Any<CancellationToken>()).Returns(catalogItem);
+
+        var stocks = Substitute.For<IStockRepository>();
+        stocks.GetTrackedAsync(tenantId, itemId, warehouseId, Arg.Any<CancellationToken>()).Returns(stock);
+
+        var orders = Substitute.For<IEcommerceOrderRepository>();
+        orders.GenerateNextOrderNumberAsync(tenantId, Arg.Any<CancellationToken>()).Returns("ECO-202609-0006");
+
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var sut = new CreateEcommerceOrderHandler(validator, idGen, warehouses, items, stocks, orders, MissingPricePricing(), uow);
+
+        var (customer, shipping) = CreateSampleInfo();
+        var command = new CreateEcommerceOrderCommand(
+            TenantId: tenantId,
+            WarehouseId: warehouseId,
+            PaymentMethod: EcommercePaymentMethod.CreditCard,
+            ShippingMethod: EcommerceShippingMethod.Courier,
+            Customer: customer,
+            Shipping: shipping,
+            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 3m)]);
+
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("ecommerce.order.price_not_configured");
+        await orders.DidNotReceive().AddAsync(Arg.Any<EcommerceOrder>(), Arg.Any<CancellationToken>());
+        await uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    private static IPricingService StubPricing(decimal unitPrice = 80m, decimal taxRate = 0.15m)
+    {
+        var taxAmount = Math.Round(unitPrice * taxRate, 2, MidpointRounding.AwayFromZero);
+        var resolved = new PricingResult(
+            Guid.Empty,
+            Guid.CreateVersion7(),
+            "PUBLICO",
+            unitPrice,
+            unitPrice,
+            null,
+            null,
+            unitPrice,
+            0m,
+            unitPrice,
+            unitPrice,
+            taxAmount,
+            unitPrice + taxAmount,
+            taxRate,
+            false,
+            "USD",
+            ["LISTA_PUBLICO"]);
+
+        var pricing = Substitute.For<IPricingService>();
+        pricing.ResolveAsync(Arg.Any<Guid>(), Arg.Any<PricingRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(resolved));
+        return pricing;
+    }
+
+    private static IPricingService MissingPricePricing()
+    {
+        var pricing = Substitute.For<IPricingService>();
+        pricing.ResolveAsync(Arg.Any<Guid>(), Arg.Any<PricingRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<PricingResult>(
+                new Error("catalog.pricing.price_list.not_found", "Sin lista de precios configurada.", ErrorType.NotFound)));
+        return pricing;
     }
 }

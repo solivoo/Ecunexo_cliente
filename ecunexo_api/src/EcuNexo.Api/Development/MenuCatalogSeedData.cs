@@ -67,6 +67,12 @@ internal static class MenuCatalogSeedData
         ("catalog.matrix.update", "Matriz — editar", "Editar matrices y variantes", "catalog", 68),
         ("catalog.matrix.delete", "Matriz — eliminar", "Eliminar matrices y variantes", "catalog", 69),
         ("catalog.scale.manage", "Escalas — administrar", "Administrar plantillas y escalas de variantes", "catalog", 70),
+        ("catalog.pricing.read", "Precios — consultar", "Ver listas, precios, promociones e historial", "catalog", 71),
+        ("catalog.pricing.create", "Precios — crear", "Crear listas y vigencias de precio", "catalog", 72),
+        ("catalog.pricing.update", "Precios — editar", "Editar listas, precios y vigencias", "catalog", 73),
+        ("catalog.pricing.delete", "Precios — desactivar", "Desactivar listas y precios", "catalog", 74),
+        ("catalog.pricing.history.read", "Precios — historial", "Consultar el historial de cambios de precio", "catalog", 75),
+        ("catalog.promotions.manage", "Promociones — administrar", "Crear y editar promociones comerciales", "catalog", 76),
 
         ("warehousing.read", "Bodegas — acceso", "Ver módulo bodegas", "warehousing", 100),
         ("warehousing.locations.manage", "Bodegas — administrar", "Crear y editar ubicaciones", "warehousing", 101),
@@ -107,6 +113,7 @@ internal static class MenuCatalogSeedData
         ("ecommerce.orders.read", "Pedidos Ecommerce — consultar", "Listar y ver detalle de pedidos de la tienda online", "ecommerce", 140),
         ("ecommerce.orders.create", "Pedidos Ecommerce — crear", "Registrar pedidos recibidos", "ecommerce", 141),
         ("ecommerce.orders.manage", "Pedidos Ecommerce — gestionar", "Cambiar estados, despachar y cancelar pedidos", "ecommerce", 142),
+        ("ecommerce.storefront.manage", "Tienda online — dominios", "Administrar dominios, verificación y publicación de la vitrina", "ecommerce", 143),
 
         ("purchases.documents.read", "Facturas de compra — consultar", "Listar y ver detalle de comprobantes de compra", "purchases", 150),
         ("purchases.documents.manage", "Facturas de compra — administrar", "Ingresar facturas, parsear XML y recibir en inventario", "purchases", 151),
@@ -152,6 +159,12 @@ internal static class MenuCatalogSeedData
         Item("catalog-items", "catalog", "Ítems", "package", "catalogo/items", 1, MenuContextKind.Operational, "catalog", ["catalog.item.read", "catalog.matrix.read"]),
         Item("catalog-attributes", "catalog", "Atributos", "tag", "catalogo/atributos", 2, MenuContextKind.Operational, "catalog", ["catalog.item.read", "catalog.scale.manage"]),
         Item("catalog-templates", "catalog", "Plantillas", "layers", "catalogo/plantillas", 3, MenuContextKind.Operational, "catalog", ["catalog.item.read", "catalog.scale.manage"]),
+        Item("catalog-pricing", "catalog", "Gestión de precios", "circle-dollar-sign", null, 4, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
+        Item("catalog-pricing-lists", "catalog-pricing", "Listas de precios", "list", "catalogo/precios/listas", 1, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
+        Item("catalog-pricing-products", "catalog-pricing", "Precios de productos", "tag", "catalogo/precios/productos", 2, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
+        Item("catalog-pricing-promotions", "catalog-pricing", "Promociones", "percent", "catalogo/precios/promociones", 3, MenuContextKind.Operational, "catalog", ["catalog.promotions.manage"]),
+        Item("catalog-pricing-history", "catalog-pricing", "Historial", "history", "catalogo/precios/historial", 4, MenuContextKind.Operational, "catalog", ["catalog.pricing.history.read"]),
+        Item("catalog-pricing-simulator", "catalog-pricing", "Simulador", "calculator", "catalogo/precios/simulador", 5, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
 
         Item("warehousing", null, "Bodegas", "warehouse", null, 52, MenuContextKind.Operational, "warehousing", ["warehousing.read"]),
         Item("warehousing-list", "warehousing", "Ubicaciones", "warehouse", "bodegas", 1, MenuContextKind.Operational, "warehousing", ["warehousing.read", "warehousing.locations.manage"]),
@@ -172,6 +185,7 @@ internal static class MenuCatalogSeedData
 
         Item("ecommerce", null, "Ecommerce", "shopping-bag", null, 58, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
         Item("ecommerce-orders", "ecommerce", "Pedidos", "shopping-bag", "ecommerce/pedidos", 1, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
+        Item("ecommerce-storefront", "ecommerce", "Vitrina y dominios", "globe", "ecommerce/vitrina", 2, MenuContextKind.Operational, "ecommerce", ["ecommerce.storefront.manage"]),
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Facturas", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),

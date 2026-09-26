@@ -1,7 +1,6 @@
 using EcuNexo.Core.Ecommerce;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-
 namespace EcuNexo.Data.Configurations;
 
 public sealed class EcommerceOrderItemConfiguration : IEntityTypeConfiguration<EcommerceOrderItem>
@@ -60,6 +59,20 @@ public sealed class EcommerceOrderItemConfiguration : IEntityTypeConfiguration<E
         builder.Property(i => i.TotalAmount)
             .HasColumnType("numeric(18,2)")
             .IsRequired();
+
+        builder.Property(i => i.PriceListId)
+            .HasColumnType("uuid");
+
+        builder.HasOne(i => i.PriceList)
+            .WithMany()
+            .HasForeignKey(i => i.PriceListId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Property(i => i.ListPrice)
+            .HasColumnType("numeric(18,6)");
+
+        builder.Property(i => i.AppliedRulesJson)
+            .HasColumnType("jsonb");
 
         builder.HasIndex(i => i.EcommerceOrderId);
         builder.HasIndex(i => i.CatalogItemId);

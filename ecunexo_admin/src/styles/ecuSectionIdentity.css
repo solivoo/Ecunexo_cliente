@@ -114,12 +114,22 @@
 
 .ecu-section-page .ecu-stat-card__value {
   grid-area: value;
-  font-size: 1.7rem;
+  font-size: 1.45rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   color: var(--idt-ink);
+}
+
+/* Valores tipo código (secuenciales, RUC, series): compactos para no dominar el riel. */
+.ecu-section-page .ecu-stat-card--code .ecu-stat-card__value {
+  font-size: 1.05rem;
+  letter-spacing: 0;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ecu-section-page .ecu-stat-card__label {
@@ -576,7 +586,7 @@ html.sf-dark-mode .ecu-section-page .ecu-chip {
   }
 
   .ecu-section-page .ecu-stat-card__value {
-    font-size: 1.45rem;
+    font-size: 1.25rem;
   }
 
   .ecu-section-page .glb-datagrid__toolbar,

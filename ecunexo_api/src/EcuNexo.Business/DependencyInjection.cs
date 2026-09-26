@@ -1,4 +1,20 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Pricing;
+using EcuNexo.Business.Pricing.Commands.CreatePriceList;
+using EcuNexo.Business.Pricing.Commands.CreateProductPrice;
+using EcuNexo.Business.Pricing.Commands.CreatePromotion;
+using EcuNexo.Business.Pricing.Commands.DeletePriceList;
+using EcuNexo.Business.Pricing.Commands.DeleteProductPrice;
+using EcuNexo.Business.Pricing.Commands.DeletePromotion;
+using EcuNexo.Business.Pricing.Commands.UpdatePriceList;
+using EcuNexo.Business.Pricing.Commands.UpdateProductPrice;
+using EcuNexo.Business.Pricing.Commands.UpdatePromotion;
+using EcuNexo.Business.Pricing.Queries.GetPriceHistory;
+using EcuNexo.Business.Pricing.Queries.GetProductPrice;
+using EcuNexo.Business.Pricing.Queries.ListPriceLists;
+using EcuNexo.Business.Pricing.Queries.ListProductPrices;
+using EcuNexo.Business.Pricing.Queries.ListPromotions;
+using EcuNexo.Business.Pricing.Queries.ResolvePrice;
 using EcuNexo.Business.Accounting;
 using EcuNexo.Business.CreditNotes.Commands.CreateCreditNote;
 using EcuNexo.Business.CreditNotes.Queries.GetCreditNoteById;
@@ -102,6 +118,16 @@ using EcuNexo.Business.Repairs.Queries.ListBatches;
 using EcuNexo.Business.Repairs.Queries.VerifyDispatchPublic;
 using EcuNexo.Business.Repairs;
 using EcuNexo.Business.Repairs.Storage;
+using EcuNexo.Business.Storefront;
+using EcuNexo.Business.Storefront.Commands.CreateStorefrontDomain;
+using EcuNexo.Business.Storefront.Commands.DeleteStorefrontDomain;
+using EcuNexo.Business.Storefront.Commands.SetPrimaryStorefrontDomain;
+using EcuNexo.Business.Storefront.Commands.VerifyStorefrontDomain;
+using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
+using EcuNexo.Business.Storefront.Queries.ListStorefrontCategories;
+using EcuNexo.Business.Storefront.Queries.ListStorefrontDomains;
+using EcuNexo.Business.Storefront.Queries.ListStorefrontProducts;
+using EcuNexo.Business.Storefront.Queries.ResolveStorefront;
 using EcuNexo.Business.RemisionGuides.Commands.CreateRemisionGuide;
 using EcuNexo.Business.RemisionGuides.Commands.UpdateRemisionGuideStatus;
 using EcuNexo.Business.RemisionGuides.Queries.GetRemisionGuideById;
@@ -365,6 +391,35 @@ public static class DependencyInjection
 
         // Dashboard Analytics
         services.AddScoped<IQueryHandler<EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.GetDashboardAnalyticsQuery, EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.DashboardAnalyticsDto>, EcuNexo.Business.Platform.Queries.GetDashboardAnalytics.GetDashboardAnalyticsHandler>();
+
+        // Storefront público (Ecommerce)
+        services.AddScoped<IQueryHandler<ListStorefrontProductsQuery, StorefrontProductPageDto>, ListStorefrontProductsHandler>();
+        services.AddScoped<IQueryHandler<GetStorefrontProductQuery, StorefrontProductDetailDto>, GetStorefrontProductHandler>();
+        services.AddScoped<IQueryHandler<ListStorefrontCategoriesQuery, IReadOnlyList<StorefrontCategoryDto>>, ListStorefrontCategoriesHandler>();
+        services.AddScoped<IQueryHandler<ResolveStorefrontQuery, StorefrontResolveResponse>, ResolveStorefrontHandler>();
+        services.AddScoped<IQueryHandler<ListStorefrontDomainsQuery, IReadOnlyList<StorefrontDomainDto>>, ListStorefrontDomainsHandler>();
+        services.AddScoped<ICommandHandler<CreateStorefrontDomainCommand, StorefrontDomainDto>, CreateStorefrontDomainHandler>();
+        services.AddScoped<ICommandHandler<VerifyStorefrontDomainCommand, StorefrontDomainDto>, VerifyStorefrontDomainHandler>();
+        services.AddScoped<ICommandHandler<SetPrimaryStorefrontDomainCommand, StorefrontDomainDto>, SetPrimaryStorefrontDomainHandler>();
+        services.AddScoped<ICommandHandler<DeleteStorefrontDomainCommand, bool>, DeleteStorefrontDomainHandler>();
+
+        // Pricing (Gestión de precios)
+        services.AddScoped<IPricingService, PricingService>();
+        services.AddScoped<ICommandHandler<CreatePriceListCommand, CreatePriceListResponse>, CreatePriceListHandler>();
+        services.AddScoped<ICommandHandler<UpdatePriceListCommand, UpdatePriceListResponse>, UpdatePriceListHandler>();
+        services.AddScoped<ICommandHandler<DeletePriceListCommand, DeletePriceListResponse>, DeletePriceListHandler>();
+        services.AddScoped<ICommandHandler<CreateProductPriceCommand, CreateProductPriceResponse>, CreateProductPriceHandler>();
+        services.AddScoped<ICommandHandler<UpdateProductPriceCommand, UpdateProductPriceResponse>, UpdateProductPriceHandler>();
+        services.AddScoped<ICommandHandler<DeleteProductPriceCommand, DeleteProductPriceResponse>, DeleteProductPriceHandler>();
+        services.AddScoped<ICommandHandler<CreatePromotionCommand, CreatePromotionResponse>, CreatePromotionHandler>();
+        services.AddScoped<ICommandHandler<UpdatePromotionCommand, UpdatePromotionResponse>, UpdatePromotionHandler>();
+        services.AddScoped<ICommandHandler<DeletePromotionCommand, DeletePromotionResponse>, DeletePromotionHandler>();
+        services.AddScoped<IQueryHandler<ListPriceListsQuery, IReadOnlyList<PriceListResponse>>, ListPriceListsHandler>();
+        services.AddScoped<IQueryHandler<ListProductPricesQuery, IReadOnlyList<ProductPriceListItemResponse>>, ListProductPricesHandler>();
+        services.AddScoped<IQueryHandler<GetProductPriceQuery, ProductPriceDetailResponse>, GetProductPriceHandler>();
+        services.AddScoped<IQueryHandler<GetPriceHistoryQuery, IReadOnlyList<PriceHistoryItemResponse>>, GetPriceHistoryHandler>();
+        services.AddScoped<IQueryHandler<ListPromotionsQuery, IReadOnlyList<PromotionResponse>>, ListPromotionsHandler>();
+        services.AddScoped<IQueryHandler<ResolvePriceQuery, PricingResult>, ResolvePriceHandler>();
 
         return services;
     }

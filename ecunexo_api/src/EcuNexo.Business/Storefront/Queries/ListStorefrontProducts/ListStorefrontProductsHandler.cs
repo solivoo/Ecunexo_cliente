@@ -1,0 +1,212 @@
+using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Catalog;
+using EcuNexo.Business.Inventory;
+using EcuNexo.Business.Pricing;
+using EcuNexo.Business.Tenancy;
+using EcuNexo.Core.Catalog;
+using EcuNexo.Core.Common;
+
+namespace EcuNexo.Business.Storefront.Queries.ListStorefrontProducts;
+
+public sealed class ListStorefrontProductsHandler
+    : IQueryHandler<ListStorefrontProductsQuery, StorefrontProductPageDto>
+{
+    private const int MaxPageSize = 48;
+
+    private readonly IStorefrontCatalogRepository _products;
+    private readonly IStockRepository _stock;
+    private readonly ICategoryRepository _categories;
+    private readonly ITenantRepository _tenants;
+    private readonly IPriceListRepository _priceLists;
+    private readonly IProductPriceRepository _productPrices;
+
+    public ListStorefrontProductsHandler(
+        IStorefrontCatalogRepository products,
+        IStockRepository stock,
+        ICategoryRepository categories,
+        ITenantRepository tenants,
+        IPriceListRepository priceLists,
+        IProductPriceRepository productPrices)
+    {
+        _products = products;
+        _stock = stock;
+        _categories = categories;
+        _tenants = tenants;
+        _priceLists = priceLists;
+        _productPrices = productPrices;
+    }
+
+    public async Task<Result<StorefrontProductPageDto>> Handle(
+        ListStorefrontProductsQuery query,
+        CancellationToken ct)
+    {
+        var tenantError = await StorefrontTenantGuard
+            .ValidateAsync(_tenants, query.TenantId, ct)
+            .ConfigureAwait(false);
+        if (tenantError is not null)
+        {
+            return Result.Failure<StorefrontProductPageDto>(tenantError);
+        }
+
+        var page = Math.Max(1, query.Page);
+        var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
+
+        var categories = await _categories
+            .ListActiveByTenantAsync(query.TenantId, ct)
+            .ConfigureAwait(false);
+        var categoryIds = query.CategoryId is { } categoryId
+            ? ResolveCategoryBranch(categories, categoryId)
+            : null;
+
+        var defaultList = await _priceLists.GetDefaultAsync(query.TenantId, ct).ConfigureAwait(false);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var filter = new StorefrontProductFilter(
+            query.Search,
+            categoryIds,
+            query.Sort,
+            page,
+            pageSize,
+            defaultList?.Id,
+            today);
+
+        var (items, totalCount) = await _products
+            .ListActiveRootsAsync(query.TenantId, filter, ct)
+            .ConfigureAwait(false);
+
+        var categoryNames = categories.ToDictionary(c => c.Id, c => c.Name);
+        var availability = await LoadAvailabilityAsync(query.TenantId, items, ct).ConfigureAwait(false);
+
+        var resolvedPrices = defaultList is null
+            ? new Dictionary<Guid, decimal>()
+            : await _productPrices
+                .ListVigentByItemIdsAsync(
+                    query.TenantId,
+                    defaultList.Id,
+                    items.Select(i => i.Id).ToList(),
+                    today,
+                    ct)
+                .ConfigureAwait(false);
+
+        var dtos = items
+            .Select(item =>
+            {
+                var image = ResolveMainImage(item);
+                var available = SumAvailability(item, availability);
+                var price = resolvedPrices.TryGetValue(item.Id, out var resolved)
+                    ? resolved
+                    : item.BasePrice;
+
+                return new StorefrontProductListItemDto(
+                    item.Id,
+                    item.Kind,
+                    item.Name,
+                    item.Description,
+                    price,
+                    item.CategoryId,
+                    item.CategoryId is { } cid && categoryNames.TryGetValue(cid, out var categoryName)
+                        ? categoryName
+                        : null,
+                    image?.ThumbUrl,
+                    image?.MediumUrl,
+                    available > 0m,
+                    item.Variants.Count > 0,
+                    item.Variants.Count,
+                    item.CreatedAt);
+            })
+            .ToList();
+
+        return Result.Success(new StorefrontProductPageDto(dtos, totalCount, page, pageSize));
+    }
+
+    private static HashSet<Guid> ResolveCategoryBranch(
+        IReadOnlyList<Category> categories,
+        Guid categoryId)
+    {
+        var branch = new HashSet<Guid> { categoryId };
+        if (categories.All(c => c.Id != categoryId))
+        {
+            return branch;
+        }
+
+        var childrenByParent = categories
+            .Where(c => c.ParentId.HasValue)
+            .GroupBy(c => c.ParentId!.Value)
+            .ToDictionary(g => g.Key, g => g.Select(c => c.Id).ToList());
+
+        var pending = new Queue<Guid>();
+        pending.Enqueue(categoryId);
+        while (pending.Count > 0)
+        {
+            var current = pending.Dequeue();
+            if (!childrenByParent.TryGetValue(current, out var children))
+            {
+                continue;
+            }
+
+            foreach (var child in children)
+            {
+                if (branch.Add(child))
+                {
+                    pending.Enqueue(child);
+                }
+            }
+        }
+
+        return branch;
+    }
+
+    private async Task<IReadOnlyDictionary<Guid, decimal>> LoadAvailabilityAsync(
+        Guid tenantId,
+        IReadOnlyList<CatalogItem> items,
+        CancellationToken ct)
+    {
+        var ids = new HashSet<Guid>();
+        foreach (var item in items)
+        {
+            ids.Add(item.Id);
+            foreach (var variant in item.Variants)
+            {
+                ids.Add(variant.Id);
+            }
+        }
+
+        if (ids.Count == 0)
+        {
+            return new Dictionary<Guid, decimal>();
+        }
+
+        return await _stock
+            .SumAvailableByItemIdsAsync(tenantId, ids, ct)
+            .ConfigureAwait(false);
+    }
+
+    private static decimal SumAvailability(
+        CatalogItem item,
+        IReadOnlyDictionary<Guid, decimal> availability)
+    {
+        var total = availability.TryGetValue(item.Id, out var own) ? own : 0m;
+        foreach (var variant in item.Variants)
+        {
+            if (availability.TryGetValue(variant.Id, out var available))
+            {
+                total += available;
+            }
+        }
+
+        return total;
+    }
+
+    private static CatalogItemImage? ResolveMainImage(CatalogItem item)
+    {
+        var modelImages = item.Images
+            .Where(i => i.GroupValue is null)
+            .OrderBy(i => i.DisplayOrder)
+            .ToList();
+
+        return modelImages.FirstOrDefault(i => i.IsMain)
+            ?? modelImages.FirstOrDefault()
+            ?? item.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault(i => i.IsMain)
+            ?? item.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault();
+    }
+}

@@ -5,13 +5,10 @@ namespace EcuNexo.Api.Contracts.V1.Ecommerce;
 
 public sealed record CreateEcommerceOrderItemRequest(
     Guid CatalogItemId,
-    decimal Quantity,
-    decimal UnitPrice,
-    decimal DiscountAmount = 0m,
-    decimal TaxRate = 0.15m)
+    decimal Quantity)
 {
     public CreateEcommerceOrderItemInput ToInput() =>
-        new(CatalogItemId, Quantity, UnitPrice, DiscountAmount, TaxRate);
+        new(CatalogItemId, Quantity);
 }
 
 public sealed record CreateEcommerceOrderRequest(

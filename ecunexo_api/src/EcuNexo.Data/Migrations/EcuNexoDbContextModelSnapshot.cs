@@ -1600,6 +1600,10 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("AppliedRulesJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("applied_rules_json");
+
                     b.Property<Guid>("CatalogItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("catalog_item_id");
@@ -1617,6 +1621,14 @@ namespace EcuNexo.Data.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("character varying(250)")
                         .HasColumnName("item_name");
+
+                    b.Property<decimal?>("ListPrice")
+                        .HasColumnType("numeric(18,6)")
+                        .HasColumnName("list_price");
+
+                    b.Property<Guid?>("PriceListId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("price_list_id");
 
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric(18,4)")
@@ -1652,6 +1664,9 @@ namespace EcuNexo.Data.Migrations
 
                     b.HasIndex("EcommerceOrderId")
                         .HasDatabaseName("ix_order_items_ecommerce_order_id");
+
+                    b.HasIndex("PriceListId")
+                        .HasDatabaseName("ix_order_items_price_list_id");
 
                     b.ToTable("order_items", "ecommerce");
                 });
@@ -2580,6 +2595,465 @@ namespace EcuNexo.Data.Migrations
                         .HasDatabaseName("ix_sys_settings_code_scope_scope_id");
 
                     b.ToTable("sys_settings", "platform");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.PriceChangeLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("changed_at");
+
+                    b.Property<Guid?>("ChangedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("changed_by");
+
+                    b.Property<decimal?>("NewPrice")
+                        .HasColumnType("numeric(18,6)")
+                        .HasColumnName("new_price");
+
+                    b.Property<decimal?>("PreviousPrice")
+                        .HasColumnType("numeric(18,6)")
+                        .HasColumnName("previous_price");
+
+                    b.Property<Guid>("PriceListId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("price_list_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("valid_from");
+
+                    b.Property<DateOnly?>("ValidTo")
+                        .HasColumnType("date")
+                        .HasColumnName("valid_to");
+
+                    b.HasKey("Id")
+                        .HasName("pk_price_change_log");
+
+                    b.HasIndex("CatalogItemId")
+                        .HasDatabaseName("ix_price_change_log_catalog_item_id");
+
+                    b.HasIndex("PriceListId")
+                        .HasDatabaseName("ix_price_change_log_price_list_id");
+
+                    b.HasIndex("TenantId", "PriceListId")
+                        .HasDatabaseName("ix_price_change_log_list");
+
+                    b.HasIndex("TenantId", "CatalogItemId", "ChangedAt")
+                        .HasDatabaseName("ix_price_change_log_item_changed_at");
+
+                    b.ToTable("price_change_log", "pricing");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.PriceList", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("USD")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsDefault")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_default");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<bool>("PricesIncludeTax")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("prices_include_tax");
+
+                    b.Property<int>("Priority")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("priority");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("valid_from");
+
+                    b.Property<DateOnly?>("ValidTo")
+                        .HasColumnType("date")
+                        .HasColumnName("valid_to");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_price_lists");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_price_lists_tenant_default")
+                        .HasFilter("is_default AND is_active");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_price_lists_tenant_code");
+
+                    b.HasIndex("TenantId", "IsActive")
+                        .HasDatabaseName("ix_price_lists_tenant_id_is_active");
+
+                    b.ToTable("price_lists", "pricing");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.ProductPrice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric(18,6)")
+                        .HasColumnName("price");
+
+                    b.Property<Guid>("PriceListId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("price_list_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("valid_from");
+
+                    b.Property<DateOnly?>("ValidTo")
+                        .HasColumnType("date")
+                        .HasColumnName("valid_to");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_product_prices");
+
+                    b.HasIndex("CatalogItemId")
+                        .HasDatabaseName("ix_product_prices_catalog_item_id");
+
+                    b.HasIndex("PriceListId")
+                        .HasDatabaseName("ix_product_prices_price_list_id");
+
+                    b.HasIndex("TenantId", "PriceListId", "CatalogItemId", "ValidFrom")
+                        .IsUnique()
+                        .HasDatabaseName("ux_product_prices_tenant_list_item_from");
+
+                    b.HasIndex("TenantId", "CatalogItemId", "PriceListId", "ValidFrom", "ValidTo")
+                        .HasDatabaseName("ix_product_prices_lookup");
+
+                    b.ToTable("product_prices", "pricing");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.Promotion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("description");
+
+                    b.Property<DateTimeOffset?>("EndsAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("ends_at");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsStackable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_stackable");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Priority")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("priority");
+
+                    b.Property<DateTimeOffset>("StartsAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("starts_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("numeric(18,6)")
+                        .HasColumnName("value");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_promotions");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_promotions_tenant_code");
+
+                    b.HasIndex("TenantId", "IsActive", "StartsAt", "EndsAt")
+                        .HasDatabaseName("ix_promotions_tenant_id_is_active_starts_at_ends_at");
+
+                    b.ToTable("promotions", "pricing");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.PromotionTarget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("PromotionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("promotion_id");
+
+                    b.Property<string>("TargetReference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("target_reference");
+
+                    b.Property<int>("TargetType")
+                        .HasColumnType("integer")
+                        .HasColumnName("target_type");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_promotion_targets");
+
+                    b.HasIndex("PromotionId")
+                        .HasDatabaseName("ix_promotion_targets_promotion_id");
+
+                    b.HasIndex("TargetType", "TargetReference")
+                        .HasDatabaseName("ix_promotion_targets_target");
+
+                    b.ToTable("promotion_targets", "pricing");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.QuantityTier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<Guid>("ProductPriceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_price_id");
+
+                    b.Property<decimal>("QuantityFrom")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity_from");
+
+                    b.Property<decimal?>("QuantityTo")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity_to");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("numeric(18,6)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_quantity_tiers");
+
+                    b.HasIndex("ProductPriceId", "QuantityFrom")
+                        .IsUnique()
+                        .HasDatabaseName("ux_quantity_tiers_price_from");
+
+                    b.ToTable("quantity_tiers", "pricing");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Purchases.ExpenseType", b =>
@@ -4201,6 +4675,71 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("module_usage_counters", "tenancy");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Tenancy.StorefrontDomain", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Domain")
+                        .IsRequired()
+                        .HasMaxLength(253)
+                        .HasColumnType("character varying(253)")
+                        .HasColumnName("domain");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_primary");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("VerificationToken")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("verification_token");
+
+                    b.Property<DateTimeOffset?>("VerifiedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("verified_at");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_storefront_domains");
+
+                    b.HasIndex("Domain")
+                        .IsUnique()
+                        .HasDatabaseName("ux_storefront_domains_domain");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_storefront_domains_tenant_id");
+
+                    b.ToTable("storefront_domains", "tenancy");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Tenancy.SubscriptionAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4942,9 +5481,17 @@ namespace EcuNexo.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_order_items_orders_ecommerce_order_id");
 
+                    b.HasOne("EcuNexo.Core.Pricing.PriceList", "PriceList")
+                        .WithMany()
+                        .HasForeignKey("PriceListId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_order_items_price_lists_price_list_id");
+
                     b.Navigation("CatalogItem");
 
                     b.Navigation("EcommerceOrder");
+
+                    b.Navigation("PriceList");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceOrderTimeline", b =>
@@ -5189,6 +5736,101 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Warehouse");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Pricing.PriceChangeLog", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Catalog.CatalogItem", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_price_change_log_items_catalog_item_id");
+
+                    b.HasOne("EcuNexo.Core.Pricing.PriceList", null)
+                        .WithMany()
+                        .HasForeignKey("PriceListId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_price_change_log_price_lists_price_list_id");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.PriceList", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_price_lists_tenants_tenant_id");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.ProductPrice", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Catalog.CatalogItem", "CatalogItem")
+                        .WithMany()
+                        .HasForeignKey("CatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_product_prices_catalog_items_catalog_item_id");
+
+                    b.HasOne("EcuNexo.Core.Pricing.PriceList", "PriceList")
+                        .WithMany()
+                        .HasForeignKey("PriceListId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_product_prices_price_lists_price_list_id");
+
+                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_product_prices_tenants_tenant_id");
+
+                    b.Navigation("CatalogItem");
+
+                    b.Navigation("PriceList");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.Promotion", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_promotions_tenants_tenant_id");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.PromotionTarget", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Pricing.Promotion", "Promotion")
+                        .WithMany("Targets")
+                        .HasForeignKey("PromotionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_promotion_targets_promotions_promotion_id");
+
+                    b.Navigation("Promotion");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.QuantityTier", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Pricing.ProductPrice", "ProductPrice")
+                        .WithMany("Tiers")
+                        .HasForeignKey("ProductPriceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_quantity_tiers_product_prices_product_price_id");
+
+                    b.Navigation("ProductPrice");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Purchases.Purchase", b =>
                 {
                     b.HasOne("EcuNexo.Core.Purchases.ExpenseType", "ExpenseType")
@@ -5350,6 +5992,18 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Equipment");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Tenancy.StorefrontDomain", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_storefront_domains_tenants_tenant_id");
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Tenancy.TenantBrandLogo", b =>
                 {
                     b.HasOne("EcuNexo.Core.Tenancy.Tenant", null)
@@ -5428,6 +6082,16 @@ namespace EcuNexo.Data.Migrations
             modelBuilder.Entity("EcuNexo.Core.Inventory.InventoryDocument", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.ProductPrice", b =>
+                {
+                    b.Navigation("Tiers");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.Promotion", b =>
+                {
+                    b.Navigation("Targets");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Purchases.Purchase", b =>

@@ -599,7 +599,7 @@ export function RepairEquipmentDetailPage() {
 
         {/* Tira de Métricas KPI */}
         <div className="ecu-stat-grid">
-          <StatCard label="Serie" value={equipment.serialNumber} />
+          <StatCard label="Serie" value={equipment.serialNumber} className="ecu-stat-card--code" />
           <StatCard label="Fase" value={repairEquipmentStatusLabel(equipment.status)} />
           <StatCard label="Daño" value={damageLevelLabel(equipment.damageLevel)} />
           <StatCard label="Evidencias" value={photos.length} />

@@ -1,5 +1,6 @@
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
+using EcuNexo.Core.Pricing;
 
 namespace EcuNexo.Core.Ecommerce;
 
@@ -36,6 +37,14 @@ public sealed class EcommerceOrderItem : Entity<Guid>
 
     public decimal TotalAmount { get; private set; }
 
+    public Guid? PriceListId { get; private set; }
+
+    public PriceList? PriceList { get; private set; }
+
+    public decimal? ListPrice { get; private set; }
+
+    public string? AppliedRulesJson { get; private set; }
+
     public static Result<EcommerceOrderItem> Create(
         Guid id,
         Guid ecommerceOrderId,
@@ -45,7 +54,8 @@ public sealed class EcommerceOrderItem : Entity<Guid>
         decimal quantity,
         decimal unitPrice,
         decimal discountAmount = 0m,
-        decimal taxRate = 0.15m)
+        decimal taxRate = 0.15m,
+        EcommerceItemPricingSnapshot? pricing = null)
     {
         if (id == Guid.Empty)
         {
@@ -84,8 +94,8 @@ public sealed class EcommerceOrderItem : Entity<Guid>
         }
 
         var subtotal = Math.Max(0m, (quantity * unitPrice) - discountAmount);
-        var taxAmount = Math.Round(subtotal * taxRate, 2, MidpointRounding.AwayFromZero);
-        var totalAmount = subtotal + taxAmount;
+        var taxAmount = pricing?.TaxAmount ?? Math.Round(subtotal * taxRate, 2, MidpointRounding.AwayFromZero);
+        var totalAmount = pricing?.TotalAmount ?? subtotal + taxAmount;
 
         return new EcommerceOrderItem
         {
@@ -100,6 +110,9 @@ public sealed class EcommerceOrderItem : Entity<Guid>
             TaxRate = decimal.Round(taxRate, 4, MidpointRounding.AwayFromZero),
             TaxAmount = taxAmount,
             TotalAmount = totalAmount,
+            PriceListId = pricing?.PriceListId,
+            ListPrice = pricing?.ListPrice,
+            AppliedRulesJson = pricing?.AppliedRulesJson,
         };
     }
 }

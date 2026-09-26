@@ -472,6 +472,7 @@ export function ContabilidadSriConfigPage() {
           <StatCard
             label="Próximo comprobante"
             value={nextDocPreview}
+            className="ecu-stat-card--code"
             icon="receipt_long"
             toneColor="#4f46e5"
             footerText="Establecimiento · punto · secuencial"
@@ -479,6 +480,7 @@ export function ContabilidadSriConfigPage() {
           <StatCard
             label="RUC emisor"
             value={legal.ruc.trim() || '—'}
+            className="ecu-stat-card--code"
             icon="badge"
             toneColor="#0284c7"
             footerText={legal.razonSocial.trim() || 'Sin razón social'}

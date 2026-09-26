@@ -48,7 +48,7 @@ export default defineConfig({
     // Expone el servidor en la red local (0.0.0.0) para probar en tablets y móviles vía WiFi/LAN
     host: true,
     // Playwright E2E apunta aquí. strictPort evita caer en otra SPA si 5173 está ocupado.
-    port: 5173,
+    port: 5193,
     strictPort: true,
     proxy: {
       '/api/v1/emitters': {

@@ -13,4 +13,9 @@ public interface IStockRepository
     Task<Stock?> GetTrackedByIdAsync(Guid tenantId, Guid stockId, CancellationToken ct);
 
     Task<bool> ExistsForItemAsync(Guid tenantId, Guid catalogItemId, CancellationToken ct);
+
+    Task<IReadOnlyDictionary<Guid, decimal>> SumAvailableByItemIdsAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> catalogItemIds,
+        CancellationToken ct);
 }

@@ -10,8 +10,10 @@ using EcuNexo.Api.Endpoints.V1.Ecommerce;
 using EcuNexo.Api.Endpoints.V1.Identity;
 using EcuNexo.Api.Endpoints.V1.Inventory;
 using EcuNexo.Api.Endpoints.V1.Platform;
+using EcuNexo.Api.Endpoints.V1.Pricing;
 using EcuNexo.Api.Endpoints.V1.Purchases;
 using EcuNexo.Api.Endpoints.V1.Repairs;
+using EcuNexo.Api.Endpoints.V1.Storefront;
 using EcuNexo.Api.Endpoints.V1.Warehousing;
 using EcuNexo.Api.Endpoints.V1.Subscription;
 using EcuNexo.Api.Endpoints.V1.Tenancy;
@@ -21,6 +23,8 @@ using EcuNexo.Api.Tenancy;
 using EcuNexo.Business;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Identity;
+using EcuNexo.Business.Pricing;
+using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Tenancy.Licensing;
 using EcuNexo.Data;
@@ -58,6 +62,8 @@ builder.Services.AddEcuNexoJwt(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICallerContext, HttpCallerContext>();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<IDomainOwnershipVerifier, DnsTxtDomainVerifier>();
 
 builder.Services.Configure<ActivationCodeOptions>(
     builder.Configuration.GetSection(ActivationCodeOptions.SectionName));
@@ -65,6 +71,18 @@ builder.Services.Configure<LicenseValidationOptions>(
     builder.Configuration.GetSection(LicenseValidationOptions.SectionName));
 builder.Services.Configure<InventoryEgressOptions>(
     builder.Configuration.GetSection(InventoryEgressOptions.SectionName));
+builder.Services.Configure<BillingTaxRateOptions>(
+    builder.Configuration.GetSection(BillingTaxRateOptions.SectionName));
+builder.Services.AddHttpClient<ITaxRateProvider, BillingTaxRateProvider>((sp, client) =>
+{
+    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BillingTaxRateOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+    {
+        client.BaseAddress = new Uri($"{options.BaseUrl.TrimEnd('/')}/");
+    }
+
+    client.Timeout = TimeSpan.FromSeconds(Math.Max(1, options.TimeoutSeconds));
+});
 builder.Services.AddScoped<IActivationCodePepperProvider, ActivationCodePepperProvider>();
 builder.Services.AddScoped<ILicenseValidationPepperProvider, LicenseValidationPepperProvider>();
 builder.Services.AddScoped<ILicenseArtifactVerifier, LicenseArtifactVerifier>();
@@ -142,12 +160,15 @@ app.MapRoleEndpointsV1();
 app.MapDepartmentEndpointsV1();
 app.MapPermissionEndpointsV1();
 app.MapCatalogEndpointsV1();
+app.MapPricingEndpointsV1();
 app.MapWarehouseEndpointsV1();
 app.MapInventoryEndpointsV1();
 app.MapCustomerEndpointsV1();
 app.MapCustomerTypeEndpointsV1();
 app.MapRepairEndpointsV1();
 app.MapEcommerceOrderEndpointsV1();
+app.MapStorefrontEndpointsV1();
+app.MapStorefrontAdminEndpointsV1();
 app.MapSupplierEndpointsV1();
 app.MapExpenseTypeEndpointsV1();
 app.MapPurchaseProformaEndpointsV1();

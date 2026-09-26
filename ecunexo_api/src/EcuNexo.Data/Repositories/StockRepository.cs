@@ -43,4 +43,28 @@ public sealed class StockRepository : IStockRepository
 
     public Task<bool> ExistsForItemAsync(Guid tenantId, Guid catalogItemId, CancellationToken ct) =>
         _db.Stocks.AnyAsync(s => s.TenantId == tenantId && s.CatalogItemId == catalogItemId, ct);
+
+    public async Task<IReadOnlyDictionary<Guid, decimal>> SumAvailableByItemIdsAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> catalogItemIds,
+        CancellationToken ct)
+    {
+        if (catalogItemIds.Count == 0)
+        {
+            return new Dictionary<Guid, decimal>();
+        }
+
+        var rows = await _db.Stocks.AsNoTracking()
+            .Where(s => s.TenantId == tenantId && catalogItemIds.Contains(s.CatalogItemId))
+            .GroupBy(s => s.CatalogItemId)
+            .Select(g => new
+            {
+                CatalogItemId = g.Key,
+                Available = g.Sum(s => s.Quantity - s.ReservedQuantity),
+            })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return rows.ToDictionary(row => row.CatalogItemId, row => Math.Max(0m, row.Available));
+    }
 }

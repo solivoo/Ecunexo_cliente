@@ -14,6 +14,7 @@
     "test:ui": "playwright test",
     "test:templates": "node --test scripts/templates.formation.test.ts",
     "test:inventory": "node --test scripts/inventory.ingress.test.ts",
+    "test:pricing": "node --test scripts/pricing.invoice.test.ts",
     "test:ui:headed": "playwright test --headed",
     "test:ui:comun": "playwright test tests-ui/comun",
     "test:ui:independiente": "playwright test tests-ui/planes/independiente",

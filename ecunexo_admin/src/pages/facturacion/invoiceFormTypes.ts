@@ -209,6 +209,42 @@ export function normalizeLineIvaRate(rate: number): number {
   return DEFAULT_LINE_IVA_RATE
 }
 
+export type PricingLineSource = {
+  readonly unitPrice: number
+  readonly discountAmount: number
+  readonly taxRate: number
+  readonly pricesIncludeTax: boolean
+  readonly taxableBase: number
+}
+
+/**
+ * Convierte el resultado del motor de precios al parche de la línea de factura.
+ * Con precios IVA-incluido desagrega la base imponible y expresa la promoción como descuento.
+ */
+export function pricingToLinePatch(
+  resolved: PricingLineSource,
+  quantity: number
+): Partial<InvoiceLineDraft> {
+  const ivaRate = normalizeLineIvaRate(roundMoney(resolved.taxRate * 100))
+
+  if (!resolved.pricesIncludeTax || resolved.taxRate === 0) {
+    return {
+      unitPrice: resolved.unitPrice,
+      discount: resolved.discountAmount,
+      ivaRate,
+    }
+  }
+
+  const baseUnitPrice = resolved.unitPrice / (1 + resolved.taxRate)
+  const discount = Math.max(0, roundMoney(quantity * baseUnitPrice - resolved.taxableBase))
+
+  return {
+    unitPrice: baseUnitPrice,
+    discount,
+    ivaRate,
+  }
+}
+
 export function isLineEmpty(line: InvoiceLineDraft): boolean {
   return !line.productId && !line.description.trim()
 }

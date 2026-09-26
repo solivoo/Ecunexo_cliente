@@ -327,5 +327,17 @@ public sealed class ApplyAuthorizedInvoiceEgressHandlerTests
 
         public Task<bool> ExistsForItemAsync(Guid tenantId, Guid catalogItemId, CancellationToken ct) =>
             Task.FromResult(_stocks.Any(s => s.TenantId == tenantId && s.CatalogItemId == catalogItemId));
+
+        public Task<IReadOnlyDictionary<Guid, decimal>> SumAvailableByItemIdsAsync(
+            Guid tenantId,
+            IReadOnlyCollection<Guid> catalogItemIds,
+            CancellationToken ct) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, decimal>>(
+                _stocks
+                    .Where(s => s.TenantId == tenantId && catalogItemIds.Contains(s.CatalogItemId))
+                    .GroupBy(s => s.CatalogItemId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => Math.Max(0m, g.Sum(s => s.Quantity - s.ReservedQuantity))));
     }
 }

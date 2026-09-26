@@ -39,6 +39,14 @@ import { EditCategoryPage } from '@/pages/catalog/EditCategoryPage'
 import { CatalogAttributesListPage } from '@/pages/catalog/CatalogAttributesListPage'
 import { ProductTemplatesListPage } from '@/pages/catalog/ProductTemplatesListPage'
 import { ProductTemplateBuilderPage } from '@/pages/catalog/ProductTemplateBuilderPage'
+import { PriceListsListPage } from '@/pages/catalog/pricing/PriceListsListPage'
+import { PriceListFormPage } from '@/pages/catalog/pricing/PriceListFormPage'
+import { ProductPricesListPage } from '@/pages/catalog/pricing/ProductPricesListPage'
+import { ProductPriceFormPage } from '@/pages/catalog/pricing/ProductPriceFormPage'
+import { PromotionsListPage } from '@/pages/catalog/pricing/PromotionsListPage'
+import { PromotionFormPage } from '@/pages/catalog/pricing/PromotionFormPage'
+import { PriceHistoryPage } from '@/pages/catalog/pricing/PriceHistoryPage'
+import { PriceSimulatorPage } from '@/pages/catalog/pricing/PriceSimulatorPage'
 import { CreateInventoryDocumentPage } from '@/pages/inventory/CreateInventoryDocumentPage'
 import { InventoryDocumentDetailPage } from '@/pages/inventory/InventoryDocumentDetailPage'
 import { InventoryDocumentsListPage } from '@/pages/inventory/InventoryDocumentsListPage'
@@ -79,6 +87,7 @@ import CustomerTypesListPage from '@/pages/customers/CustomerTypesListPage'
 import { PublicDispatchVerificationPage } from '@/pages/repairs/PublicDispatchVerificationPage'
 import { EcommerceOrdersListPage } from '@/pages/ecommerce/EcommerceOrdersListPage'
 import { EcommerceOrderDetailPage } from '@/pages/ecommerce/EcommerceOrderDetailPage'
+import { StorefrontDomainsPage } from '@/pages/ecommerce/StorefrontDomainsPage'
 import { LegalPublicPage } from '@/pages/legal/LegalPublicPage'
 import { ChartOfAccountsPage } from '@/pages/accounting/ChartOfAccountsPage'
 import JournalEntriesListPage from '@/pages/accounting/JournalEntriesListPage'
@@ -153,6 +162,18 @@ export const routes: RouteObject[] = [
           { path: 'catalogo/plantillas', element: <ProductTemplatesListPage /> },
           { path: 'catalogo/plantillas/nueva', element: <ProductTemplateBuilderPage /> },
           { path: 'catalogo/plantillas/:templateId', element: <ProductTemplateBuilderPage /> },
+          { path: 'catalogo/precios', element: <Navigate to="/catalogo/precios/listas" replace /> },
+          { path: 'catalogo/precios/listas', element: <PriceListsListPage /> },
+          { path: 'catalogo/precios/listas/nueva', element: <PriceListFormPage /> },
+          { path: 'catalogo/precios/listas/:priceListId', element: <PriceListFormPage /> },
+          { path: 'catalogo/precios/productos', element: <ProductPricesListPage /> },
+          { path: 'catalogo/precios/productos/nuevo', element: <ProductPriceFormPage /> },
+          { path: 'catalogo/precios/productos/:priceId', element: <ProductPriceFormPage /> },
+          { path: 'catalogo/precios/promociones', element: <PromotionsListPage /> },
+          { path: 'catalogo/precios/promociones/nueva', element: <PromotionFormPage /> },
+          { path: 'catalogo/precios/promociones/:promotionId', element: <PromotionFormPage /> },
+          { path: 'catalogo/precios/historial', element: <PriceHistoryPage /> },
+          { path: 'catalogo/precios/simulador', element: <PriceSimulatorPage /> },
           { path: 'bodegas', element: <WarehousesListPage /> },
           { path: 'bodegas/nueva', element: <CreateWarehousePage /> },
           { path: 'bodegas/:warehouseId', element: <EditWarehousePage /> },
@@ -176,6 +197,7 @@ export const routes: RouteObject[] = [
           { path: 'ecommerce', element: <Navigate to="/ecommerce/pedidos" replace /> },
           { path: 'ecommerce/pedidos', element: <EcommerceOrdersListPage /> },
           { path: 'ecommerce/pedidos/:orderId', element: <EcommerceOrderDetailPage /> },
+          { path: 'ecommerce/vitrina', element: <StorefrontDomainsPage /> },
           { path: 'compras/documentos', element: <ComprasDocumentosPage /> },
           { path: 'compras/documentos/importar', element: <ImportPurchasesPage /> },
           { path: 'compras/importar', element: <Navigate to="/compras/documentos/importar" replace /> },

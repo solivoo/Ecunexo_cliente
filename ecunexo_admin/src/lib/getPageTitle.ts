@@ -37,6 +37,12 @@ function staticTitle(pathname: string, search: string): string | null {
   if (pathname === '/catalogo/plantillas') return 'Plantillas de producto'
   if (pathname === '/catalogo/plantillas/nueva') return 'Nueva plantilla'
   if (/^\/catalogo\/plantillas\/[^/]+$/.test(pathname)) return 'Editar plantilla'
+  if (pathname === '/catalogo/precios/listas/nueva') return 'Nueva lista de precios'
+  if (/^\/catalogo\/precios\/listas\/[^/]+$/.test(pathname)) return 'Editar lista de precios'
+  if (pathname === '/catalogo/precios/productos/nuevo') return 'Nuevo precio'
+  if (/^\/catalogo\/precios\/productos\/[^/]+$/.test(pathname)) return 'Editar precio'
+  if (pathname === '/catalogo/precios/promociones/nueva') return 'Nueva promoción'
+  if (/^\/catalogo\/precios\/promociones\/[^/]+$/.test(pathname)) return 'Editar promoción'
   if (pathname === '/bodegas/nueva') return 'Nueva bodega'
   if (/^\/bodegas\/[^/]+$/.test(pathname)) return 'Editar bodega'
   if (pathname === '/inventario/documentos/nuevo') return inventoryNewTitle(search)

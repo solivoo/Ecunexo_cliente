@@ -1,9 +1,12 @@
+using System.Text.Json;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Business.Inventory;
+using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
+using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Ecommerce;
 using FluentValidation;
@@ -19,6 +22,7 @@ public sealed class CreateEcommerceOrderHandler
     private readonly ICatalogItemRepository _catalogItems;
     private readonly IStockRepository _stocks;
     private readonly IEcommerceOrderRepository _orders;
+    private readonly IPricingService _pricing;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateEcommerceOrderHandler(
@@ -28,6 +32,7 @@ public sealed class CreateEcommerceOrderHandler
         ICatalogItemRepository catalogItems,
         IStockRepository stocks,
         IEcommerceOrderRepository orders,
+        IPricingService pricing,
         IUnitOfWork unitOfWork)
     {
         _validator = validator;
@@ -36,6 +41,7 @@ public sealed class CreateEcommerceOrderHandler
         _catalogItems = catalogItems;
         _stocks = stocks;
         _orders = orders;
+        _pricing = pricing;
         _unitOfWork = unitOfWork;
     }
 
@@ -105,17 +111,7 @@ public sealed class CreateEcommerceOrderHandler
                 return Result.Failure<CreateEcommerceOrderResponse>(reserveResult.Error!);
             }
 
-            var itemResult = EcommerceOrderItem.Create(
-                _idGenerator.NewId(),
-                order.Id,
-                catalogItem.Id,
-                catalogItem.Sku ?? string.Empty,
-                catalogItem.Name,
-                itemInput.Quantity,
-                itemInput.UnitPrice,
-                itemInput.DiscountAmount,
-                itemInput.TaxRate);
-
+            var itemResult = await BuildItem(command, order, catalogItem, itemInput, ct).ConfigureAwait(false);
             if (itemResult.IsFailure)
             {
                 return Result.Failure<CreateEcommerceOrderResponse>(itemResult.Error!);
@@ -128,5 +124,54 @@ public sealed class CreateEcommerceOrderHandler
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return new CreateEcommerceOrderResponse(order.Id, order.OrderNumber, order.Status, order.TotalAmount);
+    }
+
+    private async Task<Result<EcommerceOrderItem>> BuildItem(
+        CreateEcommerceOrderCommand command,
+        EcommerceOrder order,
+        CatalogItem catalogItem,
+        CreateEcommerceOrderItemInput itemInput,
+        CancellationToken ct)
+    {
+        var pricing = await _pricing.ResolveAsync(
+            command.TenantId,
+            new PricingRequest(
+                catalogItem.Id,
+                itemInput.Quantity,
+                DateOnly.FromDateTime(DateTime.UtcNow)),
+            ct).ConfigureAwait(false);
+
+        if (pricing.IsFailure)
+        {
+            return Result.Failure<EcommerceOrderItem>(
+                pricing.Error!.Code is "catalog.pricing.price_list.not_found"
+                    or "catalog.pricing.price.not_found"
+                    or "catalog.pricing.price_list.not_valid"
+                    ? new Error(
+                        "ecommerce.order.price_not_configured",
+                        $"El producto «{catalogItem.Name}» no tiene precio vigente en una lista activa.",
+                        ErrorType.Conflict)
+                    : pricing.Error);
+        }
+
+        var resolved = pricing.Value!;
+        var snapshot = new EcommerceItemPricingSnapshot(
+            resolved.PriceListId,
+            resolved.ListPrice,
+            resolved.TaxAmount,
+            resolved.FinalPrice,
+            JsonSerializer.Serialize(resolved.AppliedRules));
+
+        return EcommerceOrderItem.Create(
+            _idGenerator.NewId(),
+            order.Id,
+            catalogItem.Id,
+            catalogItem.Sku ?? string.Empty,
+            catalogItem.Name,
+            itemInput.Quantity,
+            resolved.UnitPrice,
+            resolved.DiscountAmount,
+            resolved.TaxRate,
+            snapshot);
     }
 }

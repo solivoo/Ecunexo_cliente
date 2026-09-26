@@ -165,6 +165,73 @@
         "order": 3,
         "placeholder": false,
         "children": []
+      },
+      {
+        "id": "catalog-pricing",
+        "label": "Gestión de precios",
+        "route": null,
+        "icon": "circle-dollar-sign",
+        "requiredPermission": "catalog.pricing.read",
+        "requiredModule": "catalog",
+        "order": 4,
+        "placeholder": false,
+        "children": [
+          {
+            "id": "catalog-pricing-lists",
+            "label": "Listas de precios",
+            "route": "catalogo/precios/listas",
+            "icon": "list",
+            "requiredPermission": "catalog.pricing.read",
+            "requiredModule": "catalog",
+            "order": 1,
+            "placeholder": false,
+            "children": []
+          },
+          {
+            "id": "catalog-pricing-products",
+            "label": "Precios de productos",
+            "route": "catalogo/precios/productos",
+            "icon": "tag",
+            "requiredPermission": "catalog.pricing.read",
+            "requiredModule": "catalog",
+            "order": 2,
+            "placeholder": false,
+            "children": []
+          },
+          {
+            "id": "catalog-pricing-promotions",
+            "label": "Promociones",
+            "route": "catalogo/precios/promociones",
+            "icon": "percent",
+            "requiredPermission": "catalog.promotions.manage",
+            "requiredModule": "catalog",
+            "order": 3,
+            "placeholder": false,
+            "children": []
+          },
+          {
+            "id": "catalog-pricing-history",
+            "label": "Historial",
+            "route": "catalogo/precios/historial",
+            "icon": "history",
+            "requiredPermission": "catalog.pricing.history.read",
+            "requiredModule": "catalog",
+            "order": 4,
+            "placeholder": false,
+            "children": []
+          },
+          {
+            "id": "catalog-pricing-simulator",
+            "label": "Simulador",
+            "route": "catalogo/precios/simulador",
+            "icon": "calculator",
+            "requiredPermission": "catalog.pricing.read",
+            "requiredModule": "catalog",
+            "order": 5,
+            "placeholder": false,
+            "children": []
+          }
+        ]
       }
     ]
   },

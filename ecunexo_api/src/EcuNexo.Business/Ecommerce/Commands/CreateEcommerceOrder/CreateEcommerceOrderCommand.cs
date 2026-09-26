@@ -5,10 +5,7 @@ namespace EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
 
 public sealed record CreateEcommerceOrderItemInput(
     Guid CatalogItemId,
-    decimal Quantity,
-    decimal UnitPrice,
-    decimal DiscountAmount = 0m,
-    decimal TaxRate = 0.15m);
+    decimal Quantity);
 
 public sealed record CreateEcommerceOrderCommand(
     Guid TenantId,
