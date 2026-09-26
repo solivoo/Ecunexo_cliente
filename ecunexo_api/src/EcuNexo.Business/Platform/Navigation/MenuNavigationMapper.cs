@@ -8,7 +8,8 @@ internal static class MenuNavigationMapper
     public static IReadOnlyList<NavigationNodeDto> BuildTree(
         IReadOnlyList<MenuItem> flatItems,
         IReadOnlyCollection<string> permissionCodes,
-        IReadOnlyList<string>? enabledModuleCodes)
+        IReadOnlyList<string>? enabledModuleCodes,
+        IReadOnlyDictionary<string, int>? resolvedLimits = null)
     {
         var permSet = new HashSet<string>(permissionCodes, StringComparer.OrdinalIgnoreCase);
         var childMap = flatItems
@@ -19,7 +20,7 @@ internal static class MenuNavigationMapper
         return flatItems
             .Where(x => x.ParentId is null)
             .OrderBy(x => x.SortOrder)
-            .Select(root => MapNode(root, childMap, permSet, enabledModuleCodes))
+            .Select(root => MapNode(root, childMap, permSet, enabledModuleCodes, resolvedLimits))
             .Where(node => node is not null)
             .Cast<NavigationNodeDto>()
             .ToList();
@@ -28,7 +29,8 @@ internal static class MenuNavigationMapper
     public static IReadOnlyList<string> ListVisibleContexts(
         IReadOnlyList<MenuItem> allActiveItems,
         IReadOnlyCollection<string> permissionCodes,
-        IReadOnlyList<string>? enabledModuleCodes)
+        IReadOnlyList<string>? enabledModuleCodes,
+        IReadOnlyDictionary<string, int>? resolvedLimits = null)
     {
         var contexts = Enum.GetValues<MenuContextKind>();
         var visible = new List<string>();
@@ -41,7 +43,7 @@ internal static class MenuNavigationMapper
                 continue;
             }
 
-            var tree = BuildTree(items, permissionCodes, enabledModuleCodes);
+            var tree = BuildTree(items, permissionCodes, enabledModuleCodes, resolvedLimits);
             if (tree.Count > 0)
             {
                 visible.Add(context.ToString().ToLowerInvariant());
@@ -55,11 +57,18 @@ internal static class MenuNavigationMapper
         MenuItem item,
         IReadOnlyDictionary<string, List<MenuItem>> childMap,
         HashSet<string> permSet,
-        IReadOnlyList<string>? enabledModules)
+        IReadOnlyList<string>? enabledModules,
+        IReadOnlyDictionary<string, int>? resolvedLimits)
     {
+        // Opción de plan deshabilitada (límite 0): el ítem y su rama desaparecen del menú.
+        if (FeatureFlagCatalog.IsDisabled(item.Id, resolvedLimits))
+        {
+            return null;
+        }
+
         var children = childMap.TryGetValue(item.Id, out var childItems)
             ? childItems
-                .Select(child => MapNode(child, childMap, permSet, enabledModules))
+                .Select(child => MapNode(child, childMap, permSet, enabledModules, resolvedLimits))
                 .Where(child => child is not null)
                 .Cast<NavigationNodeDto>()
                 .ToList()

@@ -61,14 +61,13 @@ public sealed class GetSessionHandler : IQueryHandler<GetSessionQuery, SessionRe
             .ConfigureAwait(false);
 
         var enabledModules = ResolveEnabledModules(tenant);
+        var (entitlements, resolvedLimits) = SessionLimitResolver.Resolve(tenant.ModuleEntitlements);
 
         var menu = await _navigation
-            .BuildAsync(MenuContextKind.Operational, codes, enabledModules, ct)
+            .BuildAsync(MenuContextKind.Operational, codes, enabledModules, resolvedLimits, ct)
             .ConfigureAwait(false);
 
         var permVersion = ComputePermVersion(codes);
-
-        var (entitlements, resolvedLimits) = SessionLimitResolver.Resolve(tenant.ModuleEntitlements);
 
         return Result.Success(new SessionResponse(
             new SessionUserDto(

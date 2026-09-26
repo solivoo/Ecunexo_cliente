@@ -46,13 +46,13 @@ public sealed class GetSubscriptionSessionHandler : IQueryHandler<GetSubscriptio
             .ResolveAsync(Guid.Empty, account.Id, account.ServicePlan.Name, ct)
             .ConfigureAwait(false);
 
+        var (entitlements, resolvedLimits) = GetSession.SessionLimitResolver.Resolve(account.ModuleEntitlements);
+
         var menu = await _navigation
-            .BuildAsync(MenuContextKind.Subscription, codes, enabledModules, ct)
+            .BuildAsync(MenuContextKind.Subscription, codes, enabledModules, resolvedLimits, ct)
             .ConfigureAwait(false);
 
         var permVersion = ComputePermVersion(codes);
-
-        var (entitlements, resolvedLimits) = GetSession.SessionLimitResolver.Resolve(account.ModuleEntitlements);
 
         return Result.Success(new SubscriptionSessionResponse(
             new GetSession.SessionUserDto(

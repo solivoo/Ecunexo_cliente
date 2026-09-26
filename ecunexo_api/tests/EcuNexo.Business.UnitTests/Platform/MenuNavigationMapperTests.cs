@@ -101,6 +101,45 @@ public sealed class MenuNavigationMapperTests
         node.LockKind.Should().Be("placeholder");
     }
 
+    [Fact(DisplayName = "Una opción de plan en 0 oculta el ítem de menú")]
+    public void BuildTree_FeatureFlagOff_HidesItem()
+    {
+        var items = new[]
+        {
+            Item("contabilidad", null, "Contabilidad", route: null, TenantModuleCodes.Accounting),
+            Item("contabilidad-balances", "contabilidad", "Balances", "contabilidad/balances", TenantModuleCodes.Accounting),
+            Item("contabilidad-asientos", "contabilidad", "Asientos", "contabilidad/asientos", TenantModuleCodes.Accounting),
+        };
+        var limits = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            [$"{TenantModuleCodes.Accounting}.allow_financial_statements_export"] = 0,
+        };
+
+        var tree = MenuNavigationMapper.BuildTree(items, [], [TenantModuleCodes.Accounting], limits);
+
+        var section = tree.Should().ContainSingle().Subject;
+        section.Id.Should().Be("contabilidad");
+        section.Children.Should().ContainSingle().Which.Id.Should().Be("contabilidad-asientos");
+    }
+
+    [Fact(DisplayName = "Una opción de plan en 1 mantiene el ítem visible")]
+    public void BuildTree_FeatureFlagOn_KeepsItem()
+    {
+        var items = new[]
+        {
+            Item("contabilidad", null, "Contabilidad", route: null, TenantModuleCodes.Accounting),
+            Item("contabilidad-balances", "contabilidad", "Balances", "contabilidad/balances", TenantModuleCodes.Accounting),
+        };
+        var limits = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            [$"{TenantModuleCodes.Accounting}.allow_financial_statements_export"] = 1,
+        };
+
+        var tree = MenuNavigationMapper.BuildTree(items, [], [TenantModuleCodes.Accounting], limits);
+
+        tree.Should().ContainSingle().Which.Children.Should().ContainSingle();
+    }
+
     [Fact(DisplayName = "Los entitlements mandan sobre la lista legacy de módulos")]
     public void ResolveEnabledModules_EntitlementsWinOverLegacy()
     {

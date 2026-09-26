@@ -54,12 +54,11 @@ public sealed class GetTenantMenuHandler : IQueryHandler<GetTenantMenuQuery, Ten
         var codes = await _permissions.ListEffectivePermissionCodesAsync(query.TenantId, query.UserId, ct)
             .ConfigureAwait(false);
 
-        var enabledModules = tenant.EnabledModuleCodes is null
-            ? null
-            : (IReadOnlyList<string>?)tenant.EnabledModuleCodes.AsReadOnly();
+        var enabledModules = GetSessionHandler.ResolveEnabledModules(tenant);
+        var (_, resolvedLimits) = SessionLimitResolver.Resolve(tenant.ModuleEntitlements);
 
         var menu = await _navigation
-            .BuildAsync(query.Context, codes, enabledModules, ct)
+            .BuildAsync(query.Context, codes, enabledModules, resolvedLimits, ct)
             .ConfigureAwait(false);
 
         return Result.Success(new TenantMenuResponse(

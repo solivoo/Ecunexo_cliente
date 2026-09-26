@@ -9,6 +9,7 @@ public interface IMenuNavigationBuilder
         MenuContextKind context,
         IReadOnlyList<string> permissionCodes,
         IReadOnlyList<string>? enabledModuleCodes,
+        IReadOnlyDictionary<string, int>? resolvedLimits = null,
         CancellationToken cancellationToken = default);
 }
 
@@ -24,6 +25,7 @@ public sealed class MenuNavigationBuilder(
         MenuContextKind context,
         IReadOnlyList<string> permissionCodes,
         IReadOnlyList<string>? enabledModuleCodes,
+        IReadOnlyDictionary<string, int>? resolvedLimits = null,
         CancellationToken cancellationToken = default)
     {
         var allItems = await menuItems.ListActiveAsync(context: null, cancellationToken).ConfigureAwait(false);
@@ -35,8 +37,8 @@ public sealed class MenuNavigationBuilder(
         }
 
         var contextItems = allItems.Where(x => x.Context == context).ToList();
-        var tree = MenuNavigationMapper.BuildTree(contextItems, permissionCodes, enabledModuleCodes);
-        var contexts = MenuNavigationMapper.ListVisibleContexts(allItems, permissionCodes, enabledModuleCodes);
+        var tree = MenuNavigationMapper.BuildTree(contextItems, permissionCodes, enabledModuleCodes, resolvedLimits);
+        var contexts = MenuNavigationMapper.ListVisibleContexts(allItems, permissionCodes, enabledModuleCodes, resolvedLimits);
 
         return new MenuNavigationResult(tree, contexts);
     }
