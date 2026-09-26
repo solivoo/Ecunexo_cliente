@@ -62,6 +62,22 @@ public sealed class SubscriptionAccount : AggregateRoot<Guid>, IAuditable
     /// <summary>Versión de entitlements sincronizada desde la plataforma (1 = activación).</summary>
     public int LicenseEntitlementsVersion { get; private set; } = 1;
 
+    /// <summary>Última sincronización de entitlements con la plataforma (throttle del login).</summary>
+    public DateTimeOffset? LastEntitlementsSyncAtUtc { get; private set; }
+
+    /// <summary>Indica si corresponde consultar entitlements en este login (throttle propio).</summary>
+    public bool IsEntitlementsSyncDue(DateTimeOffset utcNow)
+    {
+        var anchor = LastEntitlementsSyncAtUtc ?? DateTimeOffset.MinValue;
+        return utcNow >= anchor.AddMinutes(LicenseValidationPolicy.EntitlementsSyncMinIntervalMinutes);
+    }
+
+    public void RecordEntitlementsSync(DateTimeOffset utcNow)
+    {
+        LastEntitlementsSyncAtUtc = utcNow;
+        UpdatedAt = utcNow;
+    }
+
     public DateTimeOffset? LastLoginAt { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }

@@ -6,6 +6,9 @@ public static class LicenseValidationPolicy
     public const int MinIntervalDays = 1;
     public const int MaxIntervalDays = 90;
 
+    /// <summary>Throttle del sync de entitlements en login (toggles casi en vivo).</summary>
+    public const int EntitlementsSyncMinIntervalMinutes = 5;
+
     public static int NormalizeIntervalDays(int? value) =>
         value is null or <= 0
             ? DefaultIntervalDays

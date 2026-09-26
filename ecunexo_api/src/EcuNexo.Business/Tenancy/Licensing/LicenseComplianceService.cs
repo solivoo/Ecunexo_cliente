@@ -51,11 +51,6 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
                 new Error("license.expired", "La licencia ha expirado.", ErrorType.Forbidden));
         }
 
-        if (!account.IsOnlineValidationDue(utcNow))
-        {
-            return Unit.Value;
-        }
-
         if (!_onlineValidator.IsConfigured)
         {
             account.RecordOnlineValidation(utcNow);
@@ -63,38 +58,46 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
             return Unit.Value;
         }
 
-        var remote = await _onlineValidator.ValidateGrantAsync(account.GrantId, ct).ConfigureAwait(false);
-        if (remote.IsSuccess)
+        if (account.IsOnlineValidationDue(utcNow))
         {
-            if (!remote.Value!.IsAllowed)
+            var remote = await _onlineValidator.ValidateGrantAsync(account.GrantId, ct).ConfigureAwait(false);
+            if (remote.IsSuccess)
+            {
+                if (!remote.Value!.IsAllowed)
+                {
+                    return Result.Failure<Unit>(
+                        new Error(
+                            "license.revoked",
+                            "La licencia fue revocada o ya no está activa en Ecunexo.",
+                            ErrorType.Forbidden));
+                }
+
+                account.RecordOnlineValidation(utcNow);
+            }
+            else if (remote.Error is { Type: ErrorType.NotFound })
             {
                 return Result.Failure<Unit>(
                     new Error(
-                        "license.revoked",
-                        "La licencia fue revocada o ya no está activa en Ecunexo.",
+                        "license.not_found",
+                        "La licencia no está registrada en Ecunexo.",
                         ErrorType.Forbidden));
             }
-
-            await SyncEntitlementsAsync(account, utcNow, ct).ConfigureAwait(false);
-            account.RecordOnlineValidation(utcNow);
-            await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
-            return Unit.Value;
+            else
+            {
+                return Result.Failure<Unit>(
+                    new Error(
+                        "license.validation.required",
+                        "Debes conectarte a internet para validar la licencia antes de continuar.",
+                        ErrorType.Forbidden));
+            }
         }
 
-        if (remote.Error is { Type: ErrorType.NotFound })
-        {
-            return Result.Failure<Unit>(
-                new Error(
-                    "license.not_found",
-                    "La licencia no está registrada en Ecunexo.",
-                    ErrorType.Forbidden));
-        }
+        // Toggles casi en vivo: en cada login se sincronizan entitlements (con throttle propio)
+        // sin depender del intervalo de compliance y sin bloquear el login si la plataforma falla.
+        await SyncEntitlementsAsync(account, utcNow, ct).ConfigureAwait(false);
 
-        return Result.Failure<Unit>(
-            new Error(
-                "license.validation.required",
-                "Debes conectarte a internet para validar la licencia antes de continuar.",
-                ErrorType.Forbidden));
+        await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+        return Unit.Value;
     }
 
     /// <summary>
@@ -106,6 +109,14 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
         DateTimeOffset utcNow,
         CancellationToken ct)
     {
+        if (!account.IsEntitlementsSyncDue(utcNow))
+        {
+            return;
+        }
+
+        // El throttle se registra aunque la consulta falle para no golpear la plataforma en cada login.
+        account.RecordEntitlementsSync(utcNow);
+
         var remote = await _onlineValidator.GetEntitlementsAsync(account.GrantId, ct).ConfigureAwait(false);
         if (remote.IsFailure)
         {

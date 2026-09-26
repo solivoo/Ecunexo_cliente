@@ -97,6 +97,10 @@ public sealed class SubscriptionAccountConfiguration : IEntityTypeConfiguration<
             .HasDefaultValue(1)
             .IsRequired();
 
+        builder.Property(a => a.LastEntitlementsSyncAtUtc)
+            .HasColumnName("last_entitlements_sync_at_utc")
+            .HasColumnType("timestamptz");
+
         builder.Property(a => a.LastLoginAt).HasColumnType("timestamptz");
         builder.Property(a => a.CreatedAt).HasColumnType("timestamptz").IsRequired();
         builder.Property(a => a.UpdatedAt).HasColumnType("timestamptz");
