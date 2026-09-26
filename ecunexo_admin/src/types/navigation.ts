@@ -1,3 +1,5 @@
+export type NavigationLockKind = 'module' | 'permission' | 'placeholder'
+
 export type NavigationNode = {
   id: string
   label: string
@@ -7,4 +9,6 @@ export type NavigationNode = {
   disabledReason: string | null
   placeholder: boolean
   children: NavigationNode[]
+  lockKind?: NavigationLockKind | null
+  requiredModule?: string | null
 }

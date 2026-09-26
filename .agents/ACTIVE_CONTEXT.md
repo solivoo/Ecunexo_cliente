@@ -9,6 +9,13 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.54.0`.
 * **Hitos Recientes Completados:**
+  - **Licenciamiento Cloud — Fase 1: Módulos Efectivos y Menú «Visible pero Bloqueado» (`GetSessionHandler`, `MenuNavigationMapper`, `filterNavigation`) + Skill de Escalabilidad [sin bump de versión]:**
+    * **Fuente única:** `GetSessionHandler.ResolveEnabledModules` deriva los módulos efectivos de `ModuleEntitlements` (mandan sobre la lista legacy `EnabledModuleCodes`); sin ninguna fuente = todos (compatibilidad).
+    * **Menú:** `NavigationNodeDto` expone `lockKind` (`module`/`permission`/`placeholder`) y `requiredModule`; `MenuNavigationMapper` conserva visibles las hojas de módulo no contratado con candado y razón, oculta solo los bloqueos por permiso interno y no bloquea contenedores con hijos visibles; `EmbeddedNavigationBuilder` alineado.
+    * **Frontend:** `filterNavigationTree` mantiene las hojas bloqueadas por módulo (etiqueta con razón, sin ruta = no navegable) para poder ofrecer la mejora de plan.
+    * **Skill:** nueva `ecunexo-escalabilidad` (principio permanente de diseño 10×, anti-patrones y checklist) y README de skills actualizado.
+    * **Verificación:** `dotnet build` limpio; 327/327 Core y 236/236 Business (+7 de navegación/módulos); `npm run build` del admin limpio.
+    * **Pendiente Fase 2:** `PUT /licenses/{grantId}/entitlements` y status con entitlements en Licencias, UI de módulos por cliente y sync en el tenant.
   - **Ecommerce — UI de Vitrina y Dominios en el Admin + Despliegue Docker/Compose de la SPA (`StorefrontDomainsPage`, `storefrontApi`, `Dockerfile`, `nginx-spa.conf.template`, `docker-compose.yml`) [sin bump de versión]:**
     * **Admin:** nueva vista `ecommerce/vitrina` (permiso `ecommerce.storefront.manage`) con métricas, DataGrid de dominios, alta por dominio, instrucciones TXT con copiar, verificar, marcar principal y despublicar; ítem de menú `ecommerce-storefront` en `MenuCatalogSeedData`; servicio/tipos `storefrontApi`; E2E `tests-ui/comun/ecommerce-vitrina.spec.ts`.
     * **Despliegue:** `Monorepo/ecommerce/Dockerfile` (Node 24 + pnpm → nginx), `nginx-spa.conf.template` con `API_UPSTREAM` por envsubst, proxy same-origin `/api`, `Host` preservado y fallback SPA; `docker-compose.yml` con overrides `STOREFRONT_*` (no toma el `.env` de desarrollo), `host.docker.internal` para local y healthcheck; README actualizado.

@@ -7,6 +7,7 @@ using EcuNexo.Business.Platform.Settings;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Platform.Navigation;
+using EcuNexo.Core.Tenancy;
 
 namespace EcuNexo.Business.Platform.Queries.GetSession;
 
@@ -59,9 +60,7 @@ public sealed class GetSessionHandler : IQueryHandler<GetSessionQuery, SessionRe
         var settings = await _settings.ResolveAsync(query.TenantId, query.UserId, tenant.ServicePlan.Name, ct)
             .ConfigureAwait(false);
 
-        var enabledModules = tenant.EnabledModuleCodes is null
-            ? null
-            : (IReadOnlyList<string>?)tenant.EnabledModuleCodes.AsReadOnly();
+        var enabledModules = ResolveEnabledModules(tenant);
 
         var menu = await _navigation
             .BuildAsync(MenuContextKind.Operational, codes, enabledModules, ct)
@@ -119,5 +118,19 @@ public sealed class GetSessionHandler : IQueryHandler<GetSessionQuery, SessionRe
         var joined = string.Join('\n', codes.OrderBy(c => c, StringComparer.Ordinal));
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(joined));
         return Convert.ToHexString(hash)[..16];
+    }
+
+    /// <summary>
+    /// Módulos efectivos del tenant: los entitlements (modelo vigente) mandan sobre la lista
+    /// legacy; sin entitlements ni lista, null = todos (compatibilidad).
+    /// </summary>
+    internal static IReadOnlyList<string>? ResolveEnabledModules(Tenant tenant)
+    {
+        if (tenant.ModuleEntitlements is { Count: > 0 } entitlements)
+        {
+            return entitlements.Select(e => e.ModuleCode).ToList();
+        }
+
+        return tenant.EnabledModuleCodes?.AsReadOnly();
     }
 }

@@ -3,7 +3,8 @@ import type { NavigationNode } from '@/types/navigation'
 /**
  * Oculta entradas inaccesibles.
  * - Secciones sin ruta: solo si tienen hijos visibles.
- * - Hojas: solo si no están disabled (salvo placeholder).
+ * - Hojas bloqueadas por permiso: se ocultan.
+ * - Hojas bloqueadas por módulo no contratado: se muestran (candado visible para vender el plan).
  */
 export function filterNavigationTree(nodes?: NavigationNode[] | null): NavigationNode[] {
   if (!nodes || !Array.isArray(nodes)) {
@@ -15,11 +16,14 @@ export function filterNavigationTree(nodes?: NavigationNode[] | null): Navigatio
     const children = filterNavigationTree(node.children)
     const hasRoute = Boolean(node.route?.trim())
     const isSection = !hasRoute
+    const isModuleLocked = node.disabled && node.lockKind === 'module'
     const visible = node.placeholder
       ? true
-      : isSection
-        ? children.length > 0
-        : !node.disabled || children.length > 0
+      : isModuleLocked
+        ? true
+        : isSection
+          ? children.length > 0
+          : !node.disabled || children.length > 0
 
     if (!visible) {
       continue

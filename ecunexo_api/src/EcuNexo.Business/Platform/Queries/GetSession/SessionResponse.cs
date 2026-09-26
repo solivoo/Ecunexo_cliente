@@ -48,4 +48,6 @@ public sealed record NavigationNodeDto(
     bool Disabled,
     string? DisabledReason,
     bool Placeholder,
-    IReadOnlyList<NavigationNodeDto> Children);
+    IReadOnlyList<NavigationNodeDto> Children,
+    string? LockKind = null,
+    string? RequiredModule = null);

@@ -65,34 +65,35 @@ internal static class MenuNavigationMapper
                 .ToList()
             : [];
 
-        var (disabled, reason) = Evaluate(item, permSet, enabledModules);
+        var (disabled, reason, lockKind) = Evaluate(item, permSet, enabledModules);
+        var isContainer = string.IsNullOrWhiteSpace(item.Route);
 
-        // Contenedor de sección (sin ruta): solo visible si tiene hijos accesibles.
-        if (string.IsNullOrWhiteSpace(item.Route)
-            && children.Count == 0
-            && !item.IsPlaceholder)
+        // Contenedor de sección (sin ruta): solo visible si tiene hijos accesibles o es placeholder.
+        if (isContainer && children.Count == 0 && !item.IsPlaceholder)
         {
             return null;
         }
 
-        // Si hay hijos visibles, no marcar el contenedor como denegado por permiso del padre.
-        if (children.Count > 0
-            && disabled
-            && !item.IsPlaceholder
-            && string.Equals(reason, "No tienes permiso para esta sección.", StringComparison.Ordinal))
+        // Bloqueo por permiso interno: se oculta, salvo contenedores con hijos visibles
+        // (el permiso del padre no debe ocultar secciones con contenido accesible).
+        if (lockKind == NavigationLockKind.Permission)
+        {
+            if (!isContainer || children.Count == 0)
+            {
+                return null;
+            }
+
+            disabled = false;
+            reason = null;
+            lockKind = NavigationLockKind.None;
+        }
+
+        // Un contenedor con hijos visibles nunca se muestra bloqueado: el candado vive en las hojas.
+        if (isContainer && children.Count > 0)
         {
             disabled = false;
             reason = null;
-        }
-
-        if (disabled && !item.IsPlaceholder && children.Count == 0)
-        {
-            return null;
-        }
-
-        if (!HasPermissionAccess(item.RequiredPermissions, permSet) && children.Count == 0)
-        {
-            return null;
+            lockKind = NavigationLockKind.None;
         }
 
         return new NavigationNodeDto(
@@ -103,50 +104,63 @@ internal static class MenuNavigationMapper
             disabled,
             reason,
             item.IsPlaceholder,
-            children);
+            children,
+            ToLockKind(lockKind),
+            string.IsNullOrWhiteSpace(item.ModuleCode) ? null : item.ModuleCode);
     }
 
-    private static (bool Disabled, string? Reason) Evaluate(
+    private static (bool Disabled, string? Reason, NavigationLockKind Kind) Evaluate(
         MenuItem item,
         HashSet<string> permSet,
         IReadOnlyList<string>? enabledModules)
     {
         if (!IsModuleEnabled(item.ModuleCode, enabledModules))
         {
-            return (true, "Módulo no incluido en tu plan.");
+            return (true, "Módulo no incluido en tu plan.", NavigationLockKind.Module);
         }
 
         if (item.RequiredPermissions.Length > 0
             && !item.RequiredPermissions.Any(p => permSet.Contains(p)))
         {
-            return (true, "No tienes permiso para esta sección.");
+            return (true, "No tienes permiso para esta sección.", NavigationLockKind.Permission);
         }
 
         if (item.IsPlaceholder)
         {
-            return (true, "Próximamente.");
+            return (true, "Próximamente.", NavigationLockKind.Placeholder);
         }
 
-        return (false, null);
+        return (false, null, NavigationLockKind.None);
     }
 
-    private static bool HasPermissionAccess(string[] required, HashSet<string> permSet)
+    private static string? ToLockKind(NavigationLockKind kind) => kind switch
     {
-        if (required.Length == 0)
+        NavigationLockKind.Module => "module",
+        NavigationLockKind.Permission => "permission",
+        NavigationLockKind.Placeholder => "placeholder",
+        _ => null,
+    };
+
+    private static bool IsModuleEnabled(string moduleCode, IReadOnlyList<string>? enabledModules)
+    {
+        if (string.IsNullOrWhiteSpace(moduleCode))
         {
             return true;
         }
 
-        return required.Any(permSet.Contains);
-    }
-
-    private static bool IsModuleEnabled(string moduleCode, IReadOnlyList<string>? enabledModules)
-    {
         if (enabledModules is null || enabledModules.Count == 0)
         {
             return true;
         }
 
         return enabledModules.Any(m => string.Equals(m, moduleCode, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private enum NavigationLockKind
+    {
+        None,
+        Module,
+        Permission,
+        Placeholder,
     }
 }

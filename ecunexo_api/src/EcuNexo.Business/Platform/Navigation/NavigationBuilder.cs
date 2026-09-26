@@ -23,7 +23,7 @@ public sealed class EmbeddedNavigationBuilder : INavigationBuilder
         HashSet<string> permSet,
         IReadOnlyList<string>? enabledModules)
     {
-        var (disabled, reason) = Evaluate(item, permSet, enabledModules);
+        var (disabled, reason, lockKind) = Evaluate(item, permSet, enabledModules);
         var children = (item.Children ?? [])
             .OrderBy(c => c.Order)
             .Select(c => MapNode(c, permSet, enabledModules))
@@ -37,30 +37,32 @@ public sealed class EmbeddedNavigationBuilder : INavigationBuilder
             disabled,
             reason,
             item.Placeholder,
-            children);
+            children,
+            lockKind,
+            item.RequiredModule);
     }
 
-    private static (bool Disabled, string? Reason) Evaluate(
+    private static (bool Disabled, string? Reason, string? LockKind) Evaluate(
         NavigationCatalogItem item,
         HashSet<string> permSet,
         IReadOnlyList<string>? enabledModules)
     {
         if (item.RequiredModule is { } mod && !IsModuleEnabled(mod, enabledModules))
         {
-            return (true, "Módulo no incluido en tu plan.");
+            return (true, "Módulo no incluido en tu plan.", "module");
         }
 
         if (item.RequiredPermission is { } perm && !permSet.Contains(perm))
         {
-            return (true, "No tienes permiso para esta sección.");
+            return (true, "No tienes permiso para esta sección.", "permission");
         }
 
         if (item.Placeholder)
         {
-            return (true, "Próximamente.");
+            return (true, "Próximamente.", "placeholder");
         }
 
-        return (false, null);
+        return (false, null, null);
     }
 
     private static bool IsModuleEnabled(string moduleCode, IReadOnlyList<string>? enabledModules)
