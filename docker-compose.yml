@@ -52,6 +52,8 @@ services:
       LicenseValidation__ValidationPepper: ${VALIDATION_PEPPER:-CAMBIA_ESTO_EN_PRODUCCION_PEPPER_VALIDACION_LICENCIAS_16_CHARS}
       LicenseValidation__SigningPublicKeyPath: ${LICENSE_PUBLIC_KEY_PATH:-license-public.pem}
       LicenseValidation__PlatformApiBaseUrl: ${PLATFORM_API_BASE_URL:-}
+      LicenseValidation__PlatformApiKey: ${PLATFORM_API_KEY:-}
+      BillingTaxRates__BaseUrl: ${BILLING_TAX_RATES_BASE_URL:-}
       InventoryEgress__ApiKey: ${INVENTORY_EGRESS_API_KEY:-}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-}
       Storage__Provider: ${STORAGE_PROVIDER:-BackblazeB2}
