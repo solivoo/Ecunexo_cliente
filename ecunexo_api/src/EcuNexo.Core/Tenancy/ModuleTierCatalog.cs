@@ -15,7 +15,6 @@ public static class ModuleTierCatalog
     // ──────────────────────────────────────────────
     public const string LimitMaxSkuCount = "max_sku_count";
     public const string LimitMaxVariantsPerItem = "max_variants_per_item";
-    public const string LimitMaxCategories = "max_categories";
 
     private static readonly Dictionary<ModuleTier, IReadOnlyDictionary<string, int>> InventoryLimits = new()
     {
@@ -23,25 +22,21 @@ public static class ModuleTierCatalog
         {
             [LimitMaxSkuCount] = 100,
             [LimitMaxVariantsPerItem] = 5,
-            [LimitMaxCategories] = 10,
         },
         [ModuleTier.Medium] = new Dictionary<string, int>
         {
             [LimitMaxSkuCount] = 500,
             [LimitMaxVariantsPerItem] = 10,
-            [LimitMaxCategories] = 20,
         },
         [ModuleTier.Big] = new Dictionary<string, int>
         {
             [LimitMaxSkuCount] = 2_000,
             [LimitMaxVariantsPerItem] = 25,
-            [LimitMaxCategories] = 50,
         },
         [ModuleTier.Enterprise] = new Dictionary<string, int>
         {
             [LimitMaxSkuCount] = int.MaxValue,
             [LimitMaxVariantsPerItem] = int.MaxValue,
-            [LimitMaxCategories] = int.MaxValue,
         },
     };
 

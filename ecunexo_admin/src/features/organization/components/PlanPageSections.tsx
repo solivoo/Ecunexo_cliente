@@ -11,7 +11,6 @@ const TIER_LABELS: Record<number, string> = {
 const LIMIT_LABELS: Record<string, string> = {
   max_sku_count: 'SKUs',
   max_variants_per_item: 'Variantes / ítem',
-  max_categories: 'Categorías',
   max_warehouses: 'Bodegas',
   max_warehouse_count: 'Bodegas',
   max_invoices_per_month: 'Facturas / mes',
