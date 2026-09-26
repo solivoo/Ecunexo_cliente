@@ -11,12 +11,15 @@ public sealed record EcommerceStorefrontSettingsDto(
     IReadOnlyList<string> PaymentMethods,
     IReadOnlyList<StorefrontShippingMethodSettingDto> ShippingMethods,
     string BankTransferInstructions,
-    int PaymentHoldHours);
+    int PaymentHoldHours,
+    bool ReserveOnOrder,
+    string ContactWhatsapp);
 
 /// <summary>Opciones de pago y envío expuestas al comprador anónimo.</summary>
 public sealed record EcommerceCheckoutOptionsDto(
     IReadOnlyList<EcommerceCheckoutPaymentMethodDto> PaymentMethods,
-    IReadOnlyList<EcommerceCheckoutShippingMethodDto> ShippingMethods);
+    IReadOnlyList<EcommerceCheckoutShippingMethodDto> ShippingMethods,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? WhatsappPhone);
 
 public sealed record EcommerceCheckoutPaymentMethodDto(
     string Code,
@@ -24,6 +27,15 @@ public sealed record EcommerceCheckoutPaymentMethodDto(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Instructions);
 
 public sealed record EcommerceCheckoutShippingMethodDto(string Code, string Label, decimal Cost);
+
+/// <summary>Contacto bloqueado para el checkout público.</summary>
+public sealed record EcommerceBlockedContactDto(
+    Guid Id,
+    string Kind,
+    string ValueNormalized,
+    string? Reason,
+    DateTimeOffset CreatedAt,
+    Guid? CreatedBy);
 
 /// <summary>Resultado de crear un pedido desde la tienda pública.</summary>
 public sealed record StorefrontOrderCreatedDto(

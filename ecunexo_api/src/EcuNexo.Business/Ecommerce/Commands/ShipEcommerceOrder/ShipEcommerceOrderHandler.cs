@@ -51,6 +51,31 @@ public sealed class ShipEcommerceOrderHandler
             return Result.Failure<ShipEcommerceOrderResponse>(shipResult.Error!);
         }
 
+        // Si la orden no reservó stock al crearse (modo reservar al confirmar pago), reservarlo antes de liquidarlo.
+        if (!order.HasStockReserved)
+        {
+            foreach (var item in order.Items)
+            {
+                var stock = await _stocks.GetTrackedAsync(command.TenantId, item.CatalogItemId, order.WarehouseId, ct).ConfigureAwait(false);
+                if (stock is null)
+                {
+                    return Result.Failure<ShipEcommerceOrderResponse>(
+                        new Error(
+                            "ecommerce.order.stock_missing",
+                            $"No existe registro de stock para el producto '{item.Sku}' en la bodega de la orden.",
+                            ErrorType.Conflict));
+                }
+
+                var reserveResult = stock.Reserve(item.Quantity, command.UserId);
+                if (reserveResult.IsFailure)
+                {
+                    return Result.Failure<ShipEcommerceOrderResponse>(reserveResult.Error!);
+                }
+            }
+
+            order.MarkStockReserved();
+        }
+
         foreach (var item in order.Items)
         {
             var stock = await _stocks.GetTrackedAsync(command.TenantId, item.CatalogItemId, order.WarehouseId, ct).ConfigureAwait(false);

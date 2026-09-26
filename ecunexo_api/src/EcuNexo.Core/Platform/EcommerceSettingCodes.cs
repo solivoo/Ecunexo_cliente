@@ -17,4 +17,10 @@ public static class EcommerceSettingCodes
 
     /// <summary>Horas que se mantiene reservado el stock antes de expirar el pedido (1..720).</summary>
     public const string StorefrontPaymentHoldHours = "ecommerce.storefront.payment_hold_hours";
+
+    /// <summary>Si es <c>true</c>, los pedidos web reservan stock al crearse; si no, al confirmar el pago.</summary>
+    public const string StorefrontReserveOnOrder = "ecommerce.storefront.reserve_on_order";
+
+    /// <summary>WhatsApp de contacto de la tienda normalizado a dígitos (opcional).</summary>
+    public const string StorefrontContactWhatsapp = "ecommerce.storefront.contact_whatsapp";
 }

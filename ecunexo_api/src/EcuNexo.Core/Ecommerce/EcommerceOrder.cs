@@ -44,6 +44,9 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
 
     public EcommercePaymentMethod PaymentMethod { get; private set; } = EcommercePaymentMethod.CreditCard;
 
+    /// <summary>Indica si la reserva de stock ya fue aplicada en bodega.</summary>
+    public bool StockReserved { get; private set; }
+
     public string? PaymentReference { get; private set; }
 
     public EcommerceShippingMethod ShippingMethod { get; private set; } = EcommerceShippingMethod.Courier;
@@ -90,6 +93,11 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
 
     public IReadOnlyList<EcommerceOrderTimeline> Timeline => _timeline.AsReadOnly();
 
+    public bool HasStockReserved => StockReserved;
+
+    /// <summary>Marca la orden como con reserva de stock aplicada en bodega.</summary>
+    public void MarkStockReserved() => StockReserved = true;
+
     public static Result<EcommerceOrder> Create(
         Guid id,
         Guid tenantId,
@@ -104,7 +112,8 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
         string? customerNotes = null,
         Guid? createdBy = null,
         string? createdByName = null,
-        string? clientRequestId = null)
+        string? clientRequestId = null,
+        bool stockReserved = true)
     {
         if (id == Guid.Empty)
         {
@@ -169,6 +178,7 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
             Status = EcommerceOrderStatus.Placed,
             PaymentStatus = EcommercePaymentStatus.Pending,
             PaymentMethod = paymentMethod,
+            StockReserved = stockReserved,
             ShippingMethod = shippingMethod,
             Customer = customer,
             Shipping = shipping,
@@ -184,7 +194,9 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
             order.Id,
             previousStatus: null,
             newStatus: EcommerceOrderStatus.Placed,
-            notes: "Orden recibida en plataforma ecommerce. Stock reservado en bodega.",
+            notes: stockReserved
+                ? "Orden recibida en plataforma ecommerce. Stock reservado en bodega."
+                : "Orden recibida en plataforma ecommerce. Stock se reservará al confirmar el pago.",
             userId: createdBy,
             userName: createdByName ?? "Sistema");
 
@@ -379,7 +391,9 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
             Id,
             prevStatus,
             Status,
-            $"Orden cancelada. Motivo: {reason.Trim()}. Reserva de stock liberada.",
+            StockReserved
+                ? $"Orden cancelada. Motivo: {reason.Trim()}. Reserva de stock liberada."
+                : $"Orden cancelada. Motivo: {reason.Trim()}. No había reserva de stock aplicada.",
             userId,
             userName));
 

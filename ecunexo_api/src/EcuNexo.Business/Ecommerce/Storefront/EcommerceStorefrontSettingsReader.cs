@@ -12,9 +12,10 @@ namespace EcuNexo.Business.Ecommerce.Storefront;
 /// </summary>
 public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSettingsReader
 {
-    public const int DefaultPaymentHoldHours = 24;
+    public const int DefaultPaymentHoldHours = 2;
     public const int MinPaymentHoldHours = 1;
     public const int MaxPaymentHoldHours = 720;
+    public const bool DefaultReserveOnOrder = true;
 
     private static readonly IReadOnlyList<EcommercePaymentMethod> DefaultPaymentMethods =
         [EcommercePaymentMethod.BankTransfer];
@@ -50,7 +51,9 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
             ReadPaymentMethods(values),
             ReadShippingMethods(values),
             ReadBankTransferInstructions(values),
-            ReadPaymentHoldHours(values));
+            ReadPaymentHoldHours(values),
+            ReadReserveOnOrder(values),
+            ReadContactWhatsapp(values));
     }
 
     internal static bool TryParsePaymentMethod(string? raw, out EcommercePaymentMethod method)
@@ -153,6 +156,33 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
         };
 
         return Math.Clamp(holdHours, MinPaymentHoldHours, MaxPaymentHoldHours);
+    }
+
+    private static bool ReadReserveOnOrder(IReadOnlyDictionary<string, JsonElement> values)
+    {
+        if (!values.TryGetValue(EcommerceSettingCodes.StorefrontReserveOnOrder, out var element))
+        {
+            return DefaultReserveOnOrder;
+        }
+
+        return element.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.String when bool.TryParse(element.GetString(), out var parsed) => parsed,
+            _ => DefaultReserveOnOrder,
+        };
+    }
+
+    private static string ReadContactWhatsapp(IReadOnlyDictionary<string, JsonElement> values)
+    {
+        if (!values.TryGetValue(EcommerceSettingCodes.StorefrontContactWhatsapp, out var element)
+            || element.ValueKind != JsonValueKind.String)
+        {
+            return string.Empty;
+        }
+
+        return EcommerceContactNormalizer.NormalizeWhatsapp(element.GetString());
     }
 
     private static decimal ReadCost(JsonElement element)

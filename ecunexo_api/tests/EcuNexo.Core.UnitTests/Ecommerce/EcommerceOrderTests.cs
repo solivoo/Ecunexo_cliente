@@ -58,6 +58,41 @@ public sealed class EcommerceOrderTests
         order.Timeline.Should().ContainSingle(t => t.NewStatus == EcommerceOrderStatus.Placed);
     }
 
+    [Fact(DisplayName = "Create reserva stock por defecto y permite crear sin reserva")]
+    public void Create_StockReserved_ReflectsParameter()
+    {
+        var (customer, shipping) = CreateSampleInfo();
+
+        var reserved = EcommerceOrder.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "ORD-2026-010",
+            Guid.CreateVersion7(),
+            EcommercePaymentMethod.BankTransfer,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping).Value!;
+
+        reserved.HasStockReserved.Should().BeTrue();
+
+        var pending = EcommerceOrder.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "ORD-2026-011",
+            Guid.CreateVersion7(),
+            EcommercePaymentMethod.BankTransfer,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping,
+            stockReserved: false).Value!;
+
+        pending.HasStockReserved.Should().BeFalse();
+
+        pending.MarkStockReserved();
+
+        pending.HasStockReserved.Should().BeTrue();
+    }
+
     [Fact(DisplayName = "AddItem calcula totales y subtotales correctamente")]
     public void AddItem_RecalculatesTotals()
     {

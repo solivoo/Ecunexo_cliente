@@ -48,6 +48,10 @@ public sealed class GetEcommerceCheckoutOptionsHandler
                 option.Cost))
             .ToList();
 
-        return Result.Success(new EcommerceCheckoutOptionsDto(paymentMethods, shippingMethods));
+        var whatsappPhone = string.IsNullOrWhiteSpace(settings.ContactWhatsapp)
+            ? null
+            : settings.ContactWhatsapp;
+
+        return Result.Success(new EcommerceCheckoutOptionsDto(paymentMethods, shippingMethods, whatsappPhone));
     }
 }

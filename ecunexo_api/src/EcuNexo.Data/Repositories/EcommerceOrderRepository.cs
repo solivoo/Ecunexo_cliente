@@ -45,6 +45,59 @@ public sealed class EcommerceOrderRepository : IEcommerceOrderRepository
                 ct);
     }
 
+    public async Task<int> CountPendingByContactAsync(
+        Guid tenantId,
+        string emailNormalized,
+        string phoneDigits,
+        CancellationToken ct = default)
+    {
+        var emailPattern = EscapeLikePattern(emailNormalized.Trim());
+        var phone = phoneDigits.Trim();
+
+        if (emailPattern.Length == 0 && phone.Length == 0)
+        {
+            return 0;
+        }
+
+        var query = _db.EcommerceOrders.AsNoTracking()
+            .Where(o => o.TenantId == tenantId
+                && o.Status == EcommerceOrderStatus.Placed
+                && o.PaymentStatus == EcommercePaymentStatus.Pending);
+
+        if (emailPattern.Length > 0 && phone.Length > 0)
+        {
+            query = query.Where(o =>
+                EF.Functions.ILike(o.Customer.Email, emailPattern)
+                || (o.Customer.Phone != null
+                    && o.Customer.Phone.Replace(" ", string.Empty)
+                        .Replace("+", string.Empty)
+                        .Replace("-", string.Empty)
+                        .Replace("(", string.Empty)
+                        .Replace(")", string.Empty) == phone));
+        }
+        else if (emailPattern.Length > 0)
+        {
+            query = query.Where(o => EF.Functions.ILike(o.Customer.Email, emailPattern));
+        }
+        else
+        {
+            query = query.Where(o =>
+                o.Customer.Phone != null
+                && o.Customer.Phone.Replace(" ", string.Empty)
+                    .Replace("+", string.Empty)
+                    .Replace("-", string.Empty)
+                    .Replace("(", string.Empty)
+                    .Replace(")", string.Empty) == phone);
+        }
+
+        return await query.CountAsync(ct).ConfigureAwait(false);
+    }
+
+    private static string EscapeLikePattern(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal);
+
     public async Task<IReadOnlyList<EcommerceOrder>> ListPendingPaymentBeforeAsync(
         DateTimeOffset threshold,
         int limit,

@@ -8,7 +8,9 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
     IReadOnlyList<string> PaymentMethods,
     IReadOnlyList<EcommerceStorefrontShippingMethodRequest> ShippingMethods,
     string? BankTransferInstructions,
-    int PaymentHoldHours)
+    int PaymentHoldHours,
+    bool ReserveOnOrder = true,
+    string? ContactWhatsapp = null)
 {
     public UpdateEcommerceStorefrontSettingsCommand ToCommand(Guid tenantId, Guid? updatedBy) =>
         new(
@@ -19,5 +21,7 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
                 .ToList() ?? [],
             BankTransferInstructions,
             PaymentHoldHours,
+            ReserveOnOrder,
+            ContactWhatsapp,
             updatedBy);
 }

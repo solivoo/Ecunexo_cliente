@@ -60,6 +60,10 @@ public sealed class EcommerceOrderConfiguration : IEntityTypeConfiguration<Ecomm
         builder.Property(o => o.PaymentReference)
             .HasMaxLength(EcommerceOrder.PaymentReferenceMaxLength);
 
+        builder.Property(o => o.StockReserved)
+            .IsRequired()
+            .HasDefaultValue(true);
+
         builder.Property(o => o.ShippingMethod)
             .HasConversion<int>()
             .IsRequired();

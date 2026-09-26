@@ -26,7 +26,8 @@ public sealed class GetEcommerceCheckoutOptionsHandlerTests
             [EcommercePaymentMethod.BankTransfer, EcommercePaymentMethod.CashOnDelivery],
             [new ShippingMethodOption(EcommerceShippingMethod.Courier, 4.5m)],
             "Transfiere a la cuenta 22001234",
-            24));
+            2,
+            ContactWhatsapp: "593999999999"));
 
         var result = await _sut.Handle(new GetEcommerceCheckoutOptionsQuery(tenantId), CancellationToken.None);
 
@@ -45,6 +46,7 @@ public sealed class GetEcommerceCheckoutOptionsHandlerTests
         options.ShippingMethods[0].Code.Should().Be("Courier");
         options.ShippingMethods[0].Label.Should().Be("Envío a domicilio");
         options.ShippingMethods[0].Cost.Should().Be(4.5m);
+        options.WhatsappPhone.Should().Be("593999999999");
     }
 
     [Fact(DisplayName = "No expone instrucciones de transferencia si el método no está habilitado")]

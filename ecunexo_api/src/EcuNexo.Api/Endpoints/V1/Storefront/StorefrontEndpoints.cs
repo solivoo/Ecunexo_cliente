@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Asp.Versioning.Builder;
 using EcuNexo.Api.Contracts.V1.Storefront;
 using EcuNexo.Api.Extensions;
+using EcuNexo.Api.Security;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateStorefrontOrder;
@@ -29,11 +30,16 @@ public static class StorefrontEndpoints
             .WithTags("Storefront")
             .AllowAnonymous();
 
-        storefront.MapGet("/facets", ListFacetsAsync);
-        storefront.MapGet("/products", ListProductsAsync);
-        storefront.MapGet("/products/{productId:guid}", GetProductAsync);
-        storefront.MapGet("/checkout-options", GetCheckoutOptionsAsync);
-        storefront.MapPost("/orders", CreateOrderAsync);
+        storefront.MapGet("/facets", ListFacetsAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
+        storefront.MapGet("/products", ListProductsAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
+        storefront.MapGet("/products/{productId:guid}", GetProductAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
+        storefront.MapGet("/checkout-options", GetCheckoutOptionsAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
+        storefront.MapPost("/orders", CreateOrderAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Orders);
 
         RouteGroupBuilder publicStorefront = app
             .MapGroup("/api/v{version:apiVersion}/public/storefront")
@@ -153,6 +159,7 @@ public static class StorefrontEndpoints
     private static async Task<IResult> CreateOrderAsync(
         Guid tenantId,
         CreateStorefrontOrderRequest? body,
+        HttpContext http,
         ISender sender,
         CancellationToken ct)
     {
@@ -163,7 +170,10 @@ public static class StorefrontEndpoints
 
         var result = await sender
             .SendAsync<CreateStorefrontOrderCommand, StorefrontOrderCreatedDto>(
-                body.ToCommand(tenantId),
+                body.ToCommand(
+                    tenantId,
+                    StorefrontRateLimitPolicies.ResolveClientIp(http),
+                    http.Request.Headers.UserAgent.ToString()),
                 ct)
             .ConfigureAwait(false);
 

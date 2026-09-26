@@ -22,7 +22,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         _sut = new UpdateEcommerceStorefrontSettingsHandler(_validator, _settings, _idGenerator, _unitOfWork);
     }
 
-    [Fact(DisplayName = "Hace upsert de los cuatro settings tenant y devuelve el estado guardado")]
+    [Fact(DisplayName = "Hace upsert de los seis settings tenant y devuelve el estado guardado")]
     public async Task Handle_WithoutExistingSettings_CreatesAll()
     {
         var tenantId = Guid.CreateVersion7();
@@ -40,7 +40,9 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             ],
             "  Transfiere a la cuenta 123  ",
             48,
-            Guid.CreateVersion7());
+            ReserveOnOrder: false,
+            ContactWhatsapp: "+593 99 999 9999",
+            UpdatedBy: Guid.CreateVersion7());
 
         var result = await _sut.Handle(command, CancellationToken.None);
 
@@ -52,8 +54,10 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             new StorefrontShippingMethodSettingDto("StorePickup", 0m));
         dto.BankTransferInstructions.Should().Be("Transfiere a la cuenta 123");
         dto.PaymentHoldHours.Should().Be(48);
+        dto.ReserveOnOrder.Should().BeFalse();
+        dto.ContactWhatsapp.Should().Be("593999999999");
 
-        await _settings.Received(4).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
+        await _settings.Received(6).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -72,6 +76,10 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
                 SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontBankTransferInstructions, "\"\"", SettingScope.Tenant, scopeId).Value!,
             [EcommerceSettingCodes.StorefrontPaymentHoldHours] =
                 SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontPaymentHoldHours, "24", SettingScope.Tenant, scopeId).Value!,
+            [EcommerceSettingCodes.StorefrontReserveOnOrder] =
+                SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontReserveOnOrder, "true", SettingScope.Tenant, scopeId).Value!,
+            [EcommerceSettingCodes.StorefrontContactWhatsapp] =
+                SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontContactWhatsapp, "\"\"", SettingScope.Tenant, scopeId).Value!,
         };
 
         _settings
@@ -94,6 +102,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         rows[EcommerceSettingCodes.StorefrontPaymentMethods].ValueJson.Should().Contain("BankTransfer");
         rows[EcommerceSettingCodes.StorefrontShippingMethods].ValueJson.Should().Contain("Courier");
         rows[EcommerceSettingCodes.StorefrontPaymentHoldHours].ValueJson.Should().Be("72");
+        rows[EcommerceSettingCodes.StorefrontReserveOnOrder].ValueJson.Should().Be("true");
     }
 
     [Fact(DisplayName = "El validador rechaza métodos vacíos, costos negativos y hold fuera de rango")]
@@ -140,5 +149,42 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             null,
             24));
         unknownCode.IsValid.Should().BeFalse();
+
+        var invalidWhatsapp = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
+            tenantId,
+            ["BankTransfer"],
+            [new UpdateEcommerceStorefrontShippingMethodInput("Courier", 0m)],
+            null,
+            24,
+            ContactWhatsapp: "abc-123"));
+        invalidWhatsapp.IsValid.Should().BeFalse();
+
+        var longWhatsapp = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
+            tenantId,
+            ["BankTransfer"],
+            [new UpdateEcommerceStorefrontShippingMethodInput("Courier", 0m)],
+            null,
+            24,
+            ContactWhatsapp: new string('9', 21)));
+        longWhatsapp.IsValid.Should().BeFalse();
+
+        var validWhatsapp = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
+            tenantId,
+            ["BankTransfer"],
+            [new UpdateEcommerceStorefrontShippingMethodInput("Courier", 0m)],
+            null,
+            24,
+            ReserveOnOrder: false,
+            ContactWhatsapp: "+593 99 999 9999"));
+        validWhatsapp.IsValid.Should().BeTrue();
+
+        var emptyWhatsapp = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
+            tenantId,
+            ["BankTransfer"],
+            [new UpdateEcommerceStorefrontShippingMethodInput("Courier", 0m)],
+            null,
+            24,
+            ContactWhatsapp: "   "));
+        emptyWhatsapp.IsValid.Should().BeTrue();
     }
 }

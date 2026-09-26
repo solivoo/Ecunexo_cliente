@@ -28,5 +28,7 @@ public sealed class GetEcommerceStorefrontSettingsHandler
                 .Select(option => new StorefrontShippingMethodSettingDto(option.Method.ToString(), option.Cost))
                 .ToList(),
             settings.BankTransferInstructions,
-            settings.PaymentHoldHours);
+            settings.PaymentHoldHours,
+            settings.ReserveOnOrder,
+            settings.ContactWhatsapp);
 }

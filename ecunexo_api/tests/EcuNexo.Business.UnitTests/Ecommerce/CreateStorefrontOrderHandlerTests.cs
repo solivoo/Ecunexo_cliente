@@ -9,6 +9,8 @@ using EcuNexo.Core.Common;
 using EcuNexo.Core.Ecommerce;
 using EcuNexo.Core.Tenancy;
 using EcuNexo.Core.Warehousing;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace EcuNexo.Business.UnitTests.Ecommerce;
@@ -19,7 +21,9 @@ public sealed class CreateStorefrontOrderHandlerTests
     private readonly IWarehouseRepository _warehouses = Substitute.For<IWarehouseRepository>();
     private readonly IEcommerceStorefrontSettingsReader _settings = Substitute.For<IEcommerceStorefrontSettingsReader>();
     private readonly IEcommerceOrderRepository _orders = Substitute.For<IEcommerceOrderRepository>();
+    private readonly IEcommerceBlockedContactRepository _blockedContacts = Substitute.For<IEcommerceBlockedContactRepository>();
     private readonly ISender _sender = Substitute.For<ISender>();
+    private readonly ILogger<CreateStorefrontOrderHandler> _logger = NullLogger<CreateStorefrontOrderHandler>.Instance;
     private readonly CreateStorefrontOrderHandler _sut;
 
     private static readonly EcommerceStorefrontSettings DefaultSettings = new(
@@ -39,7 +43,9 @@ public sealed class CreateStorefrontOrderHandlerTests
             _warehouses,
             _settings,
             _orders,
-            _sender);
+            _blockedContacts,
+            _sender,
+            _logger);
     }
 
     [Fact(DisplayName = "Crea el pedido invitado con costo de envío del setting y datos de sistema")]
@@ -86,6 +92,7 @@ public sealed class CreateStorefrontOrderHandlerTests
         captured.CreatedByName.Should().Be(CreateStorefrontOrderHandler.SystemCustomerName);
         captured.ClientRequestId.Should().Be("req-1");
         captured.CustomerNotes.Should().Be("Entregar en la tarde");
+        captured.ReserveStock.Should().BeTrue();
         captured.Customer.TaxId.Should().Be(CreateStorefrontOrderHandler.DefaultConsumerTaxId);
         captured.Customer.TaxIdType.Should().Be(CreateStorefrontOrderHandler.DefaultConsumerTaxIdType);
         captured.Customer.Email.Should().Be("maria.lopez@example.com");
@@ -224,6 +231,133 @@ public sealed class CreateStorefrontOrderHandlerTests
         await _sender.DidNotReceiveWithAnyArgs()
             .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(default!, default);
     }
+
+    [Fact(DisplayName = "El honeypot lleno responde ecommerce.checkout.invalid_form")]
+    public async Task Handle_FilledHoneypot_ReturnsInvalidForm()
+    {
+        var tenantId = SetupTenant();
+        SetupSettings(tenantId);
+
+        var command = CreateCommand(tenantId) with { Website = "https://spam.example" };
+        var result = await _sut.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("ecommerce.checkout.invalid_form");
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        await _sender.DidNotReceiveWithAnyArgs()
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(default!, default);
+    }
+
+    [Fact(DisplayName = "Un formulario enviado en menos de 2 segundos responde ecommerce.checkout.invalid_form")]
+    public async Task Handle_FormFilledTooFast_ReturnsInvalidForm()
+    {
+        var tenantId = SetupTenant();
+        SetupSettings(tenantId);
+
+        var command = CreateCommand(tenantId) with { FormElapsedMs = 500 };
+        var result = await _sut.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("ecommerce.checkout.invalid_form");
+        await _sender.DidNotReceiveWithAnyArgs()
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(default!, default);
+    }
+
+    [Fact(DisplayName = "Tres pedidos pendientes del mismo contacto responden ecommerce.checkout.too_many_pending")]
+    public async Task Handle_TooManyPendingOrders_ReturnsConflict()
+    {
+        var tenantId = SetupTenant();
+        SetupWarehouse(tenantId);
+        SetupSettings(tenantId);
+        _orders
+            .FindByClientRequestIdAsync(tenantId, "req-1", Arg.Any<CancellationToken>())
+            .Returns((EcommerceOrder?)null);
+        _orders
+            .CountPendingByContactAsync(
+                tenantId,
+                "maria.lopez@example.com",
+                "0987654321",
+                Arg.Any<CancellationToken>())
+            .Returns(CreateStorefrontOrderHandler.MaxPendingOrdersPerContact);
+
+        var result = await _sut.Handle(CreateCommand(tenantId), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("ecommerce.checkout.too_many_pending");
+        result.Error.Type.Should().Be(ErrorType.Conflict);
+        await _sender.DidNotReceiveWithAnyArgs()
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(default!, default);
+    }
+
+    [Fact(DisplayName = "Un contacto bloqueado responde ecommerce.checkout.blocked_contact 403")]
+    public async Task Handle_BlockedContact_ReturnsForbidden()
+    {
+        var tenantId = SetupTenant();
+        SetupWarehouse(tenantId);
+        SetupSettings(tenantId);
+        _orders
+            .FindByClientRequestIdAsync(tenantId, "req-1", Arg.Any<CancellationToken>())
+            .Returns((EcommerceOrder?)null);
+        _blockedContacts
+            .ExistsAsync(
+                tenantId,
+                EcommerceBlockedContactKind.Email,
+                "maria.lopez@example.com",
+                Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        var result = await _sut.Handle(CreateCommand(tenantId), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("ecommerce.checkout.blocked_contact");
+        result.Error.Type.Should().Be(ErrorType.Forbidden);
+        result.Error.Message.Should().Be("No podemos procesar este pedido. Contacta a la tienda.");
+        await _sender.DidNotReceiveWithAnyArgs()
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(default!, default);
+    }
+
+    [Fact(DisplayName = "ReserveOnOrder false crea el pedido sin reservar stock")]
+    public async Task Handle_ReserveOnOrderDisabled_SendsReserveStockFalse()
+    {
+        var tenantId = SetupTenant();
+        SetupWarehouse(tenantId);
+        _orders
+            .FindByClientRequestIdAsync(tenantId, "req-1", Arg.Any<CancellationToken>())
+            .Returns((EcommerceOrder?)null);
+        _settings.ResolveAsync(tenantId, Arg.Any<CancellationToken>()).Returns(DefaultSettings with
+        {
+            ReserveOnOrder = false,
+        });
+
+        CreateEcommerceOrderCommand? captured = null;
+        _sender
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(
+                Arg.Do<CreateEcommerceOrderCommand>(command => captured = command),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new CreateEcommerceOrderResponse(
+                Guid.CreateVersion7(),
+                "ECO-202609-0002",
+                EcommerceOrderStatus.Placed,
+                100m,
+                15m,
+                3.5m,
+                118.5m,
+                EcommercePaymentMethod.BankTransfer)));
+
+        var result = await _sut.Handle(CreateCommand(tenantId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        captured.Should().NotBeNull();
+        captured!.ReserveStock.Should().BeFalse();
+    }
+
+    [Theory(DisplayName = "El email se enmascara en los logs")]
+    [InlineData("maria.lopez@example.com", "m***z@example.com")]
+    [InlineData("ab@example.com", "***@example.com")]
+    [InlineData("", "n/a")]
+    [InlineData("sin-arroba", "***")]
+    public void MaskEmail_HidesLocalPart(string email, string expected) =>
+        CreateStorefrontOrderHandler.MaskEmail(email).Should().Be(expected);
 
     private Guid SetupTenant()
     {

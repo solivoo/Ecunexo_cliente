@@ -83,3 +83,41 @@ public enum EcommerceShippingMethod
     /// <summary>Entrega local express motorizada.</summary>
     LocalDelivery = 3,
 }
+
+/// <summary>
+/// Tipo de contacto bloqueado para el checkout público (anti-abuso).
+/// </summary>
+public enum EcommerceBlockedContactKind
+{
+    /// <summary>Correo electrónico normalizado (minúsculas).</summary>
+    Email = 1,
+
+    /// <summary>Teléfono normalizado (solo dígitos).</summary>
+    Phone = 2,
+}
+
+/// <summary>
+/// Normaliza datos de contacto para comparaciones de anti-abuso (lista de bloqueo y tope de pendientes).
+/// </summary>
+public static class EcommerceContactNormalizer
+{
+    /// <summary>Recorta y pasa a minúsculas el correo electrónico.</summary>
+    public static string NormalizeEmail(string? email) =>
+        email?.Trim().ToLowerInvariant() ?? string.Empty;
+
+    /// <summary>Conserva únicamente los dígitos del teléfono.</summary>
+    public static string NormalizePhone(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            return string.Empty;
+        }
+
+        return string.Concat(phone.Where(char.IsAsciiDigit));
+    }
+
+    /// <summary>
+    /// Normaliza el WhatsApp de la tienda a dígitos con prefijo internacional (ej. <c>593999999999</c>).
+    /// </summary>
+    public static string NormalizeWhatsapp(string? whatsapp) => NormalizePhone(whatsapp);
+}

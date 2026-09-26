@@ -6,6 +6,7 @@ public sealed class UpdateEcommerceStorefrontSettingsValidator
     : AbstractValidator<UpdateEcommerceStorefrontSettingsCommand>
 {
     public const int BankTransferInstructionsMaxLength = 2000;
+    public const int ContactWhatsappMaxLength = 20;
 
     public UpdateEcommerceStorefrontSettingsValidator()
     {
@@ -46,5 +47,12 @@ public sealed class UpdateEcommerceStorefrontSettingsValidator
         RuleFor(x => x.BankTransferInstructions)
             .MaximumLength(BankTransferInstructionsMaxLength)
             .WithMessage($"Las instrucciones de transferencia no pueden superar {BankTransferInstructionsMaxLength} caracteres.");
+
+        RuleFor(x => x.ContactWhatsapp)
+            .MaximumLength(ContactWhatsappMaxLength)
+            .Matches(@"^[0-9+\s]*$")
+            .When(x => !string.IsNullOrWhiteSpace(x.ContactWhatsapp))
+            .WithMessage(
+                $"El WhatsApp de la tienda solo admite dígitos, + y espacios, con máximo {ContactWhatsappMaxLength} caracteres.");
     }
 }

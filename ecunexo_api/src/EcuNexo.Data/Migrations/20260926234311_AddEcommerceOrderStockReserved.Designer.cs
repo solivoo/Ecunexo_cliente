@@ -5,6 +5,7 @@ using EcuNexo.Core.Tenancy;
 using EcuNexo.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EcuNexo.Data.Migrations
 {
     [DbContext(typeof(EcuNexoDbContext))]
-    partial class EcuNexoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260926234311_AddEcommerceOrderStockReserved")]
+    partial class AddEcommerceOrderStockReserved
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1274,49 +1277,6 @@ namespace EcuNexo.Data.Migrations
                         .HasFilter("\"deleted_at\" IS NULL");
 
                     b.ToTable("customer_types", "repairs");
-                });
-
-            modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceBlockedContact", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<int>("Kind")
-                        .HasColumnType("integer")
-                        .HasColumnName("kind");
-
-                    b.Property<string>("Reason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("reason");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<string>("ValueNormalized")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("value_normalized");
-
-                    b.HasKey("Id")
-                        .HasName("pk_blocked_contacts");
-
-                    b.HasIndex("TenantId", "Kind", "ValueNormalized")
-                        .IsUnique()
-                        .HasDatabaseName("ix_blocked_contacts_tenant_id_kind_value_normalized");
-
-                    b.ToTable("blocked_contacts", "ecommerce");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceOrder", b =>
@@ -5402,16 +5362,6 @@ namespace EcuNexo.Data.Migrations
                         .HasConstraintName("fk_customer_repair_rate_cards_customers_customer_id");
 
                     b.Navigation("Customer");
-                });
-
-            modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceBlockedContact", b =>
-                {
-                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_blocked_contacts_tenants_tenant_id");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Ecommerce.EcommerceOrder", b =>

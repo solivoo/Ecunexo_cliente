@@ -31,8 +31,11 @@ using EcuNexo.Business.Tenancy.Licensing;
 using EcuNexo.Data;
 using EcuNexo.Api.Email;
 using EcuNexo.Api.Licensing;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -99,6 +102,55 @@ builder.Services.AddData(connectionString);
 
 builder.Services.AddHostedService<EcommercePaymentHoldWorker>();
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = static async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new ProblemDetails
+            {
+                Status = StatusCodes.Status429TooManyRequests,
+                Title = "Demasiadas solicitudes",
+                Detail = "Has realizado demasiadas solicitudes. Inténtalo de nuevo más tarde.",
+                Type = $"https://api.ecunexo/errors/{StorefrontRateLimitPolicies.RateLimitedErrorCode}",
+            },
+            token);
+    };
+
+    options.AddPolicy(
+        StorefrontRateLimitPolicies.Orders,
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            StorefrontRateLimitPolicies.ResolveClientIp(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = StorefrontRateLimitPolicies.OrdersPermitLimit,
+                Window = TimeSpan.FromMinutes(StorefrontRateLimitPolicies.OrdersWindowMinutes),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
+
+    options.AddPolicy(
+        StorefrontRateLimitPolicies.Read,
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            StorefrontRateLimitPolicies.ResolveClientIp(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = StorefrontRateLimitPolicies.ReadPermitLimit,
+                Window = TimeSpan.FromMinutes(StorefrontRateLimitPolicies.ReadWindowMinutes),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
+});
+
 var corsOrigins = ParseCorsOrigins(builder.Configuration);
 builder.Services.AddCors(options =>
 {
@@ -135,7 +187,9 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseCors("EcuNexoSpa");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

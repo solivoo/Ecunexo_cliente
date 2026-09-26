@@ -10,7 +10,9 @@ public sealed record EcommerceStorefrontSettings(
     IReadOnlyList<EcommercePaymentMethod> PaymentMethods,
     IReadOnlyList<ShippingMethodOption> ShippingMethods,
     string BankTransferInstructions,
-    int PaymentHoldHours);
+    int PaymentHoldHours,
+    bool ReserveOnOrder = true,
+    string ContactWhatsapp = "");
 
 /// <summary>
 /// Lee la configuración efectiva de la tienda (global/plan/tenant) aplicando defaults seguros.

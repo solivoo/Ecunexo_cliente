@@ -20,7 +20,8 @@ public sealed record CreateEcommerceOrderCommand(
     string? CustomerNotes = null,
     Guid? CreatedBy = null,
     string? CreatedByName = null,
-    string? ClientRequestId = null) : ICommand<CreateEcommerceOrderResponse>;
+    string? ClientRequestId = null,
+    bool ReserveStock = true) : ICommand<CreateEcommerceOrderResponse>;
 
 public sealed record CreateEcommerceOrderResponse(
     Guid OrderId,

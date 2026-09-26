@@ -96,7 +96,8 @@ public sealed class CreateEcommerceOrderHandler
             command.CustomerNotes,
             command.CreatedBy,
             command.CreatedByName,
-            clientRequestId);
+            clientRequestId,
+            command.ReserveStock);
 
         if (orderResult.IsFailure)
         {
@@ -121,10 +122,13 @@ public sealed class CreateEcommerceOrderHandler
                     new Error("ecommerce.order.stock_missing", $"No existe registro de stock para el producto '{catalogItem.Name}' ({catalogItem.Sku}) en la bodega seleccionada.", ErrorType.Conflict));
             }
 
-            var reserveResult = stock.Reserve(itemInput.Quantity, command.CreatedBy);
-            if (reserveResult.IsFailure)
+            if (command.ReserveStock)
             {
-                return Result.Failure<CreateEcommerceOrderResponse>(reserveResult.Error!);
+                var reserveResult = stock.Reserve(itemInput.Quantity, command.CreatedBy);
+                if (reserveResult.IsFailure)
+                {
+                    return Result.Failure<CreateEcommerceOrderResponse>(reserveResult.Error!);
+                }
             }
 
             var itemResult = await BuildItem(command, order, catalogItem, itemInput, ct).ConfigureAwait(false);

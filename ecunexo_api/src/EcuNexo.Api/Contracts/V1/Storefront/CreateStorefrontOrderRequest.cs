@@ -9,9 +9,14 @@ public sealed record CreateStorefrontOrderRequest(
     string PaymentMethod,
     string ShippingMethod,
     IReadOnlyList<CreateStorefrontOrderItemInput> Items,
-    string? Notes = null)
+    string? Notes = null,
+    string? Website = null,
+    int? FormElapsedMs = null)
 {
-    public CreateStorefrontOrderCommand ToCommand(Guid tenantId) =>
+    public CreateStorefrontOrderCommand ToCommand(
+        Guid tenantId,
+        string? clientIp = null,
+        string? userAgent = null) =>
         new(
             tenantId,
             RequestId,
@@ -20,5 +25,9 @@ public sealed record CreateStorefrontOrderRequest(
             PaymentMethod,
             ShippingMethod,
             Items ?? [],
-            Notes);
+            Notes,
+            Website,
+            FormElapsedMs,
+            clientIp,
+            userAgent);
 }

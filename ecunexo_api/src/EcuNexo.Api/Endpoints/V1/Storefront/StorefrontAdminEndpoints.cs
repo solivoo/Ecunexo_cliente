@@ -11,8 +11,11 @@ using EcuNexo.Business.Storefront.Commands.SetPrimaryStorefrontDomain;
 using EcuNexo.Business.Storefront.Commands.VerifyStorefrontDomain;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontDomains;
 using EcuNexo.Business.Ecommerce.Storefront;
+using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateEcommerceBlockedContact;
+using EcuNexo.Business.Ecommerce.Storefront.Commands.RemoveEcommerceBlockedContact;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.UpdateEcommerceStorefrontSettings;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceStorefrontSettings;
+using EcuNexo.Business.Ecommerce.Storefront.Queries.ListEcommerceBlockedContacts;
 
 namespace EcuNexo.Api.Endpoints.V1.Storefront;
 
@@ -53,6 +56,19 @@ public static class StorefrontAdminEndpoints
         settings.MapPut("/", UpdateSettingsAsync)
             .AddEndpointFilter(PermissionFilters.Require("ecommerce.storefront.manage"));
 
+        RouteGroupBuilder blockedContacts = app
+            .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/ecommerce/blocked-contacts")
+            .WithApiVersionSet(versionSet)
+            .WithTags("Storefront")
+            .RequireAuthorization();
+
+        blockedContacts.MapGet("/", ListBlockedContactsAsync)
+            .AddEndpointFilter(PermissionFilters.Require("ecommerce.storefront.manage"));
+        blockedContacts.MapPost("/", CreateBlockedContactAsync)
+            .AddEndpointFilter(PermissionFilters.Require("ecommerce.storefront.manage"));
+        blockedContacts.MapDelete("/{contactId:guid}", DeleteBlockedContactAsync)
+            .AddEndpointFilter(PermissionFilters.Require("ecommerce.storefront.manage"));
+
         return app;
     }
 
@@ -80,6 +96,59 @@ public static class StorefrontAdminEndpoints
         var result = await sender
             .SendAsync<UpdateEcommerceStorefrontSettingsCommand, EcommerceStorefrontSettingsDto>(
                 body.ToCommand(tenantId, caller.UserId),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> ListBlockedContactsAsync(
+        Guid tenantId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<ListEcommerceBlockedContactsQuery, IReadOnlyList<EcommerceBlockedContactDto>>(
+                new ListEcommerceBlockedContactsQuery(tenantId),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> CreateBlockedContactAsync(
+        Guid tenantId,
+        CreateEcommerceBlockedContactRequest body,
+        ISender sender,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<CreateEcommerceBlockedContactCommand, EcommerceBlockedContactDto>(
+                body.ToCommand(tenantId, caller.UserId),
+                ct)
+            .ConfigureAwait(false);
+
+        if (!result.IsSuccess)
+        {
+            return result.ToHttpResult();
+        }
+
+        var value = result.Value!;
+        return Results.Created(
+            $"/api/v1/tenants/{tenantId}/ecommerce/blocked-contacts/{value.Id}",
+            value);
+    }
+
+    private static async Task<IResult> DeleteBlockedContactAsync(
+        Guid tenantId,
+        Guid contactId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<RemoveEcommerceBlockedContactCommand, bool>(
+                new RemoveEcommerceBlockedContactCommand(tenantId, contactId),
                 ct)
             .ConfigureAwait(false);
 

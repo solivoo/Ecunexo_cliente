@@ -66,10 +66,13 @@ using EcuNexo.Business.Ecommerce.Queries.GetEcommerceOrderById;
 using EcuNexo.Business.Ecommerce.Queries.ListEcommerceOrders;
 using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Business.Ecommerce.Storefront;
+using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateEcommerceBlockedContact;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateStorefrontOrder;
+using EcuNexo.Business.Ecommerce.Storefront.Commands.RemoveEcommerceBlockedContact;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.UpdateEcommerceStorefrontSettings;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceCheckoutOptions;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceStorefrontSettings;
+using EcuNexo.Business.Ecommerce.Storefront.Queries.ListEcommerceBlockedContacts;
 using EcuNexo.Business.Purchases.Expenses;
 using EcuNexo.Business.Purchases.Expenses.Commands.CreateExpenseType;
 using EcuNexo.Business.Purchases.Expenses.Commands.DeleteExpenseType;
@@ -337,6 +340,11 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<UpdateEcommerceStorefrontSettingsCommand, EcommerceStorefrontSettingsDto>, UpdateEcommerceStorefrontSettingsHandler>();
         services.AddScoped<IQueryHandler<GetEcommerceCheckoutOptionsQuery, EcommerceCheckoutOptionsDto>, GetEcommerceCheckoutOptionsHandler>();
         services.AddScoped<ICommandHandler<CreateStorefrontOrderCommand, StorefrontOrderCreatedDto>, CreateStorefrontOrderHandler>();
+
+        // Storefront anti-abuso (lista de bloqueo)
+        services.AddScoped<ICommandHandler<CreateEcommerceBlockedContactCommand, EcommerceBlockedContactDto>, CreateEcommerceBlockedContactHandler>();
+        services.AddScoped<ICommandHandler<RemoveEcommerceBlockedContactCommand, bool>, RemoveEcommerceBlockedContactHandler>();
+        services.AddScoped<IQueryHandler<ListEcommerceBlockedContactsQuery, IReadOnlyList<EcommerceBlockedContactDto>>, ListEcommerceBlockedContactsHandler>();
 
         // Purchases (Proveedores / Proformas / Gastos SRI)
         services.AddScoped<ICommandHandler<CreateSupplierCommand, SupplierResponse>, CreateSupplierHandler>();

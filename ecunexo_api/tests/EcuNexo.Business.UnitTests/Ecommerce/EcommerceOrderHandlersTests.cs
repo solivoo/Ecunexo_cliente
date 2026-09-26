@@ -1,6 +1,7 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Ecommerce.Commands.CancelEcommerceOrder;
+using EcuNexo.Business.Ecommerce.Commands.ConfirmEcommerceOrderPayment;
 using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.ShipEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Repositories;
@@ -272,6 +273,288 @@ public sealed class EcommerceOrderHandlersTests
         order.Status.Should().Be(EcommerceOrderStatus.Shipped);
         stock.Quantity.Should().Be(7m); // Descontado del físico
         stock.ReservedQuantity.Should().Be(0m); // Liquidado de la reserva
+        stock.AvailableQuantity.Should().Be(7m);
+        await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact(DisplayName = "CreateEcommerceOrderHandler con ReserveStock=false no reserva stock")]
+    public async Task Handle_CreateOrder_WithReserveStockFalse_DoesNotReserve()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var warehouseId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+
+        var warehouse = Warehouse.Create(warehouseId, tenantId, "Bodega Principal", "BOD-01", isMain: true).Value!;
+        var catalogItem = CatalogItem.Create(
+            itemId,
+            tenantId,
+            CatalogItemKind.Physical,
+            "Teclado Mecánico RGB",
+            description: null,
+            sku: "TEC-RGB-01",
+            basePrice: 80m,
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var stock = Stock.Create(Guid.CreateVersion7(), tenantId, itemId, warehouseId).Value!;
+        stock.Increase(10m, null);
+
+        var validator = new CreateEcommerceOrderValidator();
+        var idGen = Substitute.For<IIdGenerator>();
+        idGen.NewId().Returns(Guid.CreateVersion7());
+
+        var warehouses = Substitute.For<IWarehouseRepository>();
+        warehouses.GetActiveByIdAsync(tenantId, warehouseId, Arg.Any<CancellationToken>()).Returns(warehouse);
+
+        var items = Substitute.For<ICatalogItemRepository>();
+        items.GetActiveByIdAsync(tenantId, itemId, Arg.Any<CancellationToken>()).Returns(catalogItem);
+
+        var stocks = Substitute.For<IStockRepository>();
+        stocks.GetTrackedAsync(tenantId, itemId, warehouseId, Arg.Any<CancellationToken>()).Returns(stock);
+
+        EcommerceOrder? createdOrder = null;
+        var orders = Substitute.For<IEcommerceOrderRepository>();
+        orders.GenerateNextOrderNumberAsync(tenantId, Arg.Any<CancellationToken>()).Returns("ECO-202609-0010");
+        orders.AddAsync(Arg.Do<EcommerceOrder>(order => createdOrder = order), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var sut = new CreateEcommerceOrderHandler(validator, idGen, warehouses, items, stocks, orders, StubPricing(), uow);
+
+        var (customer, shipping) = CreateSampleInfo();
+        var command = new CreateEcommerceOrderCommand(
+            TenantId: tenantId,
+            WarehouseId: warehouseId,
+            PaymentMethod: EcommercePaymentMethod.BankTransfer,
+            ShippingMethod: EcommerceShippingMethod.Courier,
+            Customer: customer,
+            Shipping: shipping,
+            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 3m)],
+            ReserveStock: false);
+
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        stock.ReservedQuantity.Should().Be(0m);
+        stock.AvailableQuantity.Should().Be(10m);
+        createdOrder.Should().NotBeNull();
+        createdOrder!.HasStockReserved.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "ConfirmEcommerceOrderPaymentHandler reserva stock si la orden no lo había hecho")]
+    public async Task Handle_ConfirmPayment_ReservesStockWhenPending()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var warehouseId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+
+        var stock = Stock.Create(Guid.CreateVersion7(), tenantId, itemId, warehouseId).Value!;
+        stock.Increase(10m, null);
+
+        var (customer, shipping) = CreateSampleInfo();
+        var order = EcommerceOrder.Create(
+            orderId,
+            tenantId,
+            "ECO-202609-0011",
+            warehouseId,
+            EcommercePaymentMethod.BankTransfer,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping,
+            stockReserved: false).Value!;
+
+        var item = EcommerceOrderItem.Create(
+            Guid.CreateVersion7(),
+            order.Id,
+            itemId,
+            "SKU-01",
+            "Producto Reserva Diferida",
+            quantity: 3m,
+            unitPrice: 20m).Value!;
+        order.AddItem(item);
+
+        var orders = Substitute.For<IEcommerceOrderRepository>();
+        orders.GetTrackedWithDetailsAsync(tenantId, orderId, Arg.Any<CancellationToken>()).Returns(order);
+
+        var stocks = Substitute.For<IStockRepository>();
+        stocks.GetTrackedAsync(tenantId, itemId, warehouseId, Arg.Any<CancellationToken>()).Returns(stock);
+
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var sut = new ConfirmEcommerceOrderPaymentHandler(orders, stocks, uow);
+        var command = new ConfirmEcommerceOrderPaymentCommand(tenantId, orderId, "TRF-123");
+
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        order.Status.Should().Be(EcommerceOrderStatus.Confirmed);
+        order.PaymentStatus.Should().Be(EcommercePaymentStatus.Paid);
+        order.HasStockReserved.Should().BeTrue();
+        stock.ReservedQuantity.Should().Be(3m);
+        await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact(DisplayName = "ConfirmEcommerceOrderPaymentHandler deja el pedido pendiente si no hay stock")]
+    public async Task Handle_ConfirmPayment_WhenStockInsufficient_LeavesOrderPending()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var warehouseId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+
+        var stock = Stock.Create(Guid.CreateVersion7(), tenantId, itemId, warehouseId).Value!;
+        stock.Increase(2m, null);
+
+        var (customer, shipping) = CreateSampleInfo();
+        var order = EcommerceOrder.Create(
+            orderId,
+            tenantId,
+            "ECO-202609-0012",
+            warehouseId,
+            EcommercePaymentMethod.BankTransfer,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping,
+            stockReserved: false).Value!;
+
+        var item = EcommerceOrderItem.Create(
+            Guid.CreateVersion7(),
+            order.Id,
+            itemId,
+            "SKU-01",
+            "Producto sin stock",
+            quantity: 5m,
+            unitPrice: 20m).Value!;
+        order.AddItem(item);
+
+        var orders = Substitute.For<IEcommerceOrderRepository>();
+        orders.GetTrackedWithDetailsAsync(tenantId, orderId, Arg.Any<CancellationToken>()).Returns(order);
+
+        var stocks = Substitute.For<IStockRepository>();
+        stocks.GetTrackedAsync(tenantId, itemId, warehouseId, Arg.Any<CancellationToken>()).Returns(stock);
+
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var sut = new ConfirmEcommerceOrderPaymentHandler(orders, stocks, uow);
+        var command = new ConfirmEcommerceOrderPaymentCommand(tenantId, orderId, "TRF-456");
+
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("inventory.stock.insufficient_available");
+        order.Status.Should().Be(EcommerceOrderStatus.Placed);
+        order.PaymentStatus.Should().Be(EcommercePaymentStatus.Pending);
+        order.HasStockReserved.Should().BeFalse();
+        stock.ReservedQuantity.Should().Be(0m);
+        await uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact(DisplayName = "CancelEcommerceOrderHandler no libera stock si la orden nunca lo reservó")]
+    public async Task Handle_CancelOrder_WhenStockNotReserved_DoesNotRelease()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var warehouseId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+
+        var stock = Stock.Create(Guid.CreateVersion7(), tenantId, itemId, warehouseId).Value!;
+        stock.Increase(10m, null);
+
+        var (customer, shipping) = CreateSampleInfo();
+        var order = EcommerceOrder.Create(
+            orderId,
+            tenantId,
+            "ECO-202609-0013",
+            warehouseId,
+            EcommercePaymentMethod.BankTransfer,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping,
+            stockReserved: false).Value!;
+
+        var item = EcommerceOrderItem.Create(
+            Guid.CreateVersion7(),
+            order.Id,
+            itemId,
+            "SKU-01",
+            "Producto sin reserva",
+            quantity: 4m,
+            unitPrice: 50m).Value!;
+        order.AddItem(item);
+
+        var orders = Substitute.For<IEcommerceOrderRepository>();
+        orders.GetTrackedWithDetailsAsync(tenantId, orderId, Arg.Any<CancellationToken>()).Returns(order);
+
+        var stocks = Substitute.For<IStockRepository>();
+
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var sut = new CancelEcommerceOrderHandler(orders, stocks, uow);
+        var command = new CancelEcommerceOrderCommand(tenantId, orderId, "Cliente desistió");
+
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        order.Status.Should().Be(EcommerceOrderStatus.Cancelled);
+        await stocks.DidNotReceiveWithAnyArgs()
+            .GetTrackedAsync(default, default, default, default);
+        await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact(DisplayName = "ShipEcommerceOrderHandler reserva y liquida cuando la orden no reservó al crearse")]
+    public async Task Handle_ShipOrder_WhenStockNotReserved_ReservesAndCommits()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var warehouseId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+
+        var stock = Stock.Create(Guid.CreateVersion7(), tenantId, itemId, warehouseId).Value!;
+        stock.Increase(10m, null);
+
+        var (customer, shipping) = CreateSampleInfo();
+        var order = EcommerceOrder.Create(
+            orderId,
+            tenantId,
+            "ECO-202609-0014",
+            warehouseId,
+            EcommercePaymentMethod.CreditCard,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping,
+            stockReserved: false).Value!;
+
+        var item = EcommerceOrderItem.Create(
+            Guid.CreateVersion7(),
+            order.Id,
+            itemId,
+            "SKU-01",
+            "Producto Despacho",
+            quantity: 3m,
+            unitPrice: 20m).Value!;
+        order.AddItem(item);
+        order.ConfirmPayment("AUTH-123", null, "Admin");
+
+        var orders = Substitute.For<IEcommerceOrderRepository>();
+        orders.GetTrackedWithDetailsAsync(tenantId, orderId, Arg.Any<CancellationToken>()).Returns(order);
+
+        var stocks = Substitute.For<IStockRepository>();
+        stocks.GetTrackedAsync(tenantId, itemId, warehouseId, Arg.Any<CancellationToken>()).Returns(stock);
+
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var sut = new ShipEcommerceOrderHandler(orders, stocks, uow);
+        var command = new ShipEcommerceOrderCommand(tenantId, orderId, "Servientrega", "GUIA-123");
+
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        order.Status.Should().Be(EcommerceOrderStatus.Shipped);
+        order.HasStockReserved.Should().BeTrue();
+        stock.Quantity.Should().Be(7m);
+        stock.ReservedQuantity.Should().Be(0m);
         stock.AvailableQuantity.Should().Be(7m);
         await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }

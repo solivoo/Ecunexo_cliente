@@ -25,4 +25,8 @@ public sealed record CreateStorefrontOrderCommand(
     string PaymentMethod,
     string ShippingMethod,
     IReadOnlyList<CreateStorefrontOrderItemInput> Items,
-    string? Notes = null) : ICommand<StorefrontOrderCreatedDto>;
+    string? Notes = null,
+    string? Website = null,
+    int? FormElapsedMs = null,
+    string? ClientIp = null,
+    string? UserAgent = null) : ICommand<StorefrontOrderCreatedDto>;

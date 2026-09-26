@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Button, CheckButton, NumberBox, TextArea, useToast } from 'glubox'
+import { Button, CheckButton, NumberBox, TextArea, TextBox, useToast } from 'glubox'
 import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -31,8 +31,10 @@ const SHIPPING_METHOD_OPTIONS = [
 
 const MIN_PAYMENT_HOLD_HOURS = 1
 const MAX_PAYMENT_HOLD_HOURS = 720
-const DEFAULT_PAYMENT_HOLD_HOURS = 24
+const DEFAULT_PAYMENT_HOLD_HOURS = 2
 const MAX_INSTRUCTIONS_LENGTH = 2000
+const MAX_WHATSAPP_LENGTH = 20
+const WHATSAPP_ALLOWED_PATTERN = /^[0-9+\s]*$/
 
 type ShippingDraft = {
   readonly code: string
@@ -69,6 +71,8 @@ export function StorefrontSettingsPage() {
   const [shipping, setShipping] = useState<ShippingDraft[]>([])
   const [instructions, setInstructions] = useState('')
   const [holdHours, setHoldHours] = useState(DEFAULT_PAYMENT_HOLD_HOURS)
+  const [reserveOnOrder, setReserveOnOrder] = useState(true)
+  const [contactWhatsapp, setContactWhatsapp] = useState('')
 
   useEffect(() => {
     if (!canManage || !tenantId) return
@@ -87,6 +91,8 @@ export function StorefrontSettingsPage() {
         setShipping(buildShippingDrafts(settings))
         setInstructions(settings.bankTransferInstructions ?? '')
         setHoldHours(settings.paymentHoldHours)
+        setReserveOnOrder(settings.reserveOnOrder ?? true)
+        setContactWhatsapp(settings.contactWhatsapp ?? '')
         setError(null)
       })
       .catch((err: unknown) => {
@@ -177,6 +183,19 @@ export function StorefrontSettingsPage() {
         return
       }
 
+      const whatsapp = contactWhatsapp.trim()
+      if (
+        whatsapp.length > MAX_WHATSAPP_LENGTH ||
+        (whatsapp.length > 0 && !WHATSAPP_ALLOWED_PATTERN.test(whatsapp))
+      ) {
+        toast.show({
+          title: 'WhatsApp inválido',
+          message: `Solo dígitos, + y espacios, con máximo ${MAX_WHATSAPP_LENGTH} caracteres.`,
+          variant: 'error',
+        })
+        return
+      }
+
       const shippingMethods: EcommerceShippingOption[] = enabledShipping.map((draft) => ({
         code: draft.code,
         cost: roundCurrency(draft.cost),
@@ -189,11 +208,13 @@ export function StorefrontSettingsPage() {
           shippingMethods,
           bankTransferInstructions: payments.BankTransfer ? instructions.trim() || null : null,
           paymentHoldHours: holdHours,
+          reserveOnOrder,
+          contactWhatsapp: whatsapp || null,
         })
         setError(null)
         toast.show({
           title: 'Configuración guardada',
-          message: 'Los métodos de pago, envíos y reservas ya están vigentes en la tienda.',
+          message: 'Los métodos de pago, envíos, contacto y reservas ya están vigentes en la tienda.',
           variant: 'success',
         })
       } catch (err: unknown) {
@@ -204,7 +225,7 @@ export function StorefrontSettingsPage() {
         setSaving(false)
       }
     },
-    [holdHours, instructions, payments, shipping, tenantId, toast]
+    [contactWhatsapp, holdHours, instructions, payments, reserveOnOrder, shipping, tenantId, toast]
   )
 
   if (!canManage) {
@@ -362,8 +383,38 @@ export function StorefrontSettingsPage() {
           </SectionCard>
 
           <SectionCard
+            title="Contacto"
+            subtitle="Número de WhatsApp mostrado al comprador para consultas sobre su pedido."
+          >
+            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+              <div className="ecu-companies-form__field">
+                <TextBox
+                  id="storefront-contact-whatsapp"
+                  label="WhatsApp de la tienda"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={contactWhatsapp}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setContactWhatsapp(e.target.value)
+                  }
+                  placeholder="593999999999"
+                  maxLength={MAX_WHATSAPP_LENGTH}
+                  disabled={saving}
+                  fullWidth
+                />
+              </div>
+              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                <p className="ecu-companies-form__hint" style={{ marginTop: '1.1rem' }}>
+                  Incluye el prefijo internacional, solo dígitos, + y espacios. Máximo{' '}
+                  {MAX_WHATSAPP_LENGTH} caracteres.
+                </p>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
             title="Reservas"
-            subtitle="Tiempo que se retiene el stock de un pedido sin pago confirmado."
+            subtitle="Reserva de stock y tiempo que se retiene un pedido sin pago confirmado."
           >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
               <div className="ecu-companies-form__field">
@@ -389,6 +440,21 @@ export function StorefrontSettingsPage() {
                   Horas que se reserva el stock sin pago confirmado. Rango permitido:{' '}
                   {MIN_PAYMENT_HOLD_HOURS} a {MAX_PAYMENT_HOLD_HOURS} horas (por defecto{' '}
                   {DEFAULT_PAYMENT_HOLD_HOURS}).
+                </p>
+              </div>
+              <div className="ecu-companies-form__field ecu-companies-form__field--check-align">
+                <CheckButton
+                  variant="ghost"
+                  checked={reserveOnOrder}
+                  onChange={setReserveOnOrder}
+                  disabled={saving}
+                >
+                  Reservar stock al crear el pedido
+                </CheckButton>
+              </div>
+              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                <p className="ecu-companies-form__hint" style={{ marginTop: '0.75rem' }}>
+                  Si está desactivado, el stock se reserva al confirmar el pago.
                 </p>
               </div>
             </div>

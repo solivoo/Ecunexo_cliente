@@ -10,4 +10,6 @@ public sealed record UpdateEcommerceStorefrontSettingsCommand(
     IReadOnlyList<UpdateEcommerceStorefrontShippingMethodInput> ShippingMethods,
     string? BankTransferInstructions,
     int PaymentHoldHours,
+    bool ReserveOnOrder = true,
+    string? ContactWhatsapp = null,
     Guid? UpdatedBy = null) : ICommand<EcommerceStorefrontSettingsDto>;

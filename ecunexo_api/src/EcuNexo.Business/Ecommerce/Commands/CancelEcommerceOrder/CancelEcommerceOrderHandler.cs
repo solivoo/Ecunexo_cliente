@@ -51,16 +51,19 @@ public sealed class CancelEcommerceOrderHandler
             return Result.Failure<CancelEcommerceOrderResponse>(cancelResult.Error!);
         }
 
-        // Liberar la reserva de stock de cada producto en la bodega
-        foreach (var item in order.Items)
+        // Liberar la reserva de stock solo si la orden la tenía aplicada
+        if (order.HasStockReserved)
         {
-            var stock = await _stocks.GetTrackedAsync(command.TenantId, item.CatalogItemId, order.WarehouseId, ct).ConfigureAwait(false);
-            if (stock is not null)
+            foreach (var item in order.Items)
             {
-                var releaseResult = stock.ReleaseReservation(item.Quantity, command.UserId);
-                if (releaseResult.IsFailure)
+                var stock = await _stocks.GetTrackedAsync(command.TenantId, item.CatalogItemId, order.WarehouseId, ct).ConfigureAwait(false);
+                if (stock is not null)
                 {
-                    return Result.Failure<CancelEcommerceOrderResponse>(releaseResult.Error!);
+                    var releaseResult = stock.ReleaseReservation(item.Quantity, command.UserId);
+                    if (releaseResult.IsFailure)
+                    {
+                        return Result.Failure<CancelEcommerceOrderResponse>(releaseResult.Error!);
+                    }
                 }
             }
         }

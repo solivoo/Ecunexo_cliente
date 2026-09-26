@@ -110,6 +110,8 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<EcommerceOrderTimeline> EcommerceOrderTimelines => Set<EcommerceOrderTimeline>();
 
+    public DbSet<EcommerceBlockedContact> EcommerceBlockedContacts => Set<EcommerceBlockedContact>();
+
     public DbSet<Supplier> Suppliers => Set<Supplier>();
 
     public DbSet<ExpenseType> ExpenseTypes => Set<ExpenseType>();

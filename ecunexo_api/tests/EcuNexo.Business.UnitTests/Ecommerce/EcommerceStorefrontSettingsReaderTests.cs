@@ -38,7 +38,42 @@ public sealed class EcommerceStorefrontSettingsReaderTests
         settings.PaymentMethods.Should().Equal(EcommercePaymentMethod.BankTransfer);
         settings.ShippingMethods.Should().Equal(new ShippingMethodOption(EcommerceShippingMethod.Courier, 0m));
         settings.BankTransferInstructions.Should().BeEmpty();
+        settings.PaymentHoldHours.Should().Be(2);
         settings.PaymentHoldHours.Should().Be(EcommerceStorefrontSettingsReader.DefaultPaymentHoldHours);
+        settings.ReserveOnOrder.Should().BeTrue();
+        settings.ContactWhatsapp.Should().BeEmpty();
+    }
+
+    [Theory(DisplayName = "Lee reserve_on_order desde booleano o texto")]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    [InlineData("\"false\"", false)]
+    [InlineData("\"true\"", true)]
+    [InlineData("\"nope\"", true)]
+    [InlineData("null", true)]
+    public async Task Resolve_ReadsReserveOnOrder(string rawJson, bool expected)
+    {
+        var tenantId = SetupTenant();
+        SetupValues((EcommerceSettingCodes.StorefrontReserveOnOrder, rawJson));
+
+        var settings = await _sut.ResolveAsync(tenantId, CancellationToken.None);
+
+        settings.ReserveOnOrder.Should().Be(expected);
+    }
+
+    [Theory(DisplayName = "Normaliza el WhatsApp de la tienda a dígitos")]
+    [InlineData("\"+593 99 999 9999\"", "593999999999")]
+    [InlineData("\"(02) 2 555-1234\"", "0225551234")]
+    [InlineData("\"\"", "")]
+    [InlineData("12345", "")]
+    public async Task Resolve_ReadsContactWhatsapp(string rawJson, string expected)
+    {
+        var tenantId = SetupTenant();
+        SetupValues((EcommerceSettingCodes.StorefrontContactWhatsapp, rawJson));
+
+        var settings = await _sut.ResolveAsync(tenantId, CancellationToken.None);
+
+        settings.ContactWhatsapp.Should().Be(expected);
     }
 
     [Fact(DisplayName = "Filtra códigos desconocidos, deduplica y clampa costos negativos")]

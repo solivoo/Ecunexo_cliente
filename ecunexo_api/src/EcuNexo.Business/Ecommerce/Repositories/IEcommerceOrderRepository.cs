@@ -25,6 +25,15 @@ public interface IEcommerceOrderRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Cuenta pedidos pendientes de pago (Placed/Pending) del tenant cuyo email o teléfono normalizado coincide con el contacto.
+    /// </summary>
+    Task<int> CountPendingByContactAsync(
+        Guid tenantId,
+        string emailNormalized,
+        string phoneDigits,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Pedidos pendientes de pago anteriores al umbral, de todos los tenants, ordenados del más antiguo al más reciente.
     /// </summary>
     Task<IReadOnlyList<EcommerceOrder>> ListPendingPaymentBeforeAsync(

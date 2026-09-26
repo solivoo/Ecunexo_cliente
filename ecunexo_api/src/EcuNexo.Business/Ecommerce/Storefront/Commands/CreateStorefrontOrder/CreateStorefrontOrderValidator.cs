@@ -9,12 +9,24 @@ public sealed class CreateStorefrontOrderValidator : AbstractValidator<CreateSto
     public const int ItemQuantityMin = 1;
     public const int ItemQuantityMax = 10;
     public const int NotesMaxLength = 1000;
+    public const int MinFormElapsedMs = 2000;
+    public const string InvalidFormErrorCode = "ecommerce.checkout.invalid_form";
 
     public CreateStorefrontOrderValidator()
     {
         RuleFor(x => x.TenantId)
             .NotEmpty()
             .WithMessage("El tenant es obligatorio.");
+
+        RuleFor(x => x.Website)
+            .Must(website => string.IsNullOrWhiteSpace(website))
+            .WithMessage("No podemos procesar este pedido.")
+            .WithErrorCode(InvalidFormErrorCode);
+
+        RuleFor(x => x.FormElapsedMs)
+            .Must(elapsed => !elapsed.HasValue || elapsed.Value >= MinFormElapsedMs)
+            .WithMessage("No podemos procesar este pedido.")
+            .WithErrorCode(InvalidFormErrorCode);
 
         RuleFor(x => x.RequestId)
             .NotEmpty()

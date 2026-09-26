@@ -25,6 +25,8 @@ export type EcommerceStorefrontSettings = {
   shippingMethods: EcommerceShippingOption[]
   bankTransferInstructions: string
   paymentHoldHours: number
+  reserveOnOrder: boolean
+  contactWhatsapp: string
 }
 
 export type UpdateEcommerceStorefrontSettingsInput = {
@@ -32,4 +34,6 @@ export type UpdateEcommerceStorefrontSettingsInput = {
   shippingMethods: EcommerceShippingOption[]
   bankTransferInstructions: string | null
   paymentHoldHours: number
+  reserveOnOrder: boolean
+  contactWhatsapp: string | null
 }

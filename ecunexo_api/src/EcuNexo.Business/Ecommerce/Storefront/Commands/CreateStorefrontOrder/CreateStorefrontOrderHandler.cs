@@ -7,8 +7,24 @@ using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Ecommerce;
 using FluentValidation;
+using Microsoft.Extensions.Logging;
 
 namespace EcuNexo.Business.Ecommerce.Storefront.Commands.CreateStorefrontOrder;
+
+internal static partial class StorefrontOrderLogger
+{
+    [LoggerMessage(
+        EventId = 1001,
+        Level = LogLevel.Information,
+        Message = "Checkout público tenant {TenantId} requestId {RequestId} email {MaskedEmail} IP {ClientIp} UA {UserAgent}")]
+    public static partial void OrderReceived(
+        ILogger logger,
+        Guid tenantId,
+        string requestId,
+        string maskedEmail,
+        string clientIp,
+        string userAgent);
+}
 
 public sealed class CreateStorefrontOrderHandler
     : ICommandHandler<CreateStorefrontOrderCommand, StorefrontOrderCreatedDto>
@@ -16,6 +32,7 @@ public sealed class CreateStorefrontOrderHandler
     public const string SystemCustomerName = "Tienda online";
     public const string DefaultConsumerTaxId = "9999999999999";
     public const string DefaultConsumerTaxIdType = "07";
+    public const int MaxPendingOrdersPerContact = 3;
 
     private static readonly Error StockConflict = new(
         "ecommerce.order.stock_conflict",
@@ -32,12 +49,29 @@ public sealed class CreateStorefrontOrderHandler
         "El método de pago o de envío seleccionado no está disponible.",
         ErrorType.Validation);
 
+    private static readonly Error InvalidForm = new(
+        CreateStorefrontOrderValidator.InvalidFormErrorCode,
+        "No podemos procesar este pedido.",
+        ErrorType.Validation);
+
+    private static readonly Error BlockedContact = new(
+        "ecommerce.checkout.blocked_contact",
+        "No podemos procesar este pedido. Contacta a la tienda.",
+        ErrorType.Forbidden);
+
+    private static readonly Error TooManyPending = new(
+        "ecommerce.checkout.too_many_pending",
+        "Tienes demasiados pedidos pendientes de pago. Completa o cancela los existentes e inténtalo de nuevo.",
+        ErrorType.Conflict);
+
     private readonly IValidator<CreateStorefrontOrderCommand> _validator;
     private readonly ITenantRepository _tenants;
     private readonly IWarehouseRepository _warehouses;
     private readonly IEcommerceStorefrontSettingsReader _settings;
     private readonly IEcommerceOrderRepository _orders;
+    private readonly IEcommerceBlockedContactRepository _blockedContacts;
     private readonly ISender _sender;
+    private readonly ILogger<CreateStorefrontOrderHandler> _logger;
 
     public CreateStorefrontOrderHandler(
         IValidator<CreateStorefrontOrderCommand> validator,
@@ -45,14 +79,18 @@ public sealed class CreateStorefrontOrderHandler
         IWarehouseRepository warehouses,
         IEcommerceStorefrontSettingsReader settings,
         IEcommerceOrderRepository orders,
-        ISender sender)
+        IEcommerceBlockedContactRepository blockedContacts,
+        ISender sender,
+        ILogger<CreateStorefrontOrderHandler> logger)
     {
         _validator = validator;
         _tenants = tenants;
         _warehouses = warehouses;
         _settings = settings;
         _orders = orders;
+        _blockedContacts = blockedContacts;
         _sender = sender;
+        _logger = logger;
     }
 
     public async Task<Result<StorefrontOrderCreatedDto>> Handle(
@@ -62,6 +100,11 @@ public sealed class CreateStorefrontOrderHandler
         var validation = await _validator.ValidateAsync(command, ct).ConfigureAwait(false);
         if (!validation.IsValid)
         {
+            if (validation.Errors.Any(error => error.ErrorCode == CreateStorefrontOrderValidator.InvalidFormErrorCode))
+            {
+                return Result.Failure<StorefrontOrderCreatedDto>(InvalidForm);
+            }
+
             var message = string.Join(' ', validation.Errors.Select(e => e.ErrorMessage));
             return Result.Failure<StorefrontOrderCreatedDto>(
                 new Error("ecommerce.checkout.validation", message, ErrorType.Validation));
@@ -90,6 +133,34 @@ public sealed class CreateStorefrontOrderHandler
         if (existing is not null)
         {
             return Result.Success(BuildResponse(existing, settings));
+        }
+
+        var emailNormalized = EcommerceContactNormalizer.NormalizeEmail(command.Customer.Email);
+        var phoneDigits = EcommerceContactNormalizer.NormalizePhone(command.Customer.Phone);
+
+        if (await IsBlockedAsync(command.TenantId, emailNormalized, phoneDigits, ct).ConfigureAwait(false))
+        {
+            return Result.Failure<StorefrontOrderCreatedDto>(BlockedContact);
+        }
+
+        var pendingCount = await _orders
+            .CountPendingByContactAsync(command.TenantId, emailNormalized, phoneDigits, ct)
+            .ConfigureAwait(false);
+        if (pendingCount >= MaxPendingOrdersPerContact)
+        {
+            return Result.Failure<StorefrontOrderCreatedDto>(TooManyPending);
+        }
+
+        var maskedEmail = MaskEmail(emailNormalized);
+        if (_logger.IsEnabled(LogLevel.Information))
+        {
+            StorefrontOrderLogger.OrderReceived(
+                _logger,
+                command.TenantId,
+                requestId,
+                maskedEmail,
+                command.ClientIp ?? "unknown",
+                command.UserAgent ?? "unknown");
         }
 
         var warehouse = await _warehouses.GetMainAsync(command.TenantId, ct).ConfigureAwait(false);
@@ -121,7 +192,8 @@ public sealed class CreateStorefrontOrderHandler
             CustomerNotes: string.IsNullOrWhiteSpace(command.Notes) ? null : command.Notes.Trim(),
             CreatedBy: null,
             CreatedByName: SystemCustomerName,
-            ClientRequestId: requestId);
+            ClientRequestId: requestId,
+            ReserveStock: settings.ReserveOnOrder);
 
         try
         {
@@ -150,6 +222,46 @@ public sealed class CreateStorefrontOrderHandler
         {
             return Result.Failure<StorefrontOrderCreatedDto>(StockConflict);
         }
+    }
+
+    private async Task<bool> IsBlockedAsync(
+        Guid tenantId,
+        string emailNormalized,
+        string phoneDigits,
+        CancellationToken ct)
+    {
+        if (emailNormalized.Length > 0
+            && await _blockedContacts
+                .ExistsAsync(tenantId, EcommerceBlockedContactKind.Email, emailNormalized, ct)
+                .ConfigureAwait(false))
+        {
+            return true;
+        }
+
+        return phoneDigits.Length > 0
+            && await _blockedContacts
+                .ExistsAsync(tenantId, EcommerceBlockedContactKind.Phone, phoneDigits, ct)
+                .ConfigureAwait(false);
+    }
+
+    internal static string MaskEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return "n/a";
+        }
+
+        var atIndex = email.IndexOf('@', StringComparison.Ordinal);
+        if (atIndex <= 0)
+        {
+            return "***";
+        }
+
+        var local = email[..atIndex];
+        var domain = email[atIndex..];
+        return local.Length <= 2
+            ? $"***{domain}"
+            : $"{local[0]}***{local[^1]}{domain}";
     }
 
     private static StorefrontOrderCreatedDto BuildResponse(
