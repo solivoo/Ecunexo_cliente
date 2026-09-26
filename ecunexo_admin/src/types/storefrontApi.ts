@@ -14,3 +14,22 @@ export type StorefrontDomainDto = {
 export type CreateStorefrontDomainBody = {
   domain: string
 }
+
+export type EcommerceShippingOption = {
+  code: string
+  cost: number
+}
+
+export type EcommerceStorefrontSettings = {
+  paymentMethods: string[]
+  shippingMethods: EcommerceShippingOption[]
+  bankTransferInstructions: string
+  paymentHoldHours: number
+}
+
+export type UpdateEcommerceStorefrontSettingsInput = {
+  paymentMethods: string[]
+  shippingMethods: EcommerceShippingOption[]
+  bankTransferInstructions: string | null
+  paymentHoldHours: number
+}

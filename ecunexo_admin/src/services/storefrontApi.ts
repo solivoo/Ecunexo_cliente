@@ -1,8 +1,31 @@
 import { api } from '@/lib/apiClient'
-import type { CreateStorefrontDomainBody, StorefrontDomainDto } from '@/types/storefrontApi'
+import type {
+  CreateStorefrontDomainBody,
+  EcommerceStorefrontSettings,
+  StorefrontDomainDto,
+  UpdateEcommerceStorefrontSettingsInput,
+} from '@/types/storefrontApi'
 
 const base = (tenantId: string) =>
   `/api/v1/tenants/${tenantId}/ecommerce/storefront/domains`
+
+const settingsBase = (tenantId: string) =>
+  `/api/v1/tenants/${tenantId}/ecommerce/storefront/settings`
+
+export async function getEcommerceStorefrontSettings(
+  tenantId: string
+): Promise<EcommerceStorefrontSettings> {
+  const { data } = await api.get<EcommerceStorefrontSettings>(settingsBase(tenantId))
+  return data
+}
+
+export async function updateEcommerceStorefrontSettings(
+  tenantId: string,
+  input: UpdateEcommerceStorefrontSettingsInput
+): Promise<EcommerceStorefrontSettings> {
+  const { data } = await api.put<EcommerceStorefrontSettings>(settingsBase(tenantId), input)
+  return data
+}
 
 export async function listStorefrontDomains(tenantId: string): Promise<StorefrontDomainDto[]> {
   const { data } = await api.get<StorefrontDomainDto[]>(base(tenantId))

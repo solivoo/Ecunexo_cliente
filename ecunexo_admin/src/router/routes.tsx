@@ -85,6 +85,7 @@ import { PublicDispatchVerificationPage } from '@/pages/repairs/PublicDispatchVe
 import { EcommerceOrdersListPage } from '@/pages/ecommerce/EcommerceOrdersListPage'
 import { EcommerceOrderDetailPage } from '@/pages/ecommerce/EcommerceOrderDetailPage'
 import { StorefrontDomainsPage } from '@/pages/ecommerce/StorefrontDomainsPage'
+import { StorefrontSettingsPage } from '@/pages/ecommerce/StorefrontSettingsPage'
 import { LegalPublicPage } from '@/pages/legal/LegalPublicPage'
 import { ChartOfAccountsPage } from '@/pages/accounting/ChartOfAccountsPage'
 import JournalEntriesListPage from '@/pages/accounting/JournalEntriesListPage'
@@ -192,6 +193,7 @@ export const routes: RouteObject[] = [
           { path: 'ecommerce/pedidos', element: <EcommerceOrdersListPage /> },
           { path: 'ecommerce/pedidos/:orderId', element: <EcommerceOrderDetailPage /> },
           { path: 'ecommerce/vitrina', element: <StorefrontDomainsPage /> },
+          { path: 'ecommerce/configuracion', element: <StorefrontSettingsPage /> },
           { path: 'compras/documentos', element: <ComprasDocumentosPage /> },
           { path: 'compras/documentos/importar', element: <ImportPurchasesPage /> },
           { path: 'compras/importar', element: <Navigate to="/compras/documentos/importar" replace /> },
