@@ -59,6 +59,9 @@ public sealed class SubscriptionAccount : AggregateRoot<Guid>, IAuditable
 
     public DateTimeOffset? LastOnlineLicenseValidationAtUtc { get; private set; }
 
+    /// <summary>Versión de entitlements sincronizada desde la plataforma (1 = activación).</summary>
+    public int LicenseEntitlementsVersion { get; private set; } = 1;
+
     public DateTimeOffset? LastLoginAt { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
@@ -260,35 +263,72 @@ public sealed class SubscriptionAccount : AggregateRoot<Guid>, IAuditable
         OnlineValidationIntervalDays = LicenseValidationPolicy.NormalizeIntervalDays(onlineValidationIntervalDays);
         LicenseExpiresAtUtc = licenseExpiresAtUtc;
         LastOnlineLicenseValidationAtUtc = utcNow;
+        LicenseEntitlementsVersion = 1;
         UpdatedAt = utcNow;
 
-        if (enabledModuleCodes is null)
+        var modulesResult = NormalizeModules(enabledModuleCodes);
+        if (modulesResult.IsFailure)
         {
-            EnabledModuleCodes = null;
-        }
-        else
-        {
-            var modules = new List<string>();
-            foreach (var module in enabledModuleCodes)
-            {
-                var normalized = module.Trim().ToLowerInvariant();
-                if (normalized.Length == 0 || !TenantModuleCodes.IsKnown(normalized))
-                {
-                    return Result.Failure<Unit>(
-                        new Error("subscription.enabled_modules.unknown", $"Módulo «{module}» no reconocido.", ErrorType.Validation));
-                }
-
-                if (!modules.Contains(normalized, StringComparer.Ordinal))
-                {
-                    modules.Add(normalized);
-                }
-            }
-
-            EnabledModuleCodes = modules;
+            return Result.Failure<Unit>(modulesResult.Error!);
         }
 
+        EnabledModuleCodes = modulesResult.Value;
         ModuleEntitlements = moduleEntitlements;
         return Unit.Value;
+    }
+
+    /// <summary>
+    /// Sincroniza módulos y entitlements desde la plataforma (cloud). Idempotente por versión:
+    /// una versión remota menor o igual no produce cambios.
+    /// </summary>
+    public Result<Unit> ApplyRemoteEntitlements(
+        IReadOnlyList<string> enabledModuleCodes,
+        IReadOnlyList<ModuleEntitlement>? moduleEntitlements,
+        int entitlementsVersion,
+        DateTimeOffset utcNow)
+    {
+        if (entitlementsVersion <= LicenseEntitlementsVersion)
+        {
+            return Unit.Value;
+        }
+
+        var modulesResult = NormalizeModules(enabledModuleCodes);
+        if (modulesResult.IsFailure)
+        {
+            return Result.Failure<Unit>(modulesResult.Error!);
+        }
+
+        EnabledModuleCodes = modulesResult.Value;
+        ModuleEntitlements = moduleEntitlements;
+        LicenseEntitlementsVersion = entitlementsVersion;
+        UpdatedAt = utcNow;
+        return Unit.Value;
+    }
+
+    private static Result<List<string>?> NormalizeModules(IReadOnlyList<string>? enabledModuleCodes)
+    {
+        if (enabledModuleCodes is null)
+        {
+            return Result.Success<List<string>?>(null);
+        }
+
+        var modules = new List<string>();
+        foreach (var module in enabledModuleCodes)
+        {
+            var normalized = module.Trim().ToLowerInvariant();
+            if (normalized.Length == 0 || !TenantModuleCodes.IsKnown(normalized))
+            {
+                return Result.Failure<List<string>?>(
+                    new Error("subscription.enabled_modules.unknown", $"Módulo «{module}» no reconocido.", ErrorType.Validation));
+            }
+
+            if (!modules.Contains(normalized, StringComparer.Ordinal))
+            {
+                modules.Add(normalized);
+            }
+        }
+
+        return Result.Success<List<string>?>(modules);
     }
 
     public void RecordOnlineValidation(DateTimeOffset utcNow)

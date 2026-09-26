@@ -92,6 +92,11 @@ public sealed class SubscriptionAccountConfiguration : IEntityTypeConfiguration<
             .HasColumnName("last_online_license_validation_at_utc")
             .HasColumnType("timestamptz");
 
+        builder.Property(a => a.LicenseEntitlementsVersion)
+            .HasColumnName("license_entitlements_version")
+            .HasDefaultValue(1)
+            .IsRequired();
+
         builder.Property(a => a.LastLoginAt).HasColumnType("timestamptz");
         builder.Property(a => a.CreatedAt).HasColumnType("timestamptz").IsRequired();
         builder.Property(a => a.UpdatedAt).HasColumnType("timestamptz");
