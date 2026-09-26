@@ -9,6 +9,14 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.55.2`.
 * **Hitos Recientes Completados:**
+  - **Seguridad del checkout de la vitrina — anti-abuso, reservas y comprobante por WhatsApp [sin bump de versión]:**
+    * **Referencia completa:** `doc/seguridad-checkout-vitrina.md` (archivos, beneficios y contras por medida).
+    * **Reserva:** `Stock.Reserve` transaccional con `xmin` (sin sobreventa), ciclo Reserve → Release (cancelar) → Commit (despachar), worker TTL (`EcommercePaymentHoldWorker`, default 2 h) y modo `reserve_on_order=false` (reservar al confirmar pago).
+    * **Anti-abuso:** rate limiting por IP real (5 pedidos/10 min; 120 lecturas/min), honeypot + tiempo mínimo (2 s), tope de 3 pendientes por email/teléfono, lista de bloqueos (`ecommerce.blocked_contacts`) e idempotencia por `requestId`.
+    * **Pagos:** métodos configurables (pago/envío con costo, instrucciones de transferencia, WhatsApp) en `ecommerce/configuracion`; confirmación con botón de comprobante por WhatsApp.
+    * **Infra:** 5088/5090/5173/5174/8083 cerrados al público (verificado); API solo por Tailscale/NPM; `UseForwardedHeaders` + `UseRateLimiter` en `Program.cs`.
+    * **Verificación:** build 0 warnings; 332/332 Core y 338/338 Business; vitrina 77 tests + smoke E2E (carrito → checkout → confirmación).
+    * **Pendiente Fase 3C:** Turnstile invisible, subir comprobante al pedido, UI admin de bloqueos/spam y correos de pedido.
   - **Licenciamiento Cloud — Fase 1: Módulos Efectivos y Menú «Visible pero Bloqueado» (`GetSessionHandler`, `MenuNavigationMapper`, `filterNavigation`) + Skill de Escalabilidad [sin bump de versión]:**
     * **Fuente única:** `GetSessionHandler.ResolveEnabledModules` deriva los módulos efectivos de `ModuleEntitlements` (mandan sobre la lista legacy `EnabledModuleCodes`); sin ninguna fuente = todos (compatibilidad).
     * **Menú:** `NavigationNodeDto` expone `lockKind` (`module`/`permission`/`placeholder`) y `requiredModule`; `MenuNavigationMapper` conserva visibles las hojas de módulo no contratado con candado y razón, oculta solo los bloqueos por permiso interno y no bloquea contenedores con hijos visibles; `EmbeddedNavigationBuilder` alineado.

@@ -1,0 +1,109 @@
+# Seguridad del checkout de la vitrina
+
+Referencia operativa de las medidas anti-abuso, de reserva de stock y de pagos implementadas
+para el checkout público (invitado) de la vitrina multi-dominio.
+
+- **Alcance:** endpoints públicos `/api/v1/public/tenants/{tenantId}/storefront/*`, reserva de
+  inventario del pedido ecommerce, y la confirmación de pago por transferencia con comprobante
+  por WhatsApp.
+- **Repos implicados:** `Monorepo/Cliente` (API + admin) y `Monorepo/ecommerce` (vitrina).
+
+---
+
+## 1. Flujo y superficie de ataque
+
+```text
+Comprador → Cloudflare → NPM (VPS Oracle) → API Cliente (5088, solo Tailscale/NPM)
+Vitrina   → VPS front (NPM) → nginx del storefront → Tailscale → API Cliente (5088)
+```
+
+- Endpoints públicos expuestos por la vitrina: `products`, `facets`, `checkout-options` y
+  `orders` (POST).
+- El puerto `5088` del API **no es alcanzable desde internet** (verificado: 5088, 5090, 5173,
+  5174 y 8083 cerrados; solo 80/443 del NPM están abiertos).
+- El navegador nunca habla con el API directamente: el salto es nginx → Tailscale, por lo que
+  no hay CORS ni exposición del precio o del stock crudo.
+
+---
+
+## 2. Medidas implementadas
+
+| # | Medida | Archivos clave | Beneficio | Contras / límites |
+|---|---|---|---|---|
+| 1 | Reserva transaccional con concurrencia optimista (`xmin`) | `EcuNexo.Core/Inventory/Stock.cs`, `EcuNexo.Data/Configurations/StockConfiguration.cs`, `EcuNexo.Data/EfUnitOfWork.cs`, `CreateEcommerceOrderHandler.cs` | Evita sobreventa: dos compras simultáneas no pueden reservar la misma unidad; la segunda falla con `409 stock_conflict` | La unidad queda reservada aunque el pago no llegue (se libera por cancelación o TTL) |
+| 2 | Idempotencia por `requestId` | `EcuNexo.Core/Ecommerce/EcommerceOrder.cs`, migración `20260926225618_AddEcommerceOrderClientRequestId`, `CreateEcommerceOrderHandler.cs` | Un doble clic o reintento devuelve el mismo pedido sin duplicar reserva ni pedido | Si el navegador genera un `requestId` distinto en cada intento, sí se crean pedidos distintos (lo mitiga el tope de pendientes) |
+| 3 | Precio y costo de envío calculados en el servidor | `CreateEcommerceOrderHandler.cs`, `GetEcommerceCheckoutOptionsHandler.cs`, `CreateStorefrontOrderHandler.cs` | El comprador no puede manipular precios; el envío sale del método configurado por el tenant | Requiere que la lista de precios y el método estén vigentes; si no, el pedido se rechaza |
+| 4 | TTL de reserva + worker de expiración | `EcommercePaymentHoldService.cs`, `Workers/EcommercePaymentHoldWorker.cs`, setting `ecommerce.storefront.payment_hold_hours` | Los pedidos impagos liberan stock automáticamente (default 2 h, configurable 1..720) | Un comprador que paga por transferencia después del TTL pierde la reserva (el admin puede re-confirmar si aún hay stock) |
+| 5 | Modo "reservar al confirmar pago" | setting `ecommerce.storefront.reserve_on_order`, `EcommerceOrder.StockReserved`, `ConfirmEcommerceOrderPaymentHandler.cs` | Si se desactiva, ningún pedido web bloquea stock hasta que el admin confirma el pago (ideal contra órdenes fantasma) | El stock puede agotarse entre el pedido y la confirmación; el admin vería `insufficient_available` al confirmar |
+| 6 | Rate limiting por IP real | `EcuNexo.Api/Security/StorefrontRateLimitPolicies.cs`, `EcuNexo.Api/Program.cs` | Pedidos: 5/10 min; lecturas: 120/min. Frena bots y flood de órdenes | NAT/CGNAT comparten IP (oficinas o redes móviles pueden tocar el límite); requiere `CF-Connecting-IP`/primer `X-Forwarded-For` |
+| 7 | Honeypot + tiempo mínimo de formulario | `CreateStorefrontOrderValidator.cs` (`website`, `formElapsedMs >= 2000`), `ecommerce/src/pages/checkout/CheckoutPage.tsx` | Descarta bots simples sin fricción para el humano | Bots con navegador real lo superan; el campo `website` puede ser autocompletado por gestores de contraseñas (raro, pero posible) |
+| 8 | Tope de pedidos pendientes por contacto | `CreateStorefrontOrderHandler.cs` (`MaxPendingOrdersPerContact = 3`) | Una misma persona/bot no puede acaparar el catálogo con pedidos impagos | Un cliente legítimo con 3 pedidos pendientes debe esperar a que se confirmen/cancelen |
+| 9 | Lista de bloqueo de contactos | `EcuNexo.Core/Ecommerce/EcommerceBlockedContact.cs`, migración `20260926234318_AddEcommerceBlockedContacts`, endpoints admin `ecommerce/blocked-contacts` | Bloqueo manual de email/teléfono reincidente; el checkout responde `ecommerce.checkout.blocked_contact` | Bloqueos manuales; un teléfono compartido puede generar falsos positivos |
+| 10 | Puertos cerrados + Tailscale + forwarded headers confiables | `Program.cs` (`UseForwardedHeaders`), despliegue (NPM/Tailscale) | El API no es alcanzable desde internet, así que no se puede falsear `CF-Connecting-IP` ni saltar el rate limit por IP | Si algún día se publica el `5088`, el rate limit por IP deja de ser confiable |
+| 11 | Comprobante por WhatsApp | `ecommerce/src/pages/checkout/OrderConfirmedPage.tsx`, `checkoutApi.ts`, setting `contact_whatsapp` | Cierra el flujo de transferencia sin cuentas: mensaje prellenado con pedido y total | El comprobante vive en WhatsApp (no adjunto al pedido); requiere que el admin lo coteje a mano |
+| 12 | Trazabilidad mínima | `requestId` + `ClientRequestId`, timeline del pedido, logs del API con email enmascarado/IP/UA | Permite auditar y bloquear abusos | Retención de logs/IP: cuidado con privacidad; no se guarda evidencia del pago en el pedido todavía |
+
+---
+
+## 3. Ciclo de vida de la reserva
+
+1. **Crear pedido** (`CreateEcommerceOrderHandler`): por cada ítem `Stock.Reserve(cantidad)`.
+   Si algún ítem no alcanza, el pedido no se guarda.
+2. **Confirmar pago** (`ConfirmEcommerceOrderPaymentHandler`): si el pedido se creó con
+   `StockReserved = false` (modo reservar al confirmar), reserva recién aquí.
+3. **Cancelar** (`CancelEcommerceOrderHandler`): libera la reserva solo si estaba reservada.
+4. **Despachar** (`ShipEcommerceOrderHandler`): `CommitReservation` descuenta físico y reserva;
+   si no estaba reservado, reserva y luego compromete.
+5. **Expirar** (`EcommercePaymentHoldWorker`): cada 15 min cancela pedidos `Placed` +
+   `PaymentPending` que superan `payment_hold_hours` del tenant, liberando la reserva.
+
+---
+
+## 4. Configuración
+
+En el admin: **Ecommerce → Configuración de tienda** (`StorefrontSettingsPage.tsx`).
+
+| Setting | Default | Descripción |
+|---|---|---|
+| `ecommerce.storefront.payment_methods` | `["BankTransfer"]` | Métodos de pago habilitados |
+| `ecommerce.storefront.shipping_methods` | `[{Courier, 0}]` | Métodos de envío con costo |
+| `ecommerce.storefront.bank_transfer_instructions` | vacío | Datos bancarios mostrados al comprador |
+| `ecommerce.storefront.payment_hold_hours` | **2** | Horas de reserva sin pago confirmado |
+| `ecommerce.storefront.reserve_on_order` | `true` | Reservar stock al crear el pedido (false = reservar al confirmar pago) |
+| `ecommerce.storefront.contact_whatsapp` | vacío | WhatsApp de la tienda para el comprobante |
+
+Rate limits y tope de pendientes son **constantes de código** hoy
+(`StorefrontRateLimitPolicies.cs`, `MaxPendingOrdersPerContact`): cambiarlos requiere deploy.
+
+---
+
+## 5. Verificación operativa
+
+```bash
+# Puertos expuestos (deben dar "cerrado" salvo 80/443)
+for P in 5088 5090 5173 5174 8083; do timeout 5 bash -c "</dev/tcp/<IP_API>/<PUERTO>" && echo abierto || echo cerrado; done
+
+# API por Tailscale (debe responder 200)
+curl -s -o /dev/null -w '%{http_code}\n' "http://100.83.245.45:5088/api/v1/public/storefront/resolve?host=www.everchic.ec"
+
+# Rate limit del checkout (6+ POST seguidos deben devolver 429 y el código ecommerce.checkout.rate_limited)
+```
+
+Otros códigos esperados del checkout: `ecommerce.checkout.invalid_form`,
+`ecommerce.checkout.too_many_pending`, `ecommerce.checkout.blocked_contact`,
+`ecommerce.order.stock_conflict`.
+
+---
+
+## 6. Pendientes y mejoras sugeridas
+
+- **Turnstile invisible** (Cloudflare): site key en la vitrina + secret en el API; cierra el
+  hueco de bots con navegador real.
+- **Subir comprobante al pedido** (imagen/PDF) y verlo en el detalle del admin; hoy solo va por
+  WhatsApp.
+- **UI admin de bloqueos** y acción "Marcar como spam" desde el detalle del pedido.
+- **Correos de pedido**: aviso al equipo al entrar un pedido y al cliente con su número.
+- **Reenviar `CF-Connecting-IP`** desde el nginx del storefront al API para precisión total del
+  rate limit (hoy usa el primer `X-Forwarded-For`).
+- **Mover rate limits y topes a settings** por tenant si se necesita ajuste sin deploy.
+- **Renombrar el honeypot** (`website`) a un nombre menos propenso a autocompletado.
