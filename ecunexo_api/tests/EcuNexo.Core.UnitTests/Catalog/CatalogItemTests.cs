@@ -21,7 +21,6 @@ public sealed class CatalogItemTests
             description: null,
             sku: null,
             basePrice: 10m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson);
 
@@ -283,7 +282,6 @@ public sealed class CatalogItemTests
             "Nueva descripción",
             variant.Sku,
             25m,
-            null,
             """{"color":"Rojo","material":"Algodón"}""",
             CatalogAttributeSchema.EmptyArrayJson,
             null);
@@ -311,7 +309,6 @@ public sealed class CatalogItemTests
             description: null,
             sku: "CALC-FAM-01",
             basePrice: 5m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson,
             familyId: familyId,
@@ -338,7 +335,6 @@ public sealed class CatalogItemTests
             item.Sku,
             null,
             null,
-            null,
             CatalogAttributeSchema.EmptyArrayJson,
             null,
             familyId,
@@ -356,7 +352,6 @@ public sealed class CatalogItemTests
             "Ítem actualizado",
             null,
             item.Sku,
-            null,
             null,
             null,
             CatalogAttributeSchema.EmptyArrayJson,

@@ -1,5 +1,5 @@
 /**
- * Independiente: CRUD de categoría e ítem servicio. No crea físico ni toca Stock.
+ * Independiente: CRUD de ítem servicio. No crea físico ni toca Stock.
  */
 import { expect, test } from '@playwright/test'
 import { loginAsSeedUser } from '../../helpers/loginAsSeedUser'
@@ -14,22 +14,6 @@ test.describe('Independiente — catálogo de servicios', () => {
   test('listado de ítems carga', async ({ page }) => {
     await page.goto('/catalogo/items')
     await expect(page.getByLabel('Resumen de catálogo')).toBeVisible({ timeout: 20_000 })
-  })
-
-  test('CRUD categoría Servicios', async ({ page }) => {
-    await page.goto('/catalogo/categorias')
-    await expect(page.getByLabel('Resumen de categorías')).toBeVisible({ timeout: 20_000 })
-
-    if (!(await page.getByText('Servicios', { exact: true }).first().isVisible().catch(() => false))) {
-      await page.goto('/catalogo/categorias/nueva')
-      await expect(page.locator('#cc-name')).toBeVisible({ timeout: 20_000 })
-      await page.locator('#cc-name').fill('Servicios')
-      await page.locator('#cc-desc').fill('Servicios profesionales Loma Soft')
-      await page.getByRole('button', { name: 'Guardar', exact: true }).click()
-      await expect(page).toHaveURL(/\/catalogo\/categorias/, { timeout: 20_000 })
-    }
-
-    await expect(page.getByText('Servicios').first()).toBeVisible({ timeout: 20_000 })
   })
 
   test('CRUD ítem servicio Visita técnica', async ({ page }) => {
@@ -114,36 +98,6 @@ test.describe('Independiente — catálogo de servicios', () => {
     await page.getByRole('button', { name: 'Sí, eliminar' }).click()
 
     await expect(page).toHaveURL(/\/catalogo\/items$/, { timeout: 20_000 })
-    await expect(page.getByRole('row', { name: new RegExp(name) })).toHaveCount(0, {
-      timeout: 20_000,
-    })
-  })
-
-  test('eliminar categoría sin ítems (baja lógica)', async ({ page }) => {
-    const stamp = Date.now().toString().slice(-6)
-    const name = `Cat borrable ${stamp}`
-
-    await page.goto('/catalogo/categorias/nueva')
-    await expect(page.locator('#cc-name')).toBeVisible({ timeout: 20_000 })
-    await page.locator('#cc-name').fill(name)
-    await page.locator('#cc-desc').fill('Categoría temporal para DELETE soft.')
-    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
-
-    await expect(page).toHaveURL(/\/catalogo\/categorias/, { timeout: 20_000 })
-    const row = page.getByRole('row', { name: new RegExp(name) })
-    await expect(row).toBeVisible({ timeout: 20_000 })
-
-    const deleteBtn = row.getByRole('button', { name: 'Eliminar' })
-    await expect(deleteBtn).toBeVisible({ timeout: 10_000 })
-    await deleteBtn.click()
-    await expect(page.getByRole('button', { name: 'Sí, eliminar' })).toBeVisible({
-      timeout: 10_000,
-    })
-    await page.getByRole('button', { name: 'Sí, eliminar' }).click()
-
-    await expect(page.getByText(/Categoría eliminada|dada de baja/i).first()).toBeVisible({
-      timeout: 20_000,
-    })
     await expect(page.getByRole('row', { name: new RegExp(name) })).toHaveCount(0, {
       timeout: 20_000,
     })

@@ -35,7 +35,6 @@ public sealed class CreateInventoryDocumentHandlerTests
             description: null,
             sku: "TOR-DESC",
             basePrice: 1.0m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
         inactiveItem.SetStatus(CatalogItemStatus.Inactive, updatedBy: null);
@@ -102,7 +101,6 @@ public sealed class CreateInventoryDocumentHandlerTests
             description: null,
             sku: "TOR-ACT",
             basePrice: 1.0m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
 

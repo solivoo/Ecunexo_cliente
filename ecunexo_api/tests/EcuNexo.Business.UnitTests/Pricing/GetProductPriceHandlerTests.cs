@@ -87,7 +87,6 @@ public sealed class GetProductPriceHandlerTests
             description: null,
             sku: $"SKU-{Guid.NewGuid():N}"[..12],
             basePrice: null,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
 }

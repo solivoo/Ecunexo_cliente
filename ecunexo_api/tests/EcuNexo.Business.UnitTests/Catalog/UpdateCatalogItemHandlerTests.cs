@@ -12,7 +12,6 @@ namespace EcuNexo.Business.UnitTests.Catalog;
 
 public sealed class UpdateCatalogItemHandlerTests
 {
-    private readonly ICategoryRepository _categories = Substitute.For<ICategoryRepository>();
     private readonly ICatalogItemRepository _items = Substitute.For<ICatalogItemRepository>();
     private readonly ISysSettingRepository _settings = Substitute.For<ISysSettingRepository>();
     private readonly IProductTemplateRepository _templates = Substitute.For<IProductTemplateRepository>();
@@ -25,7 +24,6 @@ public sealed class UpdateCatalogItemHandlerTests
     private UpdateCatalogItemHandler CreateSut() =>
         new(
             _validator,
-            _categories,
             _items,
             _settings,
             _templates,
@@ -49,7 +47,6 @@ public sealed class UpdateCatalogItemHandlerTests
             null,
             "REA-01",
             3.00m,
-            null,
             "[{\"name\":\"Talla\",\"values\":[\"S\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -85,7 +82,6 @@ public sealed class UpdateCatalogItemHandlerTests
             child.Description,
             child.Sku,
             child.BasePrice,
-            child.CategoryId,
             child.CustomAttributesJson,
             CatalogItemStatus.Active);
 

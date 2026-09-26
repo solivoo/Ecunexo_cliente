@@ -77,7 +77,7 @@ public sealed class PricingService : IPricingService
 
         var moment = request.Date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var applicable = await _promotions
-            .ListApplicableAsync(tenantId, item.Id, item.ParentId, item.CategoryId, moment, ct)
+            .ListApplicableAsync(tenantId, item.Id, item.ParentId, moment, ct)
             .ConfigureAwait(false);
         var activePromotions = applicable.Where(p => p.IsApplicableOn(moment)).ToList();
 

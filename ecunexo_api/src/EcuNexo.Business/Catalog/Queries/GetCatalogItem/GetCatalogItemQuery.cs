@@ -12,8 +12,6 @@ public sealed record CatalogItemDetailResponse(
     string? Description,
     string? Sku,
     decimal? BasePrice,
-    Guid? CategoryId,
-    string? CategoryName,
     string CustomAttributesJson,
     CatalogItemStatus Status,
     DateTimeOffset CreatedAt,

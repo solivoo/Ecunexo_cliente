@@ -32,10 +32,7 @@ import { UserDetailPage } from '@/pages/team/UserDetailPage'
 import { UsersListPage } from '@/pages/team/UsersListPage'
 import { CreateCatalogItemPage } from '@/pages/catalog/CreateCatalogItemPage'
 import { CatalogItemsListPage } from '@/pages/catalog/CatalogItemsListPage'
-import { CategoriesListPage } from '@/pages/catalog/CategoriesListPage'
-import { CreateCategoryPage } from '@/pages/catalog/CreateCategoryPage'
 import { EditCatalogItemPage } from '@/pages/catalog/EditCatalogItemPage'
-import { EditCategoryPage } from '@/pages/catalog/EditCategoryPage'
 import { CatalogAttributesListPage } from '@/pages/catalog/CatalogAttributesListPage'
 import { ProductTemplatesListPage } from '@/pages/catalog/ProductTemplatesListPage'
 import { ProductTemplateBuilderPage } from '@/pages/catalog/ProductTemplateBuilderPage'
@@ -155,9 +152,6 @@ export const routes: RouteObject[] = [
           { path: 'catalogo/items', element: <CatalogItemsListPage /> },
           { path: 'catalogo/items/nuevo', element: <CreateCatalogItemPage /> },
           { path: 'catalogo/items/:itemId', element: <EditCatalogItemPage /> },
-          { path: 'catalogo/categorias', element: <CategoriesListPage /> },
-          { path: 'catalogo/categorias/nueva', element: <CreateCategoryPage /> },
-          { path: 'catalogo/categorias/:categoryId/editar', element: <EditCategoryPage /> },
           { path: 'catalogo/atributos', element: <CatalogAttributesListPage /> },
           { path: 'catalogo/plantillas', element: <ProductTemplatesListPage /> },
           { path: 'catalogo/plantillas/nueva', element: <ProductTemplateBuilderPage /> },

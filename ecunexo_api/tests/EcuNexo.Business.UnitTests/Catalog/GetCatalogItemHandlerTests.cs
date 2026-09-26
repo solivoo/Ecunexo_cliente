@@ -9,7 +9,6 @@ namespace EcuNexo.Business.UnitTests.Catalog;
 public sealed class GetCatalogItemHandlerTests
 {
     private readonly ICatalogItemRepository _items = Substitute.For<ICatalogItemRepository>();
-    private readonly ICategoryRepository _categories = Substitute.For<ICategoryRepository>();
     private readonly IProductTemplateRepository _templates = Substitute.For<IProductTemplateRepository>();
 
     [Fact(DisplayName = "La variante sin foto hereda la imagen principal del modelo")]
@@ -26,7 +25,6 @@ public sealed class GetCatalogItemHandlerTests
             null,
             "MOD-01",
             5m,
-            null,
             "[{\"name\":\"Caña\",\"values\":[\"Corta\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -57,7 +55,7 @@ public sealed class GetCatalogItemHandlerTests
         _items.GetActiveByIdAsync(tenantId, parentId, Arg.Any<CancellationToken>())
             .Returns(parent);
 
-        var sut = new GetCatalogItemHandler(_items, _categories, _templates);
+        var sut = new GetCatalogItemHandler(_items, _templates);
         var result = await sut.Handle(new GetCatalogItemQuery(tenantId, parentId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -80,7 +78,6 @@ public sealed class GetCatalogItemHandlerTests
             null,
             "MOD-02",
             5m,
-            null,
             "[{\"name\":\"Caña\",\"values\":[\"Corta\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -123,7 +120,7 @@ public sealed class GetCatalogItemHandlerTests
         _items.GetActiveByIdAsync(tenantId, parentId, Arg.Any<CancellationToken>())
             .Returns(parent);
 
-        var sut = new GetCatalogItemHandler(_items, _categories, _templates);
+        var sut = new GetCatalogItemHandler(_items, _templates);
         var result = await sut.Handle(new GetCatalogItemQuery(tenantId, parentId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -146,7 +143,6 @@ public sealed class GetCatalogItemHandlerTests
             null,
             "MOD-03",
             5m,
-            null,
             "[{\"name\":\"Caña\",\"values\":[\"Corta\",\"Larga\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -199,7 +195,7 @@ public sealed class GetCatalogItemHandlerTests
         _items.GetActiveByIdAsync(tenantId, parentId, Arg.Any<CancellationToken>())
             .Returns(parent);
 
-        var sut = new GetCatalogItemHandler(_items, _categories, _templates);
+        var sut = new GetCatalogItemHandler(_items, _templates);
         var result = await sut.Handle(new GetCatalogItemQuery(tenantId, parentId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -224,7 +220,6 @@ public sealed class GetCatalogItemHandlerTests
             null,
             "MOD-04",
             5m,
-            null,
             "[{\"name\":\"Tallas\",\"values\":[\"39-41\",\"42-44\"]},{\"name\":\"Color\",\"values\":[\"#457fc9\",\"#ec4899\"]},{\"name\":\"Tipo de Caña\",\"values\":[\"Caña Alta\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -255,7 +250,7 @@ public sealed class GetCatalogItemHandlerTests
         _items.GetActiveByIdAsync(tenantId, parentId, Arg.Any<CancellationToken>())
             .Returns(parent);
 
-        var sut = new GetCatalogItemHandler(_items, _categories, _templates);
+        var sut = new GetCatalogItemHandler(_items, _templates);
         var result = await sut.Handle(new GetCatalogItemQuery(tenantId, parentId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -294,13 +289,12 @@ public sealed class GetCatalogItemHandlerTests
             "SIMPLE-01",
             3m,
             null,
-            null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
 
         _items.GetActiveByIdAsync(tenantId, itemId, Arg.Any<CancellationToken>())
             .Returns(item);
 
-        var sut = new GetCatalogItemHandler(_items, _categories, _templates);
+        var sut = new GetCatalogItemHandler(_items, _templates);
         var result = await sut.Handle(new GetCatalogItemQuery(tenantId, itemId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -321,7 +315,6 @@ public sealed class GetCatalogItemHandlerTests
             null,
             "MOD-05",
             5m,
-            null,
             "[{\"name\":\"Tallas\",\"values\":[\"39-41\"]},{\"name\":\"Tipo de Ca\u00F1a\",\"values\":[\"Alta\"],\"photoGroup\":true},{\"name\":\"Color\",\"values\":[\"#457fc9\"],\"photoGroup\":true}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -355,7 +348,7 @@ public sealed class GetCatalogItemHandlerTests
         _items.GetActiveByIdAsync(tenantId, parentId, Arg.Any<CancellationToken>())
             .Returns(parent);
 
-        var sut = new GetCatalogItemHandler(_items, _categories, _templates);
+        var sut = new GetCatalogItemHandler(_items, _templates);
         var result = await sut.Handle(new GetCatalogItemQuery(tenantId, parentId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();

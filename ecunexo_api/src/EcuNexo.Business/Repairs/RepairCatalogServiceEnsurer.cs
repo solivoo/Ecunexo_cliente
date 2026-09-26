@@ -52,7 +52,6 @@ public sealed class RepairCatalogServiceEnsurer
                 description: "Servicio de reacondicionamiento B2B generado automáticamente para facturación de despachos.",
                 sku: sku,
                 basePrice: null,
-                categoryId: null,
                 customAttributesJson: null,
                 categorySchemaJson: "{}");
 

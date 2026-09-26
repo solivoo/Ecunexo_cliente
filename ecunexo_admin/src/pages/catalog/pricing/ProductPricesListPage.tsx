@@ -18,11 +18,9 @@ import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { formatMoney, isVigentOn, todayIso } from '@/pages/catalog/pricing/pricingFormat'
-import { listCatalogCategories } from '@/services/catalogApi'
 import { deleteProductPrice, listPriceLists, listProductPrices } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import type { CategoryListItemDto } from '@/types/catalogApi'
 import type { PriceListDto, ProductPriceListItemDto } from '@/types/pricingApi'
 
 type ProductPriceRow = ProductPriceListItemDto & Record<string, unknown>
@@ -40,12 +38,10 @@ export function ProductPricesListPage() {
 
   const [rows, setRows] = useState<ProductPriceListItemDto[]>([])
   const [lists, setLists] = useState<PriceListDto[]>([])
-  const [categories, setCategories] = useState<CategoryListItemDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [listFilter, setListFilter] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('')
   const [vigencyFilter, setVigencyFilter] = useState('vigent')
   const [confirm, setConfirm] = useState<ProductPriceListItemDto | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -58,7 +54,6 @@ export function ProductPricesListPage() {
       const data = await listProductPrices(tenantId, {
         search: search.trim() || undefined,
         priceListId: listFilter || undefined,
-        categoryId: categoryFilter || undefined,
         onlyVigent: vigencyFilter === 'vigent',
       })
       setRows(data)
@@ -71,12 +66,11 @@ export function ProductPricesListPage() {
     } finally {
       setLoading(false)
     }
-  }, [categoryFilter, listFilter, search, tenantId, toast, vigencyFilter])
+  }, [listFilter, search, tenantId, toast, vigencyFilter])
 
   useEffect(() => {
     if (!tenantId || !canRead) return
     void listPriceLists(tenantId, false).then(setLists).catch(() => setLists([]))
-    void listCatalogCategories(tenantId).then(setCategories).catch(() => setCategories([]))
   }, [canRead, tenantId])
 
   useEffect(() => {
@@ -291,19 +285,6 @@ export function ProductPricesListPage() {
                       ]}
                       value={listFilter}
                       onChange={(value) => setListFilter(String(value))}
-                    />
-                  </div>
-                  <div style={{ minWidth: 170 }}>
-                    <Select
-                      id="pp-category-filter"
-                      aria-label="Filtrar por categoría"
-                      variant="outline"
-                      options={[
-                        { value: '', label: 'Todas las categorías' },
-                        ...categories.map((c) => ({ value: c.id, label: c.name })),
-                      ]}
-                      value={categoryFilter}
-                      onChange={(value) => setCategoryFilter(String(value))}
                     />
                   </div>
                   <div style={{ minWidth: 130 }}>

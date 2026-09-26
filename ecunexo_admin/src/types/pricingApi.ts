@@ -62,8 +62,6 @@ export type ProductPriceListItemDto = {
   catalogItemId: string
   itemName: string
   sku: string | null
-  categoryId: string | null
-  categoryName: string | null
   priceListId: string
   priceListCode: string
   priceListName: string
@@ -91,7 +89,6 @@ export type ProductPriceDetailDto = {
 export type ProductPriceFilters = {
   search?: string
   priceListId?: string
-  categoryId?: string
   date?: string
   onlyVigent?: boolean
 }

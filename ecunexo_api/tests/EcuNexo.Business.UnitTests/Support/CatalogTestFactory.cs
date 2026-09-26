@@ -15,7 +15,6 @@ internal static class CatalogTestFactory
             description: null,
             sku,
             basePrice: 1.5m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson);
 

@@ -61,7 +61,6 @@ internal static class MenuCatalogSeedData
         ("catalog.item.create", "Ítems — crear", "Crear ítems del catálogo", "catalog", 62),
         ("catalog.item.update", "Ítems — editar", "Editar ítems del catálogo", "catalog", 63),
         ("catalog.item.delete", "Ítems — eliminar", "Baja lógica de ítems sin uso", "catalog", 64),
-        ("catalog.category.manage", "Categorías — administrar", "Crear y editar categorías", "catalog", 65),
         ("catalog.matrix.read", "Matriz — consultar", "Consultar matrices y variantes de productos", "catalog", 66),
         ("catalog.matrix.create", "Matriz — crear", "Crear matrices y generar variantes", "catalog", 67),
         ("catalog.matrix.update", "Matriz — editar", "Editar matrices y variantes", "catalog", 68),

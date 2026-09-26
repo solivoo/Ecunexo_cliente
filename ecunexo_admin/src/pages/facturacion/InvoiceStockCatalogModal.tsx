@@ -162,7 +162,7 @@ export function InvoiceStockCatalogModal({
           isBelowMinimum: false,
           warehouses: [],
           attributes: mergedAttributes,
-          searchKey: `${item.sku ?? ''} ${item.name} ${item.categoryName ?? ''} ${item.description ?? ''} ${attrSearchStr}`.toLowerCase(),
+          searchKey: `${item.sku ?? ''} ${item.name} ${item.description ?? ''} ${attrSearchStr}`.toLowerCase(),
         }
       }
 
@@ -186,7 +186,7 @@ export function InvoiceStockCatalogModal({
         isBelowMinimum,
         warehouses,
         attributes: mergedAttributes,
-        searchKey: `${item.sku ?? ''} ${item.name} ${item.categoryName ?? ''} ${item.description ?? ''} ${attrSearchStr}`.toLowerCase(),
+        searchKey: `${item.sku ?? ''} ${item.name} ${item.description ?? ''} ${attrSearchStr}`.toLowerCase(),
       }
     })
   }, [catalogItems, stockItems])
@@ -297,11 +297,6 @@ export function InvoiceStockCatalogModal({
               <strong style={{ color: 'var(--glb-text)', fontSize: '0.88rem' }}>
                 {row.item.name}
               </strong>
-              {row.item.categoryName && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
-                  ({row.item.categoryName})
-                </span>
-              )}
             </div>
 
             {row.item.description && (

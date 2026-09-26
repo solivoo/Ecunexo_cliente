@@ -170,7 +170,6 @@ async function createService() {
     description: 'Paquete mensual de revisión y asesoría tributaria.',
     sku: null,
     basePrice: 80,
-    categoryId: null,
     customAttributesJson: null,
   })
   console.log('  servicio:', created.itemId)
@@ -183,7 +182,6 @@ async function createSingleSku(familyId) {
     description: 'Filtro compatible OEM.',
     sku: 'FILT-OEM-001',
     basePrice: 12.5,
-    categoryId: null,
     customAttributesJson: JSON.stringify({ Marca: 'Bosch', Referencia: 'OF-451' }),
     familyId,
     hierarchyPathJson: JSON.stringify([
@@ -217,7 +215,6 @@ async function createMatrix({ name, familyId, hierarchyPath, dims, skuPrefix, pr
     description: null,
     modelCode: null,
     basePrice: price,
-    categoryId: null,
     variantDimensionsJson,
     variants,
     customAttributesJson: JSON.stringify(attrs),

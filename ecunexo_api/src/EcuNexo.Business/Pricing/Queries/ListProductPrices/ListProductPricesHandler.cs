@@ -21,7 +21,6 @@ public sealed class ListProductPricesHandler
             query.TenantId,
             query.Search,
             query.PriceListId,
-            query.CategoryId,
             query.Date,
             query.OnlyVigent);
 
@@ -32,8 +31,6 @@ public sealed class ListProductPricesHandler
                 r.CatalogItemId,
                 r.ItemName,
                 r.Sku,
-                r.CategoryId,
-                r.CategoryName,
                 r.PriceListId,
                 r.PriceListCode,
                 r.PriceListName,

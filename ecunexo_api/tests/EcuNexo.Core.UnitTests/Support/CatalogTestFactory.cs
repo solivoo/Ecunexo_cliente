@@ -15,7 +15,6 @@ internal static class CatalogTestFactory
             description: null,
             sku,
             basePrice: 1.5m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson);
 
@@ -33,7 +32,6 @@ internal static class CatalogTestFactory
             description: null,
             sku: null,
             basePrice: 25m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson);
 
@@ -57,7 +55,6 @@ internal static class CatalogTestFactory
             description: null,
             modelCode: sku,
             basePrice: 20m,
-            categoryId: null,
             variantDimensionsJson: """[{"name":"Talla","values":["S","M","L"]}]""",
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson);

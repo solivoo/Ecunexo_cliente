@@ -16,7 +16,6 @@ public sealed class CreateCatalogItemMatrixHandlerTests
 {
     private readonly IIdGenerator _idGenerator = Substitute.For<IIdGenerator>();
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
-    private readonly ICategoryRepository _categories = Substitute.For<ICategoryRepository>();
     private readonly ICatalogItemRepository _items = Substitute.For<ICatalogItemRepository>();
     private readonly ISysSettingRepository _settings = Substitute.For<ISysSettingRepository>();
     private readonly IProductTemplateRepository _templates = Substitute.For<IProductTemplateRepository>();
@@ -30,7 +29,6 @@ public sealed class CreateCatalogItemMatrixHandlerTests
             _validator,
             _idGenerator,
             _tenants,
-            _categories,
             _items,
             _settings,
             _templates,
@@ -55,7 +53,6 @@ public sealed class CreateCatalogItemMatrixHandlerTests
             "Calcetines transpirables",
             ModelCode: "CALC-01",
             BasePrice: 3.50m,
-            CategoryId: null,
             VariantDimensionsJson: "[{\"name\": \"Talla\", \"values\": [\"35-38\", \"39-41\"]}]",
             Variants:
             [
@@ -91,7 +88,6 @@ public sealed class CreateCatalogItemMatrixHandlerTests
             null,
             ModelCode: null,
             BasePrice: 2.0m,
-            CategoryId: null,
             VariantDimensionsJson: "[{\"name\": \"Talla\", \"values\": [\"S\", \"M\"]}]",
             Variants:
             [
@@ -125,7 +121,6 @@ public sealed class CreateCatalogItemMatrixHandlerTests
             null,
             ModelCode: null,
             BasePrice: 2.0m,
-            CategoryId: null,
             VariantDimensionsJson: "[{\"name\": \"Talla\", \"values\": [\"S\"]}]",
             Variants:
             [
@@ -168,7 +163,6 @@ public sealed class CreateCatalogItemMatrixHandlerTests
             null,
             ModelCode: "CALC-FAM-01",
             BasePrice: 3.50m,
-            CategoryId: null,
             VariantDimensionsJson: "[{\"name\": \"Talla\", \"values\": [\"S\"]}]",
             Variants:
             [
@@ -206,7 +200,6 @@ public sealed class CreateCatalogItemMatrixHandlerTests
             null,
             ModelCode: null,
             BasePrice: 2.0m,
-            CategoryId: null,
             VariantDimensionsJson: "[{\"name\": \"Talla\", \"values\": [\"S\"]}]",
             Variants:
             [
@@ -247,7 +240,6 @@ public sealed class CreateCatalogItemMatrixHandlerTests
             null,
             ModelCode: null,
             BasePrice: 2.0m,
-            CategoryId: null,
             VariantDimensionsJson: "[{\"name\": \"Talla\", \"values\": [\"S\"]}]",
             Variants:
             [

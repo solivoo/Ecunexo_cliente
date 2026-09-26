@@ -14,26 +14,10 @@ export const CatalogItemStatus = {
 
 export type CatalogItemStatus = (typeof CatalogItemStatus)[keyof typeof CatalogItemStatus]
 
-export type CatalogAttributeField = {
-  key: string
-  label?: string
-  type?: string
-  required?: boolean
-}
-
 export type HierarchyPathEntry = {
   level: string
   name: string
   value: string
-}
-
-export type CategoryListItemDto = {
-  id: string
-  name: string
-  description: string | null
-  parentId: string | null
-  attributeSchemaJson: string
-  createdAt: string
 }
 
 export type CatalogItemImageDto = {
@@ -60,8 +44,6 @@ export type CatalogItemListItemDto = {
   description: string | null
   sku: string | null
   basePrice: number | null
-  categoryId: string | null
-  categoryName: string | null
   status: CatalogItemStatus
   createdAt: string
   mainImageThumbUrl?: string | null
@@ -113,8 +95,6 @@ export type CatalogItemDetailDto = {
   description: string | null
   sku: string | null
   basePrice: number | null
-  categoryId: string | null
-  categoryName: string | null
   customAttributesJson: string
   status: CatalogItemStatus
   createdAt: string
@@ -131,27 +111,12 @@ export type CatalogItemDetailDto = {
   matrixDescriptor?: CatalogMatrixDescriptorDto | null
 }
 
-export type CreateCategoryBody = {
-  name: string
-  description?: string | null
-  parentId?: string | null
-  attributeSchemaJson?: string | null
-}
-
-export type UpdateCategoryBody = CreateCategoryBody
-
-export type CreateCategoryResponseDto = {
-  categoryId: string
-  tenantId: string
-}
-
 export type CreateCatalogItemBody = {
   kind: CatalogItemKind
   name: string
   description?: string | null
   sku?: string | null
   basePrice?: number | null
-  categoryId?: string | null
   customAttributesJson?: string | null
   familyId?: string | null
   hierarchyPathJson?: string | null
@@ -195,7 +160,6 @@ export type CreateCatalogItemMatrixPayload = {
   description?: string | null
   modelCode?: string | null
   basePrice?: number | null
-  categoryId?: string | null
   variantDimensionsJson: string
   variants: CreateVariantChildPayload[]
   customAttributesJson?: string | null

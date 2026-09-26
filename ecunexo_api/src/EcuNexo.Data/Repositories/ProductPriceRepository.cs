@@ -110,25 +110,17 @@ public sealed class ProductPriceRepository : IProductPriceRepository
             from p in _db.ProductPrices.AsNoTracking()
             join i in _db.CatalogItems.AsNoTracking() on p.CatalogItemId equals i.Id
             join l in _db.PriceLists.AsNoTracking() on p.PriceListId equals l.Id
-            join c in _db.Categories.AsNoTracking() on i.CategoryId equals c.Id into categories
-            from c in categories.DefaultIfEmpty()
             where p.TenantId == filter.TenantId
             select new
             {
                 Price = p,
                 Item = i,
                 List = l,
-                CategoryName = c != null ? c.Name : null,
             };
 
         if (filter.PriceListId is { } priceListId)
         {
             query = query.Where(r => r.Price.PriceListId == priceListId);
-        }
-
-        if (filter.CategoryId is { } categoryId)
-        {
-            query = query.Where(r => r.Item.CategoryId == categoryId);
         }
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -159,8 +151,6 @@ public sealed class ProductPriceRepository : IProductPriceRepository
                 r.Price.CatalogItemId,
                 r.Item.Name,
                 r.Item.Sku,
-                r.Item.CategoryId,
-                r.CategoryName,
                 r.Price.PriceListId,
                 r.List.Code,
                 r.List.Name,

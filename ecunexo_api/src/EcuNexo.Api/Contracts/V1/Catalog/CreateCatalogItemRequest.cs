@@ -9,7 +9,6 @@ public sealed record CreateCatalogItemRequest(
     string? Description = null,
     string? Sku = null,
     decimal? BasePrice = null,
-    Guid? CategoryId = null,
     string? CustomAttributesJson = null,
     Guid? FamilyId = null,
     string? HierarchyPathJson = null)
@@ -22,7 +21,6 @@ public sealed record CreateCatalogItemRequest(
             Description,
             Sku,
             BasePrice,
-            CategoryId,
             CustomAttributesJson,
             FamilyId,
             HierarchyPathJson);

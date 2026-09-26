@@ -17,7 +17,6 @@ public sealed class AddCatalogItemVariantHandler
     private readonly IIdGenerator _idGenerator;
     private readonly ITenantRepository _tenants;
     private readonly ICatalogItemRepository _items;
-    private readonly ICategoryRepository _categories;
     private readonly IStockRepository _stocks;
     private readonly IWarehouseRepository _warehouses;
     private readonly IUnitOfWork _unitOfWork;
@@ -27,7 +26,6 @@ public sealed class AddCatalogItemVariantHandler
         IIdGenerator idGenerator,
         ITenantRepository tenants,
         ICatalogItemRepository items,
-        ICategoryRepository categories,
         IStockRepository stocks,
         IWarehouseRepository warehouses,
         IUnitOfWork unitOfWork)
@@ -36,7 +34,6 @@ public sealed class AddCatalogItemVariantHandler
         _idGenerator = idGenerator;
         _tenants = tenants;
         _items = items;
-        _categories = categories;
         _stocks = stocks;
         _warehouses = warehouses;
         _unitOfWork = unitOfWork;
@@ -81,16 +78,6 @@ public sealed class AddCatalogItemVariantHandler
                 new Error("catalog.variant.sku.duplicate", $"El SKU '{command.Sku}' ya existe en el catálogo.", ErrorType.Conflict));
         }
 
-        var schemaJson = CatalogAttributeSchema.EmptyArrayJson;
-        if (parent.CategoryId is { } categoryId)
-        {
-            var category = await _categories.GetActiveByIdAsync(command.TenantId, categoryId, ct).ConfigureAwait(false);
-            if (category is not null)
-            {
-                schemaJson = category.AttributeSchemaJson;
-            }
-        }
-
         var childId = _idGenerator.NewId();
         var childResult = CatalogItem.CreateVariantChild(
             childId,
@@ -99,7 +86,7 @@ public sealed class AddCatalogItemVariantHandler
             command.Sku,
             command.BasePrice,
             command.CustomAttributesJson,
-            schemaJson);
+            CatalogAttributeSchema.EmptyArrayJson);
 
         if (childResult.IsFailure)
         {

@@ -17,7 +17,6 @@ public sealed class CreateCatalogItemMatrixHandler
     private readonly IValidator<CreateCatalogItemMatrixCommand> _validator;
     private readonly IIdGenerator _idGenerator;
     private readonly ITenantRepository _tenants;
-    private readonly ICategoryRepository _categories;
     private readonly ICatalogItemRepository _items;
     private readonly ISysSettingRepository _settings;
     private readonly IProductTemplateRepository _templates;
@@ -29,7 +28,6 @@ public sealed class CreateCatalogItemMatrixHandler
         IValidator<CreateCatalogItemMatrixCommand> validator,
         IIdGenerator idGenerator,
         ITenantRepository tenants,
-        ICategoryRepository categories,
         ICatalogItemRepository items,
         ISysSettingRepository settings,
         IProductTemplateRepository templates,
@@ -40,7 +38,6 @@ public sealed class CreateCatalogItemMatrixHandler
         _validator = validator;
         _idGenerator = idGenerator;
         _tenants = tenants;
-        _categories = categories;
         _items = items;
         _settings = settings;
         _templates = templates;
@@ -76,19 +73,6 @@ public sealed class CreateCatalogItemMatrixHandler
         }
 
         var schemaJson = CatalogAttributeSchema.EmptyArrayJson;
-        if (command.CategoryId is { } categoryId)
-        {
-            var category = await _categories.GetActiveByIdAsync(command.TenantId, categoryId, ct)
-                .ConfigureAwait(false);
-            if (category is null)
-            {
-                return Result.Failure<CreateCatalogItemMatrixResponse>(
-                    new Error("catalog.matrix.category.not_found", "La categoría no existe.", ErrorType.NotFound));
-            }
-
-            schemaJson = category.AttributeSchemaJson;
-        }
-
         if (command.FamilyId is { } familyId)
         {
             var family = await _templates.GetByIdAsync(familyId, command.TenantId, ct).ConfigureAwait(false);
@@ -140,7 +124,6 @@ public sealed class CreateCatalogItemMatrixHandler
             command.Description,
             command.ModelCode,
             command.BasePrice,
-            command.CategoryId,
             command.VariantDimensionsJson,
             command.CustomAttributesJson,
             schemaJson,

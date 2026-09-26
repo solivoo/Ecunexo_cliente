@@ -29,8 +29,6 @@ public interface ICatalogItemRepository
 
     Task<bool> SkuExistsIgnoreCaseAsync(Guid tenantId, string sku, Guid? excludeId, CancellationToken ct);
 
-    Task<bool> ExistsForCategoryAsync(Guid tenantId, Guid categoryId, CancellationToken ct);
-
     Task<int> CountVariantsAsync(Guid tenantId, bool onlyActive, CancellationToken ct);
 
     Task<IReadOnlyDictionary<Guid, int>> CountItemsByFamilyAsync(Guid tenantId, CancellationToken ct);

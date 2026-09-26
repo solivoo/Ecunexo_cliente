@@ -5,13 +5,12 @@ import { Boxes, Layers, Package, Search, X } from 'lucide-react'
 import { formatVariantDisplayName } from '@/lib/catalogArchetype'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
-import { listCatalogCategories, listCatalogItems } from '@/services/catalogApi'
+import { listCatalogItems } from '@/services/catalogApi'
 import { listStock } from '@/services/inventoryApi'
 import {
   CatalogItemKind,
   CatalogItemStatus,
   type CatalogItemListItemDto,
-  type CategoryListItemDto,
 } from '@/types/catalogApi'
 import type { StockListItemDto } from '@/types/inventoryApi'
 import './inventoryItemSelectModal.css'
@@ -32,7 +31,6 @@ type ProductVariantRow = {
   parentName: string | null
   cleanDisplayName: string
   sku: string
-  categoryName: string
   stock: number
   qty: number
   imageUrl: string | null
@@ -56,12 +54,10 @@ export function InventoryItemSelectModal({
   const [mode, setMode] = useState<'search' | 'matrix'>(() => initialMode)
   const [loading, setLoading] = useState(false)
   const [catalogItems, setCatalogItems] = useState<CatalogItemListItemDto[]>([])
-  const [categories, setCategories] = useState<CategoryListItemDto[]>([])
   const [stockItems, setStockItems] = useState<StockListItemDto[]>([])
 
   // Estado para pestaña Búsqueda
   const [searchFilter, setSearchFilter] = useState('')
-  const [selectedCategoryId, setSelectedCategoryId] = useState('')
   const [stockFilter, setStockFilter] = useState<'all' | 'with_stock' | 'zero_stock'>('all')
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -80,9 +76,8 @@ export function InventoryItemSelectModal({
     void (async () => {
       setLoading(true)
       try {
-        const [items, cats, stocks] = await Promise.all([
+        const [items, stocks] = await Promise.all([
           listCatalogItems(tenantId, CatalogItemKind.Physical, CatalogItemStatus.Active),
-          listCatalogCategories(tenantId).catch(() => [] as CategoryListItemDto[]),
           warehouseId
             ? listStock(tenantId, { warehouseId }).catch(() => [] as StockListItemDto[])
             : Promise.resolve([] as StockListItemDto[]),
@@ -90,7 +85,6 @@ export function InventoryItemSelectModal({
 
         if (!cancelled) {
           setCatalogItems(items)
-          setCategories(cats)
           setStockItems(stocks)
         }
       } finally {
@@ -150,7 +144,7 @@ export function InventoryItemSelectModal({
       const cleanDisplayName = formatVariantDisplayName(item.name, parentName)
       const stock = stockByItemId.get(item.id) ?? 0
 
-      const searchKey = `${item.sku ?? ''} ${item.name} ${parentName ?? ''} ${cleanDisplayName} ${item.categoryName ?? ''}`.toLowerCase()
+      const searchKey = `${item.sku ?? ''} ${item.name} ${parentName ?? ''} ${cleanDisplayName}`.toLowerCase()
 
       return {
         id: item.id,
@@ -158,7 +152,6 @@ export function InventoryItemSelectModal({
         parentName,
         cleanDisplayName,
         sku: item.sku?.trim() || '—',
-        categoryName: item.categoryName || 'Sin categoría',
         stock,
         qty: quantities[item.id] ?? 1,
         imageUrl: item.mainImageThumbUrl || parent?.mainImageThumbUrl || null,
@@ -171,9 +164,6 @@ export function InventoryItemSelectModal({
   // Filtros aplicados a pestaña Búsqueda
   const filteredSearchRows = useMemo(() => {
     return physicalVariantRows.filter((row) => {
-      if (selectedCategoryId && row.item.categoryId !== selectedCategoryId) {
-        return false
-      }
       if (stockFilter === 'with_stock' && row.stock <= 0) {
         return false
       }
@@ -188,7 +178,7 @@ export function InventoryItemSelectModal({
       }
       return true
     })
-  }, [physicalVariantRows, selectedCategoryId, stockFilter, searchFilter])
+  }, [physicalVariantRows, stockFilter, searchFilter])
 
   // Variantes pertenecientes al padre seleccionado en modo Matriz
   const selectedParent = useMemo(() => {
@@ -496,23 +486,6 @@ export function InventoryItemSelectModal({
                   />
                 </div>
 
-                {categories.length > 0 ? (
-                  <div style={{ width: '220px' }}>
-                    <Select
-                      id="inv-modal-cat"
-                      variant="outline"
-                      size="sm"
-                      options={[
-                        { value: '', label: 'Todas las categorías' },
-                        ...categories.map((c) => ({ value: c.id, label: c.name })),
-                      ]}
-                      value={selectedCategoryId}
-                      onChange={setSelectedCategoryId}
-                      fullWidth
-                    />
-                  </div>
-                ) : null}
-
                 <div style={{ display: 'flex', gap: '0.25rem' }}>
                   <Button
                     type="button"
@@ -561,7 +534,7 @@ export function InventoryItemSelectModal({
                 className="ecu-empty-state--compact"
                 icon={<Search size={24} strokeWidth={1.75} aria-hidden />}
                 title="No se encontraron ítems físicos"
-                description="Prueba con otros términos de búsqueda o filtros de categoría."
+                description="Prueba con otros términos de búsqueda o filtros de stock."
               />
             ) : (
               <DataGrid<ProductVariantRow>
@@ -601,10 +574,6 @@ export function InventoryItemSelectModal({
 
               {selectedParent ? (
                 <div className="ecu-inv-matrix__model-info">
-                  <div className="ecu-inv-matrix__model-meta-item">
-                    <span>Categoría</span>
-                    <span>{selectedParent.categoryName || 'Sin categoría'}</span>
-                  </div>
                   {selectedParent.familyName ? (
                     <div className="ecu-inv-matrix__model-meta-item">
                       <span>Plantilla / Arquetipo</span>

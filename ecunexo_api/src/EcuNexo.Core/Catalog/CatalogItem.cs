@@ -41,10 +41,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
     public Tenant? Tenant { get; private set; }
 
-    public Guid? CategoryId { get; private set; }
-
-    public Category? Category { get; private set; }
-
     /// <summary>Arquetipo/Familia (plantilla de producto) que describe la forma del ítem.</summary>
     public Guid? FamilyId { get; private set; }
 
@@ -85,7 +81,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string? description,
         string? sku,
         decimal? basePrice,
-        Guid? categoryId,
         string? customAttributesJson,
         string categorySchemaJson,
         Guid? familyId = null,
@@ -143,7 +138,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         {
             Id = id,
             TenantId = tenantId,
-            CategoryId = categoryId,
             FamilyId = familyId,
             HierarchyPathJson = path.Value,
             Kind = kind,
@@ -165,7 +159,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string? description,
         string? modelCode,
         decimal? basePrice,
-        Guid? categoryId,
         string variantDimensionsJson,
         string? customAttributesJson,
         string categorySchemaJson,
@@ -231,7 +224,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         {
             Id = id,
             TenantId = tenantId,
-            CategoryId = categoryId,
             FamilyId = familyId,
             HierarchyPathJson = path.Value,
             Kind = kind,
@@ -310,7 +302,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             ParentId = parent.Id,
             Parent = parent,
             IsMatrixParent = false,
-            CategoryId = parent.CategoryId,
             FamilyId = parent.FamilyId,
             HierarchyPathJson = parent.HierarchyPathJson,
             Kind = parent.Kind,
@@ -541,7 +532,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string? description,
         string? sku,
         decimal? basePrice,
-        Guid? categoryId,
         string? customAttributesJson,
         string categorySchemaJson,
         Guid? updatedBy,
@@ -588,7 +578,6 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Description = descResult.Value;
         Sku = skuResult.Value;
         BasePrice = priceResult.Value;
-        CategoryId = categoryId;
         FamilyId = familyId;
         HierarchyPathJson = path.Value;
         CustomAttributesJson = PreserveSystemAttributes(CustomAttributesJson, attrs.Value!);

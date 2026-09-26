@@ -11,7 +11,7 @@ tests-ui/
     command-palette.spec   buscador global (Ctrl + K), atajos y navegación
     dashboard-ui.spec      panel central M3, StatCards (KPIs) y SectionCards
     identity-equipo.spec   usuarios, roles, departamentos y seguridad
-    catalogo-ui.spec       catálogo de items, categorías y tiras de métricas
+    catalogo-ui.spec       catálogo de items y tiras de métricas
     bodegas-inventario-ui  bodegas, stock, documentos y kardex físico
     organizacion-ui.spec   empresas multi-tenant, perfil, plan y facturación SRI
     configuracion.spec     preferencias del sistema y listados

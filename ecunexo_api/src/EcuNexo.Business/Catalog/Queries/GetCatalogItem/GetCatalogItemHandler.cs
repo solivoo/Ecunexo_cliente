@@ -8,16 +8,13 @@ namespace EcuNexo.Business.Catalog.Queries.GetCatalogItem;
 public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, CatalogItemDetailResponse>
 {
     private readonly ICatalogItemRepository _items;
-    private readonly ICategoryRepository _categories;
     private readonly IProductTemplateRepository _templates;
 
     public GetCatalogItemHandler(
         ICatalogItemRepository items,
-        ICategoryRepository categories,
         IProductTemplateRepository templates)
     {
         _items = items;
-        _categories = categories;
         _templates = templates;
     }
 
@@ -30,14 +27,6 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
         {
             return Result.Failure<CatalogItemDetailResponse>(
                 new Error("catalog.item.not_found", "El ítem no existe.", ErrorType.NotFound));
-        }
-
-        string? categoryName = null;
-        if (item.CategoryId is { } categoryId)
-        {
-            var category = await _categories.GetActiveByIdAsync(query.TenantId, categoryId, ct)
-                .ConfigureAwait(false);
-            categoryName = category?.Name;
         }
 
         var images = item.Images
@@ -171,8 +160,6 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 item.Description,
                 item.Sku,
                 item.BasePrice,
-                item.CategoryId,
-                categoryName,
                 item.CustomAttributesJson,
                 item.Status,
                 item.CreatedAt,

@@ -4,7 +4,6 @@ namespace EcuNexo.Business.Storefront;
 
 public sealed record StorefrontProductFilter(
     string? Search,
-    IReadOnlyCollection<Guid>? CategoryIds,
     string? Sort,
     int Page,
     int PageSize,

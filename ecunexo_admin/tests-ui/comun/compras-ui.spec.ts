@@ -231,8 +231,6 @@ const MOCK_CATALOG_ITEMS: CatalogItemListItemDto[] = [
     tenantId: 'tnt-test-1',
     sku: 'RAM-16GB',
     name: 'Memoria RAM DDR4 16GB Kingston',
-    categoryId: 'cat-cat-1',
-    categoryName: 'Hardware',
     kind: 1, // Physical
     status: 1, // Active
     basePrice: 50.0,
@@ -246,8 +244,6 @@ const MOCK_CATALOG_ITEMS: CatalogItemListItemDto[] = [
     tenantId: 'tnt-test-1',
     sku: 'SSD-1TB',
     name: 'Disco SSD NVMe 1TB Kingston',
-    categoryId: 'cat-cat-1',
-    categoryName: 'Hardware',
     kind: 1, // Physical
     status: 1, // Active
     basePrice: 65.0,

@@ -95,7 +95,6 @@ public sealed class ApplyAuthorizedInvoiceEgressHandlerTests
             description: null,
             sku: "TOR-M6",
             basePrice: 1.5m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
 
@@ -144,7 +143,6 @@ public sealed class ApplyAuthorizedInvoiceEgressHandlerTests
             description: null,
             sku: "TEC-RGB-001",
             basePrice: 45.00m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
 
@@ -184,7 +182,6 @@ public sealed class ApplyAuthorizedInvoiceEgressHandlerTests
             description: null,
             sku: "MOU-WL-002",
             basePrice: 25.00m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
 

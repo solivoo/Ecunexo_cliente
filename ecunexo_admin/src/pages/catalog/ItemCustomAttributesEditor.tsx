@@ -15,7 +15,6 @@ export type CustomAttributeRow = {
 export type ItemCustomAttributesEditorProps = {
   readonly attributes: readonly CustomAttributeRow[]
   readonly onChange: (attributes: CustomAttributeRow[]) => void
-  readonly categorySuggestions?: readonly string[]
   readonly excludeKeys?: readonly string[]
   readonly disabled?: boolean
 }
@@ -103,7 +102,6 @@ export function extractReassignmentHistory(raw: string | null | undefined): impo
 export function ItemCustomAttributesEditor({
   attributes,
   onChange,
-  categorySuggestions = [],
   excludeKeys = [],
   disabled = false,
 }: ItemCustomAttributesEditorProps) {
@@ -156,7 +154,7 @@ export function ItemCustomAttributesEditor({
 
   const availableSuggestions = useMemo(() => {
     const templateNames = templates.map((t) => t.name.trim())
-    const combined = [...templateNames, ...categorySuggestions, ...DEFAULT_PRESET_SUGGESTIONS]
+    const combined = [...templateNames, ...DEFAULT_PRESET_SUGGESTIONS]
     const seen = new Set<string>()
     const result: string[] = []
     for (const s of combined) {
@@ -168,7 +166,7 @@ export function ItemCustomAttributesEditor({
       }
     }
     return result.slice(0, 10)
-  }, [categorySuggestions, currentKeysLower, excludedKeysLower, templates])
+  }, [currentKeysLower, excludedKeysLower, templates])
 
   const handleAddRow = useCallback(
     (initialKey = '', initialValue = '') => {

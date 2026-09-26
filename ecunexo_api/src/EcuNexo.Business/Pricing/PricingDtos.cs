@@ -19,7 +19,6 @@ public sealed record ProductPriceFilter(
     Guid TenantId,
     string? Search,
     Guid? PriceListId,
-    Guid? CategoryId,
     DateOnly? Date,
     bool OnlyVigent);
 
@@ -29,8 +28,6 @@ public sealed record ProductPriceListRow(
     Guid CatalogItemId,
     string ItemName,
     string? Sku,
-    Guid? CategoryId,
-    string? CategoryName,
     Guid PriceListId,
     string PriceListCode,
     string PriceListName,
@@ -44,8 +41,6 @@ public sealed record ProductPriceListItemResponse(
     Guid CatalogItemId,
     string ItemName,
     string? Sku,
-    Guid? CategoryId,
-    string? CategoryName,
     Guid PriceListId,
     string PriceListCode,
     string PriceListName,

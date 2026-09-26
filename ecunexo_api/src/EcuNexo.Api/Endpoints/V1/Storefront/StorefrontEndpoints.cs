@@ -4,7 +4,6 @@ using EcuNexo.Api.Extensions;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
-using EcuNexo.Business.Storefront.Queries.ListStorefrontCategories;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontProducts;
 using EcuNexo.Business.Storefront.Queries.ResolveStorefront;
 
@@ -27,7 +26,6 @@ public static class StorefrontEndpoints
 
         storefront.MapGet("/products", ListProductsAsync);
         storefront.MapGet("/products/{productId:guid}", GetProductAsync);
-        storefront.MapGet("/categories", ListCategoriesAsync);
 
         RouteGroupBuilder publicStorefront = app
             .MapGroup("/api/v{version:apiVersion}/public/storefront")
@@ -65,7 +63,6 @@ public static class StorefrontEndpoints
     private static async Task<IResult> ListProductsAsync(
         Guid tenantId,
         string? search,
-        Guid? categoryId,
         string? sort,
         int? page,
         int? pageSize,
@@ -77,7 +74,6 @@ public static class StorefrontEndpoints
                 new ListStorefrontProductsQuery(
                     tenantId,
                     search,
-                    categoryId,
                     sort,
                     page ?? 1,
                     pageSize ?? 24),
@@ -96,20 +92,6 @@ public static class StorefrontEndpoints
         var result = await sender
             .AskAsync<GetStorefrontProductQuery, StorefrontProductDetailDto>(
                 new GetStorefrontProductQuery(tenantId, productId),
-                ct)
-            .ConfigureAwait(false);
-
-        return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> ListCategoriesAsync(
-        Guid tenantId,
-        ISender sender,
-        CancellationToken ct)
-    {
-        var result = await sender
-            .AskAsync<ListStorefrontCategoriesQuery, IReadOnlyList<StorefrontCategoryDto>>(
-                new ListStorefrontCategoriesQuery(tenantId),
                 ct)
             .ConfigureAwait(false);
 

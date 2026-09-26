@@ -62,7 +62,6 @@ public sealed class EcommerceOrderHandlersTests
             description: null,
             sku: "TEC-RGB-01",
             basePrice: 80m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
 
@@ -126,7 +125,6 @@ public sealed class EcommerceOrderHandlersTests
             description: null,
             sku: "MON-144",
             basePrice: 250m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
 
@@ -295,7 +293,6 @@ public sealed class EcommerceOrderHandlersTests
             description: null,
             sku: "ACE-10W40",
             basePrice: null,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
 
@@ -389,7 +386,6 @@ public sealed class EcommerceOrderHandlersTests
             description: null,
             sku: "TEC-RGB-01",
             basePrice: 80m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
         var stock = Stock.Create(Guid.CreateVersion7(), tenantId, itemId, warehouseId).Value!;

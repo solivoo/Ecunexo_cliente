@@ -18,7 +18,6 @@ public sealed class AddCatalogItemVariantHandlerTests
     private readonly IIdGenerator _idGenerator = Substitute.For<IIdGenerator>();
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly ICatalogItemRepository _items = Substitute.For<ICatalogItemRepository>();
-    private readonly ICategoryRepository _categories = Substitute.For<ICategoryRepository>();
     private readonly IStockRepository _stocks = Substitute.For<IStockRepository>();
     private readonly IWarehouseRepository _warehouses = Substitute.For<IWarehouseRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
@@ -30,7 +29,6 @@ public sealed class AddCatalogItemVariantHandlerTests
             _idGenerator,
             _tenants,
             _items,
-            _categories,
             _stocks,
             _warehouses,
             _unitOfWork);
@@ -51,7 +49,6 @@ public sealed class AddCatalogItemVariantHandlerTests
             "Descripción",
             "MED-01",
             3.00m,
-            null,
             "[{\"name\":\"Talla\",\"values\":[\"35-38\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -123,7 +120,6 @@ public sealed class AddCatalogItemVariantHandlerTests
             "SKU-SIMPLE",
             10.0m,
             null,
-            null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
 
         _items.GetTrackedByIdAsync(tenantId, parentId, Arg.Any<CancellationToken>())
@@ -157,7 +153,6 @@ public sealed class AddCatalogItemVariantHandlerTests
             null,
             "MED-01",
             3.00m,
-            null,
             "[{\"name\":\"Talla\",\"values\":[\"35-38\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -197,7 +192,6 @@ public sealed class AddCatalogItemVariantHandlerTests
             null,
             "MED-01",
             3.00m,
-            null,
             "[{\"name\":\"Talla\",\"values\":[\"35-38\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -247,7 +241,6 @@ public sealed class AddCatalogItemVariantHandlerTests
             null,
             "LIM-01",
             3.00m,
-            null,
             "[{\"name\":\"Talla\",\"values\":[\"S\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;

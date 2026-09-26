@@ -45,13 +45,11 @@ public sealed class PromotionRepository : IPromotionRepository
         Guid tenantId,
         Guid catalogItemId,
         Guid? parentCatalogItemId,
-        Guid? categoryId,
         DateTimeOffset moment,
         CancellationToken ct)
     {
         var itemReference = catalogItemId.ToString();
         var parentReference = parentCatalogItemId?.ToString();
-        var categoryReference = categoryId?.ToString();
 
         return await _db.Promotions.AsNoTracking()
             .Include(p => p.Targets)
@@ -60,12 +58,9 @@ public sealed class PromotionRepository : IPromotionRepository
                 && p.StartsAt <= moment
                 && (p.EndsAt == null || p.EndsAt >= moment)
                 && p.Targets.Any(t =>
-                    ((t.TargetType == PromotionTargetType.Product || t.TargetType == PromotionTargetType.Variant)
+                    (t.TargetType == PromotionTargetType.Product || t.TargetType == PromotionTargetType.Variant)
                         && (t.TargetReference == itemReference
-                            || (parentReference != null && t.TargetReference == parentReference)))
-                    || (t.TargetType == PromotionTargetType.Category
-                        && categoryReference != null
-                        && t.TargetReference == categoryReference)))
+                            || (parentReference != null && t.TargetReference == parentReference))))
             .OrderByDescending(p => p.Priority)
             .ThenBy(p => p.Code)
             .ToListAsync(ct)

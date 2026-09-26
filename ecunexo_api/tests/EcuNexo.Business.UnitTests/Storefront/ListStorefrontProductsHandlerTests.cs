@@ -1,4 +1,3 @@
-using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Storefront;
@@ -17,28 +16,16 @@ public sealed class ListStorefrontProductsHandlerTests
 {
     private readonly IStorefrontCatalogRepository _products = Substitute.For<IStorefrontCatalogRepository>();
     private readonly IStockRepository _stock = Substitute.For<IStockRepository>();
-    private readonly ICategoryRepository _categories = Substitute.For<ICategoryRepository>();
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IPriceListRepository _priceLists = Substitute.For<IPriceListRepository>();
     private readonly IProductPriceRepository _productPrices = Substitute.For<IProductPriceRepository>();
 
-    [Fact(DisplayName = "Lista productos activos con categoría, imagen e inclusión de subcategorías")]
-    public async Task Handle_ListsProductsWithCategoryBranchAndStock()
+    [Fact(DisplayName = "Lista productos activos con imagen y paginación")]
+    public async Task Handle_ListsProductsWithStock()
     {
         var tenantId = Guid.CreateVersion7();
         var tenant = Tenant.Create(tenantId, "Tienda Demo", new ServicePlan("Small", 3, 1)).Value!;
         _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(tenant);
-
-        var rootCategoryId = Guid.CreateVersion7();
-        var childCategoryId = Guid.CreateVersion7();
-        var grandChildCategoryId = Guid.CreateVersion7();
-        _categories.ListActiveByTenantAsync(tenantId, Arg.Any<CancellationToken>())
-            .Returns(new List<Category>
-            {
-                Category.Create(rootCategoryId, tenantId, "Ropa").Value!,
-                Category.Create(childCategoryId, tenantId, "Calcetines", parentId: rootCategoryId).Value!,
-                Category.Create(grandChildCategoryId, tenantId, "Running", parentId: childCategoryId).Value!,
-            });
 
         var itemId = Guid.CreateVersion7();
         var item = CatalogItem.Create(
@@ -49,7 +36,6 @@ public sealed class ListStorefrontProductsHandlerTests
             "Algodón",
             "CALC-01",
             3.5m,
-            childCategoryId,
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
         item.AddImage(
@@ -71,9 +57,9 @@ public sealed class ListStorefrontProductsHandlerTests
             .SumAvailableByItemIdsAsync(tenantId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, decimal> { [itemId] = 4m });
 
-        var sut = new ListStorefrontProductsHandler(_products, _stock, _categories, _tenants, _priceLists, _productPrices);
+        var sut = new ListStorefrontProductsHandler(_products, _stock, _tenants, _priceLists, _productPrices);
         var result = await sut.Handle(
-            new ListStorefrontProductsQuery(tenantId, CategoryId: rootCategoryId),
+            new ListStorefrontProductsQuery(tenantId),
             CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -83,7 +69,6 @@ public sealed class ListStorefrontProductsHandlerTests
 
         var dto = page.Items[0];
         dto.Name.Should().Be("Calcetín Runner");
-        dto.CategoryName.Should().Be("Calcetines");
         dto.ThumbUrl.Should().Be("https://cdn/thumb.webp");
         dto.MediumUrl.Should().Be("https://cdn/medium.webp");
         dto.Price.Should().Be(3.5m);
@@ -93,11 +78,7 @@ public sealed class ListStorefrontProductsHandlerTests
         await _products.Received(1).ListActiveRootsAsync(
             tenantId,
             Arg.Is<StorefrontProductFilter>(f =>
-                f.CategoryIds != null
-                && f.CategoryIds.Contains(rootCategoryId)
-                && f.CategoryIds.Contains(childCategoryId)
-                && f.CategoryIds.Contains(grandChildCategoryId)
-                && f.Page == 1
+                f.Page == 1
                 && f.PageSize == 24),
             Arg.Any<CancellationToken>());
     }
@@ -108,8 +89,6 @@ public sealed class ListStorefrontProductsHandlerTests
         var tenantId = Guid.CreateVersion7();
         _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>())
             .Returns(Tenant.Create(tenantId, "Tienda Demo", new ServicePlan("Small", 3, 1)).Value!);
-        _categories.ListActiveByTenantAsync(tenantId, Arg.Any<CancellationToken>())
-            .Returns(new List<Category>());
 
         var parentId = Guid.CreateVersion7();
         var parent = CatalogItem.CreateMatrixParent(
@@ -120,7 +99,6 @@ public sealed class ListStorefrontProductsHandlerTests
             null,
             "MOD-01",
             5m,
-            null,
             "[{\"name\":\"Tallas\",\"values\":[\"39-41\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -141,7 +119,7 @@ public sealed class ListStorefrontProductsHandlerTests
             .SumAvailableByItemIdsAsync(tenantId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, decimal> { [parentId] = 0m, [variant.Id] = 6m });
 
-        var sut = new ListStorefrontProductsHandler(_products, _stock, _categories, _tenants, _priceLists, _productPrices);
+        var sut = new ListStorefrontProductsHandler(_products, _stock, _tenants, _priceLists, _productPrices);
         var result = await sut.Handle(new ListStorefrontProductsQuery(tenantId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -157,8 +135,6 @@ public sealed class ListStorefrontProductsHandlerTests
         var tenantId = Guid.CreateVersion7();
         _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>())
             .Returns(Tenant.Create(tenantId, "Tienda Demo", new ServicePlan("Small", 3, 1)).Value!);
-        _categories.ListActiveByTenantAsync(tenantId, Arg.Any<CancellationToken>())
-            .Returns(new List<Category>());
 
         var itemId = Guid.CreateVersion7();
         var item = CatalogItem.CreateMatrixParent(
@@ -169,7 +145,6 @@ public sealed class ListStorefrontProductsHandlerTests
             null,
             "CAM-01",
             20m,
-            null,
             "[{\"name\":\"Color\",\"values\":[\"#ffffff\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -205,7 +180,7 @@ public sealed class ListStorefrontProductsHandlerTests
             .SumAvailableByItemIdsAsync(tenantId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, decimal>());
 
-        var sut = new ListStorefrontProductsHandler(_products, _stock, _categories, _tenants, _priceLists, _productPrices);
+        var sut = new ListStorefrontProductsHandler(_products, _stock, _tenants, _priceLists, _productPrices);
         var result = await sut.Handle(new ListStorefrontProductsQuery(tenantId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -218,7 +193,7 @@ public sealed class ListStorefrontProductsHandlerTests
         var tenantId = Guid.CreateVersion7();
         _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns((Tenant?)null);
 
-        var sut = new ListStorefrontProductsHandler(_products, _stock, _categories, _tenants, _priceLists, _productPrices);
+        var sut = new ListStorefrontProductsHandler(_products, _stock, _tenants, _priceLists, _productPrices);
         var result = await sut.Handle(new ListStorefrontProductsQuery(tenantId), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -235,7 +210,7 @@ public sealed class ListStorefrontProductsHandlerTests
         tenant.Cancel();
         _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(tenant);
 
-        var sut = new ListStorefrontProductsHandler(_products, _stock, _categories, _tenants, _priceLists, _productPrices);
+        var sut = new ListStorefrontProductsHandler(_products, _stock, _tenants, _priceLists, _productPrices);
         var result = await sut.Handle(new ListStorefrontProductsQuery(tenantId), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -258,7 +233,7 @@ public sealed class ListStorefrontProductsHandlerTests
             }).Value!;
         _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(tenant);
 
-        var sut = new ListStorefrontProductsHandler(_products, _stock, _categories, _tenants, _priceLists, _productPrices);
+        var sut = new ListStorefrontProductsHandler(_products, _stock, _tenants, _priceLists, _productPrices);
         var result = await sut.Handle(new ListStorefrontProductsQuery(tenantId), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -282,13 +257,11 @@ public sealed class ListStorefrontProductsHandlerTests
                 ModuleEntitlement.FromTier(TenantModuleCodes.Warehousing, ModuleTier.Small),
             }).Value!;
         _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(tenant);
-        _categories.ListActiveByTenantAsync(tenantId, Arg.Any<CancellationToken>())
-            .Returns(new List<Category>());
         _products
             .ListActiveRootsAsync(tenantId, Arg.Any<StorefrontProductFilter>(), Arg.Any<CancellationToken>())
             .Returns((new List<CatalogItem>(), 0));
 
-        var sut = new ListStorefrontProductsHandler(_products, _stock, _categories, _tenants, _priceLists, _productPrices);
+        var sut = new ListStorefrontProductsHandler(_products, _stock, _tenants, _priceLists, _productPrices);
         var result = await sut.Handle(new ListStorefrontProductsQuery(tenantId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -301,8 +274,6 @@ public sealed class ListStorefrontProductsHandlerTests
         var tenantId = Guid.CreateVersion7();
         _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>())
             .Returns(Tenant.Create(tenantId, "Tienda Demo", new ServicePlan("Small", 3, 1)).Value!);
-        _categories.ListActiveByTenantAsync(tenantId, Arg.Any<CancellationToken>())
-            .Returns(new List<Category>());
 
         var itemId = Guid.CreateVersion7();
         var item = CatalogItem.Create(
@@ -313,7 +284,6 @@ public sealed class ListStorefrontProductsHandlerTests
             null,
             "CALC-01",
             3.5m,
-            null,
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
 
@@ -346,7 +316,7 @@ public sealed class ListStorefrontProductsHandlerTests
                 Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, decimal> { [itemId] = 7.25m });
 
-        var sut = new ListStorefrontProductsHandler(_products, _stock, _categories, _tenants, _priceLists, _productPrices);
+        var sut = new ListStorefrontProductsHandler(_products, _stock, _tenants, _priceLists, _productPrices);
         var result = await sut.Handle(new ListStorefrontProductsQuery(tenantId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();

@@ -27,11 +27,6 @@ public sealed class StorefrontCatalogRepository : IStorefrontCatalogRepository
                 && i.Kind == CatalogItemKind.Physical
                 && i.ParentId == null);
 
-        if (filter.CategoryIds is { Count: > 0 } categoryIds)
-        {
-            query = query.Where(i => i.CategoryId != null && categoryIds.Contains(i.CategoryId.Value));
-        }
-
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             var pattern = $"%{filter.Search.Trim()}%";

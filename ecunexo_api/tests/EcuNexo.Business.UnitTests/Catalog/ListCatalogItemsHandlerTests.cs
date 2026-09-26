@@ -8,7 +8,6 @@ namespace EcuNexo.Business.UnitTests.Catalog;
 public sealed class ListCatalogItemsHandlerTests
 {
     private readonly ICatalogItemRepository _items = Substitute.For<ICatalogItemRepository>();
-    private readonly ICategoryRepository _categories = Substitute.For<ICategoryRepository>();
     private readonly IProductTemplateRepository _templates = Substitute.For<IProductTemplateRepository>();
 
     [Fact(DisplayName = "ListCatalogItemsHandler proyecta CustomAttributesJson en la respuesta")]
@@ -26,17 +25,13 @@ public sealed class ListCatalogItemsHandlerTests
             "Descripción",
             "SKU-RUN-01",
             3.5m,
-            null,
             customAttrsJson,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
 
         _items.ListActiveByTenantAsync(tenantId, null, null, Arg.Any<CancellationToken>())
             .Returns(new List<CatalogItem> { item });
 
-        _categories.ListActiveByTenantAsync(tenantId, Arg.Any<CancellationToken>())
-            .Returns(new List<Category>());
-
-        var sut = new ListCatalogItemsHandler(_items, _categories, _templates);
+        var sut = new ListCatalogItemsHandler(_items, _templates);
         var query = new ListCatalogItemsQuery(tenantId);
 
         var result = await sut.Handle(query, CancellationToken.None);

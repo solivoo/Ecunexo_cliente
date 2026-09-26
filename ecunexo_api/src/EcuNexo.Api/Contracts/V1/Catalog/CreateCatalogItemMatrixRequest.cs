@@ -6,7 +6,6 @@ public sealed record CreateCatalogItemMatrixRequest(
     string? Description,
     string? ModelCode,
     decimal? BasePrice,
-    Guid? CategoryId,
     string VariantDimensionsJson,
     IReadOnlyList<CreateVariantChildRequest> Variants,
     string? CustomAttributesJson = null,

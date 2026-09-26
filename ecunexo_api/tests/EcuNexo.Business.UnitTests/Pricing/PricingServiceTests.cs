@@ -265,7 +265,6 @@ public sealed class PricingServiceTests
             description: null,
             sku: $"SKU-{Guid.NewGuid():N}"[..12],
             basePrice: null,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
 
@@ -278,7 +277,6 @@ public sealed class PricingServiceTests
             description: null,
             modelCode: $"CAM-{Guid.NewGuid():N}"[..10],
             basePrice: null,
-            categoryId: null,
             variantDimensionsJson: "[{\"name\":\"Talla\",\"values\":[\"S\",\"M\"]}]",
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;

@@ -10,7 +10,6 @@ public sealed record CreateCatalogItemMatrixCommand(
     string? Description,
     string? ModelCode,
     decimal? BasePrice,
-    Guid? CategoryId,
     string VariantDimensionsJson,
     IReadOnlyList<CreateVariantChildDto> Variants,
     string? CustomAttributesJson = null,

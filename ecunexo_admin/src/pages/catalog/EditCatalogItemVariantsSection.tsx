@@ -340,7 +340,6 @@ export function EditCatalogItemVariantsSection({
           customAttributesJson: v.customAttributesJson,
           status: v.status,
           kind: parentItem.kind,
-          categoryId: parentItem.categoryId,
           familyId: parentItem.familyId ?? null,
           hierarchyPathJson: parentItem.hierarchyPathJson ?? null,
         })
@@ -440,7 +439,6 @@ export function EditCatalogItemVariantsSection({
         name: colorsModalVariant.name,
         sku: colorsModalVariant.sku,
         basePrice: colorsModalVariant.basePrice,
-        categoryId: parentItem.categoryId,
         customAttributesJson: JSON.stringify(attrs),
         familyId: parentItem.familyId ?? null,
         hierarchyPathJson: parentItem.hierarchyPathJson ?? null,

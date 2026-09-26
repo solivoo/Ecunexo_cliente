@@ -1,5 +1,4 @@
 using EcuNexo.Business.Abstractions;
-using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Tenancy;
@@ -15,7 +14,6 @@ public sealed class ListStorefrontProductsHandler
 
     private readonly IStorefrontCatalogRepository _products;
     private readonly IStockRepository _stock;
-    private readonly ICategoryRepository _categories;
     private readonly ITenantRepository _tenants;
     private readonly IPriceListRepository _priceLists;
     private readonly IProductPriceRepository _productPrices;
@@ -23,14 +21,12 @@ public sealed class ListStorefrontProductsHandler
     public ListStorefrontProductsHandler(
         IStorefrontCatalogRepository products,
         IStockRepository stock,
-        ICategoryRepository categories,
         ITenantRepository tenants,
         IPriceListRepository priceLists,
         IProductPriceRepository productPrices)
     {
         _products = products;
         _stock = stock;
-        _categories = categories;
         _tenants = tenants;
         _priceLists = priceLists;
         _productPrices = productPrices;
@@ -51,19 +47,11 @@ public sealed class ListStorefrontProductsHandler
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
 
-        var categories = await _categories
-            .ListActiveByTenantAsync(query.TenantId, ct)
-            .ConfigureAwait(false);
-        var categoryIds = query.CategoryId is { } categoryId
-            ? ResolveCategoryBranch(categories, categoryId)
-            : null;
-
         var defaultList = await _priceLists.GetDefaultAsync(query.TenantId, ct).ConfigureAwait(false);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var filter = new StorefrontProductFilter(
             query.Search,
-            categoryIds,
             query.Sort,
             page,
             pageSize,
@@ -74,7 +62,6 @@ public sealed class ListStorefrontProductsHandler
             .ListActiveRootsAsync(query.TenantId, filter, ct)
             .ConfigureAwait(false);
 
-        var categoryNames = categories.ToDictionary(c => c.Id, c => c.Name);
         var availability = await LoadAvailabilityAsync(query.TenantId, items, ct).ConfigureAwait(false);
 
         var resolvedPrices = defaultList is null
@@ -103,10 +90,6 @@ public sealed class ListStorefrontProductsHandler
                     item.Name,
                     item.Description,
                     price,
-                    item.CategoryId,
-                    item.CategoryId is { } cid && categoryNames.TryGetValue(cid, out var categoryName)
-                        ? categoryName
-                        : null,
                     image?.ThumbUrl,
                     image?.MediumUrl,
                     available > 0m,
@@ -117,43 +100,6 @@ public sealed class ListStorefrontProductsHandler
             .ToList();
 
         return Result.Success(new StorefrontProductPageDto(dtos, totalCount, page, pageSize));
-    }
-
-    private static HashSet<Guid> ResolveCategoryBranch(
-        IReadOnlyList<Category> categories,
-        Guid categoryId)
-    {
-        var branch = new HashSet<Guid> { categoryId };
-        if (categories.All(c => c.Id != categoryId))
-        {
-            return branch;
-        }
-
-        var childrenByParent = categories
-            .Where(c => c.ParentId.HasValue)
-            .GroupBy(c => c.ParentId!.Value)
-            .ToDictionary(g => g.Key, g => g.Select(c => c.Id).ToList());
-
-        var pending = new Queue<Guid>();
-        pending.Enqueue(categoryId);
-        while (pending.Count > 0)
-        {
-            var current = pending.Dequeue();
-            if (!childrenByParent.TryGetValue(current, out var children))
-            {
-                continue;
-            }
-
-            foreach (var child in children)
-            {
-                if (branch.Add(child))
-                {
-                    pending.Enqueue(child);
-                }
-            }
-        }
-
-        return branch;
     }
 
     private async Task<IReadOnlyDictionary<Guid, decimal>> LoadAvailabilityAsync(

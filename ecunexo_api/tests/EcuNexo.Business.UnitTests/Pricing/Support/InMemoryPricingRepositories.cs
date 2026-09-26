@@ -146,8 +146,6 @@ internal sealed class InMemoryProductPriceRepository : IProductPriceRepository
                 p.CatalogItemId,
                 "Producto",
                 null,
-                null,
-                null,
                 p.PriceListId,
                 "LISTA",
                 "Lista",
@@ -194,13 +192,11 @@ internal sealed class InMemoryPromotionRepository : IPromotionRepository
         Guid tenantId,
         Guid catalogItemId,
         Guid? parentCatalogItemId,
-        Guid? categoryId,
         DateTimeOffset moment,
         CancellationToken ct)
     {
         var itemReference = catalogItemId.ToString();
         var parentReference = parentCatalogItemId?.ToString();
-        var categoryReference = categoryId?.ToString();
 
         IReadOnlyList<Promotion> result = _items
             .Where(p => p.TenantId == tenantId
@@ -208,12 +204,9 @@ internal sealed class InMemoryPromotionRepository : IPromotionRepository
                 && p.StartsAt <= moment
                 && (p.EndsAt is null || p.EndsAt >= moment)
                 && p.Targets.Any(t =>
-                    ((t.TargetType == PromotionTargetType.Product || t.TargetType == PromotionTargetType.Variant)
+                    (t.TargetType == PromotionTargetType.Product || t.TargetType == PromotionTargetType.Variant)
                         && (t.TargetReference == itemReference
-                            || (parentReference is not null && t.TargetReference == parentReference)))
-                    || (t.TargetType == PromotionTargetType.Category
-                        && categoryReference is not null
-                        && t.TargetReference == categoryReference)))
+                            || (parentReference is not null && t.TargetReference == parentReference))))
             .OrderByDescending(p => p.Priority)
             .ThenBy(p => p.Code)
             .ToList();

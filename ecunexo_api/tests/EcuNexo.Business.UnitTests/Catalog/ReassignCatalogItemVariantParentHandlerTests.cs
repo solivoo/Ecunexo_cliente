@@ -33,7 +33,6 @@ public sealed class ReassignCatalogItemVariantParentHandlerTests
             null,
             "CAM-01",
             15m,
-            null,
             """[{"name":"Talla","values":["S","M"]}]""",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -46,7 +45,6 @@ public sealed class ReassignCatalogItemVariantParentHandlerTests
             null,
             "CAM-02",
             18m,
-            null,
             """[{"name":"Talla","values":["S","M"]}]""",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -105,7 +103,6 @@ public sealed class ReassignCatalogItemVariantParentHandlerTests
             null,
             "PCK-01",
             10m,
-            null,
             """[{"name":"Pack","values":["Pack 3"]}]""",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -180,7 +177,6 @@ public sealed class ReassignCatalogItemVariantParentHandlerTests
             null,
             "PAR-01",
             10m,
-            null,
             """[{"name":"Talla","values":["S"]}]""",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;

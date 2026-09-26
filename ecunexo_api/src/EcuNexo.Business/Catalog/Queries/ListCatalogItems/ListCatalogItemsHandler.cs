@@ -7,16 +7,13 @@ public sealed class ListCatalogItemsHandler
     : IQueryHandler<ListCatalogItemsQuery, IReadOnlyList<CatalogItemListItemResponse>>
 {
     private readonly ICatalogItemRepository _items;
-    private readonly ICategoryRepository _categories;
     private readonly IProductTemplateRepository _templates;
 
     public ListCatalogItemsHandler(
         ICatalogItemRepository items,
-        ICategoryRepository categories,
         IProductTemplateRepository templates)
     {
         _items = items;
-        _categories = categories;
         _templates = templates;
     }
 
@@ -29,9 +26,6 @@ public sealed class ListCatalogItemsHandler
         {
             list = list.Where(i => i.ParentId == null).ToList();
         }
-
-        var categories = await _categories.ListActiveByTenantAsync(query.TenantId, ct).ConfigureAwait(false);
-        var names = categories.ToDictionary(c => c.Id, c => c.Name);
 
         Dictionary<Guid, string> familyNames = [];
         if (list.Any(i => i.FamilyId.HasValue))
@@ -51,8 +45,6 @@ public sealed class ListCatalogItemsHandler
                     i.Description,
                     i.Sku,
                     i.BasePrice,
-                    i.CategoryId,
-                    i.CategoryId is { } cid && names.TryGetValue(cid, out var n) ? n : null,
                     i.Status,
                     i.CreatedAt,
                     mainImg?.ThumbUrl,

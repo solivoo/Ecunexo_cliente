@@ -21,7 +21,7 @@ test.describe('Gestión de Precios UI — Listas, Precios y Simulador', () => {
     await expect(page.getByLabel('Resumen de listas')).toBeVisible()
   })
 
-  test('Precios de productos: muestra filtros por lista y categoría', async ({ page }) => {
+  test('Precios de productos: muestra filtros por lista y vigencia', async ({ page }) => {
     const session = await readPersistedSession(page)
     test.skip(!hasRoute(session.routes, '/catalogo/precios'), 'Este plan no incluye Gestión de precios.')
 
@@ -31,7 +31,7 @@ test.describe('Gestión de Precios UI — Listas, Precios y Simulador', () => {
     })
     await expect(page.getByLabel('Resumen de precios')).toBeVisible()
     await expect(page.getByLabel('Filtrar por lista')).toBeVisible()
-    await expect(page.getByLabel('Filtrar por categoría')).toBeVisible()
+    await expect(page.getByLabel('Filtrar por vigencia')).toBeVisible()
   })
 
   test('Simulador: resuelve un precio con el motor', async ({ page }) => {

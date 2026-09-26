@@ -4,7 +4,6 @@
 import { expect, test } from '@playwright/test'
 import {
   ENSAYO_LOCAL,
-  ensureFerreteriaCategory,
   ensureLocalWarehouse,
   ensureOpeningReceipt,
   ensureTornilloItem,
@@ -26,7 +25,6 @@ test.describe('Local — facturación', () => {
 
   test('emitir abre y el SKU físico está en el selector (sin SRI)', async ({ page }) => {
     await ensureLocalWarehouse(page)
-    await ensureFerreteriaCategory(page)
     await ensureTornilloItem(page)
     await ensureOpeningReceipt(page)
 

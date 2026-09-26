@@ -6,8 +6,6 @@ export const ENSAYO_TALLER = {
   mainWarehouse: 'Principal',
   branchWarehouse: 'Patio',
   branchCode: '002',
-  categoryParts: 'Repuestos',
-  categoryServices: 'Servicios',
   serviceName: 'Diagnóstico',
   partName: 'Filtro de aceite',
   sku: 'FIL-EJE-01',
@@ -58,38 +56,13 @@ export async function ensureTallerWarehouses(page: Page): Promise<void> {
   ).toBeVisible({ timeout: 20_000 })
 }
 
-async function ensureCategory(page: Page, name: string, description: string): Promise<void> {
-  await page.goto('/catalogo/categorias')
-  await expect(page.getByLabel('Resumen de categorías')).toBeVisible({ timeout: 20_000 })
-  const inGrid = page.locator('.ecu-companies-grid').getByText(name, { exact: true })
-  if (await inGrid.first().isVisible().catch(() => false)) return
-
-  await page.goto('/catalogo/categorias/nueva')
-  await expect(page.locator('#cc-name')).toBeVisible({ timeout: 20_000 })
-  await page.locator('#cc-name').fill(name)
-  await page.locator('#cc-desc').fill(description)
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
-  await expect(page).toHaveURL(/\/catalogo\/categorias/, { timeout: 20_000 })
-  await expect(page.locator('.ecu-companies-grid').getByText(name, { exact: true }).first()).toBeVisible({
-    timeout: 20_000,
-  })
-}
-
 export async function ensureTallerCatalog(page: Page): Promise<void> {
-  await ensureCategory(page, ENSAYO_TALLER.categoryServices, 'Mano de obra — ensayo Taller')
-  await ensureCategory(page, ENSAYO_TALLER.categoryParts, 'Piezas y filtros — ensayo Taller')
-
   await page.goto('/catalogo/items')
   await expect(page.getByLabel('Resumen de catálogo')).toBeVisible({ timeout: 20_000 })
 
   if (!(await page.getByText(ENSAYO_TALLER.serviceName, { exact: true }).first().isVisible().catch(() => false))) {
     await page.goto('/catalogo/items/nuevo')
     await expect(page.locator('#ci-name')).toBeVisible({ timeout: 20_000 })
-    await page.locator('#ci-cat').click()
-    await expect(page.getByRole('option', { name: ENSAYO_TALLER.categoryServices })).toBeVisible({
-      timeout: 15_000,
-    })
-    await page.getByRole('option', { name: ENSAYO_TALLER.categoryServices }).click()
     await page.locator('#ci-name').fill(ENSAYO_TALLER.serviceName)
     await page.locator('#ci-price').fill('25.00')
     await page.getByRole('button', { name: 'Guardar', exact: true }).click()
@@ -103,11 +76,6 @@ export async function ensureTallerCatalog(page: Page): Promise<void> {
     await page.goto('/catalogo/items/nuevo')
     await expect(page.locator('#ci-name')).toBeVisible({ timeout: 20_000 })
     await selectGluOption(page, 'ci-kind', 'Físico')
-    await page.locator('#ci-cat').click()
-    await expect(page.getByRole('option', { name: ENSAYO_TALLER.categoryParts })).toBeVisible({
-      timeout: 15_000,
-    })
-    await page.getByRole('option', { name: ENSAYO_TALLER.categoryParts }).click()
     await page.locator('#ci-name').fill(ENSAYO_TALLER.partName)
     await page.locator('#ci-sku').fill(ENSAYO_TALLER.sku)
     await page.locator('#ci-price').fill('8.50')

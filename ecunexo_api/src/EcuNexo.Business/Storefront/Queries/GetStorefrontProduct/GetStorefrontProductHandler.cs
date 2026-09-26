@@ -115,8 +115,6 @@ public sealed class GetStorefrontProductHandler
             item.Sku,
             item.Description,
             productPrice,
-            item.CategoryId,
-            item.CategoryName,
             totalAvailable > 0m,
             totalAvailable,
             item.Images.Select(MapImage).ToList(),

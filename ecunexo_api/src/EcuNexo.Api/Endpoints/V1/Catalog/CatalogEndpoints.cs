@@ -8,7 +8,6 @@ using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItemMatrix;
 using EcuNexo.Business.Catalog.Commands.AddCatalogItemVariant;
-using EcuNexo.Business.Catalog.Commands.CreateCategory;
 using EcuNexo.Business.Catalog.Commands.CreateProductTemplate;
 using EcuNexo.Business.Catalog.Commands.CreateVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.DeleteCatalogItemImage;
@@ -18,17 +17,14 @@ using EcuNexo.Business.Catalog.Commands.ReassignCatalogItemVariantParent;
 using EcuNexo.Business.Catalog.Commands.ReorderCatalogItemImages;
 using EcuNexo.Business.Catalog.Commands.SetCatalogItemMainImage;
 using EcuNexo.Business.Catalog.Commands.SoftDeleteCatalogItem;
-using EcuNexo.Business.Catalog.Commands.SoftDeleteCategory;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItemImageAltText;
-using EcuNexo.Business.Catalog.Commands.UpdateCategory;
 using EcuNexo.Business.Catalog.Commands.UpdateProductTemplate;
 using EcuNexo.Business.Catalog.Commands.UpdateVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.UploadCatalogItemImage;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
 using EcuNexo.Business.Catalog.Queries.GetProductTemplateById;
 using EcuNexo.Business.Catalog.Queries.ListCatalogItems;
-using EcuNexo.Business.Catalog.Queries.ListCategories;
 using EcuNexo.Business.Catalog.Queries.ListProductTemplates;
 using EcuNexo.Business.Catalog.Queries.ListVariantDimensionTemplates;
 using EcuNexo.Core.Catalog;
@@ -44,22 +40,6 @@ public static class CatalogEndpoints
             .HasApiVersion(new ApiVersion(1, 0))
             .ReportApiVersions()
             .Build();
-
-        RouteGroupBuilder categories = app
-            .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/categories")
-            .WithApiVersionSet(versionSet)
-            .WithTags("Catalog")
-            .RequireAuthorization();
-
-        categories.MapPost("/", CreateCategoryAsync)
-            .AddEndpointFilter(PermissionFilters.Require("catalog.category.manage"));
-        categories.MapPut("/{categoryId:guid}", UpdateCategoryAsync)
-            .AddEndpointFilter(PermissionFilters.Require("catalog.category.manage"));
-        categories.MapDelete("/{categoryId:guid}", SoftDeleteCategoryAsync)
-            .AddEndpointFilter(PermissionFilters.Require("catalog.category.manage"));
-        categories.MapGet("/", ListCategoriesAsync)
-            .AddEndpointFilter(
-                PermissionFilters.RequireAny("catalog.item.read", "catalog.category.manage"));
 
         RouteGroupBuilder items = app
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/items")
@@ -138,68 +118,6 @@ public static class CatalogEndpoints
         return app;
     }
 
-    private static async Task<IResult> CreateCategoryAsync(
-        Guid tenantId,
-        CreateCategoryRequest body,
-        ISender sender,
-        CancellationToken ct)
-    {
-        var result = await sender
-            .SendAsync<CreateCategoryCommand, CreateCategoryResponse>(body.ToCommand(tenantId), ct)
-            .ConfigureAwait(false);
-        if (!result.IsSuccess)
-        {
-            return result.ToHttpResult();
-        }
-
-        var value = result.Value!;
-        return Results.Created(
-            $"/api/v1/tenants/{value.TenantId}/catalog/categories/{value.CategoryId}",
-            value);
-    }
-
-    private static async Task<IResult> ListCategoriesAsync(
-        Guid tenantId,
-        ISender sender,
-        CancellationToken ct)
-    {
-        var result = await sender
-            .AskAsync<ListCategoriesQuery, IReadOnlyList<CategoryListItemResponse>>(
-                new ListCategoriesQuery(tenantId),
-                ct)
-            .ConfigureAwait(false);
-        return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> UpdateCategoryAsync(
-        Guid tenantId,
-        Guid categoryId,
-        UpdateCategoryRequest body,
-        ISender sender,
-        CancellationToken ct)
-    {
-        var result = await sender
-            .SendAsync<UpdateCategoryCommand, UpdateCategoryResponse>(
-                body.ToCommand(tenantId, categoryId),
-                ct)
-            .ConfigureAwait(false);
-        return result.ToHttpResult();
-    }
-
-    private static async Task<IResult> SoftDeleteCategoryAsync(
-        Guid tenantId,
-        Guid categoryId,
-        ISender sender,
-        CancellationToken ct)
-    {
-        var result = await sender
-            .SendAsync<SoftDeleteCategoryCommand, SoftDeleteCategoryResponse>(
-                new SoftDeleteCategoryCommand(tenantId, categoryId),
-                ct)
-            .ConfigureAwait(false);
-        return result.ToHttpResult();
-    }
-
     private static async Task<IResult> CreateItemAsync(
         Guid tenantId,
         CreateCatalogItemRequest body,
@@ -242,7 +160,6 @@ public static class CatalogEndpoints
             body.Description,
             body.ModelCode,
             body.BasePrice,
-            body.CategoryId,
             body.VariantDimensionsJson,
             variants,
             body.CustomAttributesJson,

@@ -10,7 +10,6 @@ public sealed record UpdateCatalogItemCommand(
     string? Description = null,
     string? Sku = null,
     decimal? BasePrice = null,
-    Guid? CategoryId = null,
     string? CustomAttributesJson = null,
     CatalogItemStatus? Status = null,
     CatalogItemKind? Kind = null,

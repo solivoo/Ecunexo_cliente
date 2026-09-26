@@ -5,13 +5,9 @@ import type {
   CatalogItemKind,
   CatalogItemListItemDto,
   CatalogItemStatus,
-  CategoryListItemDto,
   CreateCatalogItemBody,
   CreateCatalogItemResponseDto,
-  CreateCategoryBody,
-  CreateCategoryResponseDto,
   UpdateCatalogItemBody,
-  UpdateCategoryBody,
   AddCatalogItemVariantBody,
   AddCatalogItemVariantResponseDto,
   ProductTemplateDto,
@@ -21,39 +17,6 @@ import type {
   ReassignCatalogItemVariantParentBody,
   ReassignCatalogItemVariantParentResponseDto,
 } from '@/types/catalogApi'
-
-export async function listCatalogCategories(tenantId: string): Promise<CategoryListItemDto[]> {
-  const { data } = await api.get<CategoryListItemDto[]>(
-    `/api/v1/tenants/${tenantId}/catalog/categories`
-  )
-  return data
-}
-
-export async function createCatalogCategory(
-  tenantId: string,
-  body: CreateCategoryBody
-): Promise<CreateCategoryResponseDto> {
-  const { data } = await api.post<CreateCategoryResponseDto>(
-    `/api/v1/tenants/${tenantId}/catalog/categories`,
-    body
-  )
-  return data
-}
-
-export async function updateCatalogCategory(
-  tenantId: string,
-  categoryId: string,
-  body: UpdateCategoryBody
-): Promise<void> {
-  await api.put(`/api/v1/tenants/${tenantId}/catalog/categories/${categoryId}`, body)
-}
-
-export async function softDeleteCatalogCategory(
-  tenantId: string,
-  categoryId: string
-): Promise<void> {
-  await api.delete(`/api/v1/tenants/${tenantId}/catalog/categories/${categoryId}`)
-}
 
 export async function listCatalogItems(
   tenantId: string,

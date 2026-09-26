@@ -14,8 +14,6 @@ public sealed record StorefrontProductListItemDto(
     string Name,
     string? Description,
     decimal? Price,
-    Guid? CategoryId,
-    string? CategoryName,
     string? ThumbUrl,
     string? MediumUrl,
     bool InStock,
@@ -30,8 +28,6 @@ public sealed record StorefrontProductDetailDto(
     string? Sku,
     string? Description,
     decimal? Price,
-    Guid? CategoryId,
-    string? CategoryName,
     bool InStock,
     decimal AvailableQuantity,
     IReadOnlyList<StorefrontImageDto> Images,
@@ -80,9 +76,3 @@ public sealed record StorefrontAttributeDto(
     string Level,
     string Name,
     string Value);
-
-public sealed record StorefrontCategoryDto(
-    Guid Id,
-    string Name,
-    string? Description,
-    Guid? ParentId);

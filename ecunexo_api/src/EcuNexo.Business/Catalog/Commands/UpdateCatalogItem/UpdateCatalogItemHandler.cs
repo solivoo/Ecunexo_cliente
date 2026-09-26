@@ -11,7 +11,6 @@ namespace EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
 public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItemCommand, UpdateCatalogItemResponse>
 {
     private readonly IValidator<UpdateCatalogItemCommand> _validator;
-    private readonly ICategoryRepository _categories;
     private readonly ICatalogItemRepository _items;
     private readonly ISysSettingRepository _settings;
     private readonly IProductTemplateRepository _templates;
@@ -22,7 +21,6 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
 
     public UpdateCatalogItemHandler(
         IValidator<UpdateCatalogItemCommand> validator,
-        ICategoryRepository categories,
         ICatalogItemRepository items,
         ISysSettingRepository settings,
         IProductTemplateRepository templates,
@@ -32,7 +30,6 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
         IUnitOfWork unitOfWork)
     {
         _validator = validator;
-        _categories = categories;
         _items = items;
         _settings = settings;
         _templates = templates;
@@ -62,19 +59,6 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
         }
 
         var schemaJson = CatalogAttributeSchema.EmptyArrayJson;
-        if (command.CategoryId is { } categoryId)
-        {
-            var category = await _categories.GetActiveByIdAsync(command.TenantId, categoryId, ct)
-                .ConfigureAwait(false);
-            if (category is null)
-            {
-                return Result.Failure<UpdateCatalogItemResponse>(
-                    new Error("catalog.item.category.not_found", "La categoría no existe.", ErrorType.NotFound));
-            }
-
-            schemaJson = category.AttributeSchemaJson;
-        }
-
         if (command.FamilyId is { } familyId)
         {
             var family = await _templates.GetByIdAsync(familyId, command.TenantId, ct).ConfigureAwait(false);
@@ -133,7 +117,6 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
             command.Description,
             command.Sku,
             command.BasePrice,
-            command.CategoryId,
             command.CustomAttributesJson,
             schemaJson,
             updatedBy: null,

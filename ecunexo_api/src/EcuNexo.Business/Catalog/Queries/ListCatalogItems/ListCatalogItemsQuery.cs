@@ -17,8 +17,6 @@ public sealed record CatalogItemListItemResponse(
     string? Description,
     string? Sku,
     decimal? BasePrice,
-    Guid? CategoryId,
-    string? CategoryName,
     CatalogItemStatus Status,
     DateTimeOffset CreatedAt,
     string? MainImageThumbUrl = null,

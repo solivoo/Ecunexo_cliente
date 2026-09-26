@@ -361,7 +361,7 @@ export function CatalogItemsGrid({
       searchPosition="left"
       searchWidth={280}
       searchPlaceholder="Buscar nombre o SKU…"
-      searchKeys={['name', 'sku', 'categoryName', 'description']}
+      searchKeys={['name', 'sku', 'description']}
       toolbarRight={toolbarRight}
       paging={paging}
       onPageChange={onPageChange}

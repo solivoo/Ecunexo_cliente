@@ -14,7 +14,6 @@ public interface IPromotionRepository
         Guid tenantId,
         Guid catalogItemId,
         Guid? parentCatalogItemId,
-        Guid? categoryId,
         DateTimeOffset moment,
         CancellationToken ct);
 

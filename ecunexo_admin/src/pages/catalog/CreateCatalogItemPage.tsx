@@ -334,7 +334,6 @@ export function CreateCatalogItemPage() {
             description: description.trim() || null,
             modelCode: null,
             basePrice: null,
-            categoryId: null,
             variantDimensionsJson: matrixData.variantDimensionsJson,
             variants: matrixData.variants,
             customAttributesJson:
@@ -423,7 +422,6 @@ export function CreateCatalogItemPage() {
             description: description.trim() || null,
             sku: sku.trim() || null,
             basePrice: null,
-            categoryId: null,
             customAttributesJson:
               customAttributes.length > 0 ? serializeCustomAttributes(customAttributes, []) : null,
             familyId,

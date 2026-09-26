@@ -57,7 +57,6 @@ public static class DependencyInjection
         services.AddScoped<ISysSettingRepository, SysSettingRepository>();
         services.AddScoped<IMenuItemRepository, MenuItemRepository>();
         services.AddScoped<IModuleUsageCounterRepository, ModuleUsageCounterRepository>();
-        services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<ICatalogItemRepository, CatalogItemRepository>();
         services.AddScoped<IStorefrontCatalogRepository, StorefrontCatalogRepository>();
         services.AddScoped<IStorefrontDomainRepository, StorefrontDomainRepository>();

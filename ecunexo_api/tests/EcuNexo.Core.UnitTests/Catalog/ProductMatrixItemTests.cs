@@ -20,7 +20,6 @@ public sealed class ProductMatrixItemTests
             "Calcetines de algodón para deporte",
             modelCode: "CALC-DEP",
             basePrice: 3.50m,
-            categoryId: null,
             variantDimensionsJson: dimensionsJson,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson);
@@ -49,7 +48,6 @@ public sealed class ProductMatrixItemTests
             description: null,
             modelCode: null,
             basePrice: 12.00m,
-            categoryId: null,
             variantDimensionsJson: dimensionsJson,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson);
@@ -74,7 +72,6 @@ public sealed class ProductMatrixItemTests
             "Descripción compartida",
             modelCode: "CALC-01",
             basePrice: 3.50m,
-            categoryId: null,
             variantDimensionsJson: dimensionsJson,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson);
@@ -114,7 +111,6 @@ public sealed class ProductMatrixItemTests
             description: null,
             sku: "SKU-NORM",
             basePrice: 5.0m,
-            categoryId: null,
             customAttributesJson: null,
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson);
 
@@ -146,7 +142,6 @@ public sealed class ProductMatrixItemTests
             null,
             "CALC",
             3.0m,
-            null,
             "[{\"name\": \"Talla\", \"values\": [\"M\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson);
@@ -191,7 +186,6 @@ public sealed class ProductMatrixItemTests
             null,
             "CAM-01",
             25.00m,
-            null,
             "[{\"name\": \"Talla\", \"values\": [\"S\", \"XL\"]}]",
             null,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -234,7 +228,6 @@ public sealed class ProductMatrixItemTests
             null,
             "NIK-001",
             15.00m,
-            null,
             "[{\"name\": \"Caña\", \"values\": [\"Corta\"]}]",
             parentAttributes,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -269,7 +262,6 @@ public sealed class ProductMatrixItemTests
             null,
             "ADI-001",
             12.00m,
-            null,
             "[{\"name\": \"Caña\", \"values\": [\"Larga\"]}]",
             parentAttributes,
             CatalogAttributeSchema.EmptyArrayJson).Value!;
@@ -389,7 +381,6 @@ public sealed class ProductMatrixItemTests
             null,
             "NIK-FAM-01",
             12.00m,
-            null,
             """[{"name":"Talla","values":["S","M"]}]""",
             """{"material":"Algodón"}""",
             CatalogAttributeSchema.EmptyArrayJson,

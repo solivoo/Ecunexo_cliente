@@ -10,7 +10,6 @@ public sealed record CreateCatalogItemCommand(
     string? Description = null,
     string? Sku = null,
     decimal? BasePrice = null,
-    Guid? CategoryId = null,
     string? CustomAttributesJson = null,
     Guid? FamilyId = null,
     string? HierarchyPathJson = null) : ICommand<CreateCatalogItemResponse>;

@@ -473,7 +473,6 @@ export function EditCatalogItemPage() {
           description: description.trim() || null,
           sku: sku.trim() || null,
           basePrice: null,
-          categoryId: null,
           customAttributesJson: serializeCustomAttributes(customAttributes, tags),
           status: Number(status) as typeof CatalogItemStatus.Active,
           familyId: item.familyId ?? null,
@@ -581,7 +580,6 @@ export function EditCatalogItemPage() {
                   ].join(' · ')
                 : [
                     item.kind === CatalogItemKind.Physical ? 'Físico' : 'Servicio',
-                    item.categoryName ?? 'Sin categoría',
                     item.familyName ? `Plantilla: ${item.familyName}` : null,
                     item.sku ? `SKU ${item.sku}` : null,
                   ]
