@@ -32,16 +32,16 @@ public sealed class ModuleEntitlementGuard : IModuleEntitlementGuard
 
         var entitlements = tenant.ModuleEntitlements;
 
-        if (ModulePermissionFilter.IsModuleEnabled(productModule, tenant.EnabledModuleCodes, entitlements))
+        if (!ModulePermissionFilter.IsModuleEnabled(productModule, tenant.EnabledModuleCodes, entitlements))
         {
-            return Result.Success();
+            return Result.Failure(
+                new Error(
+                    "module.not_entitled",
+                    $"El módulo «{productModule}» no está contratado para esta organización.",
+                    ErrorType.Forbidden));
         }
 
-        return Result.Failure(
-            new Error(
-                "module.not_entitled",
-                $"El módulo «{productModule}» no está contratado para esta organización.",
-                ErrorType.Forbidden));
+        return EvaluateFeatureFlag(tenant, permissionCode);
     }
 
     public async Task<Result> RequireModuleForPermissionWithTierAsync(
@@ -96,6 +96,27 @@ public sealed class ModuleEntitlementGuard : IModuleEntitlementGuard
                     ErrorType.Forbidden));
         }
 
-        return Result.Success();
+        return EvaluateFeatureFlag(tenant, permissionCode);
+    }
+
+    /// <summary>Bloquea permisos cuyo ítem de menú depende de una opción de plan (límite 0/1).</summary>
+    private static Result EvaluateFeatureFlag(Tenant tenant, string permissionCode)
+    {
+        if (!FeatureFlagPermissionCatalog.TryResolve(permissionCode, out var flag))
+        {
+            return Result.Success();
+        }
+
+        var value = tenant.GetModuleLimit(flag.ModuleCode, flag.LimitKey);
+        if (value is null || value > 0)
+        {
+            return Result.Success();
+        }
+
+        return Result.Failure(
+            new Error(
+                "feature.not_entitled",
+                "La opción no está incluida en tu plan.",
+                ErrorType.Forbidden));
     }
 }
