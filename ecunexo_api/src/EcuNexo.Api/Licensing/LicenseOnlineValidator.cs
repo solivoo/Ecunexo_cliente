@@ -81,6 +81,60 @@ public sealed class LicenseOnlineValidator : ILicenseOnlineValidator
         bool IsAllowed,
         DateTimeOffset? RevokedAtUtc);
 
+    public async Task<Result<Unit>> ReportTenantsAsync(
+        Guid grantId,
+        IReadOnlyList<LicenseTenantRef> tenants,
+        CancellationToken ct)
+    {
+        if (!IsConfigured)
+        {
+            return Result.Failure<Unit>(
+                new Error("license.online.not_configured", "Validación online no configurada.", ErrorType.Unexpected));
+        }
+
+        if (tenants.Count == 0)
+        {
+            return Unit.Value;
+        }
+
+        var baseUrl = _options.PlatformApiBaseUrl!.TrimEnd('/');
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{baseUrl}/api/v1/platform/licenses/{grantId}/tenants")
+        {
+            Content = JsonContent.Create(new ReportTenantsDto(
+                tenants.Select(t => new ReportTenantDto(t.TenantId, t.Name)).ToList())),
+        };
+        if (!string.IsNullOrWhiteSpace(_options.PlatformApiKey))
+        {
+            request.Headers.TryAddWithoutValidation("X-Platform-Validation-Key", _options.PlatformApiKey);
+        }
+
+        try
+        {
+            using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return Result.Failure<Unit>(
+                    new Error(
+                        "license.online.tenants_report",
+                        "No se pudieron reportar las empresas a la plataforma de licencias.",
+                        ErrorType.Unexpected));
+            }
+
+            return Unit.Value;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return Result.Failure<Unit>(
+                new Error("license.online.network", "No hay conexión con el servicio de licencias.", ErrorType.Unexpected));
+        }
+    }
+
+    private sealed record ReportTenantsDto(IReadOnlyList<ReportTenantDto> Tenants);
+
+    private sealed record ReportTenantDto(Guid TenantId, string Name);
+
     public async Task<Result<LicenseRemoteEntitlements>> GetEntitlementsAsync(
         Guid grantId,
         CancellationToken ct)
@@ -129,7 +183,15 @@ public sealed class LicenseOnlineValidator : ILicenseOnlineValidator
                 body.EntitlementsVersion,
                 body.EnabledModuleCodes,
                 body.ModuleEntitlements,
-                body.UpdatedAtUtc));
+                body.UpdatedAtUtc,
+                body.TenantOverrides?
+                    .Select(o => new LicenseRemoteTenantOverride(
+                        o.TenantId,
+                        o.TenantName,
+                        o.EnabledModuleCodes,
+                        o.ModuleEntitlements,
+                        o.OverrideVersion))
+                    .ToList()));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -143,5 +205,13 @@ public sealed class LicenseOnlineValidator : ILicenseOnlineValidator
         int EntitlementsVersion,
         IReadOnlyList<string> EnabledModuleCodes,
         IReadOnlyList<ModuleEntitlement>? ModuleEntitlements,
-        DateTimeOffset? UpdatedAtUtc);
+        DateTimeOffset? UpdatedAtUtc,
+        IReadOnlyList<RemoteTenantOverrideDto>? TenantOverrides);
+
+    private sealed record RemoteTenantOverrideDto(
+        Guid TenantId,
+        string TenantName,
+        IReadOnlyList<string> EnabledModuleCodes,
+        IReadOnlyList<ModuleEntitlement>? ModuleEntitlements,
+        int OverrideVersion);
 }

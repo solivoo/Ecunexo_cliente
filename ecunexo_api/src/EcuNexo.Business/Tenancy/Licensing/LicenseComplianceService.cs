@@ -25,6 +25,12 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
             new EventId(3, "LicenseCompanyEntitlementsSkipped"),
             "No se pudo aplicar la licencia a la empresa {TenantId}: {Reason}");
 
+    private static readonly Action<ILogger, Guid, string, Exception?> LogTenantReportFailed =
+        LoggerMessage.Define<Guid, string>(
+            LogLevel.Warning,
+            new EventId(4, "LicenseTenantsReportFailed"),
+            "No se pudieron reportar las empresas del grant {GrantId}: {Reason}");
+
     private readonly ILicenseOnlineValidator _onlineValidator;
     private readonly ITenantRepository _tenants;
     private readonly IUnitOfWork _unitOfWork;
@@ -117,6 +123,22 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
         // El throttle se registra aunque la consulta falle para no golpear la plataforma en cada login.
         account.RecordEntitlementsSync(utcNow);
 
+        var companies = await _tenants
+            .ListBySubscriptionGroupIdForUpdateAsync(account.SubscriptionGroupId, ct)
+            .ConfigureAwait(false);
+
+        // Reporte best-effort: habilita los overrides por empresa en el panel de licencias.
+        var report = await _onlineValidator
+            .ReportTenantsAsync(
+                account.GrantId,
+                companies.Select(c => new LicenseTenantRef(c.Id, c.Name)).ToList(),
+                ct)
+            .ConfigureAwait(false);
+        if (report.IsFailure)
+        {
+            LogTenantReportFailed(_logger, account.GrantId, report.Error!.Code, null);
+        }
+
         var remote = await _onlineValidator.GetEntitlementsAsync(account.GrantId, ct).ConfigureAwait(false);
         if (remote.IsFailure)
         {
@@ -141,16 +163,25 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
             return;
         }
 
-        var companies = await _tenants
-            .ListBySubscriptionGroupIdForUpdateAsync(account.SubscriptionGroupId, ct)
-            .ConfigureAwait(false);
+        var overrides = payload.TenantOverrides is { Count: > 0 }
+            ? payload.TenantOverrides.ToDictionary(o => o.TenantId)
+            : null;
+
         foreach (var company in companies)
         {
+            var effectiveModules = payload.EnabledModuleCodes;
+            var effectiveEntitlements = payload.ModuleEntitlements;
+            if (overrides is not null && overrides.TryGetValue(company.Id, out var tenantOverride))
+            {
+                effectiveModules = tenantOverride.EnabledModuleCodes;
+                effectiveEntitlements = tenantOverride.ModuleEntitlements;
+            }
+
             var companyResult = company.ApplySubscriptionLicense(
                 account.ServicePlan,
                 account.SubscriptionMaxTenants,
-                payload.EnabledModuleCodes,
-                payload.ModuleEntitlements);
+                effectiveModules,
+                effectiveEntitlements);
             if (companyResult.IsFailure)
             {
                 LogCompanySyncSkipped(_logger, company.Id, companyResult.Error!.Code, null);

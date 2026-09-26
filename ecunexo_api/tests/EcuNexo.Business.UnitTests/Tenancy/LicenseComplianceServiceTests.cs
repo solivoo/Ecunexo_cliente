@@ -70,6 +70,52 @@ public sealed class LicenseComplianceServiceTests
             .GetEntitlementsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact(DisplayName = "El sync aplica el override por empresa y reporta las empresas a la plataforma")]
+    public async Task EnsureCompliantAsync_AppliesTenantOverride()
+    {
+        var account = CreateAccount(lastValidationAtUtc: DateTimeOffset.UtcNow);
+        _validator.IsConfigured.Returns(true);
+
+        var overridden = Tenant.Create(
+            Guid.CreateVersion7(),
+            "Empresa Override",
+            new ServicePlan("Medium", 10, 2)).Value!;
+        var inherited = Tenant.Create(
+            Guid.CreateVersion7(),
+            "Empresa Base",
+            new ServicePlan("Medium", 10, 2)).Value!;
+
+        _tenants.ListBySubscriptionGroupIdForUpdateAsync(account.SubscriptionGroupId, Arg.Any<CancellationToken>())
+            .Returns([overridden, inherited]);
+
+        _validator.GetEntitlementsAsync(account.GrantId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new LicenseRemoteEntitlements(
+                account.GrantId,
+                2,
+                [TenantModuleCodes.Identity, TenantModuleCodes.Catalog],
+                null,
+                DateTimeOffset.UtcNow,
+                [
+                    new LicenseRemoteTenantOverride(
+                        overridden.Id,
+                        "Empresa Override",
+                        [TenantModuleCodes.Identity],
+                        null,
+                        1),
+                ])));
+
+        var result = await Sut().EnsureCompliantAsync(account, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        await _validator.Received(1).ReportTenantsAsync(
+            account.GrantId,
+            Arg.Is<IReadOnlyList<LicenseTenantRef>>(list =>
+                list.Count == 2 && list.Any(t => t.TenantId == overridden.Id)),
+            Arg.Any<CancellationToken>());
+        overridden.EnabledModuleCodes.Should().Equal(TenantModuleCodes.Identity);
+        inherited.EnabledModuleCodes.Should().Contain(TenantModuleCodes.Catalog);
+    }
+
     private LicenseComplianceService Sut() =>
         new(_validator, _tenants, _unitOfWork, NullLogger<LicenseComplianceService>.Instance);
 
