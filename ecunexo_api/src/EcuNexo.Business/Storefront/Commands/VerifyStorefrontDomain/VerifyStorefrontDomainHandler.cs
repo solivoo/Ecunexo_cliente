@@ -39,7 +39,7 @@ public sealed class VerifyStorefrontDomainHandler
         if (!domain.IsVerified)
         {
             var verified = await _verifier
-                .HasTxtRecordAsync(domain.Domain, domain.TxtRecordValue, ct)
+                .HasTxtRecordAsync(domain.TxtRecordName, domain.TxtRecordValue, ct)
                 .ConfigureAwait(false);
             if (!verified)
             {

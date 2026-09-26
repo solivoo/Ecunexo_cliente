@@ -120,7 +120,7 @@ public sealed class StorefrontDomainCommandHandlerTests : IDisposable
         var domain = StorefrontDomain.Create(Guid.CreateVersion7(), tenantId, "tienda.demo.com").Value!;
 
         _domains.GetTrackedByIdAsync(tenantId, domain.Id, Arg.Any<CancellationToken>()).Returns(domain);
-        _verifier.HasTxtRecordAsync(domain.Domain, domain.TxtRecordValue, Arg.Any<CancellationToken>())
+        _verifier.HasTxtRecordAsync(domain.TxtRecordName, domain.TxtRecordValue, Arg.Any<CancellationToken>())
             .Returns(true);
 
         var sut = new VerifyStorefrontDomainHandler(_domains, _verifier, _unitOfWork, _cache);
@@ -141,7 +141,7 @@ public sealed class StorefrontDomainCommandHandlerTests : IDisposable
         var domain = StorefrontDomain.Create(Guid.CreateVersion7(), tenantId, "tienda.demo.com").Value!;
 
         _domains.GetTrackedByIdAsync(tenantId, domain.Id, Arg.Any<CancellationToken>()).Returns(domain);
-        _verifier.HasTxtRecordAsync(domain.Domain, domain.TxtRecordValue, Arg.Any<CancellationToken>())
+        _verifier.HasTxtRecordAsync(domain.TxtRecordName, domain.TxtRecordValue, Arg.Any<CancellationToken>())
             .Returns(false);
 
         var sut = new VerifyStorefrontDomainHandler(_domains, _verifier, _unitOfWork, _cache);
