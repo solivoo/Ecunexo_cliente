@@ -5,5 +5,4 @@ public enum PromotionTargetType
 {
     Product = 0,
     Variant = 1,
-    Category = 2,
 }

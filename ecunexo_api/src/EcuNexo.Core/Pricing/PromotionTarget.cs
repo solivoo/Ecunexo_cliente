@@ -4,7 +4,7 @@ using EcuNexo.Core.Common;
 namespace EcuNexo.Core.Pricing;
 
 /// <summary>
-/// Alcance de una promoción. El tipo y la referencia permiten productos, variantes, categorías y
+/// Alcance de una promoción. El tipo y la referencia permiten productos, variantes y
 /// futuros segmentos (marca, cliente, canal) sin rediseñar la promoción.
 /// </summary>
 public sealed class PromotionTarget : Entity<Guid>, IAuditable
@@ -22,7 +22,7 @@ public sealed class PromotionTarget : Entity<Guid>, IAuditable
 
     public PromotionTargetType TargetType { get; private set; }
 
-    /// <summary>Identificador del objetivo (Guid en texto para ítem/variante/categoría).</summary>
+    /// <summary>Identificador del objetivo (Guid en texto para ítem o variante).</summary>
     public string TargetReference { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }

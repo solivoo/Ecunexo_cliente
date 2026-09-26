@@ -37,7 +37,6 @@ export function promotionTypeLabel(type: PromotionType): string {
 }
 
 export function promotionTargetTypeLabel(type: PromotionTargetType): string {
-  if (type === PromotionTargetType.Category) return 'Categoría'
   if (type === PromotionTargetType.Variant) return 'Variante'
   return 'Producto'
 }

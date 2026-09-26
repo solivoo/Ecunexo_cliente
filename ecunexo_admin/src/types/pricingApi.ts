@@ -11,7 +11,6 @@ export type PromotionType = (typeof PromotionType)[keyof typeof PromotionType]
 export const PromotionTargetType = {
   Product: 0,
   Variant: 1,
-  Category: 2,
 } as const
 
 export type PromotionTargetType = (typeof PromotionTargetType)[keyof typeof PromotionTargetType]
