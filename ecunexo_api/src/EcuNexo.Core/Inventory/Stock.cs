@@ -27,6 +27,15 @@ public sealed class Stock : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
     public decimal Quantity { get; private set; }
 
+    /// <summary>Costo promedio ponderado por unidad (valorización). 0 si nunca ingresó con costo.</summary>
+    public decimal AverageCost { get; private set; }
+
+    /// <summary>Último costo unitario informado en una recepción.</summary>
+    public decimal? LastCost { get; private set; }
+
+    /// <summary>Valor del saldo actual a costo promedio.</summary>
+    public decimal StockValue => decimal.Round(Quantity * AverageCost, 2, MidpointRounding.AwayFromZero);
+
     /// <summary>Cantidad comprometida en pedidos ecommerce o reservas activas.</summary>
     public decimal ReservedQuantity { get; private set; }
 
@@ -67,6 +76,7 @@ public sealed class Stock : AggregateRoot<Guid>, ITenantEntity, IAuditable
             CatalogItemId = catalogItemId,
             WarehouseId = warehouseId,
             Quantity = 0,
+            AverageCost = 0,
             ReservedQuantity = 0,
             CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -95,12 +105,34 @@ public sealed class Stock : AggregateRoot<Guid>, ITenantEntity, IAuditable
         return Result.Success();
     }
 
-    public Result Increase(decimal quantity, Guid? updatedBy)
+    public Result Increase(decimal quantity, Guid? updatedBy = null, decimal? unitCost = null)
     {
         var qty = InventoryQuantity.NormalizePositive(quantity);
         if (qty.IsFailure)
         {
             return Result.Failure(qty.Error!);
+        }
+
+        if (unitCost is decimal cost)
+        {
+            if (cost < 0)
+            {
+                return Result.Failure(
+                    new Error(
+                        "inventory.stock.cost.range",
+                        "El costo unitario no puede ser negativo.",
+                        ErrorType.Validation));
+            }
+
+            var normalizedCost = decimal.Round(cost, 4, MidpointRounding.AwayFromZero);
+            var totalQuantity = Quantity + qty.Value;
+            AverageCost = totalQuantity > 0
+                ? decimal.Round(
+                    ((Quantity * AverageCost) + (qty.Value * normalizedCost)) / totalQuantity,
+                    4,
+                    MidpointRounding.AwayFromZero)
+                : normalizedCost;
+            LastCost = normalizedCost;
         }
 
         Quantity += qty.Value;

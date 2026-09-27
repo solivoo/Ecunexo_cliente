@@ -116,7 +116,7 @@ public sealed class CreateInventoryDocumentHandler
         }
 
         var lineInputs = command.Lines
-            .Select(l => (_idGenerator.NewId(), l.CatalogItemId, l.Quantity))
+            .Select(l => (_idGenerator.NewId(), l.CatalogItemId, l.Quantity, l.UnitCost))
             .ToList();
         var created = InventoryDocument.Create(
             _idGenerator.NewId(),

@@ -206,6 +206,32 @@ export function StockListPage() {
         ),
       },
       {
+        key: 'averageCost',
+        header: 'Costo promedio',
+        width: 140,
+        sortable: true,
+        renderCell: (_v: Row['averageCost'], row: Row) => (
+          <span>
+            {row.averageCost != null && row.averageCost > 0
+              ? `$${row.averageCost.toFixed(4)}`
+              : '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'stockValue',
+        header: 'Valor del stock',
+        width: 140,
+        sortable: true,
+        renderCell: (_v: Row['stockValue'], row: Row) => (
+          <span style={{ fontWeight: 500 }}>
+            {row.stockValue != null && row.stockValue > 0
+              ? `$${row.stockValue.toFixed(2)}`
+              : '—'}
+          </span>
+        ),
+      },
+      {
         key: 'minimumQuantity',
         header: 'Umbral mínimo',
         width: 180,

@@ -52,7 +52,16 @@ public sealed class StockConfiguration : IEntityTypeConfiguration<Stock>
             .IsRequired()
             .HasDefaultValue(0m);
 
+        builder.Property(s => s.AverageCost)
+            .HasColumnType("numeric(18,4)")
+            .IsRequired()
+            .HasDefaultValue(0m);
+
+        builder.Property(s => s.LastCost)
+            .HasColumnType("numeric(18,4)");
+
         builder.Ignore(s => s.AvailableQuantity);
+        builder.Ignore(s => s.StockValue);
 
         builder.Property(s => s.MinimumQuantity)
             .HasColumnType("numeric(18,4)");

@@ -53,7 +53,7 @@ public sealed class InventoryDocumentTests
             InventoryDocumentType.Transfer,
             OriginId,
             notes: null,
-            lines: [(Guid.CreateVersion7(), ItemId, 2m)],
+            lines: [(Guid.CreateVersion7(), ItemId, 2m, (decimal?)null)],
             destinationWarehouseId: OriginId);
 
         // Verificar
@@ -119,7 +119,7 @@ public sealed class InventoryDocumentTests
             InventoryDocumentType.Adjustment,
             OriginId,
             notes: null,
-            lines: [(Guid.CreateVersion7(), ItemId, 0m)]);
+            lines: [(Guid.CreateVersion7(), ItemId, 0m, (decimal?)null)]);
 
         // Verificar
         result.IsFailure.Should().BeTrue();
@@ -135,7 +135,7 @@ public sealed class InventoryDocumentTests
             InventoryDocumentType.Receipt,
             OriginId,
             notes: null,
-            lines: [(Guid.CreateVersion7(), ItemId, 5m)],
+            lines: [(Guid.CreateVersion7(), ItemId, 5m, (decimal?)null)],
             receiptOrigin: InventoryReceiptOrigin.Purchase);
 
         result.IsFailure.Should().BeTrue();
@@ -151,7 +151,7 @@ public sealed class InventoryDocumentTests
             InventoryDocumentType.Receipt,
             OriginId,
             notes: null,
-            lines: [(Guid.CreateVersion7(), ItemId, 5m)],
+            lines: [(Guid.CreateVersion7(), ItemId, 5m, (decimal?)null)],
             receiptOrigin: InventoryReceiptOrigin.Purchase,
             sourceDocumentNumber: "001-001-000000123");
 
@@ -179,7 +179,7 @@ public sealed class InventoryDocumentTests
             InventoryDocumentType.Transfer,
             OriginId,
             notes: null,
-            lines: [(Guid.CreateVersion7(), ItemId, 1m)],
+            lines: [(Guid.CreateVersion7(), ItemId, 1m, (decimal?)null)],
             destinationWarehouseId: DestinationId,
             receiptOrigin: InventoryReceiptOrigin.Opening);
 
@@ -197,7 +197,7 @@ public sealed class InventoryDocumentTests
             InventoryDocumentType.Adjustment,
             OriginId,
             notes: "Conteo físico vacío",
-            lines: [(Guid.CreateVersion7(), ItemId, 0m)]);
+            lines: [(Guid.CreateVersion7(), ItemId, 0m, (decimal?)null)]);
 
         // Verificar
         result.IsSuccess.Should().BeTrue();
@@ -212,7 +212,7 @@ public sealed class InventoryDocumentTests
             InventoryDocumentType.Receipt,
             OriginId,
             notes: "Entrada inicial",
-            lines: [(Guid.CreateVersion7(), ItemId, 5m)]);
+            lines: [(Guid.CreateVersion7(), ItemId, 5m, (decimal?)null)]);
 
     private static Result<InventoryDocument> CreateTransfer() =>
         InventoryDocument.Create(
@@ -221,6 +221,6 @@ public sealed class InventoryDocumentTests
             InventoryDocumentType.Transfer,
             OriginId,
             notes: "Traspaso A→B",
-            lines: [(Guid.CreateVersion7(), ItemId, 3m)],
+            lines: [(Guid.CreateVersion7(), ItemId, 3m, (decimal?)null)],
             destinationWarehouseId: DestinationId);
 }

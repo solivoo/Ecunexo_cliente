@@ -26,7 +26,7 @@ public sealed class InventoryDocumentApprovalServiceTests
             InventoryDocumentType.Receipt,
             warehouseId,
             notes: null,
-            lines: [(Guid.CreateVersion7(), item.Id, 7m)]).Value!;
+            lines: [(Guid.CreateVersion7(), item.Id, 7m, (decimal?)null)]).Value!;
         var warehouse = Warehouse.Create(
             warehouseId,
             tenantId,
@@ -83,7 +83,7 @@ public sealed class InventoryDocumentApprovalServiceTests
             InventoryDocumentType.Transfer,
             originId,
             notes: null,
-            lines: [(Guid.CreateVersion7(), item.Id, qty)],
+            lines: [(Guid.CreateVersion7(), item.Id, qty, (decimal?)null)],
             destinationWarehouseId: destinationId).Value!;
 
         var ids = Substitute.For<IIdGenerator>();
@@ -141,7 +141,7 @@ public sealed class InventoryDocumentApprovalServiceTests
             InventoryDocumentType.Transfer,
             originId,
             notes: null,
-            lines: [(Guid.CreateVersion7(), item.Id, 1m)],
+            lines: [(Guid.CreateVersion7(), item.Id, 1m, (decimal?)null)],
             destinationWarehouseId: destinationId).Value!;
 
         var ids = Substitute.For<IIdGenerator>();
@@ -180,7 +180,7 @@ public sealed class InventoryDocumentApprovalServiceTests
             InventoryDocumentType.Adjustment,
             warehouseId,
             notes: "Conteo mensual",
-            lines: [(Guid.CreateVersion7(), item.Id, 8m)]).Value!;
+            lines: [(Guid.CreateVersion7(), item.Id, 8m, (decimal?)null)]).Value!;
 
         var ids = Substitute.For<IIdGenerator>();
         ids.NewId().Returns(_ => Guid.CreateVersion7());
@@ -217,7 +217,7 @@ public sealed class InventoryDocumentApprovalServiceTests
             InventoryDocumentType.Adjustment,
             warehouseId,
             notes: "Merma detectada",
-            lines: [(Guid.CreateVersion7(), item.Id, 4m)]).Value!;
+            lines: [(Guid.CreateVersion7(), item.Id, 4m, (decimal?)null)]).Value!;
 
         var ids = Substitute.For<IIdGenerator>();
         ids.NewId().Returns(_ => Guid.CreateVersion7());
@@ -254,7 +254,7 @@ public sealed class InventoryDocumentApprovalServiceTests
             InventoryDocumentType.Adjustment,
             warehouseId,
             notes: "Sin diferencias",
-            lines: [(Guid.CreateVersion7(), item.Id, 5m)]).Value!;
+            lines: [(Guid.CreateVersion7(), item.Id, 5m, (decimal?)null)]).Value!;
 
         var ids = Substitute.For<IIdGenerator>();
         ids.NewId().Returns(_ => Guid.CreateVersion7());

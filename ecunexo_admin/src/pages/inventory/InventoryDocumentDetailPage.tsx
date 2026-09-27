@@ -296,6 +296,12 @@ export function InventoryDocumentDetailPage() {
                       <th scope="col" className="ecu-doc-lines__qty">
                         Cantidad
                       </th>
+                      <th scope="col" className="ecu-doc-lines__qty">
+                        Costo unitario
+                      </th>
+                      <th scope="col" className="ecu-doc-lines__qty">
+                        Total
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -307,6 +313,12 @@ export function InventoryDocumentDetailPage() {
                         </td>
                         <td className="ecu-doc-lines__qty">
                           <span style={{ fontWeight: 600 }}>{line.quantity.toFixed(2)}</span>
+                        </td>
+                        <td className="ecu-doc-lines__qty">
+                          {line.unitCost != null ? `$${line.unitCost.toFixed(4)}` : '—'}
+                        </td>
+                        <td className="ecu-doc-lines__qty">
+                          {line.totalCost != null ? `$${line.totalCost.toFixed(2)}` : '—'}
                         </td>
                       </tr>
                     ))}

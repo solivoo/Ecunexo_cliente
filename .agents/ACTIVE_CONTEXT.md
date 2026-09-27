@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.59.0`.
+* **Última Versión Publicada:** `v0.60.0`.
 * **Hitos Recientes Completados:**
+  - **Inventario — Fase C: costo unitario y valorización (v0.60.0):**
+    * `InventoryDocumentLine.UnitCost` (recepción), `Stock.AverageCost`/`LastCost`/`StockValue` y `InventoryMovement.UnitCost`; migración `AddInventoryUnitCost` (columnas en `inventory.document_lines`, `inventory.stocks`, `inventory.movements`).
+    * Promedio ponderado al ingresar con costo; el egreso se valora al promedio vigente; las líneas/movimientos exponen costo y total en las queries. UI: costo por línea y total en recepciones, columnas de costo promedio/valor en saldos, detalle del documento con costo/total.
+    * Verificado end-to-end: recepción 4.5 × 10 → stock `averageCost 4.5`, `stockValue 45`, detalle `unitCost 4.5 / totalCost 45`; datos de prueba limpiados. 353 Core + 416 Business en verde.
   - **Catálogo/Facturación — Fase B: precios desde listas (v0.59.0):**
     * Migración `BackfillBasePriceToDefaultPriceList`: vuelca `catalog.items.base_price` (físicos activos) a `pricing.product_prices` de la lista predeterminada activa del tenant (hoy `PUBLICO`), sin duplicar precios vigentes; `Down` no revierte para no perder precios manuales.
     * Facturación ya resolvía con `resolvePrice` al agregar producto y al cambiar cantidad (`pricingToLinePatch` maneja unitario, descuento, IVA e IVA incluido); se añadió aviso al usuario cuando no hay precio vigente y se usa `basePrice` como respaldo. Los servicios (no físicos) no pasan por el motor.

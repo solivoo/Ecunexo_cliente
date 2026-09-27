@@ -142,7 +142,7 @@ public sealed class ApplyAuthorizedInvoiceEgressHandler
         }
 
         var lineInputs = physicalLines
-            .Select(l => (_idGenerator.NewId(), l.CatalogItemId, l.Quantity))
+            .Select(l => (_idGenerator.NewId(), l.CatalogItemId, l.Quantity, (decimal?)null))
             .ToList();
         var created = InventoryDocument.Create(
             _idGenerator.NewId(),

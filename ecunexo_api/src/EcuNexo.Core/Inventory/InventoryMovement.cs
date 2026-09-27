@@ -33,6 +33,9 @@ public sealed class InventoryMovement : AggregateRoot<Guid>, ITenantEntity, IAud
 
     public decimal Quantity { get; private set; }
 
+    /// <summary>Costo unitario aplicado al movimiento (ingreso: capturado; egreso: promedio vigente).</summary>
+    public decimal? UnitCost { get; private set; }
+
     public DateTimeOffset OccurredAt { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
@@ -52,7 +55,8 @@ public sealed class InventoryMovement : AggregateRoot<Guid>, ITenantEntity, IAud
         InventoryMovementDirection direction,
         decimal quantity,
         DateTimeOffset occurredAt,
-        Guid? createdBy)
+        Guid? createdBy,
+        decimal? unitCost = null)
     {
         if (tenantId == Guid.Empty || catalogItemId == Guid.Empty || warehouseId == Guid.Empty || documentId == Guid.Empty)
         {
@@ -72,6 +76,18 @@ public sealed class InventoryMovement : AggregateRoot<Guid>, ITenantEntity, IAud
             return Result.Failure<InventoryMovement>(qty.Error!);
         }
 
+        decimal? normalizedCost = null;
+        if (unitCost is decimal cost)
+        {
+            if (cost < 0)
+            {
+                return Result.Failure<InventoryMovement>(
+                    new Error("inventory.movement.cost.range", "El costo unitario no puede ser negativo.", ErrorType.Validation));
+            }
+
+            normalizedCost = decimal.Round(cost, 4, MidpointRounding.AwayFromZero);
+        }
+
         return new InventoryMovement
         {
             Id = id,
@@ -81,6 +97,7 @@ public sealed class InventoryMovement : AggregateRoot<Guid>, ITenantEntity, IAud
             DocumentId = documentId,
             Direction = direction,
             Quantity = qty.Value,
+            UnitCost = normalizedCost,
             OccurredAt = occurredAt,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,

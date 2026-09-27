@@ -55,7 +55,10 @@ public sealed class ListStockHandler : IQueryHandler<ListStockQuery, IReadOnlyLi
                 s.MinimumQuantity,
                 s.IsBelowMinimum,
                 s.UpdatedAt ?? s.CreatedAt,
-                items.TryGetValue(s.CatalogItemId, out var itemAttr) ? itemAttr.CustomAttributesJson : null))
+                items.TryGetValue(s.CatalogItemId, out var itemAttr) ? itemAttr.CustomAttributesJson : null,
+                s.AverageCost,
+                s.LastCost,
+                s.StockValue))
             .OrderByDescending(r => r.IsBelowMinimum)
             .ThenBy(r => r.WarehouseName)
             .ThenBy(r => r.CatalogItemName)

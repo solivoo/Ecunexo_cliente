@@ -129,6 +129,7 @@ public sealed class InventoryDocumentApprovalService
 
             var direction = delta > 0 ? InventoryMovementDirection.In : InventoryMovementDirection.Out;
             var absolute = Math.Abs(delta);
+            decimal? adjustmentCost = stock.AverageCost > 0 ? stock.AverageCost : null;
 
             var applied = direction == InventoryMovementDirection.In
                 ? stock.Increase(absolute, approvedBy)
@@ -147,7 +148,8 @@ public sealed class InventoryDocumentApprovalService
                 direction,
                 absolute,
                 now,
-                approvedBy);
+                approvedBy,
+                adjustmentCost);
             if (movement.IsFailure)
             {
                 return Result.Failure(movement.Error!);
@@ -343,8 +345,13 @@ public sealed class InventoryDocumentApprovalService
                 await _stocks.AddAsync(stock, ct).ConfigureAwait(false);
             }
 
+            // El ingreso captura el costo de la línea; el egreso se valora al promedio vigente.
+            var movementUnitCost = direction == InventoryMovementDirection.In
+                ? line.UnitCost
+                : (stock.AverageCost > 0 ? stock.AverageCost : null);
+
             var applied = direction == InventoryMovementDirection.In
-                ? stock.Increase(line.Quantity, actorId)
+                ? stock.Increase(line.Quantity, actorId, line.UnitCost)
                 : stock.Decrease(line.Quantity, actorId);
             if (applied.IsFailure)
             {
@@ -360,7 +367,8 @@ public sealed class InventoryDocumentApprovalService
                 direction,
                 line.Quantity,
                 when,
-                actorId);
+                actorId,
+                movementUnitCost);
             if (movement.IsFailure)
             {
                 return Result.Failure(movement.Error!);

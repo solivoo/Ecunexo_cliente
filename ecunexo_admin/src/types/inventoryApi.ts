@@ -87,6 +87,9 @@ export type StockListItemDto = {
   isBelowMinimum: boolean
   updatedAt: string | null
   customAttributesJson?: string | null
+  averageCost?: number
+  lastCost?: number | null
+  stockValue?: number
 }
 
 export type InventoryDocumentListItemDto = {
@@ -109,6 +112,8 @@ export type InventoryDocumentLineDto = {
   catalogItemId: string
   catalogItemName: string
   quantity: number
+  unitCost?: number | null
+  totalCost?: number | null
 }
 
 export type InventoryDocumentDetailDto = {
@@ -135,7 +140,7 @@ export type CreateInventoryDocumentBody = {
   notes?: string | null
   receiptOrigin?: InventoryReceiptOrigin | null
   sourceDocumentNumber?: string | null
-  lines: { catalogItemId: string; quantity: number }[]
+  lines: { catalogItemId: string; quantity: number; unitCost?: number | null }[]
 }
 
 export type CreateInventoryDocumentResponseDto = {
@@ -154,4 +159,6 @@ export type InventoryMovementListItemDto = {
   direction: InventoryMovementDirection
   quantity: number
   occurredAt: string
+  unitCost?: number | null
+  totalCost?: number | null
 }

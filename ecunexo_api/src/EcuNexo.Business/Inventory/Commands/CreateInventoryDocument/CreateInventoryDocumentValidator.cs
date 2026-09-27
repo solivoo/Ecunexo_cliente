@@ -43,6 +43,10 @@ public sealed class CreateInventoryDocumentValidator : AbstractValidator<CreateI
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.CatalogItemId).NotEmpty();
+            line.RuleFor(l => l.UnitCost)
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("El costo unitario no puede ser negativo.")
+                .When(l => l.UnitCost.HasValue);
         });
         RuleForEach(x => x.Lines)
             .ChildRules(line => line.RuleFor(l => l.Quantity).GreaterThan(0))

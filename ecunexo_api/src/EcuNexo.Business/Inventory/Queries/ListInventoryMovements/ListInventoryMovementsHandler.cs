@@ -45,7 +45,11 @@ public sealed class ListInventoryMovementsHandler
                 m.DocumentId,
                 m.Direction,
                 m.Quantity,
-                m.OccurredAt))
+                m.OccurredAt,
+                m.UnitCost,
+                m.UnitCost is decimal cost
+                    ? decimal.Round(cost * m.Quantity, 4, MidpointRounding.AwayFromZero)
+                    : null))
             .ToList();
         return Result.Success(list);
     }

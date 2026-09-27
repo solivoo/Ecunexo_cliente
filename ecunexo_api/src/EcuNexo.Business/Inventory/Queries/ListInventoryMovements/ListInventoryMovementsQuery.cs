@@ -17,4 +17,6 @@ public sealed record InventoryMovementListItemResponse(
     Guid DocumentId,
     InventoryMovementDirection Direction,
     decimal Quantity,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset OccurredAt,
+    decimal? UnitCost = null,
+    decimal? TotalCost = null);

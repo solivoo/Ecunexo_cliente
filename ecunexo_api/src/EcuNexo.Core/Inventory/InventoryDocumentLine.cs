@@ -14,12 +14,16 @@ public sealed class InventoryDocumentLine : Entity<Guid>
 
     public decimal Quantity { get; private set; }
 
+    /// <summary>Costo unitario capturado en recepciones (valorización). Null cuando no aplica.</summary>
+    public decimal? UnitCost { get; private set; }
+
     public static Result<InventoryDocumentLine> Create(
         Guid id,
         Guid documentId,
         Guid catalogItemId,
         decimal quantity,
-        bool allowZero = false)
+        bool allowZero = false,
+        decimal? unitCost = null)
     {
         if (documentId == Guid.Empty || catalogItemId == Guid.Empty)
         {
@@ -35,12 +39,25 @@ public sealed class InventoryDocumentLine : Entity<Guid>
             return Result.Failure<InventoryDocumentLine>(qty.Error!);
         }
 
+        decimal? normalizedCost = null;
+        if (unitCost is decimal cost)
+        {
+            if (cost < 0)
+            {
+                return Result.Failure<InventoryDocumentLine>(
+                    new Error("inventory.document.line.cost.range", "El costo unitario no puede ser negativo.", ErrorType.Validation));
+            }
+
+            normalizedCost = decimal.Round(cost, 4, MidpointRounding.AwayFromZero);
+        }
+
         return new InventoryDocumentLine
         {
             Id = id,
             DocumentId = documentId,
             CatalogItemId = catalogItemId,
             Quantity = qty.Value,
+            UnitCost = normalizedCost,
         };
     }
 }

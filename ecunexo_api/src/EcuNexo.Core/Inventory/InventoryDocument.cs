@@ -78,7 +78,7 @@ public sealed class InventoryDocument : AggregateRoot<Guid>, ITenantEntity, IAud
         InventoryDocumentType documentType,
         Guid warehouseId,
         string? notes,
-        IReadOnlyList<(Guid LineId, Guid CatalogItemId, decimal Quantity)> lines,
+        IReadOnlyList<(Guid LineId, Guid CatalogItemId, decimal Quantity, decimal? UnitCost)> lines,
         Guid? destinationWarehouseId = null,
         InventoryReceiptOrigin? receiptOrigin = null,
         string? sourceDocumentNumber = null)
@@ -183,7 +183,8 @@ public sealed class InventoryDocument : AggregateRoot<Guid>, ITenantEntity, IAud
                 id,
                 line.CatalogItemId,
                 line.Quantity,
-                allowZeroQty);
+                allowZeroQty,
+                line.UnitCost);
             if (created.IsFailure)
             {
                 return Result.Failure<InventoryDocument>(created.Error!);

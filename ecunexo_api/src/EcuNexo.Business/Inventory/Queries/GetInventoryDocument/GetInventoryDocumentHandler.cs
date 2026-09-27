@@ -66,7 +66,11 @@ public sealed class GetInventoryDocumentHandler
                     .Select(l => new InventoryDocumentLineResponse(
                         l.CatalogItemId,
                         items.TryGetValue(l.CatalogItemId, out var item) ? item.Name : "—",
-                        l.Quantity))
+                        l.Quantity,
+                        l.UnitCost,
+                        l.UnitCost is decimal cost
+                            ? decimal.Round(cost * l.Quantity, 4, MidpointRounding.AwayFromZero)
+                            : null))
                     .ToList()));
     }
 }

@@ -3,7 +3,10 @@ using EcuNexo.Core.Inventory;
 
 namespace EcuNexo.Business.Inventory.Commands.CreateInventoryDocument;
 
-public sealed record CreateInventoryDocumentLineInput(Guid CatalogItemId, decimal Quantity);
+public sealed record CreateInventoryDocumentLineInput(
+    Guid CatalogItemId,
+    decimal Quantity,
+    decimal? UnitCost = null);
 
 public sealed record CreateInventoryDocumentCommand(
     Guid TenantId,

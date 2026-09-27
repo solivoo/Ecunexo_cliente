@@ -3,7 +3,10 @@ using EcuNexo.Core.Inventory;
 
 namespace EcuNexo.Api.Contracts.V1.Inventory;
 
-public sealed record CreateInventoryDocumentLineRequest(Guid CatalogItemId, decimal Quantity);
+public sealed record CreateInventoryDocumentLineRequest(
+    Guid CatalogItemId,
+    decimal Quantity,
+    decimal? UnitCost = null);
 
 public sealed record CreateInventoryDocumentRequest(
     InventoryDocumentType DocumentType,
@@ -19,7 +22,7 @@ public sealed record CreateInventoryDocumentRequest(
             tenantId,
             DocumentType,
             WarehouseId,
-            Lines.Select(l => new CreateInventoryDocumentLineInput(l.CatalogItemId, l.Quantity)).ToList(),
+            Lines.Select(l => new CreateInventoryDocumentLineInput(l.CatalogItemId, l.Quantity, l.UnitCost)).ToList(),
             Notes,
             DestinationWarehouseId,
             ReceiptOrigin,

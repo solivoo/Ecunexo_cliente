@@ -27,7 +27,7 @@ import './inventoryItemSelectModal.css'
 
 const PURCHASE_INVOICE = /^\d{3}-\d{3}-\d{9}$/
 
-type LineDraft = { catalogItemId: string; quantity: string }
+type LineDraft = { catalogItemId: string; quantity: string; unitCost: string }
 
 function initialDocumentType(params: URLSearchParams): string {
   const tipo = params.get('tipo')
@@ -56,7 +56,7 @@ export function CreateInventoryDocumentPage() {
   const [notes, setNotes] = useState('')
   const [receiptOrigin, setReceiptOrigin] = useState(String(InventoryReceiptOrigin.Opening))
   const [sourceDocumentNumber, setSourceDocumentNumber] = useState('')
-  const [lines, setLines] = useState<LineDraft[]>([{ catalogItemId: '', quantity: '1' }])
+  const [lines, setLines] = useState<LineDraft[]>([{ catalogItemId: '', quantity: '1', unitCost: '' }])
 
   const [isSelectModalOpen, setIsSelectModalOpen] = useState(false)
   const [selectModalMode, setSelectModalMode] = useState<'search' | 'matrix'>('search')
@@ -67,6 +67,12 @@ export function CreateInventoryDocumentPage() {
   const isReceipt = Number(documentType) === InventoryDocumentType.Receipt
   const isPurchaseReceipt =
     isReceipt && Number(receiptOrigin) === InventoryReceiptOrigin.Purchase
+
+  const receiptCostTotal = lines.reduce((sum, l) => {
+    const qty = Number(l.quantity.replace(',', '.')) || 0
+    const cost = Number(l.unitCost.replace(',', '.')) || 0
+    return sum + qty * cost
+  }, 0)
 
   useEffect(() => {
     if (!tenantId || !canCreate) return
@@ -138,14 +144,14 @@ export function CreateInventoryDocumentPage() {
     setLines((prev) => {
       const updated = [...prev]
       if (updated.length === 1 && !updated[0].catalogItemId) {
-        return [{ catalogItemId: matched.id, quantity: '1' }]
+        return [{ catalogItemId: matched.id, quantity: '1', unitCost: '' }]
       }
       const idx = updated.findIndex((l) => l.catalogItemId === matched.id)
       if (idx >= 0) {
         const cur = Number(updated[idx].quantity) || 0
         updated[idx] = { ...updated[idx], quantity: String(cur + 1) }
       } else {
-        updated.push({ catalogItemId: matched.id, quantity: '1' })
+        updated.push({ catalogItemId: matched.id, quantity: '1', unitCost: '' })
       }
       return updated
     })
@@ -177,6 +183,7 @@ export function CreateInventoryDocumentPage() {
             updated.push({
               catalogItemId: item.catalogItemId,
               quantity: String(item.quantity),
+              unitCost: '',
             })
           }
         }
@@ -262,9 +269,13 @@ export function CreateInventoryDocumentPage() {
           .map((l) => ({
             catalogItemId: l.catalogItemId,
             quantity: Number(l.quantity.replace(',', '.')),
+            unitCost: isReceipt && l.unitCost.trim() ? Number(l.unitCost.replace(',', '.')) : null,
           }))
           .filter((l) => l.catalogItemId)
         if (parsed.length === 0) throw new Error('Agrega al menos una línea con ítem.')
+        if (parsed.some((l) => l.unitCost != null && (Number.isNaN(l.unitCost) || l.unitCost < 0))) {
+          throw new Error('El costo unitario no puede ser negativo.')
+        }
         if (
           parsed.some((l) =>
             Number.isNaN(l.quantity) || (isAdjustment ? l.quantity < 0 : l.quantity <= 0)
@@ -620,6 +631,11 @@ export function CreateInventoryDocumentPage() {
                     <th scope="col" className="ecu-doc-lines__qty">
                       {isAdjustment ? 'Cantidad contada' : 'Cantidad'}
                     </th>
+                    {isReceipt && (
+                      <th scope="col" className="ecu-doc-lines__qty">
+                        Costo unitario
+                      </th>
+                    )}
                     <th scope="col" className="ecu-doc-lines__actions">
                       <span className="visually-hidden">Acciones</span>
                     </th>
@@ -696,6 +712,29 @@ export function CreateInventoryDocumentPage() {
                           fullWidth
                         />
                       </td>
+                      {isReceipt && (
+                        <td className="ecu-doc-lines__qty">
+                          <NumberBox
+                            id={`inv-cost-${index}`}
+                            aria-label={`Costo unitario línea ${index + 1}`}
+                            variant="outline"
+                            size="sm"
+                            min={0}
+                            step={0.01}
+                            value={line.unitCost === '' ? '' : Number(line.unitCost)}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                              setLines((prev) =>
+                                prev.map((row, i) =>
+                                  i === index ? { ...row, unitCost: e.target.value } : row
+                                )
+                              )
+                            }
+                            placeholder="Opcional"
+                            disabled={busy}
+                            fullWidth
+                          />
+                        </td>
+                      )}
                       <td className="ecu-doc-lines__actions">
                         <button
                           type="button"
@@ -719,11 +758,18 @@ export function CreateInventoryDocumentPage() {
                 variant="ghost"
                 size="sm"
                 disabled={busy}
-                onClick={() => setLines((prev) => [...prev, { catalogItemId: '', quantity: '1' }])}
+                onClick={() =>
+                  setLines((prev) => [...prev, { catalogItemId: '', quantity: '1', unitCost: '' }])
+                }
               >
                 <Plus size={15} strokeWidth={2} aria-hidden />
                 Agregar línea
               </Button>
+              {isReceipt ? (
+                <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: 'var(--glb-text)' }}>
+                  Total costo: <strong>${receiptCostTotal.toFixed(2)}</strong>
+                </span>
+              ) : null}
             </div>
 
             <div

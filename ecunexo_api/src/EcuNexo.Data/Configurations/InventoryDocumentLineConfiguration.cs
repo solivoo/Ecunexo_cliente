@@ -33,6 +33,9 @@ public sealed class InventoryDocumentLineConfiguration : IEntityTypeConfiguratio
             .HasColumnType("numeric(18,4)")
             .IsRequired();
 
+        builder.Property(l => l.UnitCost)
+            .HasColumnType("numeric(18,4)");
+
         builder.HasIndex(l => l.DocumentId);
         builder.HasIndex(l => l.CatalogItemId);
     }

@@ -60,6 +60,9 @@ public sealed class InventoryMovementConfiguration : IEntityTypeConfiguration<In
             .HasColumnType("numeric(18,4)")
             .IsRequired();
 
+        builder.Property(m => m.UnitCost)
+            .HasColumnType("numeric(18,4)");
+
         builder.Property(m => m.OccurredAt)
             .HasColumnType("timestamptz")
             .IsRequired();
