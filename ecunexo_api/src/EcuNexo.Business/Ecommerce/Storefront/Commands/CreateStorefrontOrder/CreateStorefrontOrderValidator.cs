@@ -11,12 +11,18 @@ public sealed class CreateStorefrontOrderValidator : AbstractValidator<CreateSto
     public const int NotesMaxLength = 1000;
     public const int MinFormElapsedMs = 2000;
     public const string InvalidFormErrorCode = "ecommerce.checkout.invalid_form";
+    public const string PrivacyRequiredErrorCode = "ecommerce.checkout.privacy_required";
 
     public CreateStorefrontOrderValidator()
     {
         RuleFor(x => x.TenantId)
             .NotEmpty()
             .WithMessage("El tenant es obligatorio.");
+
+        RuleFor(x => x.AcceptPrivacyPolicy)
+            .Must(accepted => accepted)
+            .WithMessage("Debes aceptar la política de tratamiento de datos personales.")
+            .WithErrorCode(PrivacyRequiredErrorCode);
 
         RuleFor(x => x.ContactFax)
             .Must(contactFax => string.IsNullOrWhiteSpace(contactFax))

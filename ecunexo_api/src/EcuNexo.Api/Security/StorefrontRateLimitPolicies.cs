@@ -12,6 +12,10 @@ public sealed class StorefrontRateLimitOptions
     public int ReadPermitLimit { get; set; } = 120;
 
     public int ReadWindowMinutes { get; set; } = 1;
+
+    public int LikesPermitLimit { get; set; } = 30;
+
+    public int LikesWindowMinutes { get; set; } = 5;
 }
 
 /// <summary>Políticas de rate limiting para el checkout y catálogo públicos.</summary>
@@ -19,6 +23,7 @@ public static class StorefrontRateLimitPolicies
 {
     public const string Orders = "storefront-orders";
     public const string Read = "storefront-read";
+    public const string Likes = "storefront-likes";
 
     public const string RateLimitedErrorCode = "ecommerce.checkout.rate_limited";
 

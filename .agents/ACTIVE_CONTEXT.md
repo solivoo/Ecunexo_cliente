@@ -9,6 +9,11 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.55.2`.
 * **Hitos Recientes Completados:**
+  - **Checkout — Consentimiento de tratamiento de datos, página `/privacidad` y limpieza del buscador al filtrar [sin bump de versión]:**
+    * **API:** `acceptPrivacyPolicy` obligatorio en `CreateStorefrontOrderRequest`/`CreateStorefrontOrderCommand` (validación `ecommerce.checkout.privacy_required`); `CreateEcommerceOrderCommand.AcceptPrivacyPolicy` + `EcommerceOrder.DataConsentAtUtc` (`data_consent_at_utc` timestamptz null, migración `AddEcommerceOrderDataConsent`); el alta admin queda en null y el detalle expone `dataConsentAtUtc` (fila «Consentimiento de datos» en el admin).
+    * **Vitrina:** checkbox obligatorio en `CheckoutPage` con enlace a la nueva `PrivacyPage` (`/privacidad`) y enlace en `StoreFooter`; `localStorage` solo para carrito, gustados y visitor id (sin cookies de publicidad/rastreo). Doc `ecommerce/doc/tratamiento-datos-checkout.md`.
+    * **Fix catálogo:** `updateQuery` limpia `search` al cambiar filtros (clave `filters`), sin tocar orden ni paginación; el input del header se re-sincroniza con `key={query}`.
+    * **Verificación:** build backend y vitrina 0 warnings; 337 Core y 397 Business; 88 tests Vitest de la vitrina; admin build + 16/6/5 tests; ESLint de la vitrina limpio.
   - **Seguridad del checkout de la vitrina — anti-abuso, reservas y comprobante por WhatsApp [sin bump de versión]:**
     * **Referencia completa:** `doc/seguridad-checkout-vitrina.md` (archivos, beneficios y contras por medida).
     * **Reserva:** `Stock.Reserve` transaccional con `xmin` (sin sobreventa), ciclo Reserve → Release (cancelar) → Commit (despachar), worker TTL (`EcommercePaymentHoldWorker`, default 2 h) y modo `reserve_on_order=false` (reservar al confirmar pago).

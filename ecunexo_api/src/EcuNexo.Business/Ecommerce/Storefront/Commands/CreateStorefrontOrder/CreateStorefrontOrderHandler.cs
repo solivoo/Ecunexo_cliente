@@ -63,6 +63,11 @@ public sealed class CreateStorefrontOrderHandler
         "No podemos procesar este pedido.",
         ErrorType.Validation);
 
+    private static readonly Error PrivacyRequired = new(
+        CreateStorefrontOrderValidator.PrivacyRequiredErrorCode,
+        "Debes aceptar la política de tratamiento de datos personales.",
+        ErrorType.Validation);
+
     private static readonly Error BlockedContact = new(
         "ecommerce.checkout.blocked_contact",
         "No podemos procesar este pedido. Contacta a la tienda.",
@@ -123,6 +128,11 @@ public sealed class CreateStorefrontOrderHandler
             if (validation.Errors.Any(error => error.ErrorCode == CreateStorefrontOrderValidator.InvalidFormErrorCode))
             {
                 return Result.Failure<StorefrontOrderCreatedDto>(InvalidForm);
+            }
+
+            if (validation.Errors.Any(error => error.ErrorCode == CreateStorefrontOrderValidator.PrivacyRequiredErrorCode))
+            {
+                return Result.Failure<StorefrontOrderCreatedDto>(PrivacyRequired);
             }
 
             var message = string.Join(' ', validation.Errors.Select(e => e.ErrorMessage));
@@ -224,7 +234,8 @@ public sealed class CreateStorefrontOrderHandler
             CreatedBy: null,
             CreatedByName: SystemCustomerName,
             ClientRequestId: requestId,
-            ReserveStock: settings.ReserveOnOrder);
+            ReserveStock: settings.ReserveOnOrder,
+            AcceptPrivacyPolicy: command.AcceptPrivacyPolicy);
 
         try
         {

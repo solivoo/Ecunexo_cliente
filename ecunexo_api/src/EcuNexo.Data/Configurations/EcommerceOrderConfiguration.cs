@@ -45,6 +45,9 @@ public sealed class EcommerceOrderConfiguration : IEntityTypeConfiguration<Ecomm
             .HasColumnType("timestamptz")
             .IsRequired();
 
+        builder.Property(o => o.DataConsentAtUtc)
+            .HasColumnType("timestamptz");
+
         builder.Property(o => o.Status)
             .HasConversion<int>()
             .IsRequired();

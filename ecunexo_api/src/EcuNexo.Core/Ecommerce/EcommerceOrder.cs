@@ -43,6 +43,9 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
 
     public DateTimeOffset OrderDate { get; private set; }
 
+    /// <summary>Fecha/hora UTC en que el comprador aceptó la política de tratamiento de datos.</summary>
+    public DateTimeOffset? DataConsentAtUtc { get; private set; }
+
     public EcommerceOrderStatus Status { get; private set; } = EcommerceOrderStatus.Placed;
 
     public EcommercePaymentStatus PaymentStatus { get; private set; } = EcommercePaymentStatus.Pending;
@@ -169,7 +172,8 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
         Guid? createdBy = null,
         string? createdByName = null,
         string? clientRequestId = null,
-        bool stockReserved = true)
+        bool stockReserved = true,
+        bool acceptPrivacyPolicy = false)
     {
         if (id == Guid.Empty)
         {
@@ -223,6 +227,8 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
                 new Error("ecommerce.order.shipping_required", "La información de envío es obligatoria.", ErrorType.Validation));
         }
 
+        var utcNow = DateTimeOffset.UtcNow;
+
         var order = new EcommerceOrder
         {
             Id = id,
@@ -230,7 +236,8 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
             OrderNumber = orderNumber.Trim(),
             ClientRequestId = normalizedClientRequestId,
             WarehouseId = warehouseId,
-            OrderDate = DateTimeOffset.UtcNow,
+            OrderDate = utcNow,
+            DataConsentAtUtc = acceptPrivacyPolicy ? utcNow : null,
             Status = EcommerceOrderStatus.Placed,
             PaymentStatus = EcommercePaymentStatus.Pending,
             PaymentMethod = paymentMethod,
@@ -242,7 +249,7 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
             ShippingCost = Math.Max(0m, shippingCost),
             InternalNotes = string.IsNullOrWhiteSpace(internalNotes) ? null : internalNotes.Trim(),
             CustomerNotes = string.IsNullOrWhiteSpace(customerNotes) ? null : customerNotes.Trim(),
-            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedAt = utcNow,
             CreatedBy = createdBy,
         };
 

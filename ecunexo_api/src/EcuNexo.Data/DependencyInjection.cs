@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IModuleUsageCounterRepository, ModuleUsageCounterRepository>();
         services.AddScoped<ICatalogItemRepository, CatalogItemRepository>();
         services.AddScoped<IStorefrontCatalogRepository, StorefrontCatalogRepository>();
+        services.AddScoped<IStorefrontProductLikeRepository, StorefrontProductLikeRepository>();
         services.AddScoped<IStorefrontDomainRepository, StorefrontDomainRepository>();
         services.AddScoped<IVariantDimensionTemplateRepository, VariantDimensionTemplateRepository>();
         services.AddScoped<IProductTemplateRepository, ProductTemplateRepository>();

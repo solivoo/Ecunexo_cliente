@@ -97,7 +97,8 @@ public sealed class CreateEcommerceOrderHandler
             command.CreatedBy,
             command.CreatedByName,
             clientRequestId,
-            command.ReserveStock);
+            command.ReserveStock,
+            command.AcceptPrivacyPolicy);
 
         if (orderResult.IsFailure)
         {

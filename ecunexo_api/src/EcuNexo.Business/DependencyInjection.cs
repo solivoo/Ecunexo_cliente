@@ -127,8 +127,11 @@ using EcuNexo.Business.Repairs.Storage;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Storefront.Commands.CreateStorefrontDomain;
 using EcuNexo.Business.Storefront.Commands.DeleteStorefrontDomain;
+using EcuNexo.Business.Storefront.Commands.LikeStorefrontProduct;
 using EcuNexo.Business.Storefront.Commands.SetPrimaryStorefrontDomain;
+using EcuNexo.Business.Storefront.Commands.UnlikeStorefrontProduct;
 using EcuNexo.Business.Storefront.Commands.VerifyStorefrontDomain;
+using EcuNexo.Business.Storefront.Queries.GetStorefrontLikeMetrics;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontDomains;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontFacets;
@@ -421,6 +424,11 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<VerifyStorefrontDomainCommand, StorefrontDomainDto>, VerifyStorefrontDomainHandler>();
         services.AddScoped<ICommandHandler<SetPrimaryStorefrontDomainCommand, StorefrontDomainDto>, SetPrimaryStorefrontDomainHandler>();
         services.AddScoped<ICommandHandler<DeleteStorefrontDomainCommand, bool>, DeleteStorefrontDomainHandler>();
+
+        // Likes de productos de la vitrina
+        services.AddScoped<ICommandHandler<LikeStorefrontProductCommand, StorefrontProductLikeDto>, LikeStorefrontProductHandler>();
+        services.AddScoped<ICommandHandler<UnlikeStorefrontProductCommand, StorefrontProductLikeDto>, UnlikeStorefrontProductHandler>();
+        services.AddScoped<IQueryHandler<GetStorefrontLikeMetricsQuery, StorefrontLikeMetricsDto>, GetStorefrontLikeMetricsHandler>();
 
         // Pricing (Gestión de precios)
         services.AddScoped<IPricingService, PricingService>();

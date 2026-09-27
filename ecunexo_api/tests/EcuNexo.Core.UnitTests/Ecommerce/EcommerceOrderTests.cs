@@ -93,6 +93,46 @@ public sealed class EcommerceOrderTests
         pending.HasStockReserved.Should().BeTrue();
     }
 
+    [Fact(DisplayName = "Create con consentimiento de privacidad registra DataConsentAtUtc")]
+    public void Create_WithPrivacyConsent_SetsDataConsent()
+    {
+        var (customer, shipping) = CreateSampleInfo();
+        var before = DateTimeOffset.UtcNow;
+
+        var order = EcommerceOrder.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "ORD-2026-012",
+            Guid.CreateVersion7(),
+            EcommercePaymentMethod.BankTransfer,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping,
+            acceptPrivacyPolicy: true).Value!;
+
+        order.DataConsentAtUtc.Should().NotBeNull();
+        order.DataConsentAtUtc!.Value.Should().BeOnOrAfter(before);
+        order.DataConsentAtUtc.Value.Should().BeOnOrBefore(DateTimeOffset.UtcNow);
+    }
+
+    [Fact(DisplayName = "Create sin consentimiento de privacidad deja DataConsentAtUtc nulo")]
+    public void Create_WithoutPrivacyConsent_LeavesDataConsentNull()
+    {
+        var (customer, shipping) = CreateSampleInfo();
+
+        var order = EcommerceOrder.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "ORD-2026-013",
+            Guid.CreateVersion7(),
+            EcommercePaymentMethod.BankTransfer,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping).Value!;
+
+        order.DataConsentAtUtc.Should().BeNull();
+    }
+
     [Fact(DisplayName = "AddItem calcula totales y subtotales correctamente")]
     public void AddItem_RecalculatesTotals()
     {

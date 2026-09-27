@@ -16,6 +16,7 @@ namespace EcuNexo.Business.UnitTests.Storefront;
 public sealed class ListStorefrontProductsHandlerTests
 {
     private readonly IStorefrontCatalogRepository _products = Substitute.For<IStorefrontCatalogRepository>();
+    private readonly IStorefrontProductLikeRepository _likes = Substitute.For<IStorefrontProductLikeRepository>();
     private readonly IStockRepository _stock = Substitute.For<IStockRepository>();
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IPriceListRepository _priceLists = Substitute.For<IPriceListRepository>();
@@ -28,6 +29,12 @@ public sealed class ListStorefrontProductsHandlerTests
         _products
             .ListActiveRootsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new List<CatalogItem>());
+        _likes
+            .CountByItemIdsAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyCollection<Guid>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int>());
         _stock
             .SumAvailableByItemIdsAsync(
                 Arg.Any<Guid>(),
@@ -38,7 +45,7 @@ public sealed class ListStorefrontProductsHandlerTests
 
         _sut = new ListStorefrontProductsHandler(
             _tenants,
-            new StorefrontCatalogReader(_products, _stock, _priceLists, _productPrices, _warehouses));
+            new StorefrontCatalogReader(_products, _likes, _stock, _priceLists, _productPrices, _warehouses));
     }
 
     [Fact(DisplayName = "Lista productos activos con imagen y paginación")]
@@ -352,6 +359,45 @@ public sealed class ListStorefrontProductsHandlerTests
         result.Value!.Items.Select(i => i.Name).Should().Equal("Disponible Antiguo", "Agotado Nuevo");
     }
 
+    [Fact(DisplayName = "Expone el conteo de likes por producto")]
+    public async Task Handle_ExposesLikeCount()
+    {
+        var tenantId = Guid.CreateVersion7();
+        SetupTenant(tenantId);
+
+        var liked = CreateItem(tenantId, "Calcetín Gustado");
+        var ignored = CreateItem(tenantId, "Calcetín Sin Likes");
+        SetupProducts(liked, ignored);
+        SetupLikeCounts((liked.Id, 7));
+
+        var result = await _sut.Handle(new ListStorefrontProductsQuery(tenantId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var items = result.Value!.Items;
+        items.Single(item => item.Id == liked.Id).LikeCount.Should().Be(7);
+        items.Single(item => item.Id == ignored.Id).LikeCount.Should().Be(0);
+    }
+
+    [Fact(DisplayName = "El orden likes prioriza más gustados y luego nombre")]
+    public async Task Handle_SortLikes_OrdersByCountThenName()
+    {
+        var tenantId = Guid.CreateVersion7();
+        SetupTenant(tenantId);
+
+        var first = CreateItem(tenantId, "Alfa");
+        var second = CreateItem(tenantId, "Beta");
+        var third = CreateItem(tenantId, "Gamma");
+        SetupProducts(first, second, third);
+        SetupLikeCounts((first.Id, 3), (second.Id, 9), (third.Id, 3));
+
+        var result = await _sut.Handle(
+            new ListStorefrontProductsQuery(tenantId, Sort: "likes"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Select(item => item.Name).Should().Equal("Beta", "Alfa", "Gamma");
+    }
+
     [Fact(DisplayName = "Tenant inexistente no expone la tienda")]
     public async Task Handle_UnknownTenant_ReturnsNotFound()
     {
@@ -491,6 +537,16 @@ public sealed class ListStorefrontProductsHandlerTests
                 Arg.Any<IReadOnlyCollection<Guid>>(),
                 Arg.Any<CancellationToken>())
             .Returns(entries.ToDictionary(entry => entry.ItemId, entry => entry.Available));
+    }
+
+    private void SetupLikeCounts(params (Guid ItemId, int Count)[] entries)
+    {
+        _likes
+            .CountByItemIdsAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyCollection<Guid>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(entries.ToDictionary(entry => entry.ItemId, entry => entry.Count));
     }
 
     private static CatalogItem CreateItem(

@@ -164,6 +164,10 @@ public sealed class ListStorefrontProductsHandler
             .OrderByDescending(p => p.Item.CreatedAt)
             .ThenBy(p => p.Item.Name, StringComparer.OrdinalIgnoreCase)
             .ToList(),
+        "likes" => products
+            .OrderByDescending(p => p.LikeCount)
+            .ThenBy(p => p.Item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList(),
         _ => products
             .OrderByDescending(p => p.InStock)
             .ThenByDescending(p => p.Item.CreatedAt)
@@ -190,7 +194,8 @@ public sealed class ListStorefrontProductsHandler
             item.CreatedAt,
             ResolveSecondImage(item)?.MediumUrl,
             product.Colors,
-            product.IsNew);
+            product.IsNew,
+            product.LikeCount);
     }
 
     private static CatalogItemImage? ResolveMainImage(CatalogItem item)

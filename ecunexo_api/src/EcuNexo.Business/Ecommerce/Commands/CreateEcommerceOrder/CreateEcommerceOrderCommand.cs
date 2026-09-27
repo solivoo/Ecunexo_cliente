@@ -21,7 +21,8 @@ public sealed record CreateEcommerceOrderCommand(
     Guid? CreatedBy = null,
     string? CreatedByName = null,
     string? ClientRequestId = null,
-    bool ReserveStock = true) : ICommand<CreateEcommerceOrderResponse>;
+    bool ReserveStock = true,
+    bool AcceptPrivacyPolicy = false) : ICommand<CreateEcommerceOrderResponse>;
 
 public sealed record CreateEcommerceOrderResponse(
     Guid OrderId,

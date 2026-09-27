@@ -362,3 +362,92 @@
   font-family: ui-monospace, monospace;
 }
 
+/* --- Tarjeta: Productos más gustados de la vitrina --- */
+.ecu-likes-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: auto;
+  width: 100%;
+}
+
+.ecu-likes-total {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding-bottom: 0.15rem;
+}
+
+.ecu-likes-total__value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-family: ui-monospace, monospace;
+  color: var(--glb-text);
+}
+
+.ecu-likes-total__label {
+  font-size: 0.75rem;
+  color: var(--glb-muted);
+}
+
+.ecu-likes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ecu-likes-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name count'
+    'track track';
+  gap: 0.15rem 0.5rem;
+  align-items: center;
+}
+
+.ecu-likes-name {
+  grid-area: name;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--glb-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ecu-likes-count {
+  grid-area: count;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  color: var(--glb-muted);
+}
+
+.ecu-likes-track {
+  grid-area: track;
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--shell-muted) 18%, transparent);
+  overflow: hidden;
+}
+
+.ecu-likes-bar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  transition: width 0.3s ease;
+}
+
+.ecu-likes-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--glb-muted);
+}
+
+

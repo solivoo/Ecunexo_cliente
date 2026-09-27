@@ -28,4 +28,18 @@ public sealed class StorefrontCatalogRepository : IStorefrontCatalogRepository
             .ToListAsync(ct)
             .ConfigureAwait(false);
     }
+
+    public Task<CatalogItem?> FindActiveRootAsync(
+        Guid tenantId,
+        Guid catalogItemId,
+        CancellationToken ct) =>
+        _db.CatalogItems.AsNoTracking()
+            .FirstOrDefaultAsync(
+                i => i.TenantId == tenantId
+                    && i.Id == catalogItemId
+                    && i.DeletedAt == null
+                    && i.Status == CatalogItemStatus.Active
+                    && i.Kind == CatalogItemKind.Physical
+                    && i.ParentId == null,
+                ct);
 }

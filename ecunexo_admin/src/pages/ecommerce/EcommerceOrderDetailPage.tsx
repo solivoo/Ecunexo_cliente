@@ -479,6 +479,16 @@ export function EcommerceOrderDetailPage() {
                   )}
                 </span>
               </div>
+              <div className="ecommerce-info-row">
+                <span className="ecommerce-info-label">Consentimiento de datos:</span>
+                <span className="ecommerce-info-value">
+                  {order.dataConsentAtUtc ? (
+                    formatDateTime(order.dataConsentAtUtc)
+                  ) : (
+                    <span style={{ color: 'var(--glb-muted)' }}>No registrado</span>
+                  )}
+                </span>
+              </div>
               {order.customerNotes && (
                 <div className="ecommerce-info-row">
                   <span className="ecommerce-info-label">Nota Cliente:</span>

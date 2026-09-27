@@ -15,6 +15,7 @@ public sealed class StorefrontCatalogReader
     public const int NewWindowDays = 30;
 
     private readonly IStorefrontCatalogRepository _products;
+    private readonly IStorefrontProductLikeRepository _likes;
     private readonly IStockRepository _stock;
     private readonly IPriceListRepository _priceLists;
     private readonly IProductPriceRepository _productPrices;
@@ -22,12 +23,14 @@ public sealed class StorefrontCatalogReader
 
     public StorefrontCatalogReader(
         IStorefrontCatalogRepository products,
+        IStorefrontProductLikeRepository likes,
         IStockRepository stock,
         IPriceListRepository priceLists,
         IProductPriceRepository productPrices,
         IWarehouseRepository warehouses)
     {
         _products = products;
+        _likes = likes;
         _stock = stock;
         _priceLists = priceLists;
         _productPrices = productPrices;
@@ -47,6 +50,13 @@ public sealed class StorefrontCatalogReader
         }
 
         var ids = CollectIds(items);
+
+        var likeCounts = await _likes
+            .CountByItemIdsAsync(
+                tenantId,
+                items.Select(item => item.Id).ToList(),
+                ct)
+            .ConfigureAwait(false);
 
         // La vitrina muestra el disponible de la bodega de despacho (principal),
         // que es la misma que reserva el checkout público.
@@ -78,7 +88,8 @@ public sealed class StorefrontCatalogReader
                 resolvedPrices.TryGetValue(item.Id, out var resolved) ? resolved : item.BasePrice,
                 SumAvailability(item, availability) > 0m,
                 now - item.CreatedAt <= TimeSpan.FromDays(NewWindowDays),
-                ToReadOnlyAttributes(StorefrontFacetCatalog.ExtractAttributes(item))))
+                ToReadOnlyAttributes(StorefrontFacetCatalog.ExtractAttributes(item)),
+                likeCounts.TryGetValue(item.Id, out var likeCount) ? likeCount : 0))
             .ToList();
     }
 
@@ -126,7 +137,8 @@ public sealed record StorefrontCatalogProduct(
     decimal? Price,
     bool InStock,
     bool IsNew,
-    IReadOnlyDictionary<string, IReadOnlyList<string>> Attributes)
+    IReadOnlyDictionary<string, IReadOnlyList<string>> Attributes,
+    int LikeCount = 0)
 {
     public IReadOnlyList<string> Colors =>
         Attributes.TryGetValue("color", out var colors) ? colors : Array.Empty<string>();

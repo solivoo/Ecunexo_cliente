@@ -9,6 +9,7 @@ using EcuNexo.Business.Storefront.Commands.CreateStorefrontDomain;
 using EcuNexo.Business.Storefront.Commands.DeleteStorefrontDomain;
 using EcuNexo.Business.Storefront.Commands.SetPrimaryStorefrontDomain;
 using EcuNexo.Business.Storefront.Commands.VerifyStorefrontDomain;
+using EcuNexo.Business.Storefront.Queries.GetStorefrontLikeMetrics;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontDomains;
 using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateEcommerceBlockedContact;
@@ -69,7 +70,33 @@ public static class StorefrontAdminEndpoints
         blockedContacts.MapDelete("/{contactId:guid}", DeleteBlockedContactAsync)
             .AddEndpointFilter(PermissionFilters.Require("ecommerce.storefront.manage"));
 
+        RouteGroupBuilder metrics = app
+            .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/ecommerce/storefront/metrics")
+            .WithApiVersionSet(versionSet)
+            .WithTags("Storefront")
+            .RequireAuthorization();
+
+        metrics.MapGet("/likes", GetLikeMetricsAsync)
+            .AddEndpointFilter(PermissionFilters.Require("ecommerce.orders.read"));
+
         return app;
+    }
+
+    private static async Task<IResult> GetLikeMetricsAsync(
+        Guid tenantId,
+        int? days,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<GetStorefrontLikeMetricsQuery, StorefrontLikeMetricsDto>(
+                new GetStorefrontLikeMetricsQuery(
+                    tenantId,
+                    days ?? GetStorefrontLikeMetricsHandler.DefaultDays),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
     }
 
     private static async Task<IResult> GetSettingsAsync(

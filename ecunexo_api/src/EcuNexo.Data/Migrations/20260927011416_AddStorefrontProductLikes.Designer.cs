@@ -5,6 +5,7 @@ using EcuNexo.Core.Tenancy;
 using EcuNexo.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EcuNexo.Data.Migrations
 {
     [DbContext(typeof(EcuNexoDbContext))]
-    partial class EcuNexoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260927011416_AddStorefrontProductLikes")]
+    partial class AddStorefrontProductLikes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1355,10 +1358,6 @@ namespace EcuNexo.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("customer_notes");
-
-                    b.Property<DateTimeOffset?>("DataConsentAtUtc")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("data_consent_at_utc");
 
                     b.Property<DateTimeOffset?>("DeliveredAt")
                         .HasColumnType("timestamptz")

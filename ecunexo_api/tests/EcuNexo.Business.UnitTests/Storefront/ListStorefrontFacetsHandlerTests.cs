@@ -13,6 +13,7 @@ namespace EcuNexo.Business.UnitTests.Storefront;
 public sealed class ListStorefrontFacetsHandlerTests
 {
     private readonly IStorefrontCatalogRepository _products = Substitute.For<IStorefrontCatalogRepository>();
+    private readonly IStorefrontProductLikeRepository _likes = Substitute.For<IStorefrontProductLikeRepository>();
     private readonly IStockRepository _stock = Substitute.For<IStockRepository>();
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IPriceListRepository _priceLists = Substitute.For<IPriceListRepository>();
@@ -25,6 +26,12 @@ public sealed class ListStorefrontFacetsHandlerTests
         _products
             .ListActiveRootsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new List<CatalogItem>());
+        _likes
+            .CountByItemIdsAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyCollection<Guid>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int>());
         _stock
             .SumAvailableByItemIdsAsync(
                 Arg.Any<Guid>(),
@@ -35,7 +42,7 @@ public sealed class ListStorefrontFacetsHandlerTests
 
         _sut = new ListStorefrontFacetsHandler(
             _tenants,
-            new StorefrontCatalogReader(_products, _stock, _priceLists, _productPrices, _warehouses));
+            new StorefrontCatalogReader(_products, _likes, _stock, _priceLists, _productPrices, _warehouses));
     }
 
     [Fact(DisplayName = "Construye facetas canónicas con counts y orden de valores")]

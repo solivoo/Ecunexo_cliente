@@ -20,6 +20,7 @@ public sealed class GetStorefrontProductHandler
     private readonly IPriceListRepository _priceLists;
     private readonly IProductPriceRepository _productPrices;
     private readonly IWarehouseRepository _warehouses;
+    private readonly IStorefrontProductLikeRepository _likes;
 
     public GetStorefrontProductHandler(
         ISender sender,
@@ -27,7 +28,8 @@ public sealed class GetStorefrontProductHandler
         ITenantRepository tenants,
         IPriceListRepository priceLists,
         IProductPriceRepository productPrices,
-        IWarehouseRepository warehouses)
+        IWarehouseRepository warehouses,
+        IStorefrontProductLikeRepository likes)
     {
         _sender = sender;
         _stock = stock;
@@ -35,6 +37,7 @@ public sealed class GetStorefrontProductHandler
         _priceLists = priceLists;
         _productPrices = productPrices;
         _warehouses = warehouses;
+        _likes = likes;
     }
 
     public async Task<Result<StorefrontProductDetailDto>> Handle(
@@ -117,6 +120,11 @@ public sealed class GetStorefrontProductHandler
                 ResolvePrice(resolvedPrices, variant.Id) ?? productPrice))
             .ToList();
 
+        // Los likes viven sobre el producto raíz, nunca sobre una variante.
+        var likeCount = await _likes
+            .CountForItemAsync(query.TenantId, item.ParentId ?? item.Id, ct)
+            .ConfigureAwait(false);
+
         var dto = new StorefrontProductDetailDto(
             item.Id,
             item.Kind,
@@ -131,7 +139,8 @@ public sealed class GetStorefrontProductHandler
             MapMatrix(item.MatrixDescriptor),
             ParseAttributes(item.HierarchyPathJson, item.CustomAttributesJson),
             item.CreatedAt,
-            item.UpdatedAt);
+            item.UpdatedAt,
+            likeCount);
 
         return Result.Success(dto);
     }

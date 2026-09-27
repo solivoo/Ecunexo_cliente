@@ -350,6 +350,8 @@ public sealed class EcommerceOrderHandlersTests
         stock.AvailableQuantity.Should().Be(10m);
         createdOrder.Should().NotBeNull();
         createdOrder!.HasStockReserved.Should().BeFalse();
+        createdOrder.DataConsentAtUtc.Should().BeNull(
+            "el alta administrativa no captura consentimiento de privacidad");
     }
 
     [Fact(DisplayName = "ConfirmEcommerceOrderPaymentHandler reserva stock si la orden no lo había hecho")]
@@ -654,13 +656,16 @@ public sealed class EcommerceOrderHandlersTests
             ShippingMethod: EcommerceShippingMethod.Courier,
             Customer: customer,
             Shipping: shipping,
-            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 3m)]);
+            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 3m)],
+            AcceptPrivacyPolicy: true);
 
         var result = await sut.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         createdOrder.Should().NotBeNull();
-        var line = createdOrder!.Items.Single();
+        createdOrder!.DataConsentAtUtc.Should().NotBeNull(
+            "el checkout público aceptó la política de tratamiento de datos");
+        var line = createdOrder.Items.Single();
         line.UnitPrice.Should().Be(90m);
         line.PriceListId.Should().Be(list.Id);
         line.ListPrice.Should().Be(90m);

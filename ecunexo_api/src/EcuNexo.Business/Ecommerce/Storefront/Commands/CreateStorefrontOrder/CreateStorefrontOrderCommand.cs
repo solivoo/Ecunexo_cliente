@@ -30,4 +30,5 @@ public sealed record CreateStorefrontOrderCommand(
     int? FormElapsedMs = null,
     string? ClientIp = null,
     string? UserAgent = null,
-    string? TurnstileToken = null) : ICommand<StorefrontOrderCreatedDto>;
+    string? TurnstileToken = null,
+    bool AcceptPrivacyPolicy = false) : ICommand<StorefrontOrderCreatedDto>;

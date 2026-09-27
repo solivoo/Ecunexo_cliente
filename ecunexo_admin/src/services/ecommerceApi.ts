@@ -11,6 +11,7 @@ import type {
   LinkEcommerceInvoiceBody,
   ListEcommerceOrdersResponse,
   ShipEcommerceOrderBody,
+  StorefrontLikeMetricsDto,
 } from '@/types/ecommerceApi'
 
 export async function listEcommerceOrders(
@@ -57,6 +58,17 @@ export async function getEcommerceMetrics(
 ): Promise<EcommerceOrderMetricsDto> {
   const { data } = await api.get<EcommerceOrderMetricsDto>(
     `/api/v1/tenants/${tenantId}/ecommerce/orders/metrics`
+  )
+  return data
+}
+
+export async function getStorefrontLikeMetrics(
+  tenantId: string,
+  days = 30
+): Promise<StorefrontLikeMetricsDto> {
+  const { data } = await api.get<StorefrontLikeMetricsDto>(
+    `/api/v1/tenants/${tenantId}/ecommerce/storefront/metrics/likes`,
+    { params: { days } }
   )
   return data
 }

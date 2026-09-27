@@ -22,6 +22,8 @@ import {
   getDashboardAnalytics,
   type DashboardAnalyticsResponseDto,
 } from '@/services/dashboardApi'
+import { getStorefrontLikeMetrics } from '@/services/ecommerceApi'
+import type { StorefrontLikeMetricsDto } from '@/types/ecommerceApi'
 import { toIsoDate, type IsoDateRange } from '@/lib/gridLookback'
 import { listInvoices } from '@/services/billingApi'
 import type { InvoiceListItem } from '@/types/billingApi'
@@ -243,6 +245,7 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
   const [salesPeriodPreset] = useState<'semanal' | 'mensual' | 'anual'>('semanal')
   const [salesDateRange] = useState<IsoDateRange>(() => getPresetDateRange('semanal'))
   const [invoices, setInvoices] = useState<InvoiceListItem[]>([])
+  const [likeMetrics, setLikeMetrics] = useState<StorefrontLikeMetricsDto | null>(null)
 
   useEffect(() => {
     if (!activeTenantId) return
@@ -272,6 +275,7 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
   const canAccounting = useHasPermission('contabilidad.balances.read') || useHasPermission('contabilidad.asientos.read')
   const canRemision = useHasPermission('facturacion.guias.remision.read') || canBilling
   const canTax = useHasPermission('contabilidad.declaraciones.read') || canAccounting
+  const canEcommerce = useHasPermission('ecommerce.orders.read')
 
   useEffect(() => {
     if (!activeTenantId || !canBilling) return
@@ -303,6 +307,22 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
     }
   }, [activeTenantId, canBilling, salesDateRange.from, salesDateRange.to])
 
+  useEffect(() => {
+    if (!activeTenantId || !canEcommerce) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await getStorefrontLikeMetrics(activeTenantId)
+        if (!cancelled) setLikeMetrics(res)
+      } catch {
+        if (!cancelled) setLikeMetrics(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [activeTenantId, canEcommerce])
+
   const computedSalesTrend = useMemo(() => {
     if (invoices.length > 0) {
       return computeSalesTrend(invoices, salesPeriodPreset, salesDateRange.from)
@@ -328,9 +348,10 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
       canAccounting ||
       canRemision ||
       canTax ||
+      canEcommerce ||
       isHolderOnly
     )
-  }, [canBilling, canPurchases, canInventory, canRepairs, canAccounting, canRemision, canTax, isHolderOnly])
+  }, [canBilling, canPurchases, canInventory, canRepairs, canAccounting, canRemision, canTax, canEcommerce, isHolderOnly])
 
   const sriStatus = analyticsData?.sriStatusDistribution ?? DEFAULT_SRI_STATUS
   const customerTypes = analyticsData?.customerTypeDistribution ?? DEFAULT_CUSTOMER_TYPES
@@ -340,6 +361,9 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
   const repairStages = analyticsData?.repairStagesDistribution ?? DEFAULT_REPAIR_STAGES
   const financialBalance = analyticsData?.financialBalance ?? DEFAULT_FINANCIAL_BALANCE
   const taxDeclarations = analyticsData?.taxDeclarationsTrend ?? DEFAULT_TAX_DECLARATIONS
+
+  const likeTop = likeMetrics?.topProducts ?? []
+  const maxLikeCount = likeTop.reduce((max, product) => Math.max(max, product.likeCount), 0)
 
 
   // Etiquetas cortas para el gráfico de directorio de clientes
@@ -645,6 +669,49 @@ export function DashboardChartsSection({ isHolderOnly = false }: DashboardCharts
                   <Bar dataKey="ivasoportado" name="IVA Compras" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </SectionCard>
+        )}
+        {/* GRÁFICO 10: Productos más gustados de la vitrina */}
+        {canEcommerce && (
+          <SectionCard
+            title="Productos más gustados"
+            subtitle="Top 5 de la vitrina (últimos 30 días)"
+            action={<StatusBadge tone="danger">Likes</StatusBadge>}
+          >
+            <div className="ecu-likes-card">
+              <div className="ecu-likes-total">
+                <span className="ecu-likes-total__value">
+                  {(likeMetrics?.totalLikes ?? 0).toLocaleString('es-EC')}
+                </span>
+                <span className="ecu-likes-total__label">Likes en el período</span>
+              </div>
+              {likeTop.length > 0 ? (
+                <ul className="ecu-likes-list">
+                  {likeTop.map((product) => (
+                    <li key={product.catalogItemId} className="ecu-likes-row">
+                      <span className="ecu-likes-name" title={product.name}>
+                        {product.name}
+                      </span>
+                      <span className="ecu-likes-count">
+                        {product.likeCount.toLocaleString('es-EC')}
+                      </span>
+                      <span className="ecu-likes-track" aria-hidden="true">
+                        <span
+                          className="ecu-likes-bar"
+                          style={{
+                            width: `${maxLikeCount > 0 ? Math.max(6, Math.round((product.likeCount / maxLikeCount) * 100)) : 0}%`,
+                          }}
+                        />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="ecu-likes-empty">
+                  Aún no hay “me gusta” registrados en el período.
+                </p>
+              )}
             </div>
           </SectionCard>
         )}

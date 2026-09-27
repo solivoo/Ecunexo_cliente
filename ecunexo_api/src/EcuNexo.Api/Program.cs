@@ -166,6 +166,18 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true,
             }));
+
+    options.AddPolicy(
+        StorefrontRateLimitPolicies.Likes,
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            StorefrontRateLimitPolicies.ResolveClientIp(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Max(1, storefrontRateLimits.LikesPermitLimit),
+                Window = TimeSpan.FromMinutes(Math.Max(1, storefrontRateLimits.LikesWindowMinutes)),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
 });
 
 var corsOrigins = ParseCorsOrigins(builder.Configuration);

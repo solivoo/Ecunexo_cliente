@@ -9,6 +9,8 @@ using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateStorefrontOrder;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.UploadStorefrontPaymentProof;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceCheckoutOptions;
 using EcuNexo.Business.Storefront;
+using EcuNexo.Business.Storefront.Commands.LikeStorefrontProduct;
+using EcuNexo.Business.Storefront.Commands.UnlikeStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontFacets;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontProducts;
@@ -38,6 +40,10 @@ public static class StorefrontEndpoints
             .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
         storefront.MapGet("/products/{productId:guid}", GetProductAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
+        storefront.MapPost("/products/{productId:guid}/like", LikeProductAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Likes);
+        storefront.MapDelete("/products/{productId:guid}/like", UnlikeProductAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Likes);
         storefront.MapGet("/checkout-options", GetCheckoutOptionsAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
         storefront.MapPost("/orders", CreateOrderAsync)
@@ -141,6 +147,38 @@ public static class StorefrontEndpoints
         var result = await sender
             .AskAsync<GetStorefrontProductQuery, StorefrontProductDetailDto>(
                 new GetStorefrontProductQuery(tenantId, productId),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> LikeProductAsync(
+        Guid tenantId,
+        Guid productId,
+        LikeStorefrontProductRequest? body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<LikeStorefrontProductCommand, StorefrontProductLikeDto>(
+                new LikeStorefrontProductCommand(tenantId, productId, body?.VisitorId),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> UnlikeProductAsync(
+        Guid tenantId,
+        Guid productId,
+        string? visitorId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<UnlikeStorefrontProductCommand, StorefrontProductLikeDto>(
+                new UnlikeStorefrontProductCommand(tenantId, productId, visitorId),
                 ct)
             .ConfigureAwait(false);
 

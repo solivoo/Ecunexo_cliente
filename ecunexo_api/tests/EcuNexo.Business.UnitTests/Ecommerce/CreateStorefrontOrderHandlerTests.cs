@@ -107,6 +107,7 @@ public sealed class CreateStorefrontOrderHandlerTests
         captured.ClientRequestId.Should().Be("req-1");
         captured.CustomerNotes.Should().Be("Entregar en la tarde");
         captured.ReserveStock.Should().BeTrue();
+        captured.AcceptPrivacyPolicy.Should().BeTrue();
         captured.Customer.TaxId.Should().Be(CreateStorefrontOrderHandler.DefaultConsumerTaxId);
         captured.Customer.TaxIdType.Should().Be(CreateStorefrontOrderHandler.DefaultConsumerTaxIdType);
         captured.Customer.Email.Should().Be("maria.lopez@example.com");
@@ -263,6 +264,23 @@ public sealed class CreateStorefrontOrderHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("ecommerce.checkout.invalid_form");
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        await _sender.DidNotReceiveWithAnyArgs()
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(default!, default);
+    }
+
+    [Fact(DisplayName = "Sin aceptar la política de datos responde ecommerce.checkout.privacy_required")]
+    public async Task Handle_WithoutPrivacyConsent_ReturnsPrivacyRequired()
+    {
+        var tenantId = SetupTenant();
+        SetupSettings(tenantId);
+
+        var command = CreateCommand(tenantId) with { AcceptPrivacyPolicy = false };
+        var result = await _sut.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("ecommerce.checkout.privacy_required");
+        result.Error.Message.Should().Be("Debes aceptar la política de tratamiento de datos personales.");
         result.Error.Type.Should().Be(ErrorType.Validation);
         await _sender.DidNotReceiveWithAnyArgs()
             .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(default!, default);
@@ -564,7 +582,8 @@ public sealed class CreateStorefrontOrderHandlerTests
             "BankTransfer",
             "Courier",
             [new CreateStorefrontOrderItemInput(Guid.CreateVersion7(), 2)],
-            "Entregar en la tarde");
+            "Entregar en la tarde",
+            AcceptPrivacyPolicy: true);
 
     private static EcommerceOrder CreateExistingOrder(
         Guid tenantId,

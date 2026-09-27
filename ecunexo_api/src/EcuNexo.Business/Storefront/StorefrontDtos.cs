@@ -22,7 +22,8 @@ public sealed record StorefrontProductListItemDto(
     DateTimeOffset CreatedAt,
     string? SecondMediumUrl,
     IReadOnlyList<string> Colors,
-    bool IsNew);
+    bool IsNew,
+    int LikeCount);
 
 public sealed record StorefrontFacetsDto(
     IReadOnlyList<StorefrontFacetAttributeDto> Attributes,
@@ -55,7 +56,8 @@ public sealed record StorefrontProductDetailDto(
     StorefrontMatrixDto? Matrix,
     IReadOnlyList<StorefrontAttributeDto> Attributes,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt,
+    int LikeCount);
 
 public sealed record StorefrontImageDto(
     Guid Id,
@@ -96,3 +98,8 @@ public sealed record StorefrontAttributeDto(
     string Level,
     string Name,
     string Value);
+
+/// <summary>Resultado idempotente de dar o quitar "me gusta" a un producto.</summary>
+public sealed record StorefrontProductLikeDto(
+    bool Liked,
+    int LikeCount);

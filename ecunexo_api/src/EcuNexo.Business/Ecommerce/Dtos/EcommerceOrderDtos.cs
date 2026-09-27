@@ -93,7 +93,8 @@ public sealed record EcommerceOrderDetailDto(
     DateTimeOffset CreatedAt,
     IReadOnlyList<EcommerceOrderItemDto> Items,
     IReadOnlyList<EcommerceOrderTimelineDto> Timeline,
-    DateTimeOffset? PaymentProofUploadedAtUtc = null);
+    DateTimeOffset? PaymentProofUploadedAtUtc = null,
+    DateTimeOffset? DataConsentAtUtc = null);
 
 /// <summary>URL prefirmada de descarga del comprobante de pago (bucket privado).</summary>
 public sealed record EcommerceOrderPaymentProofUrlDto(

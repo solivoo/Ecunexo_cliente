@@ -225,6 +225,7 @@ export interface EcommerceOrderDetailDto {
   items: EcommerceOrderItemDto[]
   timeline: EcommerceOrderTimelineDto[]
   paymentProofUploadedAtUtc?: string | null
+  dataConsentAtUtc?: string | null
 }
 
 export interface EcommerceOrderPaymentProofUrlDto {
@@ -248,6 +249,23 @@ export interface ListEcommerceOrdersResponse {
   totalCount: number
   pageNumber: number
   pageSize: number
+}
+
+export interface StorefrontLikeTopProductDto {
+  catalogItemId: string
+  name: string
+  likeCount: number
+}
+
+export interface StorefrontLikeDailyPointDto {
+  date: string
+  count: number
+}
+
+export interface StorefrontLikeMetricsDto {
+  totalLikes: number
+  topProducts: StorefrontLikeTopProductDto[]
+  daily: StorefrontLikeDailyPointDto[]
 }
 
 export interface CreateEcommerceOrderItemBody {
