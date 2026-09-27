@@ -131,6 +131,23 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
                 i => i.TenantId == tenantId && i.Id == itemId && i.DeletedAt == null,
                 ct);
 
+    public async Task<IReadOnlyList<CatalogItem>> GetByIdsWithImagesAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken ct)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await _db.CatalogItems.AsNoTracking()
+            .Include(i => i.Images)
+            .Where(i => i.TenantId == tenantId && i.DeletedAt == null && ids.Contains(i.Id))
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<CatalogItem>> GetActiveByIdsAsync(
         Guid tenantId,
         IReadOnlyCollection<Guid> ids,

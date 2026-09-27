@@ -561,7 +561,43 @@ export function EcommerceOrderDetailPage() {
               <tbody>
                 {order.items.map((item) => (
                   <tr key={item.id} style={{ borderBottom: '1px solid var(--shell-border, rgba(0,0,0,0.06))' }}>
-                    <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{item.sku || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 0.5rem' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.6rem',
+                        }}
+                      >
+                        {item.thumbUrl ? (
+                          <img
+                            src={item.thumbUrl}
+                            alt={item.itemName}
+                            loading="lazy"
+                            style={{
+                              width: 40,
+                              height: 40,
+                              objectFit: 'cover',
+                              borderRadius: 6,
+                              border: '1px solid var(--shell-border, rgba(0,0,0,0.12))',
+                              flexShrink: 0,
+                            }}
+                          />
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 6,
+                              border: '1px dashed var(--shell-border, rgba(0,0,0,0.2))',
+                              flexShrink: 0,
+                            }}
+                          />
+                        )}
+                        <span style={{ fontWeight: 600 }}>{item.sku || 'N/A'}</span>
+                      </div>
+                    </td>
                     <td style={{ padding: '0.75rem 0.5rem' }}>{item.itemName}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center', fontWeight: 600 }}>{item.quantity}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>

@@ -32,7 +32,8 @@ public sealed record EcommerceOrderItemDto(
     decimal DiscountAmount,
     decimal TaxRate,
     decimal TaxAmount,
-    decimal TotalAmount);
+    decimal TotalAmount,
+    string? ThumbUrl = null);
 
 public sealed record EcommerceOrderTimelineDto(
     Guid Id,

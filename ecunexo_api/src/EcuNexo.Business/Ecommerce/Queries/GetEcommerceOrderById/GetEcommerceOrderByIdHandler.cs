@@ -1,4 +1,5 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Ecommerce.Dtos;
 using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Core.Common;
@@ -9,10 +10,14 @@ public sealed class GetEcommerceOrderByIdHandler
     : IQueryHandler<GetEcommerceOrderByIdQuery, EcommerceOrderDetailDto>
 {
     private readonly IEcommerceOrderRepository _orders;
+    private readonly ICatalogItemRepository _catalogItems;
 
-    public GetEcommerceOrderByIdHandler(IEcommerceOrderRepository orders)
+    public GetEcommerceOrderByIdHandler(
+        IEcommerceOrderRepository orders,
+        ICatalogItemRepository catalogItems)
     {
         _orders = orders;
+        _catalogItems = catalogItems;
     }
 
     public async Task<Result<EcommerceOrderDetailDto>> Handle(
@@ -32,6 +37,19 @@ public sealed class GetEcommerceOrderByIdHandler
                 new Error("ecommerce.order.not_found", "La orden especificada no existe.", ErrorType.NotFound));
         }
 
+        var catalogItemIds = order.Items.Select(i => i.CatalogItemId).Distinct().ToList();
+        var catalogItems = await _catalogItems
+            .GetByIdsWithImagesAsync(query.TenantId, catalogItemIds, ct)
+            .ConfigureAwait(false);
+        var thumbsById = catalogItems.ToDictionary(
+            item => item.Id,
+            item =>
+            {
+                var ordered = item.Images.OrderBy(image => image.DisplayOrder).ToList();
+                return ordered.FirstOrDefault(image => image.IsMain)?.ThumbUrl
+                    ?? ordered.FirstOrDefault()?.ThumbUrl;
+            });
+
         var items = order.Items.Select(i => new EcommerceOrderItemDto(
             Id: i.Id,
             CatalogItemId: i.CatalogItemId,
@@ -42,7 +60,8 @@ public sealed class GetEcommerceOrderByIdHandler
             DiscountAmount: i.DiscountAmount,
             TaxRate: i.TaxRate,
             TaxAmount: i.TaxAmount,
-            TotalAmount: i.TotalAmount)).ToList();
+            TotalAmount: i.TotalAmount,
+            ThumbUrl: thumbsById.GetValueOrDefault(i.CatalogItemId))).ToList();
 
         var timeline = order.Timeline
             .OrderBy(t => t.OccurredAt)

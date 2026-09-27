@@ -22,6 +22,12 @@ public interface ICatalogItemRepository
 
     Task<CatalogItem?> GetTrackedByIdAsync(Guid tenantId, Guid itemId, CancellationToken ct);
 
+    /// <summary>Ítems (activos o no) con sus imágenes, para mostrar evidencias de pedidos históricos.</summary>
+    Task<IReadOnlyList<CatalogItem>> GetByIdsWithImagesAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken ct);
+
     Task<IReadOnlyList<CatalogItem>> GetActiveByIdsAsync(
         Guid tenantId,
         IReadOnlyCollection<Guid> ids,

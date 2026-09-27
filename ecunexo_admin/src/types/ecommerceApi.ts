@@ -161,6 +161,7 @@ export interface EcommerceOrderItemDto {
   taxRate: number
   taxAmount: number
   totalAmount: number
+  thumbUrl: string | null
 }
 
 export interface EcommerceOrderTimelineDto {

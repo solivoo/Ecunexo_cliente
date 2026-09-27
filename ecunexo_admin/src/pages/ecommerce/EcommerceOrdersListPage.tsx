@@ -17,6 +17,7 @@ import { useGridDateRange } from '@/hooks/useGridDateRange'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
+import { toApiDateRange } from '@/lib/gridLookback'
 import { readApiError } from '@/lib/readApiError'
 import { getEcommerceMetrics, listEcommerceOrders } from '@/services/ecommerceApi'
 import { selectTenantId } from '@/store/authSlice'
@@ -75,8 +76,7 @@ export function EcommerceOrdersListPage() {
           listEcommerceOrders(tenantId, {
             status: statusParam,
             search: searchTerm.trim() || undefined,
-            fromDate: from ?? undefined,
-            toDate: to ?? undefined,
+            ...toApiDateRange({ from, to }),
             page: 1,
             pageSize: 100,
           }),

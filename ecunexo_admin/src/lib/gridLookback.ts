@@ -66,3 +66,17 @@ export function isoInstantInRange(iso: string, range: IsoDateRange): boolean {
   const day = isoDayInEcuador(iso)
   return day !== null && day >= range.from && day <= range.to
 }
+
+/** Ecuador continental no tiene horario de verano: UTC-5 fijo. */
+const ECUADOR_OFFSET = '-05:00'
+
+/**
+ * Convierte el rango civil (YYYY-MM-DD) a instantes UTC con la zona de Ecuador,
+ * para que el día completo quede incluido en los filtros del API.
+ */
+export function toApiDateRange(range: IsoDateRange): { fromDate: string; toDate: string } {
+  return {
+    fromDate: `${range.from}T00:00:00${ECUADOR_OFFSET}`,
+    toDate: `${range.to}T23:59:59.999${ECUADOR_OFFSET}`,
+  }
+}
