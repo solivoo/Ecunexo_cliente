@@ -9,6 +9,10 @@
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
 * **Última Versión Publicada:** `v0.55.2`.
 * **Hitos Recientes Completados:**
+  - **Plan de Cumplimiento y Auditoría (Compliance/Audit) — planificación [sin bump de versión]:**
+    * **Documento:** `doc/compliance-auditoria-plan.md` (excluye firma electrónica/certificados).
+    * **Diagnóstico:** RBAC por permisos y `IAuditable` ya existen; el RUC del proveedor ya se emite en `infoAdicional` (`SriFacturaXmlGenerator`); faltan audit log inmutable, aceptaciones versionadas (T&C/privacidad), registro de tratamientos, retención y módulo de incidentes.
+    * **Fases:** 0) audit log inmutable + documentos/aceptaciones + auditoría RBAC; 1) datos personales y retención; 2) cumplimiento SRI del proveedor; 3) incidentes y continuidad; 4) gobierno y revisión legal.
   - **Checkout — Consentimiento de tratamiento de datos, página `/privacidad` y limpieza del buscador al filtrar [sin bump de versión]:**
     * **API:** `acceptPrivacyPolicy` obligatorio en `CreateStorefrontOrderRequest`/`CreateStorefrontOrderCommand` (validación `ecommerce.checkout.privacy_required`); `CreateEcommerceOrderCommand.AcceptPrivacyPolicy` + `EcommerceOrder.DataConsentAtUtc` (`data_consent_at_utc` timestamptz null, migración `AddEcommerceOrderDataConsent`); el alta admin queda en null y el detalle expone `dataConsentAtUtc` (fila «Consentimiento de datos» en el admin).
     * **Vitrina:** checkbox obligatorio en `CheckoutPage` con enlace a la nueva `PrivacyPage` (`/privacidad`) y enlace en `StoreFooter`; `localStorage` solo para carrito, gustados y visitor id (sin cookies de publicidad/rastreo). Doc `ecommerce/doc/tratamiento-datos-checkout.md`.
