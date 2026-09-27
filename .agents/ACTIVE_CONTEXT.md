@@ -7,8 +7,10 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.57.0`.
+* **Última Versión Publicada:** `v0.57.1`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Variantes consistentes con la plantilla (v0.57.1):**
+    * En `VariantMatrixBuilder`, los bloques fijos «Colores» y «Tags / Actividad» ahora son condicionales: se muestran solo si la plantilla declara un eje/atributo de color (`dimensions`/`variantAttributeFields` con `isColor`/dataType color/colorlist) o de etiquetas (nombres tags/etiquetas/actividad), o si la variante ya tiene `extraColors`/`variantTags` guardados (para editarlos). Se detectó en la BD desplegada de EVERCHIC que la plantilla «Plantilla para calcetines» (ejes Talla/Caña; datos Marca/Modelo/Categoria) renderizaba ambos bloques de más.
   - **Catálogo — Alta solo por plantilla y datos agrupados por tipo (v0.57.0):**
     * El alta de productos exige plantilla: se eliminan los modos manual/servicio, la tarjeta «Datos del producto» y el selector de modo. Nombre y descripción se derivan de los atributos de la plantilla; si no captura código, se autogenera un SKU legible (`NOMBRE-XXXXXX`) editable y se informa en el resumen/toast.
     * `ArchetypeModelFields` agrupa los campos por tipo de control (Texto, Números, Listas de selección, Colores, Etiquetas, Fotos) con grillas `--4`/`--2` y spans coherentes; títulos de grupo solo cuando hay más de uno.
