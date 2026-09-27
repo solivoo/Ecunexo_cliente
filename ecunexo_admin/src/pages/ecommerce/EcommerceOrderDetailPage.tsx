@@ -62,6 +62,9 @@ export function EcommerceOrderDetailPage() {
 
   const canManage = useHasPermission('ecommerce.orders.manage')
   const canManageStorefront = useHasPermission('ecommerce.storefront.manage')
+  const canCreateInvoicePrimary = useHasPermission('facturacion.facturas.create')
+  const canCreateInvoiceLegacy = useHasPermission('billing.invoices.create')
+  const canCreateInvoice = canCreateInvoicePrimary || canCreateInvoiceLegacy
 
   const [order, setOrder] = useState<EcommerceOrderDetailDto | null>(null)
   const [loading, setLoading] = useState(true)
@@ -290,6 +293,18 @@ export function EcommerceOrderDetailPage() {
                   }}
                 >
                   Confirmar Entrega
+                </Button>
+              )}
+
+              {canCreateInvoice && !order.billingInvoiceId && !isCancelled && (
+                <Button
+                  variant="primary"
+                  iconLeft={<FileText size={16} />}
+                  onClick={() =>
+                    navigate(`/facturacion/facturas/emitir?pedido=${encodeURIComponent(order.id)}`)
+                  }
+                >
+                  Facturar pedido
                 </Button>
               )}
 

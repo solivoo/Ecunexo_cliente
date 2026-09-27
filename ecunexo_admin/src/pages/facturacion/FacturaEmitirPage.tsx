@@ -1,5 +1,5 @@
 import { Button } from 'glubox'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -17,10 +17,12 @@ import './facturaEmitir.css'
 
 export function FacturaEmitirPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const orderIdToInvoice = searchParams.get('pedido')
   const canCreate = useHasPermission('facturacion.facturas.create')
   const tenantId = useAppSelector(selectTenantId)
   const branding = useAppSelector(selectTenantBranding)
-  const form = useInvoiceEmitForm({ tenantId, branding, canCreate })
+  const form = useInvoiceEmitForm({ tenantId, branding, canCreate, orderIdToInvoice })
   const profile = form.emitProfile
   const totals = computeTotals(form.lines)
   /** Validar/firmar sin enviar al SRI son ayudas de certificación: solo en ambiente de pruebas. */
@@ -93,6 +95,15 @@ export function FacturaEmitirPage() {
         empty={!tenantId}
         emptyMessage="Entrar a una empresa para emitir facturas."
       >
+        {form.billingOrder ? (
+          <div className="factura-emitir__lookup-banner" role="status">
+            <span>
+              Facturando desde el pedido <strong>{form.billingOrder.orderNumber}</strong>. Revisa
+              cliente y líneas antes de emitir.
+            </span>
+          </div>
+        ) : null}
+
         <form
           className="factura-emitir__form"
           onSubmit={(e) => {

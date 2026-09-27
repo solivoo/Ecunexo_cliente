@@ -32,9 +32,15 @@ import { toInvoiceDetailPreview } from '@/pages/facturacion/toInvoiceDetailPrevi
 import {
   applyCounterpartyIdType,
   computeTotals,
+  CONSUMIDOR_FINAL_BUSINESS_NAME,
+  CONSUMIDOR_FINAL_IDENTIFICATION,
   createEmptyLine,
   DEFAULT_PAYMENT_FORM_CODE,
+  defaultCustomerTypeForSriId,
+  ID_TYPE_CONSUMIDOR_FINAL,
+  ID_TYPE_OPTIONS,
   isConsumidorFinalType,
+  isLineEmpty,
   normalizeCounterpartyForEmit,
   normalizeLineIvaRate,
   pricingToLinePatch,
@@ -45,8 +51,10 @@ import {
   type InvoiceLineDraft,
 } from '@/pages/facturacion/invoiceFormTypes'
 import { getOrCreateCustomer } from '@/services/customersApi'
+import { getEcommerceOrderById, linkEcommerceOrderInvoice } from '@/services/ecommerceApi'
 import { resolvePrice } from '@/services/pricingApi'
 import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
+import type { EcommerceOrderDetailDto } from '@/types/ecommerceApi'
 import type { TenantBranding } from '@/types/tenantBranding'
 import { readApiError } from '@/lib/readApiError'
 
@@ -75,16 +83,105 @@ const INITIAL_COUNTERPARTY: InvoiceCounterpartyValues = {
   phone: '',
 }
 
+const VALID_SRI_ID_TYPES: ReadonlySet<string> = new Set(
+  ID_TYPE_OPTIONS.map((option) => option.value)
+)
+
+type EcommerceOrderInvoiceContext = {
+  readonly orderId: string
+  readonly orderNumber: string
+  alreadyInvoiced: boolean
+}
+
+function isCounterpartyEmpty(counterparty: InvoiceCounterpartyValues): boolean {
+  return (
+    !counterparty.identification.trim() &&
+    !counterparty.businessName.trim() &&
+    !counterparty.address.trim() &&
+    !counterparty.city.trim() &&
+    !counterparty.email.trim() &&
+    !counterparty.phone.trim()
+  )
+}
+
+function orderBillingAddress(order: EcommerceOrderDetailDto): string {
+  const fiscal = order.customer.address?.trim()
+  if (fiscal) return fiscal
+  return [order.shipping.addressLine1, order.shipping.addressLine2]
+    .map((part) => part?.trim() ?? '')
+    .filter(Boolean)
+    .join(', ')
+}
+
+function inferOrderIdentificationType(
+  customer: EcommerceOrderDetailDto['customer']
+): string {
+  const declared = customer.taxIdType?.trim() ?? ''
+  if (VALID_SRI_ID_TYPES.has(declared)) return declared
+  const digits = (customer.taxId ?? '').replace(/\D/g, '')
+  if (digits.length === 13) return '04'
+  if (digits.length === 10) return '05'
+  if (digits.length === 0) return ID_TYPE_CONSUMIDOR_FINAL
+  return '06'
+}
+
+function buildOrderCounterparty(
+  order: EcommerceOrderDetailDto
+): InvoiceCounterpartyValues {
+  const { customer, shipping } = order
+  const identificationType = inferOrderIdentificationType(customer)
+  const isFinalConsumer = isConsumidorFinalType(identificationType)
+  return {
+    ...INITIAL_COUNTERPARTY,
+    identificationType,
+    identification: isFinalConsumer
+      ? CONSUMIDOR_FINAL_IDENTIFICATION
+      : (customer.taxId ?? '').trim(),
+    businessName: isFinalConsumer
+      ? CONSUMIDOR_FINAL_BUSINESS_NAME
+      : (customer.customerName ?? '').trim(),
+    customerType: defaultCustomerTypeForSriId(identificationType),
+    address: orderBillingAddress(order),
+    city: (shipping.city ?? '').trim(),
+    email: (customer.email ?? '').trim(),
+    phone: (customer.phone ?? '').trim() || (shipping.recipientPhone ?? '').trim(),
+  }
+}
+
+function normalizeOrderItemIvaRate(rate: number): number {
+  const percent = rate > 0 && rate <= 1 ? rate * 100 : rate
+  return normalizeLineIvaRate(Math.round(percent))
+}
+
+function buildOrderLines(order: EcommerceOrderDetailDto): InvoiceLineDraft[] {
+  return order.items
+    .filter((item) => item.quantity > 0)
+    .map((item) => ({
+      id: newLineId(),
+      productId: item.catalogItemId,
+      sku: (item.sku ?? '').trim().slice(0, 25),
+      description: item.itemName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discountAmount,
+      ivaRate: normalizeOrderItemIvaRate(item.taxRate),
+      catalogItemId: item.catalogItemId,
+      itemKind: null,
+    }))
+}
+
 export type UseInvoiceEmitFormArgs = {
   readonly tenantId: string | null
   readonly branding: TenantBranding
   readonly canCreate: boolean
+  readonly orderIdToInvoice?: string | null
 }
 
 export function useInvoiceEmitForm({
   tenantId,
   branding,
   canCreate,
+  orderIdToInvoice = null,
 }: UseInvoiceEmitFormArgs) {
   const toast = useToast()
   const [loadingTenant, setLoadingTenant] = useState(Boolean(tenantId))
@@ -118,6 +215,12 @@ export function useInvoiceEmitForm({
   const [loadingCert, setLoadingCert] = useState(Boolean(tenantId))
   const [lastTrace, setLastTrace] = useState<SriEmitTrace | null>(() => getLastSriEmitTrace())
   const [traceOpen, setTraceOpen] = useState(false)
+  const [billingOrder, setBillingOrder] = useState<{
+    readonly orderId: string
+    readonly orderNumber: string
+  } | null>(null)
+  const prefilledOrderRef = useRef<string | null>(null)
+  const linkedOrderRef = useRef<EcommerceOrderInvoiceContext | null>(null)
 
   const [emitProfileId, setEmitProfileId] = useState(() =>
     readBillingEmitProfile(tenantId)
@@ -264,6 +367,38 @@ export function useInvoiceEmitForm({
     loadingTenant,
     refreshSequentialPreview,
   ])
+
+  useEffect(() => {
+    if (!tenantId || !orderIdToInvoice) return
+    if (prefilledOrderRef.current === orderIdToInvoice) return
+    prefilledOrderRef.current = orderIdToInvoice
+
+    void getEcommerceOrderById(tenantId, orderIdToInvoice)
+      .then((order) => {
+        linkedOrderRef.current = {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          alreadyInvoiced: Boolean(order.billingInvoiceId),
+        }
+        setBillingOrder({ orderId: order.id, orderNumber: order.orderNumber })
+        setCounterparty((prev) =>
+          isCounterpartyEmpty(prev) ? buildOrderCounterparty(order) : prev
+        )
+        setLines((prev) =>
+          prev.every(isLineEmpty)
+            ? [...buildOrderLines(order), createEmptyLine(newLineId())]
+            : prev
+        )
+      })
+      .catch((err: unknown) => {
+        prefilledOrderRef.current = null
+        toast.show({
+          title: 'Pedido',
+          message: readApiError(err, 'No se pudo cargar el pedido para facturar.'),
+          variant: 'warning',
+        })
+      })
+  }, [tenantId, orderIdToInvoice, toast])
 
   const patchHeader = useCallback(
     <K extends keyof InvoiceHeaderValues>(key: K, value: InvoiceHeaderValues[K]) => {
@@ -620,6 +755,26 @@ export function useInvoiceEmitForm({
         }
         await refreshSequentialPreview()
         if (result.outcome !== 'error') {
+          const orderContext = linkedOrderRef.current
+          if (tenantId && orderContext && !orderContext.alreadyInvoiced) {
+            try {
+              await linkEcommerceOrderInvoice(tenantId, orderContext.orderId, {
+                billingInvoiceId: result.invoiceId,
+              })
+              linkedOrderRef.current = { ...orderContext, alreadyInvoiced: true }
+              toast.show({
+                title: 'Pedido vinculado',
+                message: `La factura quedó vinculada al pedido ${orderContext.orderNumber}.`,
+                variant: 'success',
+              })
+            } catch {
+              toast.show({
+                title: 'Vinculación manual requerida',
+                message: `La factura se emitió con ID ${result.invoiceId}, pero no se pudo vincular al pedido ${orderContext.orderNumber}. Usa «Vincular Factura SRI» en el detalle del pedido.`,
+                variant: 'warning',
+              })
+            }
+          }
           resetFormAfterSuccessfulEmit()
           setRideOffer({
             emitterId: result.emitterId,
@@ -687,6 +842,7 @@ export function useInvoiceEmitForm({
     header,
     counterparty,
     lines,
+    billingOrder,
     companyLabel,
     requiresNotaVenta: company?.salesDocumentKind === 'nota-venta',
     emitProfile,
