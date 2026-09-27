@@ -42,6 +42,21 @@ public sealed class EcommerceStorefrontSettingsReaderTests
         settings.PaymentHoldHours.Should().Be(EcommerceStorefrontSettingsReader.DefaultPaymentHoldHours);
         settings.ReserveOnOrder.Should().BeTrue();
         settings.ContactWhatsapp.Should().BeEmpty();
+        settings.OrdersNotificationEmail.Should().BeEmpty();
+    }
+
+    [Theory(DisplayName = "Lee y normaliza el correo de avisos de pedidos")]
+    [InlineData("\"  Pedidos@Tienda.COM \"", "pedidos@tienda.com")]
+    [InlineData("\"\"", "")]
+    [InlineData("12345", "")]
+    public async Task Resolve_ReadsOrdersNotificationEmail(string rawJson, string expected)
+    {
+        var tenantId = SetupTenant();
+        SetupValues((EcommerceSettingCodes.StorefrontOrdersNotificationEmail, rawJson));
+
+        var settings = await _sut.ResolveAsync(tenantId, CancellationToken.None);
+
+        settings.OrdersNotificationEmail.Should().Be(expected);
     }
 
     [Theory(DisplayName = "Lee reserve_on_order desde booleano o texto")]

@@ -56,17 +56,20 @@ public sealed class UploadStorefrontPaymentProofHandler
     private readonly ITenantRepository _tenants;
     private readonly IEcommerceOrderRepository _orders;
     private readonly IStorageService _storage;
+    private readonly EcommerceOrderEmailNotifier _orderEmailNotifier;
     private readonly IUnitOfWork _unitOfWork;
 
     public UploadStorefrontPaymentProofHandler(
         ITenantRepository tenants,
         IEcommerceOrderRepository orders,
         IStorageService storage,
+        EcommerceOrderEmailNotifier orderEmailNotifier,
         IUnitOfWork unitOfWork)
     {
         _tenants = tenants;
         _orders = orders;
         _storage = storage;
+        _orderEmailNotifier = orderEmailNotifier;
         _unitOfWork = unitOfWork;
     }
 
@@ -138,6 +141,10 @@ public sealed class UploadStorefrontPaymentProofHandler
         }
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await _orderEmailNotifier
+            .NotifyPaymentProofUploadedAsync(order, ct)
+            .ConfigureAwait(false);
 
         return Result.Success(new StorefrontPaymentProofUploadedDto(
             uploadedAtUtc,

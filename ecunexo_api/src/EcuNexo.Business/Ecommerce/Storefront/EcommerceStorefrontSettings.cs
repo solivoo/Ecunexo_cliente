@@ -12,7 +12,8 @@ public sealed record EcommerceStorefrontSettings(
     string BankTransferInstructions,
     int PaymentHoldHours,
     bool ReserveOnOrder = true,
-    string ContactWhatsapp = "");
+    string ContactWhatsapp = "",
+    string OrdersNotificationEmail = "");
 
 /// <summary>
 /// Lee la configuración efectiva de la tienda (global/plan/tenant) aplicando defaults seguros.

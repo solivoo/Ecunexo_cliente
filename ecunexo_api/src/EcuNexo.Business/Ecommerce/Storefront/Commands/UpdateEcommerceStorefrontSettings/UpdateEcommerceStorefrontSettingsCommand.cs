@@ -12,4 +12,5 @@ public sealed record UpdateEcommerceStorefrontSettingsCommand(
     int PaymentHoldHours,
     bool ReserveOnOrder = true,
     string? ContactWhatsapp = null,
+    string? OrdersNotificationEmail = null,
     Guid? UpdatedBy = null) : ICommand<EcommerceStorefrontSettingsDto>;

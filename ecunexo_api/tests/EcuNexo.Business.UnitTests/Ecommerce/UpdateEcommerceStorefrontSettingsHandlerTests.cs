@@ -22,7 +22,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         _sut = new UpdateEcommerceStorefrontSettingsHandler(_validator, _settings, _idGenerator, _unitOfWork);
     }
 
-    [Fact(DisplayName = "Hace upsert de los seis settings tenant y devuelve el estado guardado")]
+    [Fact(DisplayName = "Hace upsert de los siete settings tenant y devuelve el estado guardado")]
     public async Task Handle_WithoutExistingSettings_CreatesAll()
     {
         var tenantId = Guid.CreateVersion7();
@@ -42,6 +42,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             48,
             ReserveOnOrder: false,
             ContactWhatsapp: "+593 99 999 9999",
+            OrdersNotificationEmail: "  Pedidos@Tienda.COM  ",
             UpdatedBy: Guid.CreateVersion7());
 
         var result = await _sut.Handle(command, CancellationToken.None);
@@ -56,8 +57,9 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         dto.PaymentHoldHours.Should().Be(48);
         dto.ReserveOnOrder.Should().BeFalse();
         dto.ContactWhatsapp.Should().Be("593999999999");
+        dto.OrdersNotificationEmail.Should().Be("pedidos@tienda.com");
 
-        await _settings.Received(6).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
+        await _settings.Received(7).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -80,6 +82,8 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
                 SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontReserveOnOrder, "true", SettingScope.Tenant, scopeId).Value!,
             [EcommerceSettingCodes.StorefrontContactWhatsapp] =
                 SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontContactWhatsapp, "\"\"", SettingScope.Tenant, scopeId).Value!,
+            [EcommerceSettingCodes.StorefrontOrdersNotificationEmail] =
+                SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontOrdersNotificationEmail, "\"\"", SettingScope.Tenant, scopeId).Value!,
         };
 
         _settings
@@ -103,6 +107,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         rows[EcommerceSettingCodes.StorefrontShippingMethods].ValueJson.Should().Contain("Courier");
         rows[EcommerceSettingCodes.StorefrontPaymentHoldHours].ValueJson.Should().Be("72");
         rows[EcommerceSettingCodes.StorefrontReserveOnOrder].ValueJson.Should().Be("true");
+        rows[EcommerceSettingCodes.StorefrontOrdersNotificationEmail].ValueJson.Should().Be("\"\"");
     }
 
     [Fact(DisplayName = "El validador rechaza métodos vacíos, costos negativos y hold fuera de rango")]
@@ -186,5 +191,46 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             24,
             ContactWhatsapp: "   "));
         emptyWhatsapp.IsValid.Should().BeTrue();
+    }
+
+    [Theory(DisplayName = "Valida el correo de avisos de pedidos (formato y longitud)")]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("   ", true)]
+    [InlineData("pedidos@tienda.com", true)]
+    [InlineData("no-es-correo", false)]
+    [InlineData("pedidos@", false)]
+    public async Task Validator_ValidatesOrdersNotificationEmail(string? email, bool expected)
+    {
+        var tenantId = Guid.CreateVersion7();
+
+        var result = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
+            tenantId,
+            ["BankTransfer"],
+            [new UpdateEcommerceStorefrontShippingMethodInput("Courier", 0m)],
+            null,
+            24,
+            OrdersNotificationEmail: email));
+
+        result.IsValid.Should().Be(expected);
+    }
+
+    [Fact(DisplayName = "El correo de avisos no puede superar 254 caracteres")]
+    public async Task Validator_RejectsTooLongOrdersNotificationEmail()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var localPart = new string('a', 250);
+
+        var result = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
+            tenantId,
+            ["BankTransfer"],
+            [new UpdateEcommerceStorefrontShippingMethodInput("Courier", 0m)],
+            null,
+            24,
+            OrdersNotificationEmail: $"{localPart}@tienda.com"));
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error =>
+            error.ErrorMessage.Contains("no puede superar", StringComparison.Ordinal));
     }
 }

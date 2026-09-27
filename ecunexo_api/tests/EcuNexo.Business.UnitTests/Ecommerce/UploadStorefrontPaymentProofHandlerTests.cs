@@ -1,11 +1,13 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Ecommerce.Repositories;
+using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.UploadStorefrontPaymentProof;
 using EcuNexo.Business.Storage;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Ecommerce;
 using EcuNexo.Core.Tenancy;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace EcuNexo.Business.UnitTests.Ecommerce;
@@ -15,13 +17,29 @@ public sealed class UploadStorefrontPaymentProofHandlerTests
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IEcommerceOrderRepository _orders = Substitute.For<IEcommerceOrderRepository>();
     private readonly IStorageService _storage = Substitute.For<IStorageService>();
+    private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
+    private readonly IEcommerceStorefrontSettingsReader _settings = Substitute.For<IEcommerceStorefrontSettingsReader>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly UploadStorefrontPaymentProofHandler _sut;
 
     public UploadStorefrontPaymentProofHandlerTests()
     {
         _storage.PrivateBucket.Returns("ecunexo-private-assets");
-        _sut = new UploadStorefrontPaymentProofHandler(_tenants, _orders, _storage, _unitOfWork);
+        _settings
+            .ResolveAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new EcommerceStorefrontSettings(
+                [EcommercePaymentMethod.BankTransfer],
+                [new ShippingMethodOption(EcommerceShippingMethod.Courier, 0m)],
+                string.Empty,
+                2,
+                true,
+                string.Empty,
+                "equipo@tienda.com"));
+        var notifier = new EcommerceOrderEmailNotifier(
+            _emailSender,
+            _settings,
+            NullLogger<EcommerceOrderEmailNotifier>.Instance);
+        _sut = new UploadStorefrontPaymentProofHandler(_tenants, _orders, _storage, notifier, _unitOfWork);
     }
 
     [Fact(DisplayName = "Sube el comprobante al bucket privado, registra el pedido y responde metadatos")]
@@ -62,6 +80,11 @@ public sealed class UploadStorefrontPaymentProofHandlerTests
             "image/png",
             Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _emailSender.Received(1).SendAsync(
+            Arg.Is<EmailMessage>(message =>
+                message.ToAddress == "equipo@tienda.com"
+                && message.Subject == "Comprobante recibido · ECO-202609-0001"),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact(DisplayName = "Token inválido responde 403 ecommerce.checkout.proof_token_invalid")]

@@ -30,5 +30,6 @@ public sealed class GetEcommerceStorefrontSettingsHandler
             settings.BankTransferInstructions,
             settings.PaymentHoldHours,
             settings.ReserveOnOrder,
-            settings.ContactWhatsapp);
+            settings.ContactWhatsapp,
+            settings.OrdersNotificationEmail);
 }

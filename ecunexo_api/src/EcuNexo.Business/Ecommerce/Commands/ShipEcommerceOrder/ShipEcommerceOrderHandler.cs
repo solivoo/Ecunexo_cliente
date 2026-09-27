@@ -1,5 +1,6 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Ecommerce.Repositories;
+using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Inventory;
 using EcuNexo.Core.Common;
 
@@ -10,15 +11,18 @@ public sealed class ShipEcommerceOrderHandler
 {
     private readonly IEcommerceOrderRepository _orders;
     private readonly IStockRepository _stocks;
+    private readonly EcommerceOrderEmailNotifier _orderEmailNotifier;
     private readonly IUnitOfWork _unitOfWork;
 
     public ShipEcommerceOrderHandler(
         IEcommerceOrderRepository orders,
         IStockRepository stocks,
+        EcommerceOrderEmailNotifier orderEmailNotifier,
         IUnitOfWork unitOfWork)
     {
         _orders = orders;
         _stocks = stocks;
+        _orderEmailNotifier = orderEmailNotifier;
         _unitOfWork = unitOfWork;
     }
 
@@ -90,6 +94,10 @@ public sealed class ShipEcommerceOrderHandler
         }
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        await _orderEmailNotifier
+            .NotifyOrderShippedAsync(order, ct)
+            .ConfigureAwait(false);
 
         return new ShipEcommerceOrderResponse(
             order.Id,

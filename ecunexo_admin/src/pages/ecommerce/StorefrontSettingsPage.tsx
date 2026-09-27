@@ -1,16 +1,22 @@
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Button, CheckButton, NumberBox, TextArea, TextBox, useToast } from 'glubox'
+import { Button, CheckButton, NumberBox, OptionGroup, TextArea, TextBox, useToast } from 'glubox'
 import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { formatDate } from '@/lib/formatDate'
 import { readApiError } from '@/lib/readApiError'
 import {
+  createEcommerceBlockedContact,
+  deleteEcommerceBlockedContact,
   getEcommerceStorefrontSettings,
+  listEcommerceBlockedContacts,
   updateEcommerceStorefrontSettings,
 } from '@/services/storefrontApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type {
+  EcommerceBlockedContact,
+  EcommerceBlockedContactKind,
   EcommerceShippingOption,
   EcommerceStorefrontSettings,
 } from '@/types/storefrontApi'
@@ -34,7 +40,19 @@ const MAX_PAYMENT_HOLD_HOURS = 720
 const DEFAULT_PAYMENT_HOLD_HOURS = 2
 const MAX_INSTRUCTIONS_LENGTH = 2000
 const MAX_WHATSAPP_LENGTH = 20
+const MAX_NOTIFICATION_EMAIL_LENGTH = 254
 const WHATSAPP_ALLOWED_PATTERN = /^[0-9+\s]*$/
+const EMAIL_ALLOWED_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const BLOCKED_CONTACT_KIND_OPTIONS: { value: EcommerceBlockedContactKind; label: string }[] = [
+  { value: 'Email', label: 'Correo' },
+  { value: 'Phone', label: 'Teléfono' },
+]
+
+const BLOCKED_CONTACT_KIND_LABELS: Record<EcommerceBlockedContactKind, string> = {
+  Email: 'Correo',
+  Phone: 'Teléfono',
+}
 
 type ShippingDraft = {
   readonly code: string
@@ -73,6 +91,15 @@ export function StorefrontSettingsPage() {
   const [holdHours, setHoldHours] = useState(DEFAULT_PAYMENT_HOLD_HOURS)
   const [reserveOnOrder, setReserveOnOrder] = useState(true)
   const [contactWhatsapp, setContactWhatsapp] = useState('')
+  const [ordersNotificationEmail, setOrdersNotificationEmail] = useState('')
+
+  const [blockedContacts, setBlockedContacts] = useState<EcommerceBlockedContact[]>([])
+  const [blockedLoading, setBlockedLoading] = useState(true)
+  const [blockedKind, setBlockedKind] = useState<EcommerceBlockedContactKind>('Email')
+  const [blockedValue, setBlockedValue] = useState('')
+  const [blockedReason, setBlockedReason] = useState('')
+  const [blockedSaving, setBlockedSaving] = useState(false)
+  const [blockedRemovingId, setBlockedRemovingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!canManage || !tenantId) return
@@ -93,6 +120,7 @@ export function StorefrontSettingsPage() {
         setHoldHours(settings.paymentHoldHours)
         setReserveOnOrder(settings.reserveOnOrder ?? true)
         setContactWhatsapp(settings.contactWhatsapp ?? '')
+        setOrdersNotificationEmail(settings.ordersNotificationEmail ?? '')
         setError(null)
       })
       .catch((err: unknown) => {
@@ -108,6 +136,115 @@ export function StorefrontSettingsPage() {
       cancelled = true
     }
   }, [canManage, tenantId, toast])
+
+  const loadBlockedContacts = useCallback(async () => {
+    if (!tenantId) return
+    setBlockedLoading(true)
+    try {
+      const contacts = await listEcommerceBlockedContacts(tenantId)
+      setBlockedContacts(contacts)
+    } catch (err: unknown) {
+      const message = readApiError(err, 'No se pudo cargar la lista de contactos bloqueados.')
+      toast.show({ title: 'Error', message, variant: 'error' })
+    } finally {
+      setBlockedLoading(false)
+    }
+  }, [tenantId, toast])
+
+  useEffect(() => {
+    if (!canManage || !tenantId) return
+    let cancelled = false
+    listEcommerceBlockedContacts(tenantId)
+      .then((contacts) => {
+        if (!cancelled) setBlockedContacts(contacts)
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        const message = readApiError(err, 'No se pudo cargar la lista de contactos bloqueados.')
+        toast.show({ title: 'Error', message, variant: 'error' })
+      })
+      .finally(() => {
+        if (!cancelled) setBlockedLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [canManage, tenantId, toast])
+
+  const handleAddBlockedContact = useCallback(async () => {
+    if (!tenantId) return
+    const value = blockedValue.trim()
+    if (!value) {
+      toast.show({
+        title: 'Validación',
+        message: 'Ingresa el correo o teléfono a bloquear.',
+        variant: 'warning',
+      })
+      return
+    }
+
+    if (blockedKind === 'Email' && !EMAIL_ALLOWED_PATTERN.test(value)) {
+      toast.show({
+        title: 'Correo inválido',
+        message: 'Ingresa un correo electrónico válido.',
+        variant: 'warning',
+      })
+      return
+    }
+
+    if (blockedKind === 'Phone' && value.replace(/\D/g, '').length === 0) {
+      toast.show({
+        title: 'Teléfono inválido',
+        message: 'Ingresa un teléfono con al menos un dígito.',
+        variant: 'warning',
+      })
+      return
+    }
+
+    setBlockedSaving(true)
+    try {
+      await createEcommerceBlockedContact(tenantId, {
+        kind: blockedKind,
+        value,
+        reason: blockedReason.trim() || null,
+      })
+      toast.show({
+        title: 'Contacto bloqueado',
+        message: 'El contacto ya no podrá generar pedidos en la tienda.',
+        variant: 'success',
+      })
+      setBlockedValue('')
+      setBlockedReason('')
+      await loadBlockedContacts()
+    } catch (err: unknown) {
+      const message = readApiError(err, 'No se pudo bloquear el contacto.')
+      toast.show({ title: 'Error', message, variant: 'error' })
+    } finally {
+      setBlockedSaving(false)
+    }
+  }, [blockedKind, blockedReason, blockedValue, loadBlockedContacts, tenantId, toast])
+
+  const handleRemoveBlockedContact = useCallback(
+    async (contact: EcommerceBlockedContact) => {
+      if (!tenantId) return
+      setBlockedRemovingId(contact.id)
+      try {
+        await deleteEcommerceBlockedContact(tenantId, contact.id)
+        toast.show({
+          title: 'Bloqueo eliminado',
+          message: 'El contacto puede volver a comprar en la tienda.',
+          variant: 'success',
+        })
+        await loadBlockedContacts()
+      } catch (err: unknown) {
+        const message = readApiError(err, 'No se pudo quitar el bloqueo.')
+        toast.show({ title: 'Error', message, variant: 'error' })
+      } finally {
+        setBlockedRemovingId(null)
+      }
+    },
+    [loadBlockedContacts, tenantId, toast]
+  )
 
   const togglePayment = useCallback((code: string, checked: boolean) => {
     setPayments((current) => ({ ...current, [code]: checked }))
@@ -196,6 +333,19 @@ export function StorefrontSettingsPage() {
         return
       }
 
+      const notificationEmail = ordersNotificationEmail.trim()
+      if (
+        notificationEmail.length > MAX_NOTIFICATION_EMAIL_LENGTH ||
+        (notificationEmail.length > 0 && !EMAIL_ALLOWED_PATTERN.test(notificationEmail))
+      ) {
+        toast.show({
+          title: 'Correo de avisos inválido',
+          message: `Ingresa un correo válido de máximo ${MAX_NOTIFICATION_EMAIL_LENGTH} caracteres.`,
+          variant: 'error',
+        })
+        return
+      }
+
       const shippingMethods: EcommerceShippingOption[] = enabledShipping.map((draft) => ({
         code: draft.code,
         cost: roundCurrency(draft.cost),
@@ -210,11 +360,12 @@ export function StorefrontSettingsPage() {
           paymentHoldHours: holdHours,
           reserveOnOrder,
           contactWhatsapp: whatsapp || null,
+          ordersNotificationEmail: notificationEmail || null,
         })
         setError(null)
         toast.show({
           title: 'Configuración guardada',
-          message: 'Los métodos de pago, envíos, contacto y reservas ya están vigentes en la tienda.',
+          message: 'Los métodos de pago, envíos, contacto, avisos y reservas ya están vigentes en la tienda.',
           variant: 'success',
         })
       } catch (err: unknown) {
@@ -225,7 +376,17 @@ export function StorefrontSettingsPage() {
         setSaving(false)
       }
     },
-    [contactWhatsapp, holdHours, instructions, payments, reserveOnOrder, shipping, tenantId, toast]
+    [
+      contactWhatsapp,
+      holdHours,
+      instructions,
+      ordersNotificationEmail,
+      payments,
+      reserveOnOrder,
+      shipping,
+      tenantId,
+      toast,
+    ]
   )
 
   if (!canManage) {
@@ -383,10 +544,10 @@ export function StorefrontSettingsPage() {
           </SectionCard>
 
           <SectionCard
-            title="Contacto"
-            subtitle="Número de WhatsApp mostrado al comprador para consultas sobre su pedido."
+            title="Contacto y avisos"
+            subtitle="Datos de contacto de la tienda y correo que recibe los avisos de pedidos."
           >
-            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+            <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
               <div className="ecu-companies-form__field">
                 <TextBox
                   id="storefront-contact-whatsapp"
@@ -402,14 +563,156 @@ export function StorefrontSettingsPage() {
                   disabled={saving}
                   fullWidth
                 />
-              </div>
-              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                <p className="ecu-companies-form__hint" style={{ marginTop: '1.1rem' }}>
+                <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
                   Incluye el prefijo internacional, solo dígitos, + y espacios. Máximo{' '}
                   {MAX_WHATSAPP_LENGTH} caracteres.
                 </p>
               </div>
+              <div className="ecu-companies-form__field">
+                <TextBox
+                  id="storefront-orders-notification-email"
+                  label="Correo para avisos de pedidos"
+                  labelPosition="outlined"
+                  variant="outline"
+                  type="email"
+                  value={ordersNotificationEmail}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setOrdersNotificationEmail(e.target.value)
+                  }
+                  placeholder="pedidos@tienda.com"
+                  maxLength={MAX_NOTIFICATION_EMAIL_LENGTH}
+                  disabled={saving}
+                  fullWidth
+                />
+                <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                  Recibe un aviso por cada pedido nuevo y cada comprobante de pago. Déjalo vacío
+                  para no enviar avisos al equipo.
+                </p>
+              </div>
             </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Contactos bloqueados"
+            subtitle="Correos y teléfonos que no pueden generar pedidos en la tienda."
+          >
+            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+              <div className="ecu-companies-form__field">
+                <OptionGroup
+                  id="storefront-blocked-kind"
+                  label="Tipo de contacto"
+                  options={BLOCKED_CONTACT_KIND_OPTIONS}
+                  value={blockedKind}
+                  onChange={(value) => setBlockedKind(value === 'Phone' ? 'Phone' : 'Email')}
+                  layout="horizontal"
+                  variant="outline"
+                  disabled={blockedSaving}
+                />
+              </div>
+              <div className="ecu-companies-form__field">
+                <TextBox
+                  id="storefront-blocked-value"
+                  label={blockedKind === 'Email' ? 'Correo electrónico' : 'Teléfono'}
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={blockedValue}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setBlockedValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void handleAddBlockedContact()
+                    }
+                  }}
+                  placeholder={blockedKind === 'Email' ? 'cliente@correo.com' : '0987654321'}
+                  disabled={blockedSaving}
+                  fullWidth
+                />
+              </div>
+              <div className="ecu-companies-form__field">
+                <TextBox
+                  id="storefront-blocked-reason"
+                  label="Motivo (opcional)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={blockedReason}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setBlockedReason(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void handleAddBlockedContact()
+                    }
+                  }}
+                  placeholder="Ej. Spam o pedidos falsos"
+                  disabled={blockedSaving}
+                  fullWidth
+                />
+              </div>
+            </div>
+            <div className="ecu-companies-form__actions" style={{ justifyContent: 'flex-start' }}>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => void handleAddBlockedContact()}
+                loading={blockedSaving}
+                disabled={blockedSaving}
+              >
+                {blockedSaving ? 'Bloqueando…' : 'Bloquear contacto'}
+              </Button>
+            </div>
+
+            {blockedLoading ? (
+              <p className="app-shell__muted">Cargando contactos bloqueados…</p>
+            ) : blockedContacts.length === 0 ? (
+              <p className="app-shell__muted">No hay contactos bloqueados.</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr
+                      style={{
+                        borderBottom: '2px solid var(--shell-border, rgba(0,0,0,0.08))',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <th style={{ padding: '0.5rem' }}>Tipo</th>
+                      <th style={{ padding: '0.5rem' }}>Valor</th>
+                      <th style={{ padding: '0.5rem' }}>Motivo</th>
+                      <th style={{ padding: '0.5rem' }}>Fecha</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'right' }}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {blockedContacts.map((contact) => (
+                      <tr
+                        key={contact.id}
+                        style={{
+                          borderBottom: '1px solid var(--shell-border, rgba(0,0,0,0.06))',
+                        }}
+                      >
+                        <td style={{ padding: '0.5rem' }}>
+                          {BLOCKED_CONTACT_KIND_LABELS[contact.kind] ?? contact.kind}
+                        </td>
+                        <td style={{ padding: '0.5rem', fontWeight: 600 }}>
+                          {contact.valueNormalized}
+                        </td>
+                        <td style={{ padding: '0.5rem' }}>{contact.reason || '—'}</td>
+                        <td style={{ padding: '0.5rem' }}>{formatDate(contact.createdAt)}</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => void handleRemoveBlockedContact(contact)}
+                            disabled={blockedRemovingId === contact.id}
+                          >
+                            {blockedRemovingId === contact.id ? 'Quitando…' : 'Quitar'}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard

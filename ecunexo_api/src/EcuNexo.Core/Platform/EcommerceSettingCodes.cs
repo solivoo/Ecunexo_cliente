@@ -23,4 +23,7 @@ public static class EcommerceSettingCodes
 
     /// <summary>WhatsApp de contacto de la tienda normalizado a dígitos (opcional).</summary>
     public const string StorefrontContactWhatsapp = "ecommerce.storefront.contact_whatsapp";
+
+    /// <summary>Correo del equipo de la tienda que recibe avisos de pedidos (opcional).</summary>
+    public const string StorefrontOrdersNotificationEmail = "ecommerce.storefront.orders_notification_email";
 }

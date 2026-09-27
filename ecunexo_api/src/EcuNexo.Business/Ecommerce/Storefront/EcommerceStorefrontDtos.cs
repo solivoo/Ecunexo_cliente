@@ -13,7 +13,8 @@ public sealed record EcommerceStorefrontSettingsDto(
     string BankTransferInstructions,
     int PaymentHoldHours,
     bool ReserveOnOrder,
-    string ContactWhatsapp);
+    string ContactWhatsapp,
+    string OrdersNotificationEmail);
 
 /// <summary>Opciones de pago y envío expuestas al comprador anónimo.</summary>
 public sealed record EcommerceCheckoutOptionsDto(

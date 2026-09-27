@@ -25,6 +25,15 @@ internal static partial class StorefrontOrderLogger
         string maskedEmail,
         string clientIp,
         string userAgent);
+
+    [LoggerMessage(
+        EventId = 1002,
+        Level = LogLevel.Warning,
+        Message = "No se pudieron enviar los avisos por correo del pedido {OrderId}. El flujo continúa.")]
+    public static partial void NotificationFailed(
+        ILogger logger,
+        Guid orderId,
+        Exception ex);
 }
 
 public sealed class CreateStorefrontOrderHandler
@@ -77,6 +86,7 @@ public sealed class CreateStorefrontOrderHandler
     private readonly IEcommerceOrderRepository _orders;
     private readonly IEcommerceBlockedContactRepository _blockedContacts;
     private readonly ITurnstileVerifier _turnstile;
+    private readonly EcommerceOrderEmailNotifier _orderEmailNotifier;
     private readonly ISender _sender;
     private readonly ILogger<CreateStorefrontOrderHandler> _logger;
 
@@ -88,6 +98,7 @@ public sealed class CreateStorefrontOrderHandler
         IEcommerceOrderRepository orders,
         IEcommerceBlockedContactRepository blockedContacts,
         ITurnstileVerifier turnstile,
+        EcommerceOrderEmailNotifier orderEmailNotifier,
         ISender sender,
         ILogger<CreateStorefrontOrderHandler> logger)
     {
@@ -98,6 +109,7 @@ public sealed class CreateStorefrontOrderHandler
         _orders = orders;
         _blockedContacts = blockedContacts;
         _turnstile = turnstile;
+        _orderEmailNotifier = orderEmailNotifier;
         _sender = sender;
         _logger = logger;
     }
@@ -227,6 +239,9 @@ public sealed class CreateStorefrontOrderHandler
             }
 
             var created = result.Value!;
+            await TryNotifyOrderCreatedAsync(command.TenantId, created.OrderId, settings, paymentMethod, ct)
+                .ConfigureAwait(false);
+
             return Result.Success(new StorefrontOrderCreatedDto(
                 created.OrderId,
                 created.OrderNumber,
@@ -242,6 +257,41 @@ public sealed class CreateStorefrontOrderHandler
         catch (ConcurrencyConflictException)
         {
             return Result.Failure<StorefrontOrderCreatedDto>(StockConflict);
+        }
+    }
+
+    private async Task TryNotifyOrderCreatedAsync(
+        Guid tenantId,
+        Guid orderId,
+        EcommerceStorefrontSettings settings,
+        EcommercePaymentMethod paymentMethod,
+        CancellationToken ct)
+    {
+        try
+        {
+            var order = await _orders
+                .GetTrackedWithDetailsAsync(tenantId, orderId, ct)
+                .ConfigureAwait(false);
+            if (order is null)
+            {
+                return;
+            }
+
+            var paymentInstructions = paymentMethod == EcommercePaymentMethod.BankTransfer
+                ? settings.BankTransferInstructions
+                : null;
+
+            await _orderEmailNotifier
+                .NotifyOrderCreatedAsync(order, paymentInstructions, ct)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            StorefrontOrderLogger.NotificationFailed(_logger, orderId, ex);
         }
     }
 

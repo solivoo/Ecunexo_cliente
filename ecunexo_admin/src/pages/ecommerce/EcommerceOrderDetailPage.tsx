@@ -9,11 +9,13 @@ import {
 } from '@/components/ui'
 import {
   ArrowLeft,
+  Ban,
   CheckCircle2,
   CreditCard,
   Eye,
   FileText,
   Package,
+  ShieldAlert,
   Truck,
   User,
   XCircle,
@@ -27,6 +29,7 @@ import {
   getEcommerceOrderPaymentProofUrl,
   processEcommerceOrder,
 } from '@/services/ecommerceApi'
+import { listEcommerceBlockedContacts } from '@/services/storefrontApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
@@ -39,11 +42,17 @@ import {
   EcommercePaymentStatus,
   type EcommerceOrderDetailDto,
 } from '@/types/ecommerceApi'
+import type { EcommerceBlockedContact } from '@/types/storefrontApi'
 import { ConfirmEcommercePaymentModal } from './ConfirmEcommercePaymentModal'
 import { ShipEcommerceOrderModal } from './ShipEcommerceOrderModal'
 import { CancelEcommerceOrderModal } from './CancelEcommerceOrderModal'
 import { LinkEcommerceInvoiceModal } from './LinkEcommerceInvoiceModal'
+import { BlockEcommerceContactModal } from './BlockEcommerceContactModal'
+import { MarkEcommerceOrderSpamModal } from './MarkEcommerceOrderSpamModal'
 import './ecommerce-orders.css'
+
+const normalizeEmail = (email: string): string => email.trim().toLowerCase()
+const normalizePhone = (phone: string): string => phone.replace(/\D/g, '')
 
 export function EcommerceOrderDetailPage() {
   const toast = useToast()
@@ -52,18 +61,22 @@ export function EcommerceOrderDetailPage() {
   const tenantId = useAppSelector(selectTenantId)
 
   const canManage = useHasPermission('ecommerce.orders.manage')
+  const canManageStorefront = useHasPermission('ecommerce.storefront.manage')
 
   const [order, setOrder] = useState<EcommerceOrderDetailDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
   const [proofUrlLoading, setProofUrlLoading] = useState(false)
+  const [blockedContacts, setBlockedContacts] = useState<EcommerceBlockedContact[]>([])
 
   // Modals
   const [openPaymentModal, setOpenPaymentModal] = useState(false)
   const [openShipModal, setOpenShipModal] = useState(false)
   const [openCancelModal, setOpenCancelModal] = useState(false)
   const [openInvoiceModal, setOpenInvoiceModal] = useState(false)
+  const [openBlockContactModal, setOpenBlockContactModal] = useState(false)
+  const [openSpamModal, setOpenSpamModal] = useState(false)
 
   const loadOrder = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -87,6 +100,31 @@ export function EcommerceOrderDetailPage() {
   useEffect(() => {
     void loadOrder()
   }, [loadOrder])
+
+  const loadBlockedContacts = useCallback(async () => {
+    if (!tenantId || !canManageStorefront) return
+    try {
+      const contacts = await listEcommerceBlockedContacts(tenantId)
+      setBlockedContacts(contacts)
+    } catch {
+      setBlockedContacts([])
+    }
+  }, [tenantId, canManageStorefront])
+
+  useEffect(() => {
+    if (!tenantId || !canManageStorefront) return
+    let cancelled = false
+    listEcommerceBlockedContacts(tenantId)
+      .then((contacts) => {
+        if (!cancelled) setBlockedContacts(contacts)
+      })
+      .catch(() => {
+        if (!cancelled) setBlockedContacts([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [tenantId, canManageStorefront])
 
   const handleViewPaymentProof = async () => {
     if (!tenantId || !order) return
@@ -169,6 +207,20 @@ export function EcommerceOrderDetailPage() {
   const isShipped = order.status === EcommerceOrderStatus.Shipped
   const isDelivered = order.status === EcommerceOrderStatus.Delivered
   const isCancelled = order.status === EcommerceOrderStatus.Cancelled
+
+  const normalizedEmail = normalizeEmail(order.customer.email ?? '')
+  const normalizedPhone = normalizePhone(order.customer.phone ?? '')
+  const isEmailBlocked =
+    normalizedEmail.length > 0 &&
+    blockedContacts.some(
+      (contact) => contact.kind === 'Email' && contact.valueNormalized === normalizedEmail
+    )
+  const isPhoneBlocked =
+    normalizedPhone.length > 0 &&
+    blockedContacts.some(
+      (contact) => contact.kind === 'Phone' && contact.valueNormalized === normalizedPhone
+    )
+  const isContactBlocked = isEmailBlocked || isPhoneBlocked
 
   return (
     <TenantSessionGate
@@ -283,11 +335,23 @@ export function EcommerceOrderDetailPage() {
               </div>
               <div className="ecommerce-info-row">
                 <span className="ecommerce-info-label">Email:</span>
-                <span className="ecommerce-info-value">{order.customer.email}</span>
+                <span
+                  className="ecommerce-info-value"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}
+                >
+                  {order.customer.email || 'N/A'}
+                  {isEmailBlocked ? <StatusBadge tone="danger">Bloqueado</StatusBadge> : null}
+                </span>
               </div>
               <div className="ecommerce-info-row">
                 <span className="ecommerce-info-label">Teléfono:</span>
-                <span className="ecommerce-info-value">{order.customer.phone || 'N/A'}</span>
+                <span
+                  className="ecommerce-info-value"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}
+                >
+                  {order.customer.phone || 'N/A'}
+                  {isPhoneBlocked ? <StatusBadge tone="danger">Bloqueado</StatusBadge> : null}
+                </span>
               </div>
               <div className="ecommerce-info-row">
                 <span className="ecommerce-info-label">Dirección Fiscal:</span>
@@ -425,6 +489,50 @@ export function EcommerceOrderDetailPage() {
           </div>
         </div>
 
+        {/* Control de abuso */}
+        {canManageStorefront && (
+          <SectionCard
+            title="Control de abuso"
+            subtitle="Bloquea contactos o marca el pedido como spam para proteger la tienda pública."
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <Button
+                variant="outline"
+                iconLeft={<ShieldAlert size={16} />}
+                onClick={() => setOpenBlockContactModal(true)}
+              >
+                Bloquear contacto
+              </Button>
+              <Button
+                variant="danger"
+                iconLeft={<Ban size={16} />}
+                onClick={() => setOpenSpamModal(true)}
+                disabled={!canManage || isCancelled || isShipped || isDelivered}
+              >
+                Marcar como spam
+              </Button>
+              {isContactBlocked ? (
+                <StatusBadge tone="danger">Contacto bloqueado</StatusBadge>
+              ) : (
+                <StatusBadge tone="neutral">Sin bloqueos</StatusBadge>
+              )}
+            </div>
+            {!canManage ? (
+              <p className="app-shell__muted" style={{ marginTop: '0.75rem' }}>
+                Necesitas el permiso ecommerce.orders.manage para cancelar el pedido al marcarlo
+                como spam.
+              </p>
+            ) : null}
+          </SectionCard>
+        )}
+
         {/* Tabla de Productos */}
         <SectionCard title="Productos Solicitados">
           <div style={{ overflowX: 'auto' }}>
@@ -552,6 +660,30 @@ export function EcommerceOrderDetailPage() {
           tenantId={tenantId ?? ''}
           orderId={order.id}
           orderNumber={order.orderNumber}
+        />
+
+        <BlockEcommerceContactModal
+          open={openBlockContactModal}
+          onClose={() => setOpenBlockContactModal(false)}
+          onBlocked={() => void loadBlockedContacts()}
+          tenantId={tenantId ?? ''}
+          orderNumber={order.orderNumber}
+          customerEmail={order.customer.email ?? ''}
+          customerPhone={order.customer.phone ?? null}
+        />
+
+        <MarkEcommerceOrderSpamModal
+          open={openSpamModal}
+          onClose={() => setOpenSpamModal(false)}
+          onDone={() => {
+            void loadBlockedContacts()
+            void loadOrder({ silent: true })
+          }}
+          tenantId={tenantId ?? ''}
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+          customerEmail={order.customer.email ?? ''}
+          customerPhone={order.customer.phone ?? null}
         />
       </div>
     </TenantSessionGate>

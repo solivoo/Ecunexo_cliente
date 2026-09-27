@@ -338,6 +338,7 @@ public static class DependencyInjection
 
         // Storefront configurable (checkout público)
         services.AddScoped<IEcommerceStorefrontSettingsReader, EcommerceStorefrontSettingsReader>();
+        services.AddScoped<EcommerceOrderEmailNotifier>();
         services.AddScoped<EcommercePaymentHoldService>();
         services.AddScoped<IQueryHandler<GetEcommerceStorefrontSettingsQuery, EcommerceStorefrontSettingsDto>, GetEcommerceStorefrontSettingsHandler>();
         services.AddScoped<ICommandHandler<UpdateEcommerceStorefrontSettingsCommand, EcommerceStorefrontSettingsDto>, UpdateEcommerceStorefrontSettingsHandler>();

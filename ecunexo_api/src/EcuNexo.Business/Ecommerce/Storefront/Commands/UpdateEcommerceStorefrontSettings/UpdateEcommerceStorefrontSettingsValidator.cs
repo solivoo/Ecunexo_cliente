@@ -7,6 +7,7 @@ public sealed class UpdateEcommerceStorefrontSettingsValidator
 {
     public const int BankTransferInstructionsMaxLength = 2000;
     public const int ContactWhatsappMaxLength = 20;
+    public const int OrdersNotificationEmailMaxLength = 254;
 
     public UpdateEcommerceStorefrontSettingsValidator()
     {
@@ -54,5 +55,12 @@ public sealed class UpdateEcommerceStorefrontSettingsValidator
             .When(x => !string.IsNullOrWhiteSpace(x.ContactWhatsapp))
             .WithMessage(
                 $"El WhatsApp de la tienda solo admite dígitos, + y espacios, con máximo {ContactWhatsappMaxLength} caracteres.");
+
+        RuleFor(x => x.OrdersNotificationEmail)
+            .MaximumLength(OrdersNotificationEmailMaxLength)
+            .WithMessage($"El correo para avisos de pedidos no puede superar {OrdersNotificationEmailMaxLength} caracteres.")
+            .EmailAddress()
+            .WithMessage("El correo para avisos de pedidos no es un correo válido.")
+            .When(x => !string.IsNullOrWhiteSpace(x.OrdersNotificationEmail));
     }
 }

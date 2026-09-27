@@ -1,6 +1,8 @@
 import { api } from '@/lib/apiClient'
 import type {
+  CreateEcommerceBlockedContactInput,
   CreateStorefrontDomainBody,
+  EcommerceBlockedContact,
   EcommerceStorefrontSettings,
   StorefrontDomainDto,
   UpdateEcommerceStorefrontSettingsInput,
@@ -11,6 +13,9 @@ const base = (tenantId: string) =>
 
 const settingsBase = (tenantId: string) =>
   `/api/v1/tenants/${tenantId}/ecommerce/storefront/settings`
+
+const blockedContactsBase = (tenantId: string) =>
+  `/api/v1/tenants/${tenantId}/ecommerce/blocked-contacts`
 
 export async function getEcommerceStorefrontSettings(
   tenantId: string
@@ -61,4 +66,26 @@ export async function deleteStorefrontDomain(
   domainId: string
 ): Promise<void> {
   await api.delete(`${base(tenantId)}/${domainId}`)
+}
+
+export async function listEcommerceBlockedContacts(
+  tenantId: string
+): Promise<EcommerceBlockedContact[]> {
+  const { data } = await api.get<EcommerceBlockedContact[]>(blockedContactsBase(tenantId))
+  return data
+}
+
+export async function createEcommerceBlockedContact(
+  tenantId: string,
+  input: CreateEcommerceBlockedContactInput
+): Promise<EcommerceBlockedContact> {
+  const { data } = await api.post<EcommerceBlockedContact>(blockedContactsBase(tenantId), input)
+  return data
+}
+
+export async function deleteEcommerceBlockedContact(
+  tenantId: string,
+  contactId: string
+): Promise<void> {
+  await api.delete(`${blockedContactsBase(tenantId)}/${contactId}`)
 }

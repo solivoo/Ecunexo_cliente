@@ -53,7 +53,8 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
             ReadBankTransferInstructions(values),
             ReadPaymentHoldHours(values),
             ReadReserveOnOrder(values),
-            ReadContactWhatsapp(values));
+            ReadContactWhatsapp(values),
+            ReadOrdersNotificationEmail(values));
     }
 
     internal static bool TryParsePaymentMethod(string? raw, out EcommercePaymentMethod method)
@@ -183,6 +184,17 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
         }
 
         return EcommerceContactNormalizer.NormalizeWhatsapp(element.GetString());
+    }
+
+    private static string ReadOrdersNotificationEmail(IReadOnlyDictionary<string, JsonElement> values)
+    {
+        if (!values.TryGetValue(EcommerceSettingCodes.StorefrontOrdersNotificationEmail, out var element)
+            || element.ValueKind != JsonValueKind.String)
+        {
+            return string.Empty;
+        }
+
+        return EcommerceContactNormalizer.NormalizeEmail(element.GetString());
     }
 
     private static decimal ReadCost(JsonElement element)

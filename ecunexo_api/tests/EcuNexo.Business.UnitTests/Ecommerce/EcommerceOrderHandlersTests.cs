@@ -5,6 +5,7 @@ using EcuNexo.Business.Ecommerce.Commands.ConfirmEcommerceOrderPayment;
 using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.ShipEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Repositories;
+using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.UnitTests.Pricing.Support;
@@ -16,6 +17,7 @@ using EcuNexo.Core.Ecommerce;
 using EcuNexo.Core.Inventory;
 using EcuNexo.Core.Pricing;
 using EcuNexo.Core.Warehousing;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace EcuNexo.Business.UnitTests.Ecommerce;
@@ -264,7 +266,8 @@ public sealed class EcommerceOrderHandlersTests
 
         var uow = Substitute.For<IUnitOfWork>();
 
-        var sut = new ShipEcommerceOrderHandler(orders, stocks, uow);
+        var emailSender = Substitute.For<IEmailSender>();
+        var sut = new ShipEcommerceOrderHandler(orders, stocks, CreateNotifier(emailSender), uow);
         var command = new ShipEcommerceOrderCommand(tenantId, orderId, "Servientrega", "GUIA-999888");
 
         var result = await sut.Handle(command, CancellationToken.None);
@@ -275,6 +278,13 @@ public sealed class EcommerceOrderHandlersTests
         stock.ReservedQuantity.Should().Be(0m); // Liquidado de la reserva
         stock.AvailableQuantity.Should().Be(7m);
         await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await emailSender.Received(1).SendAsync(
+            Arg.Is<EmailMessage>(message =>
+                message.ToAddress == "maria.lopez@example.com"
+                && message.Subject == "Pedido despachado · ECO-202609-0004"
+                && message.PlainTextBody.Contains("Servientrega")
+                && message.PlainTextBody.Contains("GUIA-999888")),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact(DisplayName = "CreateEcommerceOrderHandler con ReserveStock=false no reserva stock")]
@@ -383,7 +393,8 @@ public sealed class EcommerceOrderHandlersTests
 
         var uow = Substitute.For<IUnitOfWork>();
 
-        var sut = new ConfirmEcommerceOrderPaymentHandler(orders, stocks, uow);
+        var emailSender = Substitute.For<IEmailSender>();
+        var sut = new ConfirmEcommerceOrderPaymentHandler(orders, stocks, CreateNotifier(emailSender), uow);
         var command = new ConfirmEcommerceOrderPaymentCommand(tenantId, orderId, "TRF-123");
 
         var result = await sut.Handle(command, CancellationToken.None);
@@ -394,6 +405,11 @@ public sealed class EcommerceOrderHandlersTests
         order.HasStockReserved.Should().BeTrue();
         stock.ReservedQuantity.Should().Be(3m);
         await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await emailSender.Received(1).SendAsync(
+            Arg.Is<EmailMessage>(message =>
+                message.ToAddress == "maria.lopez@example.com"
+                && message.Subject == "Pago confirmado · ECO-202609-0011"),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact(DisplayName = "ConfirmEcommerceOrderPaymentHandler deja el pedido pendiente si no hay stock")]
@@ -437,7 +453,7 @@ public sealed class EcommerceOrderHandlersTests
 
         var uow = Substitute.For<IUnitOfWork>();
 
-        var sut = new ConfirmEcommerceOrderPaymentHandler(orders, stocks, uow);
+        var sut = new ConfirmEcommerceOrderPaymentHandler(orders, stocks, CreateNotifier(), uow);
         var command = new ConfirmEcommerceOrderPaymentCommand(tenantId, orderId, "TRF-456");
 
         var result = await sut.Handle(command, CancellationToken.None);
@@ -545,7 +561,7 @@ public sealed class EcommerceOrderHandlersTests
 
         var uow = Substitute.For<IUnitOfWork>();
 
-        var sut = new ShipEcommerceOrderHandler(orders, stocks, uow);
+        var sut = new ShipEcommerceOrderHandler(orders, stocks, CreateNotifier(), uow);
         var command = new ShipEcommerceOrderCommand(tenantId, orderId, "Servientrega", "GUIA-123");
 
         var result = await sut.Handle(command, CancellationToken.None);
@@ -711,6 +727,12 @@ public sealed class EcommerceOrderHandlersTests
         await orders.DidNotReceive().AddAsync(Arg.Any<EcommerceOrder>(), Arg.Any<CancellationToken>());
         await uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
+
+    private static EcommerceOrderEmailNotifier CreateNotifier(IEmailSender? emailSender = null) =>
+        new(
+            emailSender ?? Substitute.For<IEmailSender>(),
+            Substitute.For<IEcommerceStorefrontSettingsReader>(),
+            NullLogger<EcommerceOrderEmailNotifier>.Instance);
 
     private static IPricingService StubPricing(decimal unitPrice = 80m, decimal taxRate = 0.15m)
     {

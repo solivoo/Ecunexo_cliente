@@ -10,7 +10,8 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
     string? BankTransferInstructions,
     int PaymentHoldHours,
     bool ReserveOnOrder = true,
-    string? ContactWhatsapp = null)
+    string? ContactWhatsapp = null,
+    string? OrdersNotificationEmail = null)
 {
     public UpdateEcommerceStorefrontSettingsCommand ToCommand(Guid tenantId, Guid? updatedBy) =>
         new(
@@ -23,5 +24,6 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
             PaymentHoldHours,
             ReserveOnOrder,
             ContactWhatsapp,
+            OrdersNotificationEmail,
             updatedBy);
 }

@@ -24,7 +24,9 @@ public sealed class CreateStorefrontOrderHandlerTests
     private readonly IEcommerceOrderRepository _orders = Substitute.For<IEcommerceOrderRepository>();
     private readonly IEcommerceBlockedContactRepository _blockedContacts = Substitute.For<IEcommerceBlockedContactRepository>();
     private readonly ITurnstileVerifier _turnstile = Substitute.For<ITurnstileVerifier>();
+    private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
     private readonly ISender _sender = Substitute.For<ISender>();
+    private readonly EcommerceOrderEmailNotifier _orderEmailNotifier;
     private readonly ILogger<CreateStorefrontOrderHandler> _logger = NullLogger<CreateStorefrontOrderHandler>.Instance;
     private readonly CreateStorefrontOrderHandler _sut;
 
@@ -39,6 +41,11 @@ public sealed class CreateStorefrontOrderHandlerTests
 
     public CreateStorefrontOrderHandlerTests()
     {
+        _orderEmailNotifier = new EcommerceOrderEmailNotifier(
+            _emailSender,
+            _settings,
+            NullLogger<EcommerceOrderEmailNotifier>.Instance);
+
         _sut = new CreateStorefrontOrderHandler(
             new CreateStorefrontOrderValidator(),
             _tenants,
@@ -47,6 +54,7 @@ public sealed class CreateStorefrontOrderHandlerTests
             _orders,
             _blockedContacts,
             _turnstile,
+            _orderEmailNotifier,
             _sender,
             _logger);
     }
@@ -61,6 +69,9 @@ public sealed class CreateStorefrontOrderHandlerTests
         _orders
             .FindByClientRequestIdAsync(tenantId, "req-1", Arg.Any<CancellationToken>())
             .Returns((EcommerceOrder?)null);
+        _orders
+            .GetTrackedWithDetailsAsync(tenantId, orderId, Arg.Any<CancellationToken>())
+            .Returns(CreateExistingOrder(tenantId, warehouse.Id, "req-1", orderId));
 
         CreateEcommerceOrderCommand? captured = null;
         _sender
@@ -103,6 +114,12 @@ public sealed class CreateStorefrontOrderHandlerTests
         captured.Shipping.RecipientPhone.Should().Be("0987654321");
         captured.Shipping.Notes.Should().Be("Timbre 2B");
         captured.Items.Should().ContainSingle().Which.Quantity.Should().Be(2);
+
+        await _emailSender.Received(1).SendAsync(
+            Arg.Is<EmailMessage>(message =>
+                message.ToAddress == "maria.lopez@example.com"
+                && message.Subject == "Pedido recibido · ECO-202609-0001"),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact(DisplayName = "Repetición idempotente devuelve el pedido existente sin crear otro")]
@@ -509,10 +526,14 @@ public sealed class CreateStorefrontOrderHandlerTests
             [new CreateStorefrontOrderItemInput(Guid.CreateVersion7(), 2)],
             "Entregar en la tarde");
 
-    private static EcommerceOrder CreateExistingOrder(Guid tenantId, Guid warehouseId, string requestId)
+    private static EcommerceOrder CreateExistingOrder(
+        Guid tenantId,
+        Guid warehouseId,
+        string requestId,
+        Guid? orderId = null)
     {
         var order = EcommerceOrder.Create(
-            Guid.CreateVersion7(),
+            orderId ?? Guid.CreateVersion7(),
             tenantId,
             "ECO-202609-0001",
             warehouseId,

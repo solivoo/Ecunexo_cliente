@@ -27,6 +27,7 @@ export type EcommerceStorefrontSettings = {
   paymentHoldHours: number
   reserveOnOrder: boolean
   contactWhatsapp: string
+  ordersNotificationEmail: string
 }
 
 export type UpdateEcommerceStorefrontSettingsInput = {
@@ -36,4 +37,22 @@ export type UpdateEcommerceStorefrontSettingsInput = {
   paymentHoldHours: number
   reserveOnOrder: boolean
   contactWhatsapp: string | null
+  ordersNotificationEmail: string | null
+}
+
+export type EcommerceBlockedContactKind = 'Email' | 'Phone'
+
+export type EcommerceBlockedContact = {
+  id: string
+  kind: EcommerceBlockedContactKind
+  valueNormalized: string
+  reason: string | null
+  createdAt: string
+  createdBy: string | null
+}
+
+export type CreateEcommerceBlockedContactInput = {
+  kind: EcommerceBlockedContactKind
+  value: string
+  reason?: string | null
 }
