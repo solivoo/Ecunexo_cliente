@@ -35,6 +35,7 @@ import {
   ecommerceOrderStatusBadgeTone,
   ecommerceOrderStatusLabel,
   ecommercePaymentMethodLabel,
+  ecommercePaymentStatusBadgeTone,
   ecommercePaymentStatusLabel,
   ecommerceShippingMethodLabel,
   EcommerceOrderStatus,
@@ -462,15 +463,7 @@ export function EcommerceOrderDetailPage() {
             <div className="ecommerce-info-row">
               <span className="ecommerce-info-label">Estado Pago:</span>
               <span className="ecommerce-info-value">
-                <StatusBadge
-                  tone={
-                    order.paymentStatus === 2
-                      ? 'success'
-                      : order.paymentStatus === 1
-                        ? 'info'
-                        : 'warning'
-                  }
-                >
+                <StatusBadge tone={ecommercePaymentStatusBadgeTone(order.paymentStatus)}>
                   {ecommercePaymentStatusLabel(order.paymentStatus)}
                 </StatusBadge>
               </span>

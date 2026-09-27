@@ -27,6 +27,7 @@ import {
   ecommerceOrderStatusBadgeTone,
   ecommerceOrderStatusLabel,
   ecommercePaymentMethodLabel,
+  ecommercePaymentStatusBadgeTone,
   ecommercePaymentStatusLabel,
   EcommerceOrderStatus,
   type EcommerceOrderMetricsDto,
@@ -171,7 +172,7 @@ export function EcommerceOrdersListPage() {
         renderCell: (_val, row: Row) => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <StatusBadge
-              tone={row.paymentStatus === 2 ? 'success' : row.paymentStatus === 1 ? 'info' : 'warning'}
+              tone={ecommercePaymentStatusBadgeTone(row.paymentStatus)}
             >
               {ecommercePaymentStatusLabel(row.paymentStatus)}
             </StatusBadge>
@@ -205,6 +206,7 @@ export function EcommerceOrdersListPage() {
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: 120,
         align: 'center',
         renderCell: (_val: unknown, row: Row) => (

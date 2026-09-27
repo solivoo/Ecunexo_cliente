@@ -448,16 +448,27 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
         Status = EcommerceOrderStatus.Cancelled;
         CancelledAt = DateTimeOffset.UtcNow;
         CancellationReason = reason.Trim();
+
+        var paymentVoided = PaymentStatus is EcommercePaymentStatus.Pending
+            or EcommercePaymentStatus.Authorized;
+        if (paymentVoided)
+        {
+            PaymentStatus = EcommercePaymentStatus.Cancelled;
+        }
+
         Touch(userId);
+
+        var stockNote = StockReserved
+            ? "Reserva de stock liberada."
+            : "No había reserva de stock aplicada.";
+        var paymentNote = paymentVoided ? " Pago pendiente anulado." : string.Empty;
 
         _timeline.Add(EcommerceOrderTimeline.Create(
             Guid.NewGuid(),
             Id,
             prevStatus,
             Status,
-            StockReserved
-                ? $"Orden cancelada. Motivo: {reason.Trim()}. Reserva de stock liberada."
-                : $"Orden cancelada. Motivo: {reason.Trim()}. No había reserva de stock aplicada.",
+            $"Orden cancelada. Motivo: {reason.Trim()}. {stockNote}{paymentNote}",
             userId,
             userName));
 

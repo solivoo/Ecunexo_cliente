@@ -16,6 +16,7 @@ export const EcommercePaymentStatus = {
   Paid: 2,
   Failed: 3,
   Refunded: 4,
+  Cancelled: 5,
 } as const
 
 export type EcommercePaymentStatus = (typeof EcommercePaymentStatus)[keyof typeof EcommercePaymentStatus]
@@ -94,8 +95,30 @@ export function ecommercePaymentStatusLabel(status: EcommercePaymentStatus | num
       return 'Fallido'
     case EcommercePaymentStatus.Refunded:
       return 'Reembolsado'
+    case EcommercePaymentStatus.Cancelled:
+      return 'Cancelado'
     default:
       return 'Desconocido'
+  }
+}
+
+export function ecommercePaymentStatusBadgeTone(
+  status: EcommercePaymentStatus | number
+): 'success' | 'info' | 'warning' | 'danger' | 'neutral' {
+  switch (status) {
+    case EcommercePaymentStatus.Paid:
+      return 'success'
+    case EcommercePaymentStatus.Authorized:
+      return 'info'
+    case EcommercePaymentStatus.Pending:
+      return 'warning'
+    case EcommercePaymentStatus.Failed:
+      return 'danger'
+    case EcommercePaymentStatus.Cancelled:
+    case EcommercePaymentStatus.Refunded:
+      return 'neutral'
+    default:
+      return 'neutral'
   }
 }
 

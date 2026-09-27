@@ -46,6 +46,9 @@ public enum EcommercePaymentStatus
 
     /// <summary>Reembolsado al cliente.</summary>
     Refunded = 4,
+
+    /// <summary>Pago anulado porque la orden fue cancelada antes de acreditarse.</summary>
+    Cancelled = 5,
 }
 
 /// <summary>
