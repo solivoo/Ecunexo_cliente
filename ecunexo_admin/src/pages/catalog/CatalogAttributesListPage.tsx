@@ -488,6 +488,7 @@ export function CatalogAttributesListPage() {
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: 110,
         align: 'center',
         renderCell: (_val: unknown, row: TemplateGridRow) => {

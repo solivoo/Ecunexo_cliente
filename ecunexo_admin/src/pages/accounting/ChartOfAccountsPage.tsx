@@ -321,6 +321,7 @@ export function ChartOfAccountsPage() {
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: 120,
         sortable: false,
         renderCell: (_value, row: AccountRow) => {

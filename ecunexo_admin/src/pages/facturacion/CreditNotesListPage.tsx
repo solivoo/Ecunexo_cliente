@@ -208,6 +208,7 @@ export function CreditNotesListPage() {
       {
         key: 'sequential',
         header: 'Acciones',
+        sticky: 'right',
         width: 140,
         align: 'center',
         renderCell: (_v: unknown, row: InvoiceListItem) => (

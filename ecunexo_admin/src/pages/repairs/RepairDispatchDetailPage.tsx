@@ -239,6 +239,7 @@ export function RepairDispatchDetailPage() {
       {
         key: 'actions',
         header: 'Acciones',
+        sticky: 'right',
         width: 80,
         align: 'center',
         renderCell: (_v: unknown, row: EqRow) => (

@@ -256,6 +256,7 @@ export function PurchaseProformasListPage() {
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: 110,
         sortable: false,
         renderCell: (_value: unknown, row: ProformaRow) => {

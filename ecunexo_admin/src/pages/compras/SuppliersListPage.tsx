@@ -312,6 +312,7 @@ export function SuppliersListPage() {
       {
         key: 'id',
         header: 'Acciones',
+        sticky: 'right',
         width: 100,
         sortable: false,
         renderCell: (_value: unknown, row: SupplierRow) => {

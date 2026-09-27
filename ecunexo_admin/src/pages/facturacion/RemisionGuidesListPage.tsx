@@ -277,6 +277,7 @@ export function RemisionGuidesListPage() {
     {
       key: 'id',
       header: 'Acciones',
+      sticky: 'right',
       width: 180,
       renderCell: (_val: unknown, row: RemisionRow) => {
         const isUpdating = updatingId === row.id

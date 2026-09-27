@@ -284,6 +284,7 @@ export function ProductTemplatesListPage() {
     {
       key: 'actions',
       header: 'Acciones',
+      sticky: 'right',
       width: 110,
       align: 'center',
       renderCell: (_val: unknown, row: TemplateGridRow) => (
