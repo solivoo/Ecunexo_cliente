@@ -1586,7 +1586,11 @@ export function VariantMatrixBuilder({
                           }
                           placeholder="Ej. NIK-001-0001"
                           error={duplicateSkuSet.has(row.sku.trim().toUpperCase())}
-                          errorMessage="SKU repetido"
+                          errorMessage={
+                            duplicateSkuSet.has(row.sku.trim().toUpperCase())
+                              ? 'SKU repetido'
+                              : undefined
+                          }
                           disabled={disabled}
                           fullWidth
                         />

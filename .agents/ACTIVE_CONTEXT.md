@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.57.2`.
+* **Última Versión Publicada:** `v0.57.3`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — «SKU repetido» solo cuando aplica (v0.57.3):**
+    * `TextBox` de glubox pinta `errorMessage` aunque `error` sea false; el SKU del matrix pasaba siempre `errorMessage="SKU repetido"`, por lo que se veía bajo un campo vacío. Ahora se pasa solo si `duplicateSkuSet` contiene el código.
+    * Revisión del entorno desplegado (EVERCHIC): diccionario con `Categoria` lista simple, `Color` colorlist (hex), `Tag` multiselección, `Material` lista; plantilla con datos Marca/Categoria/Material/Modelo y eje Caña + atributos Color/Actividad/Tag. Para valores múltiples por nombre se recomienda cambiar `Categoria` y `Color` a "Selección múltiple" (Duplicar + Reasignar) y agregar `Nombre` (Texto libre) para el nombre del producto.
   - **Catálogo — Variantes 100% guiadas por la plantilla (v0.57.2):**
     * Se elimina el campo fijo «Tags / Actividad» de `VariantMatrixBuilder`; las etiquetas por SKU se capturan declarando un atributo «Tags» (Conjunto de texto libre) en la plantilla (se renderiza como cualquier atributo de variante). El bloque «Colores» (base + adicionales) solo se muestra con un eje de color; si «Color» es atributo (lista/múltiple/colorlist) se captura como dato del SKU. `variantTags` permanece en el payload solo para compatibilidad de datos existentes.
   - **Catálogo — Variantes consistentes con la plantilla (v0.57.1):**
