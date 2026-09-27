@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Button, Select, useToast, type PageActionItem } from 'glubox'
 import { Layers, Save } from 'lucide-react'
 import {
   EcuPageActions,
@@ -51,26 +51,6 @@ import {
 } from '@/lib/catalogArchetype'
 import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
 
-type EntryMode = 'template' | 'single' | 'service'
-
-const ENTRY_OPTIONS: { id: EntryMode; title: string; text: string }[] = [
-  {
-    id: 'template',
-    title: 'Usar una plantilla',
-    text: 'El producto sigue los niveles, datos y variaciones que ya armaste.',
-  },
-  {
-    id: 'single',
-    title: 'Producto con un solo código',
-    text: 'Una pieza, un código y sus fotos. Sin variaciones.',
-  },
-  {
-    id: 'service',
-    title: 'Servicio',
-    text: 'Se vende sin stock ni variaciones.',
-  },
-]
-
 const NAME_FIELD_KEYS = ['nombre', 'nombre del producto', 'nombre producto', 'name', 'producto', 'titulo', 'título']
 const DESCRIPTION_FIELD_KEYS = ['descripcion', 'descripción', 'detalle', 'notas', 'nota']
 const CODE_FIELD_KEYS = ['codigo', 'código', 'sku', 'referencia', 'codigo de producto', 'código de producto']
@@ -86,6 +66,19 @@ function matchesFieldKey(key: string, candidates: readonly string[]): boolean {
   )
 }
 
+/** Código legible autogenerado cuando la plantilla no captura uno (ej. CALCETIN-A3F9K2). */
+function generateSkuFromName(name: string): string {
+  const base = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 10)
+  const suffix = Math.random().toString(36).slice(2, 8).toUpperCase()
+  return base ? `${base}-${suffix}` : `PRD-${suffix}`
+}
+
 export function CreateCatalogItemPage() {
   const toast = useToast()
   const navigate = useNavigate()
@@ -98,8 +91,6 @@ export function CreateCatalogItemPage() {
   const [productTemplates, setProductTemplates] = useState<ProductTemplateDto[]>([])
   const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
-  const [entryMode, setEntryMode] = useState<EntryMode>('template')
-  const [kind, setKind] = useState(String(CatalogItemKind.Physical))
   const [matrixData, setMatrixData] = useState<{
     variants: MatrixVariantPayloadWithImage[]
     variantDimensionsJson: string
@@ -115,9 +106,6 @@ export function CreateCatalogItemPage() {
     invalidReason: null,
     groupImages: [],
   })
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [sku, setSku] = useState('')
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
   const [stagedImages, setStagedImages] = useState<StagedItemImage[]>([])
   const [usedVariants, setUsedVariants] = useState(0)
@@ -221,16 +209,11 @@ export function CreateCatalogItemPage() {
     [appliedTemplateLevels, dimensionValuesMap]
   )
 
-  const usesMatrix =
-    entryMode === 'template' && Boolean(appliedTemplate) && (templateAllDimensions?.length ?? 0) > 0
-
-  const templateReady = entryMode !== 'template' || Boolean(appliedTemplate)
+  const usesMatrix = Boolean(appliedTemplate) && (templateAllDimensions?.length ?? 0) > 0
 
   const showProductGallery =
-    templateReady &&
-    (entryMode !== 'template' ||
-      photoChoice === 'model' ||
-      (!usesMatrix && photoChoice !== 'none'))
+    Boolean(appliedTemplate) &&
+    (photoChoice === 'model' || (!usesMatrix && photoChoice !== 'none'))
 
   const matrixPhotoScope =
     photoChoice === 'group' ? 'group' : photoChoice === 'variant' ? 'variant' : 'model'
@@ -245,8 +228,6 @@ export function CreateCatalogItemPage() {
     }
     return groups
   }, [modelAttributeFields])
-
-  const templateMode = entryMode === 'template' && Boolean(appliedTemplate)
 
   const findTemplateAttributeValue = useCallback(
     (candidates: readonly string[]): string => {
@@ -266,39 +247,17 @@ export function CreateCatalogItemPage() {
     () => modelAttributeFields.some((f) => matchesFieldKey(f.key, NAME_FIELD_KEYS)),
     [modelAttributeFields]
   )
-  const hasTemplateCodeField = useMemo(
-    () => modelAttributeFields.some((f) => matchesFieldKey(f.key, CODE_FIELD_KEYS)),
-    [modelAttributeFields]
-  )
 
-  const showManualName = !templateMode
-  const showManualDescription = !templateMode
-  const showManualSku = !usesMatrix && (!templateMode || !hasTemplateCodeField)
-  const showProductDataCard = templateReady && (showManualName || showManualDescription || showManualSku)
-
-  const derivedTemplateName = templateMode ? findTemplateAttributeValue(NAME_FIELD_KEYS) : ''
-  const derivedTemplateDescription = templateMode
+  const derivedTemplateName = appliedTemplate ? findTemplateAttributeValue(NAME_FIELD_KEYS) : ''
+  const derivedTemplateDescription = appliedTemplate
     ? findTemplateAttributeValue(DESCRIPTION_FIELD_KEYS)
     : ''
-  const derivedTemplateSku = templateMode ? findTemplateAttributeValue(CODE_FIELD_KEYS) : ''
-
-  const selectEntry = useCallback((mode: EntryMode) => {
-    setEntryMode(mode)
-    setError(null)
-    setCustomAttributes([])
-    if (mode === 'service') {
-      setKind(String(CatalogItemKind.Service))
-      setSelectedTemplateId('')
-      return
-    }
-    setKind(String(CatalogItemKind.Physical))
-    if (mode === 'single') setSelectedTemplateId('')
-  }, [])
+  const derivedTemplateSku = appliedTemplate ? findTemplateAttributeValue(CODE_FIELD_KEYS) : ''
 
   const handleApplyTemplate = useCallback((templateId: string) => {
     setSelectedTemplateId(templateId)
     setCustomAttributes([])
-    setKind(String(CatalogItemKind.Physical))
+    setError(null)
   }, [])
 
   useEffect(() => {
@@ -367,24 +326,18 @@ export function CreateCatalogItemPage() {
       setError(null)
       setBusy(true)
       try {
-        if (entryMode === 'template' && !selectedTemplateId) {
-          throw new Error('Elige una plantilla o cambia la forma de registro.')
+        if (!selectedTemplateId || !appliedTemplate) {
+          throw new Error('Elige una plantilla para registrar el producto.')
         }
-        const finalName = showManualName
-          ? name.trim()
-          : derivedTemplateName || appliedTemplate?.name || ''
-        if (!finalName) {
-          throw new Error('Completa el atributo «Nombre» de la plantilla para identificar el producto.')
-        }
+        const finalName = derivedTemplateName || appliedTemplate.name
+        const finalDescription = derivedTemplateDescription
 
-        const finalDescription = showManualDescription
-          ? description.trim()
-          : derivedTemplateDescription
-        const finalSku = showManualSku ? sku.trim() : derivedTemplateSku
-
-        const kindNum = Number(kind) as CatalogItemKind
-        if (kindNum === CatalogItemKind.Physical && !usesMatrix && !finalSku) {
-          throw new Error('El código es obligatorio para un producto físico.')
+        const kindNum = CatalogItemKind.Physical
+        let finalSku = derivedTemplateSku
+        let autoGeneratedSku = false
+        if (!usesMatrix && !finalSku) {
+          finalSku = generateSkuFromName(finalName)
+          autoGeneratedSku = true
         }
 
         let targetItemId: string
@@ -495,7 +448,7 @@ export function CreateCatalogItemPage() {
         } else {
           const created = await createCatalogItem(tenantId, {
             kind: kindNum,
-            name: name.trim(),
+            name: finalName,
             description: finalDescription || null,
             sku: finalSku || null,
             basePrice: null,
@@ -539,7 +492,9 @@ export function CreateCatalogItemPage() {
           title: usesMatrix ? 'Producto creado' : 'Producto creado',
           message: usesMatrix
             ? `«${finalName}» quedó registrado con ${matrixData.variants.length} códigos.`
-            : `«${finalName}» quedó registrado en el catálogo.`,
+            : autoGeneratedSku
+              ? `«${finalName}» quedó registrado con el código «${finalSku}».`
+              : `«${finalName}» quedó registrado en el catálogo.`,
           variant: 'success',
         })
         void navigate('/catalogo/items', { replace: true })
@@ -560,22 +515,14 @@ export function CreateCatalogItemPage() {
       derivedTemplateDescription,
       derivedTemplateName,
       derivedTemplateSku,
-      description,
       dimensionValuesMap,
-      entryMode,
-      kind,
       matrixData,
       maxVariants,
-      name,
       navigate,
       photoChoice,
       usesMatrix,
       remainingVariants,
       selectedTemplateId,
-      showManualDescription,
-      showManualName,
-      showManualSku,
-      sku,
       stagedImages,
       tenantId,
       toast,
@@ -624,7 +571,13 @@ export function CreateCatalogItemPage() {
                 renderIcon={renderSidebarIcon}
                 onNavigate={(route: string) => navigate(route)}
               />
-              <Button type="submit" form="create-catalog-item" variant="primary" loading={busy} disabled={busy}>
+              <Button
+                type="submit"
+                form="create-catalog-item"
+                variant="primary"
+                loading={busy}
+                disabled={busy || !appliedTemplate}
+              >
                 <Save size={16} />
                 <span>{uploadStatus || 'Guardar producto'}</span>
               </Button>
@@ -633,83 +586,49 @@ export function CreateCatalogItemPage() {
         />
 
         <form id="create-catalog-item" onSubmit={(e) => void onSubmit(e)} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <SectionCard title="Cómo lo registras">
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '0.75rem',
-              }}
-            >
-              {ENTRY_OPTIONS.map((option) => {
-                const active = entryMode === option.id
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => selectEntry(option.id)}
-                    style={{
-                      textAlign: 'left',
-                      borderRadius: '12px',
-                      padding: '0.9rem 1rem',
-                      cursor: busy ? 'not-allowed' : 'pointer',
-                      border: active
-                        ? '1px solid color-mix(in srgb, var(--shell-primary, #2563eb) 55%, transparent)'
-                        : '1px solid var(--shell-border, rgba(0,0,0,0.1))',
-                      background: active
-                        ? 'color-mix(in srgb, var(--shell-primary, #2563eb) 10%, var(--glb-surface, #fff))'
-                        : 'var(--glb-surface, #fff)',
-                      color: 'var(--glb-text)',
-                    }}
-                  >
-                    <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{option.title}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #64748b)' }}>{option.text}</div>
-                  </button>
-                )
-              })}
+          <SectionCard title="Plantilla">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {productTemplates.length === 0 ? (
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
+                  No hay plantillas activas. Crea una en «Plantillas de producto» para registrar
+                  productos.
+                </p>
+              ) : (
+                <Select
+                  id="ci-template"
+                  label="Plantilla"
+                  labelPosition="outlined"
+                  variant="outline"
+                  options={[
+                    { value: '', label: 'Elige una plantilla' },
+                    ...productTemplates.map((t) => ({ value: t.id, label: t.name })),
+                  ]}
+                  value={selectedTemplateId}
+                  onChange={handleApplyTemplate}
+                  disabled={busy}
+                  fullWidth
+                />
+              )}
+              {appliedTemplate && templateSummary ? (
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-text)' }}>{templateSummary}</p>
+              ) : null}
+              {appliedTemplate ? (
+                <p className="ecu-hint" style={{ margin: 0 }}>
+                  {derivedTemplateName
+                    ? `Se registrará como «${derivedTemplateName}».`
+                    : hasTemplateNameField
+                      ? `Completa el atributo «Nombre» para personalizar el nombre; mientras tanto se usará «${appliedTemplate.name}».`
+                      : `La plantilla no captura «Nombre»: se usará «${appliedTemplate.name}». Agrega un atributo «Nombre» para personalizarlo.`}
+                  {!usesMatrix && !derivedTemplateSku
+                    ? ' El código único se generará automáticamente.'
+                    : ''}
+                </p>
+              ) : productTemplates.length > 0 ? (
+                <p className="ecu-hint" style={{ margin: 0 }}>
+                  Selecciona una plantilla para cargar el formulario.
+                </p>
+              ) : null}
             </div>
-            {entryMode === 'template' && (
-              <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                {productTemplates.length === 0 ? (
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
-                    Todavía no hay plantillas. Puedes crear una desde Plantillas de producto, o registrar este producto con un solo código.
-                  </p>
-                ) : (
-                  <Select
-                    id="ci-template"
-                    label="Plantilla"
-                    labelPosition="outlined"
-                    variant="outline"
-                    options={[
-                      { value: '', label: 'Elige una plantilla' },
-                      ...productTemplates.map((t) => ({ value: t.id, label: t.name })),
-                    ]}
-                    value={selectedTemplateId}
-                    onChange={handleApplyTemplate}
-                    disabled={busy}
-                    fullWidth
-                  />
-                )}
-                {appliedTemplate && templateSummary ? (
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-text)' }}>{templateSummary}</p>
-                ) : null}
-                {templateMode && appliedTemplate ? (
-                  <p className="ecu-hint" style={{ margin: 0 }}>
-                    {derivedTemplateName
-                      ? `Se registrará como «${derivedTemplateName}».`
-                      : hasTemplateNameField
-                        ? `Completa el atributo «Nombre» para personalizar el nombre; mientras tanto se usará «${appliedTemplate.name}».`
-                        : `La plantilla no captura «Nombre»: se usará «${appliedTemplate.name}». Agrega un atributo «Nombre» para personalizarlo.`}
-                  </p>
-                ) : null}
-                {productTemplates.length > 0 && !appliedTemplate ? (
-                  <p className="ecu-hint" style={{ margin: 0 }}>
-                    Selecciona una plantilla para cargar el formulario.
-                  </p>
-                ) : null}
-              </div>
-            )}
           </SectionCard>
 
           {error ? (
@@ -719,84 +638,7 @@ export function CreateCatalogItemPage() {
             </div>
           ) : null}
 
-          {showProductDataCard ? (
-            <SectionCard
-              title={
-                showManualName || showManualDescription
-                  ? 'Datos del producto'
-                  : 'Código del producto'
-              }
-            >
-              <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
-                {showManualName && (
-                  <div
-                    className={`ecu-companies-form__field ${
-                      usesMatrix
-                        ? 'ecu-companies-form__field--span-3'
-                        : showManualSku
-                          ? 'ecu-companies-form__field--span-2'
-                          : 'ecu-companies-form__field--span-3'
-                    }`}
-                  >
-                    <TextBox
-                      id="ci-name"
-                      label="Nombre"
-                      labelPosition="outlined"
-                      variant="outline"
-                      value={name}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                      placeholder="Escriba aquí..."
-                      required
-                      disabled={busy}
-                      fullWidth
-                    />
-                  </div>
-                )}
-                {showManualSku && (
-                  <div className="ecu-companies-form__field">
-                    <TextBox
-                      id="ci-sku"
-                      label={entryMode === 'service' ? 'Código (opcional)' : 'Código'}
-                      labelPosition="outlined"
-                      variant="outline"
-                      value={sku}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                        setSku(e.target.value.toUpperCase())
-                      }
-                      placeholder="Escriba aquí..."
-                      required={entryMode !== 'service' && !templateMode}
-                      disabled={busy}
-                      fullWidth
-                    />
-                    {templateMode ? (
-                      <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
-                        La plantilla no captura un código. Escríbelo aquí o agrega un atributo
-                        «Código»/«SKU»/«Referencia» a la plantilla para que este campo desaparezca.
-                      </span>
-                    ) : null}
-                  </div>
-                )}
-                {showManualDescription && (
-                  <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
-                    <TextBox
-                      id="ci-desc"
-                      label="Descripción"
-                      labelPosition="outlined"
-                      variant="outline"
-                      value={description}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
-                      placeholder="Escriba aquí..."
-                      disabled={busy}
-                      fullWidth
-                    />
-                  </div>
-                )}
-              </div>
-            </SectionCard>
-          ) : null}
-
-          {entryMode === 'template' &&
-            appliedTemplate &&
+          {appliedTemplate &&
             modelFieldGroups.map((group) => (
               <SectionCard
                 key={group.key}
@@ -875,7 +717,7 @@ export function CreateCatalogItemPage() {
                 <VariantMatrixBuilder
                   key={selectedTemplateId}
                   tenantId={tenantId}
-                  baseName={name}
+                  baseName={derivedTemplateName || appliedTemplate?.name || ''}
                   basePrice=""
                   disabled={busy}
                   onChange={setMatrixData}

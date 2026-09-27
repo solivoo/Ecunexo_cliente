@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.56.3`.
+* **Última Versión Publicada:** `v0.57.0`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Alta solo por plantilla y datos agrupados por tipo (v0.57.0):**
+    * El alta de productos exige plantilla: se eliminan los modos manual/servicio, la tarjeta «Datos del producto» y el selector de modo. Nombre y descripción se derivan de los atributos de la plantilla; si no captura código, se autogenera un SKU legible (`NOMBRE-XXXXXX`) editable y se informa en el resumen/toast.
+    * `ArchetypeModelFields` agrupa los campos por tipo de control (Texto, Números, Listas de selección, Colores, Etiquetas, Fotos) con grillas `--4`/`--2` y spans coherentes; títulos de grupo solo cuando hay más de uno.
   - **Catálogo — Fotos según la plantilla (v0.56.3):**
     * La galería del producto y el selector de foto al crear variantes se ocultan cuando la plantilla declara «Sin fotos» (`photoChoice === 'none'`), en alta y edición; antes la galería aparecía siempre en ítems de un solo código. El aviso «Fotos por SKU» solo se muestra con fotos por variante. Nuevo prop `showPhotoField` en `EditCatalogItemVariantsSection`.
   - **Catálogo — Tipos de captura depurados y alta con plantilla sin campos manuales (v0.56.2):**
