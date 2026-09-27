@@ -264,11 +264,13 @@ export function ProductPriceFormPage() {
               />
             )}
 
-            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+            <div className="ecu-companies-form__grid ecu-companies-form__grid--3" style={{ marginTop: '0.75rem' }}>
               <div className="ecu-companies-form__field">
                 <Select
                   id="pp-list"
                   aria-label="Lista de precios"
+                  label="Lista de precios"
+                  labelPosition="outlined"
                   variant="outline"
                   options={lists.map((l) => ({
                     value: l.id,

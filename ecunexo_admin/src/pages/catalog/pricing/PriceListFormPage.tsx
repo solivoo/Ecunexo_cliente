@@ -205,6 +205,8 @@ export function PriceListFormPage() {
                 <Select
                   id="pl-currency"
                   aria-label="Moneda"
+                  label="Moneda"
+                  labelPosition="outlined"
                   variant="outline"
                   options={CURRENCIES}
                   value={currency}
@@ -271,6 +273,12 @@ export function PriceListFormPage() {
                 </CheckButton>
               </div>
             </div>
+
+            <p className="ecu-companies-form__hint" style={{ marginTop: '0.9rem' }}>
+              Una lista agrupa los precios de venta por canal (público, mayorista, distribuidor).
+              La lista predeterminada resuelve las ventas que no eligen una lista; si no hay una
+              predeterminada activa y vigente, el motor no puede calcular el precio.
+            </p>
 
             <div className="ecu-companies-form__actions" style={{ marginTop: '1.5rem' }}>
               <Button type="submit" variant="primary" loading={busy} disabled={busy || loading}>

@@ -209,7 +209,10 @@ export function PriceListsListPage() {
           <StatCard label="Predeterminada" value={defaultList?.code ?? '—'} />
         </div>
 
-        <SectionCard title="Listado de listas">
+        <SectionCard
+          title="Listado de listas"
+          subtitle="Cada lista tiene sus propios precios y vigencia. La predeterminada resuelve las ventas que no eligen lista."
+        >
           {error ? (
             <div className="ecu-form-error-banner" role="alert">
               <span className="material-symbols-outlined">error</span>

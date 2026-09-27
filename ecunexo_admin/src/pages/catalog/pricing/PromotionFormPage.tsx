@@ -393,6 +393,8 @@ export function PromotionFormPage() {
                 <Select
                   id="pr-type"
                   aria-label="Tipo de promoción"
+                  label="Tipo de promoción"
+                  labelPosition="outlined"
                   variant="outline"
                   options={TYPE_OPTIONS}
                   value={type}
@@ -502,7 +504,7 @@ export function PromotionFormPage() {
               <>
                 <div
                   className="ecu-companies-form__grid ecu-companies-form__grid--3"
-                  style={{ gap: '0.75rem', marginTop: '0.9rem' }}
+                  style={{ gap: '0.75rem', marginTop: '0.9rem', marginBottom: '0.9rem' }}
                 >
                   <div className="ecu-companies-form__field">
                     <Select

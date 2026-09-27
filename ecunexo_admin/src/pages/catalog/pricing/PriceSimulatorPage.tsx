@@ -116,10 +116,12 @@ export function PriceSimulatorPage() {
                 <Select
                   id="sim-list"
                   aria-label="Lista de precios"
+                  label="Lista de precios"
+                  labelPosition="outlined"
                   variant="outline"
                   options={[
-                    { value: '', label: 'Predeterminada' },
-                    ...lists.map((l) => ({ value: l.id, label: l.code })),
+                    { value: '', label: 'Predeterminada (de la empresa)' },
+                    ...lists.map((l) => ({ value: l.id, label: `${l.code} · ${l.name}` })),
                   ]}
                   value={listId}
                   onChange={(value) => setListId(String(value))}
@@ -154,6 +156,12 @@ export function PriceSimulatorPage() {
                 />
               </div>
             </div>
+
+            <p className="ecu-companies-form__hint" style={{ marginTop: '0.9rem' }}>
+              El simulador busca el precio vigente del producto en la lista elegida y luego aplica la
+              escala por cantidad, las promociones y el IVA. Si eliges «Predeterminada», usa la lista
+              predeterminada de la empresa.
+            </p>
 
             <div className="ecu-companies-form__actions" style={{ marginTop: '1.25rem' }}>
               <Button type="submit" variant="primary" loading={busy} disabled={busy}>

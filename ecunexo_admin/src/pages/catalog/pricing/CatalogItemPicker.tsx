@@ -62,12 +62,14 @@ export function CatalogItemPicker({
         <Select
           id={selectId}
           aria-label={selectLabel}
+          label={selectLabel}
+          labelPosition="outlined"
           variant="outline"
           options={options}
           value={value}
           onChange={(selected) => onChange(String(selected))}
           disabled={disabled}
-          placeholder={options.length === 0 ? 'Sin coincidencias' : `Seleccione ${selectLabel.toLowerCase()}…`}
+          placeholder={options.length === 0 ? 'Sin coincidencias' : 'Seleccione una opción…'}
         />
       </div>
     </div>
