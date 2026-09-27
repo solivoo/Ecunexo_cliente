@@ -1,3 +1,5 @@
+using System.Buffers.Text;
+using System.Security.Cryptography;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Tenancy;
@@ -15,6 +17,9 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
     public const int PaymentReferenceMaxLength = 100;
     public const int NotesMaxLength = 1000;
     public const int ClientRequestIdMaxLength = 100;
+    public const int PaymentProofObjectKeyMaxLength = 500;
+    public const int PaymentProofContentTypeMaxLength = 100;
+    public const int PaymentProofTokenMaxLength = 100;
 
     private readonly List<EcommerceOrderItem> _items = [];
     private readonly List<EcommerceOrderTimeline> _timeline = [];
@@ -48,6 +53,16 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
     public bool StockReserved { get; private set; }
 
     public string? PaymentReference { get; private set; }
+
+    /// <summary>Clave privada del comprobante de pago subido por el comprador (bucket privado).</summary>
+    public string? PaymentProofObjectKey { get; private set; }
+
+    public string? PaymentProofContentType { get; private set; }
+
+    public DateTimeOffset? PaymentProofUploadedAtUtc { get; private set; }
+
+    /// <summary>Token secreto generado al crear la orden para autorizar la subida pública del comprobante.</summary>
+    public string PaymentProofToken { get; private set; } = string.Empty;
 
     public EcommerceShippingMethod ShippingMethod { get; private set; } = EcommerceShippingMethod.Courier;
 
@@ -95,8 +110,49 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
 
     public bool HasStockReserved => StockReserved;
 
+    /// <summary>El comprador puede subir (o reemplazar) el comprobante mientras el pedido siga pendiente de pago y sin despachar.</summary>
+    public bool CanUploadPaymentProof =>
+        Status == EcommerceOrderStatus.Placed
+        && PaymentStatus == EcommercePaymentStatus.Pending;
+
     /// <summary>Marca la orden como con reserva de stock aplicada en bodega.</summary>
     public void MarkStockReserved() => StockReserved = true;
+
+    /// <summary>Registra el comprobante de pago recibido, permitiendo reemplazarlo mientras el pedido no esté despachado.</summary>
+    public Result RegisterPaymentProof(string objectKey, string? contentType, DateTimeOffset utcNow)
+    {
+        if (!CanUploadPaymentProof)
+        {
+            return Result.Failure(new Error(
+                "ecommerce.checkout.proof_not_allowed",
+                "Este pedido ya no permite subir el comprobante de pago.",
+                ErrorType.Conflict));
+        }
+
+        if (string.IsNullOrWhiteSpace(objectKey))
+        {
+            return Result.Failure(new Error(
+                "ecommerce.order.payment_proof_key_required",
+                "La clave del comprobante de pago es obligatoria.",
+                ErrorType.Validation));
+        }
+
+        PaymentProofObjectKey = objectKey.Trim();
+        PaymentProofContentType = string.IsNullOrWhiteSpace(contentType) ? null : contentType.Trim();
+        PaymentProofUploadedAtUtc = utcNow;
+        Touch(null);
+
+        _timeline.Add(EcommerceOrderTimeline.Create(
+            Guid.NewGuid(),
+            Id,
+            Status,
+            Status,
+            "Comprobante de pago recibido.",
+            userId: null,
+            userName: "Tienda online"));
+
+        return Result.Success();
+    }
 
     public static Result<EcommerceOrder> Create(
         Guid id,
@@ -179,6 +235,7 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
             PaymentStatus = EcommercePaymentStatus.Pending,
             PaymentMethod = paymentMethod,
             StockReserved = stockReserved,
+            PaymentProofToken = GeneratePaymentProofToken(),
             ShippingMethod = shippingMethod,
             Customer = customer,
             Shipping = shipping,
@@ -447,4 +504,8 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
         UpdatedAt = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }
+
+    /// <summary>Genera un token secreto de 32 bytes (base64url) para autorizar la subida del comprobante.</summary>
+    private static string GeneratePaymentProofToken() =>
+        Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
 }

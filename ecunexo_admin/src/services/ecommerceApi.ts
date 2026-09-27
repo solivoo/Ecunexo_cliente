@@ -5,6 +5,7 @@ import type {
   CreateEcommerceOrderBody,
   EcommerceOrderDetailDto,
   EcommerceOrderMetricsDto,
+  EcommerceOrderPaymentProofUrlDto,
   EcommerceOrderStatus,
   EcommercePaymentStatus,
   LinkEcommerceInvoiceBody,
@@ -37,6 +38,16 @@ export async function getEcommerceOrderById(
 ): Promise<EcommerceOrderDetailDto> {
   const { data } = await api.get<EcommerceOrderDetailDto>(
     `/api/v1/tenants/${tenantId}/ecommerce/orders/${orderId}`
+  )
+  return data
+}
+
+export async function getEcommerceOrderPaymentProofUrl(
+  tenantId: string,
+  orderId: string
+): Promise<EcommerceOrderPaymentProofUrlDto> {
+  const { data } = await api.get<EcommerceOrderPaymentProofUrlDto>(
+    `/api/v1/tenants/${tenantId}/ecommerce/orders/${orderId}/payment-proof-url`
   )
   return data
 }

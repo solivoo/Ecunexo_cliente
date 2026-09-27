@@ -23,6 +23,7 @@ using EcuNexo.Api.Tenancy;
 using EcuNexo.Api.Workers;
 using EcuNexo.Business;
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Ecommerce.Storefront.Turnstile;
 using EcuNexo.Business.Identity;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Storefront;
@@ -86,6 +87,18 @@ builder.Services.AddHttpClient<ITaxRateProvider, BillingTaxRateProvider>((sp, cl
     }
 
     client.Timeout = TimeSpan.FromSeconds(Math.Max(1, options.TimeoutSeconds));
+});
+builder.Services.Configure<TurnstileOptions>(
+    builder.Configuration.GetSection(TurnstileOptions.SectionName));
+builder.Services.AddHttpClient<ITurnstileVerifier, TurnstileVerifier>((sp, client) =>
+{
+    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TurnstileOptions>>().Value;
+    if (Uri.TryCreate(options.VerifyUrl, UriKind.Absolute, out var verifyUri))
+    {
+        client.BaseAddress = new Uri($"{verifyUri.AbsoluteUri.TrimEnd('/')}/");
+    }
+
+    client.Timeout = TimeSpan.FromSeconds(5);
 });
 builder.Services.AddScoped<IActivationCodePepperProvider, ActivationCodePepperProvider>();
 builder.Services.AddScoped<ILicenseValidationPepperProvider, LicenseValidationPepperProvider>();

@@ -11,7 +11,8 @@ public sealed record CreateStorefrontOrderRequest(
     IReadOnlyList<CreateStorefrontOrderItemInput> Items,
     string? Notes = null,
     string? Website = null,
-    int? FormElapsedMs = null)
+    int? FormElapsedMs = null,
+    string? TurnstileToken = null)
 {
     public CreateStorefrontOrderCommand ToCommand(
         Guid tenantId,
@@ -29,5 +30,6 @@ public sealed record CreateStorefrontOrderRequest(
             Website,
             FormElapsedMs,
             clientIp,
-            userAgent);
+            userAgent,
+            TurnstileToken);
 }

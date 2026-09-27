@@ -1,8 +1,10 @@
 using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceCheckoutOptions;
+using EcuNexo.Business.Ecommerce.Storefront.Turnstile;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Ecommerce;
 using EcuNexo.Core.Tenancy;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace EcuNexo.Business.UnitTests.Ecommerce;
@@ -15,7 +17,10 @@ public sealed class GetEcommerceCheckoutOptionsHandlerTests
 
     public GetEcommerceCheckoutOptionsHandlerTests()
     {
-        _sut = new GetEcommerceCheckoutOptionsHandler(_tenants, _settings);
+        _sut = new GetEcommerceCheckoutOptionsHandler(
+            _tenants,
+            _settings,
+            Options.Create(new TurnstileOptions()));
     }
 
     [Fact(DisplayName = "Expone solo los métodos habilitados con labels e instrucciones")]
@@ -64,6 +69,52 @@ public sealed class GetEcommerceCheckoutOptionsHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value!.PaymentMethods.Should().ContainSingle()
             .Which.Instructions.Should().BeNull();
+    }
+
+    [Fact(DisplayName = "Expone turnstileSiteKey solo cuando Turnstile está habilitado")]
+    public async Task Handle_TurnstileConfigured_ExposesSiteKey()
+    {
+        var tenantId = SetupTenant();
+        _settings.ResolveAsync(tenantId, Arg.Any<CancellationToken>()).Returns(new EcommerceStorefrontSettings(
+            [EcommercePaymentMethod.BankTransfer],
+            [new ShippingMethodOption(EcommerceShippingMethod.Courier, 0m)],
+            string.Empty,
+            24));
+
+        var handler = new GetEcommerceCheckoutOptionsHandler(
+            _tenants,
+            _settings,
+            Options.Create(new TurnstileOptions
+            {
+                SiteKey = "1x00000000000000000000AA",
+                SecretKey = "1x0000000000000000000000000000000AA",
+            }));
+
+        var result = await handler.Handle(new GetEcommerceCheckoutOptionsQuery(tenantId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TurnstileSiteKey.Should().Be("1x00000000000000000000AA");
+    }
+
+    [Fact(DisplayName = "No expone turnstileSiteKey si no hay secret key configurada")]
+    public async Task Handle_TurnstileDisabled_DoesNotExposeSiteKey()
+    {
+        var tenantId = SetupTenant();
+        _settings.ResolveAsync(tenantId, Arg.Any<CancellationToken>()).Returns(new EcommerceStorefrontSettings(
+            [EcommercePaymentMethod.BankTransfer],
+            [new ShippingMethodOption(EcommerceShippingMethod.Courier, 0m)],
+            string.Empty,
+            24));
+
+        var handler = new GetEcommerceCheckoutOptionsHandler(
+            _tenants,
+            _settings,
+            Options.Create(new TurnstileOptions { SiteKey = "1x00000000000000000000AA" }));
+
+        var result = await handler.Handle(new GetEcommerceCheckoutOptionsQuery(tenantId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TurnstileSiteKey.Should().BeNull();
     }
 
     [Fact(DisplayName = "Tienda inexistente no expone opciones de checkout")]

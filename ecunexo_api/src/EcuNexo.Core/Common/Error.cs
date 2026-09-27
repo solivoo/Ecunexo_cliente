@@ -7,6 +7,7 @@ public enum ErrorType
     Conflict, // Ya existe el recurso, por ejemplo, un producto con el mismo SKU
     Unauthorized, // No autorizado, por ejemplo, no tienes permisos para acceder a un recurso
     Forbidden, // No tienes permisos, por ejemplo, no tienes permisos para acceder a un recurso
+    PayloadTooLarge, // La carga enviada supera el límite permitido
     Unexpected // Error inesperado, por ejemplo, un error de sistema
 }
 

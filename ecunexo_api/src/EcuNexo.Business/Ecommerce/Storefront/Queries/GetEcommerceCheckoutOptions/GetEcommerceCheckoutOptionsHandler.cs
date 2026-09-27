@@ -1,8 +1,10 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Ecommerce.Storefront.Turnstile;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Ecommerce;
+using Microsoft.Extensions.Options;
 
 namespace EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceCheckoutOptions;
 
@@ -11,13 +13,16 @@ public sealed class GetEcommerceCheckoutOptionsHandler
 {
     private readonly ITenantRepository _tenants;
     private readonly IEcommerceStorefrontSettingsReader _settings;
+    private readonly TurnstileOptions _turnstile;
 
     public GetEcommerceCheckoutOptionsHandler(
         ITenantRepository tenants,
-        IEcommerceStorefrontSettingsReader settings)
+        IEcommerceStorefrontSettingsReader settings,
+        IOptions<TurnstileOptions> turnstile)
     {
         _tenants = tenants;
         _settings = settings;
+        _turnstile = turnstile.Value;
     }
 
     public async Task<Result<EcommerceCheckoutOptionsDto>> Handle(
@@ -52,6 +57,10 @@ public sealed class GetEcommerceCheckoutOptionsHandler
             ? null
             : settings.ContactWhatsapp;
 
-        return Result.Success(new EcommerceCheckoutOptionsDto(paymentMethods, shippingMethods, whatsappPhone));
+        return Result.Success(new EcommerceCheckoutOptionsDto(
+            paymentMethods,
+            shippingMethods,
+            whatsappPhone,
+            _turnstile.ResolvedSiteKey));
     }
 }

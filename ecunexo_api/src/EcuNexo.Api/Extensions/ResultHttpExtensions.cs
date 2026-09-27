@@ -33,6 +33,7 @@ public static class ResultHttpExtensions
             ErrorType.Conflict => StatusCodes.Status409Conflict,
             ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
             ErrorType.Forbidden => StatusCodes.Status403Forbidden,
+            ErrorType.PayloadTooLarge => StatusCodes.Status413PayloadTooLarge,
             _ => StatusCodes.Status500InternalServerError
         };
 
@@ -51,6 +52,7 @@ public static class ResultHttpExtensions
             ErrorType.Conflict => "Conflicto",
             ErrorType.Unauthorized => "No autorizado",
             ErrorType.Forbidden => "Prohibido",
+            ErrorType.PayloadTooLarge => "Carga demasiado grande",
             _ => "Error inesperado"
         };
 }

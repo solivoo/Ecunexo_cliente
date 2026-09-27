@@ -70,9 +70,11 @@ using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateEcommerceBlockedConta
 using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateStorefrontOrder;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.RemoveEcommerceBlockedContact;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.UpdateEcommerceStorefrontSettings;
+using EcuNexo.Business.Ecommerce.Storefront.Commands.UploadStorefrontPaymentProof;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceCheckoutOptions;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceStorefrontSettings;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.ListEcommerceBlockedContacts;
+using EcuNexo.Business.Ecommerce.Queries.GetEcommerceOrderPaymentProofUrl;
 using EcuNexo.Business.Purchases.Expenses;
 using EcuNexo.Business.Purchases.Expenses.Commands.CreateExpenseType;
 using EcuNexo.Business.Purchases.Expenses.Commands.DeleteExpenseType;
@@ -331,6 +333,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<LinkEcommerceOrderInvoiceCommand, LinkEcommerceOrderInvoiceResponse>, LinkEcommerceOrderInvoiceHandler>();
         services.AddScoped<IQueryHandler<ListEcommerceOrdersQuery, ListEcommerceOrdersResponse>, ListEcommerceOrdersHandler>();
         services.AddScoped<IQueryHandler<GetEcommerceOrderByIdQuery, EcommerceOrderDetailDto>, GetEcommerceOrderByIdHandler>();
+        services.AddScoped<IQueryHandler<GetEcommerceOrderPaymentProofUrlQuery, EcommerceOrderPaymentProofUrlDto>, GetEcommerceOrderPaymentProofUrlHandler>();
         services.AddScoped<IQueryHandler<GetEcommerceMetricsQuery, EcommerceOrderMetrics>, GetEcommerceMetricsHandler>();
 
         // Storefront configurable (checkout público)
@@ -340,6 +343,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<UpdateEcommerceStorefrontSettingsCommand, EcommerceStorefrontSettingsDto>, UpdateEcommerceStorefrontSettingsHandler>();
         services.AddScoped<IQueryHandler<GetEcommerceCheckoutOptionsQuery, EcommerceCheckoutOptionsDto>, GetEcommerceCheckoutOptionsHandler>();
         services.AddScoped<ICommandHandler<CreateStorefrontOrderCommand, StorefrontOrderCreatedDto>, CreateStorefrontOrderHandler>();
+        services.AddScoped<ICommandHandler<UploadStorefrontPaymentProofCommand, StorefrontPaymentProofUploadedDto>, UploadStorefrontPaymentProofHandler>();
 
         // Storefront anti-abuso (lista de bloqueo)
         services.AddScoped<ICommandHandler<CreateEcommerceBlockedContactCommand, EcommerceBlockedContactDto>, CreateEcommerceBlockedContactHandler>();

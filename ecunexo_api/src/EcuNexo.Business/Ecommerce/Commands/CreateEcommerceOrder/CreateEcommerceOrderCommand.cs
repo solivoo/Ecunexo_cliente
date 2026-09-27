@@ -31,4 +31,5 @@ public sealed record CreateEcommerceOrderResponse(
     decimal TaxAmount,
     decimal ShippingCost,
     decimal TotalAmount,
-    EcommercePaymentMethod PaymentMethod);
+    EcommercePaymentMethod PaymentMethod,
+    string PaymentProofToken = "");

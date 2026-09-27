@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   CreditCard,
+  Eye,
   FileText,
   Package,
   Truck,
@@ -19,10 +20,11 @@ import {
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import { formatDate } from '@/lib/formatDate'
+import { formatDate, formatDateTime } from '@/lib/formatDate'
 import { readApiError } from '@/lib/readApiError'
 import {
   getEcommerceOrderById,
+  getEcommerceOrderPaymentProofUrl,
   processEcommerceOrder,
 } from '@/services/ecommerceApi'
 import { selectTenantId } from '@/store/authSlice'
@@ -55,6 +57,7 @@ export function EcommerceOrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
+  const [proofUrlLoading, setProofUrlLoading] = useState(false)
 
   // Modals
   const [openPaymentModal, setOpenPaymentModal] = useState(false)
@@ -84,6 +87,20 @@ export function EcommerceOrderDetailPage() {
   useEffect(() => {
     void loadOrder()
   }, [loadOrder])
+
+  const handleViewPaymentProof = async () => {
+    if (!tenantId || !order) return
+    setProofUrlLoading(true)
+    try {
+      const { url } = await getEcommerceOrderPaymentProofUrl(tenantId, order.id)
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      const msg = readApiError(err, 'No se pudo obtener el comprobante de pago.')
+      toast.show({ title: 'Error', message: msg, variant: 'error' })
+    } finally {
+      setProofUrlLoading(false)
+    }
+  }
 
   const handleStartProcessing = async () => {
     if (!tenantId || !order) return
@@ -378,6 +395,26 @@ export function EcommerceOrderDetailPage() {
                   <span className="ecommerce-info-value"><code>{order.paymentReference}</code></span>
                 </div>
               )}
+              <div className="ecommerce-info-row">
+                <span className="ecommerce-info-label">Comprobante de pago:</span>
+                <span className="ecommerce-info-value">
+                  {order.paymentProofUploadedAtUtc ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span>{formatDateTime(order.paymentProofUploadedAtUtc)}</span>
+                      <Button
+                        variant="outline"
+                        iconLeft={<Eye size={16} />}
+                        onClick={handleViewPaymentProof}
+                        disabled={proofUrlLoading}
+                      >
+                        {proofUrlLoading ? 'Abriendo...' : 'Ver comprobante'}
+                      </Button>
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--glb-muted)' }}>No recibido</span>
+                  )}
+                </span>
+              </div>
               {order.customerNotes && (
                 <div className="ecommerce-info-row">
                   <span className="ecommerce-info-label">Nota Cliente:</span>

@@ -19,7 +19,8 @@ public sealed record EcommerceStorefrontSettingsDto(
 public sealed record EcommerceCheckoutOptionsDto(
     IReadOnlyList<EcommerceCheckoutPaymentMethodDto> PaymentMethods,
     IReadOnlyList<EcommerceCheckoutShippingMethodDto> ShippingMethods,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? WhatsappPhone);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? WhatsappPhone,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TurnstileSiteKey = null);
 
 public sealed record EcommerceCheckoutPaymentMethodDto(
     string Code,
@@ -47,7 +48,14 @@ public sealed record StorefrontOrderCreatedDto(
     decimal ShippingCost,
     decimal TotalAmount,
     string PaymentMethod,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PaymentInstructions);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PaymentInstructions,
+    string PaymentProofToken = "");
+
+/// <summary>Resultado de subir el comprobante de pago de un pedido público.</summary>
+public sealed record StorefrontPaymentProofUploadedDto(
+    DateTimeOffset UploadedAtUtc,
+    string FileName,
+    string ContentType);
 
 /// <summary>Etiquetas en español para los métodos de pago y envío del checkout público.</summary>
 public static class EcommerceStorefrontLabels

@@ -60,6 +60,20 @@ public sealed class EcommerceOrderConfiguration : IEntityTypeConfiguration<Ecomm
         builder.Property(o => o.PaymentReference)
             .HasMaxLength(EcommerceOrder.PaymentReferenceMaxLength);
 
+        builder.Property(o => o.PaymentProofObjectKey)
+            .HasMaxLength(EcommerceOrder.PaymentProofObjectKeyMaxLength);
+
+        builder.Property(o => o.PaymentProofContentType)
+            .HasMaxLength(EcommerceOrder.PaymentProofContentTypeMaxLength);
+
+        builder.Property(o => o.PaymentProofUploadedAtUtc)
+            .HasColumnType("timestamptz");
+
+        builder.Property(o => o.PaymentProofToken)
+            .HasMaxLength(EcommerceOrder.PaymentProofTokenMaxLength)
+            .IsRequired()
+            .HasDefaultValue(string.Empty);
+
         builder.Property(o => o.StockReserved)
             .IsRequired()
             .HasDefaultValue(true);
@@ -171,6 +185,10 @@ public sealed class EcommerceOrderConfiguration : IEntityTypeConfiguration<Ecomm
         builder.HasIndex(o => new { o.TenantId, o.ClientRequestId })
             .IsUnique()
             .HasFilter("client_request_id IS NOT NULL");
+
+        builder.HasIndex(o => o.PaymentProofToken)
+            .IsUnique()
+            .HasFilter("payment_proof_token <> ''");
 
         builder.HasIndex(o => new { o.TenantId, o.Status });
         builder.HasIndex(o => new { o.TenantId, o.OrderDate });

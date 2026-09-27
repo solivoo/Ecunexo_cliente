@@ -104,7 +104,8 @@ public sealed class GetEcommerceOrderByIdHandler
             CustomerNotes: order.CustomerNotes,
             CreatedAt: order.CreatedAt,
             Items: items,
-            Timeline: timeline);
+            Timeline: timeline,
+            PaymentProofUploadedAtUtc: order.PaymentProofUploadedAtUtc);
 
         return dto;
     }

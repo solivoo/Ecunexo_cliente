@@ -29,4 +29,5 @@ public sealed record CreateStorefrontOrderCommand(
     string? Website = null,
     int? FormElapsedMs = null,
     string? ClientIp = null,
-    string? UserAgent = null) : ICommand<StorefrontOrderCreatedDto>;
+    string? UserAgent = null,
+    string? TurnstileToken = null) : ICommand<StorefrontOrderCreatedDto>;

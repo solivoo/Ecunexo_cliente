@@ -155,7 +155,8 @@ public sealed class CreateEcommerceOrderHandler
             order.TaxAmount,
             order.ShippingCost,
             order.TotalAmount,
-            order.PaymentMethod);
+            order.PaymentMethod,
+            order.PaymentProofToken);
 
     private async Task<Result<EcommerceOrderItem>> BuildItem(
         CreateEcommerceOrderCommand command,

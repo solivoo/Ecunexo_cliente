@@ -3,6 +3,7 @@ using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateStorefrontOrder;
+using EcuNexo.Business.Ecommerce.Storefront.Turnstile;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Common;
@@ -22,6 +23,7 @@ public sealed class CreateStorefrontOrderHandlerTests
     private readonly IEcommerceStorefrontSettingsReader _settings = Substitute.For<IEcommerceStorefrontSettingsReader>();
     private readonly IEcommerceOrderRepository _orders = Substitute.For<IEcommerceOrderRepository>();
     private readonly IEcommerceBlockedContactRepository _blockedContacts = Substitute.For<IEcommerceBlockedContactRepository>();
+    private readonly ITurnstileVerifier _turnstile = Substitute.For<ITurnstileVerifier>();
     private readonly ISender _sender = Substitute.For<ISender>();
     private readonly ILogger<CreateStorefrontOrderHandler> _logger = NullLogger<CreateStorefrontOrderHandler>.Instance;
     private readonly CreateStorefrontOrderHandler _sut;
@@ -44,6 +46,7 @@ public sealed class CreateStorefrontOrderHandlerTests
             _settings,
             _orders,
             _blockedContacts,
+            _turnstile,
             _sender,
             _logger);
     }
@@ -261,6 +264,113 @@ public sealed class CreateStorefrontOrderHandlerTests
         result.Error!.Code.Should().Be("ecommerce.checkout.invalid_form");
         await _sender.DidNotReceiveWithAnyArgs()
             .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(default!, default);
+    }
+
+    [Fact(DisplayName = "Con Turnstile habilitado y sin token responde ecommerce.checkout.captcha_failed")]
+    public async Task Handle_CaptchaEnabledWithoutToken_ReturnsCaptchaFailed()
+    {
+        var tenantId = SetupTenant();
+        _turnstile.IsEnabled.Returns(true);
+        _turnstile
+            .VerifyAsync(Arg.Is<string?>(token => token == null), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(TurnstileVerificationResult.Failed("missing-input-response"));
+
+        var result = await _sut.Handle(CreateCommand(tenantId), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("ecommerce.checkout.captcha_failed");
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Message.Should().Be("No pudimos verificar que eres humano. Intenta de nuevo.");
+        await _sender.DidNotReceiveWithAnyArgs()
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(default!, default);
+    }
+
+    [Fact(DisplayName = "Con Turnstile habilitado y token inválido responde ecommerce.checkout.captcha_failed")]
+    public async Task Handle_CaptchaEnabledWithInvalidToken_ReturnsCaptchaFailed()
+    {
+        var tenantId = SetupTenant();
+        _turnstile.IsEnabled.Returns(true);
+        _turnstile
+            .VerifyAsync("bad-token", Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(TurnstileVerificationResult.Failed("invalid-input-response"));
+
+        var command = CreateCommand(tenantId) with { TurnstileToken = "bad-token" };
+        var result = await _sut.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("ecommerce.checkout.captcha_failed");
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        await _sender.DidNotReceiveWithAnyArgs()
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(default!, default);
+    }
+
+    [Fact(DisplayName = "Con Turnstile habilitado y token válido crea el pedido")]
+    public async Task Handle_CaptchaEnabledWithValidToken_CreatesOrder()
+    {
+        var tenantId = SetupTenant();
+        SetupWarehouse(tenantId);
+        SetupSettings(tenantId);
+        _orders
+            .FindByClientRequestIdAsync(tenantId, "req-1", Arg.Any<CancellationToken>())
+            .Returns((EcommerceOrder?)null);
+        _turnstile.IsEnabled.Returns(true);
+        _turnstile
+            .VerifyAsync("good-token", Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(TurnstileVerificationResult.Ok());
+
+        CreateEcommerceOrderCommand? captured = null;
+        _sender
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(
+                Arg.Do<CreateEcommerceOrderCommand>(command => captured = command),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new CreateEcommerceOrderResponse(
+                Guid.CreateVersion7(),
+                "ECO-202609-0003",
+                EcommerceOrderStatus.Placed,
+                100m,
+                15m,
+                3.5m,
+                118.5m,
+                EcommercePaymentMethod.BankTransfer,
+                "token-comprobante")));
+
+        var command = CreateCommand(tenantId) with { TurnstileToken = "good-token" };
+        var result = await _sut.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.PaymentProofToken.Should().Be("token-comprobante");
+        captured.Should().NotBeNull();
+        await _turnstile.Received(1).VerifyAsync("good-token", Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact(DisplayName = "Sin Turnstile configurado no se verifica captcha")]
+    public async Task Handle_CaptchaDisabled_DoesNotVerify()
+    {
+        var tenantId = SetupTenant();
+        SetupWarehouse(tenantId);
+        SetupSettings(tenantId);
+        _orders
+            .FindByClientRequestIdAsync(tenantId, "req-1", Arg.Any<CancellationToken>())
+            .Returns((EcommerceOrder?)null);
+        _turnstile.IsEnabled.Returns(false);
+        _sender
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(
+                Arg.Any<CreateEcommerceOrderCommand>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new CreateEcommerceOrderResponse(
+                Guid.CreateVersion7(),
+                "ECO-202609-0004",
+                EcommerceOrderStatus.Placed,
+                100m,
+                15m,
+                3.5m,
+                118.5m,
+                EcommercePaymentMethod.BankTransfer)));
+
+        var result = await _sut.Handle(CreateCommand(tenantId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        await _turnstile.DidNotReceiveWithAnyArgs().VerifyAsync(default, default, default);
     }
 
     [Fact(DisplayName = "Tres pedidos pendientes del mismo contacto responden ecommerce.checkout.too_many_pending")]

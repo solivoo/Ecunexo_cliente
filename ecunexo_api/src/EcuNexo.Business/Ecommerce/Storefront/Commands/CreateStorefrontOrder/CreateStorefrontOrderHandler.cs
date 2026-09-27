@@ -1,6 +1,7 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Repositories;
+using EcuNexo.Business.Ecommerce.Storefront.Turnstile;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
@@ -64,12 +65,18 @@ public sealed class CreateStorefrontOrderHandler
         "Tienes demasiados pedidos pendientes de pago. Completa o cancela los existentes e inténtalo de nuevo.",
         ErrorType.Conflict);
 
+    private static readonly Error CaptchaFailed = new(
+        "ecommerce.checkout.captcha_failed",
+        "No pudimos verificar que eres humano. Intenta de nuevo.",
+        ErrorType.Validation);
+
     private readonly IValidator<CreateStorefrontOrderCommand> _validator;
     private readonly ITenantRepository _tenants;
     private readonly IWarehouseRepository _warehouses;
     private readonly IEcommerceStorefrontSettingsReader _settings;
     private readonly IEcommerceOrderRepository _orders;
     private readonly IEcommerceBlockedContactRepository _blockedContacts;
+    private readonly ITurnstileVerifier _turnstile;
     private readonly ISender _sender;
     private readonly ILogger<CreateStorefrontOrderHandler> _logger;
 
@@ -80,6 +87,7 @@ public sealed class CreateStorefrontOrderHandler
         IEcommerceStorefrontSettingsReader settings,
         IEcommerceOrderRepository orders,
         IEcommerceBlockedContactRepository blockedContacts,
+        ITurnstileVerifier turnstile,
         ISender sender,
         ILogger<CreateStorefrontOrderHandler> logger)
     {
@@ -89,6 +97,7 @@ public sealed class CreateStorefrontOrderHandler
         _settings = settings;
         _orders = orders;
         _blockedContacts = blockedContacts;
+        _turnstile = turnstile;
         _sender = sender;
         _logger = logger;
     }
@@ -108,6 +117,17 @@ public sealed class CreateStorefrontOrderHandler
             var message = string.Join(' ', validation.Errors.Select(e => e.ErrorMessage));
             return Result.Failure<StorefrontOrderCreatedDto>(
                 new Error("ecommerce.checkout.validation", message, ErrorType.Validation));
+        }
+
+        if (_turnstile.IsEnabled)
+        {
+            var verification = await _turnstile
+                .VerifyAsync(command.TurnstileToken, command.ClientIp, ct)
+                .ConfigureAwait(false);
+            if (!verification.Success)
+            {
+                return Result.Failure<StorefrontOrderCreatedDto>(CaptchaFailed);
+            }
         }
 
         var tenantError = await StorefrontTenantGuard
@@ -216,7 +236,8 @@ public sealed class CreateStorefrontOrderHandler
                 created.ShippingCost,
                 created.TotalAmount,
                 created.PaymentMethod.ToString(),
-                paymentMethod == EcommercePaymentMethod.BankTransfer ? settings.BankTransferInstructions : null));
+                paymentMethod == EcommercePaymentMethod.BankTransfer ? settings.BankTransferInstructions : null,
+                created.PaymentProofToken));
         }
         catch (ConcurrencyConflictException)
         {
@@ -276,7 +297,8 @@ public sealed class CreateStorefrontOrderHandler
             order.ShippingCost,
             order.TotalAmount,
             order.PaymentMethod.ToString(),
-            order.PaymentMethod == EcommercePaymentMethod.BankTransfer ? settings.BankTransferInstructions : null);
+            order.PaymentMethod == EcommercePaymentMethod.BankTransfer ? settings.BankTransferInstructions : null,
+            order.PaymentProofToken);
 
     private static Error MapError(Error error) =>
         error.Code is "inventory.stock.insufficient_available" or "inventory.stock.reserved_conflict"

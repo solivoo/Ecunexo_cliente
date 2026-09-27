@@ -232,4 +232,89 @@ public sealed class EcommerceOrderTests
         order.CancellationReason.Should().Be("No transfirió comprobante en 24h");
         order.CancelledAt.Should().NotBeNull();
     }
+
+    [Fact(DisplayName = "Create genera un token de comprobante no vacío y único")]
+    public void Create_GeneratesPaymentProofToken()
+    {
+        var (customer, shipping) = CreateSampleInfo();
+
+        var first = EcommerceOrder.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "ORD-2026-020",
+            Guid.CreateVersion7(),
+            EcommercePaymentMethod.BankTransfer,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping).Value!;
+
+        var second = EcommerceOrder.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "ORD-2026-021",
+            Guid.CreateVersion7(),
+            EcommercePaymentMethod.BankTransfer,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping).Value!;
+
+        first.PaymentProofToken.Should().NotBeNullOrWhiteSpace();
+        first.PaymentProofToken.Should().NotBe(second.PaymentProofToken);
+    }
+
+    [Fact(DisplayName = "RegisterPaymentProof guarda el objeto, agrega timeline y permite reemplazo mientras esté pendiente")]
+    public void RegisterPaymentProof_PendingOrder_StoresAndAllowsReplacement()
+    {
+        var (customer, shipping) = CreateSampleInfo();
+        var order = EcommerceOrder.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "ORD-2026-022",
+            Guid.CreateVersion7(),
+            EcommercePaymentMethod.BankTransfer,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping).Value!;
+
+        order.CanUploadPaymentProof.Should().BeTrue();
+
+        var uploadedAt = DateTimeOffset.UtcNow;
+        var first = order.RegisterPaymentProof("key-1.png", "image/png", uploadedAt);
+
+        first.IsSuccess.Should().BeTrue();
+        order.PaymentProofObjectKey.Should().Be("key-1.png");
+        order.PaymentProofContentType.Should().Be("image/png");
+        order.PaymentProofUploadedAtUtc.Should().Be(uploadedAt);
+        order.Timeline.Should().Contain(t => t.Notes == "Comprobante de pago recibido.");
+
+        var second = order.RegisterPaymentProof("key-2.pdf", "application/pdf", uploadedAt.AddMinutes(5));
+
+        second.IsSuccess.Should().BeTrue();
+        order.PaymentProofObjectKey.Should().Be("key-2.pdf");
+        order.PaymentProofContentType.Should().Be("application/pdf");
+    }
+
+    [Fact(DisplayName = "RegisterPaymentProof se rechaza cuando el pedido ya fue despachado o confirmado")]
+    public void RegisterPaymentProof_NotPending_ReturnsConflict()
+    {
+        var (customer, shipping) = CreateSampleInfo();
+        var order = EcommerceOrder.Create(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "ORD-2026-023",
+            Guid.CreateVersion7(),
+            EcommercePaymentMethod.BankTransfer,
+            EcommerceShippingMethod.Courier,
+            customer,
+            shipping).Value!;
+
+        order.ConfirmPayment("TRF-1", null, "Admin");
+
+        order.CanUploadPaymentProof.Should().BeFalse();
+        var result = order.RegisterPaymentProof("key.pdf", "application/pdf", DateTimeOffset.UtcNow);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("ecommerce.checkout.proof_not_allowed");
+        order.PaymentProofObjectKey.Should().BeNull();
+    }
 }

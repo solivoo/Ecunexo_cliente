@@ -224,6 +224,13 @@ export interface EcommerceOrderDetailDto {
   createdAt: string
   items: EcommerceOrderItemDto[]
   timeline: EcommerceOrderTimelineDto[]
+  paymentProofUploadedAtUtc?: string | null
+}
+
+export interface EcommerceOrderPaymentProofUrlDto {
+  url: string
+  uploadedAtUtc?: string | null
+  contentType?: string | null
 }
 
 export interface EcommerceOrderMetricsDto {

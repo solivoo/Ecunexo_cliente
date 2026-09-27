@@ -13,6 +13,7 @@ using EcuNexo.Business.Ecommerce.Commands.ShipEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Dtos;
 using EcuNexo.Business.Ecommerce.Queries.GetEcommerceMetrics;
 using EcuNexo.Business.Ecommerce.Queries.GetEcommerceOrderById;
+using EcuNexo.Business.Ecommerce.Queries.GetEcommerceOrderPaymentProofUrl;
 using EcuNexo.Business.Ecommerce.Queries.ListEcommerceOrders;
 using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Core.Ecommerce;
@@ -43,6 +44,10 @@ public static class EcommerceOrderEndpoints
 
         group.MapGet("/{orderId:guid}", GetOrderByIdAsync)
             .AddEndpointFilter(PermissionFilters.Require("ecommerce.orders.read"));
+
+        group.MapGet("/{orderId:guid}/payment-proof-url", GetPaymentProofUrlAsync)
+            .AddEndpointFilter(
+                PermissionFilters.RequireAny("ecommerce.orders.read", "ecommerce.storefront.manage"));
 
         group.MapPost("/", CreateOrderAsync)
             .AddEndpointFilter(PermissionFilters.Require("ecommerce.orders.create"));
@@ -114,6 +119,19 @@ public static class EcommerceOrderEndpoints
         var query = new GetEcommerceOrderByIdQuery(tenantId, orderId);
         var result = await sender
             .AskAsync<GetEcommerceOrderByIdQuery, EcommerceOrderDetailDto>(query, ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetPaymentProofUrlAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid orderId,
+        [FromServices] ISender sender,
+        CancellationToken ct)
+    {
+        var query = new GetEcommerceOrderPaymentProofUrlQuery(tenantId, orderId);
+        var result = await sender
+            .AskAsync<GetEcommerceOrderPaymentProofUrlQuery, EcommerceOrderPaymentProofUrlDto>(query, ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();
     }

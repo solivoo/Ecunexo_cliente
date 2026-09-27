@@ -6,12 +6,14 @@ using EcuNexo.Api.Security;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateStorefrontOrder;
+using EcuNexo.Business.Ecommerce.Storefront.Commands.UploadStorefrontPaymentProof;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceCheckoutOptions;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontFacets;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontProducts;
 using EcuNexo.Business.Storefront.Queries.ResolveStorefront;
+using Microsoft.AspNetCore.Mvc;
 
 namespace EcuNexo.Api.Endpoints.V1.Storefront;
 
@@ -39,6 +41,9 @@ public static class StorefrontEndpoints
         storefront.MapGet("/checkout-options", GetCheckoutOptionsAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
         storefront.MapPost("/orders", CreateOrderAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Orders);
+        storefront.MapPost("/orders/{orderId:guid}/payment-proof", UploadPaymentProofAsync)
+            .DisableAntiforgery()
             .RequireRateLimiting(StorefrontRateLimitPolicies.Orders);
 
         RouteGroupBuilder publicStorefront = app
@@ -186,6 +191,31 @@ public static class StorefrontEndpoints
         return Results.Created(
             $"/api/v1/public/tenants/{tenantId}/storefront/orders/{created.OrderId}",
             created);
+    }
+
+    private static async Task<IResult> UploadPaymentProofAsync(
+        Guid tenantId,
+        Guid orderId,
+        IFormFile? file,
+        [FromHeader(Name = "X-Payment-Proof-Token")] string? token,
+        ISender sender,
+        CancellationToken ct)
+    {
+        using var stream = file?.OpenReadStream() ?? Stream.Null;
+        var command = new UploadStorefrontPaymentProofCommand(
+            tenantId,
+            orderId,
+            token,
+            file?.FileName ?? string.Empty,
+            file?.ContentType,
+            file?.Length ?? 0,
+            stream);
+
+        var result = await sender
+            .SendAsync<UploadStorefrontPaymentProofCommand, StorefrontPaymentProofUploadedDto>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
     }
 
     private static Dictionary<string, IReadOnlyList<string>>? BuildFacetFilters(
