@@ -156,14 +156,6 @@ function combineHierarchyTags(
   return Array.from(set)
 }
 
-const TAG_FIELD_HINTS = ['tags', 'tag', 'etiqueta', 'etiquetas', 'actividad']
-
-/** El campo «Tags / Actividad» solo aplica si la plantilla declara un atributo/eje afín. */
-function isTagLikeFieldName(name: string): boolean {
-  const clean = name.trim().toLowerCase()
-  return TAG_FIELD_HINTS.some((hint) => clean === hint || clean.includes(hint))
-}
-
 export function VariantMatrixBuilder({
   tenantId: _tenantId,
   baseName,
@@ -375,10 +367,6 @@ export function VariantMatrixBuilder({
     )
   }, [])
 
-  const handleVariantTagsChange = useCallback((rowId: string, tags: string[]) => {
-    setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, variantTags: tags } : r)))
-  }, [])
-
   const handleVariantAttributeChange = useCallback((rowId: string, key: string, value: string) => {
     setRows((prev) =>
       prev.map((r) =>
@@ -429,26 +417,12 @@ export function VariantMatrixBuilder({
     [dimensions, primaryDim]
   )
 
-  // El detalle por SKU solo muestra Color / Tags si la plantilla los declara (o si ya hay datos guardados).
-  const showsColorFields = useMemo(() => {
-    if (dimensions.some((d) => d.isColor || isColorDimension(d.name))) return true
-    return variantAttributeFields.some((field) => {
-      const lookup = dimensionValuesMap?.get(field.key.trim().toLowerCase())
-      return (
-        lookup?.dataType === 'color' ||
-        lookup?.dataType === 'colorlist' ||
-        isColorDimension(field.key)
-      )
-    })
-  }, [dimensionValuesMap, dimensions, variantAttributeFields])
-
-  const showsTagFields = useMemo(() => {
-    const names = [
-      ...dimensions.map((d) => d.name),
-      ...variantAttributeFields.map((f) => f.key),
-    ]
-    return names.some(isTagLikeFieldName)
-  }, [dimensions, variantAttributeFields])
+  // El bloque «Colores» solo aplica cuando hay un eje de color (base + adicionales por SKU);
+  // si Color es un atributo de variante (lista/múltiple), se captura como cualquier otro dato.
+  const showsColorFields = useMemo(
+    () => dimensions.some((d) => d.isColor || isColorDimension(d.name)),
+    [dimensions]
+  )
 
   // Ejes que agrupan las fotos compartidas (ej. Color × Tipo de Caña). Sin flags, cae al eje primario.
   const photoGroupDims = useMemo(() => {
@@ -1742,19 +1716,6 @@ export function VariantMatrixBuilder({
                           </div>
                         )
                       })}
-
-                      {/* Tags / Actividad: solo si la plantilla declara un atributo afín */}
-                      {(showsTagFields || (row.variantTags?.length ?? 0) > 0) && (
-                        <div className="ecu-variant-sub-item-field" style={{ minWidth: '200px', flex: '1.3 1 200px' }}>
-                          <label className="ecu-variant-sub-item-label">Tags / Actividad</label>
-                          <EcuTagInput
-                            tags={row.variantTags ?? []}
-                            onChange={(tags: string[]) => handleVariantTagsChange(row.id, tags)}
-                            placeholder="Ej. Running, Casual..."
-                            disabled={disabled}
-                          />
-                        </div>
-                      )}
 
                       {/* Precio Base */}
                       <div className="ecu-variant-sub-item-field" style={{ minWidth: '130px', flex: '0 1 150px' }}>

@@ -7,8 +7,10 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.57.1`.
+* **Última Versión Publicada:** `v0.57.2`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Variantes 100% guiadas por la plantilla (v0.57.2):**
+    * Se elimina el campo fijo «Tags / Actividad» de `VariantMatrixBuilder`; las etiquetas por SKU se capturan declarando un atributo «Tags» (Conjunto de texto libre) en la plantilla (se renderiza como cualquier atributo de variante). El bloque «Colores» (base + adicionales) solo se muestra con un eje de color; si «Color» es atributo (lista/múltiple/colorlist) se captura como dato del SKU. `variantTags` permanece en el payload solo para compatibilidad de datos existentes.
   - **Catálogo — Variantes consistentes con la plantilla (v0.57.1):**
     * En `VariantMatrixBuilder`, los bloques fijos «Colores» y «Tags / Actividad» ahora son condicionales: se muestran solo si la plantilla declara un eje/atributo de color (`dimensions`/`variantAttributeFields` con `isColor`/dataType color/colorlist) o de etiquetas (nombres tags/etiquetas/actividad), o si la variante ya tiene `extraColors`/`variantTags` guardados (para editarlos). Se detectó en la BD desplegada de EVERCHIC que la plantilla «Plantilla para calcetines» (ejes Talla/Caña; datos Marca/Modelo/Categoria) renderizaba ambos bloques de más.
   - **Catálogo — Alta solo por plantilla y datos agrupados por tipo (v0.57.0):**
