@@ -31,5 +31,6 @@ public sealed class GetEcommerceStorefrontSettingsHandler
             settings.PaymentHoldHours,
             settings.ReserveOnOrder,
             settings.ContactWhatsapp,
-            settings.OrdersNotificationEmail);
+            settings.OrdersNotificationEmail,
+            settings.MaxPendingOrders);
 }

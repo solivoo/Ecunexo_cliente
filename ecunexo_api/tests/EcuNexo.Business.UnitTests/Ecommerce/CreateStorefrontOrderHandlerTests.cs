@@ -258,7 +258,7 @@ public sealed class CreateStorefrontOrderHandlerTests
         var tenantId = SetupTenant();
         SetupSettings(tenantId);
 
-        var command = CreateCommand(tenantId) with { Website = "https://spam.example" };
+        var command = CreateCommand(tenantId) with { ContactFax = "https://spam.example" };
         var result = await _sut.Handle(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -390,7 +390,7 @@ public sealed class CreateStorefrontOrderHandlerTests
         await _turnstile.DidNotReceiveWithAnyArgs().VerifyAsync(default, default, default);
     }
 
-    [Fact(DisplayName = "Tres pedidos pendientes del mismo contacto responden ecommerce.checkout.too_many_pending")]
+    [Fact(DisplayName = "Alcanzar el tope de pendientes del setting responde ecommerce.checkout.too_many_pending")]
     public async Task Handle_TooManyPendingOrders_ReturnsConflict()
     {
         var tenantId = SetupTenant();
@@ -405,7 +405,7 @@ public sealed class CreateStorefrontOrderHandlerTests
                 "maria.lopez@example.com",
                 "0987654321",
                 Arg.Any<CancellationToken>())
-            .Returns(CreateStorefrontOrderHandler.MaxPendingOrdersPerContact);
+            .Returns(DefaultSettings.MaxPendingOrders);
 
         var result = await _sut.Handle(CreateCommand(tenantId), CancellationToken.None);
 
@@ -414,6 +414,46 @@ public sealed class CreateStorefrontOrderHandlerTests
         result.Error.Type.Should().Be(ErrorType.Conflict);
         await _sender.DidNotReceiveWithAnyArgs()
             .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(default!, default);
+    }
+
+    [Fact(DisplayName = "El tope de pendientes sale del setting de la tienda")]
+    public async Task Handle_CustomPendingLimitFromSettings_CreatesOrder()
+    {
+        var tenantId = SetupTenant();
+        var orderId = Guid.CreateVersion7();
+        SetupWarehouse(tenantId);
+        _settings.ResolveAsync(tenantId, Arg.Any<CancellationToken>()).Returns(DefaultSettings with
+        {
+            MaxPendingOrders = 10,
+        });
+        _orders
+            .FindByClientRequestIdAsync(tenantId, "req-1", Arg.Any<CancellationToken>())
+            .Returns((EcommerceOrder?)null);
+        _orders
+            .CountPendingByContactAsync(
+                tenantId,
+                "maria.lopez@example.com",
+                "0987654321",
+                Arg.Any<CancellationToken>())
+            .Returns(DefaultSettings.MaxPendingOrders);
+        _sender
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(
+                Arg.Any<CreateEcommerceOrderCommand>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new CreateEcommerceOrderResponse(
+                orderId,
+                "ECO-202609-0005",
+                EcommerceOrderStatus.Placed,
+                100m,
+                15m,
+                3.5m,
+                118.5m,
+                EcommercePaymentMethod.BankTransfer)));
+
+        var result = await _sut.Handle(CreateCommand(tenantId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.OrderId.Should().Be(orderId);
     }
 
     [Fact(DisplayName = "Un contacto bloqueado responde ecommerce.checkout.blocked_contact 403")]

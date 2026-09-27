@@ -1,15 +1,24 @@
 namespace EcuNexo.Api.Security;
 
+/// <summary>Límites configurables (por entorno) del rate limiting del storefront.</summary>
+public sealed class StorefrontRateLimitOptions
+{
+    public const string SectionName = "RateLimits:Storefront";
+
+    public int OrdersPermitLimit { get; set; } = 5;
+
+    public int OrdersWindowMinutes { get; set; } = 10;
+
+    public int ReadPermitLimit { get; set; } = 120;
+
+    public int ReadWindowMinutes { get; set; } = 1;
+}
+
 /// <summary>Políticas de rate limiting para el checkout y catálogo públicos.</summary>
 public static class StorefrontRateLimitPolicies
 {
     public const string Orders = "storefront-orders";
     public const string Read = "storefront-read";
-
-    public const int OrdersPermitLimit = 5;
-    public const int OrdersWindowMinutes = 10;
-    public const int ReadPermitLimit = 120;
-    public const int ReadWindowMinutes = 1;
 
     public const string RateLimitedErrorCode = "ecommerce.checkout.rate_limited";
 

@@ -16,6 +16,9 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
     public const int MinPaymentHoldHours = 1;
     public const int MaxPaymentHoldHours = 720;
     public const bool DefaultReserveOnOrder = true;
+    public const int DefaultMaxPendingOrders = 3;
+    public const int MinMaxPendingOrders = 1;
+    public const int MaxMaxPendingOrders = 50;
 
     private static readonly IReadOnlyList<EcommercePaymentMethod> DefaultPaymentMethods =
         [EcommercePaymentMethod.BankTransfer];
@@ -54,7 +57,8 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
             ReadPaymentHoldHours(values),
             ReadReserveOnOrder(values),
             ReadContactWhatsapp(values),
-            ReadOrdersNotificationEmail(values));
+            ReadOrdersNotificationEmail(values),
+            ReadMaxPendingOrders(values));
     }
 
     internal static bool TryParsePaymentMethod(string? raw, out EcommercePaymentMethod method)
@@ -195,6 +199,29 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
         }
 
         return EcommerceContactNormalizer.NormalizeEmail(element.GetString());
+    }
+
+    private static int ReadMaxPendingOrders(IReadOnlyDictionary<string, JsonElement> values)
+    {
+        if (!values.TryGetValue(EcommerceSettingCodes.StorefrontMaxPendingOrders, out var element))
+        {
+            return DefaultMaxPendingOrders;
+        }
+
+        var maxPendingOrders = element.ValueKind switch
+        {
+            JsonValueKind.Number when element.TryGetInt32(out var parsed) => parsed,
+            JsonValueKind.Number when element.TryGetDouble(out var parsed) =>
+                (int)Math.Round(parsed, MidpointRounding.AwayFromZero),
+            JsonValueKind.String when int.TryParse(
+                element.GetString(),
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var parsed) => parsed,
+            _ => DefaultMaxPendingOrders,
+        };
+
+        return Math.Clamp(maxPendingOrders, MinMaxPendingOrders, MaxMaxPendingOrders);
     }
 
     private static decimal ReadCost(JsonElement element)

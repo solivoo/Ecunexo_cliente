@@ -17,7 +17,8 @@
     * **Infra:** 5088/5090/5173/5174/8083 cerrados al público (verificado); API solo por Tailscale/NPM; `UseForwardedHeaders` + `UseRateLimiter` en `Program.cs`.
     * **Verificación:** build 0 warnings; 332/332 Core y 338/338 Business; vitrina 77 tests + smoke E2E (carrito → checkout → confirmación).
     * **Fase 3C completada:** Turnstile (`Turnstile__SiteKey`/`Turnstile__SecretKey`, deshabilitado si no hay secret), comprobante subido con token y URL prefirmada en el admin, UI de bloqueos/spam y correos de pedido (`ecommerce.storefront.orders_notification_email`).
-    * **Pendiente menor:** reenviar `CF-Connecting-IP` en el nginx del storefront y mover rate limits/topes a settings.
+    * **Ajustes finales aplicados:** rate limits por entorno (`RateLimits__Storefront__*`), tope de pendientes por setting (`ecommerce.storefront.max_pending_orders`), honeypot renombrado a `contactFax` y `CF-Connecting-IP` saneado con `X-Real-IP` en el nginx del storefront.
+    * **Pendiente:** configurar Turnstile en producción (widget + `Turnstile__SiteKey`/`Turnstile__SecretKey`) y recordatorio de expiración antes del TTL.
   - **Licenciamiento Cloud — Fase 1: Módulos Efectivos y Menú «Visible pero Bloqueado» (`GetSessionHandler`, `MenuNavigationMapper`, `filterNavigation`) + Skill de Escalabilidad [sin bump de versión]:**
     * **Fuente única:** `GetSessionHandler.ResolveEnabledModules` deriva los módulos efectivos de `ModuleEntitlements` (mandan sobre la lista legacy `EnabledModuleCodes`); sin ninguna fuente = todos (compatibilidad).
     * **Menú:** `NavigationNodeDto` expone `lockKind` (`module`/`permission`/`placeholder`) y `requiredModule`; `MenuNavigationMapper` conserva visibles las hojas de módulo no contratado con candado y razón, oculta solo los bloqueos por permiso interno y no bloquea contenedores con hijos visibles; `EmbeddedNavigationBuilder` alineado.

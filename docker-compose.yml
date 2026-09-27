@@ -66,6 +66,13 @@ services:
       Storage__PrivateBucket: ${STORAGE_PRIVATE_BUCKET:-ecunexo-private-assets}
       Storage__KeyId: ${STORAGE_KEY_ID:-}
       Storage__ApplicationKey: ${STORAGE_APPLICATION_KEY:-}
+      Turnstile__SiteKey: ${TURNSTILE_SITE_KEY:-}
+      Turnstile__SecretKey: ${TURNSTILE_SECRET_KEY:-}
+      Turnstile__VerifyUrl: ${TURNSTILE_VERIFY_URL:-https://challenges.cloudflare.com/turnstile/v0/siteverify}
+      RateLimits__Storefront__OrdersPermitLimit: ${RATE_LIMITS_ORDERS_PERMIT:-5}
+      RateLimits__Storefront__OrdersWindowMinutes: ${RATE_LIMITS_ORDERS_WINDOW_MIN:-10}
+      RateLimits__Storefront__ReadPermitLimit: ${RATE_LIMITS_READ_PERMIT:-120}
+      RateLimits__Storefront__ReadWindowMinutes: ${RATE_LIMITS_READ_WINDOW_MIN:-1}
     ports:
       - "${CLIENTE_API_HOST_PORT:-5088}:8080"
     networks:

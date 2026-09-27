@@ -38,6 +38,9 @@ const SHIPPING_METHOD_OPTIONS = [
 const MIN_PAYMENT_HOLD_HOURS = 1
 const MAX_PAYMENT_HOLD_HOURS = 720
 const DEFAULT_PAYMENT_HOLD_HOURS = 2
+const MIN_MAX_PENDING_ORDERS = 1
+const MAX_MAX_PENDING_ORDERS = 50
+const DEFAULT_MAX_PENDING_ORDERS = 3
 const MAX_INSTRUCTIONS_LENGTH = 2000
 const MAX_WHATSAPP_LENGTH = 20
 const MAX_NOTIFICATION_EMAIL_LENGTH = 254
@@ -92,6 +95,7 @@ export function StorefrontSettingsPage() {
   const [reserveOnOrder, setReserveOnOrder] = useState(true)
   const [contactWhatsapp, setContactWhatsapp] = useState('')
   const [ordersNotificationEmail, setOrdersNotificationEmail] = useState('')
+  const [maxPendingOrders, setMaxPendingOrders] = useState(DEFAULT_MAX_PENDING_ORDERS)
 
   const [blockedContacts, setBlockedContacts] = useState<EcommerceBlockedContact[]>([])
   const [blockedLoading, setBlockedLoading] = useState(true)
@@ -121,6 +125,7 @@ export function StorefrontSettingsPage() {
         setReserveOnOrder(settings.reserveOnOrder ?? true)
         setContactWhatsapp(settings.contactWhatsapp ?? '')
         setOrdersNotificationEmail(settings.ordersNotificationEmail ?? '')
+        setMaxPendingOrders(settings.maxPendingOrders ?? DEFAULT_MAX_PENDING_ORDERS)
         setError(null)
       })
       .catch((err: unknown) => {
@@ -311,6 +316,19 @@ export function StorefrontSettingsPage() {
         return
       }
 
+      if (
+        !Number.isInteger(maxPendingOrders) ||
+        maxPendingOrders < MIN_MAX_PENDING_ORDERS ||
+        maxPendingOrders > MAX_MAX_PENDING_ORDERS
+      ) {
+        toast.show({
+          title: 'Máximo de pendientes inválido',
+          message: `El máximo de pedidos pendientes debe estar entre ${MIN_MAX_PENDING_ORDERS} y ${MAX_MAX_PENDING_ORDERS}.`,
+          variant: 'error',
+        })
+        return
+      }
+
       if (instructions.length > MAX_INSTRUCTIONS_LENGTH) {
         toast.show({
           title: 'Instrucciones demasiado largas',
@@ -361,6 +379,7 @@ export function StorefrontSettingsPage() {
           reserveOnOrder,
           contactWhatsapp: whatsapp || null,
           ordersNotificationEmail: notificationEmail || null,
+          maxPendingOrders,
         })
         setError(null)
         toast.show({
@@ -380,6 +399,7 @@ export function StorefrontSettingsPage() {
       contactWhatsapp,
       holdHours,
       instructions,
+      maxPendingOrders,
       ordersNotificationEmail,
       payments,
       reserveOnOrder,
@@ -758,6 +778,31 @@ export function StorefrontSettingsPage() {
               <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                 <p className="ecu-companies-form__hint" style={{ marginTop: '0.75rem' }}>
                   Si está desactivado, el stock se reserva al confirmar el pago.
+                </p>
+              </div>
+              <div className="ecu-companies-form__field">
+                <NumberBox
+                  id="storefront-max-pending-orders"
+                  label="Máximo de pedidos pendientes por contacto"
+                  labelPosition="outlined"
+                  variant="outline"
+                  min={MIN_MAX_PENDING_ORDERS}
+                  max={MAX_MAX_PENDING_ORDERS}
+                  step={1}
+                  showSpinButtons
+                  value={maxPendingOrders}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setMaxPendingOrders(Number(e.target.value) || 0)
+                  }
+                  disabled={saving}
+                  fullWidth
+                />
+              </div>
+              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                <p className="ecu-companies-form__hint" style={{ marginTop: '1.1rem' }}>
+                  Pedidos impagos que puede acumular un mismo correo o teléfono. Rango permitido:{' '}
+                  {MIN_MAX_PENDING_ORDERS} a {MAX_MAX_PENDING_ORDERS} (por defecto{' '}
+                  {DEFAULT_MAX_PENDING_ORDERS}).
                 </p>
               </div>
             </div>

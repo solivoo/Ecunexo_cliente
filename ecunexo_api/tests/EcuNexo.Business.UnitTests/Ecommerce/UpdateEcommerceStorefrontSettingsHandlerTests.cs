@@ -22,7 +22,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         _sut = new UpdateEcommerceStorefrontSettingsHandler(_validator, _settings, _idGenerator, _unitOfWork);
     }
 
-    [Fact(DisplayName = "Hace upsert de los siete settings tenant y devuelve el estado guardado")]
+    [Fact(DisplayName = "Hace upsert de los ocho settings tenant y devuelve el estado guardado")]
     public async Task Handle_WithoutExistingSettings_CreatesAll()
     {
         var tenantId = Guid.CreateVersion7();
@@ -43,6 +43,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             ReserveOnOrder: false,
             ContactWhatsapp: "+593 99 999 9999",
             OrdersNotificationEmail: "  Pedidos@Tienda.COM  ",
+            MaxPendingOrders: 12,
             UpdatedBy: Guid.CreateVersion7());
 
         var result = await _sut.Handle(command, CancellationToken.None);
@@ -58,8 +59,9 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         dto.ReserveOnOrder.Should().BeFalse();
         dto.ContactWhatsapp.Should().Be("593999999999");
         dto.OrdersNotificationEmail.Should().Be("pedidos@tienda.com");
+        dto.MaxPendingOrders.Should().Be(12);
 
-        await _settings.Received(7).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
+        await _settings.Received(8).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -84,6 +86,8 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
                 SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontContactWhatsapp, "\"\"", SettingScope.Tenant, scopeId).Value!,
             [EcommerceSettingCodes.StorefrontOrdersNotificationEmail] =
                 SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontOrdersNotificationEmail, "\"\"", SettingScope.Tenant, scopeId).Value!,
+            [EcommerceSettingCodes.StorefrontMaxPendingOrders] =
+                SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontMaxPendingOrders, "3", SettingScope.Tenant, scopeId).Value!,
         };
 
         _settings
@@ -108,6 +112,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         rows[EcommerceSettingCodes.StorefrontPaymentHoldHours].ValueJson.Should().Be("72");
         rows[EcommerceSettingCodes.StorefrontReserveOnOrder].ValueJson.Should().Be("true");
         rows[EcommerceSettingCodes.StorefrontOrdersNotificationEmail].ValueJson.Should().Be("\"\"");
+        rows[EcommerceSettingCodes.StorefrontMaxPendingOrders].ValueJson.Should().Be("3");
     }
 
     [Fact(DisplayName = "El validador rechaza métodos vacíos, costos negativos y hold fuera de rango")]
@@ -146,6 +151,24 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             null,
             0));
         invalidHold.IsValid.Should().BeFalse();
+
+        var tooLowPendingOrders = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
+            tenantId,
+            ["BankTransfer"],
+            [new UpdateEcommerceStorefrontShippingMethodInput("Courier", 0m)],
+            null,
+            24,
+            MaxPendingOrders: 0));
+        tooLowPendingOrders.IsValid.Should().BeFalse();
+
+        var tooHighPendingOrders = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
+            tenantId,
+            ["BankTransfer"],
+            [new UpdateEcommerceStorefrontShippingMethodInput("Courier", 0m)],
+            null,
+            24,
+            MaxPendingOrders: 51));
+        tooHighPendingOrders.IsValid.Should().BeFalse();
 
         var unknownCode = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
             tenantId,

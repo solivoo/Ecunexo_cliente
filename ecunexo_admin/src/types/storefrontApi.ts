@@ -28,6 +28,7 @@ export type EcommerceStorefrontSettings = {
   reserveOnOrder: boolean
   contactWhatsapp: string
   ordersNotificationEmail: string
+  maxPendingOrders: number
 }
 
 export type UpdateEcommerceStorefrontSettingsInput = {
@@ -38,6 +39,7 @@ export type UpdateEcommerceStorefrontSettingsInput = {
   reserveOnOrder: boolean
   contactWhatsapp: string | null
   ordersNotificationEmail: string | null
+  maxPendingOrders: number
 }
 
 export type EcommerceBlockedContactKind = 'Email' | 'Phone'

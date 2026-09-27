@@ -13,7 +13,8 @@ public sealed record EcommerceStorefrontSettings(
     int PaymentHoldHours,
     bool ReserveOnOrder = true,
     string ContactWhatsapp = "",
-    string OrdersNotificationEmail = "");
+    string OrdersNotificationEmail = "",
+    int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders);
 
 /// <summary>
 /// Lee la configuración efectiva de la tienda (global/plan/tenant) aplicando defaults seguros.

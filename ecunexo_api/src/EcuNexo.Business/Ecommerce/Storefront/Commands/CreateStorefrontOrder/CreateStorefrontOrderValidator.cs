@@ -18,8 +18,8 @@ public sealed class CreateStorefrontOrderValidator : AbstractValidator<CreateSto
             .NotEmpty()
             .WithMessage("El tenant es obligatorio.");
 
-        RuleFor(x => x.Website)
-            .Must(website => string.IsNullOrWhiteSpace(website))
+        RuleFor(x => x.ContactFax)
+            .Must(contactFax => string.IsNullOrWhiteSpace(contactFax))
             .WithMessage("No podemos procesar este pedido.")
             .WithErrorCode(InvalidFormErrorCode);
 

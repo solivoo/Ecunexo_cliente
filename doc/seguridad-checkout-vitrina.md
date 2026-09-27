@@ -35,9 +35,9 @@ Vitrina   → VPS front (NPM) → nginx del storefront → Tailscale → API Cli
 | 3 | Precio y costo de envío calculados en el servidor | `CreateEcommerceOrderHandler.cs`, `GetEcommerceCheckoutOptionsHandler.cs`, `CreateStorefrontOrderHandler.cs` | El comprador no puede manipular precios; el envío sale del método configurado por el tenant | Requiere que la lista de precios y el método estén vigentes; si no, el pedido se rechaza |
 | 4 | TTL de reserva + worker de expiración | `EcommercePaymentHoldService.cs`, `Workers/EcommercePaymentHoldWorker.cs`, setting `ecommerce.storefront.payment_hold_hours` | Los pedidos impagos liberan stock automáticamente (default 2 h, configurable 1..720) | Un comprador que paga por transferencia después del TTL pierde la reserva (el admin puede re-confirmar si aún hay stock) |
 | 5 | Modo "reservar al confirmar pago" | setting `ecommerce.storefront.reserve_on_order`, `EcommerceOrder.StockReserved`, `ConfirmEcommerceOrderPaymentHandler.cs` | Si se desactiva, ningún pedido web bloquea stock hasta que el admin confirma el pago (ideal contra órdenes fantasma) | El stock puede agotarse entre el pedido y la confirmación; el admin vería `insufficient_available` al confirmar |
-| 6 | Rate limiting por IP real | `EcuNexo.Api/Security/StorefrontRateLimitPolicies.cs`, `EcuNexo.Api/Program.cs` | Pedidos: 5/10 min; lecturas: 120/min. Frena bots y flood de órdenes | NAT/CGNAT comparten IP (oficinas o redes móviles pueden tocar el límite); requiere `CF-Connecting-IP`/primer `X-Forwarded-For` |
-| 7 | Honeypot + tiempo mínimo de formulario | `CreateStorefrontOrderValidator.cs` (`website`, `formElapsedMs >= 2000`), `ecommerce/src/pages/checkout/CheckoutPage.tsx` | Descarta bots simples sin fricción para el humano | Bots con navegador real lo superan; el campo `website` puede ser autocompletado por gestores de contraseñas (raro, pero posible) |
-| 8 | Tope de pedidos pendientes por contacto | `CreateStorefrontOrderHandler.cs` (`MaxPendingOrdersPerContact = 3`) | Una misma persona/bot no puede acaparar el catálogo con pedidos impagos | Un cliente legítimo con 3 pedidos pendientes debe esperar a que se confirmen/cancelen |
+| 6 | Rate limiting por IP real | `EcuNexo.Api/Security/StorefrontRateLimitPolicies.cs` (`StorefrontRateLimitOptions`), `EcuNexo.Api/Program.cs`, `appsettings.json`, `docker-compose.yml` | Pedidos: 5/10 min; lecturas: 120/min (defaults configurables por env `RateLimits__Storefront__*`). Frena bots y flood de órdenes | NAT/CGNAT comparten IP (oficinas o redes móviles pueden tocar el límite); el nginx de la vitrina sanea `X-Forwarded-For`/`X-Real-IP`/`CF-Connecting-IP` con la IP real |
+| 7 | Honeypot + tiempo mínimo de formulario | `CreateStorefrontOrderValidator.cs` (`contactFax`, `formElapsedMs >= 2000`), `ecommerce/src/pages/checkout/CheckoutPage.tsx` | Descarta bots simples sin fricción para el humano | Bots con navegador real lo superan; un gestor de contraseñas podría autocompletar el campo trampa (poco probable por el nombre `contactFax`) |
+| 8 | Tope de pedidos pendientes por contacto | `CreateStorefrontOrderHandler.cs`, setting `ecommerce.storefront.max_pending_orders` | Una misma persona/bot no puede acaparar el catálogo con pedidos impagos (default 3, rango 1..50 configurable por tienda) | Un cliente legítimo con el tope de pedidos pendientes debe esperar a que se confirmen/cancelen |
 | 9 | Lista de bloqueo de contactos | `EcuNexo.Core/Ecommerce/EcommerceBlockedContact.cs`, migración `20260926234318_AddEcommerceBlockedContacts`, endpoints admin `ecommerce/blocked-contacts` | Bloqueo manual de email/teléfono reincidente; el checkout responde `ecommerce.checkout.blocked_contact` | Bloqueos manuales; un teléfono compartido puede generar falsos positivos |
 | 10 | Puertos cerrados + Tailscale + forwarded headers confiables | `Program.cs` (`UseForwardedHeaders`), despliegue (NPM/Tailscale) | El API no es alcanzable desde internet, así que no se puede falsear `CF-Connecting-IP` ni saltar el rate limit por IP | Si algún día se publica el `5088`, el rate limit por IP deja de ser confiable |
 | 11 | Comprobante por WhatsApp | `ecommerce/src/pages/checkout/OrderConfirmedPage.tsx`, `checkoutApi.ts`, setting `contact_whatsapp` | Cierra el flujo de transferencia sin cuentas: mensaje prellenado con pedido y total | El comprobante vive en WhatsApp (no adjunto al pedido); requiere que el admin lo coteje a mano |
@@ -76,13 +76,25 @@ En el admin: **Ecommerce → Configuración de tienda** (`StorefrontSettingsPage
 | `ecommerce.storefront.reserve_on_order` | `true` | Reservar stock al crear el pedido (false = reservar al confirmar pago) |
 | `ecommerce.storefront.contact_whatsapp` | vacío | WhatsApp de la tienda para el comprobante |
 | `ecommerce.storefront.orders_notification_email` | vacío | Correo del equipo que recibe avisos de pedidos y comprobantes |
+| `ecommerce.storefront.max_pending_orders` | **3** | Máximo de pedidos pendientes por contacto (1..50) antes de rechazar el checkout |
 
 Turnstile se configura por variables de entorno del API (`Turnstile__SiteKey`,
 `Turnstile__SecretKey`); si el secret está vacío, el captcha queda deshabilitado y el flujo sigue
 igual. La vitrina obtiene el site key desde `checkout-options` (no requiere rebuild).
 
-Rate limits y tope de pendientes son **constantes de código** hoy
-(`StorefrontRateLimitPolicies.cs`, `MaxPendingOrdersPerContact`): cambiarlos requiere deploy.
+Los rate limits del storefront se configuran por variables de entorno del API (sin deploy de
+código) y tienen defaults seguros en `appsettings.json` (`RateLimits:Storefront`):
+
+| Env | Default | Descripción |
+|---|---|---|
+| `RATE_LIMITS_ORDERS_PERMIT` | `5` | Pedidos permitidos por ventana e IP real |
+| `RATE_LIMITS_ORDERS_WINDOW_MIN` | `10` | Minutos de la ventana de pedidos |
+| `RATE_LIMITS_READ_PERMIT` | `120` | Lecturas permitidas por ventana e IP real |
+| `RATE_LIMITS_READ_WINDOW_MIN` | `1` | Minutos de la ventana de lecturas |
+
+El nginx de la vitrina calcula la IP del comprador (`map $http_x_real_ip`) y la envía saneada al
+API en `X-Forwarded-For`, `X-Real-IP` y `CF-Connecting-IP`, descartando los valores que mande el
+cliente.
 
 ---
 
@@ -108,9 +120,7 @@ Otros códigos esperados del checkout: `ecommerce.checkout.invalid_form`,
 
 - **Configurar Turnstile** en producción: widget en Cloudflare con los dominios de la vitrina y
   las env `Turnstile__SiteKey`/`Turnstile__SecretKey` en el stack del API.
-- **Reenviar `CF-Connecting-IP`** desde el nginx del storefront al API para precisión total del
-  rate limit (hoy usa el primer `X-Forwarded-For`).
-- **Mover rate limits y topes a settings** por tenant si se necesita ajuste sin deploy.
-- **Renombrar el honeypot** (`website`) a un nombre menos propenso a autocompletado.
 - **Notificar al cliente por correo los cambios de estado** ya está cubierto (pago confirmado y
   despachado); evaluar recordatorio automático antes de expirar la reserva.
+- **Conteos de facetas dinámicos** (cantidad de resultados por filtro) y caché del catálogo
+  público: mejora ajena al checkout, pendiente de evaluar según tráfico.

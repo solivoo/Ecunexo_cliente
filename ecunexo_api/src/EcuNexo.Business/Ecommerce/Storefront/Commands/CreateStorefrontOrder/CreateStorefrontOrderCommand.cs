@@ -26,7 +26,7 @@ public sealed record CreateStorefrontOrderCommand(
     string ShippingMethod,
     IReadOnlyList<CreateStorefrontOrderItemInput> Items,
     string? Notes = null,
-    string? Website = null,
+    string? ContactFax = null,
     int? FormElapsedMs = null,
     string? ClientIp = null,
     string? UserAgent = null,

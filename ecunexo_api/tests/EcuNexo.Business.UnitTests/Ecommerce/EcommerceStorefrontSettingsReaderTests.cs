@@ -43,6 +43,8 @@ public sealed class EcommerceStorefrontSettingsReaderTests
         settings.ReserveOnOrder.Should().BeTrue();
         settings.ContactWhatsapp.Should().BeEmpty();
         settings.OrdersNotificationEmail.Should().BeEmpty();
+        settings.MaxPendingOrders.Should().Be(3);
+        settings.MaxPendingOrders.Should().Be(EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders);
     }
 
     [Theory(DisplayName = "Lee y normaliza el correo de avisos de pedidos")]
@@ -138,6 +140,22 @@ public sealed class EcommerceStorefrontSettingsReaderTests
         var settings = await _sut.ResolveAsync(tenantId, CancellationToken.None);
 
         settings.PaymentHoldHours.Should().Be(expected);
+    }
+
+    [Theory(DisplayName = "Clampa el tope de pedidos pendientes al rango 1..50")]
+    [InlineData("0", 1)]
+    [InlineData("9999", 50)]
+    [InlineData("-5", 1)]
+    [InlineData("12", 12)]
+    [InlineData("\"abc\"", EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders)]
+    public async Task Resolve_ClampsMaxPendingOrders(string rawJson, int expected)
+    {
+        var tenantId = SetupTenant();
+        SetupValues((EcommerceSettingCodes.StorefrontMaxPendingOrders, rawJson));
+
+        var settings = await _sut.ResolveAsync(tenantId, CancellationToken.None);
+
+        settings.MaxPendingOrders.Should().Be(expected);
     }
 
     [Fact(DisplayName = "Lee y recorta las instrucciones de transferencia")]

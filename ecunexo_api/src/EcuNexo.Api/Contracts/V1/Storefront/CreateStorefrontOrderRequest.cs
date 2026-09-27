@@ -10,7 +10,7 @@ public sealed record CreateStorefrontOrderRequest(
     string ShippingMethod,
     IReadOnlyList<CreateStorefrontOrderItemInput> Items,
     string? Notes = null,
-    string? Website = null,
+    string? ContactFax = null,
     int? FormElapsedMs = null,
     string? TurnstileToken = null)
 {
@@ -27,7 +27,7 @@ public sealed record CreateStorefrontOrderRequest(
             ShippingMethod,
             Items ?? [],
             Notes,
-            Website,
+            ContactFax,
             FormElapsedMs,
             clientIp,
             userAgent,

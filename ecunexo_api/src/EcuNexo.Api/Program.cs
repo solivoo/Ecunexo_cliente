@@ -122,6 +122,10 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
+var storefrontRateLimits = builder.Configuration
+    .GetSection(StorefrontRateLimitOptions.SectionName)
+    .Get<StorefrontRateLimitOptions>() ?? new StorefrontRateLimitOptions();
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -145,8 +149,8 @@ builder.Services.AddRateLimiter(options =>
             StorefrontRateLimitPolicies.ResolveClientIp(httpContext),
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = StorefrontRateLimitPolicies.OrdersPermitLimit,
-                Window = TimeSpan.FromMinutes(StorefrontRateLimitPolicies.OrdersWindowMinutes),
+                PermitLimit = Math.Max(1, storefrontRateLimits.OrdersPermitLimit),
+                Window = TimeSpan.FromMinutes(Math.Max(1, storefrontRateLimits.OrdersWindowMinutes)),
                 QueueLimit = 0,
                 AutoReplenishment = true,
             }));
@@ -157,8 +161,8 @@ builder.Services.AddRateLimiter(options =>
             StorefrontRateLimitPolicies.ResolveClientIp(httpContext),
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = StorefrontRateLimitPolicies.ReadPermitLimit,
-                Window = TimeSpan.FromMinutes(StorefrontRateLimitPolicies.ReadWindowMinutes),
+                PermitLimit = Math.Max(1, storefrontRateLimits.ReadPermitLimit),
+                Window = TimeSpan.FromMinutes(Math.Max(1, storefrontRateLimits.ReadWindowMinutes)),
                 QueueLimit = 0,
                 AutoReplenishment = true,
             }));

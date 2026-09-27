@@ -26,4 +26,7 @@ public static class EcommerceSettingCodes
 
     /// <summary>Correo del equipo de la tienda que recibe avisos de pedidos (opcional).</summary>
     public const string StorefrontOrdersNotificationEmail = "ecommerce.storefront.orders_notification_email";
+
+    /// <summary>Máximo de pedidos pendientes por contacto en la tienda (1..50).</summary>
+    public const string StorefrontMaxPendingOrders = "ecommerce.storefront.max_pending_orders";
 }

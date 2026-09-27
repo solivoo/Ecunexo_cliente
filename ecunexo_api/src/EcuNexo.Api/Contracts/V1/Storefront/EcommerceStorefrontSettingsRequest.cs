@@ -1,3 +1,4 @@
+using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.UpdateEcommerceStorefrontSettings;
 
 namespace EcuNexo.Api.Contracts.V1.Storefront;
@@ -11,7 +12,8 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
     int PaymentHoldHours,
     bool ReserveOnOrder = true,
     string? ContactWhatsapp = null,
-    string? OrdersNotificationEmail = null)
+    string? OrdersNotificationEmail = null,
+    int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders)
 {
     public UpdateEcommerceStorefrontSettingsCommand ToCommand(Guid tenantId, Guid? updatedBy) =>
         new(
@@ -25,5 +27,6 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
             ReserveOnOrder,
             ContactWhatsapp,
             OrdersNotificationEmail,
+            MaxPendingOrders,
             updatedBy);
 }

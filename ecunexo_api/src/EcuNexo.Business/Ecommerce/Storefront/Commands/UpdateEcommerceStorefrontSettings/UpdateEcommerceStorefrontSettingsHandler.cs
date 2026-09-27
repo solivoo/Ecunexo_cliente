@@ -68,6 +68,10 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
             EcommerceStorefrontSettingsReader.MaxPaymentHoldHours);
         var contactWhatsapp = EcommerceContactNormalizer.NormalizeWhatsapp(command.ContactWhatsapp);
         var ordersNotificationEmail = EcommerceContactNormalizer.NormalizeEmail(command.OrdersNotificationEmail);
+        var maxPendingOrders = Math.Clamp(
+            command.MaxPendingOrders,
+            EcommerceStorefrontSettingsReader.MinMaxPendingOrders,
+            EcommerceStorefrontSettingsReader.MaxMaxPendingOrders);
 
         var scopeId = command.TenantId.ToString("D");
         var payloads = new (string Code, string Json)[]
@@ -97,6 +101,9 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
             (
                 EcommerceSettingCodes.StorefrontOrdersNotificationEmail,
                 JsonSerializer.Serialize(ordersNotificationEmail)),
+            (
+                EcommerceSettingCodes.StorefrontMaxPendingOrders,
+                JsonSerializer.Serialize(maxPendingOrders)),
         };
 
         foreach (var (code, json) in payloads)
@@ -119,7 +126,8 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
             holdHours,
             command.ReserveOnOrder,
             contactWhatsapp,
-            ordersNotificationEmail));
+            ordersNotificationEmail,
+            maxPendingOrders));
     }
 
     private async Task<Result> UpsertAsync(

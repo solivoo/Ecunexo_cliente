@@ -14,7 +14,8 @@ public sealed record EcommerceStorefrontSettingsDto(
     int PaymentHoldHours,
     bool ReserveOnOrder,
     string ContactWhatsapp,
-    string OrdersNotificationEmail);
+    string OrdersNotificationEmail,
+    int MaxPendingOrders);
 
 /// <summary>Opciones de pago y envío expuestas al comprador anónimo.</summary>
 public sealed record EcommerceCheckoutOptionsDto(

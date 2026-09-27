@@ -42,7 +42,6 @@ public sealed class CreateStorefrontOrderHandler
     public const string SystemCustomerName = "Tienda online";
     public const string DefaultConsumerTaxId = "9999999999999";
     public const string DefaultConsumerTaxIdType = "07";
-    public const int MaxPendingOrdersPerContact = 3;
 
     private static readonly Error StockConflict = new(
         "ecommerce.order.stock_conflict",
@@ -178,7 +177,7 @@ public sealed class CreateStorefrontOrderHandler
         var pendingCount = await _orders
             .CountPendingByContactAsync(command.TenantId, emailNormalized, phoneDigits, ct)
             .ConfigureAwait(false);
-        if (pendingCount >= MaxPendingOrdersPerContact)
+        if (pendingCount >= settings.MaxPendingOrders)
         {
             return Result.Failure<StorefrontOrderCreatedDto>(TooManyPending);
         }

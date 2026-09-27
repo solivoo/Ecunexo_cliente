@@ -45,6 +45,13 @@ public sealed class UpdateEcommerceStorefrontSettingsValidator
             .WithMessage(
                 $"Las horas de retención deben estar entre {EcommerceStorefrontSettingsReader.MinPaymentHoldHours} y {EcommerceStorefrontSettingsReader.MaxPaymentHoldHours}.");
 
+        RuleFor(x => x.MaxPendingOrders)
+            .InclusiveBetween(
+                EcommerceStorefrontSettingsReader.MinMaxPendingOrders,
+                EcommerceStorefrontSettingsReader.MaxMaxPendingOrders)
+            .WithMessage(
+                $"El máximo de pedidos pendientes debe estar entre {EcommerceStorefrontSettingsReader.MinMaxPendingOrders} y {EcommerceStorefrontSettingsReader.MaxMaxPendingOrders}.");
+
         RuleFor(x => x.BankTransferInstructions)
             .MaximumLength(BankTransferInstructionsMaxLength)
             .WithMessage($"Las instrucciones de transferencia no pueden superar {BankTransferInstructionsMaxLength} caracteres.");
