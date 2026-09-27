@@ -73,6 +73,8 @@ services:
       RateLimits__Storefront__OrdersWindowMinutes: ${RATE_LIMITS_ORDERS_WINDOW_MIN:-10}
       RateLimits__Storefront__ReadPermitLimit: ${RATE_LIMITS_READ_PERMIT:-120}
       RateLimits__Storefront__ReadWindowMinutes: ${RATE_LIMITS_READ_WINDOW_MIN:-1}
+      RateLimits__Storefront__LikesPermitLimit: ${RATE_LIMITS_LIKES_PERMIT:-30}
+      RateLimits__Storefront__LikesWindowMinutes: ${RATE_LIMITS_LIKES_WINDOW_MIN:-5}
     ports:
       - "${CLIENTE_API_HOST_PORT:-5088}:8080"
     networks:
