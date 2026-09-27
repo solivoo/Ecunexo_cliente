@@ -7,8 +7,13 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.58.0`.
+* **Última Versión Publicada:** `v0.59.0`.
 * **Hitos Recientes Completados:**
+  - **Catálogo/Facturación — Fase B: precios desde listas (v0.59.0):**
+    * Migración `BackfillBasePriceToDefaultPriceList`: vuelca `catalog.items.base_price` (físicos activos) a `pricing.product_prices` de la lista predeterminada activa del tenant (hoy `PUBLICO`), sin duplicar precios vigentes; `Down` no revierte para no perder precios manuales.
+    * Facturación ya resolvía con `resolvePrice` al agregar producto y al cambiar cantidad (`pricingToLinePatch` maneja unitario, descuento, IVA e IVA incluido); se añadió aviso al usuario cuando no hay precio vigente y se usa `basePrice` como respaldo. Los servicios (no físicos) no pasan por el motor.
+    * Verificado end-to-end: `PUBLICO` 2.61 → final 3.00 (IVA 15%); 19 precios migrados en EVERCHIC local y 5 en el tenant con precios del servidor.
+    * Pendiente Fase C: costo unitario en documentos de ingreso y valorización de inventario.
   - **Catálogo — Fase A: código de barras persistente y sin precio en el alta (v0.58.0):**
     * `CatalogItem.Barcode` (máx. 64, normaliza trim+mayúsculas) en `Create`, `CreateVariantChild` y `SetBarcode`; columna `barcode` + índice único `(tenant_id, barcode) WHERE deleted_at IS NULL AND barcode IS NOT NULL` (migración `AddCatalogItemBarcode`).
     * Unicidad validada en handlers de crear/actualizar/matriz/agregar variante (`BarcodeExistsIgnoreCaseAsync`) con 409 claro; expuesto en `GetCatalogItem` (detalle y variantes) y capturado/editable en el admin (matriz en el alta, campo en la ficha de edición).

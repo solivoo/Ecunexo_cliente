@@ -546,9 +546,14 @@ export function useInvoiceEmitForm({
         })
         .catch(() => {
           applyLine({})
+          toast.show({
+            title: 'Precio no encontrado',
+            message: `«${item.name}» no tiene precio vigente en la lista predeterminada; se usó el precio base (${item.basePrice ?? 0}). Configúralo en Catálogo → Gestión de precios.`,
+            variant: 'warning',
+          })
         })
     },
-    [ensureTrailingEmptyLine, tenantId]
+    [ensureTrailingEmptyLine, tenantId, toast]
   )
 
   /** Limpia cliente/líneas/notas tras crear comprobante; conserva emisor y punto de emisión. */
