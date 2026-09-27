@@ -47,6 +47,7 @@ import type { VariantDimensionTemplateDto } from '@/types/catalogApi'
 export type AttributeKind =
   | 'text'
   | 'options'
+  | 'tagset'
   | 'multiselect'
   | 'number'
   | 'boolean'
@@ -74,14 +75,13 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
     value: 'text',
     label: 'Texto libre',
     shortLabel: 'Texto',
-    description: 'Campo abierto para notas o descripciones. Si agregas opciones, se muestra como lista de selección única.',
+    description: 'Campo abierto para una descripción o nota corta.',
     dimensionType: 'custom',
     dataType: 'text',
-    allowsPredefinedValues: true,
+    allowsPredefinedValues: false,
     requiresPredefinedValues: false,
     hasUnit: false,
-    predefinedValuesHint:
-      'Opcional. Sin opciones el campo es texto libre; con opciones se muestra como lista de selección única.',
+    predefinedValuesHint: '',
   },
   {
     value: 'options',
@@ -96,17 +96,28 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
     predefinedValuesHint: 'Obligatorio. Define al menos una opción.',
   },
   {
+    value: 'tagset',
+    label: 'Conjunto de texto libre',
+    shortLabel: 'Conjunto',
+    description: 'Varios valores de texto libre por producto (etiquetas escritas a mano, sin lista predefinida).',
+    dimensionType: 'custom',
+    dataType: 'multiselect',
+    allowsPredefinedValues: false,
+    requiresPredefinedValues: false,
+    hasUnit: false,
+    predefinedValuesHint: '',
+  },
+  {
     value: 'multiselect',
     label: 'Selección múltiple',
     shortLabel: 'Múltiple',
-    description: 'Permite varias etiquetas por producto, con sugerencias.',
+    description: 'Varios valores elegidos de una lista de opciones, con sugerencias.',
     dimensionType: 'custom',
     dataType: 'multiselect',
     allowsPredefinedValues: true,
-    requiresPredefinedValues: false,
+    requiresPredefinedValues: true,
     hasUnit: false,
-    predefinedValuesHint:
-      'Opcional. Se ofrecen como sugerencias; también se pueden escribir etiquetas nuevas.',
+    predefinedValuesHint: 'Obligatorio. Define al menos una opción.',
   },
   {
     value: 'number',
@@ -191,7 +202,9 @@ export function resolveAttributeKind(template: {
   if (template.dataType === 'color') return 'color'
   if (template.dataType === 'number') return 'number'
   if (template.dataType === 'boolean') return 'boolean'
-  if (template.dataType === 'multiselect') return 'multiselect'
+  if (template.dataType === 'multiselect') {
+    return hasPredefinedOptions(template.predefinedValuesJson) ? 'multiselect' : 'tagset'
+  }
   if (hasPredefinedOptions(template.predefinedValuesJson)) return 'options'
   return 'text'
 }
@@ -736,6 +749,7 @@ export function CatalogAttributesListPage() {
                   { value: 'all', label: 'Todos los tipos' },
                   { value: 'text', label: 'Texto libre' },
                   { value: 'options', label: 'Lista de opciones' },
+                  { value: 'tagset', label: 'Conjunto de texto libre' },
                   { value: 'multiselect', label: 'Selección múltiple' },
                   { value: 'number', label: 'Número' },
                   { value: 'boolean', label: 'Sí / No' },

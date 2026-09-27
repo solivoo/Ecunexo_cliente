@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.56.1`.
+* **Última Versión Publicada:** `v0.56.2`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Tipos de captura depurados y alta con plantilla sin campos manuales (v0.56.2):**
+    * «Texto libre» es un único campo abierto (sin editor de opciones) y se agrega **«Conjunto de texto libre»** para etiquetas escritas a mano (`dataType` multiselect sin opciones). «Lista de opciones» y «Selección múltiple» exigen al menos una opción. `resolveAttributeKind` distingue por presencia de opciones.
+    * Con plantilla aplicada, la tarjeta «Datos del producto» no se usa: nombre/descripción se derivan de los atributos de la plantilla (fallback al nombre de la plantilla) y solo se pide **Código** si la plantilla no captura un atributo de código (el inventario físico lo exige).
   - **Catálogo — Alta con plantilla sin campos redundantes (v0.56.1):**
     * Con plantilla aplicada, el formulario de alta ya no muestra **Nombre** ni **Descripción** manuales: se derivan del atributo «Nombre»/«Descripción» capturado por la plantilla (con fallback al nombre de la plantilla). El **Código** se mantiene solo si la plantilla no captura un atributo de código y el producto es de un solo código; en matrices va por variante. El banner de error se movió fuera de la tarjeta para seguir visible cuando la tarjeta se oculta.
   - **Catálogo — Atributos flexibles, renombrado/reasignación masiva y fotos múltiples (v0.56.0):**

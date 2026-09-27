@@ -768,6 +768,12 @@ export function CreateCatalogItemPage() {
                       disabled={busy}
                       fullWidth
                     />
+                    {templateMode ? (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
+                        La plantilla no captura un código. Escríbelo aquí o agrega un atributo
+                        «Código»/«SKU»/«Referencia» a la plantilla para que este campo desaparezca.
+                      </span>
+                    ) : null}
                   </div>
                 )}
                 {showManualDescription && (
