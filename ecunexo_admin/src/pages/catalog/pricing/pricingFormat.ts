@@ -37,6 +37,7 @@ export function promotionTypeLabel(type: PromotionType): string {
 }
 
 export function promotionTargetTypeLabel(type: PromotionTargetType): string {
+  if (type === PromotionTargetType.AllItems) return 'Toda la tienda'
   if (type === PromotionTargetType.Variant) return 'Variante'
   return 'Producto'
 }

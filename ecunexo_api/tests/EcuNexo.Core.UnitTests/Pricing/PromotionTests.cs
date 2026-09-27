@@ -81,6 +81,22 @@ public sealed class PromotionTests
         promotion.Targets.Should().ContainSingle();
     }
 
+    [Fact(DisplayName = "El alcance 'toda la tienda' normaliza su referencia y no se duplica")]
+    public void AddTarget_AllItems_NormalizesReference()
+    {
+        var promotion = CreatePercentage(10m).Value!;
+
+        var added = promotion.AddTarget(Guid.CreateVersion7(), PromotionTargetType.AllItems, "lo-que-sea");
+
+        added.IsSuccess.Should().BeTrue();
+        added.Value!.TargetReference.Should().Be(PromotionTarget.AllItemsReference);
+
+        var duplicate = promotion.AddTarget(Guid.CreateVersion7(), PromotionTargetType.AllItems, "*");
+        duplicate.IsFailure.Should().BeTrue();
+        duplicate.Error!.Code.Should().Be("catalog.pricing.promotion.target.duplicate");
+        promotion.Targets.Should().ContainSingle();
+    }
+
     [Fact(DisplayName = "IsApplicableOn respeta ventana de vigencia y estado")]
     public void IsApplicableOn_RespectsWindowAndState()
     {

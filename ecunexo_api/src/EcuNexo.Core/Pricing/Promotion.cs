@@ -176,16 +176,19 @@ public sealed class Promotion : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string targetReference,
         Guid? createdBy = null)
     {
+        var reference = targetType == PromotionTargetType.AllItems
+            ? PromotionTarget.AllItemsReference
+            : targetReference.Trim();
         var exists = _targets.Any(t =>
             t.TargetType == targetType
-            && string.Equals(t.TargetReference, targetReference.Trim(), StringComparison.OrdinalIgnoreCase));
+            && string.Equals(t.TargetReference, reference, StringComparison.OrdinalIgnoreCase));
         if (exists)
         {
             return Result.Failure<PromotionTarget>(
                 new Error("catalog.pricing.promotion.target.duplicate", "El alcance ya está asignado a esta promoción.", ErrorType.Conflict));
         }
 
-        var targetResult = PromotionTarget.Create(targetId, Id, targetType, targetReference, createdBy);
+        var targetResult = PromotionTarget.Create(targetId, Id, targetType, reference, createdBy);
         if (targetResult.IsFailure)
         {
             return Result.Failure<PromotionTarget>(targetResult.Error!);

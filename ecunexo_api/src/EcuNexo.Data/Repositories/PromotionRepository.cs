@@ -58,9 +58,10 @@ public sealed class PromotionRepository : IPromotionRepository
                 && p.StartsAt <= moment
                 && (p.EndsAt == null || p.EndsAt >= moment)
                 && p.Targets.Any(t =>
-                    (t.TargetType == PromotionTargetType.Product || t.TargetType == PromotionTargetType.Variant)
+                    t.TargetType == PromotionTargetType.AllItems
+                    || ((t.TargetType == PromotionTargetType.Product || t.TargetType == PromotionTargetType.Variant)
                         && (t.TargetReference == itemReference
-                            || (parentReference != null && t.TargetReference == parentReference))))
+                            || (parentReference != null && t.TargetReference == parentReference)))))
             .OrderByDescending(p => p.Priority)
             .ThenBy(p => p.Code)
             .ToListAsync(ct)

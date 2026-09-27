@@ -40,6 +40,27 @@ const TYPE_OPTIONS = [
   { value: String(PromotionType.FixedPrice), label: 'Precio fijo promocional' },
 ]
 
+const ALL_ITEMS_REFERENCE = '*'
+
+function parseCatalogAttributes(json: string | null | undefined): Record<string, string> {
+  if (!json) return {}
+  try {
+    const parsed: unknown = JSON.parse(json)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    const attributes: Record<string, string> = {}
+    Object.entries(parsed as Record<string, unknown>).forEach(([key, value]) => {
+      if (typeof value === 'string' && value.trim()) {
+        attributes[key] = value.trim()
+      } else if (typeof value === 'number' || typeof value === 'boolean') {
+        attributes[key] = String(value)
+      }
+    })
+    return attributes
+  } catch {
+    return {}
+  }
+}
+
 export function PromotionFormPage() {
   const { promotionId } = useParams<{ promotionId: string }>()
   const isEdit = Boolean(promotionId)
@@ -64,12 +85,81 @@ export function PromotionFormPage() {
   const [isStackable, setIsStackable] = useState(false)
   const [targets, setTargets] = useState<TargetDraft[]>([])
   const [targetItemId, setTargetItemId] = useState('')
+  const [familyFilter, setFamilyFilter] = useState('')
+  const [attributeKey, setAttributeKey] = useState('')
+  const [attributeValue, setAttributeValue] = useState('')
 
   const itemById = useMemo(() => {
     const map = new Map<string, CatalogItemListItemDto>()
     items.forEach((item) => map.set(item.id, item))
     return map
   }, [items])
+
+  const attributesByItem = useMemo(() => {
+    const map = new Map<string, Record<string, string>>()
+    items.forEach((item) => map.set(item.id, parseCatalogAttributes(item.customAttributesJson)))
+    return map
+  }, [items])
+
+  const familyOptions = useMemo(() => {
+    const names = new Set<string>()
+    items.forEach((item) => {
+      if (item.familyName) names.add(item.familyName)
+    })
+    return [...names]
+      .sort((a, b) => a.localeCompare(b))
+      .map((name) => ({ value: name, label: name }))
+  }, [items])
+
+  const attributeKeyOptions = useMemo(() => {
+    const keys = new Set<string>()
+    attributesByItem.forEach((attributes) => {
+      Object.keys(attributes).forEach((key) => keys.add(key))
+    })
+    return [...keys]
+      .sort((a, b) => a.localeCompare(b))
+      .map((key) => ({ value: key, label: key }))
+  }, [attributesByItem])
+
+  const attributeValueOptions = useMemo(() => {
+    if (!attributeKey) return []
+    const values = new Set<string>()
+    attributesByItem.forEach((attributes) => {
+      const value = attributes[attributeKey]
+      if (value) values.add(value)
+    })
+    return [...values]
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ value, label: value }))
+  }, [attributeKey, attributesByItem])
+
+  const filteredItems = useMemo(
+    () =>
+      items.filter((item) => {
+        if (familyFilter && item.familyName !== familyFilter) return false
+        const attributes = attributesByItem.get(item.id) ?? {}
+        if (attributeKey && !attributes[attributeKey]) return false
+        if (
+          attributeKey &&
+          attributeValue &&
+          (attributes[attributeKey] ?? '').toLowerCase() !== attributeValue.toLowerCase()
+        ) {
+          return false
+        }
+        return true
+      }),
+    [attributeKey, attributeValue, attributesByItem, familyFilter, items]
+  )
+
+  const appliesToAll = useMemo(
+    () => targets.some((target) => target.targetType === PromotionTargetType.AllItems),
+    [targets]
+  )
+
+  const pendingFilteredCount = useMemo(() => {
+    const existing = new Set(targets.map((target) => target.targetReference))
+    return filteredItems.filter((item) => !existing.has(item.id)).length
+  }, [filteredItems, targets])
 
   useEffect(() => {
     if (!tenantId) return
@@ -124,6 +214,7 @@ export function PromotionFormPage() {
 
   const targetLabel = useCallback(
     (target: TargetDraft): string => {
+      if (target.targetType === PromotionTargetType.AllItems) return 'Toda la tienda'
       const item = itemById.get(target.targetReference)
       if (!item) return target.targetReference
       return item.sku ? `${item.name} · ${item.sku}` : item.name
@@ -133,15 +224,40 @@ export function PromotionFormPage() {
 
   const addTarget = useCallback(() => {
     if (!targetItemId) return
+    const item = itemById.get(targetItemId)
     setTargets((current) => {
       if (current.some((t) => t.targetReference === targetItemId)) return current
       return [
         ...current,
-        { targetType: PromotionTargetType.Product, targetReference: targetItemId },
+        {
+          targetType: item?.parentId ? PromotionTargetType.Variant : PromotionTargetType.Product,
+          targetReference: targetItemId,
+        },
       ]
     })
     setTargetItemId('')
-  }, [targetItemId])
+  }, [itemById, targetItemId])
+
+  const addFilteredTargets = useCallback(() => {
+    setTargets((current) => {
+      const existing = new Set(current.map((target) => target.targetReference))
+      const additions = filteredItems
+        .filter((item) => !existing.has(item.id))
+        .map((item) => ({
+          targetType: item.parentId ? PromotionTargetType.Variant : PromotionTargetType.Product,
+          targetReference: item.id,
+        }))
+      return additions.length === 0 ? current : [...current, ...additions]
+    })
+  }, [filteredItems])
+
+  const toggleAllItems = useCallback((checked: boolean) => {
+    setTargets(
+      checked
+        ? [{ targetType: PromotionTargetType.AllItems, targetReference: ALL_ITEMS_REFERENCE }]
+        : []
+    )
+  }, [])
 
   const onSubmit = useCallback(
     async (event?: FormEvent) => {
@@ -157,7 +273,9 @@ export function PromotionFormPage() {
           throw new Error('El valor de la promoción debe ser un número mayor o igual a cero.')
         }
         if (targets.length === 0) {
-          throw new Error('Agrega al menos un producto al alcance de la promoción.')
+          throw new Error(
+            'Agrega al menos un producto o marca «Toda la tienda» en el alcance de la promoción.'
+          )
         }
 
         const body = {
@@ -362,26 +480,123 @@ export function PromotionFormPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Alcance" subtitle="Productos físicos a los que aplica la promoción.">
-            <CatalogItemPicker
-              items={items}
-              value={targetItemId}
-              onChange={setTargetItemId}
+          <SectionCard
+            title="Alcance"
+            subtitle="Productos, variantes o toda la tienda a la que aplica la promoción."
+          >
+            <CheckButton
+              variant="ghost"
+              checked={appliesToAll}
               disabled={busy || loading}
-              searchId="pr-target-search"
-              selectId="pr-target-select"
-              selectLabel="Producto a agregar"
-            />
-            <div style={{ marginTop: '0.75rem' }}>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy || loading || !targetItemId}
-                onClick={addTarget}
-              >
-                + Agregar al alcance
-              </Button>
-            </div>
+              onChange={toggleAllItems}
+            >
+              Toda la tienda (incluye los productos nuevos)
+            </CheckButton>
+
+            {appliesToAll ? (
+              <p className="app-shell__muted" style={{ marginTop: '0.75rem' }}>
+                La promoción aplicará a todo el catálogo vigente y a los productos que se creen
+                después.
+              </p>
+            ) : (
+              <>
+                <div
+                  className="ecu-companies-form__grid ecu-companies-form__grid--3"
+                  style={{ gap: '0.75rem', marginTop: '0.9rem' }}
+                >
+                  <div className="ecu-companies-form__field">
+                    <Select
+                      id="pr-target-family"
+                      aria-label="Filtrar por familia"
+                      variant="outline"
+                      options={familyOptions}
+                      value={familyFilter}
+                      onChange={(val) => setFamilyFilter(String(val))}
+                      disabled={busy || loading || familyOptions.length === 0}
+                      placeholder={
+                        familyOptions.length === 0 ? 'Sin familias' : 'Familia (opcional)…'
+                      }
+                    />
+                  </div>
+                  <div className="ecu-companies-form__field">
+                    <Select
+                      id="pr-target-attribute"
+                      aria-label="Filtrar por atributo"
+                      variant="outline"
+                      options={attributeKeyOptions}
+                      value={attributeKey}
+                      onChange={(val) => {
+                        setAttributeKey(String(val))
+                        setAttributeValue('')
+                      }}
+                      disabled={busy || loading || attributeKeyOptions.length === 0}
+                      placeholder={
+                        attributeKeyOptions.length === 0
+                          ? 'Sin atributos'
+                          : 'Atributo (opcional)…'
+                      }
+                    />
+                  </div>
+                  <div className="ecu-companies-form__field">
+                    <Select
+                      id="pr-target-attribute-value"
+                      aria-label="Filtrar por valor de atributo"
+                      variant="outline"
+                      options={attributeValueOptions}
+                      value={attributeValue}
+                      onChange={(val) => setAttributeValue(String(val))}
+                      disabled={busy || loading || !attributeKey || attributeValueOptions.length === 0}
+                      placeholder={
+                        !attributeKey
+                          ? 'Elige un atributo…'
+                          : attributeValueOptions.length === 0
+                            ? 'Sin valores'
+                            : 'Valor (opcional)…'
+                      }
+                    />
+                  </div>
+                </div>
+
+                <CatalogItemPicker
+                  items={filteredItems}
+                  value={targetItemId}
+                  onChange={setTargetItemId}
+                  disabled={busy || loading}
+                  searchId="pr-target-search"
+                  selectId="pr-target-select"
+                  selectLabel="Producto a agregar"
+                />
+                <div
+                  style={{
+                    marginTop: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy || loading || !targetItemId}
+                    onClick={addTarget}
+                  >
+                    + Agregar al alcance
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy || loading || pendingFilteredCount === 0}
+                    onClick={addFilteredTargets}
+                  >
+                    + Agregar los {pendingFilteredCount} filtrados
+                  </Button>
+                  <span className="app-shell__muted">
+                    {filteredItems.length} de {items.length} coinciden con los filtros.
+                  </span>
+                </div>
+              </>
+            )}
 
             {targets.length > 0 ? (
               <div

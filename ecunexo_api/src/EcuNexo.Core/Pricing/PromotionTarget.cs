@@ -11,6 +11,9 @@ public sealed class PromotionTarget : Entity<Guid>, IAuditable
 {
     public const int ReferenceMaxLength = 100;
 
+    /// <summary>Referencia canónica del alcance "toda la tienda".</summary>
+    public const string AllItemsReference = "*";
+
     private PromotionTarget()
     {
         TargetReference = string.Empty;
@@ -58,7 +61,9 @@ public sealed class PromotionTarget : Entity<Guid>, IAuditable
                 new Error("catalog.pricing.promotion.target.required", "La referencia del alcance es obligatoria.", ErrorType.Validation));
         }
 
-        var reference = targetReference.Trim();
+        var reference = targetType == PromotionTargetType.AllItems
+            ? AllItemsReference
+            : targetReference.Trim();
         if (reference.Length > ReferenceMaxLength)
         {
             return Result.Failure<PromotionTarget>(
