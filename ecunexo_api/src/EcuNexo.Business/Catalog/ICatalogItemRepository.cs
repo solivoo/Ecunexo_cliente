@@ -34,6 +34,7 @@ public interface ICatalogItemRepository
         CancellationToken ct);
 
     Task<bool> SkuExistsIgnoreCaseAsync(Guid tenantId, string sku, Guid? excludeId, CancellationToken ct);
+    Task<bool> BarcodeExistsIgnoreCaseAsync(Guid tenantId, string barcode, Guid? excludeId, CancellationToken ct);
 
     Task<int> CountVariantsAsync(Guid tenantId, bool onlyActive, CancellationToken ct);
 

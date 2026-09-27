@@ -214,7 +214,8 @@ public static class CatalogEndpoints
             body.BasePrice,
             body.CustomAttributesJson,
             body.InitialStock,
-            body.InitialStockWarehouseId);
+            body.InitialStockWarehouseId,
+            body.Barcode);
 
         var result = await sender
             .SendAsync<AddCatalogItemVariantCommand, AddCatalogItemVariantResponse>(command, ct)

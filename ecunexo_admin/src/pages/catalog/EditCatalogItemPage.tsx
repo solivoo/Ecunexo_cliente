@@ -102,6 +102,7 @@ export function EditCatalogItemPage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [sku, setSku] = useState('')
+  const [barcode, setBarcode] = useState('')
   const [status, setStatus] = useState(String(CatalogItemStatus.Active))
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
   const [tags, setTags] = useState<string[]>([])
@@ -303,6 +304,7 @@ export function EditCatalogItemPage() {
       setName(detail.name)
       setDescription(detail.description ?? '')
       setSku(detail.sku ?? '')
+      setBarcode(detail.barcode ?? '')
       setStatus(String(detail.status))
       setCustomAttributes(deserializeCustomAttributes(detail.customAttributesJson))
       setTags(extractTagsFromCustomAttributes(detail.customAttributesJson))
@@ -491,6 +493,7 @@ export function EditCatalogItemPage() {
           name: name.trim(),
           description: description.trim() || null,
           sku: sku.trim() || null,
+          barcode: barcode.trim() || null,
           basePrice: null,
           customAttributesJson: serializeCustomAttributes(customAttributes, tags),
           status: Number(status) as typeof CatalogItemStatus.Active,
@@ -514,6 +517,7 @@ export function EditCatalogItemPage() {
       }
     },
     [
+      barcode,
       customAttributes,
       description,
       dimensionValuesMap,
@@ -837,7 +841,7 @@ export function EditCatalogItemPage() {
                     fullWidth
                   />
                 </div>
-                <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                   <TextBox
                     id="ei-desc"
                     label="Descripción comercial"
@@ -850,6 +854,23 @@ export function EditCatalogItemPage() {
                     fullWidth
                   />
                 </div>
+                {!item?.isMatrixParent && (
+                  <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                    <TextBox
+                      id="ei-barcode"
+                      label="Código de barras (opcional)"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={barcode}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setBarcode(e.target.value.toUpperCase())
+                      }
+                      placeholder="EAN / UPC / Code128"
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
               </div>
 
               <div

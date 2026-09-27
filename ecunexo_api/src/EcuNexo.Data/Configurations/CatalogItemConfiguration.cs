@@ -71,6 +71,9 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
         builder.Property(i => i.Sku)
             .HasMaxLength(global::EcuNexo.Core.Catalog.Sku.MaxLength);
 
+        builder.Property(i => i.Barcode)
+            .HasMaxLength(CatalogItem.BarcodeMaxLength);
+
         builder.Property(i => i.BasePrice)
             .HasColumnType("numeric(18,4)");
 
@@ -104,6 +107,10 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
         builder.HasIndex(i => new { i.TenantId, i.Sku })
             .IsUnique()
             .HasFilter("\"deleted_at\" IS NULL AND sku IS NOT NULL");
+
+        builder.HasIndex(i => new { i.TenantId, i.Barcode })
+            .IsUnique()
+            .HasFilter("\"deleted_at\" IS NULL AND barcode IS NOT NULL");
 
         builder.HasIndex(i => new { i.TenantId, i.Kind, i.Name });
 

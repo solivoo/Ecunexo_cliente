@@ -18,6 +18,9 @@ public sealed class CreateCatalogItemValidator : AbstractValidator<CreateCatalog
         RuleFor(x => x.Sku)
             .MaximumLength(Sku.MaxLength)
             .When(x => x.Sku is not null);
+        RuleFor(x => x.Barcode)
+            .MaximumLength(CatalogItem.BarcodeMaxLength)
+            .When(x => x.Barcode is not null);
         RuleFor(x => x.BasePrice)
             .GreaterThanOrEqualTo(0)
             .When(x => x.BasePrice is not null);

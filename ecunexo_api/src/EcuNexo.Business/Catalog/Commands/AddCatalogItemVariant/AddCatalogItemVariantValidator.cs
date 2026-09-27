@@ -1,3 +1,4 @@
+using EcuNexo.Core.Catalog;
 using FluentValidation;
 
 namespace EcuNexo.Business.Catalog.Commands.AddCatalogItemVariant;
@@ -21,6 +22,11 @@ public sealed class AddCatalogItemVariantValidator : AbstractValidator<AddCatalo
         RuleFor(c => c.Sku)
             .NotEmpty()
             .WithMessage("El SKU de la variante es obligatorio.");
+
+        RuleFor(c => c.Barcode)
+            .MaximumLength(CatalogItem.BarcodeMaxLength)
+            .WithMessage($"El código de barras no puede superar {CatalogItem.BarcodeMaxLength} caracteres.")
+            .When(c => c.Barcode is not null);
 
         When(c => c.BasePrice.HasValue, () =>
         {

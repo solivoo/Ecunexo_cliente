@@ -10,7 +10,8 @@ public sealed record AddCatalogItemVariantCommand(
     decimal? BasePrice = null,
     string? CustomAttributesJson = null,
     decimal? InitialStock = null,
-    Guid? InitialStockWarehouseId = null) : ICommand<AddCatalogItemVariantResponse>;
+    Guid? InitialStockWarehouseId = null,
+    string? Barcode = null) : ICommand<AddCatalogItemVariantResponse>;
 
 public sealed record AddCatalogItemVariantResponse(
     Guid VariantItemId,

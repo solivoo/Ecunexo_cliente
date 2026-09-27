@@ -240,6 +240,23 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
         return await query.AnyAsync(i => EF.Functions.ILike(i.Sku!, trimmed), ct).ConfigureAwait(false);
     }
 
+    public async Task<bool> BarcodeExistsIgnoreCaseAsync(
+        Guid tenantId,
+        string barcode,
+        Guid? excludeId,
+        CancellationToken ct)
+    {
+        var trimmed = barcode.Trim();
+        var query = _db.CatalogItems.AsNoTracking()
+            .Where(i => i.TenantId == tenantId && i.DeletedAt == null && i.Barcode != null);
+        if (excludeId.HasValue)
+        {
+            query = query.Where(i => i.Id != excludeId.Value);
+        }
+
+        return await query.AnyAsync(i => EF.Functions.ILike(i.Barcode!, trimmed), ct).ConfigureAwait(false);
+    }
+
     public Task<int> CountVariantsAsync(Guid tenantId, bool onlyActive, CancellationToken ct)
     {
         var query = _db.CatalogItems.AsNoTracking()

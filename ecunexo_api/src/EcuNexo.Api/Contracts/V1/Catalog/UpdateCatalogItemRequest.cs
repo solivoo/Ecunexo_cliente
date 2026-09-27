@@ -12,7 +12,8 @@ public sealed record UpdateCatalogItemRequest(
     CatalogItemStatus? Status = null,
     CatalogItemKind? Kind = null,
     Guid? FamilyId = null,
-    string? HierarchyPathJson = null)
+    string? HierarchyPathJson = null,
+    string? Barcode = null)
 {
     public UpdateCatalogItemCommand ToCommand(Guid tenantId, Guid itemId) =>
         new(
@@ -26,5 +27,6 @@ public sealed record UpdateCatalogItemRequest(
             Status,
             Kind,
             FamilyId,
-            HierarchyPathJson);
+            HierarchyPathJson,
+            Barcode);
 }

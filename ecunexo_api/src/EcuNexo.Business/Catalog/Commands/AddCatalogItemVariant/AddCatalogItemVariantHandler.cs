@@ -78,6 +78,14 @@ public sealed class AddCatalogItemVariantHandler
                 new Error("catalog.variant.sku.duplicate", $"El SKU '{command.Sku}' ya existe en el catálogo.", ErrorType.Conflict));
         }
 
+        if (!string.IsNullOrWhiteSpace(command.Barcode)
+            && await _items.BarcodeExistsIgnoreCaseAsync(command.TenantId, command.Barcode, null, ct)
+                .ConfigureAwait(false))
+        {
+            return Result.Failure<AddCatalogItemVariantResponse>(
+                new Error("catalog.variant.barcode.duplicate", $"El código de barras '{command.Barcode}' ya existe en el catálogo.", ErrorType.Conflict));
+        }
+
         var childId = _idGenerator.NewId();
         var childResult = CatalogItem.CreateVariantChild(
             childId,
@@ -86,7 +94,8 @@ public sealed class AddCatalogItemVariantHandler
             command.Sku,
             command.BasePrice,
             command.CustomAttributesJson,
-            CatalogAttributeSchema.EmptyArrayJson);
+            CatalogAttributeSchema.EmptyArrayJson,
+            barcode: command.Barcode);
 
         if (childResult.IsFailure)
         {

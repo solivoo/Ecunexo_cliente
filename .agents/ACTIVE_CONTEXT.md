@@ -7,8 +7,13 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.57.3`.
+* **Última Versión Publicada:** `v0.58.0`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Fase A: código de barras persistente y sin precio en el alta (v0.58.0):**
+    * `CatalogItem.Barcode` (máx. 64, normaliza trim+mayúsculas) en `Create`, `CreateVariantChild` y `SetBarcode`; columna `barcode` + índice único `(tenant_id, barcode) WHERE deleted_at IS NULL AND barcode IS NOT NULL` (migración `AddCatalogItemBarcode`).
+    * Unicidad validada en handlers de crear/actualizar/matriz/agregar variante (`BarcodeExistsIgnoreCaseAsync`) con 409 claro; expuesto en `GetCatalogItem` (detalle y variantes) y capturado/editable en el admin (matriz en el alta, campo en la ficha de edición).
+    * Se retiró el campo «Precio ($)» del constructor de variantes: el precio comercial vive en Gestión de precios. `basePrice` queda como legado (Facturación aún lo usa como valor inicial editable; Fase B lo migrará al motor de precios).
+    * Pendiente Fase B (Facturación con `IPricingService` + lista General) y Fase C (costo unitario en documentos de ingreso/valorización).
   - **Catálogo — «SKU repetido» solo cuando aplica (v0.57.3):**
     * `TextBox` de glubox pinta `errorMessage` aunque `error` sea false; el SKU del matrix pasaba siempre `errorMessage="SKU repetido"`, por lo que se veía bajo un campo vacío. Ahora se pasa solo si `duplicateSkuSet` contiene el código.
     * Revisión del entorno desplegado (EVERCHIC): diccionario con `Categoria` lista simple, `Color` colorlist (hex), `Tag` multiselección, `Material` lista; plantilla con datos Marca/Categoria/Material/Modelo y eje Caña + atributos Color/Actividad/Tag. Para valores múltiples por nombre se recomienda cambiar `Categoria` y `Color` a "Selección múltiple" (Duplicar + Reasignar) y agregar `Nombre` (Texto libre) para el nombre del producto.

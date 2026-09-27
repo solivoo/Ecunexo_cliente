@@ -129,7 +129,8 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                     ResolveVariantDimensionValues(v, axes),
                     gallery,
                     ResolveVariantStringList(v, "tags"),
-                    ResolveVariantStringList(v, "colores_secundarios"));
+                    ResolveVariantStringList(v, "colores_secundarios"),
+                    v.Barcode);
             })
             .ToList();
 
@@ -174,7 +175,8 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 familyName,
                 item.HierarchyPathJson,
                 matrixDescriptor,
-                item.IsHiddenFromStorefront));
+                item.IsHiddenFromStorefront,
+                item.Barcode));
     }
 
     private static IReadOnlyList<MatrixAxisDef> ParseMatrixAxes(string? variantDimensionsJson)

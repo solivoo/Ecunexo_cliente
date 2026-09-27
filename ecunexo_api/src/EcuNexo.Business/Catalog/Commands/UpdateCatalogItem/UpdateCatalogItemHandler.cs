@@ -112,6 +112,14 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(command.Barcode)
+            && await _items.BarcodeExistsIgnoreCaseAsync(command.TenantId, command.Barcode, item.Id, ct)
+                .ConfigureAwait(false))
+        {
+            return Result.Failure<UpdateCatalogItemResponse>(
+                new Error("catalog.item.barcode.duplicate", "Ya existe un ítem con el mismo código de barras.", ErrorType.Conflict));
+        }
+
         var updated = item.Update(
             command.Name,
             command.Description,
@@ -125,6 +133,12 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
         if (updated.IsFailure)
         {
             return Result.Failure<UpdateCatalogItemResponse>(updated.Error!);
+        }
+
+        var barcodeResult = item.SetBarcode(command.Barcode);
+        if (barcodeResult.IsFailure)
+        {
+            return Result.Failure<UpdateCatalogItemResponse>(barcodeResult.Error!);
         }
 
         if (command.Status is { } status)

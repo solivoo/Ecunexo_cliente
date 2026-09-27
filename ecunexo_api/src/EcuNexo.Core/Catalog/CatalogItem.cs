@@ -16,6 +16,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
     public const int DescriptionMaxLength = 1000;
     public const int HierarchyPathMaxEntries = 12;
     public const int HierarchyPathTextMaxLength = 120;
+    public const int BarcodeMaxLength = 64;
 
     private readonly List<CatalogItemImage> _images = [];
     private readonly List<CatalogItem> _variants = [];
@@ -59,6 +60,9 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
     public string? Sku { get; private set; }
 
+    /// <summary>Identificador de escaneo (EAN/UPC/Code128). No es un atributo de plantilla.</summary>
+    public string? Barcode { get; private set; }
+
     public decimal? BasePrice { get; private set; }
 
     public string CustomAttributesJson { get; private set; }
@@ -88,7 +92,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string? customAttributesJson,
         string categorySchemaJson,
         Guid? familyId = null,
-        string? hierarchyPathJson = null)
+        string? hierarchyPathJson = null,
+        string? barcode = null)
     {
         if (tenantId == Guid.Empty)
         {
@@ -138,6 +143,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(path.Error!);
         }
 
+        var barcodeResult = NormalizeBarcode(barcode);
+        if (barcodeResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(barcodeResult.Error!);
+        }
+
         return new CatalogItem
         {
             Id = id,
@@ -148,6 +159,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             Name = nameResult.Value!,
             Description = descResult.Value,
             Sku = skuResult.Value,
+            Barcode = barcodeResult.Value,
             BasePrice = priceResult.Value,
             CustomAttributesJson = attrs.Value!,
             Status = CatalogItemStatus.Active,
@@ -252,7 +264,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         decimal? basePrice,
         string? customAttributesJson,
         string categorySchemaJson,
-        Guid? createdBy = null)
+        Guid? createdBy = null,
+        string? barcode = null)
     {
         ArgumentNullException.ThrowIfNull(parent);
 
@@ -286,6 +299,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(priceResult.Error!);
         }
 
+        var barcodeResult = NormalizeBarcode(barcode);
+        if (barcodeResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(barcodeResult.Error!);
+        }
+
         var mergedAttrsJson = CatalogAttributeSchema.MergeAttributes(parent.CustomAttributesJson, customAttributesJson);
         var attrs = CatalogAttributeSchema.NormalizeAttributes(mergedAttrsJson);
         if (attrs.IsFailure)
@@ -312,6 +331,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             Name = combinedName,
             Description = parent.Description,
             Sku = skuResult.Value,
+            Barcode = barcodeResult.Value,
             BasePrice = priceResult.Value,
             CustomAttributesJson = attrs.Value!,
             Status = CatalogItemStatus.Active,
@@ -585,6 +605,20 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         FamilyId = familyId;
         HierarchyPathJson = path.Value;
         CustomAttributesJson = PreserveSystemAttributes(CustomAttributesJson, attrs.Value!);
+        Touch(updatedBy);
+        return Result.Success();
+    }
+
+    /// <summary>Actualiza el código de barras del ítem (identificador de escaneo, no atributo de plantilla).</summary>
+    public Result SetBarcode(string? barcode, Guid? updatedBy = null)
+    {
+        var normalized = NormalizeBarcode(barcode);
+        if (normalized.IsFailure)
+        {
+            return Result.Failure(normalized.Error!);
+        }
+
+        Barcode = normalized.Value;
         Touch(updatedBy);
         return Result.Success();
     }
@@ -1508,6 +1542,26 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         return Result.Success<string?>(trimmed.Length == 0 ? null : trimmed);
+    }
+
+    private static Result<string?> NormalizeBarcode(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return Result.Success<string?>(null);
+        }
+
+        var trimmed = raw.Trim().ToUpperInvariant();
+        if (trimmed.Length > BarcodeMaxLength)
+        {
+            return Result.Failure<string?>(
+                new Error(
+                    "catalog.item.barcode.length",
+                    $"El código de barras no puede superar {BarcodeMaxLength} caracteres.",
+                    ErrorType.Validation));
+        }
+
+        return Result.Success<string?>(trimmed);
     }
 
     private static Result<string?> NormalizeSku(CatalogItemKind kind, string? sku, bool isMatrixParent = false)

@@ -81,6 +81,14 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
                 new Error("catalog.item.sku.duplicate", "Ya existe un ítem con el mismo SKU.", ErrorType.Conflict));
         }
 
+        if (!string.IsNullOrWhiteSpace(command.Barcode)
+            && await _items.BarcodeExistsIgnoreCaseAsync(command.TenantId, command.Barcode, null, ct)
+                .ConfigureAwait(false))
+        {
+            return Result.Failure<CreateCatalogItemResponse>(
+                new Error("catalog.item.barcode.duplicate", "Ya existe un ítem con el mismo código de barras.", ErrorType.Conflict));
+        }
+
         var id = _idGenerator.NewId();
         var created = CatalogItem.Create(
             id,
@@ -93,7 +101,8 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
             command.CustomAttributesJson,
             schemaJson,
             command.FamilyId,
-            command.HierarchyPathJson);
+            command.HierarchyPathJson,
+            command.Barcode);
         if (created.IsFailure)
         {
             return Result.Failure<CreateCatalogItemResponse>(created.Error!);

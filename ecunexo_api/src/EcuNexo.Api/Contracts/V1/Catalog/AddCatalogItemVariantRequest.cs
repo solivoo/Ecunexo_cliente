@@ -6,4 +6,5 @@ public sealed record AddCatalogItemVariantRequest(
     decimal? BasePrice = null,
     string? CustomAttributesJson = null,
     decimal? InitialStock = null,
-    Guid? InitialStockWarehouseId = null);
+    Guid? InitialStockWarehouseId = null,
+    string? Barcode = null);

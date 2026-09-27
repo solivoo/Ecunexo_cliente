@@ -1721,27 +1721,6 @@ export function VariantMatrixBuilder({
                         )
                       })}
 
-                      {/* Precio Base */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '130px', flex: '0 1 150px' }}>
-                        <label className="ecu-variant-sub-item-label">Precio ($)</label>
-                        <NumberBox
-                          size="sm"
-                          variant="outline"
-                          value={row.basePrice}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            updateRow(row.id, 'basePrice', e.target.value)
-                          }
-                          step={0.01}
-                          min={0}
-                          placeholder="0.00"
-                          disabled={disabled}
-                          fullWidth
-                        />
-                        {!row.isManualPrice && basePrice.trim() && (
-                          <span className="ecu-variant-sub-item-hint">Heredado (${basePrice.trim()})</span>
-                        )}
-                      </div>
-
                       {/* Cód. Barras */}
                       <div className="ecu-variant-sub-item-field" style={{ minWidth: '150px', flex: '1 1 150px' }}>
                         <label className="ecu-variant-sub-item-label">Cód. Barras</label>

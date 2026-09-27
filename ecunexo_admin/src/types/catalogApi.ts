@@ -74,6 +74,7 @@ export type CatalogItemVariantSummaryDto = {
   id: string
   name: string
   sku: string | null
+  barcode?: string | null
   basePrice: number | null
   customAttributesJson: string
   status: CatalogItemStatus
@@ -106,6 +107,7 @@ export type CatalogItemDetailDto = {
   name: string
   description: string | null
   sku: string | null
+  barcode?: string | null
   basePrice: number | null
   customAttributesJson: string
   status: CatalogItemStatus
@@ -128,6 +130,7 @@ export type CreateCatalogItemBody = {
   name: string
   description?: string | null
   sku?: string | null
+  barcode?: string | null
   basePrice?: number | null
   customAttributesJson?: string | null
   familyId?: string | null

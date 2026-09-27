@@ -93,6 +93,7 @@ public sealed class CreateCatalogItemMatrixHandler
 
         // Validar unicidad de SKUs en el payload entre sí
         var seenPayloadSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenPayloadBarcodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var v in command.Variants)
         {
             if (!seenPayloadSkus.Add(v.Sku.Trim()))
@@ -105,6 +106,21 @@ public sealed class CreateCatalogItemMatrixHandler
             {
                 return Result.Failure<CreateCatalogItemMatrixResponse>(
                     new Error("catalog.matrix.sku.duplicate_in_db", $"El SKU '{v.Sku}' ya existe en el catálogo.", ErrorType.Conflict));
+            }
+
+            if (!string.IsNullOrWhiteSpace(v.Barcode))
+            {
+                if (!seenPayloadBarcodes.Add(v.Barcode.Trim()))
+                {
+                    return Result.Failure<CreateCatalogItemMatrixResponse>(
+                        new Error("catalog.matrix.barcode.duplicate_in_payload", $"El código de barras '{v.Barcode}' está repetido en la lista de variantes.", ErrorType.Validation));
+                }
+
+                if (await _items.BarcodeExistsIgnoreCaseAsync(command.TenantId, v.Barcode, null, ct).ConfigureAwait(false))
+                {
+                    return Result.Failure<CreateCatalogItemMatrixResponse>(
+                        new Error("catalog.matrix.barcode.duplicate_in_db", $"El código de barras '{v.Barcode}' ya existe en el catálogo.", ErrorType.Conflict));
+                }
             }
         }
 
@@ -150,7 +166,8 @@ public sealed class CreateCatalogItemMatrixHandler
                 v.Sku,
                 v.BasePrice,
                 v.CustomAttributesJson,
-                schemaJson);
+                schemaJson,
+                barcode: v.Barcode);
 
             if (childResult.IsFailure)
             {
