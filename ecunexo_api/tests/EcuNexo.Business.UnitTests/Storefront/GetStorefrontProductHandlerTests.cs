@@ -9,6 +9,7 @@ using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
+using EcuNexo.Core.Pricing;
 using EcuNexo.Core.Tenancy;
 using NSubstitute;
 
@@ -21,8 +22,18 @@ public sealed class GetStorefrontProductHandlerTests
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IPriceListRepository _priceLists = Substitute.For<IPriceListRepository>();
     private readonly IProductPriceRepository _productPrices = Substitute.For<IProductPriceRepository>();
+    private readonly IPromotionRepository _promotions = CreatePromotions();
     private readonly IWarehouseRepository _warehouses = Substitute.For<IWarehouseRepository>();
     private readonly IStorefrontProductLikeRepository _likes = Substitute.For<IStorefrontProductLikeRepository>();
+
+    private static IPromotionRepository CreatePromotions()
+    {
+        var promotions = Substitute.For<IPromotionRepository>();
+        promotions
+            .ListAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<Promotion>());
+        return promotions;
+    }
 
     [Fact(DisplayName = "El detalle sanitiza la ficha, parsea atributos y expone disponibilidad por variante")]
     public async Task Handle_ReturnsSanitizedDetail()
@@ -88,7 +99,7 @@ public sealed class GetStorefrontProductHandlerTests
             .SumAvailableByItemIdsAsync(tenantId, Arg.Any<Guid?>(), Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, decimal> { [productId] = 0m, [variantId] = 3m });
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses, _likes);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _promotions, _warehouses, _likes);
         var result = await sut.Handle(new GetStorefrontProductQuery(tenantId, productId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -124,7 +135,7 @@ public sealed class GetStorefrontProductHandlerTests
             .Returns(Result.Failure<CatalogItemDetailResponse>(
                 new Error("catalog.item.not_found", "No existe.", ErrorType.NotFound)));
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses, _likes);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _promotions, _warehouses, _likes);
         var result = await sut.Handle(
             new GetStorefrontProductQuery(tenantId, Guid.CreateVersion7()),
             CancellationToken.None);
@@ -160,7 +171,7 @@ public sealed class GetStorefrontProductHandlerTests
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(detail));
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses, _likes);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _promotions, _warehouses, _likes);
         var result = await sut.Handle(new GetStorefrontProductQuery(tenantId, productId), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -196,7 +207,7 @@ public sealed class GetStorefrontProductHandlerTests
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(detail));
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses, _likes);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _promotions, _warehouses, _likes);
         var result = await sut.Handle(new GetStorefrontProductQuery(tenantId, productId), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -231,7 +242,7 @@ public sealed class GetStorefrontProductHandlerTests
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(detail));
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses, _likes);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _promotions, _warehouses, _likes);
         var result = await sut.Handle(new GetStorefrontProductQuery(tenantId, productId), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -269,7 +280,7 @@ public sealed class GetStorefrontProductHandlerTests
             .SumAvailableByItemIdsAsync(tenantId, Arg.Any<Guid?>(), Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, decimal>());
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses, _likes);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _promotions, _warehouses, _likes);
         var result = await sut.Handle(new GetStorefrontProductQuery(tenantId, productId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -318,7 +329,7 @@ public sealed class GetStorefrontProductHandlerTests
             .CountForItemAsync(tenantId, productId, Arg.Any<CancellationToken>())
             .Returns(5);
 
-        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses, _likes);
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _promotions, _warehouses, _likes);
         var result = await sut.Handle(new GetStorefrontProductQuery(tenantId, productId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();

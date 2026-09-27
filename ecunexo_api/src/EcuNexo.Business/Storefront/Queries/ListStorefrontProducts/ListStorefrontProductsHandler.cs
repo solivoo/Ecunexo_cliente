@@ -186,6 +186,8 @@ public sealed class ListStorefrontProductsHandler
             item.Name,
             item.Description,
             product.Price,
+            product.OriginalPrice,
+            product.DiscountPercent,
             image?.ThumbUrl,
             image?.MediumUrl,
             product.InStock,

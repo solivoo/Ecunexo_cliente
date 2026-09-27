@@ -21,8 +21,18 @@ public sealed class ListStorefrontProductsHandlerTests
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IPriceListRepository _priceLists = Substitute.For<IPriceListRepository>();
     private readonly IProductPriceRepository _productPrices = Substitute.For<IProductPriceRepository>();
+    private readonly IPromotionRepository _promotions = CreatePromotions();
     private readonly IWarehouseRepository _warehouses = Substitute.For<IWarehouseRepository>();
     private readonly ListStorefrontProductsHandler _sut;
+
+    private static IPromotionRepository CreatePromotions()
+    {
+        var promotions = Substitute.For<IPromotionRepository>();
+        promotions
+            .ListAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<Promotion>());
+        return promotions;
+    }
 
     public ListStorefrontProductsHandlerTests()
     {
@@ -45,7 +55,7 @@ public sealed class ListStorefrontProductsHandlerTests
 
         _sut = new ListStorefrontProductsHandler(
             _tenants,
-            new StorefrontCatalogReader(_products, _likes, _stock, _priceLists, _productPrices, _warehouses));
+            new StorefrontCatalogReader(_products, _likes, _stock, _priceLists, _productPrices, _promotions, _warehouses));
     }
 
     [Fact(DisplayName = "Lista productos activos con imagen y paginación")]

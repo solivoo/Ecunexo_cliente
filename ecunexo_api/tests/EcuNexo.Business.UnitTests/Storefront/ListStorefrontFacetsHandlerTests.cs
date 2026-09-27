@@ -5,6 +5,7 @@ using EcuNexo.Business.Storefront.Queries.ListStorefrontFacets;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Catalog;
+using EcuNexo.Core.Pricing;
 using EcuNexo.Core.Tenancy;
 using NSubstitute;
 
@@ -18,8 +19,18 @@ public sealed class ListStorefrontFacetsHandlerTests
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IPriceListRepository _priceLists = Substitute.For<IPriceListRepository>();
     private readonly IProductPriceRepository _productPrices = Substitute.For<IProductPriceRepository>();
+    private readonly IPromotionRepository _promotions = CreatePromotions();
     private readonly IWarehouseRepository _warehouses = Substitute.For<IWarehouseRepository>();
     private readonly ListStorefrontFacetsHandler _sut;
+
+    private static IPromotionRepository CreatePromotions()
+    {
+        var promotions = Substitute.For<IPromotionRepository>();
+        promotions
+            .ListAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<Promotion>());
+        return promotions;
+    }
 
     public ListStorefrontFacetsHandlerTests()
     {
@@ -42,7 +53,7 @@ public sealed class ListStorefrontFacetsHandlerTests
 
         _sut = new ListStorefrontFacetsHandler(
             _tenants,
-            new StorefrontCatalogReader(_products, _likes, _stock, _priceLists, _productPrices, _warehouses));
+            new StorefrontCatalogReader(_products, _likes, _stock, _priceLists, _productPrices, _promotions, _warehouses));
     }
 
     [Fact(DisplayName = "Construye facetas canónicas con counts y orden de valores")]

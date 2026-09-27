@@ -8,6 +8,7 @@ using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
+using EcuNexo.Core.Pricing;
 
 namespace EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 
@@ -19,6 +20,7 @@ public sealed class GetStorefrontProductHandler
     private readonly ITenantRepository _tenants;
     private readonly IPriceListRepository _priceLists;
     private readonly IProductPriceRepository _productPrices;
+    private readonly IPromotionRepository _promotions;
     private readonly IWarehouseRepository _warehouses;
     private readonly IStorefrontProductLikeRepository _likes;
 
@@ -28,6 +30,7 @@ public sealed class GetStorefrontProductHandler
         ITenantRepository tenants,
         IPriceListRepository priceLists,
         IProductPriceRepository productPrices,
+        IPromotionRepository promotions,
         IWarehouseRepository warehouses,
         IStorefrontProductLikeRepository likes)
     {
@@ -36,6 +39,7 @@ public sealed class GetStorefrontProductHandler
         _tenants = tenants;
         _priceLists = priceLists;
         _productPrices = productPrices;
+        _promotions = promotions;
         _warehouses = warehouses;
         _likes = likes;
     }
@@ -112,13 +116,33 @@ public sealed class GetStorefrontProductHandler
         var parentPrice = item.ParentId is { } parentId
             ? ResolvePrice(resolvedPrices, parentId)
             : null;
-        var productPrice = ResolvePrice(resolvedPrices, item.Id) ?? parentPrice ?? item.BasePrice;
+        var listProductPrice = ResolvePrice(resolvedPrices, item.Id) ?? parentPrice ?? item.BasePrice;
+
+        var now = DateTimeOffset.UtcNow;
+        var activePromotions = await _promotions
+            .ListAsync(query.TenantId, onlyActive: true, ct)
+            .ConfigureAwait(false);
+        var vigentPromotions = activePromotions
+            .Where(promotion => promotion.IsApplicableOn(now))
+            .ToList();
+
+        var (productPrice, productOriginalPrice, productDiscountPercent) =
+            ApplyPromotions(listProductPrice, item.Id, item.ParentId, vigentPromotions);
 
         var variantDtos = variants
-            .Select(variant => MapVariant(
-                variant,
-                availability,
-                ResolvePrice(resolvedPrices, variant.Id) ?? productPrice))
+            .Select(variant =>
+            {
+                var listVariantPrice = ResolvePrice(resolvedPrices, variant.Id) ?? listProductPrice;
+                var (variantPrice, variantOriginalPrice, variantDiscountPercent) =
+                    ApplyPromotions(listVariantPrice, variant.Id, item.Id, vigentPromotions);
+
+                return MapVariant(
+                    variant,
+                    availability,
+                    variantPrice,
+                    variantOriginalPrice,
+                    variantDiscountPercent);
+            })
             .ToList();
 
         // Los likes viven sobre el producto raíz, nunca sobre una variante.
@@ -133,6 +157,8 @@ public sealed class GetStorefrontProductHandler
             item.Sku,
             item.Description,
             productPrice,
+            productOriginalPrice,
+            productDiscountPercent,
             totalAvailable > 0m,
             totalAvailable,
             item.Images.Select(MapImage).ToList(),
@@ -168,10 +194,32 @@ public sealed class GetStorefrontProductHandler
         Guid catalogItemId) =>
         prices.TryGetValue(catalogItemId, out var price) ? price : null;
 
+    private static (decimal? Price, decimal? OriginalPrice, int? DiscountPercent) ApplyPromotions(
+        decimal? listPrice,
+        Guid itemId,
+        Guid? parentItemId,
+        IReadOnlyList<Promotion> promotions)
+    {
+        if (listPrice is not { } value)
+        {
+            return (null, null, null);
+        }
+
+        var applicable = StorefrontPromotions.FilterForItem(promotions, itemId, parentItemId);
+        var finalPrice = StorefrontPromotions.ApplyDiscount(value, applicable);
+
+        return (
+            finalPrice,
+            finalPrice < value ? value : null,
+            StorefrontPromotions.DiscountPercent(value, finalPrice));
+    }
+
     private static StorefrontVariantDto MapVariant(
         CatalogItemVariantDto variant,
         IReadOnlyDictionary<Guid, decimal> availability,
-        decimal? price)
+        decimal? price,
+        decimal? originalPrice,
+        int? discountPercent)
     {
         var available = availability.TryGetValue(variant.Id, out var value) ? value : 0m;
         var gallery = variant.Images?.Select(MapImage).ToList();
@@ -184,6 +232,8 @@ public sealed class GetStorefrontProductHandler
             variant.Name,
             variant.Sku,
             price,
+            originalPrice,
+            discountPercent,
             available > 0m,
             available,
             variant.DimensionValues,

@@ -19,6 +19,7 @@ public sealed class StorefrontCatalogReader
     private readonly IStockRepository _stock;
     private readonly IPriceListRepository _priceLists;
     private readonly IProductPriceRepository _productPrices;
+    private readonly IPromotionRepository _promotions;
     private readonly IWarehouseRepository _warehouses;
 
     public StorefrontCatalogReader(
@@ -27,6 +28,7 @@ public sealed class StorefrontCatalogReader
         IStockRepository stock,
         IPriceListRepository priceLists,
         IProductPriceRepository productPrices,
+        IPromotionRepository promotions,
         IWarehouseRepository warehouses)
     {
         _products = products;
@@ -34,6 +36,7 @@ public sealed class StorefrontCatalogReader
         _stock = stock;
         _priceLists = priceLists;
         _productPrices = productPrices;
+        _promotions = promotions;
         _warehouses = warehouses;
     }
 
@@ -82,14 +85,44 @@ public sealed class StorefrontCatalogReader
                 .ConfigureAwait(false);
 
         var now = DateTimeOffset.UtcNow;
+        var activePromotions = await _promotions
+            .ListAsync(tenantId, onlyActive: true, ct)
+            .ConfigureAwait(false);
+        var vigentPromotions = activePromotions
+            .Where(promotion => promotion.IsApplicableOn(now))
+            .ToList();
+
         return items
-            .Select(item => new StorefrontCatalogProduct(
-                item,
-                resolvedPrices.TryGetValue(item.Id, out var resolved) ? resolved : item.BasePrice,
-                SumAvailability(item, availability) > 0m,
-                now - item.CreatedAt <= TimeSpan.FromDays(NewWindowDays),
-                ToReadOnlyAttributes(StorefrontFacetCatalog.ExtractAttributes(item)),
-                likeCounts.TryGetValue(item.Id, out var likeCount) ? likeCount : 0))
+            .Select(item =>
+            {
+                decimal? listPrice = resolvedPrices.TryGetValue(item.Id, out var resolved)
+                    ? resolved
+                    : item.BasePrice;
+                decimal? finalPrice = listPrice;
+                decimal? originalPrice = null;
+                int? discountPercent = null;
+
+                if (listPrice is { } basePrice)
+                {
+                    var promotions = StorefrontPromotions.FilterForItem(
+                        vigentPromotions,
+                        item.Id,
+                        item.ParentId);
+                    finalPrice = StorefrontPromotions.ApplyDiscount(basePrice, promotions);
+                    originalPrice = finalPrice < basePrice ? basePrice : null;
+                    discountPercent = StorefrontPromotions.DiscountPercent(basePrice, finalPrice.Value);
+                }
+
+                return new StorefrontCatalogProduct(
+                    item,
+                    finalPrice,
+                    originalPrice,
+                    discountPercent,
+                    SumAvailability(item, availability) > 0m,
+                    now - item.CreatedAt <= TimeSpan.FromDays(NewWindowDays),
+                    ToReadOnlyAttributes(StorefrontFacetCatalog.ExtractAttributes(item)),
+                    likeCounts.TryGetValue(item.Id, out var likeCount) ? likeCount : 0);
+            })
             .ToList();
     }
 
@@ -135,6 +168,8 @@ public sealed class StorefrontCatalogReader
 public sealed record StorefrontCatalogProduct(
     CatalogItem Item,
     decimal? Price,
+    decimal? OriginalPrice,
+    int? DiscountPercent,
     bool InStock,
     bool IsNew,
     IReadOnlyDictionary<string, IReadOnlyList<string>> Attributes,
