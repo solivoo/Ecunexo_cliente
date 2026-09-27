@@ -646,9 +646,9 @@ export function CatalogAttributesListPage() {
         ),
       },
       {
-        key: 'isSystemDefault',
-        header: 'Estado / Registros',
-        width: 170,
+        key: 'isInUse',
+        header: 'Estado',
+        width: 140,
         sortable: true,
         renderCell: (_val: unknown, row: TemplateGridRow) => (
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -663,7 +663,6 @@ export function CatalogAttributesListPage() {
                 Sin registros
               </span>
             )}
-            <span className="ecu-source">{row.isSystemDefault ? 'Base' : 'Empresa'}</span>
           </div>
         ),
       },

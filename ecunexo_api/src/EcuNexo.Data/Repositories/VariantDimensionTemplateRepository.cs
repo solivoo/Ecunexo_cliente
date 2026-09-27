@@ -1,4 +1,3 @@
-using System.Text.Json;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Core.Catalog;
 using Microsoft.EntityFrameworkCore;
@@ -16,47 +15,13 @@ public sealed class VariantDimensionTemplateRepository : IVariantDimensionTempla
 
     public async Task<IReadOnlyList<VariantDimensionTemplate>> ListByTenantAsync(Guid tenantId, CancellationToken ct)
     {
-        var templates = await _db.VariantDimensionTemplates
+        return await _db.VariantDimensionTemplates
             .AsNoTracking()
             .Where(t => t.TenantId == tenantId)
             .OrderBy(t => t.DimensionType)
             .ThenBy(t => t.Name)
             .ToListAsync(ct)
             .ConfigureAwait(false);
-
-        if (templates.Count == 0)
-        {
-            // Sembrar escalas por defecto para este tenant si aún no existen
-            var defaults = VariantDimensionTemplate.GetSystemDefaultTemplates();
-            var seeded = new List<VariantDimensionTemplate>();
-            foreach (var (name, dimType, dataType, values) in defaults)
-            {
-                var valuesJson = JsonSerializer.Serialize(values);
-                var created = VariantDimensionTemplate.Create(
-                    Guid.CreateVersion7(),
-                    tenantId,
-                    name,
-                    dimType,
-                    valuesJson,
-                    dataType: dataType,
-                    isVariantAxis: true,
-                    isSystemDefault: true);
-
-                if (created.IsSuccess)
-                {
-                    _db.VariantDimensionTemplates.Add(created.Value!);
-                    seeded.Add(created.Value!);
-                }
-            }
-
-            if (seeded.Count > 0)
-            {
-                await _db.SaveChangesAsync(ct).ConfigureAwait(false);
-                return seeded;
-            }
-        }
-
-        return templates;
     }
 
     public Task<VariantDimensionTemplate?> GetByIdAsync(Guid id, Guid tenantId, CancellationToken ct) =>

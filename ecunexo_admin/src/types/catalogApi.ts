@@ -149,7 +149,6 @@ export type VariantDimensionTemplateDto = {
   name: string
   dimensionType: string
   predefinedValuesJson: string
-  isSystemDefault: boolean
   isInUse?: boolean
   dataType?: string
   isVariantAxis?: boolean

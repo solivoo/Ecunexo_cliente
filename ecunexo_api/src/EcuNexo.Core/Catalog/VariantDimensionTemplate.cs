@@ -72,8 +72,6 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
     /// </summary>
     public string PredefinedValuesJson { get; private set; }
 
-    public bool IsSystemDefault { get; private set; }
-
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset? UpdatedAt { get; private set; }
@@ -91,7 +89,6 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
         string dataType = DataTypeText,
         bool isVariantAxis = true,
         string? unit = null,
-        bool isSystemDefault = false,
         Guid? createdBy = null)
     {
         if (id == Guid.Empty)
@@ -140,7 +137,6 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
             IsVariantAxis = isVariantAxis,
             Unit = unitNorm.Value,
             PredefinedValuesJson = valuesNorm.Value!,
-            IsSystemDefault = isSystemDefault,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,
         };
@@ -196,17 +192,6 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
 
         return Result.Success();
     }
-
-    public static IReadOnlyList<(string Name, string DimensionType, string DataType, string[] Values)> GetSystemDefaultTemplates() =>
-    [
-        ("Medias / Calcetines", "size", DataTypeText, ["Infantil", "35-38", "39-41", "42-44", "45+"]),
-        ("Ropa Adulto (Letras)", "size", DataTypeText, ["XS", "S", "M", "L", "XL", "XXL", "3XL"]),
-        ("Pantalones / Jeans (Pulgadas)", "size", DataTypeNumber, ["28", "30", "32", "34", "36", "38", "40"]),
-        ("Calzado Adulto (Ecuador / EUR)", "size", DataTypeNumber, ["35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45"]),
-        ("Calzado Infantil", "size", DataTypeNumber, ["20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34"]),
-        ("Ropa Bebé (Meses)", "size", DataTypeText, ["0-3M", "3-6M", "6-9M", "9-12M", "12-18M", "24M"]),
-        ("Colores Básicos", "color", DataTypeColor, ["Blanco", "Negro", "Azul", "Rojo", "Gris", "Verde", "Beige", "Café"]),
-    ];
 
     private static Result<string> NormalizeName(string name)
     {

@@ -31,7 +31,6 @@ public sealed class ListVariantDimensionTemplatesHandler
                 t.Name,
                 t.DimensionType,
                 t.PredefinedValuesJson,
-                t.IsSystemDefault,
                 inUseNames.Contains(t.Name),
                 t.DataType,
                 t.IsVariantAxis,

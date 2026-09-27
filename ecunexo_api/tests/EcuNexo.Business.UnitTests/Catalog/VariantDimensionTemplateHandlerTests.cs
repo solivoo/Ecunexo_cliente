@@ -34,8 +34,7 @@ public sealed class VariantDimensionTemplateHandlerTests
             tenantId,
             "Medias / Calcetines",
             "Talla",
-            "[\"35-38\",\"39-41\",\"42-44\"]",
-            isSystemDefault: true).Value!;
+            "[\"35-38\",\"39-41\",\"42-44\"]").Value!;
 
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(systemTemplate);
@@ -87,8 +86,7 @@ public sealed class VariantDimensionTemplateHandlerTests
             tenantId,
             "Escala Propia",
             "Talla",
-            "[\"S\",\"M\"]",
-            isSystemDefault: false).Value!;
+            "[\"S\",\"M\"]").Value!;
 
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(template);
@@ -128,8 +126,7 @@ public sealed class VariantDimensionTemplateHandlerTests
             tenantId,
             "Escala Especial",
             "Talla",
-            "[\"S\",\"M\",\"L\"]",
-            isSystemDefault: false).Value!;
+            "[\"S\",\"M\",\"L\"]").Value!;
 
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(template);
@@ -182,8 +179,7 @@ public sealed class VariantDimensionTemplateHandlerTests
             tenantId,
             "Escala Especial",
             "Talla",
-            "[\"S\",\"M\"]",
-            isSystemDefault: false).Value!;
+            "[\"S\",\"M\"]").Value!;
 
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(template);
@@ -224,8 +220,7 @@ public sealed class VariantDimensionTemplateHandlerTests
             tenantId,
             "Escala Especial",
             "Talla",
-            "[\"S\",\"M\"]",
-            isSystemDefault: false).Value!;
+            "[\"S\",\"M\"]").Value!;
 
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(customTemplate);
@@ -258,8 +253,7 @@ public sealed class VariantDimensionTemplateHandlerTests
             tenantId,
             "Calzado",
             "Talla",
-            "[\"36\",\"37\"]",
-            isSystemDefault: true).Value!;
+            "[\"36\",\"37\"]").Value!;
 
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(systemTemplate);
@@ -287,8 +281,7 @@ public sealed class VariantDimensionTemplateHandlerTests
             tenantId,
             "Escala Temporal",
             "Talla",
-            "[\"1\",\"2\"]",
-            isSystemDefault: true).Value!;
+            "[\"1\",\"2\"]").Value!;
 
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(customTemplate);
@@ -399,8 +392,7 @@ public sealed class VariantDimensionTemplateHandlerTests
             tenantId,
             "Escala Especial",
             "Talla",
-            "[\"S\",\"M\"]",
-            isSystemDefault: false).Value!;
+            "[\"S\",\"M\"]").Value!;
 
         _templates.GetByIdAsync(templateId, tenantId, Arg.Any<CancellationToken>())
             .Returns(template);

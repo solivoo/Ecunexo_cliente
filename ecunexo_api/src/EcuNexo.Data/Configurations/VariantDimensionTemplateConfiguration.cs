@@ -45,11 +45,6 @@ public sealed class VariantDimensionTemplateConfiguration : IEntityTypeConfigura
             .HasColumnType("jsonb")
             .IsRequired();
 
-        builder.Property(t => t.IsSystemDefault)
-            .HasColumnType("boolean")
-            .HasDefaultValue(false)
-            .IsRequired();
-
         builder.Property(t => t.CreatedAt)
             .HasColumnType("timestamptz")
             .IsRequired();

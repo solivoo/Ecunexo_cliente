@@ -12,7 +12,6 @@ public sealed record VariantDimensionTemplateResponse(
     string Name,
     string DimensionType,
     string PredefinedValuesJson,
-    bool IsSystemDefault,
     bool IsInUse = false,
     string DataType = VariantDimensionTemplate.DataTypeText,
     bool IsVariantAxis = true,
