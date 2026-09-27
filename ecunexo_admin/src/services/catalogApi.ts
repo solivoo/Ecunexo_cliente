@@ -117,6 +117,23 @@ export async function uploadCatalogItemImage(
   return data
 }
 
+export async function uploadCatalogMedia(
+  tenantId: string,
+  file: File
+): Promise<import('@/types/catalogApi').TenantMediaAssetDto> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const { data } = await api.post<import('@/types/catalogApi').TenantMediaAssetDto>(
+    `/api/v1/tenants/${tenantId}/catalog/media`,
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }
+  )
+  return data
+}
+
 export async function deleteCatalogItemImage(
   tenantId: string,
   itemId: string,
@@ -202,9 +219,10 @@ export async function updateVariantDimensionTemplate(
     dataType?: string
     isVariantAxis?: boolean
     unit?: string | null
+    valueRenames?: { from: string; to: string }[]
   }
-): Promise<{ id: string; tenantId: string }> {
-  const { data } = await api.put<{ id: string; tenantId: string }>(
+): Promise<{ id: string; tenantId: string; renamedItems?: number }> {
+  const { data } = await api.put<{ id: string; tenantId: string; renamedItems?: number }>(
     `/api/v1/tenants/${tenantId}/catalog/variant-templates/${templateId}`,
     payload
   )
@@ -218,6 +236,27 @@ export async function deleteVariantDimensionTemplate(
   await api.delete(
     `/api/v1/tenants/${tenantId}/catalog/variant-templates/${templateId}`
   )
+}
+
+export async function adoptVariantDimensionTemplate(
+  tenantId: string,
+  templateId: string,
+  sourceAttributeName: string
+): Promise<{
+  id: string
+  tenantId: string
+  sourceAttributeName: string
+  reassignedItems?: number
+}> {
+  const { data } = await api.post<{
+    id: string
+    tenantId: string
+    sourceAttributeName: string
+    reassignedItems?: number
+  }>(`/api/v1/tenants/${tenantId}/catalog/variant-templates/${templateId}/adopt`, {
+    sourceAttributeName,
+  })
+  return data
 }
 
 export async function addCatalogItemVariant(

@@ -12,6 +12,7 @@ import {
 } from 'glubox'
 import {
   Lock,
+  Copy,
   Pencil,
   Plus,
   Tag,
@@ -33,6 +34,7 @@ import { useHasPermission } from '@/hooks/useHasPermission'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
+  adoptVariantDimensionTemplate,
   createVariantDimensionTemplate,
   deleteVariantDimensionTemplate,
   listVariantDimensionTemplates,
@@ -46,10 +48,12 @@ export type AttributeKind =
   | 'text_descriptive'
   | 'size_axis'
   | 'color_axis'
+  | 'color_list'
   | 'options_axis'
   | 'number'
   | 'boolean'
   | 'multiselect'
+  | 'media'
 
 export interface AttributeKindConfig {
   value: AttributeKind
@@ -57,10 +61,14 @@ export interface AttributeKindConfig {
   shortLabel: string
   description: string
   dimensionType: 'custom' | 'size' | 'color'
-  dataType: 'text' | 'number' | 'boolean' | 'color' | 'multiselect'
+  dataType: 'text' | 'number' | 'boolean' | 'color' | 'multiselect' | 'colorlist' | 'media'
   isVariantAxis: boolean
+  /** Muestra el editor de lista de opciones en el formulario. */
+  allowsPredefinedValues: boolean
+  /** Exige al menos una opción al guardar (solo para atributos que generan variantes). */
   requiresPredefinedValues: boolean
   hasUnit: boolean
+  predefinedValuesHint: string
 }
 
 export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
@@ -72,8 +80,11 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
     dimensionType: 'custom',
     dataType: 'text',
     isVariantAxis: false,
+    allowsPredefinedValues: true,
     requiresPredefinedValues: false,
     hasUnit: false,
+    predefinedValuesHint:
+      'Opcional. Sin opciones el campo es texto libre; con opciones se muestra como lista de selección única.',
   },
   {
     value: 'size_axis',
@@ -83,8 +94,10 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
     dimensionType: 'size',
     dataType: 'text',
     isVariantAxis: true,
+    allowsPredefinedValues: true,
     requiresPredefinedValues: true,
     hasUnit: false,
+    predefinedValuesHint: 'Obligatorio. Cada opción genera una variante con SKU propio.',
   },
   {
     value: 'color_axis',
@@ -94,8 +107,24 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
     dimensionType: 'color',
     dataType: 'color',
     isVariantAxis: true,
+    allowsPredefinedValues: true,
     requiresPredefinedValues: true,
     hasUnit: false,
+    predefinedValuesHint: 'Obligatorio. Cada opción genera una variante con SKU propio.',
+  },
+  {
+    value: 'color_list',
+    label: 'Colores múltiples (varios tonos)',
+    shortLabel: 'Colores Múltiples',
+    description:
+      'Para registrar varios colores o tonos en la ficha del producto sin generar variantes (ej. combinaciones disponibles).',
+    dimensionType: 'color',
+    dataType: 'colorlist',
+    isVariantAxis: false,
+    allowsPredefinedValues: false,
+    requiresPredefinedValues: false,
+    hasUnit: false,
+    predefinedValuesHint: '',
   },
   {
     value: 'options_axis',
@@ -105,8 +134,10 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
     dimensionType: 'custom',
     dataType: 'text',
     isVariantAxis: true,
+    allowsPredefinedValues: true,
     requiresPredefinedValues: true,
     hasUnit: false,
+    predefinedValuesHint: 'Obligatorio. Cada opción genera una variante con SKU propio.',
   },
   {
     value: 'number',
@@ -116,8 +147,10 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
     dimensionType: 'custom',
     dataType: 'number',
     isVariantAxis: false,
+    allowsPredefinedValues: false,
     requiresPredefinedValues: false,
     hasUnit: true,
+    predefinedValuesHint: '',
   },
   {
     value: 'boolean',
@@ -127,8 +160,10 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
     dimensionType: 'custom',
     dataType: 'boolean',
     isVariantAxis: false,
+    allowsPredefinedValues: false,
     requiresPredefinedValues: false,
     hasUnit: false,
+    predefinedValuesHint: '',
   },
   {
     value: 'multiselect',
@@ -138,8 +173,25 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
     dimensionType: 'custom',
     dataType: 'multiselect',
     isVariantAxis: false,
+    allowsPredefinedValues: true,
     requiresPredefinedValues: false,
     hasUnit: false,
+    predefinedValuesHint:
+      'Opcional. Se ofrecen como sugerencias al etiquetar productos; también se pueden escribir etiquetas nuevas.',
+  },
+  {
+    value: 'media',
+    label: 'Fotos (varios)',
+    shortLabel: 'Fotos',
+    description:
+      'Para adjuntar varias fotos en la ficha del producto sin generar variantes (ej. referencias, certificados).',
+    dimensionType: 'custom',
+    dataType: 'media',
+    isVariantAxis: false,
+    allowsPredefinedValues: false,
+    requiresPredefinedValues: false,
+    hasUnit: false,
+    predefinedValuesHint: '',
   },
 ]
 
@@ -149,6 +201,8 @@ export function resolveAttributeKind(template: {
   isVariantAxis?: boolean | null
 }): AttributeKind {
   if (template.dimensionType === 'size' && template.isVariantAxis !== false) return 'size_axis'
+  if (template.dataType === 'colorlist') return 'color_list'
+  if (template.dataType === 'media') return 'media'
   if (
     (template.dimensionType === 'color' || template.dataType === 'color') &&
     template.isVariantAxis !== false
@@ -188,6 +242,11 @@ export function CatalogAttributesListPage() {
   const [formUnit, setFormUnit] = useState('')
   const [formValues, setFormValues] = useState<string[]>([])
   const [newValueInput, setNewValueInput] = useState('')
+  const [editingValueIndex, setEditingValueIndex] = useState<number | null>(null)
+  const [editingValueDraft, setEditingValueDraft] = useState('')
+  const [valueRenames, setValueRenames] = useState<{ from: string; to: string }[]>([])
+  const [duplicateSource, setDuplicateSource] = useState<VariantDimensionTemplateDto | null>(null)
+  const [reassignProducts, setReassignProducts] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const selectedKindConfig = useMemo(
@@ -237,6 +296,11 @@ export function CatalogAttributesListPage() {
     setFormUnit('')
     setFormValues([])
     setNewValueInput('')
+    setEditingValueIndex(null)
+    setEditingValueDraft('')
+    setValueRenames([])
+    setDuplicateSource(null)
+    setReassignProducts(false)
     setEditModalOpen(true)
   }, [])
 
@@ -252,6 +316,31 @@ export function CatalogAttributesListPage() {
       setFormValues([])
     }
     setNewValueInput('')
+    setEditingValueIndex(null)
+    setEditingValueDraft('')
+    setValueRenames([])
+    setDuplicateSource(null)
+    setReassignProducts(false)
+    setEditModalOpen(true)
+  }, [])
+
+  const openDuplicateModal = useCallback((template: VariantDimensionTemplateDto) => {
+    setEditingTemplate(null)
+    setDuplicateSource(template)
+    setFormName(`${template.name} (copia)`)
+    setFormKind(resolveAttributeKind(template))
+    setFormUnit(template.unit ?? '')
+    try {
+      const parsed = JSON.parse(template.predefinedValuesJson)
+      setFormValues(Array.isArray(parsed) ? parsed : [])
+    } catch {
+      setFormValues([])
+    }
+    setNewValueInput('')
+    setEditingValueIndex(null)
+    setEditingValueDraft('')
+    setValueRenames([])
+    setReassignProducts(Boolean(template.isInUse))
     setEditModalOpen(true)
   }, [])
 
@@ -270,9 +359,68 @@ export function CatalogAttributesListPage() {
     setNewValueInput('')
   }, [formValues, newValueInput, toast])
 
-  const handleRemoveValueFromForm = useCallback((index: number) => {
-    setFormValues((prev) => prev.filter((_, i) => i !== index))
+  const handleRemoveValueFromForm = useCallback(
+    (index: number) => {
+      const removed = formValues[index]
+      setFormValues((prev) => prev.filter((_, i) => i !== index))
+      if (removed) {
+        const lower = removed.toLowerCase()
+        setValueRenames((prev) =>
+          prev.filter(
+            (r) => r.from.toLowerCase() !== lower && r.to.toLowerCase() !== lower
+          )
+        )
+      }
+    },
+    [formValues]
+  )
+
+  const startEditingValue = useCallback((index: number, value: string) => {
+    setEditingValueIndex(index)
+    setEditingValueDraft(value)
   }, [])
+
+  const cancelEditingValue = useCallback(() => {
+    setEditingValueIndex(null)
+    setEditingValueDraft('')
+  }, [])
+
+  const commitEditingValue = useCallback(() => {
+    if (editingValueIndex === null) return
+    const trimmed = editingValueDraft.trim()
+    if (!trimmed) {
+      cancelEditingValue()
+      return
+    }
+    if (
+      formValues.some(
+        (v, i) => i !== editingValueIndex && v.toLowerCase() === trimmed.toLowerCase()
+      )
+    ) {
+      toast.show({
+        title: 'Valor repetido',
+        message: `El valor «${trimmed}» ya está en la lista.`,
+        variant: 'warning',
+      })
+      return
+    }
+    const previous = formValues[editingValueIndex]
+    setFormValues((prev) => prev.map((v, i) => (i === editingValueIndex ? trimmed : v)))
+    if (previous && previous.toLowerCase() !== trimmed.toLowerCase()) {
+      setValueRenames((prev) => {
+        const isChained = prev.some(
+          (r) => r.to.toLowerCase() === previous.toLowerCase()
+        )
+        const next = prev
+          .filter((r) => r.from.toLowerCase() !== previous.toLowerCase())
+          .map((r) =>
+            r.to.toLowerCase() === previous.toLowerCase() ? { ...r, to: trimmed } : r
+          )
+        return isChained ? next : [...next, { from: previous, to: trimmed }]
+      })
+    }
+    cancelEditingValue()
+  }, [cancelEditingValue, editingValueDraft, editingValueIndex, formValues, toast])
 
   const handleSaveTemplate = useCallback(async () => {
     if (!tenantId) return
@@ -298,27 +446,59 @@ export function CatalogAttributesListPage() {
 
     setSaving(true)
     try {
+      const kindUnchanged =
+        editingTemplate !== null && resolveAttributeKind(editingTemplate) === formKind
       const payload = {
         name,
-        dimensionType: kindConfig.dimensionType,
+        dimensionType:
+          (kindUnchanged ? editingTemplate?.dimensionType : null) ?? kindConfig.dimensionType,
         predefinedValuesJson: JSON.stringify(formValues),
-        dataType: kindConfig.dataType,
+        dataType: (kindUnchanged ? editingTemplate?.dataType : null) ?? kindConfig.dataType,
         isVariantAxis: kindConfig.isVariantAxis,
         unit: kindConfig.hasUnit && formUnit.trim() ? formUnit.trim() : null,
       }
       if (editingTemplate) {
-        await updateVariantDimensionTemplate(tenantId, editingTemplate.id, payload)
+        const result = await updateVariantDimensionTemplate(tenantId, editingTemplate.id, {
+          ...payload,
+          ...(valueRenames.length > 0 ? { valueRenames } : {}),
+        })
+        const affected = result.renamedItems ?? 0
         toast.show({
           title: 'Atributo actualizado',
-          message: `«${name}» se guardó correctamente.`,
+          message:
+            affected > 0
+              ? `«${name}» se guardó y se actualizaron ${affected} productos asociados.`
+              : `«${name}» se guardó correctamente.`,
           variant: 'success',
         })
       } else {
-        await createVariantDimensionTemplate(tenantId, payload)
+        const created = await createVariantDimensionTemplate(tenantId, payload)
+        let message = `«${name}» se agregó al catálogo.`
+        let variant: 'success' | 'warning' = 'success'
+        if (duplicateSource && reassignProducts) {
+          try {
+            const adoptResult = await adoptVariantDimensionTemplate(
+              tenantId,
+              created.id,
+              duplicateSource.name
+            )
+            const reassigned = adoptResult.reassignedItems ?? 0
+            message =
+              reassigned > 0
+                ? `«${name}» se agregó y se reasignaron ${reassigned} productos.`
+                : `«${name}» se agregó; no había productos para reasignar.`
+          } catch (adoptErr: unknown) {
+            variant = 'warning'
+            message = `«${name}» se creó, pero no se pudieron reasignar los productos: ${readApiError(
+              adoptErr,
+              'error desconocido'
+            )}`
+          }
+        }
         toast.show({
           title: 'Atributo registrado',
-          message: `«${name}» se agregó al catálogo.`,
-          variant: 'success',
+          message,
+          variant,
         })
       }
       setEditModalOpen(false)
@@ -329,7 +509,7 @@ export function CatalogAttributesListPage() {
     } finally {
       setSaving(false)
     }
-  }, [editingTemplate, formKind, formName, formUnit, formValues, loadData, tenantId, toast])
+  }, [duplicateSource, editingTemplate, formKind, formName, formUnit, formValues, loadData, reassignProducts, tenantId, toast, valueRenames])
 
   const handleDelete = useCallback(async () => {
     if (!tenantId || !confirmDelete) return
@@ -383,6 +563,8 @@ export function CatalogAttributesListPage() {
           if (filterType === 'text' && kind !== 'text_descriptive') return false
           if (filterType === 'size' && kind !== 'size_axis') return false
           if (filterType === 'color' && kind !== 'color_axis') return false
+          if (filterType === 'color_list' && kind !== 'color_list') return false
+          if (filterType === 'media' && kind !== 'media') return false
           if (filterType === 'options_axis' && kind !== 'options_axis') return false
           if (filterType === 'number' && kind !== 'number') return false
         }
@@ -416,7 +598,7 @@ export function CatalogAttributesListPage() {
         renderCell: (_val: unknown, row: TemplateGridRow) => (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
             {row.isInUse ? (
-              <span title="Inmutable: asociado a productos en el catálogo">
+              <span title="Asociado a productos del catálogo">
                 <Lock size={13} style={{ color: 'var(--idt-warn, #b45309)', flexShrink: 0 }} />
               </span>
             ) : (
@@ -501,6 +683,12 @@ export function CatalogAttributesListPage() {
                 disabled={!canManage}
               />
               <GridIconButton
+                icon={Copy}
+                label={`Duplicar «${row.name}» (útil para cambiar el tipo)`}
+                onClick={() => openDuplicateModal(row)}
+                disabled={!canManage}
+              />
+              <GridIconButton
                 icon={Trash2}
                 label={
                   row.isInUse
@@ -516,7 +704,7 @@ export function CatalogAttributesListPage() {
         },
       },
     ]
-  }, [canManage, openEditModal])
+  }, [canManage, openDuplicateModal, openEditModal])
 
   const actionItems = useMemo<PageActionItem[]>(
     () => [
@@ -575,6 +763,8 @@ export function CatalogAttributesListPage() {
                   { value: 'text', label: 'Texto Libre / Descripción' },
                   { value: 'size', label: 'Tallas y Medidas' },
                   { value: 'color', label: 'Colores' },
+                  { value: 'color_list', label: 'Colores múltiples' },
+                  { value: 'media', label: 'Fotos' },
                   { value: 'options_axis', label: 'Opciones de Variante' },
                   { value: 'number', label: 'Números con unidad' },
                 ]}
@@ -626,8 +816,14 @@ export function CatalogAttributesListPage() {
         <Popup
           open={editModalOpen}
           onClose={() => !saving && setEditModalOpen(false)}
-          title={editingTemplate ? `Editar «${editingTemplate.name}»` : 'Nuevo Atributo'}
-          width={480}
+          title={
+            editingTemplate
+              ? `Editar «${editingTemplate.name}»`
+              : duplicateSource
+                ? `Duplicar «${duplicateSource.name}»`
+                : 'Nuevo Atributo'
+          }
+          width={520}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.25rem 0' }}>
             <TextBox
@@ -638,14 +834,62 @@ export function CatalogAttributesListPage() {
               placeholder="Escriba aquí..."
               value={formName}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setFormName(e.target.value)}
-              disabled={saving || Boolean(editingTemplate?.isInUse)}
+              disabled={saving}
               required
               fullWidth
             />
             {editingTemplate?.isInUse && (
               <span style={{ fontSize: '0.75rem', color: '#b45309', fontWeight: 500 }}>
-                * Nombre inmutable por estar asociado a productos.
+                * Atributo en uso: al cambiar el nombre o renombrar una opción se actualizarán
+                automáticamente todos los productos y variantes asociados.
               </span>
+            )}
+            {editingTemplate?.isInUse && (
+              <span style={{ fontSize: '0.75rem', color: '#b45309', fontWeight: 500 }}>
+                * El tipo no se puede cambiar porque hay productos asociados. Usa «Duplicar» para
+                crear una versión con otro tipo y reasignar los productos.
+              </span>
+            )}
+
+            {duplicateSource && (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.4rem',
+                  padding: '0.6rem 0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--shell-border, rgba(0,0,0,0.1))',
+                  background: 'var(--glb-surface-variant, rgba(0,0,0,0.02))',
+                }}
+              >
+                <span style={{ fontSize: '0.8rem', color: 'var(--glb-text, #1e293b)' }}>
+                  Se creará un atributo nuevo a partir de «{duplicateSource.name}». Ajusta el tipo y
+                  las opciones que necesites.
+                </span>
+                {duplicateSource.isInUse && (
+                  <label
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.8rem',
+                      cursor: saving ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={reassignProducts}
+                      disabled={saving}
+                      onChange={(e) => setReassignProducts(e.target.checked)}
+                    />
+                    <span>
+                      Reasignar los productos que usan «{duplicateSource.name}» a este nuevo
+                      atributo
+                    </span>
+                  </label>
+                )}
+              </div>
             )}
 
             <Select
@@ -659,9 +903,18 @@ export function CatalogAttributesListPage() {
               }))}
               value={formKind}
               onChange={(v: string) => setFormKind(v as AttributeKind)}
-              disabled={saving}
+              disabled={saving || Boolean(editingTemplate?.isInUse)}
               fullWidth
             />
+            <span
+              style={{
+                marginTop: '-0.35rem',
+                fontSize: '0.75rem',
+                color: 'var(--glb-muted, #64748b)',
+              }}
+            >
+              {selectedKindConfig.description}
+            </span>
 
             {selectedKindConfig.hasUnit && (
               <TextBox
@@ -672,12 +925,12 @@ export function CatalogAttributesListPage() {
                 placeholder="Escriba aquí (ej. cm, kg)..."
                 value={formUnit}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setFormUnit(e.target.value)}
-                disabled={saving}
+                disabled={saving || Boolean(editingTemplate?.isInUse)}
                 fullWidth
               />
             )}
 
-            {selectedKindConfig.requiresPredefinedValues && (
+            {selectedKindConfig.allowsPredefinedValues && (
               <div>
                 <label
                   style={{
@@ -688,7 +941,7 @@ export function CatalogAttributesListPage() {
                     color: 'var(--glb-text, #1e293b)',
                   }}
                 >
-                  Opciones
+                  Opciones predefinidas
                 </label>
                 <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem' }}>
                   <TextBox
@@ -734,44 +987,97 @@ export function CatalogAttributesListPage() {
                       border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.1))',
                     }}
                   >
-                    {formValues.map((val, idx) => (
-                      <span
-                        key={val}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                          fontSize: '0.78rem',
-                          fontWeight: 500,
-                          padding: '0.15rem 0.5rem',
-                          borderRadius: '12px',
-                          background: 'var(--glb-surface, #fff)',
-                          border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.15))',
-                          color: 'var(--glb-text, #1e293b)',
-                        }}
-                      >
-                        <span>{val}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveValueFromForm(idx)}
+                    {formValues.map((val, idx) =>
+                      idx === editingValueIndex ? (
+                        <TextBox
+                          key={`edit-${idx}`}
+                          autoFocus
+                          size="sm"
+                          variant="outline"
+                          value={editingValueDraft}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            setEditingValueDraft(e.target.value)
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              commitEditingValue()
+                            } else if (e.key === 'Escape') {
+                              e.preventDefault()
+                              cancelEditingValue()
+                            }
+                          }}
+                          onBlur={commitEditingValue}
                           disabled={saving}
+                          width={180}
+                        />
+                      ) : (
+                        <span
+                          key={val}
                           style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            padding: 0,
-                            color: 'var(--glb-muted, #94a3b8)',
                             display: 'inline-flex',
                             alignItems: 'center',
+                            gap: '0.3rem',
+                            fontSize: '0.78rem',
+                            fontWeight: 500,
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '12px',
+                            background: 'var(--glb-surface, #fff)',
+                            border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.15))',
+                            color: 'var(--glb-text, #1e293b)',
                           }}
-                          title="Quitar"
                         >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
+                          <span>{val}</span>
+                          <button
+                            type="button"
+                            onClick={() => startEditingValue(idx, val)}
+                            disabled={saving}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: 0,
+                              color: 'var(--glb-muted, #94a3b8)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                            }}
+                            title="Renombrar opción"
+                          >
+                            <Pencil size={11} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveValueFromForm(idx)}
+                            disabled={saving}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: 0,
+                              color: 'var(--glb-muted, #94a3b8)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                            }}
+                            title="Quitar"
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      )
+                    )}
                   </div>
                 )}
+
+                <span
+                  style={{
+                    display: 'block',
+                    marginTop: '0.4rem',
+                    fontSize: '0.75rem',
+                    color: 'var(--glb-muted, #64748b)',
+                  }}
+                >
+                  {selectedKindConfig.predefinedValuesHint}
+                </span>
               </div>
             )}
 

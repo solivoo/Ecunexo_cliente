@@ -1,6 +1,7 @@
 import type {
   HierarchyPathEntry,
   ProductTemplateLevel,
+  TenantMediaAssetDto,
   VariantDimensionTemplateDto,
 } from '@/types/catalogApi'
 
@@ -28,7 +29,7 @@ export function buildDimensionValuesMap(
   templates.forEach((t) => {
     try {
       const parsed = JSON.parse(t.predefinedValuesJson)
-      if (!Array.isArray(parsed) || parsed.length === 0) return
+      if (!Array.isArray(parsed)) return
 
       const isColor = (t.dimensionType || '').toLowerCase() === 'color' || isColorDimension(t.name)
       const dataType = (t.dataType || (isColor ? 'color' : 'text')).trim().toLowerCase()
@@ -633,5 +634,25 @@ export function buildVariantAdminSummary(
     sku,
     axisLines,
     fallbackLabel: formatVariantDisplayName(variant.name ?? '', parentName),
+  }
+}
+
+/** Lee el valor JSON de un atributo de tipo fotos; tolera valores antiguos o inválidos. */
+export function parseMediaValue(value: string): TenantMediaAssetDto[] {
+  if (!value || !value.trim()) return []
+  try {
+    const parsed = JSON.parse(value)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((item): item is TenantMediaAssetDto => {
+      if (!item || typeof item !== 'object') return false
+      const asset = item as Partial<TenantMediaAssetDto>
+      return (
+        typeof asset.storageKey === 'string' &&
+        typeof asset.thumbUrl === 'string' &&
+        typeof asset.largeUrl === 'string'
+      )
+    })
+  } catch {
+    return []
   }
 }

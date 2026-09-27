@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Button, ColorPicker, DEFAULT_COLOR_PRESETS, NumberBox, Popup, Select, TextBox, useToast } from 'glubox'
 import { ArrowLeft, ArrowRight, Camera, Check, Copy, Layers, Plus, Trash2, Upload, X } from 'lucide-react'
-import { EcuTagInput } from '@/components/ui'
+import { EcuColorListInput, EcuMediaListInput, EcuTagInput } from '@/components/ui'
 import {
   findDuplicateSkuValues,
   isColorDimension,
+  isSizeAxisName,
+  parseMediaValue,
   type ArchetypeAttributeField,
   type DimensionLookup,
 } from '@/lib/catalogArchetype'
-import type { CreateVariantChildPayload } from '@/types/catalogApi'
+import type { CreateVariantChildPayload, TenantMediaAssetDto } from '@/types/catalogApi'
 import './variantMatrixBuilder.css'
 
 export type DimensionState = {
@@ -85,6 +87,8 @@ export type VariantMatrixBuilderProps = {
   photoScope?: 'variant' | 'group' | 'model'
   variantAttributeFields?: ArchetypeAttributeField[]
   dimensionValuesMap?: Map<string, DimensionLookup>
+  onUploadMedia?: (file: File) => Promise<TenantMediaAssetDto>
+  onMediaError?: (message: string) => void
   /** Sin banner interno cuando ya está dentro de una SectionCard. */
   embedded?: boolean
 }
@@ -164,6 +168,8 @@ export function VariantMatrixBuilder({
   photoScope,
   variantAttributeFields = [],
   dimensionValuesMap,
+  onUploadMedia,
+  onMediaError,
   embedded = false,
 }: VariantMatrixBuilderProps) {
   const toast = useToast()
@@ -233,12 +239,15 @@ export function VariantMatrixBuilder({
     if (!initialDimensions || initialDimensions.length === 0) return
     const newDims: DimensionState[] = initialDimensions.map((d, idx) => {
       const isColor = d.isColor || isColorDimension(d.name)
+      const isSize = d.type === 'size' || isSizeAxisName(d.name)
       // Los colores se asignan únicamente por hexadecimal: sin presets nominales.
       const values = isColor
         ? []
         : d.values && d.values.length > 0
           ? d.values
-          : ['35-38', '39-41', '42-44']
+          : isSize
+            ? ['35-38', '39-41', '42-44']
+            : []
       return {
         id: `dim-tpl-${idx}`,
         name: d.name,
@@ -1647,6 +1656,31 @@ export function VariantMatrixBuilder({
                                   handleVariantAttributeChange(row.id, field.key, tags.join(', '))
                                 }
                                 placeholder={`Añadir ${field.key}...`}
+                                disabled={disabled}
+                              />
+                            ) : dataType === 'colorlist' ? (
+                              <EcuColorListInput
+                                colors={value
+                                  .split(',')
+                                  .map((v) => v.trim())
+                                  .filter(Boolean)}
+                                onChange={(colors: string[]) =>
+                                  handleVariantAttributeChange(row.id, field.key, colors.join(', '))
+                                }
+                                disabled={disabled}
+                              />
+                            ) : dataType === 'media' ? (
+                              <EcuMediaListInput
+                                media={parseMediaValue(value)}
+                                onChange={(media: TenantMediaAssetDto[]) =>
+                                  handleVariantAttributeChange(
+                                    row.id,
+                                    field.key,
+                                    media.length > 0 ? JSON.stringify(media) : ''
+                                  )
+                                }
+                                onUpload={onUploadMedia}
+                                onError={onMediaError}
                                 disabled={disabled}
                               />
                             ) : (lookup?.values.length ?? 0) > 0 ? (

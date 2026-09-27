@@ -37,6 +37,17 @@ export type CatalogItemImageDto = {
   createdAt: string
 }
 
+export type TenantMediaAssetDto = {
+  storageKey: string
+  thumbUrl: string
+  mediumUrl: string
+  largeUrl: string
+  width: number
+  height: number
+  fileSizeBytes: number
+  contentType?: string
+}
+
 export type CatalogItemListItemDto = {
   id: string
   kind: CatalogItemKind

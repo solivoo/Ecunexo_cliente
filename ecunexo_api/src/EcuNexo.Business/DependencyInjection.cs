@@ -33,6 +33,7 @@ using EcuNexo.Business.Accounting.Queries.ListAccounts;
 using EcuNexo.Business.Accounting.Queries.ListJournalEntries;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
+using EcuNexo.Business.Catalog.Commands.AdoptVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.SetCatalogItemStorefrontVisibility;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItemMatrix;
 using EcuNexo.Business.Catalog.Commands.AddCatalogItemVariant;
@@ -50,6 +51,7 @@ using EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItemImageAltText;
 using EcuNexo.Business.Catalog.Commands.UpdateProductTemplate;
 using EcuNexo.Business.Catalog.Commands.UploadCatalogItemImage;
+using EcuNexo.Business.Catalog.Commands.UploadTenantMedia;
 using EcuNexo.Business.Catalog.Images;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
 using EcuNexo.Business.Catalog.Queries.GetProductTemplateById;
@@ -236,6 +238,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<ReassignCatalogItemVariantParentCommand, ReassignCatalogItemVariantParentResponse>, ReassignCatalogItemVariantParentHandler>();
         services.AddScoped<ICommandHandler<CreateVariantDimensionTemplateCommand, CreateVariantDimensionTemplateResponse>, CreateVariantDimensionTemplateHandler>();
         services.AddScoped<ICommandHandler<UpdateVariantDimensionTemplateCommand, UpdateVariantDimensionTemplateResponse>, UpdateVariantDimensionTemplateHandler>();
+        services.AddScoped<ICommandHandler<AdoptVariantDimensionTemplateCommand, AdoptVariantDimensionTemplateResponse>, AdoptVariantDimensionTemplateHandler>();
         services.AddScoped<ICommandHandler<DeleteVariantDimensionTemplateCommand, DeleteVariantDimensionTemplateResponse>, DeleteVariantDimensionTemplateHandler>();
         services.AddScoped<ICommandHandler<CreateProductTemplateCommand, CreateProductTemplateResponse>, CreateProductTemplateHandler>();
         services.AddScoped<ICommandHandler<UpdateProductTemplateCommand, UpdateProductTemplateResponse>, UpdateProductTemplateHandler>();
@@ -326,6 +329,7 @@ public static class DependencyInjection
 
         // Catalog Item Images (E-commerce / Optimización)
         services.AddScoped<ICommandHandler<UploadCatalogItemImageCommand, CatalogItemImageResponse>, UploadCatalogItemImageHandler>();
+        services.AddScoped<ICommandHandler<UploadTenantMediaCommand, TenantMediaResponse>, UploadTenantMediaHandler>();
         services.AddScoped<ICommandHandler<DeleteCatalogItemImageCommand, DeleteCatalogItemImageResponse>, DeleteCatalogItemImageHandler>();
         services.AddScoped<ICommandHandler<SetCatalogItemMainImageCommand, SetCatalogItemMainImageResponse>, SetCatalogItemMainImageHandler>();
         services.AddScoped<ICommandHandler<ReorderCatalogItemImagesCommand, ReorderCatalogItemImagesResponse>, ReorderCatalogItemImagesHandler>();

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Catalog.ValueObjects;
 using EcuNexo.Core.Common;
@@ -622,6 +623,428 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         {
             return newJson;
         }
+    }
+
+    /// <summary>
+    /// Renombra la clave del atributo en la ficha, las dimensiones de matriz y la ruta jerárquica.
+    /// Devuelve true si el ítem fue modificado.
+    /// </summary>
+    public bool RenameAttributeKey(string oldName, string newName, Guid? updatedBy = null)
+    {
+        if (string.IsNullOrWhiteSpace(oldName) || string.IsNullOrWhiteSpace(newName))
+        {
+            return false;
+        }
+
+        var old = oldName.Trim();
+        var target = newName.Trim();
+        if (old.Equals(target, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var changed = false;
+
+        var attributes = RenameKeyInAttributesJson(CustomAttributesJson, old, target);
+        if (attributes is not null)
+        {
+            CustomAttributesJson = attributes;
+            changed = true;
+        }
+
+        var dimensions = RenameKeyInVariantDimensionsJson(VariantDimensionsJson, old, target);
+        if (dimensions is not null)
+        {
+            VariantDimensionsJson = dimensions;
+            changed = true;
+        }
+
+        var path = RenameKeyInHierarchyPathJson(HierarchyPathJson, old, target);
+        if (path is not null)
+        {
+            HierarchyPathJson = path;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            Touch(updatedBy);
+        }
+
+        return changed;
+    }
+
+    /// <summary>
+    /// Reemplaza un valor del atributo en la ficha, las dimensiones de matriz, la ruta jerárquica
+    /// y (para ejes) los grupos de fotos. Devuelve true si el ítem fue modificado.
+    /// </summary>
+    public bool RenameAttributeValue(
+        string attributeName,
+        string oldValue,
+        string newValue,
+        bool isMultiValue = false,
+        bool renameImageGroups = false,
+        Guid? updatedBy = null)
+    {
+        if (string.IsNullOrWhiteSpace(attributeName)
+            || string.IsNullOrWhiteSpace(oldValue)
+            || string.IsNullOrWhiteSpace(newValue))
+        {
+            return false;
+        }
+
+        var attribute = attributeName.Trim();
+        var old = oldValue.Trim();
+        var target = newValue.Trim();
+        if (old.Equals(target, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var changed = false;
+
+        var attributes = RenameValueInAttributesJson(CustomAttributesJson, attribute, old, target, isMultiValue);
+        if (attributes is not null)
+        {
+            CustomAttributesJson = attributes;
+            changed = true;
+        }
+
+        var dimensions = RenameValueInVariantDimensionsJson(VariantDimensionsJson, attribute, old, target);
+        if (dimensions is not null)
+        {
+            VariantDimensionsJson = dimensions;
+            changed = true;
+        }
+
+        var path = RenameValueInHierarchyPathJson(HierarchyPathJson, attribute, old, target);
+        if (path is not null)
+        {
+            HierarchyPathJson = path;
+            changed = true;
+        }
+
+        if (renameImageGroups)
+        {
+            foreach (var image in _images)
+            {
+                if (image.RenameGroupValue(old, target))
+                {
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+        {
+            Touch(updatedBy);
+        }
+
+        return changed;
+    }
+
+    private static string? RenameKeyInAttributesJson(string json, string oldName, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            if (JsonNode.Parse(json) is not JsonObject obj)
+            {
+                return null;
+            }
+
+            var changed = false;
+            foreach (var key in obj.Select(kv => kv.Key).ToList())
+            {
+                if (!key.Equals(oldName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var value = obj[key]?.DeepClone();
+                obj.Remove(key);
+                obj[newName] = value;
+                changed = true;
+            }
+
+            return changed ? obj.ToJsonString() : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string? RenameKeyInVariantDimensionsJson(string? json, string oldName, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            if (JsonNode.Parse(json) is not JsonArray dimensions)
+            {
+                return null;
+            }
+
+            var changed = false;
+            foreach (var node in dimensions)
+            {
+                if (node is not JsonObject dimension
+                    || dimension["name"] is not JsonValue nameValue
+                    || !nameValue.TryGetValue<string>(out var name)
+                    || name is null
+                    || !name.Equals(oldName, StringComparison.OrdinalIgnoreCase)
+                    || name.Equals(newName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                dimension["name"] = newName;
+                changed = true;
+            }
+
+            return changed ? dimensions.ToJsonString() : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string? RenameKeyInHierarchyPathJson(string? json, string oldName, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            if (JsonNode.Parse(json) is not JsonArray entries)
+            {
+                return null;
+            }
+
+            var changed = false;
+            foreach (var node in entries)
+            {
+                if (node is not JsonObject entry
+                    || entry["name"] is not JsonValue nameValue
+                    || !nameValue.TryGetValue<string>(out var name)
+                    || name is null
+                    || !name.Equals(oldName, StringComparison.OrdinalIgnoreCase)
+                    || name.Equals(newName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                entry["name"] = newName;
+                changed = true;
+            }
+
+            return changed ? entries.ToJsonString() : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string? RenameValueInAttributesJson(
+        string json,
+        string attributeName,
+        string oldValue,
+        string newValue,
+        bool isMultiValue)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            if (JsonNode.Parse(json) is not JsonObject obj)
+            {
+                return null;
+            }
+
+            var changed = false;
+            foreach (var key in obj.Select(kv => kv.Key).ToList())
+            {
+                if (!key.Equals(attributeName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var node = obj[key];
+                if (node is JsonValue valueNode
+                    && valueNode.TryGetValue<string>(out var text)
+                    && text is not null)
+                {
+                    if (isMultiValue)
+                    {
+                        if (TryReplaceListValue(text, oldValue, newValue, out var replaced))
+                        {
+                            obj[key] = replaced;
+                            changed = true;
+                        }
+                    }
+                    else if (text.Trim().Equals(oldValue, StringComparison.OrdinalIgnoreCase))
+                    {
+                        obj[key] = newValue;
+                        changed = true;
+                    }
+                }
+                else if (node is JsonArray array)
+                {
+                    for (var i = 0; i < array.Count; i++)
+                    {
+                        if (array[i] is JsonValue item
+                            && item.TryGetValue<string>(out var itemText)
+                            && itemText is not null
+                            && itemText.Trim().Equals(oldValue, StringComparison.OrdinalIgnoreCase))
+                        {
+                            array[i] = newValue;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+
+            return changed ? obj.ToJsonString() : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string? RenameValueInVariantDimensionsJson(
+        string? json,
+        string attributeName,
+        string oldValue,
+        string newValue)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            if (JsonNode.Parse(json) is not JsonArray dimensions)
+            {
+                return null;
+            }
+
+            var changed = false;
+            foreach (var node in dimensions)
+            {
+                if (node is not JsonObject dimension
+                    || dimension["name"] is not JsonValue nameValue
+                    || !nameValue.TryGetValue<string>(out var name)
+                    || name is null
+                    || !name.Equals(attributeName, StringComparison.OrdinalIgnoreCase)
+                    || dimension["values"] is not JsonArray values)
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < values.Count; i++)
+                {
+                    if (values[i] is JsonValue item
+                        && item.TryGetValue<string>(out var itemText)
+                        && itemText is not null
+                        && itemText.Trim().Equals(oldValue, StringComparison.OrdinalIgnoreCase))
+                    {
+                        values[i] = newValue;
+                        changed = true;
+                    }
+                }
+            }
+
+            return changed ? dimensions.ToJsonString() : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string? RenameValueInHierarchyPathJson(
+        string? json,
+        string attributeName,
+        string oldValue,
+        string newValue)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            if (JsonNode.Parse(json) is not JsonArray entries)
+            {
+                return null;
+            }
+
+            var changed = false;
+            foreach (var node in entries)
+            {
+                if (node is not JsonObject entry
+                    || entry["name"] is not JsonValue nameValue
+                    || !nameValue.TryGetValue<string>(out var name)
+                    || name is null
+                    || !name.Equals(attributeName, StringComparison.OrdinalIgnoreCase)
+                    || entry["value"] is not JsonValue valueNode
+                    || !valueNode.TryGetValue<string>(out var value)
+                    || value is null
+                    || !value.Trim().Equals(oldValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                entry["value"] = newValue;
+                changed = true;
+            }
+
+            return changed ? entries.ToJsonString() : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static bool TryReplaceListValue(string text, string oldValue, string newValue, out string replaced)
+    {
+        var parts = text.Split(',');
+        var changed = false;
+        for (var i = 0; i < parts.Length; i++)
+        {
+            var trimmed = parts[i].Trim();
+            if (trimmed.Equals(oldValue, StringComparison.OrdinalIgnoreCase))
+            {
+                parts[i] = newValue;
+                changed = true;
+            }
+            else
+            {
+                parts[i] = trimmed;
+            }
+        }
+
+        replaced = string.Join(", ", parts);
+        return changed;
     }
 
     /// <summary>

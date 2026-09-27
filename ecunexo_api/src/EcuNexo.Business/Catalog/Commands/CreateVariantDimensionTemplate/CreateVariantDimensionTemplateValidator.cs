@@ -24,6 +24,6 @@ public sealed class CreateVariantDimensionTemplateValidator : AbstractValidator<
 
         RuleFor(c => c.DataType)
             .Must(VariantDimensionTemplate.IsValidDataType)
-            .WithMessage("El tipo de dato debe ser texto, número, booleano o color.");
+            .WithMessage("El tipo de dato debe ser texto, número, booleano, color, selección múltiple, lista de colores o fotos.");
     }
 }

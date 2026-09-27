@@ -113,6 +113,65 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
         return set;
     }
 
+    public async Task<IReadOnlyCollection<Guid>> RenameAttributeKeyAsync(
+        Guid tenantId,
+        string oldName,
+        string newName,
+        Guid? updatedBy,
+        CancellationToken ct)
+    {
+        var items = await _db.CatalogItems
+            .Include(i => i.Images)
+            .Where(i => i.TenantId == tenantId && i.DeletedAt == null)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var renamed = new List<Guid>();
+        foreach (var item in items)
+        {
+            if (item.RenameAttributeKey(oldName, newName, updatedBy))
+            {
+                renamed.Add(item.Id);
+            }
+        }
+
+        return renamed;
+    }
+
+    public async Task<IReadOnlyCollection<Guid>> RenameAttributeValueAsync(
+        Guid tenantId,
+        string attributeName,
+        string oldValue,
+        string newValue,
+        bool isMultiValue,
+        bool renameImageGroups,
+        Guid? updatedBy,
+        CancellationToken ct)
+    {
+        var items = await _db.CatalogItems
+            .Include(i => i.Images)
+            .Where(i => i.TenantId == tenantId && i.DeletedAt == null)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var renamed = new List<Guid>();
+        foreach (var item in items)
+        {
+            if (item.RenameAttributeValue(
+                    attributeName,
+                    oldValue,
+                    newValue,
+                    isMultiValue,
+                    renameImageGroups,
+                    updatedBy))
+            {
+                renamed.Add(item.Id);
+            }
+        }
+
+        return renamed;
+    }
+
     public Task<CatalogItem?> GetActiveByIdAsync(Guid tenantId, Guid itemId, CancellationToken ct) =>
         _db.CatalogItems.AsNoTracking()
             .Include(i => i.Images.OrderBy(img => img.DisplayOrder))

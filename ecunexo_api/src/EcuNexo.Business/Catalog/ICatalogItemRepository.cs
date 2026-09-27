@@ -41,4 +41,29 @@ public interface ICatalogItemRepository
 
     Task<bool> IsAttributeTemplateInUseAsync(Guid tenantId, string templateName, CancellationToken ct);
     Task<HashSet<string>> GetInUseAttributeTemplateNamesAsync(Guid tenantId, CancellationToken ct);
+
+    /// <summary>
+    /// Renombra la clave del atributo en todos los ítems activos del tenant.
+    /// Devuelve los ids de los ítems modificados.
+    /// </summary>
+    Task<IReadOnlyCollection<Guid>> RenameAttributeKeyAsync(
+        Guid tenantId,
+        string oldName,
+        string newName,
+        Guid? updatedBy,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Renombra un valor del atributo en todos los ítems activos del tenant.
+    /// Devuelve los ids de los ítems modificados.
+    /// </summary>
+    Task<IReadOnlyCollection<Guid>> RenameAttributeValueAsync(
+        Guid tenantId,
+        string attributeName,
+        string oldValue,
+        string newValue,
+        bool isMultiValue,
+        bool renameImageGroups,
+        Guid? updatedBy,
+        CancellationToken ct);
 }

@@ -33,6 +33,15 @@ function usedNames(levels: readonly ProductTemplateLevel[]): Set<string> {
   return names
 }
 
+function hasPredefinedValues(attr: VariantDimensionTemplateDto): boolean {
+  try {
+    const parsed = JSON.parse(attr.predefinedValuesJson)
+    return Array.isArray(parsed) && parsed.length > 0
+  } catch {
+    return false
+  }
+}
+
 function withColorFlag(
   levels: readonly ProductTemplateLevel[],
   lookup: Map<string, { isColor: boolean }>
@@ -101,13 +110,12 @@ export function HierarchyTemplateTreeBuilder({
 
     if (list === 'axes') {
       const match = availableAttributes.find((a) => a.name.trim().toLowerCase() === key)
-      if (match && match.isVariantAxis === false) {
+      if (match && !hasPredefinedValues(match)) {
         toast.show({
-          title: 'Campo de texto o datos',
-          message: `«${match.name}» está registrado como campo de texto o datos y no es una escala para variantes físicas. Agrégalo en «Datos de este nivel».`,
+          title: 'Eje sin opciones',
+          message: `«${match.name}» no tiene opciones predefinidas. Podrás capturarlas al crear el producto o agregarlas en Atributos.`,
           variant: 'warning',
         })
-        return
       }
     }
 
@@ -124,19 +132,6 @@ export function HierarchyTemplateTreeBuilder({
   }
 
   const moveAcross = (index: number, from: 'attributes' | 'axes', name: string) => {
-    if (from === 'attributes') {
-      const key = name.trim().toLowerCase()
-      const match = availableAttributes.find((a) => a.name.trim().toLowerCase() === key)
-      if (match && match.isVariantAxis === false) {
-        toast.show({
-          title: 'No puede ser eje',
-          message: `«${match.name}» es un campo de texto o datos. Las variantes físicas requieren escalas como tallas, colores u opciones.`,
-          variant: 'warning',
-        })
-        return
-      }
-    }
-
     const to = from === 'attributes' ? 'axes' : 'attributes'
     const level = levels[index]
     const key = name.trim().toLowerCase()
@@ -147,27 +142,15 @@ export function HierarchyTemplateTreeBuilder({
     patchLevel(index, { [from]: source, [to]: target })
   }
 
-  const canMoveToAxes = (name: string): boolean => {
-    const match = availableAttributes.find(
-      (a) => a.name.trim().toLowerCase() === name.trim().toLowerCase()
-    )
-    if (!match) return true
-    return match.isVariantAxis !== false
-  }
-
-  const dictionaryOptions = (forAxesOnly: boolean) => {
+  const dictionaryOptions = () => {
     const taken = usedNames(levels)
     return availableAttributes
-      .filter((attr) => {
-        if (taken.has(attr.name.trim().toLowerCase())) return false
-        if (forAxesOnly && attr.isVariantAxis === false) return false
-        return true
-      })
+      .filter((attr) => !taken.has(attr.name.trim().toLowerCase()))
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name, 'es'))
       .map((attr) => ({
         value: attr.name,
-        label: `${attr.name}${attr.isVariantAxis === false ? ' (Texto / Datos)' : ''}`,
+        label: `${attr.name} · ${attr.isVariantAxis === false ? 'sugerido para ficha' : 'sugerido para variantes'}`,
       }))
   }
 
@@ -258,8 +241,7 @@ export function HierarchyTemplateTreeBuilder({
             hint="Se completan una vez en este peldaño (ficha o notas)."
             items={lvl.attributes}
             disabled={disabled}
-            options={dictionaryOptions(false)}
-            canMoveItem={canMoveToAxes}
+            options={dictionaryOptions()}
             customValue={customByLevel[lvl.id]?.data ?? ''}
             onCustomChange={(value) =>
               setCustomByLevel((prev) => ({
@@ -285,7 +267,7 @@ export function HierarchyTemplateTreeBuilder({
             hint="Cada valor genera un código distinto. El orden es el orden del código."
             items={lvl.axes ?? []}
             disabled={disabled}
-            options={dictionaryOptions(true)}
+            options={dictionaryOptions()}
             customValue={customByLevel[lvl.id]?.axis ?? ''}
             onCustomChange={(value) =>
               setCustomByLevel((prev) => ({
@@ -427,7 +409,6 @@ function LevelList({
   onRemove,
   onMove,
   moveLabel,
-  canMoveItem,
 }: {
   title: string
   hint: string
@@ -441,7 +422,6 @@ function LevelList({
   onRemove: (name: string) => void
   onMove: (name: string) => void
   moveLabel: string
-  canMoveItem?: (name: string) => boolean
 }) {
   return (
     <div
@@ -494,7 +474,6 @@ function LevelList({
           <span style={{ fontSize: '0.78rem', color: 'var(--glb-muted)' }}>Ninguno todavía.</span>
         ) : (
           items.map((item) => {
-            const isMoveable = canMoveItem ? canMoveItem(item) : true
             return (
               <span
                 key={item}
@@ -511,37 +490,21 @@ function LevelList({
                 }}
               >
                 {item}
-                {isMoveable ? (
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => onMove(item)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--shell-primary, #2563eb)',
-                      cursor: 'pointer',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {moveLabel}
-                  </button>
-                ) : (
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      padding: '0.08rem 0.35rem',
-                      borderRadius: '4px',
-                      background: 'var(--glb-surface-ground, rgba(0, 0, 0, 0.05))',
-                      color: 'var(--glb-muted, #64748b)',
-                      fontWeight: 500,
-                    }}
-                    title="Campo de texto o datos: no forma parte de las escalas de variantes."
-                  >
-                    Dato / Texto
-                  </span>
-                )}
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onMove(item)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--shell-primary, #2563eb)',
+                    cursor: 'pointer',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  {moveLabel}
+                </button>
                 <button
                   type="button"
                   disabled={disabled}

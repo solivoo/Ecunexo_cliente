@@ -43,6 +43,7 @@ import {
   reassignCatalogItemVariantParent,
   softDeleteCatalogItem,
   updateCatalogItem,
+  uploadCatalogMedia,
 } from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
@@ -248,6 +249,21 @@ export function EditCatalogItemPage() {
       ]
     })
   }, [])
+
+  const handleUploadMedia = useCallback(
+    async (file: File) => {
+      if (!tenantId) throw new Error('Sesión sin empresa activa.')
+      return uploadCatalogMedia(tenantId, file)
+    },
+    [tenantId]
+  )
+
+  const handleMediaError = useCallback(
+    (message: string) => {
+      toast.show({ title: 'No se pudo subir la foto', message, variant: 'error' })
+    },
+    [toast]
+  )
 
   const suggestedTags = useMemo<string[]>(() => {
     const list = new Set<string>()
@@ -735,6 +751,8 @@ export function EditCatalogItemPage() {
                   values={customAttributes}
                   dimensionValuesMap={dimensionValuesMap}
                   onChangeValue={setAttributeValue}
+                  onUploadMedia={handleUploadMedia}
+                  onMediaError={handleMediaError}
                   disabled={busy}
                 />
               </SectionCard>

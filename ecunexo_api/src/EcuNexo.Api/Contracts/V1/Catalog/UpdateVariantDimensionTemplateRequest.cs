@@ -1,9 +1,12 @@
 namespace EcuNexo.Api.Contracts.V1.Catalog;
 
+public sealed record VariantValueRenameRequest(string From, string To);
+
 public sealed record UpdateVariantDimensionTemplateRequest(
     string Name,
     string DimensionType,
     string? PredefinedValuesJson = null,
     string DataType = "text",
     bool IsVariantAxis = true,
-    string? Unit = null);
+    string? Unit = null,
+    IReadOnlyList<VariantValueRenameRequest>? ValueRenames = null);

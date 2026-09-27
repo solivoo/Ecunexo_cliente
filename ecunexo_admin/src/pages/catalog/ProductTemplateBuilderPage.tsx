@@ -152,14 +152,6 @@ export function ProductTemplateBuilderPage() {
         isActive,
       }
 
-      console.log('[Plantillas] Enviando a la API al guardar plantilla', {
-        tenantId,
-        plantillaId: isEdit && templateId ? templateId : null,
-        modo: isEdit ? 'edición' : 'creación',
-        payload,
-        niveles: levels,
-      })
-
       if (isEdit && templateId) {
         await updateProductTemplate(tenantId, templateId, payload)
         toast.show({

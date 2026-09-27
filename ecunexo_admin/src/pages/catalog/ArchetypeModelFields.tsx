@@ -1,14 +1,17 @@
 import type { ChangeEvent } from 'react'
 import { ColorPicker, NumberBox, Select, TextBox } from 'glubox'
-import { EcuTagInput } from '@/components/ui'
-import type { ArchetypeAttributeField, DimensionLookup } from '@/lib/catalogArchetype'
+import { EcuColorListInput, EcuMediaListInput, EcuTagInput } from '@/components/ui'
+import { parseMediaValue, type ArchetypeAttributeField, type DimensionLookup } from '@/lib/catalogArchetype'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
+import type { TenantMediaAssetDto } from '@/types/catalogApi'
 
 type ArchetypeModelFieldsProps = {
   fields: ArchetypeAttributeField[]
   values: readonly CustomAttributeRow[]
   dimensionValuesMap: Map<string, DimensionLookup>
   onChangeValue: (key: string, value: string) => void
+  onUploadMedia?: (file: File) => Promise<TenantMediaAssetDto>
+  onMediaError?: (message: string) => void
   disabled?: boolean
   bare?: boolean
 }
@@ -32,6 +35,8 @@ export function ArchetypeModelFields({
   values,
   dimensionValuesMap,
   onChangeValue,
+  onUploadMedia,
+  onMediaError,
   disabled = false,
   bare = false,
 }: ArchetypeModelFieldsProps) {
@@ -123,6 +128,24 @@ export function ArchetypeModelFields({
                   tags={multiValues}
                   suggestedTags={lookup?.values ?? []}
                   onChange={(tags: string[]) => onChangeValue(field.key, tags.join(', '))}
+                  disabled={disabled}
+                />
+              ) : dataType === 'colorlist' ? (
+                <EcuColorListInput
+                  label={label}
+                  colors={multiValues}
+                  onChange={(colors: string[]) => onChangeValue(field.key, colors.join(', '))}
+                  disabled={disabled}
+                />
+              ) : dataType === 'media' ? (
+                <EcuMediaListInput
+                  label={label}
+                  media={parseMediaValue(value)}
+                  onChange={(media: TenantMediaAssetDto[]) =>
+                    onChangeValue(field.key, media.length > 0 ? JSON.stringify(media) : '')
+                  }
+                  onUpload={onUploadMedia}
+                  onError={onMediaError}
                   disabled={disabled}
                 />
               ) : hasOptions ? (

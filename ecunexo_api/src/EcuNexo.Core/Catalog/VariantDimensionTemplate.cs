@@ -22,9 +22,11 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
     public const string DataTypeBoolean = "boolean";
     public const string DataTypeColor = "color";
     public const string DataTypeMultiSelect = "multiselect";
+    public const string DataTypeColorList = "colorlist";
+    public const string DataTypeMedia = "media";
 
     private static readonly string[] AllowedDataTypes =
-        [DataTypeText, DataTypeNumber, DataTypeBoolean, DataTypeColor, DataTypeMultiSelect];
+        [DataTypeText, DataTypeNumber, DataTypeBoolean, DataTypeColor, DataTypeMultiSelect, DataTypeColorList, DataTypeMedia];
 
     public static bool IsValidDataType(string? dataType) =>
         string.IsNullOrWhiteSpace(dataType)
@@ -254,7 +256,7 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
             return Result.Failure<string>(
                 new Error(
                     "catalog.variant_template.data_type.invalid",
-                    "El tipo de dato debe ser texto, número, booleano o color.",
+                    "El tipo de dato debe ser texto, número, booleano, color, selección múltiple, lista de colores o fotos.",
                     ErrorType.Validation));
         }
 

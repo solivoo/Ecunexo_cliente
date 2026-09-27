@@ -34,6 +34,21 @@ public sealed class UpdateVariantDimensionTemplateValidator : AbstractValidator<
 
         RuleFor(x => x.DataType)
             .Must(VariantDimensionTemplate.IsValidDataType)
-            .WithMessage("El tipo de dato debe ser texto, número, booleano o color.");
+            .WithMessage("El tipo de dato debe ser texto, número, booleano, color, selección múltiple, lista de colores o fotos.");
+
+        RuleForEach(x => x.ValueRenames).ChildRules(rename =>
+        {
+            rename.RuleFor(r => r.From)
+                .NotEmpty()
+                .WithMessage("El valor de origen del renombrado es obligatorio.")
+                .MaximumLength(VariantDimensionTemplate.NameMaxLength)
+                .WithMessage($"El valor de origen no puede superar {VariantDimensionTemplate.NameMaxLength} caracteres.");
+
+            rename.RuleFor(r => r.To)
+                .NotEmpty()
+                .WithMessage("El valor de destino del renombrado es obligatorio.")
+                .MaximumLength(VariantDimensionTemplate.NameMaxLength)
+                .WithMessage($"El valor de destino no puede superar {VariantDimensionTemplate.NameMaxLength} caracteres.");
+        });
     }
 }

@@ -175,4 +175,24 @@ public sealed class CatalogItemImage : Entity<Guid>, IAuditable
         UpdatedAt = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
     }
+
+    /// <summary>Renombra el valor de grupo cuando coincide con el valor de variante anterior.</summary>
+    internal bool RenameGroupValue(string oldValue, string newValue)
+    {
+        if (string.IsNullOrWhiteSpace(GroupValue)
+            || string.IsNullOrWhiteSpace(oldValue)
+            || string.IsNullOrWhiteSpace(newValue))
+        {
+            return false;
+        }
+
+        if (!GroupValue.Trim().Equals(oldValue.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        GroupValue = newValue.Trim();
+        UpdatedAt = DateTimeOffset.UtcNow;
+        return true;
+    }
 }

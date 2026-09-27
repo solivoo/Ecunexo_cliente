@@ -63,6 +63,34 @@ public sealed class VariantDimensionTemplateRepository : IVariantDimensionTempla
         _db.VariantDimensionTemplates
             .FirstOrDefaultAsync(t => t.Id == id && t.TenantId == tenantId, ct);
 
+    public async Task<bool> ExistsByNameAsync(
+        Guid tenantId,
+        string name,
+        Guid? excludeId,
+        CancellationToken ct)
+    {
+        var trimmed = name.Trim();
+        if (trimmed.Length == 0)
+        {
+            return false;
+        }
+
+        var pattern = trimmed
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal);
+
+        var query = _db.VariantDimensionTemplates.AsNoTracking()
+            .Where(t => t.TenantId == tenantId && EF.Functions.ILike(t.Name, pattern, "\\"));
+
+        if (excludeId.HasValue)
+        {
+            query = query.Where(t => t.Id != excludeId.Value);
+        }
+
+        return await query.AnyAsync(ct).ConfigureAwait(false);
+    }
+
     public Task AddAsync(VariantDimensionTemplate template, CancellationToken ct)
     {
         _db.VariantDimensionTemplates.Add(template);

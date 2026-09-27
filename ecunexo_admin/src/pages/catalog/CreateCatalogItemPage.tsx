@@ -24,6 +24,7 @@ import {
   listProductTemplates,
   listVariantDimensionTemplates,
   uploadCatalogItemImage,
+  uploadCatalogMedia,
 } from '@/services/catalogApi'
 import { useCatalogLimits } from '@/hooks/useCatalogLimits'
 import { selectTenantId } from '@/store/authSlice'
@@ -183,6 +184,21 @@ export function CreateCatalogItemPage() {
       ]
     })
   }, [])
+
+  const handleUploadMedia = useCallback(
+    async (file: File) => {
+      if (!tenantId) throw new Error('Sesión sin empresa activa.')
+      return uploadCatalogMedia(tenantId, file)
+    },
+    [tenantId]
+  )
+
+  const handleMediaError = useCallback(
+    (message: string) => {
+      toast.show({ title: 'No se pudo subir la foto', message, variant: 'error' })
+    },
+    [toast]
+  )
 
   // Ejes físicos por variante: terminal + escalas de talla/color, con agrupación de fotos resuelta
   const templateAllDimensions = useMemo(
@@ -697,6 +713,8 @@ export function CreateCatalogItemPage() {
                   values={customAttributes}
                   dimensionValuesMap={dimensionValuesMap}
                   onChangeValue={setAttributeValue}
+                  onUploadMedia={handleUploadMedia}
+                  onMediaError={handleMediaError}
                   disabled={busy}
                   bare
                 />
@@ -772,6 +790,8 @@ export function CreateCatalogItemPage() {
                   photoScope={matrixPhotoScope}
                   variantAttributeFields={variantAttributeFields}
                   dimensionValuesMap={dimensionValuesMap}
+                  onUploadMedia={handleUploadMedia}
+                  onMediaError={handleMediaError}
                   embedded
                 />
               </SectionCard>

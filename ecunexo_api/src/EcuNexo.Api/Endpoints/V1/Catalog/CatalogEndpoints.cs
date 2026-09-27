@@ -5,6 +5,7 @@ using EcuNexo.Api.Extensions;
 using EcuNexo.Api.Security;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog;
+using EcuNexo.Business.Catalog.Commands.AdoptVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItemMatrix;
 using EcuNexo.Business.Catalog.Commands.AddCatalogItemVariant;
@@ -23,6 +24,7 @@ using EcuNexo.Business.Catalog.Commands.UpdateCatalogItemImageAltText;
 using EcuNexo.Business.Catalog.Commands.UpdateProductTemplate;
 using EcuNexo.Business.Catalog.Commands.UpdateVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.UploadCatalogItemImage;
+using EcuNexo.Business.Catalog.Commands.UploadTenantMedia;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
 using EcuNexo.Business.Catalog.Queries.GetProductTemplateById;
 using EcuNexo.Business.Catalog.Queries.ListCatalogItems;
@@ -100,6 +102,19 @@ public static class CatalogEndpoints
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
         variantTemplates.MapDelete("/{templateId:guid}", DeleteVariantTemplateAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+        variantTemplates.MapPost("/{templateId:guid}/adopt", AdoptVariantTemplateAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+
+        RouteGroupBuilder catalogMedia = app
+            .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/media")
+            .WithApiVersionSet(versionSet)
+            .WithTags("Catalog")
+            .RequireAuthorization();
+
+        catalogMedia.MapPost("/", UploadTenantMediaAsync)
+            .DisableAntiforgery()
+            .AddEndpointFilter(
+                PermissionFilters.RequireAny("catalog.item.create", "catalog.item.update"));
 
         RouteGroupBuilder productTemplates = app
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/product-templates")
@@ -304,7 +319,10 @@ public static class CatalogEndpoints
             body.PredefinedValuesJson ?? "[]",
             body.DataType,
             body.IsVariantAxis,
-            body.Unit);
+            body.Unit,
+            ValueRenames: body.ValueRenames?
+                .Select(r => new VariantValueRename(r.From, r.To))
+                .ToArray());
 
         var result = await sender
             .SendAsync<UpdateVariantDimensionTemplateCommand, UpdateVariantDimensionTemplateResponse>(command, ct)
@@ -323,6 +341,25 @@ public static class CatalogEndpoints
 
         var result = await sender
             .SendAsync<DeleteVariantDimensionTemplateCommand, DeleteVariantDimensionTemplateResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> AdoptVariantTemplateAsync(
+        Guid tenantId,
+        Guid templateId,
+        AdoptVariantDimensionTemplateRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var command = new AdoptVariantDimensionTemplateCommand(
+            templateId,
+            tenantId,
+            body.SourceAttributeName);
+
+        var result = await sender
+            .SendAsync<AdoptVariantDimensionTemplateCommand, AdoptVariantDimensionTemplateResponse>(command, ct)
             .ConfigureAwait(false);
 
         return result.ToHttpResult();
@@ -503,6 +540,32 @@ public static class CatalogEndpoints
             GroupValue: groupValue);
 
         var result = await sender.SendAsync<UploadCatalogItemImageCommand, CatalogItemImageResponse>(command, ct).ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> UploadTenantMediaAsync(
+        Guid tenantId,
+        IFormFile? file,
+        ISender sender,
+        ICallerContext caller,
+        CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return Results.BadRequest(new { code = "catalog.media.required", message = "Debe proporcionar un archivo de imagen." });
+        }
+
+        using var stream = file.OpenReadStream();
+        var command = new UploadTenantMediaCommand(
+            TenantId: tenantId,
+            FileStream: stream,
+            FileName: file.FileName,
+            ContentType: file.ContentType,
+            UserId: caller.UserId);
+
+        var result = await sender
+            .SendAsync<UploadTenantMediaCommand, TenantMediaResponse>(command, ct)
+            .ConfigureAwait(false);
         return result.ToHttpResult();
     }
 
