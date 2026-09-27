@@ -7,8 +7,10 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.56.2`.
+* **Última Versión Publicada:** `v0.56.3`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Fotos según la plantilla (v0.56.3):**
+    * La galería del producto y el selector de foto al crear variantes se ocultan cuando la plantilla declara «Sin fotos» (`photoChoice === 'none'`), en alta y edición; antes la galería aparecía siempre en ítems de un solo código. El aviso «Fotos por SKU» solo se muestra con fotos por variante. Nuevo prop `showPhotoField` en `EditCatalogItemVariantsSection`.
   - **Catálogo — Tipos de captura depurados y alta con plantilla sin campos manuales (v0.56.2):**
     * «Texto libre» es un único campo abierto (sin editor de opciones) y se agrega **«Conjunto de texto libre»** para etiquetas escritas a mano (`dataType` multiselect sin opciones). «Lista de opciones» y «Selección múltiple» exigen al menos una opción. `resolveAttributeKind` distingue por presencia de opciones.
     * Con plantilla aplicada, la tarjeta «Datos del producto» no se usa: nombre/descripción se derivan de los atributos de la plantilla (fallback al nombre de la plantilla) y solo se pide **Código** si la plantilla no captura un atributo de código (el inventario físico lo exige).

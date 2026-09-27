@@ -148,15 +148,18 @@ export function EditCatalogItemPage() {
 
   const isVariantChild = Boolean(item?.parentId)
 
+  /** La plantilla decide si hay fotos: sin plantilla (alta manual) siempre se permite galería. */
+  const templateAllowsPhotos = !familyTemplate || photoChoice !== 'none'
+
   const showParentImageGallery =
     !!item &&
     !isVariantChild &&
+    templateAllowsPhotos &&
     (!item.isMatrixParent || photoChoice === 'model' || photoChoice === 'group')
 
-  const showVariantImageGallery = isVariantChild
+  const showVariantImageGallery = isVariantChild && templateAllowsPhotos
 
-  const showVariantPhotosHint =
-    !!item?.isMatrixParent && (photoChoice === 'variant' || photoChoice === 'none')
+  const showVariantPhotosHint = !!item?.isMatrixParent && photoChoice === 'variant'
 
   const variantAxisEntries = useMemo(() => {
     if (!item?.parentId || !item.matrixDescriptor?.axes?.length) return []
@@ -943,6 +946,7 @@ export function EditCatalogItemPage() {
               photoHint={
                 showVariantPhotosHint ? 'Fotos por SKU en Administrar (sm / lg / xl)' : null
               }
+              showPhotoField={templateAllowsPhotos}
               onRefreshRequired={async () => {
                 const fresh = await getCatalogItem(tenantId, item.id)
                 setItem(fresh)

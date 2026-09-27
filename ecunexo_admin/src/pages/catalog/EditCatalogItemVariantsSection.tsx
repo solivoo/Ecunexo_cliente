@@ -50,6 +50,8 @@ export type EditCatalogItemVariantsSectionProps = {
   readonly maxVariants?: number | null
   /** Aviso breve cuando las fotos van por SKU (no en el padre). */
   readonly photoHint?: string | null
+  /** Oculta el selector de foto al crear variante cuando la plantilla no usa fotos. */
+  readonly showPhotoField?: boolean
 }
 
 type VariantDimensionDef = {
@@ -70,6 +72,7 @@ export function EditCatalogItemVariantsSection({
   remainingVariants = null,
   maxVariants = null,
   photoHint = null,
+  showPhotoField = true,
 }: EditCatalogItemVariantsSectionProps) {
   const toast = useToast()
   const navigate = useNavigate()
@@ -791,6 +794,7 @@ export function EditCatalogItemVariantsSection({
             />
 
             {/* Selector de fotografía específica de la variante */}
+            {showPhotoField && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--glb-muted, #64748b)' }}>
                 Fotografía de la variante (opcional)
@@ -831,11 +835,12 @@ export function EditCatalogItemVariantsSection({
                         }
                         e.target.value = ''
                       }}
-                    />
-                  </label>
-                )}
-              </div>
-            </div>
+                     />
+                   </label>
+                 )}
+               </div>
+             </div>
+            )}
           </div>
         </form>
       </Popup>
