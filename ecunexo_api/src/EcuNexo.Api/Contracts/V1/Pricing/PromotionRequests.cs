@@ -34,6 +34,8 @@ public sealed record CreatePromotionRequest(
             Targets?.Select(t => new PromotionTargetInput(t.TargetType, t.TargetReference)).ToList());
 }
 
+public sealed record SetPromotionActiveRequest(bool IsActive);
+
 public sealed record UpdatePromotionRequest(
     string Name,
     string? Description,

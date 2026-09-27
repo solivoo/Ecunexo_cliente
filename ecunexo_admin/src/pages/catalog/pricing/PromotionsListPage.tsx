@@ -18,7 +18,7 @@ import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { promotionTypeLabel, promotionValueLabel } from '@/pages/catalog/pricing/pricingFormat'
-import { deletePromotion, listPromotions, updatePromotion } from '@/services/pricingApi'
+import { listPromotions, setPromotionActive } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { PromotionDto } from '@/types/pricingApi'
@@ -33,6 +33,8 @@ export function PromotionsListPage() {
   const tenantId = useAppSelector(selectTenantId)
   const canRead = useHasPermission('catalog.pricing.read')
   const canManage = useHasPermission('catalog.promotions.manage')
+  const canDeactivate = useHasPermission('catalog.promotions.deactivate')
+  const canToggle = canManage || canDeactivate
   const [rows, setRows] = useState<PromotionDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -68,12 +70,16 @@ export function PromotionsListPage() {
     [rows]
   )
 
-  const handleDelete = useCallback(async () => {
+  const handleDeactivate = useCallback(async () => {
     if (!tenantId || !confirm) return
     setDeleting(true)
     try {
-      await deletePromotion(tenantId, confirm.id)
-      toast.show({ title: 'Promoción desactivada', message: `«${confirm.name}» quedó inactiva.`, variant: 'success' })
+      await setPromotionActive(tenantId, confirm.id, false)
+      toast.show({
+        title: 'Promoción desactivada',
+        message: `«${confirm.name}» quedó inactiva.`,
+        variant: 'success',
+      })
       setConfirm(null)
       await load()
     } catch (err: unknown) {
@@ -89,24 +95,10 @@ export function PromotionsListPage() {
 
   const handleActivate = useCallback(
     async (row: PromotionDto) => {
-      if (!tenantId || !canManage) return
+      if (!tenantId || !canToggle) return
       setActivatingId(row.id)
       try {
-        await updatePromotion(tenantId, row.id, {
-          name: row.name,
-          description: row.description,
-          type: row.type,
-          value: row.value,
-          startsAt: row.startsAt,
-          endsAt: row.endsAt,
-          priority: row.priority,
-          isStackable: row.isStackable,
-          targets: row.targets.map((target) => ({
-            targetType: target.targetType,
-            targetReference: target.targetReference,
-          })),
-          isActive: true,
-        })
+        await setPromotionActive(tenantId, row.id, true)
         toast.show({
           title: 'Promoción activada',
           message: `«${row.name}» vuelve a aplicarse en las ventas.`,
@@ -123,7 +115,7 @@ export function PromotionsListPage() {
         setActivatingId(null)
       }
     },
-    [canManage, load, tenantId, toast]
+    [canToggle, load, tenantId, toast]
   )
 
   const columns = useMemo((): ColumnDef<PromotionRow>[] => {
@@ -193,7 +185,7 @@ export function PromotionsListPage() {
       },
     ]
 
-    if (canManage) {
+    if (canManage || canToggle) {
       cols.push({
         key: 'id',
         header: 'Acciones',
@@ -203,36 +195,40 @@ export function PromotionsListPage() {
         sortable: false,
         renderCell: (_value, row) => (
           <div className="ecu-companies-grid__actions">
-            <GridIconButton
-              label="Editar"
-              icon={Pencil}
-              onClick={() => navigate(`/catalogo/precios/promociones/${row.id}`)}
-            />
-            {row.isActive ? (
+            {canManage ? (
               <GridIconButton
-                label="Desactivar"
-                icon={Trash2}
-                danger
-                disabled={deleting || activatingId === row.id}
-                onClick={() => setConfirm(row)}
+                label="Editar"
+                icon={Pencil}
+                onClick={() => navigate(`/catalogo/precios/promociones/${row.id}`)}
               />
-            ) : (
-              <GridIconButton
-                label="Activar"
-                icon={Power}
-                active
-                disabled={activatingId === row.id}
-                loading={activatingId === row.id}
-                onClick={() => void handleActivate(row)}
-              />
-            )}
+            ) : null}
+            {canToggle ? (
+              row.isActive ? (
+                <GridIconButton
+                  label="Desactivar"
+                  icon={Trash2}
+                  danger
+                  disabled={deleting || activatingId === row.id}
+                  onClick={() => setConfirm(row)}
+                />
+              ) : (
+                <GridIconButton
+                  label="Activar"
+                  icon={Power}
+                  active
+                  disabled={activatingId === row.id}
+                  loading={activatingId === row.id}
+                  onClick={() => void handleActivate(row)}
+                />
+              )
+            ) : null}
           </div>
         ),
       })
     }
 
     return cols
-  }, [activatingId, canManage, deleting, handleActivate, navigate])
+  }, [activatingId, canManage, canToggle, deleting, handleActivate, navigate])
 
   if (!canRead) {
     return (
@@ -343,7 +339,7 @@ export function PromotionsListPage() {
             id: 'confirm',
             label: 'Sí, desactivar',
             variant: 'primary',
-            onClick: () => void handleDelete(),
+            onClick: () => void handleDeactivate(),
             disabled: deleting,
           },
         ]}

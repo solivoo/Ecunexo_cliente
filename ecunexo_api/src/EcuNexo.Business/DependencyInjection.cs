@@ -6,6 +6,7 @@ using EcuNexo.Business.Pricing.Commands.CreatePromotion;
 using EcuNexo.Business.Pricing.Commands.DeletePriceList;
 using EcuNexo.Business.Pricing.Commands.DeleteProductPrice;
 using EcuNexo.Business.Pricing.Commands.DeletePromotion;
+using EcuNexo.Business.Pricing.Commands.SetPromotionActive;
 using EcuNexo.Business.Pricing.Commands.UpdatePriceList;
 using EcuNexo.Business.Pricing.Commands.UpdateProductPrice;
 using EcuNexo.Business.Pricing.Commands.UpdatePromotion;
@@ -443,6 +444,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<CreatePromotionCommand, CreatePromotionResponse>, CreatePromotionHandler>();
         services.AddScoped<ICommandHandler<UpdatePromotionCommand, UpdatePromotionResponse>, UpdatePromotionHandler>();
         services.AddScoped<ICommandHandler<DeletePromotionCommand, DeletePromotionResponse>, DeletePromotionHandler>();
+        services.AddScoped<ICommandHandler<SetPromotionActiveCommand, SetPromotionActiveResponse>, SetPromotionActiveHandler>();
         services.AddScoped<IQueryHandler<ListPriceListsQuery, IReadOnlyList<PriceListResponse>>, ListPriceListsHandler>();
         services.AddScoped<IQueryHandler<ListProductPricesQuery, IReadOnlyList<ProductPriceListItemResponse>>, ListProductPricesHandler>();
         services.AddScoped<IQueryHandler<GetProductPriceQuery, ProductPriceDetailResponse>, GetProductPriceHandler>();

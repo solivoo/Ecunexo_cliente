@@ -11,6 +11,7 @@ using EcuNexo.Business.Pricing.Commands.CreatePromotion;
 using EcuNexo.Business.Pricing.Commands.DeletePriceList;
 using EcuNexo.Business.Pricing.Commands.DeleteProductPrice;
 using EcuNexo.Business.Pricing.Commands.DeletePromotion;
+using EcuNexo.Business.Pricing.Commands.SetPromotionActive;
 using EcuNexo.Business.Pricing.Commands.UpdatePriceList;
 using EcuNexo.Business.Pricing.Commands.UpdateProductPrice;
 using EcuNexo.Business.Pricing.Commands.UpdatePromotion;
@@ -80,6 +81,11 @@ public static class PricingEndpoints
             .AddEndpointFilter(PermissionFilters.Require("catalog.promotions.manage"));
         promotions.MapDelete("/{promotionId:guid}", DeletePromotionAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.promotions.manage"));
+        promotions.MapPut("/{promotionId:guid}/active", SetPromotionActiveAsync)
+            .AddEndpointFilter(
+                PermissionFilters.RequireAny(
+                    "catalog.promotions.manage",
+                    "catalog.promotions.deactivate"));
 
         app.MapPost(
                 "/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/pricing/resolve",
@@ -315,6 +321,21 @@ public static class PricingEndpoints
         var result = await sender
             .SendAsync<DeletePromotionCommand, DeletePromotionResponse>(
                 new DeletePromotionCommand(tenantId, promotionId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> SetPromotionActiveAsync(
+        Guid tenantId,
+        Guid promotionId,
+        SetPromotionActiveRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<SetPromotionActiveCommand, SetPromotionActiveResponse>(
+                new SetPromotionActiveCommand(tenantId, promotionId, body.IsActive),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

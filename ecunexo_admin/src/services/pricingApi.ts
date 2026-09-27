@@ -140,6 +140,18 @@ export async function deletePromotion(tenantId: string, promotionId: string): Pr
   await api.delete(`${base(tenantId)}/promotions/${promotionId}`)
 }
 
+export async function setPromotionActive(
+  tenantId: string,
+  promotionId: string,
+  isActive: boolean
+): Promise<{ promotionId: string; isActive: boolean }> {
+  const { data } = await api.put<{ promotionId: string; isActive: boolean }>(
+    `${base(tenantId)}/promotions/${promotionId}/active`,
+    { isActive }
+  )
+  return data
+}
+
 export async function resolvePrice(
   tenantId: string,
   body: ResolvePriceBody

@@ -73,6 +73,7 @@ internal static class MenuCatalogSeedData
         ("catalog.pricing.delete", "Precios — desactivar", "Desactivar listas y precios", "catalog", 74),
         ("catalog.pricing.history.read", "Precios — historial", "Consultar el historial de cambios de precio", "catalog", 75),
         ("catalog.promotions.manage", "Promociones — administrar", "Crear y editar promociones comerciales", "catalog", 76),
+        ("catalog.promotions.deactivate", "Promociones — activar/desactivar", "Activar o desactivar promociones comerciales", "catalog", 77),
 
         ("warehousing.read", "Bodegas — acceso", "Ver módulo bodegas", "warehousing", 100),
         ("warehousing.locations.manage", "Bodegas — administrar", "Crear y editar ubicaciones", "warehousing", 101),
@@ -162,7 +163,7 @@ internal static class MenuCatalogSeedData
         Item("catalog-pricing", "catalog", "Gestión de precios", "circle-dollar-sign", null, 4, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
         Item("catalog-pricing-lists", "catalog-pricing", "Listas de precios", "list", "catalogo/precios/listas", 1, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
         Item("catalog-pricing-products", "catalog-pricing", "Precios de productos", "tag", "catalogo/precios/productos", 2, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
-        Item("catalog-pricing-promotions", "catalog-pricing", "Promociones", "percent", "catalogo/precios/promociones", 3, MenuContextKind.Operational, "catalog", ["catalog.promotions.manage"]),
+        Item("catalog-pricing-promotions", "catalog-pricing", "Promociones", "percent", "catalogo/precios/promociones", 3, MenuContextKind.Operational, "catalog", ["catalog.promotions.manage", "catalog.promotions.deactivate"]),
         Item("catalog-pricing-history", "catalog-pricing", "Historial", "history", "catalogo/precios/historial", 4, MenuContextKind.Operational, "catalog", ["catalog.pricing.history.read"]),
         Item("catalog-pricing-simulator", "catalog-pricing", "Simulador", "calculator", "catalogo/precios/simulador", 5, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
 
