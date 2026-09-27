@@ -150,7 +150,7 @@ export function HierarchyTemplateTreeBuilder({
       .sort((a, b) => a.name.localeCompare(b.name, 'es'))
       .map((attr) => ({
         value: attr.name,
-        label: `${attr.name} · ${attr.isVariantAxis === false ? 'sugerido para ficha' : 'sugerido para variantes'}`,
+        label: attr.name,
       }))
   }
 

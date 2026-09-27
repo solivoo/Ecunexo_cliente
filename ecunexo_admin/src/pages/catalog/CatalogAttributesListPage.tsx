@@ -45,14 +45,13 @@ import { useAppSelector } from '@/store/hooks'
 import type { VariantDimensionTemplateDto } from '@/types/catalogApi'
 
 export type AttributeKind =
-  | 'text_descriptive'
-  | 'size_axis'
-  | 'color_axis'
-  | 'color_list'
-  | 'options_axis'
+  | 'text'
+  | 'options'
+  | 'multiselect'
   | 'number'
   | 'boolean'
-  | 'multiselect'
+  | 'color'
+  | 'colorlist'
   | 'media'
 
 export interface AttributeKindConfig {
@@ -60,12 +59,11 @@ export interface AttributeKindConfig {
   label: string
   shortLabel: string
   description: string
-  dimensionType: 'custom' | 'size' | 'color'
+  dimensionType: 'custom' | 'color'
   dataType: 'text' | 'number' | 'boolean' | 'color' | 'multiselect' | 'colorlist' | 'media'
-  isVariantAxis: boolean
   /** Muestra el editor de lista de opciones en el formulario. */
   allowsPredefinedValues: boolean
-  /** Exige al menos una opción al guardar (solo para atributos que generan variantes). */
+  /** Exige al menos una opción al guardar. */
   requiresPredefinedValues: boolean
   hasUnit: boolean
   predefinedValuesHint: string
@@ -73,13 +71,12 @@ export interface AttributeKindConfig {
 
 export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
   {
-    value: 'text_descriptive',
-    label: 'Texto Libre / Descripción',
-    shortLabel: 'Texto Libre',
-    description: 'Para notas, descripciones, especificaciones o composición. Campo abierto en cada producto.',
+    value: 'text',
+    label: 'Texto libre',
+    shortLabel: 'Texto',
+    description: 'Campo abierto para notas o descripciones. Si agregas opciones, se muestra como lista de selección única.',
     dimensionType: 'custom',
     dataType: 'text',
-    isVariantAxis: false,
     allowsPredefinedValues: true,
     requiresPredefinedValues: false,
     hasUnit: false,
@@ -87,66 +84,37 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
       'Opcional. Sin opciones el campo es texto libre; con opciones se muestra como lista de selección única.',
   },
   {
-    value: 'size_axis',
-    label: 'Escala de Tallas o Medidas',
-    shortLabel: 'Tallas / Medidas',
-    description: 'Para variantes con opciones fijas de tallas (ej. S, M, L o 38, 39, 40).',
-    dimensionType: 'size',
-    dataType: 'text',
-    isVariantAxis: true,
-    allowsPredefinedValues: true,
-    requiresPredefinedValues: true,
-    hasUnit: false,
-    predefinedValuesHint: 'Obligatorio. Cada opción genera una variante con SKU propio.',
-  },
-  {
-    value: 'color_axis',
-    label: 'Muestras de Color',
-    shortLabel: 'Color',
-    description: 'Para variantes con muestras cromáticas o tonos (ej. Blanco, Negro, Azul).',
-    dimensionType: 'color',
-    dataType: 'color',
-    isVariantAxis: true,
-    allowsPredefinedValues: true,
-    requiresPredefinedValues: true,
-    hasUnit: false,
-    predefinedValuesHint: 'Obligatorio. Cada opción genera una variante con SKU propio.',
-  },
-  {
-    value: 'color_list',
-    label: 'Colores múltiples (varios tonos)',
-    shortLabel: 'Colores Múltiples',
-    description:
-      'Para registrar varios colores o tonos en la ficha del producto sin generar variantes (ej. combinaciones disponibles).',
-    dimensionType: 'color',
-    dataType: 'colorlist',
-    isVariantAxis: false,
-    allowsPredefinedValues: false,
-    requiresPredefinedValues: false,
-    hasUnit: false,
-    predefinedValuesHint: '',
-  },
-  {
-    value: 'options_axis',
-    label: 'Opciones de Variante (Caña, Calibre, etc.)',
-    shortLabel: 'Opciones de Variante',
-    description: 'Para características con opciones fijas que generan variantes (ej. Caña Alta/Baja).',
+    value: 'options',
+    label: 'Lista de opciones',
+    shortLabel: 'Lista',
+    description: 'Valores predefinidos para elegir uno. La plantilla decide si se captura en la ficha o como eje de variante.',
     dimensionType: 'custom',
     dataType: 'text',
-    isVariantAxis: true,
     allowsPredefinedValues: true,
     requiresPredefinedValues: true,
     hasUnit: false,
-    predefinedValuesHint: 'Obligatorio. Cada opción genera una variante con SKU propio.',
+    predefinedValuesHint: 'Obligatorio. Define al menos una opción.',
+  },
+  {
+    value: 'multiselect',
+    label: 'Selección múltiple',
+    shortLabel: 'Múltiple',
+    description: 'Permite varias etiquetas por producto, con sugerencias.',
+    dimensionType: 'custom',
+    dataType: 'multiselect',
+    allowsPredefinedValues: true,
+    requiresPredefinedValues: false,
+    hasUnit: false,
+    predefinedValuesHint:
+      'Opcional. Se ofrecen como sugerencias; también se pueden escribir etiquetas nuevas.',
   },
   {
     value: 'number',
-    label: 'Número o Medida técnica con unidad',
+    label: 'Número',
     shortLabel: 'Número',
-    description: 'Para valores numéricos (ej. Peso, Potencia, Capacidad) con unidad de medida.',
+    description: 'Valor numérico con unidad de medida opcional (cm, kg, etc.).',
     dimensionType: 'custom',
     dataType: 'number',
-    isVariantAxis: false,
     allowsPredefinedValues: false,
     requiresPredefinedValues: false,
     hasUnit: true,
@@ -154,40 +122,47 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
   },
   {
     value: 'boolean',
-    label: 'Sí / No (Interruptor)',
+    label: 'Sí / No',
     shortLabel: 'Sí / No',
-    description: 'Para características que se activan o desactivan (ej. ¿Impermeable?, ¿Con Bluetooth?).',
+    description: 'Característica que se activa o desactiva.',
     dimensionType: 'custom',
     dataType: 'boolean',
-    isVariantAxis: false,
     allowsPredefinedValues: false,
     requiresPredefinedValues: false,
     hasUnit: false,
     predefinedValuesHint: '',
   },
   {
-    value: 'multiselect',
-    label: 'Selección múltiple (Etiquetas informativas)',
-    shortLabel: 'Selección Múltiple',
-    description: 'Lista de opciones para etiquetar el producto en ficha técnica (sin generar variantes).',
-    dimensionType: 'custom',
-    dataType: 'multiselect',
-    isVariantAxis: false,
-    allowsPredefinedValues: true,
+    value: 'color',
+    label: 'Color',
+    shortLabel: 'Color',
+    description: 'Un color por hexadecimal.',
+    dimensionType: 'color',
+    dataType: 'color',
+    allowsPredefinedValues: false,
     requiresPredefinedValues: false,
     hasUnit: false,
-    predefinedValuesHint:
-      'Opcional. Se ofrecen como sugerencias al etiquetar productos; también se pueden escribir etiquetas nuevas.',
+    predefinedValuesHint: '',
+  },
+  {
+    value: 'colorlist',
+    label: 'Colores múltiples',
+    shortLabel: 'Colores',
+    description: 'Varios colores por hexadecimal en un mismo atributo.',
+    dimensionType: 'color',
+    dataType: 'colorlist',
+    allowsPredefinedValues: false,
+    requiresPredefinedValues: false,
+    hasUnit: false,
+    predefinedValuesHint: '',
   },
   {
     value: 'media',
-    label: 'Fotos (varios)',
+    label: 'Fotos',
     shortLabel: 'Fotos',
-    description:
-      'Para adjuntar varias fotos en la ficha del producto sin generar variantes (ej. referencias, certificados).',
+    description: 'Varias fotos adjuntas al atributo.',
     dimensionType: 'custom',
     dataType: 'media',
-    isVariantAxis: false,
     allowsPredefinedValues: false,
     requiresPredefinedValues: false,
     hasUnit: false,
@@ -195,24 +170,30 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
   },
 ]
 
+function hasPredefinedOptions(json?: string | null): boolean {
+  if (!json) return false
+  try {
+    const parsed = JSON.parse(json)
+    return Array.isArray(parsed) && parsed.length > 0
+  } catch {
+    return false
+  }
+}
+
 export function resolveAttributeKind(template: {
   dimensionType?: string | null
   dataType?: string | null
   isVariantAxis?: boolean | null
+  predefinedValuesJson?: string | null
 }): AttributeKind {
-  if (template.dimensionType === 'size' && template.isVariantAxis !== false) return 'size_axis'
-  if (template.dataType === 'colorlist') return 'color_list'
+  if (template.dataType === 'colorlist') return 'colorlist'
   if (template.dataType === 'media') return 'media'
-  if (
-    (template.dimensionType === 'color' || template.dataType === 'color') &&
-    template.isVariantAxis !== false
-  )
-    return 'color_axis'
+  if (template.dataType === 'color') return 'color'
   if (template.dataType === 'number') return 'number'
   if (template.dataType === 'boolean') return 'boolean'
   if (template.dataType === 'multiselect') return 'multiselect'
-  if (template.isVariantAxis === true) return 'options_axis'
-  return 'text_descriptive'
+  if (hasPredefinedOptions(template.predefinedValuesJson)) return 'options'
+  return 'text'
 }
 
 type TemplateGridRow = VariantDimensionTemplateDto & {
@@ -238,7 +219,7 @@ export function CatalogAttributesListPage() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<VariantDimensionTemplateDto | null>(null)
   const [formName, setFormName] = useState('')
-  const [formKind, setFormKind] = useState<AttributeKind>('text_descriptive')
+  const [formKind, setFormKind] = useState<AttributeKind>('text')
   const [formUnit, setFormUnit] = useState('')
   const [formValues, setFormValues] = useState<string[]>([])
   const [newValueInput, setNewValueInput] = useState('')
@@ -292,7 +273,7 @@ export function CatalogAttributesListPage() {
   const openCreateModal = useCallback(() => {
     setEditingTemplate(null)
     setFormName('')
-    setFormKind('text_descriptive')
+    setFormKind('text')
     setFormUnit('')
     setFormValues([])
     setNewValueInput('')
@@ -438,7 +419,7 @@ export function CatalogAttributesListPage() {
     if (kindConfig.requiresPredefinedValues && formValues.length === 0) {
       toast.show({
         title: 'Opciones requeridas',
-        message: `Para «${kindConfig.label}», debes añadir al menos una opción predefinida (ej. S, M, L o Rojo, Azul).`,
+        message: `Para «${kindConfig.label}», debes añadir al menos una opción.`,
         variant: 'warning',
       })
       return
@@ -454,7 +435,7 @@ export function CatalogAttributesListPage() {
           (kindUnchanged ? editingTemplate?.dimensionType : null) ?? kindConfig.dimensionType,
         predefinedValuesJson: JSON.stringify(formValues),
         dataType: (kindUnchanged ? editingTemplate?.dataType : null) ?? kindConfig.dataType,
-        isVariantAxis: kindConfig.isVariantAxis,
+        isVariantAxis: kindUnchanged ? (editingTemplate?.isVariantAxis ?? false) : false,
         unit: kindConfig.hasUnit && formUnit.trim() ? formUnit.trim() : null,
       }
       if (editingTemplate) {
@@ -560,13 +541,7 @@ export function CatalogAttributesListPage() {
       .filter((r) => {
         if (filterType !== 'all') {
           const kind = resolveAttributeKind(r)
-          if (filterType === 'text' && kind !== 'text_descriptive') return false
-          if (filterType === 'size' && kind !== 'size_axis') return false
-          if (filterType === 'color' && kind !== 'color_axis') return false
-          if (filterType === 'color_list' && kind !== 'color_list') return false
-          if (filterType === 'media' && kind !== 'media') return false
-          if (filterType === 'options_axis' && kind !== 'options_axis') return false
-          if (filterType === 'number' && kind !== 'number') return false
+          if (kind !== filterType) return false
         }
         if (!q) return true
         const inName = r.name.toLowerCase().includes(q)
@@ -759,13 +734,14 @@ export function CatalogAttributesListPage() {
                 id="filter-type"
                 options={[
                   { value: 'all', label: 'Todos los tipos' },
-                  { value: 'text', label: 'Texto Libre / Descripción' },
-                  { value: 'size', label: 'Tallas y Medidas' },
-                  { value: 'color', label: 'Colores' },
-                  { value: 'color_list', label: 'Colores múltiples' },
+                  { value: 'text', label: 'Texto libre' },
+                  { value: 'options', label: 'Lista de opciones' },
+                  { value: 'multiselect', label: 'Selección múltiple' },
+                  { value: 'number', label: 'Número' },
+                  { value: 'boolean', label: 'Sí / No' },
+                  { value: 'color', label: 'Color' },
+                  { value: 'colorlist', label: 'Colores múltiples' },
                   { value: 'media', label: 'Fotos' },
-                  { value: 'options_axis', label: 'Opciones de Variante' },
-                  { value: 'number', label: 'Números con unidad' },
                 ]}
                 value={filterType}
                 onChange={setFilterType}

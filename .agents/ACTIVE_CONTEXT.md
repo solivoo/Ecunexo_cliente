@@ -7,8 +7,15 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.55.2`.
+* **Última Versión Publicada:** `v0.56.0`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Atributos flexibles, renombrado/reasignación masiva y fotos múltiples (v0.56.0):**
+    * **Rol por plantilla:** el tipo de atributo define solo la captura con tipos agnósticos al rubro (texto, lista de opciones, selección múltiple, número, Sí/No, color, colores múltiples y fotos) y la plantilla decide dato de ficha vs eje de variante; el constructor ya no bloquea atributos no-eje y advierte si el eje no tiene opciones. La matriz solo usa el fallback de tallas en ejes de talla.
+    * **Propagación:** renombrar el nombre del atributo o una opción actualiza `customAttributesJson`, `variantDimensionsJson`, `hierarchyPathJson` y `item_images.group_value` de todos los ítems activos; la respuesta informa `renamedItems`.
+    * **Cambio de tipo:** bloqueado con 409 si el atributo está en uso; «Duplicar» + `POST /catalog/variant-templates/{id}/adopt` reasigna los productos al nuevo atributo.
+    * **Nuevos tipos:** `colorlist` (colores múltiples, componente `EcuColorListInput`) y `media` (fotos, `EcuMediaListInput` + `POST /catalog/media` reutilizando ImageSharp + B2, sin filas de galería).
+    * **Atributos base eliminados:** sin sembrado automático ni columna `is_system_default` (migración `RemoveSystemDefaultAttributes` borra las filas Base existentes; los ítems conservan el valor en su JSON).
+    * **Verificación:** 343 Core + 416 Business; `tsc`/`build` admin; smoke API con `colorlist`, guard 409 y `adopt`. Pendiente: render de fotos en la vitrina y limpieza de objetos huérfanos en B2.
   - **Plan de Cumplimiento y Auditoría (Compliance/Audit) — planificación [sin bump de versión]:**
     * **Documento:** `doc/compliance-auditoria-plan.md` (excluye firma electrónica/certificados).
     * **Diagnóstico:** RBAC por permisos y `IAuditable` ya existen; el RUC del proveedor ya se emite en `infoAdicional` (`SriFacturaXmlGenerator`); faltan audit log inmutable, aceptaciones versionadas (T&C/privacidad), registro de tratamientos, retención y módulo de incidentes.
