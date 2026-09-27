@@ -41,7 +41,11 @@ Vitrina   → VPS front (NPM) → nginx del storefront → Tailscale → API Cli
 | 9 | Lista de bloqueo de contactos | `EcuNexo.Core/Ecommerce/EcommerceBlockedContact.cs`, migración `20260926234318_AddEcommerceBlockedContacts`, endpoints admin `ecommerce/blocked-contacts` | Bloqueo manual de email/teléfono reincidente; el checkout responde `ecommerce.checkout.blocked_contact` | Bloqueos manuales; un teléfono compartido puede generar falsos positivos |
 | 10 | Puertos cerrados + Tailscale + forwarded headers confiables | `Program.cs` (`UseForwardedHeaders`), despliegue (NPM/Tailscale) | El API no es alcanzable desde internet, así que no se puede falsear `CF-Connecting-IP` ni saltar el rate limit por IP | Si algún día se publica el `5088`, el rate limit por IP deja de ser confiable |
 | 11 | Comprobante por WhatsApp | `ecommerce/src/pages/checkout/OrderConfirmedPage.tsx`, `checkoutApi.ts`, setting `contact_whatsapp` | Cierra el flujo de transferencia sin cuentas: mensaje prellenado con pedido y total | El comprobante vive en WhatsApp (no adjunto al pedido); requiere que el admin lo coteje a mano |
-| 12 | Trazabilidad mínima | `requestId` + `ClientRequestId`, timeline del pedido, logs del API con email enmascarado/IP/UA | Permite auditar y bloquear abusos | Retención de logs/IP: cuidado con privacidad; no se guarda evidencia del pago en el pedido todavía |
+| 12 | Trazabilidad mínima | `requestId` + `ClientRequestId`, timeline del pedido, logs del API con email enmascarado/IP/UA | Permite auditar y bloquear abusos | Retención de logs/IP: cuidado con privacidad |
+| 13 | Turnstile invisible (Cloudflare) | `TurnstileVerifier.cs`, `TurnstileOptions.cs`, `Program.cs`, `ecommerce/src/lib/turnstile.tsx`, `CheckoutPage.tsx` | Frena bots con navegador real sin fricción; deshabilitado si no hay secret | Depende de Cloudflare (site/secret key y dominios del widget); una llamada de red extra al `siteverify` |
+| 14 | Comprobante subido al pedido | `UploadStorefrontPaymentProofHandler.cs`, `EcommerceOrder.PaymentProof*`, migración `20260927000732_AddEcommerceOrderPaymentProof`, `OrderConfirmedPage.tsx`, `EcommerceOrderDetailPage.tsx` | Evidencia del pago dentro del sistema (bucket privado + URL prefirmada en el admin), sin depender de WhatsApp | Un archivo por pedido (reemplazable mientras esté pendiente); límite 5 MB y tipos JPG/PNG/WEBP/PDF; requiere el token del pedido |
+| 15 | Correos de pedido (best-effort) | `EcommerceOrderEmailNotifier.cs`, setting `ecommerce.storefront.orders_notification_email`, handlers de pedido | Aviso al equipo al entrar un pedido/comprobante y al cliente (confirmación, pago, despacho) | No bloquea el flujo si falla; requiere SMTP del tenant configurado para enviar de verdad |
+| 16 | UI de bloqueos y spam en el admin | `StorefrontSettingsPage.tsx`, `BlockEcommerceContactModal.tsx`, `MarkEcommerceOrderSpamModal.tsx` | Operación: bloquear email/teléfono y anular pedidos basura en dos clics | Acción manual; los bloqueos no se sincronizan con Cloudflare |
 
 ---
 
@@ -71,6 +75,11 @@ En el admin: **Ecommerce → Configuración de tienda** (`StorefrontSettingsPage
 | `ecommerce.storefront.payment_hold_hours` | **2** | Horas de reserva sin pago confirmado |
 | `ecommerce.storefront.reserve_on_order` | `true` | Reservar stock al crear el pedido (false = reservar al confirmar pago) |
 | `ecommerce.storefront.contact_whatsapp` | vacío | WhatsApp de la tienda para el comprobante |
+| `ecommerce.storefront.orders_notification_email` | vacío | Correo del equipo que recibe avisos de pedidos y comprobantes |
+
+Turnstile se configura por variables de entorno del API (`Turnstile__SiteKey`,
+`Turnstile__SecretKey`); si el secret está vacío, el captcha queda deshabilitado y el flujo sigue
+igual. La vitrina obtiene el site key desde `checkout-options` (no requiere rebuild).
 
 Rate limits y tope de pendientes son **constantes de código** hoy
 (`StorefrontRateLimitPolicies.cs`, `MaxPendingOrdersPerContact`): cambiarlos requiere deploy.
@@ -97,13 +106,11 @@ Otros códigos esperados del checkout: `ecommerce.checkout.invalid_form`,
 
 ## 6. Pendientes y mejoras sugeridas
 
-- **Turnstile invisible** (Cloudflare): site key en la vitrina + secret en el API; cierra el
-  hueco de bots con navegador real.
-- **Subir comprobante al pedido** (imagen/PDF) y verlo en el detalle del admin; hoy solo va por
-  WhatsApp.
-- **UI admin de bloqueos** y acción "Marcar como spam" desde el detalle del pedido.
-- **Correos de pedido**: aviso al equipo al entrar un pedido y al cliente con su número.
+- **Configurar Turnstile** en producción: widget en Cloudflare con los dominios de la vitrina y
+  las env `Turnstile__SiteKey`/`Turnstile__SecretKey` en el stack del API.
 - **Reenviar `CF-Connecting-IP`** desde el nginx del storefront al API para precisión total del
   rate limit (hoy usa el primer `X-Forwarded-For`).
 - **Mover rate limits y topes a settings** por tenant si se necesita ajuste sin deploy.
 - **Renombrar el honeypot** (`website`) a un nombre menos propenso a autocompletado.
+- **Notificar al cliente por correo los cambios de estado** ya está cubierto (pago confirmado y
+  despachado); evaluar recordatorio automático antes de expirar la reserva.

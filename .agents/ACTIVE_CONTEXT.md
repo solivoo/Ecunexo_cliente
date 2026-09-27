@@ -16,7 +16,8 @@
     * **Pagos:** métodos configurables (pago/envío con costo, instrucciones de transferencia, WhatsApp) en `ecommerce/configuracion`; confirmación con botón de comprobante por WhatsApp.
     * **Infra:** 5088/5090/5173/5174/8083 cerrados al público (verificado); API solo por Tailscale/NPM; `UseForwardedHeaders` + `UseRateLimiter` en `Program.cs`.
     * **Verificación:** build 0 warnings; 332/332 Core y 338/338 Business; vitrina 77 tests + smoke E2E (carrito → checkout → confirmación).
-    * **Pendiente Fase 3C:** Turnstile invisible, subir comprobante al pedido, UI admin de bloqueos/spam y correos de pedido.
+    * **Fase 3C completada:** Turnstile (`Turnstile__SiteKey`/`Turnstile__SecretKey`, deshabilitado si no hay secret), comprobante subido con token y URL prefirmada en el admin, UI de bloqueos/spam y correos de pedido (`ecommerce.storefront.orders_notification_email`).
+    * **Pendiente menor:** reenviar `CF-Connecting-IP` en el nginx del storefront y mover rate limits/topes a settings.
   - **Licenciamiento Cloud — Fase 1: Módulos Efectivos y Menú «Visible pero Bloqueado» (`GetSessionHandler`, `MenuNavigationMapper`, `filterNavigation`) + Skill de Escalabilidad [sin bump de versión]:**
     * **Fuente única:** `GetSessionHandler.ResolveEnabledModules` deriva los módulos efectivos de `ModuleEntitlements` (mandan sobre la lista legacy `EnabledModuleCodes`); sin ninguna fuente = todos (compatibilidad).
     * **Menú:** `NavigationNodeDto` expone `lockKind` (`module`/`permission`/`placeholder`) y `requiredModule`; `MenuNavigationMapper` conserva visibles las hojas de módulo no contratado con candado y razón, oculta solo los bloqueos por permiso interno y no bloquea contenedores con hijos visibles; `EmbeddedNavigationBuilder` alineado.
