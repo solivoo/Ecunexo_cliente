@@ -60,7 +60,8 @@ public sealed class GetStorefrontProductHandler
 
         if (detailResult.IsFailure
             || detailResult.Value!.Status != CatalogItemStatus.Active
-            || detailResult.Value.Kind != CatalogItemKind.Physical)
+            || detailResult.Value.Kind != CatalogItemKind.Physical
+            || detailResult.Value.IsHiddenFromStorefront)
         {
             return Result.Failure<StorefrontProductDetailDto>(StorefrontTenantGuard.ProductNotFound);
         }

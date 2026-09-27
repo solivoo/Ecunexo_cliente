@@ -116,6 +116,22 @@ public sealed class CreateEcommerceOrderHandler
                     new Error("ecommerce.order.item_not_found", $"El producto {itemInput.CatalogItemId} no existe o fue eliminado.", ErrorType.NotFound));
             }
 
+            if (catalogItem.IsHiddenFromStorefront)
+            {
+                return Result.Failure<CreateEcommerceOrderResponse>(
+                    new Error("ecommerce.order.item_hidden", $"El producto '{catalogItem.Name}' ya no está disponible en la tienda.", ErrorType.Conflict));
+            }
+
+            if (catalogItem.ParentId is { } parentId)
+            {
+                var parent = await _catalogItems.GetActiveByIdAsync(command.TenantId, parentId, ct).ConfigureAwait(false);
+                if (parent is null || parent.DeletedAt.HasValue || parent.IsHiddenFromStorefront)
+                {
+                    return Result.Failure<CreateEcommerceOrderResponse>(
+                        new Error("ecommerce.order.item_hidden", $"El producto '{catalogItem.Name}' ya no está disponible en la tienda.", ErrorType.Conflict));
+                }
+            }
+
             var stock = await _stocks.GetTrackedAsync(command.TenantId, itemInput.CatalogItemId, command.WarehouseId, ct).ConfigureAwait(false);
             if (stock is null)
             {

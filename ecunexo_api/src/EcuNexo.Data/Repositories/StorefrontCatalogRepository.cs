@@ -24,7 +24,8 @@ public sealed class StorefrontCatalogRepository : IStorefrontCatalogRepository
                 && i.DeletedAt == null
                 && i.Status == CatalogItemStatus.Active
                 && i.Kind == CatalogItemKind.Physical
-                && i.ParentId == null)
+                && i.ParentId == null
+                && !i.IsHiddenFromStorefront)
             .ToListAsync(ct)
             .ConfigureAwait(false);
     }
@@ -40,6 +41,7 @@ public sealed class StorefrontCatalogRepository : IStorefrontCatalogRepository
                     && i.DeletedAt == null
                     && i.Status == CatalogItemStatus.Active
                     && i.Kind == CatalogItemKind.Physical
-                    && i.ParentId == null,
+                    && i.ParentId == null
+                    && !i.IsHiddenFromStorefront,
                 ct);
 }

@@ -16,6 +16,7 @@ using EcuNexo.Business.Catalog.Commands.DeleteVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.ReassignCatalogItemVariantParent;
 using EcuNexo.Business.Catalog.Commands.ReorderCatalogItemImages;
 using EcuNexo.Business.Catalog.Commands.SetCatalogItemMainImage;
+using EcuNexo.Business.Catalog.Commands.SetCatalogItemStorefrontVisibility;
 using EcuNexo.Business.Catalog.Commands.SoftDeleteCatalogItem;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItem;
 using EcuNexo.Business.Catalog.Commands.UpdateCatalogItemImageAltText;
@@ -70,6 +71,8 @@ public static class CatalogEndpoints
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
         items.MapDelete("/{itemId:guid}", SoftDeleteItemAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.delete"));
+        items.MapPut("/{itemId:guid}/storefront-visibility", SetStorefrontVisibilityAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.hide"));
 
         items.MapPost("/{itemId:guid}/images", UploadItemImageAsync)
             .DisableAntiforgery()
@@ -437,6 +440,21 @@ public static class CatalogEndpoints
         var result = await sender
             .SendAsync<UpdateCatalogItemCommand, UpdateCatalogItemResponse>(
                 body.ToCommand(tenantId, itemId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> SetStorefrontVisibilityAsync(
+        Guid tenantId,
+        Guid itemId,
+        SetCatalogItemStorefrontVisibilityRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<SetCatalogItemStorefrontVisibilityCommand, SetCatalogItemStorefrontVisibilityResponse>(
+                new SetCatalogItemStorefrontVisibilityCommand(tenantId, itemId, body.Hidden),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

@@ -77,6 +77,16 @@ export async function softDeleteCatalogItem(tenantId: string, itemId: string): P
   await api.delete(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}`)
 }
 
+export async function setCatalogItemStorefrontVisibility(
+  tenantId: string,
+  itemId: string,
+  hidden: boolean
+): Promise<void> {
+  await api.put(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}/storefront-visibility`, {
+    hidden,
+  })
+}
+
 export async function uploadCatalogItemImage(
   tenantId: string,
   itemId: string,

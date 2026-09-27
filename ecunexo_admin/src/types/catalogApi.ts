@@ -56,6 +56,7 @@ export type CatalogItemListItemDto = {
   familyId?: string | null
   familyName?: string | null
   hierarchyPathJson?: string | null
+  isHiddenFromStorefront?: boolean
 }
 
 export type CatalogItemVariantSummaryDto = {

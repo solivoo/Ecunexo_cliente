@@ -56,7 +56,8 @@ public sealed class ListCatalogItemsHandler
                     i.FamilyId,
                     i.FamilyId is { } fid && familyNames.TryGetValue(fid, out var fn) ? fn : null,
                     i.HierarchyPathJson,
-                    i.CustomAttributesJson);
+                    i.CustomAttributesJson,
+                    i.IsHiddenFromStorefront);
             })
             .ToList();
         return Result.Success(items);

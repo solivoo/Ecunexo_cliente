@@ -173,7 +173,8 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 item.FamilyId,
                 familyName,
                 item.HierarchyPathJson,
-                matrixDescriptor));
+                matrixDescriptor,
+                item.IsHiddenFromStorefront));
     }
 
     private static IReadOnlyList<MatrixAxisDef> ParseMatrixAxes(string? variantDimensionsJson)

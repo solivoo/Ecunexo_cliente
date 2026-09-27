@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, type ColumnDef, type DataGridCardRenderContext } from 'glubox'
-import { Layers, Package, Pencil, Trash2 } from 'lucide-react'
+import { Eye, EyeOff, Layers, Package, Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { catalogItemKindLabel, catalogItemStatusLabel } from '@/lib/catalogLabels'
@@ -21,8 +21,11 @@ export type CatalogItemsGridProps = {
   readonly loading?: boolean
   readonly canEdit?: boolean
   readonly canDelete?: boolean
+  readonly canHide?: boolean
   readonly deletingId?: string | null
+  readonly hidingId?: string | null
   readonly onDelete?: (row: CatalogItemListItemDto) => void
+  readonly onToggleHidden?: (row: CatalogItemListItemDto) => void
   readonly toolbarRight?: ReactNode
 }
 
@@ -43,6 +46,15 @@ function CatalogStatusMark({ status }: { readonly status: CatalogItemListItemDto
     <span className={`ecu-status ${isActive ? 'ecu-status--active' : 'ecu-status--inactive'}`}>
       <span className="ecu-status__dot" aria-hidden />
       {catalogItemStatusLabel(status)}
+    </span>
+  )
+}
+
+function CatalogHiddenMark() {
+  return (
+    <span className="ecu-chip ecu-chip--warning" title="No se muestra en la tienda online">
+      <EyeOff size={12} aria-hidden />
+      Oculto en tienda
     </span>
   )
 }
@@ -149,8 +161,11 @@ export function CatalogItemsGrid({
   loading = false,
   canEdit = false,
   canDelete = false,
+  canHide = false,
   deletingId = null,
+  hidingId = null,
   onDelete,
+  onToggleHidden,
   toolbarRight,
 }: CatalogItemsGridProps) {
   const navigate = useNavigate()
@@ -176,6 +191,7 @@ export function CatalogItemsGrid({
         renderCell: (_value: CatalogItemGridRow['name'], row: CatalogItemGridRow) => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <strong>{row.name}</strong>
+            {row.isHiddenFromStorefront ? <CatalogHiddenMark /> : null}
             {row.isMatrixParent ? <CatalogVariantNote count={row.variantCount ?? 0} /> : null}
           </div>
         ),
@@ -227,12 +243,12 @@ export function CatalogItemsGrid({
       },
     ]
 
-    if (canEdit || canDelete) {
+    if (canEdit || canDelete || canHide) {
       cols.push({
         key: 'id',
         header: 'Acciones',
         sticky: 'right',
-        width: canDelete ? 112 : 72,
+        width: canHide ? 150 : canDelete ? 112 : 72,
         align: 'center',
         sortable: false,
         renderCell: (_value: CatalogItemGridRow['id'], row: CatalogItemGridRow) => (
@@ -242,6 +258,15 @@ export function CatalogItemsGrid({
                 label="Editar"
                 icon={Pencil}
                 onClick={() => navigate(`/catalogo/items/${row.id}`)}
+              />
+            ) : null}
+            {canHide && onToggleHidden ? (
+              <GridIconButton
+                label={row.isHiddenFromStorefront ? 'Mostrar en la tienda' : 'Ocultar en la tienda'}
+                icon={row.isHiddenFromStorefront ? Eye : EyeOff}
+                disabled={hidingId === row.id}
+                loading={hidingId === row.id}
+                onClick={() => onToggleHidden(row)}
               />
             ) : null}
             {canDelete && onDelete ? (
@@ -260,7 +285,7 @@ export function CatalogItemsGrid({
     }
 
     return cols
-  }, [canDelete, canEdit, deletingId, navigate, onDelete])
+  }, [canDelete, canEdit, canHide, deletingId, hidingId, navigate, onDelete, onToggleHidden])
 
   const renderCard = useMemo(() => {
     return ({ row }: DataGridCardRenderContext<CatalogItemGridRow>) => (
@@ -272,6 +297,7 @@ export function CatalogItemsGrid({
           <div className="ecu-catalog-card__header-main">
             <div className="ecu-catalog-card__meta-badges">
               <CatalogStatusMark status={row.status} />
+              {row.isHiddenFromStorefront ? <CatalogHiddenMark /> : null}
             </div>
 
             <h4 className="ecu-catalog-card__title" title={row.name}>
@@ -300,7 +326,7 @@ export function CatalogItemsGrid({
 
         <div className="ecu-catalog-card__body">
 
-          {(canEdit || canDelete) && (
+          {(canEdit || canDelete || canHide) && (
             <div className="ecu-catalog-card__actions">
               {canEdit ? (
                 <Button
@@ -317,6 +343,29 @@ export function CatalogItemsGrid({
                 >
                   <Pencil size={15} />
                   <span>Editar</span>
+                </Button>
+              ) : null}
+              {canHide && onToggleHidden ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="ecu-catalog-card__btn-hide"
+                  disabled={hidingId === row.id}
+                  loading={hidingId === row.id}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onToggleHidden(row)
+                  }}
+                  aria-label={
+                    row.isHiddenFromStorefront
+                      ? `Mostrar ${row.name} en la tienda`
+                      : `Ocultar ${row.name} en la tienda`
+                  }
+                  title={row.isHiddenFromStorefront ? 'Mostrar en tienda' : 'Ocultar en tienda'}
+                >
+                  {row.isHiddenFromStorefront ? <Eye size={15} /> : <EyeOff size={15} />}
+                  <span>{row.isHiddenFromStorefront ? 'Mostrar' : 'Ocultar'}</span>
                 </Button>
               ) : null}
               {canDelete && onDelete ? (
@@ -348,7 +397,7 @@ export function CatalogItemsGrid({
         </div>
       </div>
     )
-  }, [canDelete, canEdit, deletingId, navigate, onDelete])
+  }, [canDelete, canEdit, canHide, deletingId, hidingId, navigate, onDelete, onToggleHidden])
 
   return (
     <DataGrid

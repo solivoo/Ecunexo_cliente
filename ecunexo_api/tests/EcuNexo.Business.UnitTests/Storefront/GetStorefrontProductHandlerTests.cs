@@ -168,6 +168,42 @@ public sealed class GetStorefrontProductHandlerTests
         await _stock.DidNotReceiveWithAnyArgs().SumAvailableByItemIdsAsync(default, default, default!, default);
     }
 
+    [Fact(DisplayName = "Un producto oculto en la tienda no se expone aunque esté activo")]
+    public async Task Handle_HiddenProduct_ReturnsNotFound()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var productId = Guid.CreateVersion7();
+        _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>())
+            .Returns(Tenant.Create(tenantId, "Tienda Demo", new ServicePlan("Small", 3, 1)).Value!);
+
+        var detail = new CatalogItemDetailResponse(
+            productId,
+            CatalogItemKind.Physical,
+            "Producto oculto",
+            null,
+            "SKU-1",
+            1m,
+            "{}",
+            CatalogItemStatus.Active,
+            DateTimeOffset.UtcNow,
+            null,
+            new List<CatalogItemImageResponse>(),
+            IsHiddenFromStorefront: true);
+
+        _sender
+            .AskAsync<GetCatalogItemQuery, CatalogItemDetailResponse>(
+                Arg.Any<GetCatalogItemQuery>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success(detail));
+
+        var sut = new GetStorefrontProductHandler(_sender, _stock, _tenants, _priceLists, _productPrices, _warehouses, _likes);
+        var result = await sut.Handle(new GetStorefrontProductQuery(tenantId, productId), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("storefront.product.not_found");
+        await _stock.DidNotReceiveWithAnyArgs().SumAvailableByItemIdsAsync(default, default, default!, default);
+    }
+
     [Fact(DisplayName = "Un servicio no se expone en la tienda")]
     public async Task Handle_Service_ReturnsNotFound()
     {

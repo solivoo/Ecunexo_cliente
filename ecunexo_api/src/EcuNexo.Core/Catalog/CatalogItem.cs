@@ -35,6 +35,9 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
     public bool IsMatrixParent { get; private set; }
 
+    /// <summary>Oculta el ítem en la tienda online sin desactivarlo ni borrarlo (sigue operativo internamente).</summary>
+    public bool IsHiddenFromStorefront { get; private set; }
+
     public string? VariantDimensionsJson { get; private set; }
 
     public Guid TenantId { get; private set; }
@@ -658,6 +661,19 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         Status = status;
+        Touch(updatedBy);
+        return Result.Success();
+    }
+
+    /// <summary>Marca o desmarca el ítem como oculto en la vitrina (no altera stock, precios ni operación interna).</summary>
+    public Result SetStorefrontVisibility(bool hidden, Guid? updatedBy = null)
+    {
+        if (IsHiddenFromStorefront == hidden)
+        {
+            return Result.Success();
+        }
+
+        IsHiddenFromStorefront = hidden;
         Touch(updatedBy);
         return Result.Success();
     }

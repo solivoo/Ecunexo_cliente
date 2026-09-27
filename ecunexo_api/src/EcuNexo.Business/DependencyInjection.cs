@@ -32,6 +32,7 @@ using EcuNexo.Business.Accounting.Queries.ListAccounts;
 using EcuNexo.Business.Accounting.Queries.ListJournalEntries;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItem;
+using EcuNexo.Business.Catalog.Commands.SetCatalogItemStorefrontVisibility;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItemMatrix;
 using EcuNexo.Business.Catalog.Commands.AddCatalogItemVariant;
 using EcuNexo.Business.Catalog.Commands.ReassignCatalogItemVariantParent;
@@ -239,6 +240,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<DeleteProductTemplateCommand, DeleteProductTemplateResponse>, DeleteProductTemplateHandler>();
         services.AddScoped<ICommandHandler<UpdateCatalogItemCommand, UpdateCatalogItemResponse>, UpdateCatalogItemHandler>();
         services.AddScoped<ICommandHandler<SoftDeleteCatalogItemCommand, SoftDeleteCatalogItemResponse>, SoftDeleteCatalogItemHandler>();
+        services.AddScoped<ICommandHandler<SetCatalogItemStorefrontVisibilityCommand, SetCatalogItemStorefrontVisibilityResponse>, SetCatalogItemStorefrontVisibilityHandler>();
         services.AddScoped<ICommandHandler<CreateWarehouseCommand, CreateWarehouseResponse>, CreateWarehouseHandler>();
         services.AddScoped<ICommandHandler<UpdateWarehouseCommand, UpdateWarehouseResponse>, UpdateWarehouseHandler>();
         services.AddScoped<ICommandHandler<CreateInventoryDocumentCommand, CreateInventoryDocumentResponse>, CreateInventoryDocumentHandler>();

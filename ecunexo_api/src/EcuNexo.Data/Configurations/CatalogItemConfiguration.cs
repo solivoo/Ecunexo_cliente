@@ -49,6 +49,11 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
             .HasDefaultValue(false)
             .IsRequired();
 
+        builder.Property(i => i.IsHiddenFromStorefront)
+            .HasColumnType("boolean")
+            .HasDefaultValue(false)
+            .IsRequired();
+
         builder.Property(i => i.VariantDimensionsJson)
             .HasColumnType("jsonb");
 

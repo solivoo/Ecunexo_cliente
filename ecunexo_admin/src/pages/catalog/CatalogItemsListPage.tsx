@@ -15,7 +15,11 @@ import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
 import { CatalogItemsGrid } from '@/pages/catalog/CatalogItemsGrid'
-import { listCatalogItems, softDeleteCatalogItem } from '@/services/catalogApi'
+import {
+  listCatalogItems,
+  setCatalogItemStorefrontVisibility,
+  softDeleteCatalogItem,
+} from '@/services/catalogApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
@@ -34,10 +38,12 @@ export function CatalogItemsListPage() {
   const canCreate = useHasPermission('catalog.item.create')
   const canEdit = useHasPermission('catalog.item.update')
   const canDelete = useHasPermission('catalog.item.delete')
+  const canHide = useHasPermission('catalog.item.hide')
   const [rows, setRows] = useState<CatalogItemListItemDto[]>([])
   const [loading, setLoading] = useState(true)
   const [confirmDelete, setConfirmDelete] = useState<CatalogItemListItemDto | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [hidingId, setHidingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(
@@ -108,6 +114,35 @@ export function CatalogItemsListPage() {
     }
   }, [canDelete, confirmDelete, load, tenantId, toast])
 
+  const handleToggleHidden = useCallback(
+    async (row: CatalogItemListItemDto) => {
+      if (!tenantId || !canHide) return
+
+      const hidden = !row.isHiddenFromStorefront
+      setHidingId(row.id)
+      try {
+        await setCatalogItemStorefrontVisibility(tenantId, row.id, hidden)
+        toast.show({
+          title: hidden ? 'Producto oculto' : 'Producto visible',
+          message: hidden
+            ? `«${row.name}» ya no se muestra en la tienda online.`
+            : `«${row.name}» vuelve a mostrarse en la tienda online.`,
+          variant: 'success',
+        })
+        await load({ silent: true })
+      } catch (err: unknown) {
+        toast.show({
+          title: hidden ? 'No se pudo ocultar' : 'No se pudo mostrar',
+          message: readApiError(err, 'Intenta nuevamente en unos segundos.'),
+          variant: 'error',
+        })
+      } finally {
+        setHidingId(null)
+      }
+    },
+    [canHide, load, tenantId, toast]
+  )
+
   const isEmpty = !loading && rows.length === 0 && !error
   const physicalCount = useMemo(
     () => rows.filter((r) => r.kind === CatalogItemKind.Physical).length,
@@ -122,19 +157,31 @@ export function CatalogItemsListPage() {
     [rows]
   )
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>('all')
   const inactiveCount = useMemo(
     () => rows.filter((r) => r.status === CatalogItemStatus.Inactive).length,
     [rows]
   )
+  const hiddenCount = useMemo(
+    () => rows.filter((r) => r.isHiddenFromStorefront).length,
+    [rows]
+  )
   const filteredRows = useMemo(() => {
-    if (statusFilter === 'active') {
-      return rows.filter((r) => r.status === CatalogItemStatus.Active)
+    const byStatus =
+      statusFilter === 'active'
+        ? rows.filter((r) => r.status === CatalogItemStatus.Active)
+        : statusFilter === 'inactive'
+          ? rows.filter((r) => r.status === CatalogItemStatus.Inactive)
+          : rows
+
+    if (visibilityFilter === 'visible') {
+      return byStatus.filter((r) => !r.isHiddenFromStorefront)
     }
-    if (statusFilter === 'inactive') {
-      return rows.filter((r) => r.status === CatalogItemStatus.Inactive)
+    if (visibilityFilter === 'hidden') {
+      return byStatus.filter((r) => r.isHiddenFromStorefront)
     }
-    return rows
-  }, [rows, statusFilter])
+    return byStatus
+  }, [rows, statusFilter, visibilityFilter])
 
   if (!canRead) {
     return (
@@ -166,6 +213,7 @@ export function CatalogItemsListPage() {
           <StatCard label="Físicos" value={physicalCount} />
           <StatCard label="Servicios" value={serviceCount} />
           <StatCard label="Activos" value={activeCount} />
+          <StatCard label="Ocultos en tienda" value={hiddenCount} />
         </div>
 
         <SectionCard title="Listado maestro">
@@ -199,8 +247,11 @@ export function CatalogItemsListPage() {
               loading={loading}
               canEdit={canEdit}
               canDelete={canDelete}
+              canHide={canHide}
               deletingId={deletingId}
+              hidingId={hidingId}
               onDelete={setConfirmDelete}
+              onToggleHidden={handleToggleHidden}
               toolbarRight={
                 <div className="ecu-grid-toolbar-actions">
                   <div style={{ minWidth: 170 }}>
@@ -213,11 +264,27 @@ export function CatalogItemsListPage() {
                         { value: 'active', label: `Activos (${activeCount})` },
                         { value: 'inactive', label: `Inactivos (${inactiveCount})` },
                       ]}
-                      value={statusFilter}
-                      onChange={(val) => setStatusFilter(val as 'all' | 'active' | 'inactive')}
-                    />
-                  </div>
-                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                       value={statusFilter}
+                       onChange={(val) => setStatusFilter(val as 'all' | 'active' | 'inactive')}
+                     />
+                   </div>
+                   <div style={{ minWidth: 180 }}>
+                     <Select
+                       id="catalog-items-visibility-filter"
+                       aria-label="Filtrar por visibilidad en tienda"
+                       variant="outline"
+                       options={[
+                         { value: 'all', label: `Visibilidad: todos (${rows.length})` },
+                         { value: 'visible', label: `Visibles (${rows.length - hiddenCount})` },
+                         { value: 'hidden', label: `Ocultos (${hiddenCount})` },
+                       ]}
+                       value={visibilityFilter}
+                       onChange={(val) =>
+                         setVisibilityFilter(val as 'all' | 'visible' | 'hidden')
+                       }
+                     />
+                   </div>
+                   <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
                   {canCreate && (
                     <Button
                       type="button"

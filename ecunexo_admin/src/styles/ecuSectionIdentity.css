@@ -400,6 +400,11 @@
   color: var(--idt-muted);
 }
 
+.ecu-chip--warning {
+  border-color: color-mix(in srgb, var(--idt-warn, #b45309) 40%, transparent);
+  color: var(--idt-warn, #b45309);
+}
+
 .ecu-hint {
   font-size: 0.75rem;
   color: var(--idt-muted);

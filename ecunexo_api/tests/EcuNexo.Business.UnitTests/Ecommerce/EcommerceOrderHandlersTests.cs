@@ -171,6 +171,66 @@ public sealed class EcommerceOrderHandlersTests
         await uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    [Fact(DisplayName = "CreateEcommerceOrderHandler rechaza productos ocultos en la tienda")]
+    public async Task Handle_CreateOrder_WhenItemHidden_Fails()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var warehouseId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+
+        var warehouse = Warehouse.Create(warehouseId, tenantId, "Bodega Principal", "BOD-01", isMain: true).Value!;
+        var catalogItem = CatalogItem.Create(
+            itemId,
+            tenantId,
+            CatalogItemKind.Physical,
+            "Producto oculto",
+            description: null,
+            sku: "OCU-01",
+            basePrice: 10m,
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+        catalogItem.SetStorefrontVisibility(true, null);
+
+        var stock = Stock.Create(Guid.CreateVersion7(), tenantId, itemId, warehouseId).Value!;
+        stock.Increase(10m, null);
+
+        var validator = new CreateEcommerceOrderValidator();
+        var idGen = Substitute.For<IIdGenerator>();
+        idGen.NewId().Returns(Guid.CreateVersion7());
+        var warehouses = Substitute.For<IWarehouseRepository>();
+        warehouses.GetActiveByIdAsync(tenantId, warehouseId, Arg.Any<CancellationToken>()).Returns(warehouse);
+
+        var items = Substitute.For<ICatalogItemRepository>();
+        items.GetActiveByIdAsync(tenantId, itemId, Arg.Any<CancellationToken>()).Returns(catalogItem);
+
+        var stocks = Substitute.For<IStockRepository>();
+        stocks.GetTrackedAsync(tenantId, itemId, warehouseId, Arg.Any<CancellationToken>()).Returns(stock);
+
+        var orders = Substitute.For<IEcommerceOrderRepository>();
+        orders.GenerateNextOrderNumberAsync(tenantId, Arg.Any<CancellationToken>()).Returns("ECO-202609-0099");
+
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var sut = new CreateEcommerceOrderHandler(validator, idGen, warehouses, items, stocks, orders, StubPricing(), uow);
+
+        var (customer, shipping) = CreateSampleInfo();
+        var command = new CreateEcommerceOrderCommand(
+            TenantId: tenantId,
+            WarehouseId: warehouseId,
+            PaymentMethod: EcommercePaymentMethod.BankTransfer,
+            ShippingMethod: EcommerceShippingMethod.Courier,
+            Customer: customer,
+            Shipping: shipping,
+            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 1m)]);
+
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("ecommerce.order.item_hidden");
+        stock.ReservedQuantity.Should().Be(0m);
+        await uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
     [Fact(DisplayName = "CancelEcommerceOrderHandler libera la reserva de stock al cancelar")]
     public async Task Handle_CancelOrder_ReleasesStockReservation()
     {

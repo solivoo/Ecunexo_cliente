@@ -25,7 +25,8 @@ public sealed record CatalogItemDetailResponse(
     Guid? FamilyId = null,
     string? FamilyName = null,
     string? HierarchyPathJson = null,
-    CatalogMatrixDescriptorDto? MatrixDescriptor = null);
+    CatalogMatrixDescriptorDto? MatrixDescriptor = null,
+    bool IsHiddenFromStorefront = false);
 
 public sealed record CatalogItemVariantDto(
     Guid Id,
