@@ -342,7 +342,8 @@ export function EcommerceOrderDetailPage() {
         />
 
         {/* Información del pedido */}
-        <SectionCard title="Cliente & Facturación">
+        <div className="ecommerce-detail-grid">
+          <SectionCard title="Cliente & Facturación">
           <div className="ecommerce-info-list">
             <div className="ecommerce-info-row">
               <span className="ecommerce-info-label">Nombre / Razón:</span>
@@ -528,7 +529,8 @@ export function EcommerceOrderDetailPage() {
               </div>
             )}
           </div>
-        </SectionCard>
+          </SectionCard>
+        </div>
 
         {/* Control de abuso */}
         {canManageStorefront && (

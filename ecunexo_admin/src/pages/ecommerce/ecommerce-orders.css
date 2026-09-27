@@ -1,5 +1,12 @@
 /* Estilos BEM para el Módulo Ecommerce */
 
+.ecommerce-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
 .ecommerce-info-list {
   display: flex;
   flex-direction: column;
