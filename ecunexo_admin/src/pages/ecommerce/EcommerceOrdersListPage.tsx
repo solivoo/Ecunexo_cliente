@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, DataGrid, TextBox, useToast, type ColumnDef } from 'glubox'
+import { DataGrid, Select, useToast, type ColumnDef } from 'glubox'
 import {
   EmptyState,
+  GridDateRangeBox,
+  GridIconButton,
+  GridToolbarRefresh,
   PageHeader,
   SectionCard,
   StatCard,
   StatusBadge,
 } from '@/components/ui'
-import { GridIconButton } from '@/components/ui/GridIconButton'
-import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
-import { Eye, Package, RotateCw, ShoppingBag, Truck, XCircle } from 'lucide-react'
+import { Eye, Package, ShoppingBag, Truck, XCircle } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useGridDateRange } from '@/hooks/useGridDateRange'
@@ -48,8 +49,7 @@ export function EcommerceOrdersListPage() {
 
   const [rows, setRows] = useState<EcommerceOrderSummaryDto[]>([])
   const [metrics, setMetrics] = useState<EcommerceOrderMetricsDto | null>(null)
-  const [statusTab, setStatusTab] = useState<string>('all')
-  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -66,16 +66,15 @@ export function EcommerceOrdersListPage() {
       setLoading(true)
       try {
         let statusParam: EcommerceOrderStatus | undefined
-        if (statusTab === 'placed') statusParam = EcommerceOrderStatus.Placed
-        else if (statusTab === 'processing') statusParam = EcommerceOrderStatus.Processing
-        else if (statusTab === 'shipped') statusParam = EcommerceOrderStatus.Shipped
-        else if (statusTab === 'delivered') statusParam = EcommerceOrderStatus.Delivered
-        else if (statusTab === 'cancelled') statusParam = EcommerceOrderStatus.Cancelled
+        if (statusFilter === 'placed') statusParam = EcommerceOrderStatus.Placed
+        else if (statusFilter === 'processing') statusParam = EcommerceOrderStatus.Processing
+        else if (statusFilter === 'shipped') statusParam = EcommerceOrderStatus.Shipped
+        else if (statusFilter === 'delivered') statusParam = EcommerceOrderStatus.Delivered
+        else if (statusFilter === 'cancelled') statusParam = EcommerceOrderStatus.Cancelled
 
         const [ordersRes, metricsRes] = await Promise.all([
           listEcommerceOrders(tenantId, {
             status: statusParam,
-            search: searchTerm.trim() || undefined,
             ...toApiDateRange({ from, to }),
             page: 1,
             pageSize: 100,
@@ -98,7 +97,7 @@ export function EcommerceOrdersListPage() {
         setLoading(false)
       }
     },
-    [tenantId, statusTab, searchTerm, from, to, toast]
+    [tenantId, statusFilter, from, to, toast]
   )
 
   useEffect(() => {
@@ -242,7 +241,7 @@ export function EcommerceOrdersListPage() {
       title="Pedidos Ecommerce"
       lead="Administración y despacho de pedidos online con reserva de stock e integración SRI."
     >
-      <div className="ecommerce-page">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Pedidos Ecommerce"
           badge={<StatusBadge tone="primary">Ventas Online</StatusBadge>}
@@ -250,7 +249,7 @@ export function EcommerceOrdersListPage() {
         />
 
         {/* Strip de KPIs */}
-        <div className="ecommerce-kpi-strip">
+        <div className="ecu-stat-grid" aria-label="Resumen de pedidos">
           <StatCard
             label="Total Pedidos"
             value={metrics?.totalOrders ?? 0}
@@ -283,105 +282,112 @@ export function EcommerceOrdersListPage() {
         </div>
 
         {/* Contenedor principal con DataGrid */}
-        <SectionCard title="Bandeja de Pedidos">
-          <div className="ecommerce-toolbar">
-            {/* Pestañas de estado */}
-            <div className="ecommerce-toolbar__tabs">
-              {[
-                { id: 'all', label: 'Todos', count: metrics?.totalOrders },
-                { id: 'placed', label: 'Pendientes (Stock Reservado)', count: metrics?.pendingCount },
-                { id: 'processing', label: 'En Preparación', count: metrics?.processingCount },
-                { id: 'shipped', label: 'Despachados', count: metrics?.shippedCount },
-                { id: 'delivered', label: 'Entregados', count: metrics?.deliveredCount },
-                { id: 'cancelled', label: 'Cancelados', count: metrics?.cancelledCount },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={`ecommerce-tab-btn ${statusTab === tab.id ? 'ecommerce-tab-btn--active' : ''}`}
-                  onClick={() => setStatusTab(tab.id)}
-                >
-                  {tab.label}
-                  {typeof tab.count === 'number' && (
-                    <span className="ecommerce-tab-btn__count">{tab.count}</span>
-                  )}
-                </button>
-              ))}
+        <SectionCard
+          title="Bandeja de Pedidos"
+          action={
+            <Select
+              id="ecommerce-orders-status-filter"
+              aria-label="Filtrar por estado"
+              variant="outline"
+              options={[
+                { value: 'all', label: `Todos (${metrics?.totalOrders ?? 0})` },
+                { value: 'placed', label: `Pendientes (${metrics?.pendingCount ?? 0})` },
+                {
+                  value: 'processing',
+                  label: `En preparación (${metrics?.processingCount ?? 0})`,
+                },
+                { value: 'shipped', label: `Despachados (${metrics?.shippedCount ?? 0})` },
+                { value: 'delivered', label: `Entregados (${metrics?.deliveredCount ?? 0})` },
+                { value: 'cancelled', label: `Cancelados (${metrics?.cancelledCount ?? 0})` },
+              ]}
+              value={statusFilter}
+              onChange={(value) => setStatusFilter(String(value))}
+            />
+          }
+        >
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
             </div>
-
-            {/* Filtros secundarios: búsqueda y rango de fechas */}
-            <div className="ecommerce-toolbar__filters">
-              <div style={{ width: 220 }}>
-                <TextBox
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar orden, cliente o RUC..."
-                />
-              </div>
-              <GridDateRangeBox
-                from={from}
-                to={to}
-                onChange={setRange}
-                lookback={lookback}
-              />
-              <Button
-                variant="outline"
-                iconLeft={<RotateCw size={16} />}
-                onClick={() => void loadData()}
-                disabled={loading}
-              >
-                Actualizar
-              </Button>
-            </div>
-          </div>
-
-          {error && (
-            <div style={{ padding: '1rem', color: 'var(--shell-danger)' }}>{error}</div>
-          )}
+          ) : null}
 
           {rows.length === 0 && !loading ? (
             <EmptyState
-              title="No hay pedidos registrados"
-              description="Los pedidos realizados desde la tienda en línea aparecerán en esta bandeja con su reserva de inventario."
+              icon="shopping_bag"
+              title={
+                statusFilter === 'all'
+                  ? 'No hay pedidos registrados'
+                  : 'No hay pedidos en este estado'
+              }
+              description={
+                statusFilter === 'all'
+                  ? 'Los pedidos realizados desde la tienda en línea aparecerán en esta bandeja con su reserva de inventario.'
+                  : 'Cambia el filtro de estado o ajusta el rango de fechas para ver más pedidos.'
+              }
             />
           ) : (
             <DataGrid
+              className="ecu-companies-grid"
               dataSource={rows as Row[]}
               columns={columns}
               keyExpr="id"
-              loading={loading}
-              messages={messages}
+              selectionMode="none"
+              showSearch
+              searchPosition="left"
+              searchWidth={260}
+              searchPlaceholder="Buscar orden, cliente o RUC…"
+              searchKeys={['orderNumber', 'customerName', 'customerTaxId']}
+              toolbarRight={
+                <div className="ecu-grid-toolbar-actions">
+                  <GridDateRangeBox
+                    from={from}
+                    to={to}
+                    lookback={lookback}
+                    disabled={loading}
+                    onChange={setRange}
+                  />
+                  <GridToolbarRefresh
+                    loading={loading}
+                    onRefresh={() => void loadData({ silent: true })}
+                  />
+                </div>
+              }
               paging={paging}
               pageSizeOptions={pageSizeOptions}
               onPageChange={onPageChange}
               onPageSizeChange={onPageSizeChange}
+              paginationMode="client"
+              layout="auto"
+              loading={loading}
+              messages={messages}
             />
           )}
         </SectionCard>
-
-        {/* Modales de Despacho y Cancelación accesibles desde la tabla */}
-        {selectedOrderForShip && (
-          <ShipEcommerceOrderModal
-            open={Boolean(selectedOrderForShip)}
-            onClose={() => setSelectedOrderForShip(null)}
-            onShipped={() => void loadData({ silent: true })}
-            tenantId={tenantId ?? ''}
-            orderId={selectedOrderForShip.id}
-            orderNumber={selectedOrderForShip.orderNumber}
-          />
-        )}
-
-        {selectedOrderForCancel && (
-          <CancelEcommerceOrderModal
-            open={Boolean(selectedOrderForCancel)}
-            onClose={() => setSelectedOrderForCancel(null)}
-            onCancelled={() => void loadData({ silent: true })}
-            tenantId={tenantId ?? ''}
-            orderId={selectedOrderForCancel.id}
-            orderNumber={selectedOrderForCancel.orderNumber}
-          />
-        )}
       </div>
+
+      {/* Modales de Despacho y Cancelación accesibles desde la tabla */}
+      {selectedOrderForShip && (
+        <ShipEcommerceOrderModal
+          open={Boolean(selectedOrderForShip)}
+          onClose={() => setSelectedOrderForShip(null)}
+          onShipped={() => void loadData({ silent: true })}
+          tenantId={tenantId ?? ''}
+          orderId={selectedOrderForShip.id}
+          orderNumber={selectedOrderForShip.orderNumber}
+        />
+      )}
+
+      {selectedOrderForCancel && (
+        <CancelEcommerceOrderModal
+          open={Boolean(selectedOrderForCancel)}
+          onClose={() => setSelectedOrderForCancel(null)}
+          onCancelled={() => void loadData({ silent: true })}
+          tenantId={tenantId ?? ''}
+          orderId={selectedOrderForCancel.id}
+          orderNumber={selectedOrderForCancel.orderNumber}
+        />
+      )}
     </TenantSessionGate>
   )
 }

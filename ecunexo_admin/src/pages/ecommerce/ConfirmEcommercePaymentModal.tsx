@@ -70,20 +70,22 @@ export function ConfirmEcommercePaymentModal({
       ]}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
-        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--glb-muted)' }}>
-          Al registrar la acreditación del pago, la orden pasará a estado Confirmada y lista para preparación en bodega.
+        <p className="ecu-companies-form__hint">
+          Al registrar la acreditación del pago, la orden pasará a estado Confirmada y lista para
+          preparación en bodega.
         </p>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.875rem', fontWeight: 500 }}>
-            Número de Comprobante / Referencia Bancaria
-          </label>
-          <TextBox
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-            placeholder="Ej. DEP-982312, TRX-448123"
-          />
-        </div>
+        <TextBox
+          id="payment-reference"
+          label="Número de Comprobante / Referencia"
+          labelPosition="outlined"
+          variant="outline"
+          value={reference}
+          onChange={(e) => setReference(e.target.value)}
+          placeholder="Ej. DEP-982312, TRX-448123"
+          disabled={submitting}
+          fullWidth
+        />
       </div>
     </Popup>
   )

@@ -686,38 +686,24 @@ export function StorefrontSettingsPage() {
               <p className="app-shell__muted">No hay contactos bloqueados.</p>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                <table className="ecu-table">
                   <thead>
-                    <tr
-                      style={{
-                        borderBottom: '2px solid var(--shell-border, rgba(0,0,0,0.08))',
-                        textAlign: 'left',
-                      }}
-                    >
-                      <th style={{ padding: '0.5rem' }}>Tipo</th>
-                      <th style={{ padding: '0.5rem' }}>Valor</th>
-                      <th style={{ padding: '0.5rem' }}>Motivo</th>
-                      <th style={{ padding: '0.5rem' }}>Fecha</th>
-                      <th style={{ padding: '0.5rem', textAlign: 'right' }}>Acciones</th>
+                    <tr>
+                      <th>Tipo</th>
+                      <th>Valor</th>
+                      <th>Motivo</th>
+                      <th>Fecha</th>
+                      <th style={{ textAlign: 'right' }}>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {blockedContacts.map((contact) => (
-                      <tr
-                        key={contact.id}
-                        style={{
-                          borderBottom: '1px solid var(--shell-border, rgba(0,0,0,0.06))',
-                        }}
-                      >
-                        <td style={{ padding: '0.5rem' }}>
-                          {BLOCKED_CONTACT_KIND_LABELS[contact.kind] ?? contact.kind}
-                        </td>
-                        <td style={{ padding: '0.5rem', fontWeight: 600 }}>
-                          {contact.valueNormalized}
-                        </td>
-                        <td style={{ padding: '0.5rem' }}>{contact.reason || '—'}</td>
-                        <td style={{ padding: '0.5rem' }}>{formatDate(contact.createdAt)}</td>
-                        <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                      <tr key={contact.id}>
+                        <td>{BLOCKED_CONTACT_KIND_LABELS[contact.kind] ?? contact.kind}</td>
+                        <td style={{ fontWeight: 600 }}>{contact.valueNormalized}</td>
+                        <td>{contact.reason || '—'}</td>
+                        <td>{formatDate(contact.createdAt)}</td>
+                        <td style={{ textAlign: 'right' }}>
                           <Button
                             type="button"
                             variant="outline"

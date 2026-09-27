@@ -75,20 +75,23 @@ export function LinkEcommerceInvoiceModal({
       ]}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
-        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--glb-muted)' }}>
-          Ingresa el identificador único de la factura electrónica emitida para asociarla permanentemente al pedido.
+        <p className="ecu-companies-form__hint">
+          Ingresa el identificador único de la factura electrónica emitida para asociarla
+          permanentemente al pedido.
         </p>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.875rem', fontWeight: 500 }}>
-            ID Factura Billing / Clave de Acceso *
-          </label>
-          <TextBox
-            value={invoiceId}
-            onChange={(e) => setInvoiceId(e.target.value)}
-            placeholder="Ej. a0b1c2d3-e4f5-..."
-          />
-        </div>
+        <TextBox
+          id="link-invoice-id"
+          label="ID Factura Billing / Clave de Acceso"
+          labelPosition="outlined"
+          variant="outline"
+          value={invoiceId}
+          onChange={(e) => setInvoiceId(e.target.value)}
+          placeholder="Ej. a0b1c2d3-e4f5-…"
+          disabled={submitting}
+          required
+          fullWidth
+        />
       </div>
     </Popup>
   )

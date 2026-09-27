@@ -105,7 +105,7 @@ export function BlockEcommerceContactModal({
       ]}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
-        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--glb-muted)' }}>
+        <p className="ecu-companies-form__hint">
           El contacto bloqueado no podrá generar pedidos desde la tienda pública. Los pedidos
           existentes no se modifican.
         </p>
@@ -121,35 +121,30 @@ export function BlockEcommerceContactModal({
           disabled={submitting}
         />
 
-        <div>
-          <label
-            style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.875rem', fontWeight: 500 }}
-          >
-            {kind === 'Email' ? 'Correo electrónico *' : 'Teléfono *'}
-          </label>
-          <TextBox
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={kind === 'Email' ? 'cliente@correo.com' : '0987654321'}
-            disabled={submitting}
-            fullWidth
-          />
-        </div>
+        <TextBox
+          id="block-contact-value"
+          label={kind === 'Email' ? 'Correo electrónico' : 'Teléfono'}
+          labelPosition="outlined"
+          variant="outline"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={kind === 'Email' ? 'cliente@correo.com' : '0987654321'}
+          disabled={submitting}
+          required
+          fullWidth
+        />
 
-        <div>
-          <label
-            style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.875rem', fontWeight: 500 }}
-          >
-            Motivo (opcional)
-          </label>
-          <TextBox
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Ej. Pedidos falsos o intentos de fraude"
-            disabled={submitting}
-            fullWidth
-          />
-        </div>
+        <TextBox
+          id="block-contact-reason"
+          label="Motivo (opcional)"
+          labelPosition="outlined"
+          variant="outline"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Ej. Pedidos falsos o intentos de fraude"
+          disabled={submitting}
+          fullWidth
+        />
       </div>
     </Popup>
   )

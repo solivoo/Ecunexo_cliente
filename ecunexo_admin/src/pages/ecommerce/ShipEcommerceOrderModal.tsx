@@ -77,31 +77,35 @@ export function ShipEcommerceOrderModal({
       ]}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
-        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--glb-muted)' }}>
-          Al despachar el pedido, el stock reservado se descontará definitivamente del inventario físico (kárdex).
+        <p className="ecu-companies-form__hint">
+          Al despachar el pedido, el stock reservado se descontará definitivamente del inventario
+          físico (kárdex).
         </p>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.875rem', fontWeight: 500 }}>
-            Transportista o Courier *
-          </label>
-          <TextBox
-            value={carrier}
-            onChange={(e) => setCarrier(e.target.value)}
-            placeholder="Ej. Servientrega, Urbano, Tramaco, Courier Propio"
-          />
-        </div>
+        <TextBox
+          id="ship-carrier"
+          label="Transportista o Courier"
+          labelPosition="outlined"
+          variant="outline"
+          value={carrier}
+          onChange={(e) => setCarrier(e.target.value)}
+          placeholder="Ej. Servientrega, Urbano, Tramaco, Courier Propio"
+          disabled={submitting}
+          required
+          fullWidth
+        />
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.875rem', fontWeight: 500 }}>
-            Número de Guía o Rastreo (Tracking)
-          </label>
-          <TextBox
-            value={trackingNumber}
-            onChange={(e) => setTrackingNumber(e.target.value)}
-            placeholder="Ej. GUIA-0982348712"
-          />
-        </div>
+        <TextBox
+          id="ship-tracking"
+          label="Número de Guía o Rastreo"
+          labelPosition="outlined"
+          variant="outline"
+          value={trackingNumber}
+          onChange={(e) => setTrackingNumber(e.target.value)}
+          placeholder="Ej. GUIA-0982348712"
+          disabled={submitting}
+          fullWidth
+        />
       </div>
     </Popup>
   )

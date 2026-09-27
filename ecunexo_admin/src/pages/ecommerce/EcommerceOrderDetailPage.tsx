@@ -17,7 +17,6 @@ import {
   Package,
   ShieldAlert,
   Truck,
-  User,
   XCircle,
 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -168,8 +167,14 @@ export function EcommerceOrderDetailPage() {
         title="Detalle de Pedido"
         lead="Gestión y trazabilidad de orden ecommerce"
       >
-        <div className="ecommerce-page" style={{ padding: '2rem' }}>
-          Cargando detalle del pedido...
+        <div className="ecu-dashboard-layout ecu-section-page">
+          <PageHeader
+            title="Detalle del Pedido"
+            subtitle="Gestión y trazabilidad de la orden ecommerce."
+          />
+          <SectionCard title="Cargando…">
+            <p className="app-shell__muted">Obteniendo el detalle del pedido…</p>
+          </SectionCard>
         </div>
       </TenantSessionGate>
     )
@@ -181,7 +186,7 @@ export function EcommerceOrderDetailPage() {
         title="Detalle de Pedido"
         lead="Gestión y trazabilidad de orden ecommerce"
       >
-        <div className="ecommerce-page">
+        <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Detalle del Pedido"
             actions={
@@ -194,10 +199,15 @@ export function EcommerceOrderDetailPage() {
               </Button>
             }
           />
-          <EmptyState
-            title="Pedido no encontrado"
-            description={error ?? 'La orden solicitada no existe o no tiene permisos para consultarla.'}
-          />
+          <SectionCard title="Pedido">
+            <EmptyState
+              icon="receipt_long"
+              title="Pedido no encontrado"
+              description={
+                error ?? 'La orden solicitada no existe o no tiene permisos para consultarla.'
+              }
+            />
+          </SectionCard>
         </div>
       </TenantSessionGate>
     )
@@ -230,7 +240,7 @@ export function EcommerceOrderDetailPage() {
       title="Detalle de Pedido"
       lead="Gestión y trazabilidad de orden ecommerce"
     >
-      <div className="ecommerce-page ecommerce-order-detail">
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title={`Pedido ${order.orderNumber}`}
           badge={
@@ -331,188 +341,194 @@ export function EcommerceOrderDetailPage() {
           }
         />
 
-        {/* Bloque superior con 3 Cards de Información */}
-        <div className="ecommerce-detail-grid">
-          {/* Tarjeta 1: Cliente y Facturación */}
-          <div className="ecommerce-info-card">
-            <h4 className="ecommerce-info-card__title">
-              <User size={18} />
-              Cliente & Facturación
-            </h4>
-            <div className="ecommerce-info-list">
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Nombre / Razón:</span>
-                <span className="ecommerce-info-value">{order.customer.customerName}</span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Cédula / RUC:</span>
-                <span className="ecommerce-info-value">{order.customer.taxId}</span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Email:</span>
-                <span
-                  className="ecommerce-info-value"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}
-                >
-                  {order.customer.email || 'N/A'}
-                  {isEmailBlocked ? <StatusBadge tone="danger">Bloqueado</StatusBadge> : null}
-                </span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Teléfono:</span>
-                <span
-                  className="ecommerce-info-value"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}
-                >
-                  {order.customer.phone || 'N/A'}
-                  {isPhoneBlocked ? <StatusBadge tone="danger">Bloqueado</StatusBadge> : null}
-                </span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Dirección Fiscal:</span>
-                <span className="ecommerce-info-value">{order.customer.address || 'N/A'}</span>
-              </div>
-              <div className="ecommerce-info-row" style={{ marginTop: '0.25rem' }}>
-                <span className="ecommerce-info-label">Factura SRI:</span>
-                <span className="ecommerce-info-value">
-                  {order.billingInvoiceId ? (
-                    <StatusBadge tone="success">Facturada #{order.billingInvoiceId.substring(0, 8)}</StatusBadge>
-                  ) : (
-                    <StatusBadge tone="warning">Pendiente de emisión</StatusBadge>
-                  )}
-                </span>
-              </div>
+        {/* Información del pedido */}
+        <SectionCard title="Cliente & Facturación">
+          <div className="ecommerce-info-list">
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Nombre / Razón:</span>
+              <span className="ecommerce-info-value">{order.customer.customerName}</span>
             </div>
-          </div>
-
-          {/* Tarjeta 2: Envío y Despacho */}
-          <div className="ecommerce-info-card">
-            <h4 className="ecommerce-info-card__title">
-              <Truck size={18} />
-              Destino y Despacho
-            </h4>
-            <div className="ecommerce-info-list">
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Destinatario:</span>
-                <span className="ecommerce-info-value">{order.shipping.recipientName}</span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Teléfono:</span>
-                <span className="ecommerce-info-value">{order.shipping.recipientPhone || 'N/A'}</span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Dirección:</span>
-                <span className="ecommerce-info-value">{order.shipping.addressLine1}</span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Ciudad / Prov:</span>
-                <span className="ecommerce-info-value">
-                  {order.shipping.city} {order.shipping.province ? `(${order.shipping.province})` : ''}
-                </span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Courier:</span>
-                <span className="ecommerce-info-value">
-                  {order.shipping.carrier ? (
-                    <strong>{order.shipping.carrier}</strong>
-                  ) : (
-                    <span style={{ color: 'var(--glb-muted)' }}>Por asignar</span>
-                  )}
-                </span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Guía / Tracking:</span>
-                <span className="ecommerce-info-value">
-                  {order.shipping.trackingNumber ? (
-                    <code>{order.shipping.trackingNumber}</code>
-                  ) : (
-                    <span style={{ color: 'var(--glb-muted)' }}>Sin tracking</span>
-                  )}
-                </span>
-              </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Cédula / RUC:</span>
+              <span className="ecommerce-info-value">{order.customer.taxId}</span>
             </div>
-          </div>
-
-          {/* Tarjeta 3: Logística y Reserva de Stock */}
-          <div className="ecommerce-info-card">
-            <h4 className="ecommerce-info-card__title">
-              <Package size={18} />
-              Reserva de Stock & Pago
-            </h4>
-            <div className="ecommerce-info-list">
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Bodega Origen:</span>
-                <span className="ecommerce-info-value">{order.warehouseName || 'Bodega Central'}</span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Estado Reserva:</span>
-                <span className="ecommerce-info-value">
-                  {isCancelled ? (
-                    <StatusBadge tone="danger">Reserva Liberada</StatusBadge>
-                  ) : isShipped || isDelivered ? (
-                    <StatusBadge tone="success">Stock Egresado de Kárdex</StatusBadge>
-                  ) : (
-                    <StatusBadge tone="warning">Stock 100% Reservado</StatusBadge>
-                  )}
-                </span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Método Pago:</span>
-                <span className="ecommerce-info-value">{ecommercePaymentMethodLabel(order.paymentMethod)}</span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Estado Pago:</span>
-                <span className="ecommerce-info-value">
-                  <StatusBadge tone={order.paymentStatus === 2 ? 'success' : order.paymentStatus === 1 ? 'info' : 'warning'}>
-                    {ecommercePaymentStatusLabel(order.paymentStatus)}
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Email:</span>
+              <span
+                className="ecommerce-info-value"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}
+              >
+                {order.customer.email || 'N/A'}
+                {isEmailBlocked ? <StatusBadge tone="danger">Bloqueado</StatusBadge> : null}
+              </span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Teléfono:</span>
+              <span
+                className="ecommerce-info-value"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}
+              >
+                {order.customer.phone || 'N/A'}
+                {isPhoneBlocked ? <StatusBadge tone="danger">Bloqueado</StatusBadge> : null}
+              </span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Dirección Fiscal:</span>
+              <span className="ecommerce-info-value">{order.customer.address || 'N/A'}</span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Factura SRI:</span>
+              <span className="ecommerce-info-value">
+                {order.billingInvoiceId ? (
+                  <StatusBadge tone="success">
+                    Facturada #{order.billingInvoiceId.substring(0, 8)}
                   </StatusBadge>
-                </span>
-              </div>
-              {order.paymentReference && (
-                <div className="ecommerce-info-row">
-                  <span className="ecommerce-info-label">Referencia Pago:</span>
-                  <span className="ecommerce-info-value"><code>{order.paymentReference}</code></span>
-                </div>
-              )}
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Comprobante de pago:</span>
-                <span className="ecommerce-info-value">
-                  {order.paymentProofUploadedAtUtc ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <span>{formatDateTime(order.paymentProofUploadedAtUtc)}</span>
-                      <Button
-                        variant="outline"
-                        iconLeft={<Eye size={16} />}
-                        onClick={handleViewPaymentProof}
-                        disabled={proofUrlLoading}
-                      >
-                        {proofUrlLoading ? 'Abriendo...' : 'Ver comprobante'}
-                      </Button>
-                    </span>
-                  ) : (
-                    <span style={{ color: 'var(--glb-muted)' }}>No recibido</span>
-                  )}
-                </span>
-              </div>
-              <div className="ecommerce-info-row">
-                <span className="ecommerce-info-label">Consentimiento de datos:</span>
-                <span className="ecommerce-info-value">
-                  {order.dataConsentAtUtc ? (
-                    formatDateTime(order.dataConsentAtUtc)
-                  ) : (
-                    <span style={{ color: 'var(--glb-muted)' }}>No registrado</span>
-                  )}
-                </span>
-              </div>
-              {order.customerNotes && (
-                <div className="ecommerce-info-row">
-                  <span className="ecommerce-info-label">Nota Cliente:</span>
-                  <span className="ecommerce-info-value" style={{ fontStyle: 'italic' }}>{order.customerNotes}</span>
-                </div>
-              )}
+                ) : (
+                  <StatusBadge tone="warning">Pendiente de emisión</StatusBadge>
+                )}
+              </span>
             </div>
           </div>
-        </div>
+        </SectionCard>
+
+        <SectionCard title="Destino y Despacho">
+          <div className="ecommerce-info-list">
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Destinatario:</span>
+              <span className="ecommerce-info-value">{order.shipping.recipientName}</span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Teléfono:</span>
+              <span className="ecommerce-info-value">{order.shipping.recipientPhone || 'N/A'}</span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Dirección:</span>
+              <span className="ecommerce-info-value">{order.shipping.addressLine1}</span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Ciudad / Prov:</span>
+              <span className="ecommerce-info-value">
+                {order.shipping.city} {order.shipping.province ? `(${order.shipping.province})` : ''}
+              </span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Courier:</span>
+              <span className="ecommerce-info-value">
+                {order.shipping.carrier ? (
+                  <strong>{order.shipping.carrier}</strong>
+                ) : (
+                  <span className="app-shell__muted">Por asignar</span>
+                )}
+              </span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Guía / Tracking:</span>
+              <span className="ecommerce-info-value">
+                {order.shipping.trackingNumber ? (
+                  <code className="ecu-code">{order.shipping.trackingNumber}</code>
+                ) : (
+                  <span className="app-shell__muted">Sin tracking</span>
+                )}
+              </span>
+            </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Reserva de Stock & Pago">
+          <div className="ecommerce-info-list">
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Bodega Origen:</span>
+              <span className="ecommerce-info-value">{order.warehouseName || 'Bodega Central'}</span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Estado Reserva:</span>
+              <span className="ecommerce-info-value">
+                {isCancelled ? (
+                  <StatusBadge tone="danger">Reserva Liberada</StatusBadge>
+                ) : isShipped || isDelivered ? (
+                  <StatusBadge tone="success">Stock Egresado de Kárdex</StatusBadge>
+                ) : (
+                  <StatusBadge tone="warning">Stock 100% Reservado</StatusBadge>
+                )}
+              </span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Método Pago:</span>
+              <span className="ecommerce-info-value">
+                {ecommercePaymentMethodLabel(order.paymentMethod)}
+              </span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Estado Pago:</span>
+              <span className="ecommerce-info-value">
+                <StatusBadge
+                  tone={
+                    order.paymentStatus === 2
+                      ? 'success'
+                      : order.paymentStatus === 1
+                        ? 'info'
+                        : 'warning'
+                  }
+                >
+                  {ecommercePaymentStatusLabel(order.paymentStatus)}
+                </StatusBadge>
+              </span>
+            </div>
+            {order.paymentReference && (
+              <div className="ecommerce-info-row">
+                <span className="ecommerce-info-label">Referencia Pago:</span>
+                <span className="ecommerce-info-value">
+                  <code className="ecu-code">{order.paymentReference}</code>
+                </span>
+              </div>
+            )}
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Comprobante de pago:</span>
+              <span className="ecommerce-info-value">
+                {order.paymentProofUploadedAtUtc ? (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <span>{formatDateTime(order.paymentProofUploadedAtUtc)}</span>
+                    <Button
+                      variant="outline"
+                      iconLeft={<Eye size={16} />}
+                      onClick={handleViewPaymentProof}
+                      disabled={proofUrlLoading}
+                    >
+                      {proofUrlLoading ? 'Abriendo...' : 'Ver comprobante'}
+                    </Button>
+                  </span>
+                ) : (
+                  <span className="app-shell__muted">No recibido</span>
+                )}
+              </span>
+            </div>
+            <div className="ecommerce-info-row">
+              <span className="ecommerce-info-label">Consentimiento de datos:</span>
+              <span className="ecommerce-info-value">
+                {order.dataConsentAtUtc ? (
+                  formatDateTime(order.dataConsentAtUtc)
+                ) : (
+                  <span className="app-shell__muted">No registrado</span>
+                )}
+              </span>
+            </div>
+            {order.customerNotes && (
+              <div className="ecommerce-info-row">
+                <span className="ecommerce-info-label">Nota Cliente:</span>
+                <span className="ecommerce-info-value" style={{ fontStyle: 'italic' }}>
+                  {order.customerNotes}
+                </span>
+              </div>
+            )}
+          </div>
+        </SectionCard>
 
         {/* Control de abuso */}
         {canManageStorefront && (
@@ -561,29 +577,23 @@ export function EcommerceOrderDetailPage() {
         {/* Tabla de Productos */}
         <SectionCard title="Productos Solicitados">
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            <table className="ecu-table">
               <thead>
-                <tr style={{ borderBottom: '2px solid var(--shell-border, rgba(0,0,0,0.08))', textAlign: 'left' }}>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>SKU</th>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Producto</th>
-                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>Cantidad</th>
-                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>Precio Unit.</th>
-                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>Descuento</th>
-                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>IVA (15%)</th>
-                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>Total</th>
+                <tr>
+                  <th>SKU</th>
+                  <th>Producto</th>
+                  <th style={{ textAlign: 'center' }}>Cantidad</th>
+                  <th style={{ textAlign: 'right' }}>Precio Unit.</th>
+                  <th style={{ textAlign: 'right' }}>Descuento</th>
+                  <th style={{ textAlign: 'right' }}>IVA (15%)</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
                 </tr>
               </thead>
               <tbody>
                 {order.items.map((item) => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid var(--shell-border, rgba(0,0,0,0.06))' }}>
-                    <td style={{ padding: '0.75rem 0.5rem' }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.6rem',
-                        }}
-                      >
+                  <tr key={item.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                         {item.thumbUrl ? (
                           <img
                             src={item.thumbUrl}
@@ -613,18 +623,18 @@ export function EcommerceOrderDetailPage() {
                         <span style={{ fontWeight: 600 }}>{item.sku || 'N/A'}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '0.75rem 0.5rem' }}>{item.itemName}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center', fontWeight: 600 }}>{item.quantity}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
+                    <td>{item.itemName}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 600 }}>{item.quantity}</td>
+                    <td style={{ textAlign: 'right' }}>
                       ${item.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right' }}>
                       ${item.discountAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right' }}>
                       ${item.taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontWeight: 600 }}>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
                       ${item.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                   </tr>

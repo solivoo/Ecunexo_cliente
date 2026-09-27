@@ -100,11 +100,11 @@ export function MarkEcommerceOrderSpamModal({
       ]}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
-        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--glb-muted)' }}>
+        <p className="ecu-companies-form__hint">
           Esta acción cancela el pedido con motivo «Spam» y bloquea el correo y el teléfono del
           cliente para que no pueda generar nuevos pedidos en la tienda.
         </p>
-        <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.875rem' }}>
+        <ul className="ecu-companies-form__hint" style={{ margin: 0, paddingLeft: '1.25rem' }}>
           <li>Se libera la reserva de stock del pedido.</li>
           <li>El bloqueo del contacto es inmediato en el checkout público.</li>
         </ul>
