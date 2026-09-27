@@ -16,7 +16,8 @@ public sealed record UpdatePromotionCommand(
     DateTimeOffset? EndsAt,
     int Priority,
     bool IsStackable,
-    IReadOnlyList<PromotionTargetInput>? Targets = null) : ICommand<UpdatePromotionResponse>;
+    IReadOnlyList<PromotionTargetInput>? Targets = null,
+    bool? IsActive = null) : ICommand<UpdatePromotionResponse>;
 
 public sealed record UpdatePromotionResponse(Guid PromotionId, Guid TenantId);
 
@@ -64,6 +65,11 @@ public sealed class UpdatePromotionHandler : ICommandHandler<UpdatePromotionComm
         if (updated.IsFailure)
         {
             return Result.Failure<UpdatePromotionResponse>(updated.Error!);
+        }
+
+        if (command.IsActive is { } isActive)
+        {
+            promotion.SetActive(isActive, _caller.UserId);
         }
 
         if (command.Targets is not null)

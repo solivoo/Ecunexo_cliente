@@ -169,7 +169,9 @@ export type CreatePromotionBody = {
   targets: PromotionTargetDto[]
 }
 
-export type UpdatePromotionBody = Omit<CreatePromotionBody, 'code'>
+export type UpdatePromotionBody = Omit<CreatePromotionBody, 'code'> & {
+  isActive?: boolean | null
+}
 
 export type ResolvePriceBody = {
   catalogItemId: string

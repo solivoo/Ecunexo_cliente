@@ -43,7 +43,8 @@ public sealed record UpdatePromotionRequest(
     DateTimeOffset? EndsAt,
     int Priority,
     bool IsStackable,
-    IReadOnlyList<PromotionTargetRequest>? Targets)
+    IReadOnlyList<PromotionTargetRequest>? Targets,
+    bool? IsActive = null)
 {
     public UpdatePromotionCommand ToCommand(Guid tenantId, Guid promotionId) =>
         new(
@@ -57,5 +58,6 @@ public sealed record UpdatePromotionRequest(
             EndsAt,
             Priority,
             IsStackable,
-            Targets?.Select(t => new PromotionTargetInput(t.TargetType, t.TargetReference)).ToList());
+            Targets?.Select(t => new PromotionTargetInput(t.TargetType, t.TargetReference)).ToList(),
+            IsActive);
 }

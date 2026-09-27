@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, Popup, useToast, type ColumnDef } from 'glubox'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Power, Trash2 } from 'lucide-react'
 import {
   EmptyState,
   GridIconButton,
@@ -18,7 +18,7 @@ import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { promotionTypeLabel, promotionValueLabel } from '@/pages/catalog/pricing/pricingFormat'
-import { deletePromotion, listPromotions } from '@/services/pricingApi'
+import { deletePromotion, listPromotions, updatePromotion } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { PromotionDto } from '@/types/pricingApi'
@@ -38,6 +38,7 @@ export function PromotionsListPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<PromotionDto | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [activatingId, setActivatingId] = useState<string | null>(null)
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
 
   const load = useCallback(async () => {
@@ -85,6 +86,45 @@ export function PromotionsListPage() {
       setDeleting(false)
     }
   }, [confirm, load, tenantId, toast])
+
+  const handleActivate = useCallback(
+    async (row: PromotionDto) => {
+      if (!tenantId || !canManage) return
+      setActivatingId(row.id)
+      try {
+        await updatePromotion(tenantId, row.id, {
+          name: row.name,
+          description: row.description,
+          type: row.type,
+          value: row.value,
+          startsAt: row.startsAt,
+          endsAt: row.endsAt,
+          priority: row.priority,
+          isStackable: row.isStackable,
+          targets: row.targets.map((target) => ({
+            targetType: target.targetType,
+            targetReference: target.targetReference,
+          })),
+          isActive: true,
+        })
+        toast.show({
+          title: 'Promoción activada',
+          message: `«${row.name}» vuelve a aplicarse en las ventas.`,
+          variant: 'success',
+        })
+        await load()
+      } catch (err: unknown) {
+        toast.show({
+          title: 'No se pudo activar',
+          message: readApiError(err, 'Intenta nuevamente.'),
+          variant: 'error',
+        })
+      } finally {
+        setActivatingId(null)
+      }
+    },
+    [canManage, load, tenantId, toast]
+  )
 
   const columns = useMemo((): ColumnDef<PromotionRow>[] => {
     const cols: ColumnDef<PromotionRow>[] = [
@@ -168,20 +208,31 @@ export function PromotionsListPage() {
               icon={Pencil}
               onClick={() => navigate(`/catalogo/precios/promociones/${row.id}`)}
             />
-            <GridIconButton
-              label="Desactivar"
-              icon={Trash2}
-              danger
-              disabled={!row.isActive || deleting}
-              onClick={() => setConfirm(row)}
-            />
+            {row.isActive ? (
+              <GridIconButton
+                label="Desactivar"
+                icon={Trash2}
+                danger
+                disabled={deleting || activatingId === row.id}
+                onClick={() => setConfirm(row)}
+              />
+            ) : (
+              <GridIconButton
+                label="Activar"
+                icon={Power}
+                active
+                disabled={activatingId === row.id}
+                loading={activatingId === row.id}
+                onClick={() => void handleActivate(row)}
+              />
+            )}
           </div>
         ),
       })
     }
 
     return cols
-  }, [canManage, deleting, navigate])
+  }, [activatingId, canManage, deleting, handleActivate, navigate])
 
   if (!canRead) {
     return (

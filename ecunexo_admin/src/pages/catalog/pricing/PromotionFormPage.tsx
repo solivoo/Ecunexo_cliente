@@ -83,6 +83,7 @@ export function PromotionFormPage() {
   const [endsAt, setEndsAt] = useState('')
   const [priority, setPriority] = useState(0)
   const [isStackable, setIsStackable] = useState(false)
+  const [isActive, setIsActive] = useState(true)
   const [targets, setTargets] = useState<TargetDraft[]>([])
   const [targetItemId, setTargetItemId] = useState('')
   const [familyFilter, setFamilyFilter] = useState('')
@@ -189,6 +190,7 @@ export function PromotionFormPage() {
           setEndsAt(promotion.endsAt ? promotion.endsAt.slice(0, 10) : '')
           setPriority(promotion.priority)
           setIsStackable(promotion.isStackable)
+          setIsActive(promotion.isActive)
           setTargets(
             promotion.targets.map((target) => ({
               targetType: target.targetType,
@@ -294,7 +296,7 @@ export function PromotionFormPage() {
         }
 
         if (isEdit && promotionId) {
-          await updatePromotion(tenantId, promotionId, body)
+          await updatePromotion(tenantId, promotionId, { ...body, isActive })
           toast.show({ title: 'Promoción actualizada', message: `«${body.name}» guardada.`, variant: 'success' })
         } else {
           await createPromotion(tenantId, { code: code.trim(), ...body })
@@ -315,6 +317,7 @@ export function PromotionFormPage() {
       code,
       description,
       endsAt,
+      isActive,
       isEdit,
       isStackable,
       name,
@@ -466,7 +469,23 @@ export function PromotionFormPage() {
                   Acumulable con otras promociones
                 </CheckButton>
               </div>
-              <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
+              {isEdit ? (
+                <div className="ecu-companies-form__field sri-config-field--check-align">
+                  <CheckButton
+                    variant="ghost"
+                    checked={isActive}
+                    onChange={setIsActive}
+                    disabled={busy || loading}
+                  >
+                    Promoción activa
+                  </CheckButton>
+                </div>
+              ) : null}
+              <div
+                className={`ecu-companies-form__field ${
+                  isEdit ? 'ecu-companies-form__field--span-2' : 'ecu-companies-form__field--span-3'
+                }`}
+              >
                 <TextBox
                   id="pr-description"
                   label="Descripción"
