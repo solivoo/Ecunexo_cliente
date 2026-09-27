@@ -178,10 +178,28 @@ public sealed class EcommerceOrderRepository : IEcommerceOrderRepository
         return (items, totalCount);
     }
 
-    public async Task<EcommerceOrderMetrics> GetMetricsAsync(Guid tenantId, CancellationToken ct = default)
+    public async Task<EcommerceOrderMetrics> GetMetricsAsync(
+        Guid tenantId,
+        DateTimeOffset? fromDate = null,
+        DateTimeOffset? toDate = null,
+        CancellationToken ct = default)
     {
-        var orders = await _db.EcommerceOrders.AsNoTracking()
-            .Where(o => o.TenantId == tenantId)
+        var query = _db.EcommerceOrders.AsNoTracking()
+            .Where(o => o.TenantId == tenantId);
+
+        if (fromDate.HasValue)
+        {
+            var from = fromDate.Value.ToUniversalTime();
+            query = query.Where(o => o.OrderDate >= from);
+        }
+
+        if (toDate.HasValue)
+        {
+            var to = toDate.Value.ToUniversalTime();
+            query = query.Where(o => o.OrderDate <= to);
+        }
+
+        var orders = await query
             .Select(o => new { o.Status, o.TotalAmount })
             .ToListAsync(ct)
             .ConfigureAwait(false);

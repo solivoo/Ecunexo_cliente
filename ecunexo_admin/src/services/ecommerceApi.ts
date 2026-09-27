@@ -54,10 +54,12 @@ export async function getEcommerceOrderPaymentProofUrl(
 }
 
 export async function getEcommerceMetrics(
-  tenantId: string
+  tenantId: string,
+  params?: { fromDate?: string; toDate?: string }
 ): Promise<EcommerceOrderMetricsDto> {
   const { data } = await api.get<EcommerceOrderMetricsDto>(
-    `/api/v1/tenants/${tenantId}/ecommerce/orders/metrics`
+    `/api/v1/tenants/${tenantId}/ecommerce/orders/metrics`,
+    { params }
   )
   return data
 }
@@ -115,6 +117,17 @@ export async function shipEcommerceOrder(
   const { data } = await api.post(
     `/api/v1/tenants/${tenantId}/ecommerce/orders/${orderId}/ship`,
     body
+  )
+  return data
+}
+
+export async function deliverEcommerceOrder(
+  tenantId: string,
+  orderId: string
+): Promise<{ orderId: string; status: number }> {
+  const { data } = await api.post(
+    `/api/v1/tenants/${tenantId}/ecommerce/orders/${orderId}/deliver`,
+    {}
   )
   return data
 }

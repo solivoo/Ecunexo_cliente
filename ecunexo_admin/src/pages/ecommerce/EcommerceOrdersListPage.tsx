@@ -80,7 +80,7 @@ export function EcommerceOrdersListPage() {
             page: 1,
             pageSize: 100,
           }),
-          getEcommerceMetrics(tenantId),
+          getEcommerceMetrics(tenantId, toApiDateRange({ from, to })),
         ])
 
         setRows(ordersRes.items)
@@ -131,24 +131,20 @@ export function EcommerceOrdersListPage() {
       {
         key: 'customerName',
         header: 'Cliente',
-        width: 200,
+        width: 180,
         renderCell: (_val, row: Row) => (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontWeight: 500 }}>{row.customerName}</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>{row.customerTaxId}</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+              {row.customerTaxId} · {row.recipientCity}
+            </span>
           </div>
         ),
       },
       {
-        key: 'recipientCity',
-        header: 'Ciudad Destino',
-        width: 140,
-        renderCell: (_val, row: Row) => row.recipientCity,
-      },
-      {
         key: 'itemsCount',
         header: 'Ítems',
-        width: 90,
+        width: 70,
         align: 'center',
         renderCell: (_val, row: Row) => (
           <span style={{ fontWeight: 600 }}>{row.itemsCount}</span>

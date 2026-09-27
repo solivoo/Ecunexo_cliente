@@ -52,7 +52,11 @@ public interface IEcommerceOrderRepository
         int pageSize,
         CancellationToken ct = default);
 
-    Task<EcommerceOrderMetrics> GetMetricsAsync(Guid tenantId, CancellationToken ct = default);
+    Task<EcommerceOrderMetrics> GetMetricsAsync(
+        Guid tenantId,
+        DateTimeOffset? fromDate = null,
+        DateTimeOffset? toDate = null,
+        CancellationToken ct = default);
 
     Task<string> GenerateNextOrderNumberAsync(Guid tenantId, CancellationToken ct = default);
 }

@@ -26,6 +26,7 @@ import { readApiError } from '@/lib/readApiError'
 import {
   getEcommerceOrderById,
   getEcommerceOrderPaymentProofUrl,
+  deliverEcommerceOrder,
   processEcommerceOrder,
 } from '@/services/ecommerceApi'
 import { listEcommerceBlockedContacts } from '@/services/storefrontApi'
@@ -70,6 +71,7 @@ export function EcommerceOrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
+  const [delivering, setDelivering] = useState(false)
   const [proofUrlLoading, setProofUrlLoading] = useState(false)
   const [blockedContacts, setBlockedContacts] = useState<EcommerceBlockedContact[]>([])
 
@@ -140,6 +142,25 @@ export function EcommerceOrderDetailPage() {
       toast.show({ title: 'Error', message: msg, variant: 'error' })
     } finally {
       setProofUrlLoading(false)
+    }
+  }
+
+  const handleConfirmDelivery = async () => {
+    if (!tenantId || !order) return
+    setDelivering(true)
+    try {
+      await deliverEcommerceOrder(tenantId, order.id)
+      toast.show({
+        title: 'Pedido Entregado',
+        message: 'Orden completada satisfactoriamente.',
+        variant: 'success',
+      })
+      await loadOrder({ silent: true })
+    } catch (err) {
+      const msg = readApiError(err, 'No se pudo marcar el pedido como entregado.')
+      toast.show({ title: 'Error', message: msg, variant: 'error' })
+    } finally {
+      setDelivering(false)
     }
   }
 
@@ -272,7 +293,7 @@ export function EcommerceOrderDetailPage() {
 
               {canManage && (isPlaced || isConfirmed) && (
                 <Button
-                  variant="primary"
+                  variant={isPlaced && !isPendingPayment ? 'primary' : 'outline'}
                   iconLeft={<Package size={16} />}
                   onClick={handleStartProcessing}
                   disabled={processing}
@@ -295,13 +316,9 @@ export function EcommerceOrderDetailPage() {
                 <Button
                   variant="primary"
                   iconLeft={<CheckCircle2 size={16} />}
-                  onClick={() => {
-                    toast.show({
-                      title: 'Pedido Entregado',
-                      message: 'Orden completada satisfactoriamente.',
-                      variant: 'success',
-                    })
-                  }}
+                  loading={delivering}
+                  disabled={delivering}
+                  onClick={() => void handleConfirmDelivery()}
                 >
                   Confirmar Entrega
                 </Button>
@@ -309,7 +326,7 @@ export function EcommerceOrderDetailPage() {
 
               {canCreateInvoice && !order.billingInvoiceId && !isCancelled && (
                 <Button
-                  variant="primary"
+                  variant="outline"
                   iconLeft={<FileText size={16} />}
                   onClick={() =>
                     navigate(`/facturacion/facturas/emitir?pedido=${encodeURIComponent(order.id)}`)
@@ -319,7 +336,7 @@ export function EcommerceOrderDetailPage() {
                 </Button>
               )}
 
-              {canManage && !order.billingInvoiceId && !isCancelled && (
+              {canManage && !canCreateInvoice && !order.billingInvoiceId && !isCancelled && (
                 <Button
                   variant="outline"
                   iconLeft={<FileText size={16} />}

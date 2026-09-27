@@ -18,7 +18,9 @@ public sealed class GetEcommerceMetricsHandler
         GetEcommerceMetricsQuery query,
         CancellationToken ct)
     {
-        var metrics = await _orders.GetMetricsAsync(query.TenantId, ct).ConfigureAwait(false);
+        var metrics = await _orders
+            .GetMetricsAsync(query.TenantId, query.FromDate, query.ToDate, ct)
+            .ConfigureAwait(false);
         return metrics;
     }
 }

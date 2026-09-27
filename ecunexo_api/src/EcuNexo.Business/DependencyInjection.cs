@@ -60,6 +60,7 @@ using EcuNexo.Business.Ecommerce.Commands.CancelEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.ConfirmEcommerceOrderPayment;
 using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.LinkEcommerceOrderInvoice;
+using EcuNexo.Business.Ecommerce.Commands.DeliverEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.ProcessEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.ShipEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Dtos;
@@ -333,6 +334,7 @@ public static class DependencyInjection
         // Ecommerce Core Module
         services.AddScoped<ICommandHandler<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>, CreateEcommerceOrderHandler>();
         services.AddScoped<ICommandHandler<ConfirmEcommerceOrderPaymentCommand, ConfirmEcommerceOrderPaymentResponse>, ConfirmEcommerceOrderPaymentHandler>();
+        services.AddScoped<ICommandHandler<DeliverEcommerceOrderCommand, DeliverEcommerceOrderResponse>, DeliverEcommerceOrderHandler>();
         services.AddScoped<ICommandHandler<ProcessEcommerceOrderCommand, ProcessEcommerceOrderResponse>, ProcessEcommerceOrderHandler>();
         services.AddScoped<ICommandHandler<ShipEcommerceOrderCommand, ShipEcommerceOrderResponse>, ShipEcommerceOrderHandler>();
         services.AddScoped<ICommandHandler<CancelEcommerceOrderCommand, CancelEcommerceOrderResponse>, CancelEcommerceOrderHandler>();

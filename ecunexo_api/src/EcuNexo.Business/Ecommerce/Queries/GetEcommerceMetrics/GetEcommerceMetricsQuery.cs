@@ -3,4 +3,7 @@ using EcuNexo.Business.Ecommerce.Repositories;
 
 namespace EcuNexo.Business.Ecommerce.Queries.GetEcommerceMetrics;
 
-public sealed record GetEcommerceMetricsQuery(Guid TenantId) : IQuery<EcommerceOrderMetrics>;
+public sealed record GetEcommerceMetricsQuery(
+    Guid TenantId,
+    DateTimeOffset? FromDate = null,
+    DateTimeOffset? ToDate = null) : IQuery<EcommerceOrderMetrics>;

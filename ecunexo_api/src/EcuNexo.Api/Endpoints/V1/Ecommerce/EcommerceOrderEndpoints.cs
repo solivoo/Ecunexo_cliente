@@ -7,6 +7,7 @@ using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Ecommerce.Commands.CancelEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.ConfirmEcommerceOrderPayment;
 using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
+using EcuNexo.Business.Ecommerce.Commands.DeliverEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.LinkEcommerceOrderInvoice;
 using EcuNexo.Business.Ecommerce.Commands.ProcessEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Commands.ShipEcommerceOrder;
@@ -61,6 +62,9 @@ public static class EcommerceOrderEndpoints
         group.MapPost("/{orderId:guid}/ship", ShipOrderAsync)
             .AddEndpointFilter(PermissionFilters.Require("ecommerce.orders.manage"));
 
+        group.MapPost("/{orderId:guid}/deliver", DeliverOrderAsync)
+            .AddEndpointFilter(PermissionFilters.Require("ecommerce.orders.manage"));
+
         group.MapPost("/{orderId:guid}/cancel", CancelOrderAsync)
             .AddEndpointFilter(PermissionFilters.Require("ecommerce.orders.manage"));
 
@@ -100,10 +104,15 @@ public static class EcommerceOrderEndpoints
 
     private static async Task<IResult> GetMetricsAsync(
         [FromRoute] Guid tenantId,
+        [FromQuery] DateTimeOffset? fromDate,
+        [FromQuery] DateTimeOffset? toDate,
         [FromServices] ISender sender,
         CancellationToken ct)
     {
-        var query = new GetEcommerceMetricsQuery(tenantId);
+        var query = new GetEcommerceMetricsQuery(
+            tenantId,
+            fromDate?.ToUniversalTime(),
+            toDate?.ToUniversalTime());
         var result = await sender
             .AskAsync<GetEcommerceMetricsQuery, EcommerceOrderMetrics>(query, ct)
             .ConfigureAwait(false);
@@ -221,6 +230,25 @@ public static class EcommerceOrderEndpoints
 
         var result = await sender
             .SendAsync<ShipEcommerceOrderCommand, ShipEcommerceOrderResponse>(command, ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> DeliverOrderAsync(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid orderId,
+        [FromServices] ISender sender,
+        [FromServices] ICallerContext caller,
+        CancellationToken ct)
+    {
+        var command = new DeliverEcommerceOrderCommand(
+            tenantId,
+            orderId,
+            caller.UserId,
+            caller.UserId?.ToString());
+
+        var result = await sender
+            .SendAsync<DeliverEcommerceOrderCommand, DeliverEcommerceOrderResponse>(command, ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();
     }
