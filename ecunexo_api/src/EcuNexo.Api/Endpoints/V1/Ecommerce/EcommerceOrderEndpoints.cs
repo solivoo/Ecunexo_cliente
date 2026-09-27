@@ -87,8 +87,8 @@ public static class EcommerceOrderEndpoints
             status,
             paymentStatus,
             search,
-            fromDate,
-            toDate,
+            fromDate?.ToUniversalTime(),
+            toDate?.ToUniversalTime(),
             page,
             pageSize);
 

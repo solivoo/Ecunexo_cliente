@@ -246,7 +246,12 @@ public static class PricingEndpoints
     {
         var result = await sender
             .AskAsync<GetPriceHistoryQuery, IReadOnlyList<PriceHistoryItemResponse>>(
-                new GetPriceHistoryQuery(tenantId, catalogItemId, priceListId, from, to),
+                new GetPriceHistoryQuery(
+                    tenantId,
+                    catalogItemId,
+                    priceListId,
+                    from?.ToUniversalTime(),
+                    to?.ToUniversalTime()),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

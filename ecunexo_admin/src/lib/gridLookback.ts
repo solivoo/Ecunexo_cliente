@@ -73,10 +73,11 @@ const ECUADOR_OFFSET = '-05:00'
 /**
  * Convierte el rango civil (YYYY-MM-DD) a instantes UTC con la zona de Ecuador,
  * para que el día completo quede incluido en los filtros del API.
+ * Se serializa en UTC (Z) porque PostgreSQL/Npgsql no acepta DateTimeOffset con offset.
  */
 export function toApiDateRange(range: IsoDateRange): { fromDate: string; toDate: string } {
   return {
-    fromDate: `${range.from}T00:00:00${ECUADOR_OFFSET}`,
-    toDate: `${range.to}T23:59:59.999${ECUADOR_OFFSET}`,
+    fromDate: new Date(`${range.from}T00:00:00${ECUADOR_OFFSET}`).toISOString(),
+    toDate: new Date(`${range.to}T23:59:59.999${ECUADOR_OFFSET}`).toISOString(),
   }
 }

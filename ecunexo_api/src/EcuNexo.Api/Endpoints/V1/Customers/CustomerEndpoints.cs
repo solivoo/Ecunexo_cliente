@@ -97,7 +97,9 @@ public static class CustomerEndpoints
         [FromServices] ICustomerRepository customerRepo,
         CancellationToken ct)
     {
-        var customers = await customerRepo.ListAsync(tenantId, type, search, from, to, ct).ConfigureAwait(false);
+        var customers = await customerRepo
+            .ListAsync(tenantId, type, search, from?.ToUniversalTime(), to?.ToUniversalTime(), ct)
+            .ConfigureAwait(false);
         return Results.Ok(customers);
     }
 
