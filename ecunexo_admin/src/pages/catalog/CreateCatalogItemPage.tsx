@@ -71,6 +71,21 @@ const ENTRY_OPTIONS: { id: EntryMode; title: string; text: string }[] = [
   },
 ]
 
+const NAME_FIELD_KEYS = ['nombre', 'nombre del producto', 'nombre producto', 'name', 'producto', 'titulo', 'título']
+const DESCRIPTION_FIELD_KEYS = ['descripcion', 'descripción', 'detalle', 'notas', 'nota']
+const CODE_FIELD_KEYS = ['codigo', 'código', 'sku', 'referencia', 'codigo de producto', 'código de producto']
+
+function matchesFieldKey(key: string, candidates: readonly string[]): boolean {
+  const clean = key.trim().toLowerCase()
+  return candidates.some(
+    (candidate) =>
+      clean === candidate ||
+      clean.startsWith(`${candidate} `) ||
+      clean.startsWith(`${candidate}/`) ||
+      clean.startsWith(`${candidate} /`)
+  )
+}
+
 export function CreateCatalogItemPage() {
   const toast = useToast()
   const navigate = useNavigate()
@@ -231,6 +246,42 @@ export function CreateCatalogItemPage() {
     return groups
   }, [modelAttributeFields])
 
+  const templateMode = entryMode === 'template' && Boolean(appliedTemplate)
+
+  const findTemplateAttributeValue = useCallback(
+    (candidates: readonly string[]): string => {
+      for (const field of modelAttributeFields) {
+        if (!matchesFieldKey(field.key, candidates)) continue
+        const row = customAttributes.find(
+          (r) => r.key.trim().toLowerCase() === field.key.trim().toLowerCase()
+        )
+        if (row?.value.trim()) return row.value.trim()
+      }
+      return ''
+    },
+    [customAttributes, modelAttributeFields]
+  )
+
+  const hasTemplateNameField = useMemo(
+    () => modelAttributeFields.some((f) => matchesFieldKey(f.key, NAME_FIELD_KEYS)),
+    [modelAttributeFields]
+  )
+  const hasTemplateCodeField = useMemo(
+    () => modelAttributeFields.some((f) => matchesFieldKey(f.key, CODE_FIELD_KEYS)),
+    [modelAttributeFields]
+  )
+
+  const showManualName = !templateMode
+  const showManualDescription = !templateMode
+  const showManualSku = !usesMatrix && (!templateMode || !hasTemplateCodeField)
+  const showProductDataCard = templateReady && (showManualName || showManualDescription || showManualSku)
+
+  const derivedTemplateName = templateMode ? findTemplateAttributeValue(NAME_FIELD_KEYS) : ''
+  const derivedTemplateDescription = templateMode
+    ? findTemplateAttributeValue(DESCRIPTION_FIELD_KEYS)
+    : ''
+  const derivedTemplateSku = templateMode ? findTemplateAttributeValue(CODE_FIELD_KEYS) : ''
+
   const selectEntry = useCallback((mode: EntryMode) => {
     setEntryMode(mode)
     setError(null)
@@ -319,10 +370,20 @@ export function CreateCatalogItemPage() {
         if (entryMode === 'template' && !selectedTemplateId) {
           throw new Error('Elige una plantilla o cambia la forma de registro.')
         }
-        const finalName = name.trim()
-        if (!finalName) throw new Error('El nombre del producto es obligatorio.')
+        const finalName = showManualName
+          ? name.trim()
+          : derivedTemplateName || appliedTemplate?.name || ''
+        if (!finalName) {
+          throw new Error('Completa el atributo «Nombre» de la plantilla para identificar el producto.')
+        }
+
+        const finalDescription = showManualDescription
+          ? description.trim()
+          : derivedTemplateDescription
+        const finalSku = showManualSku ? sku.trim() : derivedTemplateSku
+
         const kindNum = Number(kind) as CatalogItemKind
-        if (kindNum === CatalogItemKind.Physical && !usesMatrix && !sku.trim()) {
+        if (kindNum === CatalogItemKind.Physical && !usesMatrix && !finalSku) {
           throw new Error('El código es obligatorio para un producto físico.')
         }
 
@@ -347,7 +408,7 @@ export function CreateCatalogItemPage() {
           const createdMatrix = await createCatalogItemMatrix(tenantId, {
             kind: kindNum,
             name: finalName,
-            description: description.trim() || null,
+            description: finalDescription || null,
             modelCode: null,
             basePrice: null,
             variantDimensionsJson: matrixData.variantDimensionsJson,
@@ -435,8 +496,8 @@ export function CreateCatalogItemPage() {
           const created = await createCatalogItem(tenantId, {
             kind: kindNum,
             name: name.trim(),
-            description: description.trim() || null,
-            sku: sku.trim() || null,
+            description: finalDescription || null,
+            sku: finalSku || null,
             basePrice: null,
             customAttributesJson:
               customAttributes.length > 0 ? serializeCustomAttributes(customAttributes, []) : null,
@@ -496,6 +557,9 @@ export function CreateCatalogItemPage() {
       appliedTemplate,
       appliedTemplateLevels,
       customAttributes,
+      derivedTemplateDescription,
+      derivedTemplateName,
+      derivedTemplateSku,
       description,
       dimensionValuesMap,
       entryMode,
@@ -508,6 +572,9 @@ export function CreateCatalogItemPage() {
       usesMatrix,
       remainingVariants,
       selectedTemplateId,
+      showManualDescription,
+      showManualName,
+      showManualSku,
       sku,
       stagedImages,
       tenantId,
@@ -627,6 +694,15 @@ export function CreateCatalogItemPage() {
                 {appliedTemplate && templateSummary ? (
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-text)' }}>{templateSummary}</p>
                 ) : null}
+                {templateMode && appliedTemplate ? (
+                  <p className="ecu-hint" style={{ margin: 0 }}>
+                    {derivedTemplateName
+                      ? `Se registrará como «${derivedTemplateName}».`
+                      : hasTemplateNameField
+                        ? `Completa el atributo «Nombre» para personalizar el nombre; mientras tanto se usará «${appliedTemplate.name}».`
+                        : `La plantilla no captura «Nombre»: se usará «${appliedTemplate.name}». Agrega un atributo «Nombre» para personalizarlo.`}
+                  </p>
+                ) : null}
                 {productTemplates.length > 0 && !appliedTemplate ? (
                   <p className="ecu-hint" style={{ margin: 0 }}>
                     Selecciona una plantilla para cargar el formulario.
@@ -636,69 +712,81 @@ export function CreateCatalogItemPage() {
             )}
           </SectionCard>
 
-          {templateReady ? (
-            <SectionCard title="Datos del producto">
-            {error ? (
-              <div className="ecu-form-error-banner" role="alert">
-                <span className="material-symbols-outlined">error</span>
-                <span>{error}</span>
-              </div>
-            ) : null}
-
-            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
-              <div
-                className={`ecu-companies-form__field ${
-                  usesMatrix
-                    ? 'ecu-companies-form__field--span-3'
-                    : 'ecu-companies-form__field--span-2'
-                }`}
-              >
-                <TextBox
-                  id="ci-name"
-                  label="Nombre"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={name}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                  placeholder="Escriba aquí..."
-                  required
-                  disabled={busy}
-                  fullWidth
-                />
-              </div>
-              {!usesMatrix && (
-                <div className="ecu-companies-form__field">
-                  <TextBox
-                    id="ci-sku"
-                    label={entryMode === 'service' ? 'Código (opcional)' : 'Código'}
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={sku}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                      setSku(e.target.value.toUpperCase())
-                    }
-                    placeholder="Escriba aquí..."
-                    required={entryMode !== 'service'}
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
-              )}
-              <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
-                <TextBox
-                  id="ci-desc"
-                  label="Descripción"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={description}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
-                  placeholder="Escriba aquí..."
-                  disabled={busy}
-                  fullWidth
-                />
-              </div>
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
             </div>
-          </SectionCard>
+          ) : null}
+
+          {showProductDataCard ? (
+            <SectionCard
+              title={
+                showManualName || showManualDescription
+                  ? 'Datos del producto'
+                  : 'Código del producto'
+              }
+            >
+              <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+                {showManualName && (
+                  <div
+                    className={`ecu-companies-form__field ${
+                      usesMatrix
+                        ? 'ecu-companies-form__field--span-3'
+                        : showManualSku
+                          ? 'ecu-companies-form__field--span-2'
+                          : 'ecu-companies-form__field--span-3'
+                    }`}
+                  >
+                    <TextBox
+                      id="ci-name"
+                      label="Nombre"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={name}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                      placeholder="Escriba aquí..."
+                      required
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
+                {showManualSku && (
+                  <div className="ecu-companies-form__field">
+                    <TextBox
+                      id="ci-sku"
+                      label={entryMode === 'service' ? 'Código (opcional)' : 'Código'}
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={sku}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setSku(e.target.value.toUpperCase())
+                      }
+                      placeholder="Escriba aquí..."
+                      required={entryMode !== 'service' && !templateMode}
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
+                {showManualDescription && (
+                  <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
+                    <TextBox
+                      id="ci-desc"
+                      label="Descripción"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={description}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+                      placeholder="Escriba aquí..."
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
+              </div>
+            </SectionCard>
           ) : null}
 
           {entryMode === 'template' &&

@@ -7,8 +7,10 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.56.0`.
+* **Última Versión Publicada:** `v0.56.1`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Alta con plantilla sin campos redundantes (v0.56.1):**
+    * Con plantilla aplicada, el formulario de alta ya no muestra **Nombre** ni **Descripción** manuales: se derivan del atributo «Nombre»/«Descripción» capturado por la plantilla (con fallback al nombre de la plantilla). El **Código** se mantiene solo si la plantilla no captura un atributo de código y el producto es de un solo código; en matrices va por variante. El banner de error se movió fuera de la tarjeta para seguir visible cuando la tarjeta se oculta.
   - **Catálogo — Atributos flexibles, renombrado/reasignación masiva y fotos múltiples (v0.56.0):**
     * **Rol por plantilla:** el tipo de atributo define solo la captura con tipos agnósticos al rubro (texto, lista de opciones, selección múltiple, número, Sí/No, color, colores múltiples y fotos) y la plantilla decide dato de ficha vs eje de variante; el constructor ya no bloquea atributos no-eje y advierte si el eje no tiene opciones. La matriz solo usa el fallback de tallas en ejes de talla.
     * **Propagación:** renombrar el nombre del atributo o una opción actualiza `customAttributesJson`, `variantDimensionsJson`, `hierarchyPathJson` y `item_images.group_value` de todos los ítems activos; la respuesta informa `renamedItems`.
