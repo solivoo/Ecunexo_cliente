@@ -89,7 +89,10 @@ namespace EcuNexo.Data.Migrations
             migrationBuilder.Sql(
                 """
                 UPDATE catalog.items
-                SET sku = trim(both '-' from left(regexp_replace(upper(name), '[^A-Z0-9]+', '-', 'g'), 20))
+                SET sku = trim(both '-' from left(
+                              regexp_replace(
+                                  translate(upper(name), 'ÁÉÍÓÚÜÑ', 'AEIOUUN'),
+                                  '[^A-Z0-9]+', '-', 'g'), 24))
                           || '-' || upper(left(replace(id::text, '-', ''), 8))
                 WHERE is_matrix_parent = TRUE
                   AND (sku IS NULL OR btrim(sku) = '')
