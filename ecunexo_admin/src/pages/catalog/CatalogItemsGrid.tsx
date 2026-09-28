@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, type ColumnDef, type DataGridCardRenderContext } from 'glubox'
-import { Eye, EyeOff, Layers, Package, Pencil, Trash2 } from 'lucide-react'
+import { DollarSign, Eye, EyeOff, Layers, Package, Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { catalogItemKindLabel, catalogItemStatusLabel } from '@/lib/catalogLabels'
@@ -22,6 +22,7 @@ export type CatalogItemsGridProps = {
   readonly canEdit?: boolean
   readonly canDelete?: boolean
   readonly canHide?: boolean
+  readonly canAssignPrice?: boolean
   readonly deletingId?: string | null
   readonly hidingId?: string | null
   readonly onDelete?: (row: CatalogItemListItemDto) => void
@@ -162,6 +163,7 @@ export function CatalogItemsGrid({
   canEdit = false,
   canDelete = false,
   canHide = false,
+  canAssignPrice = false,
   deletingId = null,
   hidingId = null,
   onDelete,
@@ -248,11 +250,20 @@ export function CatalogItemsGrid({
         key: 'id',
         header: 'Acciones',
         sticky: 'right',
-        width: canHide ? 150 : canDelete ? 112 : 72,
+        width: (canHide ? 150 : canDelete ? 112 : 72) + (canAssignPrice ? 36 : 0),
         align: 'center',
         sortable: false,
         renderCell: (_value: CatalogItemGridRow['id'], row: CatalogItemGridRow) => (
           <div className="ecu-companies-grid__actions">
+            {canAssignPrice ? (
+              <GridIconButton
+                label="Asignar precio"
+                icon={DollarSign}
+                onClick={() =>
+                  navigate(`/catalogo/precios/productos/nuevo?catalogItemId=${row.id}`)
+                }
+              />
+            ) : null}
             {canEdit ? (
               <GridIconButton
                 label="Editar"
@@ -285,7 +296,7 @@ export function CatalogItemsGrid({
     }
 
     return cols
-  }, [canDelete, canEdit, canHide, deletingId, hidingId, navigate, onDelete, onToggleHidden])
+  }, [canAssignPrice, canDelete, canEdit, canHide, deletingId, hidingId, navigate, onDelete, onToggleHidden])
 
   const renderCard = useMemo(() => {
     return ({ row }: DataGridCardRenderContext<CatalogItemGridRow>) => (
@@ -326,8 +337,24 @@ export function CatalogItemsGrid({
 
         <div className="ecu-catalog-card__body">
 
-          {(canEdit || canDelete || canHide) && (
+          {(canEdit || canDelete || canHide || canAssignPrice) && (
             <div className="ecu-catalog-card__actions">
+              {canAssignPrice ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigate(`/catalogo/precios/productos/nuevo?catalogItemId=${row.id}`)
+                  }}
+                  aria-label={`Asignar precio a ${row.name}`}
+                  title="Asignar precio"
+                >
+                  <DollarSign size={15} />
+                  <span>Precio</span>
+                </Button>
+              ) : null}
               {canEdit ? (
                 <Button
                   type="button"
@@ -397,7 +424,7 @@ export function CatalogItemsGrid({
         </div>
       </div>
     )
-  }, [canDelete, canEdit, canHide, deletingId, hidingId, navigate, onDelete, onToggleHidden])
+  }, [canAssignPrice, canDelete, canEdit, canHide, deletingId, hidingId, navigate, onDelete, onToggleHidden])
 
   return (
     <DataGrid

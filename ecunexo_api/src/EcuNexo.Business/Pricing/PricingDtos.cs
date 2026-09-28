@@ -20,7 +20,8 @@ public sealed record ProductPriceFilter(
     string? Search,
     Guid? PriceListId,
     DateOnly? Date,
-    bool OnlyVigent);
+    bool OnlyVigent,
+    Guid? CatalogItemId = null);
 
 /// <summary>Proyección de consulta que une precio, lista e ítem de catálogo.</summary>
 public sealed record ProductPriceListRow(

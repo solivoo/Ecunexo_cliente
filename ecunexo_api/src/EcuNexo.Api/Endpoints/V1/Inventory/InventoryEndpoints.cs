@@ -82,12 +82,13 @@ public static class InventoryEndpoints
         Guid tenantId,
         Guid? warehouseId,
         bool? belowMinimumOnly,
+        Guid? catalogItemId,
         ISender sender,
         CancellationToken ct)
     {
         var result = await sender
             .AskAsync<ListStockQuery, IReadOnlyList<StockListItemResponse>>(
-                new ListStockQuery(tenantId, warehouseId, belowMinimumOnly == true),
+                new ListStockQuery(tenantId, warehouseId, belowMinimumOnly == true, catalogItemId),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

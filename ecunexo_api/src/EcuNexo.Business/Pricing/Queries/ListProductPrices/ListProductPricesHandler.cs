@@ -22,7 +22,8 @@ public sealed class ListProductPricesHandler
             query.Search,
             query.PriceListId,
             query.Date,
-            query.OnlyVigent);
+            query.OnlyVigent,
+            query.CatalogItemId);
 
         var rows = await _productPrices.ListAsync(filter, ct).ConfigureAwait(false);
         IReadOnlyList<ProductPriceListItemResponse> response = rows

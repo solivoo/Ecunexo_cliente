@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Button,
   CheckButton,
@@ -22,10 +22,12 @@ import { readApiError } from '@/lib/readApiError'
 import { CatalogItemPicker } from '@/pages/catalog/pricing/CatalogItemPicker'
 import { todayIso } from '@/pages/catalog/pricing/pricingFormat'
 import { listCatalogItems } from '@/services/catalogApi'
+import { listStock } from '@/services/inventoryApi'
 import {
   createProductPrice,
   getProductPrice,
   listPriceLists,
+  listProductPrices,
   updateProductPrice,
 } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
@@ -43,6 +45,7 @@ const emptyTier = (): TierDraft => ({ quantityFrom: '', quantityTo: '', unitPric
 
 export function ProductPriceFormPage() {
   const { priceId } = useParams<{ priceId: string }>()
+  const [searchParams] = useSearchParams()
   const isEdit = Boolean(priceId)
   const toast = useToast()
   const navigate = useNavigate()
@@ -57,10 +60,12 @@ export function ProductPriceFormPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [itemId, setItemId] = useState('')
+  const [itemId, setItemId] = useState(() => searchParams.get('catalogItemId') ?? '')
   const [itemLabel, setItemLabel] = useState('')
-  const [listId, setListId] = useState('')
-  const [price, setPrice] = useState('0')
+  const [listId, setListId] = useState(() => searchParams.get('priceListId') ?? '')
+  const [price, setPrice] = useState('')
+  const [currentVigent, setCurrentVigent] = useState<{ price: number; validFrom: string } | null>(null)
+  const [costInfo, setCostInfo] = useState<{ averageCost: number } | null>(null)
   const [validFrom, setValidFrom] = useState(todayIso())
   const [validTo, setValidTo] = useState('')
   const [reason, setReason] = useState('')
@@ -78,8 +83,11 @@ export function ProductPriceFormPage() {
       listPriceLists(tenantId, true).then((data) => {
         if (!cancelled) {
           setLists(data)
-          const preferred = data.find((l) => l.isDefault) ?? data[0]
-          if (preferred) setListId((current) => current || preferred.id)
+          setListId((current) => {
+            if (current) return current
+            const preferred = data.find((l) => l.isDefault) ?? data[0]
+            return preferred ? preferred.id : current
+          })
         }
       }),
     ]
@@ -121,6 +129,58 @@ export function ProductPriceFormPage() {
     }
   }, [isEdit, priceId, tenantId])
 
+  // Precio vigente actual en la lista elegida: permite renovar con contexto.
+  useEffect(() => {
+    if (isEdit || !tenantId || !itemId || !listId) return
+    let cancelled = false
+    listProductPrices(tenantId, {
+      priceListId: listId,
+      catalogItemId: itemId,
+      onlyVigent: true,
+    })
+      .then((rows) => {
+        if (cancelled) return
+        const current = rows[0] ?? null
+        setCurrentVigent(current ? { price: current.price, validFrom: current.validFrom } : null)
+        if (current) setPrice((prev) => (prev.trim() ? prev : String(current.price)))
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentVigent(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isEdit, itemId, listId, tenantId])
+
+  // Costo promedio del stock para estimar margen.
+  useEffect(() => {
+    if (!tenantId || !itemId) return
+    let cancelled = false
+    listStock(tenantId, { catalogItemId: itemId })
+      .then((rows) => {
+        if (cancelled) return
+        const totalQty = rows.reduce((sum, r) => sum + (r.quantity ?? 0), 0)
+        const totalValue = rows.reduce((sum, r) => sum + (r.stockValue ?? 0), 0)
+        const averageCost = totalQty > 0 ? totalValue / totalQty : (rows[0]?.averageCost ?? 0)
+        setCostInfo(averageCost > 0 ? { averageCost } : null)
+      })
+      .catch(() => {
+        if (!cancelled) setCostInfo(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [itemId, tenantId])
+
+  const selectedItem = items.find((i) => i.id === itemId) ?? null
+  const selectedList = lists.find((l) => l.id === listId) ?? null
+  const renewing = !isEdit && currentVigent != null
+  const numericEnteredPrice = Number(price)
+  const marginPercent =
+    costInfo && costInfo.averageCost > 0 && Number.isFinite(numericEnteredPrice) && numericEnteredPrice > 0
+      ? ((numericEnteredPrice - costInfo.averageCost) / numericEnteredPrice) * 100
+      : null
+
   const buildTiers = useCallback((): PriceTierBody[] => {
     return tiers
       .filter((tier) => tier.quantityFrom.trim() !== '' && tier.unitPrice.trim() !== '')
@@ -140,9 +200,13 @@ export function ProductPriceFormPage() {
       try {
         if (!isEdit && !itemId) throw new Error('Selecciona el producto a cotizar.')
         if (!listId) throw new Error('Selecciona la lista de precios.')
+        if (!price.trim()) throw new Error('El precio es obligatorio.')
         const numericPrice = Number(price)
         if (!Number.isFinite(numericPrice) || numericPrice < 0) {
           throw new Error('El precio debe ser un número mayor o igual a cero.')
+        }
+        if (renewing && !reason.trim()) {
+          throw new Error('Indica el motivo del cambio de precio.')
         }
 
         const tierPayload = buildTiers()
@@ -201,6 +265,7 @@ export function ProductPriceFormPage() {
       price,
       priceId,
       reason,
+      renewing,
       tenantId,
       toast,
       validFrom,
@@ -256,13 +321,45 @@ export function ProductPriceFormPage() {
               <CatalogItemPicker
                 items={items}
                 value={itemId}
-                onChange={setItemId}
+                onChange={(id) => {
+                  setItemId(id)
+                  setPrice('')
+                  setCurrentVigent(null)
+                  setCostInfo(null)
+                }}
                 disabled={busy || loading}
                 searchId="pp-item-search"
                 selectId="pp-item-select"
                 placeholder="Buscar por nombre o SKU…"
               />
             )}
+
+            {selectedItem ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.6rem' }}>
+                <span className="ecu-chip">{selectedItem.sku ?? 'Sin SKU'}</span>
+                {costInfo ? (
+                  <span className="ecu-chip">Costo prom. ${costInfo.averageCost.toFixed(4)}</span>
+                ) : null}
+                {marginPercent != null ? (
+                  <span
+                    className="ecu-chip"
+                    style={{
+                      color:
+                        marginPercent >= 0
+                          ? 'var(--color-success, #16a34a)'
+                          : 'var(--color-danger, #ef4444)',
+                    }}
+                  >
+                    Margen {marginPercent.toFixed(1)}%
+                  </span>
+                ) : null}
+                {currentVigent ? (
+                  <span className="ecu-chip">
+                    Actual: ${currentVigent.price.toFixed(2)} · desde {currentVigent.validFrom}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="ecu-companies-form__grid ecu-companies-form__grid--3" style={{ marginTop: '0.75rem' }}>
               <div className="ecu-companies-form__field">
@@ -277,7 +374,11 @@ export function ProductPriceFormPage() {
                     label: l.isDefault ? `${l.code} · predeterminada` : l.code,
                   }))}
                   value={listId}
-                  onChange={(value) => setListId(String(value))}
+                  onChange={(value) => {
+                    setListId(String(value))
+                    setPrice('')
+                    setCurrentVigent(null)
+                  }}
                   disabled={busy || loading || isEdit}
                 />
               </div>
@@ -287,7 +388,7 @@ export function ProductPriceFormPage() {
                   label="Precio"
                   labelPosition="outlined"
                   variant="outline"
-                  value={Number(price) || 0}
+                  value={price === '' ? '' : Number(price)}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setPrice(e.target.value)}
                   step={0.01}
                   min={0}
@@ -295,6 +396,11 @@ export function ProductPriceFormPage() {
                   disabled={busy || loading}
                   fullWidth
                 />
+                {renewing ? (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
+                    Cerrará la vigencia anterior e iniciará el {validFrom}.
+                  </span>
+                ) : null}
               </div>
               <div className="ecu-companies-form__field">
                 <DateBox
@@ -323,7 +429,7 @@ export function ProductPriceFormPage() {
               <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                 <TextBox
                   id="pp-reason"
-                  label="Motivo del cambio"
+                  label={renewing ? 'Motivo del cambio (obligatorio)' : 'Motivo del cambio'}
                   labelPosition="outlined"
                   variant="outline"
                   value={reason}
@@ -346,6 +452,17 @@ export function ProductPriceFormPage() {
                 </div>
               ) : null}
             </div>
+
+            {selectedList ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <span className="ecu-chip">{selectedList.currency}</span>
+                {selectedList.pricesIncludeTax ? <span className="ecu-chip">IVA incluido</span> : null}
+                <span className="ecu-chip">
+                  Lista vigente {selectedList.validFrom}
+                  {selectedList.validTo ? ` → ${selectedList.validTo}` : ''}
+                </span>
+              </div>
+            ) : null}
           </SectionCard>
 
           <SectionCard
@@ -370,7 +487,7 @@ export function ProductPriceFormPage() {
                         label="Cantidad desde"
                         labelPosition="outlined"
                         variant="outline"
-                        value={Number(tier.quantityFrom) || 0}
+                        value={tier.quantityFrom === '' ? '' : Number(tier.quantityFrom)}
                         onChange={(e: ChangeEvent<HTMLInputElement>) =>
                           updateTier(index, { quantityFrom: e.target.value })
                         }
@@ -387,7 +504,7 @@ export function ProductPriceFormPage() {
                         label="Cantidad hasta"
                         labelPosition="outlined"
                         variant="outline"
-                        value={Number(tier.quantityTo) || 0}
+                        value={tier.quantityTo === '' ? '' : Number(tier.quantityTo)}
                         onChange={(e: ChangeEvent<HTMLInputElement>) =>
                           updateTier(index, { quantityTo: e.target.value })
                         }
@@ -404,7 +521,7 @@ export function ProductPriceFormPage() {
                         label="Precio unitario"
                         labelPosition="outlined"
                         variant="outline"
-                        value={Number(tier.unitPrice) || 0}
+                        value={tier.unitPrice === '' ? '' : Number(tier.unitPrice)}
                         onChange={(e: ChangeEvent<HTMLInputElement>) =>
                           updateTier(index, { unitPrice: e.target.value })
                         }
@@ -444,7 +561,7 @@ export function ProductPriceFormPage() {
           <SectionCard>
             <div className="ecu-companies-form__actions">
               <Button type="submit" variant="primary" loading={busy} disabled={busy || loading}>
-                {isEdit ? 'Guardar cambios' : 'Crear precio'}
+                {isEdit ? 'Guardar cambios' : renewing ? 'Renovar vigencia' : 'Crear precio'}
               </Button>
               <Button
                 type="button"

@@ -167,12 +167,13 @@ public static class PricingEndpoints
         Guid? priceListId,
         DateOnly? date,
         bool? onlyVigent,
+        Guid? catalogItemId,
         ISender sender,
         CancellationToken ct)
     {
         var result = await sender
             .AskAsync<ListProductPricesQuery, IReadOnlyList<ProductPriceListItemResponse>>(
-                new ListProductPricesQuery(tenantId, search, priceListId, date, onlyVigent ?? true),
+                new ListProductPricesQuery(tenantId, search, priceListId, date, onlyVigent ?? true, catalogItemId),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

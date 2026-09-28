@@ -5,7 +5,8 @@ namespace EcuNexo.Business.Inventory.Queries.ListStock;
 public sealed record ListStockQuery(
     Guid TenantId,
     Guid? WarehouseId = null,
-    bool BelowMinimumOnly = false) : IQuery<IReadOnlyList<StockListItemResponse>>;
+    bool BelowMinimumOnly = false,
+    Guid? CatalogItemId = null) : IQuery<IReadOnlyList<StockListItemResponse>>;
 
 public sealed record StockListItemResponse(
     Guid Id,

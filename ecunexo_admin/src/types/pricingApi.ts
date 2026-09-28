@@ -91,6 +91,7 @@ export type ProductPriceFilters = {
   priceListId?: string
   date?: string
   onlyVigent?: boolean
+  catalogItemId?: string
 }
 
 export type CreateProductPriceBody = {

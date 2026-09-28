@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.60.0`.
+* **Última Versión Publicada:** `v0.61.0`.
 * **Hitos Recientes Completados:**
+  - **Precios — Nuevo precio con contexto, vigencia y margen (v0.61.0):**
+    * `ProductPriceFormPage`: precio vacío + obligatorio, contexto del producto (SKU), precio vigente por lista (`Actual: $X · desde …`), costo promedio del stock y margen en vivo; modo «Renovar vigencia» con motivo obligatorio; chips de moneda/IVA/vigencia de la lista; escalas con «hasta» opcional; preselección por query params (`catalogItemId`, `priceListId`).
+    * API: filtro `catalogItemId` en `ListProductPrices` y en `ListStock`; acción «Asignar precio» en Catálogo → Ítems (permiso `catalog.pricing.create`).
+    * Verificado: filtros responden por producto+lista y stock; `tsc`/`build` admin; lint sin errores nuevos. Pendiente Bloque 2: carga masiva (multi-selección + grilla inline / import CSV).
   - **Inventario — Fase C: costo unitario y valorización (v0.60.0):**
     * `InventoryDocumentLine.UnitCost` (recepción), `Stock.AverageCost`/`LastCost`/`StockValue` y `InventoryMovement.UnitCost`; migración `AddInventoryUnitCost` (columnas en `inventory.document_lines`, `inventory.stocks`, `inventory.movements`).
     * Promedio ponderado al ingresar con costo; el egreso se valora al promedio vigente; las líneas/movimientos exponen costo y total en las queries. UI: costo por línea y total en recepciones, columnas de costo promedio/valor en saldos, detalle del documento con costo/total.

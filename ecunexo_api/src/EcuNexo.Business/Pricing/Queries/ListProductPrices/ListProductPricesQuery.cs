@@ -7,4 +7,5 @@ public sealed record ListProductPricesQuery(
     string? Search = null,
     Guid? PriceListId = null,
     DateOnly? Date = null,
-    bool OnlyVigent = true) : IQuery<IReadOnlyList<ProductPriceListItemResponse>>;
+    bool OnlyVigent = true,
+    Guid? CatalogItemId = null) : IQuery<IReadOnlyList<ProductPriceListItemResponse>>;

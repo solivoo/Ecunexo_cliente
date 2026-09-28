@@ -123,6 +123,11 @@ public sealed class ProductPriceRepository : IProductPriceRepository
             query = query.Where(r => r.Price.PriceListId == priceListId);
         }
 
+        if (filter.CatalogItemId is { } catalogItemId)
+        {
+            query = query.Where(r => r.Price.CatalogItemId == catalogItemId);
+        }
+
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             var term = filter.Search.Trim();

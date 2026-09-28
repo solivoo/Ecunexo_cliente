@@ -38,9 +38,14 @@ public sealed class ListStockHandler : IQueryHandler<ListStockQuery, IReadOnlyLi
             .ToDictionary(w => w.Id);
 
         IEnumerable<Core.Inventory.Stock> filtered = stocks;
+        if (query.CatalogItemId is { } catalogItemId)
+        {
+            filtered = filtered.Where(s => s.CatalogItemId == catalogItemId);
+        }
+
         if (query.BelowMinimumOnly)
         {
-            filtered = stocks.Where(s => s.IsBelowMinimum);
+            filtered = filtered.Where(s => s.IsBelowMinimum);
         }
 
         IReadOnlyList<StockListItemResponse> rows = filtered

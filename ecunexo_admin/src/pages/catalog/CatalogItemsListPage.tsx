@@ -39,6 +39,7 @@ export function CatalogItemsListPage() {
   const canEdit = useHasPermission('catalog.item.update')
   const canDelete = useHasPermission('catalog.item.delete')
   const canHide = useHasPermission('catalog.item.hide')
+  const canAssignPrice = useHasPermission('catalog.pricing.create')
   const [rows, setRows] = useState<CatalogItemListItemDto[]>([])
   const [loading, setLoading] = useState(true)
   const [confirmDelete, setConfirmDelete] = useState<CatalogItemListItemDto | null>(null)
@@ -246,6 +247,7 @@ export function CatalogItemsListPage() {
               rows={filteredRows}
               loading={loading}
               canEdit={canEdit}
+              canAssignPrice={canAssignPrice}
               canDelete={canDelete}
               canHide={canHide}
               deletingId={deletingId}

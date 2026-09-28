@@ -53,12 +53,13 @@ export async function updateWarehouse(
 
 export async function listStock(
   tenantId: string,
-  opts?: { warehouseId?: string; belowMinimumOnly?: boolean }
+  opts?: { warehouseId?: string; belowMinimumOnly?: boolean; catalogItemId?: string }
 ): Promise<StockListItemDto[]> {
   const { data } = await api.get<StockListItemDto[]>(`/api/v1/tenants/${tenantId}/inventory/stock`, {
     params: {
       warehouseId: opts?.warehouseId,
       belowMinimumOnly: opts?.belowMinimumOnly ? true : undefined,
+      catalogItemId: opts?.catalogItemId,
     },
   })
   return data

@@ -69,7 +69,13 @@ export function CatalogItemPicker({
           value={value}
           onChange={(selected) => onChange(String(selected))}
           disabled={disabled}
-          placeholder={options.length === 0 ? 'Sin coincidencias' : 'Seleccione una opción…'}
+          placeholder={
+            items.length === 0
+              ? 'Cargando catálogo…'
+              : options.length === 0
+                ? 'Sin coincidencias'
+                : 'Selecciona un producto'
+          }
         />
       </div>
     </div>
