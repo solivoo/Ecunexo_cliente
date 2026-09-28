@@ -1743,59 +1743,46 @@ export function VariantMatrixBuilder({
                           >
                             {(row.stagedImages ?? []).map((img, imgIdx) => {
                               const images = row.stagedImages ?? []
+                              const isFirst = imgIdx === 0
+                              const isLast = imgIdx === images.length - 1
                               return (
-                                <div key={img.id} style={{ position: 'relative', flexShrink: 0 }}>
+                                <div
+                                  key={img.id}
+                                  className="ecu-variant-photo-thumb"
+                                  style={{ width: 44, height: 44, flexShrink: 0 }}
+                                >
                                   <button
                                     type="button"
                                     className="ecu-variant-group-photo-thumb"
-                                    style={{ width: 44, height: 44, cursor: 'pointer', border: 'none', padding: 0 }}
+                                    style={{ width: '100%', height: '100%', cursor: 'pointer', border: 'none', padding: 0 }}
                                     onClick={() => handleOpenRowPhotoModal(row.id)}
                                     disabled={disabled}
                                     title="Administrar fotos de este código"
                                   >
                                     <img src={img.previewUrl} alt={row.variantTitle} />
                                   </button>
-                                  {imgIdx > 0 && (
-                                    <button
-                                      type="button"
-                                      className="ecu-variant-card__icon-btn"
-                                      style={{
-                                        position: 'absolute',
-                                        left: '-7px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        width: 16,
-                                        height: 16,
-                                        padding: 0,
-                                        zIndex: 1,
-                                      }}
-                                      onClick={() => handleMoveRowPhoto(row.id, img.id, -1)}
-                                      disabled={disabled}
-                                      title="Mover a la izquierda"
-                                    >
-                                      <ArrowLeft size={10} />
-                                    </button>
-                                  )}
-                                  {imgIdx < images.length - 1 && (
-                                    <button
-                                      type="button"
-                                      className="ecu-variant-card__icon-btn"
-                                      style={{
-                                        position: 'absolute',
-                                        right: '-7px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        width: 16,
-                                        height: 16,
-                                        padding: 0,
-                                        zIndex: 1,
-                                      }}
-                                      onClick={() => handleMoveRowPhoto(row.id, img.id, 1)}
-                                      disabled={disabled}
-                                      title="Mover a la derecha"
-                                    >
-                                      <ArrowRight size={10} />
-                                    </button>
+                                  <span className="ecu-variant-photo-thumb__badge">{imgIdx + 1}</span>
+                                  {(!isFirst || !isLast) && (
+                                    <div className="ecu-variant-photo-thumb__bar">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMoveRowPhoto(row.id, img.id, -1)}
+                                        disabled={disabled || isFirst}
+                                        title="Mover a la izquierda"
+                                        aria-label="Mover a la izquierda"
+                                      >
+                                        <ArrowLeft size={11} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMoveRowPhoto(row.id, img.id, 1)}
+                                        disabled={disabled || isLast}
+                                        title="Mover a la derecha"
+                                        aria-label="Mover a la derecha"
+                                      >
+                                        <ArrowRight size={11} />
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               )

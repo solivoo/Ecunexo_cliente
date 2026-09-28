@@ -113,6 +113,7 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
             <span>Novedades v{APP_VERSION_INFO.version} — Atributos Flexibles, Reasignación y Fotos Múltiples</span>
           </div>
           <ul className="ecu-about-modal__changelog-list">
+            <li><strong>Miniaturas de Foto más Limpias [v0.62.8]:</strong> Las fotos de la variante muestran un <strong>número de orden</strong> (1, 2, 3…) y las <strong>flechas para reordenar aparecen solo al pasar el mouse</strong>, dentro de la miniatura, sin superponerse a las demás.</li>
             <li><strong>SKU Primero en la Fila [v0.62.7]:</strong> En la matriz de variantes el <strong>SKU</strong> ahora encabeza la fila, antes de los ejes y demás campos, para identificar cada variante de inmediato.</li>
             <li><strong>Fotos de Variante en Línea y Ordenables [v0.62.6]:</strong> La fila de cada SKU muestra ahora <strong>todas sus fotos como miniaturas en una sola línea</strong> (con desplazamiento horizontal) y permite <strong>cambiar el orden</strong> con flechas izquierda/derecha en cada miniatura; la primera es la portada. Se mantiene «Añadir foto» y el modal de administración.</li>
             <li><strong>Colores en una Sola Línea [v0.62.5]:</strong> El campo de <strong>colores múltiples</strong> ya no parte los chips en dos filas: chips + selector + «Añadir» quedan en una sola línea, con desplazamiento horizontal cuando no caben.</li>

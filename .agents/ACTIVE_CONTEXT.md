@@ -7,8 +7,10 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.62.7`.
+* **Última Versión Publicada:** `v0.62.8`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Miniaturas de foto con orden y hover (v0.62.8):**
+    * `variantMatrixBuilder.css`: clases `.ecu-variant-photo-thumb` (badge de orden) y `__bar` (flechas ‹ › que aparecen en hover/focus-within); `VariantMatrixBuilder` usa el wrapper con badge y barra interna en lugar de flechas superpuestas.
   - **Catálogo — SKU primero en la fila (v0.62.7):**
     * `VariantMatrixBuilder`: el bloque SKU se movió al inicio de la fila (antes de los ejes y demás campos).
   - **Catálogo — Fotos de variante en línea y ordenables (v0.62.6):**
