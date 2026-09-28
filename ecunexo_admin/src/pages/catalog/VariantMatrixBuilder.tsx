@@ -417,6 +417,24 @@ export function VariantMatrixBuilder({
     [dimensions, primaryDim]
   )
 
+  // Orden estable de los atributos por tipo de control: texto/selects, colores, etiquetas y fotos.
+  const orderedVariantAttributeFields = useMemo(() => {
+    const rankOf = (field: ArchetypeAttributeField): number => {
+      const lookup = dimensionValuesMap?.get(field.key.trim().toLowerCase())
+      const dataType = lookup?.dataType ?? 'text'
+      const hasOptions = (lookup?.values.length ?? 0) > 0
+      if (dataType === 'media') return 4
+      if (dataType === 'multiselect') return 3
+      if (dataType === 'color' || dataType === 'colorlist') return 2
+      if (dataType === 'text' && !hasOptions) return 0.5
+      return 1
+    }
+    return [...variantAttributeFields]
+      .map((field, index) => ({ field, index, rank: rankOf(field) }))
+      .sort((a, b) => a.rank - b.rank || a.index - b.index)
+      .map((entry) => entry.field)
+  }, [dimensionValuesMap, variantAttributeFields])
+
   // El bloque «Colores» solo aplica cuando hay un eje de color (base + adicionales por SKU);
   // si Color es un atributo de variante (lista/múltiple), se captura como cualquier otro dato.
   const showsColorFields = useMemo(
@@ -1538,6 +1556,44 @@ export function VariantMatrixBuilder({
                         )
                       })()}
 
+                      {/* SKU (Obligatorio) */}
+                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '190px', flex: '1.4 1 190px', maxWidth: '260px' }}>
+                        <label className="ecu-variant-sub-item-label">SKU *</label>
+                        <TextBox
+                          size="sm"
+                          variant="outline"
+                          value={row.sku}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            updateRow(row.id, 'sku', e.target.value.toUpperCase())
+                          }
+                          placeholder="Ej. NIK-001-0001"
+                          error={duplicateSkuSet.has(row.sku.trim().toUpperCase())}
+                          errorMessage={
+                            duplicateSkuSet.has(row.sku.trim().toUpperCase())
+                              ? 'SKU repetido'
+                              : undefined
+                          }
+                          disabled={disabled}
+                          fullWidth
+                        />
+                      </div>
+
+                      {/* Cód. Barras */}
+                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '150px', flex: '1 1 150px' }}>
+                        <label className="ecu-variant-sub-item-label">Cód. Barras</label>
+                        <TextBox
+                          size="sm"
+                          variant="outline"
+                          value={row.barcode}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            updateRow(row.id, 'barcode', e.target.value)
+                          }
+                          placeholder="EAN / UPC (opc.)"
+                          disabled={disabled}
+                          fullWidth
+                        />
+                      </div>
+
                       {/* Foto exclusiva de la variante (SKU) — modal para galería y orden */}
                       {photoScope !== 'group' && photoScope !== 'model' && (
                         <div className="ecu-variant-sub-item-field" style={{ minWidth: '96px', maxWidth: '120px' }}>
@@ -1574,33 +1630,11 @@ export function VariantMatrixBuilder({
                         </div>
                       )}
 
-                      {/* SKU (Obligatorio) */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '190px', flex: '1.4 1 190px', maxWidth: '260px' }}>
-                        <label className="ecu-variant-sub-item-label">SKU *</label>
-                        <TextBox
-                          size="sm"
-                          variant="outline"
-                          value={row.sku}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            updateRow(row.id, 'sku', e.target.value.toUpperCase())
-                          }
-                          placeholder="Ej. NIK-001-0001"
-                          error={duplicateSkuSet.has(row.sku.trim().toUpperCase())}
-                          errorMessage={
-                            duplicateSkuSet.has(row.sku.trim().toUpperCase())
-                              ? 'SKU repetido'
-                              : undefined
-                          }
-                          disabled={disabled}
-                          fullWidth
-                        />
-                      </div>
-
                       {/* Salto de línea para legibilidad de la ficha de variante */}
                       <div className="ecu-variant-sub-item-break" aria-hidden />
 
                       {/* Atributos del nivel terminal: se capturan por variante */}
-                      {variantAttributeFields.map((field) => {
+                      {orderedVariantAttributeFields.map((field) => {
                         const lookup = dimensionValuesMap?.get(field.key.trim().toLowerCase())
                         const dataType = lookup?.dataType ?? 'text'
                         const value = row.variantAttributes?.[field.key] ?? ''
@@ -1609,7 +1643,13 @@ export function VariantMatrixBuilder({
                           <div
                             key={`attr-${field.key}`}
                             className="ecu-variant-sub-item-field"
-                            style={{ minWidth: '170px', flex: '1 1 170px', maxWidth: '240px' }}
+                            style={
+                              dataType === 'media'
+                                ? { minWidth: '100%', flex: '1 1 100%' }
+                                : dataType === 'multiselect'
+                                  ? { minWidth: '220px', flex: '1 1 220px', maxWidth: '320px' }
+                                  : { minWidth: '170px', flex: '1 1 170px', maxWidth: '240px' }
+                            }
                           >
                             <label className="ecu-variant-sub-item-label">{field.key}</label>
                             {dataType === 'boolean' ? (
@@ -1720,22 +1760,6 @@ export function VariantMatrixBuilder({
                           </div>
                         )
                       })}
-
-                      {/* Cód. Barras */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '150px', flex: '1 1 150px' }}>
-                        <label className="ecu-variant-sub-item-label">Cód. Barras</label>
-                        <TextBox
-                          size="sm"
-                          variant="outline"
-                          value={row.barcode}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            updateRow(row.id, 'barcode', e.target.value)
-                          }
-                          placeholder="EAN / UPC (opc.)"
-                          disabled={disabled}
-                          fullWidth
-                        />
-                      </div>
 
                       {/* Acciones de la fila */}
                       <div className="ecu-variant-sub-item-actions">

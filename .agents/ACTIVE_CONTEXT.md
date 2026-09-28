@@ -7,8 +7,10 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.62.0`.
+* **Última Versión Publicada:** `v0.62.1`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Matriz de variantes ordenada por tipo (v0.62.1):**
+    * `VariantMatrixBuilder`: fila con ejes + identidad (SKU, Cód. Barras, Foto) y luego atributos ordenados por tipo (`orderedVariantAttributeFields`: texto/listas → colores → etiquetas → fotos), con anchos por tipo (etiquetas 220px, media a línea completa).
   - **Precios — Carga masiva por lote (v0.62.0):**
     * API: comando `BulkCreateProductPrices` (valida lista/productos, cierra la vigencia abierta anterior, crea precio + historial por ítem y guarda una sola vez) expuesto en `POST /catalog/pricing/prices/bulk` (permiso `catalog.pricing.create`, hasta 500 ítems sin repetidos). Tests del handler (crea/cierra/log, duplicados, no encontrado).
     * Admin: `ProductPricesBulkPage` (`/catalogo/precios/productos/masivo`) con vigencia (lista/fecha/motivo), búsqueda de productos, precio actual precargado, aplicar a todos/solo vacíos, edición por fila y total de lote; botón «Carga masiva» en el listado.
