@@ -512,6 +512,25 @@ export function buildHierarchyPathJson(
   return entries.length > 0 ? JSON.stringify(entries) : null
 }
 
+type HierarchyPathEntryLike = { level?: string; name?: string; value?: string }
+
+/** Resumen del primer nivel de la jerarquía para mostrar junto al nombre del producto. */
+export function firstLevelSummary(hierarchyPathJson: string | null | undefined): string {
+  if (!hierarchyPathJson) return ''
+  try {
+    const entries = JSON.parse(hierarchyPathJson) as HierarchyPathEntryLike[]
+    if (!Array.isArray(entries) || entries.length === 0) return ''
+    const firstLevel = (entries[0]?.level ?? '').trim()
+    return entries
+      .filter((entry) => (entry.level ?? '').trim() === firstLevel && entry.value?.trim())
+      .map((entry) => `${entry.name?.trim() ?? ''}: ${entry.value!.trim()}`)
+      .filter((text) => text !== ':')
+      .join(' · ')
+  } catch {
+    return ''
+  }
+}
+
 export function findDuplicateSkuValues(skus: readonly string[]): string[] {
   const seen = new Map<string, string>()
   const duplicates = new Map<string, string>()

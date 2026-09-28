@@ -4,6 +4,7 @@ import { Button, DataGrid, type ColumnDef, type DataGridCardRenderContext } from
 import { DollarSign, Eye, EyeOff, Layers, Package, Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { firstLevelSummary } from '@/lib/catalogArchetype'
 import { catalogItemKindLabel, catalogItemStatusLabel } from '@/lib/catalogLabels'
 import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
@@ -190,18 +191,26 @@ export function CatalogItemsGrid({
         header: 'Nombre',
         width: 240,
         sortable: true,
-        renderCell: (_value: CatalogItemGridRow['name'], row: CatalogItemGridRow) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <strong>{row.name}</strong>
-            {row.description ? (
-              <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
-                {row.description}
-              </span>
-            ) : null}
-            {row.isHiddenFromStorefront ? <CatalogHiddenMark /> : null}
-            {row.isMatrixParent ? <CatalogVariantNote count={row.variantCount ?? 0} /> : null}
-          </div>
-        ),
+        renderCell: (_value: CatalogItemGridRow['name'], row: CatalogItemGridRow) => {
+          const levelSummary = firstLevelSummary(row.hierarchyPathJson)
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <strong>{row.name}</strong>
+              {row.description ? (
+                <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+                  {row.description}
+                </span>
+              ) : null}
+              {levelSummary ? (
+                <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted)' }}>
+                  {levelSummary}
+                </span>
+              ) : null}
+              {row.isHiddenFromStorefront ? <CatalogHiddenMark /> : null}
+              {row.isMatrixParent ? <CatalogVariantNote count={row.variantCount ?? 0} /> : null}
+            </div>
+          )
+        },
       },
       {
         key: 'kind',

@@ -188,29 +188,18 @@ export function EditCatalogItemPage() {
     [modelAttributeFields]
   )
 
-  const showDescriptionField = !templateCapturesDescription
-  const showBarcodeField = !item?.isMatrixParent
-
-  // Primer nivel de la plantilla: su información compone el nombre visible del ítem.
-  const firstLevelFields = useMemo(() => {
-    if (modelAttributeFields.length === 0) return []
-    const minIndex = Math.min(...modelAttributeFields.map((field) => field.levelIndex))
-    return modelAttributeFields.filter((field) => field.levelIndex === minIndex)
-  }, [modelAttributeFields])
-
-  const composedName = useMemo(
+  const templateCapturesName = useMemo(
     () =>
-      firstLevelFields
-        .map(
-          (field) =>
-            customAttributes
-              .find((row) => row.key.trim().toLowerCase() === field.key.trim().toLowerCase())
-              ?.value.trim() ?? ''
-        )
-        .filter(Boolean)
-        .join(' '),
-    [customAttributes, firstLevelFields]
+      modelAttributeFields.some((field) => {
+        const key = field.key.trim().toLowerCase()
+        return key === 'nombre' || key.startsWith('nombre ') || key === 'name' || key === 'producto'
+      }),
+    [modelAttributeFields]
   )
+
+  const showDescriptionField = !templateCapturesDescription
+  const showNameField = !templateCapturesName
+  const showBarcodeField = !item?.isMatrixParent
 
   const variantDimensionNames = useMemo<string[]>(
     () => parseVariantDimensionNames(item?.variantDimensionsJson),
@@ -505,7 +494,22 @@ export function EditCatalogItemPage() {
       setError(null)
       setBusy(true)
       try {
-        const payloadName = composedName || name.trim() || sku.trim() || 'Producto'
+        const templateNameValue = templateCapturesName
+          ? modelAttributeFields
+              .filter((field) =>
+                /^nombre\b|^name$|^producto$/.test(field.key.trim().toLowerCase())
+              )
+              .map(
+                (field) =>
+                  customAttributes.find(
+                    (row) => row.key.trim().toLowerCase() === field.key.trim().toLowerCase()
+                  )?.value.trim() ?? ''
+              )
+              .find((value) => value) ?? ''
+          : ''
+        const payloadName = (templateCapturesName ? templateNameValue || name.trim() : name.trim()) ||
+          sku.trim() ||
+          'Producto'
         const kindNum = Number(kind) as CatalogItemKind
         if (kindNum === CatalogItemKind.Physical && !item?.isMatrixParent && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
@@ -546,7 +550,6 @@ export function EditCatalogItemPage() {
     },
     [
       barcode,
-      composedName,
       customAttributes,
       description,
       dimensionValuesMap,
@@ -554,9 +557,11 @@ export function EditCatalogItemPage() {
       item,
       itemId,
       kind,
+      modelAttributeFields,
       name,
       navigate,
       sku,
+      templateCapturesName,
       status,
       tags,
       tenantId,
@@ -771,6 +776,22 @@ export function EditCatalogItemPage() {
 
               <SectionCard title="Datos del producto">
                 <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
+                  {showNameField ? (
+                    <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                      <TextBox
+                        id="ei-name"
+                        label="Nombre del producto"
+                        labelPosition="outlined"
+                        variant="outline"
+                        value={name}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                        placeholder="Ej. Calcetín Hello Kitty"
+                        required
+                        disabled={busy}
+                        fullWidth
+                      />
+                    </div>
+                  ) : null}
                   <div className="ecu-companies-form__field">
                     <TextBox
                       id="ei-sku"
@@ -825,8 +846,8 @@ export function EditCatalogItemPage() {
                   ) : null}
                 </div>
                 <span className="ecu-hint">
-                  El nombre visible se arma con la información del primer nivel; el SKU identifica el
-                  ítem en todo el sistema.
+                  El nombre identifica el producto; el primer nivel de la plantilla y la descripción
+                  lo complementan en listados y búsquedas.
                 </span>
               </SectionCard>
 

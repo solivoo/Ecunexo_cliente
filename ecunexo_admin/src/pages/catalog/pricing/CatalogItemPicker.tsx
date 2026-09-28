@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { Select, TextBox } from 'glubox'
-import { formatVariantDisplayName } from '@/lib/catalogArchetype'
+import { firstLevelSummary, formatVariantDisplayName } from '@/lib/catalogArchetype'
 import type { CatalogItemListItemDto } from '@/types/catalogApi'
 
 const MAX_OPTIONS = 200
@@ -45,7 +45,8 @@ export function CatalogItemPicker({
         const display =
           item.description?.trim() ||
           (item.parentId ? formatVariantDisplayName(item.name, item.parentName ?? null) : item.name)
-        return item.sku ? `${item.sku} · ${display}` : display
+        const levelSummary = firstLevelSummary(item.hierarchyPathJson)
+        return [item.sku, levelSummary, display].filter(Boolean).join(' · ')
       })(),
     }))
   }, [items, search])
