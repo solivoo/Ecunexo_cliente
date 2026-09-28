@@ -44,7 +44,9 @@ export type CreatePriceListBody = {
   suggestedMarginPercent?: number | null
 }
 
-export type UpdatePriceListBody = Omit<CreatePriceListBody, 'code'>
+export type UpdatePriceListBody = Omit<CreatePriceListBody, 'code'> & {
+  isActive?: boolean | null
+}
 
 export type PriceTierDto = {
   quantityFrom: number

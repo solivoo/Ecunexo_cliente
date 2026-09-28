@@ -28,8 +28,9 @@ public sealed record UpdatePriceListRequest(
     DateOnly? ValidTo,
     int Priority,
     bool IsDefault,
-    decimal? SuggestedMarginPercent = null)
+    decimal? SuggestedMarginPercent = null,
+    bool? IsActive = null)
 {
     public UpdatePriceListCommand ToCommand(Guid tenantId, Guid priceListId) =>
-        new(tenantId, priceListId, Name, Description, Currency, PricesIncludeTax, ValidFrom, ValidTo, Priority, IsDefault, SuggestedMarginPercent);
+        new(tenantId, priceListId, Name, Description, Currency, PricesIncludeTax, ValidFrom, ValidTo, Priority, IsDefault, SuggestedMarginPercent, IsActive);
 }

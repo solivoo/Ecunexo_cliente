@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, Popup, useToast, type ColumnDef } from 'glubox'
-import { DollarSign, Pencil, Trash2, Users } from 'lucide-react'
+import { DollarSign, Pencil, Power, Trash2, Users } from 'lucide-react'
 import {
   EmptyState,
   GridIconButton,
@@ -18,7 +18,7 @@ import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { listCustomers } from '@/services/customersApi'
-import { deletePriceList, listPriceLists } from '@/services/pricingApi'
+import { deletePriceList, listPriceLists, updatePriceList } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { CustomerDto } from '@/types/customersApi'
@@ -89,7 +89,40 @@ export function PriceListsListPage() {
     }
   }, [confirm, load, tenantId, toast])
 
-    const handleShowAssigned = useCallback(
+      const handleActivate = useCallback(
+    async (row: PriceListDto) => {
+      if (!tenantId || !canEdit) return
+      try {
+        await updatePriceList(tenantId, row.id, {
+          name: row.name,
+          description: row.description,
+          currency: row.currency,
+          pricesIncludeTax: row.pricesIncludeTax,
+          validFrom: row.validFrom,
+          validTo: row.validTo,
+          priority: row.priority,
+          isDefault: row.isDefault,
+          suggestedMarginPercent: row.suggestedMarginPercent ?? null,
+          isActive: true,
+        })
+        toast.show({
+          title: 'Lista activada',
+          message: `«${row.code}» volvió a estar disponible para asignar y cotizar.`,
+          variant: 'success',
+        })
+        await load()
+      } catch (err: unknown) {
+        toast.show({
+          title: 'No se pudo activar',
+          message: readApiError(err, 'Intenta nuevamente.'),
+          variant: 'error',
+        })
+      }
+    },
+    [canEdit, load, tenantId, toast]
+  )
+
+const handleShowAssigned = useCallback(
     async (list: PriceListDto) => {
       if (!tenantId) return
       setAssignedList(list)
@@ -196,13 +229,22 @@ const columns = useMemo((): ColumnDef<PriceListRow>[] => {
                 onClick={() => navigate(`/catalogo/precios/listas/${row.id}`)}
               />
             ) : null}
-            {canDelete ? (
+            {row.isActive ? (
+              canDelete ? (
+                <GridIconButton
+                  label="Desactivar"
+                  icon={Trash2}
+                  danger
+                  disabled={row.isDefault || deleting}
+                  onClick={() => setConfirm(row)}
+                />
+              ) : null
+            ) : canEdit ? (
               <GridIconButton
-                label="Desactivar"
-                icon={Trash2}
-                danger
-                disabled={row.isDefault || !row.isActive || deleting}
-                onClick={() => setConfirm(row)}
+                label={`Activar «${row.code}»`}
+                icon={Power}
+                active
+                onClick={() => void handleActivate(row)}
               />
             ) : null}
           </div>

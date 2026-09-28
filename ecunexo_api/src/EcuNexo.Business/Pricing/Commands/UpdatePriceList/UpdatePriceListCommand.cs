@@ -14,7 +14,8 @@ public sealed record UpdatePriceListCommand(
     DateOnly? ValidTo,
     int Priority,
     bool IsDefault,
-    decimal? SuggestedMarginPercent = null) : ICommand<UpdatePriceListResponse>;
+    decimal? SuggestedMarginPercent = null,
+    bool? IsActive = null) : ICommand<UpdatePriceListResponse>;
 
 public sealed record UpdatePriceListResponse(Guid PriceListId, Guid TenantId);
 
@@ -83,6 +84,15 @@ public sealed class UpdatePriceListHandler : ICommandHandler<UpdatePriceListComm
         if (setDefault.IsFailure)
         {
             return Result.Failure<UpdatePriceListResponse>(setDefault.Error!);
+        }
+
+        if (command.IsActive is { } isActive)
+        {
+            var activated = list.SetActive(isActive, _caller.UserId);
+            if (activated.IsFailure)
+            {
+                return Result.Failure<UpdatePriceListResponse>(activated.Error!);
+            }
         }
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
