@@ -102,6 +102,7 @@ export type CreateProductPriceBody = {
   validTo: string | null
   reason: string | null
   tiers: PriceTierBody[]
+  isActive?: boolean
 }
 
 export type UpdateProductPriceBody = {

@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.64.3`.
+* **Última Versión Publicada:** `v0.64.4`.
 * **Hitos Recientes Completados:**
+  - **Precios — Check «Precio activo» al crear (v0.64.4):**
+    * API: `CreateProductPriceCommand.IsActive` (por defecto true) + `price.SetActive(false)` al crear; contrato `CreateProductPriceRequest.IsActive`.
+    * Admin: `CheckButton` visible también en alta (con ayuda si se desactiva), `isActive` en el payload y toast acorde. 422 tests Business en verde.
   - **Precios — Grid de productos para asignar precios (v0.64.3):**
     * `ProductPriceFormPage`: grilla de productos (SKU, descripción/nombre, precio vigente de la lista, estado, acción $) con búsqueda y paginación; `selectItem` llena el formulario; la lista vigente se carga completa (`listProductPrices` por lista) y alimenta grilla + contexto (precio actual, costo, margen).
     * `PriceListFormPage`: hint de que los precios se cargan por producto; `PriceListsListPage`: acción `$` por fila → `/catalogo/precios/productos?priceListId=`; `ProductPricesListPage`: inicializa el filtro desde `?priceListId=`.

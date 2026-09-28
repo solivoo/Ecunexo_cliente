@@ -347,8 +347,13 @@ export function ProductPriceFormPage() {
             validTo: validTo || null,
             reason: reason.trim() || null,
             tiers: tierPayload,
+            isActive,
           })
-          toast.show({ title: 'Precio creado', message: 'La nueva vigencia está activa.', variant: 'success' })
+          toast.show({
+            title: 'Precio creado',
+            message: isActive ? 'La nueva vigencia está activa.' : 'La vigencia se guardó inactiva.',
+            variant: 'success',
+          })
         }
 
         void navigate('/catalogo/precios/productos', { replace: true })
@@ -556,18 +561,21 @@ export function ProductPriceFormPage() {
                   fullWidth
                 />
               </div>
-              {isEdit ? (
-                <div className="ecu-companies-form__field sri-config-field--check-align">
-                  <CheckButton
-                    variant="ghost"
-                    checked={isActive}
-                    onChange={setIsActive}
-                    disabled={busy || loading}
-                  >
-                    Precio activo
-                  </CheckButton>
-                </div>
-              ) : null}
+              <div className="ecu-companies-form__field sri-config-field--check-align">
+                <CheckButton
+                  variant="ghost"
+                  checked={isActive}
+                  onChange={setIsActive}
+                  disabled={busy || loading}
+                >
+                  Precio activo
+                </CheckButton>
+                {!isEdit ? (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
+                    Si lo desactivas, se guarda pero no se usará al cotizar.
+                  </span>
+                ) : null}
+              </div>
             </div>
 
             {selectedList ? (

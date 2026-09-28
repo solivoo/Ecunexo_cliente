@@ -14,7 +14,8 @@ public sealed record CreateProductPriceCommand(
     DateOnly ValidFrom,
     DateOnly? ValidTo,
     string? Reason,
-    IReadOnlyList<PriceTierInput>? Tiers = null) : ICommand<CreateProductPriceResponse>;
+    IReadOnlyList<PriceTierInput>? Tiers = null,
+    bool IsActive = true) : ICommand<CreateProductPriceResponse>;
 
 public sealed record CreateProductPriceResponse(Guid ProductPriceId, Guid TenantId);
 
@@ -104,6 +105,15 @@ public sealed class CreateProductPriceHandler
         }
 
         var price = created.Value!;
+        if (!command.IsActive)
+        {
+            var deactivate = price.SetActive(false, _caller.UserId);
+            if (deactivate.IsFailure)
+            {
+                return Result.Failure<CreateProductPriceResponse>(deactivate.Error!);
+            }
+        }
+
         if (command.Tiers is { Count: > 0 })
         {
             foreach (var tier in command.Tiers)
