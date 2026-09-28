@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, Popup, Select, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Button, NumberBox, Popup, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   EcuTagInput,
@@ -103,6 +103,7 @@ export function EditCatalogItemPage() {
   const [description, setDescription] = useState('')
   const [sku, setSku] = useState('')
   const [barcode, setBarcode] = useState('')
+  const [minOrderQuantity, setMinOrderQuantity] = useState(1)
   const [status, setStatus] = useState(String(CatalogItemStatus.Active))
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
   const [tags, setTags] = useState<string[]>([])
@@ -323,6 +324,7 @@ export function EditCatalogItemPage() {
       setDescription(detail.description ?? '')
       setSku(detail.sku ?? '')
       setBarcode(detail.barcode ?? '')
+      setMinOrderQuantity(detail.minOrderQuantity ?? 1)
       setStatus(String(detail.status))
       setCustomAttributes(deserializeCustomAttributes(detail.customAttributesJson))
       setTags(extractTagsFromCustomAttributes(detail.customAttributesJson))
@@ -532,6 +534,7 @@ export function EditCatalogItemPage() {
           status: Number(status) as typeof CatalogItemStatus.Active,
           familyId: item.familyId ?? null,
           hierarchyPathJson,
+          minOrderQuantity: item.isMatrixParent ? null : minOrderQuantity,
         })
 
         toast.show({
@@ -561,6 +564,7 @@ export function EditCatalogItemPage() {
       modelAttributeFields,
       name,
       navigate,
+      minOrderQuantity,
       sku,
       templateCapturesName,
       status,
@@ -842,6 +846,31 @@ export function EditCatalogItemPage() {
                         disabled={busy}
                         fullWidth
                       />
+                    </div>
+                  ) : null}
+                  {showBarcodeField ? (
+                    <div className="ecu-companies-form__field">
+                      <NumberBox
+                        id="ei-min-order-qty"
+                        label="Compra mínima (cantidad)"
+                        labelPosition="outlined"
+                        variant="outline"
+                        min={1}
+                        step={1}
+                        showSpinButtons
+                        value={minOrderQuantity}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                          setMinOrderQuantity(
+                            Math.max(1, Math.floor(Number(e.target.value) || 1))
+                          )
+                        }
+                        disabled={busy}
+                        fullWidth
+                      />
+                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                        Cantidad mínima que debe comprar el cliente de este producto en la
+                        tienda online.
+                      </p>
                     </div>
                   ) : null}
                 </div>

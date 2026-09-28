@@ -13,6 +13,7 @@ public sealed record CreateCatalogItemCommand(
     string? CustomAttributesJson = null,
     Guid? FamilyId = null,
     string? HierarchyPathJson = null,
-    string? Barcode = null) : ICommand<CreateCatalogItemResponse>;
+    string? Barcode = null,
+    decimal? MinOrderQuantity = null) : ICommand<CreateCatalogItemResponse>;
 
 public sealed record CreateCatalogItemResponse(Guid ItemId, Guid TenantId);

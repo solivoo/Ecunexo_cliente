@@ -35,4 +35,7 @@ public static class EcommerceSettingCodes
 
     /// <summary>Mensaje mostrado al comprador durante el mantenimiento (opcional).</summary>
     public const string StorefrontMaintenanceMessage = "ecommerce.storefront.maintenance_message";
+
+    /// <summary>Monto mínimo del pedido de la tienda en USD (0 = sin mínimo).</summary>
+    public const string StorefrontMinOrderAmount = "ecommerce.storefront.min_order_amount";
 }

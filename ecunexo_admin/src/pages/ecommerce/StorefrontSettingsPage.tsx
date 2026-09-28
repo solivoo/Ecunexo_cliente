@@ -41,6 +41,9 @@ const DEFAULT_PAYMENT_HOLD_HOURS = 2
 const MIN_MAX_PENDING_ORDERS = 1
 const MAX_MAX_PENDING_ORDERS = 50
 const DEFAULT_MAX_PENDING_ORDERS = 3
+const MIN_MIN_ORDER_AMOUNT = 0
+const MAX_MIN_ORDER_AMOUNT = 10000
+const DEFAULT_MIN_ORDER_AMOUNT = 0
 const MAX_INSTRUCTIONS_LENGTH = 2000
 const MAX_WHATSAPP_LENGTH = 20
 const MAX_NOTIFICATION_EMAIL_LENGTH = 254
@@ -97,6 +100,7 @@ export function StorefrontSettingsPage() {
   const [contactWhatsapp, setContactWhatsapp] = useState('')
   const [ordersNotificationEmail, setOrdersNotificationEmail] = useState('')
   const [maxPendingOrders, setMaxPendingOrders] = useState(DEFAULT_MAX_PENDING_ORDERS)
+  const [minOrderAmount, setMinOrderAmount] = useState(DEFAULT_MIN_ORDER_AMOUNT)
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false)
   const [maintenanceMessage, setMaintenanceMessage] = useState('')
 
@@ -129,6 +133,7 @@ export function StorefrontSettingsPage() {
         setContactWhatsapp(settings.contactWhatsapp ?? '')
         setOrdersNotificationEmail(settings.ordersNotificationEmail ?? '')
         setMaxPendingOrders(settings.maxPendingOrders ?? DEFAULT_MAX_PENDING_ORDERS)
+        setMinOrderAmount(settings.minOrderAmount ?? DEFAULT_MIN_ORDER_AMOUNT)
         setMaintenanceEnabled(settings.maintenanceEnabled ?? false)
         setMaintenanceMessage(settings.maintenanceMessage ?? '')
         setError(null)
@@ -334,6 +339,19 @@ export function StorefrontSettingsPage() {
         return
       }
 
+      if (
+        !Number.isFinite(minOrderAmount) ||
+        minOrderAmount < MIN_MIN_ORDER_AMOUNT ||
+        minOrderAmount > MAX_MIN_ORDER_AMOUNT
+      ) {
+        toast.show({
+          title: 'Pedido mínimo inválido',
+          message: `El pedido mínimo debe estar entre ${MIN_MIN_ORDER_AMOUNT} y ${MAX_MIN_ORDER_AMOUNT} USD (0 = sin mínimo).`,
+          variant: 'error',
+        })
+        return
+      }
+
       if (instructions.length > MAX_INSTRUCTIONS_LENGTH) {
         toast.show({
           title: 'Instrucciones demasiado largas',
@@ -387,6 +405,7 @@ export function StorefrontSettingsPage() {
           maxPendingOrders,
           maintenanceEnabled,
           maintenanceMessage: maintenanceMessage.trim() || null,
+          minOrderAmount: roundCurrency(minOrderAmount),
         })
         setError(null)
         toast.show({
@@ -409,6 +428,7 @@ export function StorefrontSettingsPage() {
       holdHours,
       instructions,
       maxPendingOrders,
+      minOrderAmount,
       ordersNotificationEmail,
       payments,
       reserveOnOrder,
@@ -728,6 +748,39 @@ export function StorefrontSettingsPage() {
                 </table>
               </div>
             )}
+          </SectionCard>
+
+          <SectionCard
+            title="Compra mínima"
+            subtitle="Monto mínimo del pedido para aceptar compras en la tienda online."
+          >
+            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+              <div className="ecu-companies-form__field">
+                <NumberBox
+                  id="storefront-min-order-amount"
+                  label="Pedido mínimo de la tienda (USD)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  min={MIN_MIN_ORDER_AMOUNT}
+                  max={MAX_MIN_ORDER_AMOUNT}
+                  step={0.01}
+                  showSpinButtons
+                  value={minOrderAmount}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setMinOrderAmount(Number(e.target.value) || 0)
+                  }
+                  disabled={saving}
+                  fullWidth
+                />
+              </div>
+              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                <p className="ecu-companies-form__hint" style={{ marginTop: '1.1rem' }}>
+                  Si el subtotal del pedido no alcanza este monto, la tienda no permite
+                  finalizar la compra. Déjalo en 0 para no exigir un mínimo (máximo{' '}
+                  {MAX_MIN_ORDER_AMOUNT} USD).
+                </p>
+              </div>
+            </div>
           </SectionCard>
 
           <SectionCard

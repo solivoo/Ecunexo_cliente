@@ -1,4 +1,5 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Business.Ecommerce.Storefront;
@@ -20,6 +21,7 @@ public sealed class CreateStorefrontOrderHandlerTests
 {
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IWarehouseRepository _warehouses = Substitute.For<IWarehouseRepository>();
+    private readonly ICatalogItemRepository _catalogItems = Substitute.For<ICatalogItemRepository>();
     private readonly IEcommerceStorefrontSettingsReader _settings = Substitute.For<IEcommerceStorefrontSettingsReader>();
     private readonly IEcommerceOrderRepository _orders = Substitute.For<IEcommerceOrderRepository>();
     private readonly IEcommerceBlockedContactRepository _blockedContacts = Substitute.For<IEcommerceBlockedContactRepository>();
@@ -50,6 +52,7 @@ public sealed class CreateStorefrontOrderHandlerTests
             new CreateStorefrontOrderValidator(),
             _tenants,
             _warehouses,
+            _catalogItems,
             _settings,
             _orders,
             _blockedContacts,

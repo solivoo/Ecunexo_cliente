@@ -16,7 +16,8 @@ public sealed record EcommerceStorefrontSettings(
     string OrdersNotificationEmail = "",
     int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders,
     bool MaintenanceEnabled = false,
-    string MaintenanceMessage = "");
+    string MaintenanceMessage = "",
+    decimal MinOrderAmount = 0m);
 
 /// <summary>
 /// Lee la configuración efectiva de la tienda (global/plan/tenant) aplicando defaults seguros.

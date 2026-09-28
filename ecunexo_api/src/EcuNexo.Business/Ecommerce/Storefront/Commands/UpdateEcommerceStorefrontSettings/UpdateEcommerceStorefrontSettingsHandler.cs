@@ -78,6 +78,14 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
             maintenanceMessage = maintenanceMessage[..EcommerceStorefrontSettingsReader.MaintenanceMessageMaxLength];
         }
 
+        var minOrderAmount = Math.Round(
+            Math.Clamp(
+                command.MinOrderAmount,
+                EcommerceStorefrontSettingsReader.MinMinOrderAmount,
+                EcommerceStorefrontSettingsReader.MaxMinOrderAmount),
+            2,
+            MidpointRounding.AwayFromZero);
+
         var scopeId = command.TenantId.ToString("D");
         var payloads = new (string Code, string Json)[]
         {
@@ -115,6 +123,9 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
             (
                 EcommerceSettingCodes.StorefrontMaintenanceMessage,
                 JsonSerializer.Serialize(maintenanceMessage)),
+            (
+                EcommerceSettingCodes.StorefrontMinOrderAmount,
+                JsonSerializer.Serialize(minOrderAmount)),
         };
 
         foreach (var (code, json) in payloads)
@@ -140,7 +151,8 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
             ordersNotificationEmail,
             maxPendingOrders,
             command.MaintenanceEnabled,
-            maintenanceMessage));
+            maintenanceMessage,
+            minOrderAmount));
     }
 
     private async Task<Result> UpsertAsync(

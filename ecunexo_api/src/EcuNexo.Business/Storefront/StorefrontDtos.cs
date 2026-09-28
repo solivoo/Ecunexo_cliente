@@ -61,7 +61,8 @@ public sealed record StorefrontProductDetailDto(
     IReadOnlyList<StorefrontAttributeDto> Attributes,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt,
-    int LikeCount);
+    int LikeCount,
+    decimal MinOrderQuantity = 1);
 
 public sealed record StorefrontImageDto(
     Guid Id,
@@ -86,7 +87,8 @@ public sealed record StorefrontVariantDto(
     bool ImageInherited,
     string? ImageInheritedFrom,
     IReadOnlyList<StorefrontImageDto>? Images,
-    IReadOnlyList<string>? ExtraColors);
+    IReadOnlyList<string>? ExtraColors,
+    decimal MinOrderQuantity = 1);
 
 public sealed record StorefrontMatrixDto(
     int Depth,

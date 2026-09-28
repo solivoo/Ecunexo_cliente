@@ -15,6 +15,7 @@ public sealed record UpdateCatalogItemCommand(
     CatalogItemKind? Kind = null,
     Guid? FamilyId = null,
     string? HierarchyPathJson = null,
-    string? Barcode = null) : ICommand<UpdateCatalogItemResponse>;
+    string? Barcode = null,
+    decimal? MinOrderQuantity = null) : ICommand<UpdateCatalogItemResponse>;
 
 public sealed record UpdateCatalogItemResponse(Guid ItemId, Guid TenantId);

@@ -1,4 +1,6 @@
+using System.Globalization;
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Business.Ecommerce.Storefront.Turnstile;
@@ -86,6 +88,7 @@ public sealed class CreateStorefrontOrderHandler
     private readonly IValidator<CreateStorefrontOrderCommand> _validator;
     private readonly ITenantRepository _tenants;
     private readonly IWarehouseRepository _warehouses;
+    private readonly ICatalogItemRepository _catalogItems;
     private readonly IEcommerceStorefrontSettingsReader _settings;
     private readonly IEcommerceOrderRepository _orders;
     private readonly IEcommerceBlockedContactRepository _blockedContacts;
@@ -98,6 +101,7 @@ public sealed class CreateStorefrontOrderHandler
         IValidator<CreateStorefrontOrderCommand> validator,
         ITenantRepository tenants,
         IWarehouseRepository warehouses,
+        ICatalogItemRepository catalogItems,
         IEcommerceStorefrontSettingsReader settings,
         IEcommerceOrderRepository orders,
         IEcommerceBlockedContactRepository blockedContacts,
@@ -109,6 +113,7 @@ public sealed class CreateStorefrontOrderHandler
         _validator = validator;
         _tenants = tenants;
         _warehouses = warehouses;
+        _catalogItems = catalogItems;
         _settings = settings;
         _orders = orders;
         _blockedContacts = blockedContacts;
@@ -230,6 +235,13 @@ public sealed class CreateStorefrontOrderHandler
 
         var shippingOption = settings.ShippingMethods.First(option => option.Method == shippingMethod);
 
+        var minQuantityError = await ValidateMinOrderQuantitiesAsync(command, ct)
+            .ConfigureAwait(false);
+        if (minQuantityError is not null)
+        {
+            return Result.Failure<StorefrontOrderCreatedDto>(minQuantityError);
+        }
+
         var createCommand = new CreateEcommerceOrderCommand(
             TenantId: command.TenantId,
             WarehouseId: warehouse.Id,
@@ -247,7 +259,8 @@ public sealed class CreateStorefrontOrderHandler
             CreatedByName: SystemCustomerName,
             ClientRequestId: requestId,
             ReserveStock: settings.ReserveOnOrder,
-            AcceptPrivacyPolicy: command.AcceptPrivacyPolicy);
+            AcceptPrivacyPolicy: command.AcceptPrivacyPolicy,
+            MinOrderAmount: settings.MinOrderAmount);
 
         try
         {
@@ -280,6 +293,44 @@ public sealed class CreateStorefrontOrderHandler
         {
             return Result.Failure<StorefrontOrderCreatedDto>(StockConflict);
         }
+    }
+
+    private async Task<Error?> ValidateMinOrderQuantitiesAsync(
+        CreateStorefrontOrderCommand command,
+        CancellationToken ct)
+    {
+        var ids = command.Items
+            .Select(item => item.CatalogItemId)
+            .Distinct()
+            .ToList();
+        if (ids.Count == 0)
+        {
+            return null;
+        }
+
+        var catalogItems = await _catalogItems
+            .GetActiveByIdsAsync(command.TenantId, ids, ct)
+            .ConfigureAwait(false) ?? [];
+        var byId = catalogItems.ToDictionary(item => item.Id);
+
+        foreach (var line in command.Items)
+        {
+            if (!byId.TryGetValue(line.CatalogItemId, out var catalogItem))
+            {
+                // El handler interno reporta el producto inexistente con su propia validación.
+                continue;
+            }
+
+            if (line.Quantity < catalogItem.MinOrderQuantity)
+            {
+                return new Error(
+                    "ecommerce.checkout.min_order_quantity",
+                    $"El mínimo por producto es {catalogItem.MinOrderQuantity.ToString("0.##", CultureInfo.InvariantCulture)}.",
+                    ErrorType.Validation);
+            }
+        }
+
+        return null;
     }
 
     private async Task TryNotifyOrderCreatedAsync(

@@ -117,6 +117,30 @@ public sealed class GetEcommerceCheckoutOptionsHandlerTests
         result.Value!.TurnstileSiteKey.Should().BeNull();
     }
 
+    [Fact(DisplayName = "Expone el pedido mínimo solo cuando la tienda lo configura")]
+    public async Task Handle_WithMinOrderAmount_ExposesIt()
+    {
+        var tenantId = SetupTenant();
+        _settings.ResolveAsync(tenantId, Arg.Any<CancellationToken>()).Returns(new EcommerceStorefrontSettings(
+            [EcommercePaymentMethod.BankTransfer],
+            [new ShippingMethodOption(EcommerceShippingMethod.Courier, 0m)],
+            string.Empty,
+            24,
+            MinOrderAmount: 25m));
+
+        var withMin = await _sut.Handle(new GetEcommerceCheckoutOptionsQuery(tenantId), CancellationToken.None);
+        withMin.IsSuccess.Should().BeTrue();
+        withMin.Value!.MinOrderAmount.Should().Be(25m);
+
+        _settings.ResolveAsync(tenantId, Arg.Any<CancellationToken>()).Returns(new EcommerceStorefrontSettings(
+            [EcommercePaymentMethod.BankTransfer],
+            [new ShippingMethodOption(EcommerceShippingMethod.Courier, 0m)],
+            string.Empty,
+            24));
+        var withoutMin = await _sut.Handle(new GetEcommerceCheckoutOptionsQuery(tenantId), CancellationToken.None);
+        withoutMin.Value!.MinOrderAmount.Should().BeNull();
+    }
+
     [Fact(DisplayName = "Tienda inexistente no expone opciones de checkout")]
     public async Task Handle_UnknownTenant_ReturnsNotFound()
     {

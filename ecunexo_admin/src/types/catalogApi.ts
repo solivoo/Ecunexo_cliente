@@ -69,6 +69,7 @@ export type CatalogItemListItemDto = {
   hierarchyPathJson?: string | null
   isHiddenFromStorefront?: boolean
   parentName?: string | null
+  minOrderQuantity?: number
 }
 
 export type CatalogItemVariantSummaryDto = {
@@ -87,6 +88,7 @@ export type CatalogItemVariantSummaryDto = {
   tags?: string[] | null
   extraColors?: string[] | null
   sortOrder?: number
+  minOrderQuantity?: number
 }
 
 export type CatalogMatrixAxisDto = {
@@ -125,6 +127,7 @@ export type CatalogItemDetailDto = {
   familyName?: string | null
   hierarchyPathJson?: string | null
   matrixDescriptor?: CatalogMatrixDescriptorDto | null
+  minOrderQuantity?: number
 }
 
 export type CreateCatalogItemBody = {
@@ -137,6 +140,7 @@ export type CreateCatalogItemBody = {
   customAttributesJson?: string | null
   familyId?: string | null
   hierarchyPathJson?: string | null
+  minOrderQuantity?: number | null
 }
 
 export type CreateCatalogItemResponseDto = {

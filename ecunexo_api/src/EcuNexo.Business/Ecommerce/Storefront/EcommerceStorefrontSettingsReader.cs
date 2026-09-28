@@ -20,6 +20,9 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
     public const int MinMaxPendingOrders = 1;
     public const int MaxMaxPendingOrders = 50;
     public const int MaintenanceMessageMaxLength = 300;
+    public const decimal DefaultMinOrderAmount = 0m;
+    public const decimal MinMinOrderAmount = 0m;
+    public const decimal MaxMinOrderAmount = 10000m;
 
     private static readonly IReadOnlyList<EcommercePaymentMethod> DefaultPaymentMethods =
         [EcommercePaymentMethod.BankTransfer];
@@ -61,7 +64,8 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
             ReadOrdersNotificationEmail(values),
             ReadMaxPendingOrders(values),
             ReadMaintenanceEnabled(values),
-            ReadMaintenanceMessage(values));
+            ReadMaintenanceMessage(values),
+            ReadMinOrderAmount(values));
     }
 
     internal static bool TryParsePaymentMethod(string? raw, out EcommercePaymentMethod method)
@@ -255,6 +259,27 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
         return message.Length <= MaintenanceMessageMaxLength
             ? message
             : message[..MaintenanceMessageMaxLength];
+    }
+
+    private static decimal ReadMinOrderAmount(IReadOnlyDictionary<string, JsonElement> values)
+    {
+        if (!values.TryGetValue(EcommerceSettingCodes.StorefrontMinOrderAmount, out var element))
+        {
+            return DefaultMinOrderAmount;
+        }
+
+        var amount = element.ValueKind switch
+        {
+            JsonValueKind.Number when element.TryGetDecimal(out var parsed) => parsed,
+            JsonValueKind.String when decimal.TryParse(
+                element.GetString(),
+                NumberStyles.Number,
+                CultureInfo.InvariantCulture,
+                out var parsed) => parsed,
+            _ => DefaultMinOrderAmount,
+        };
+
+        return Math.Clamp(amount, MinMinOrderAmount, MaxMinOrderAmount);
     }
 
     private static decimal ReadCost(JsonElement element)

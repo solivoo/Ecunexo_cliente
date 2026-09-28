@@ -34,5 +34,6 @@ public sealed class GetEcommerceStorefrontSettingsHandler
             settings.OrdersNotificationEmail,
             settings.MaxPendingOrders,
             settings.MaintenanceEnabled,
-            settings.MaintenanceMessage);
+            settings.MaintenanceMessage,
+            settings.MinOrderAmount);
 }

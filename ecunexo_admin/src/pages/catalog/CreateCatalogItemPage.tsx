@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Button, NumberBox, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import { Layers, Save } from 'lucide-react'
 import {
   EcuPageActions,
@@ -109,6 +109,7 @@ export function CreateCatalogItemPage() {
   const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [manualSku, setManualSku] = useState('')
+  const [minOrderQuantity, setMinOrderQuantity] = useState(1)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [matrixData, setMatrixData] = useState<{
@@ -517,6 +518,7 @@ export function CreateCatalogItemPage() {
               customAttributes.length > 0 ? serializeCustomAttributes(customAttributes, []) : null,
             familyId,
             hierarchyPathJson,
+            minOrderQuantity,
           })
 
           targetItemId = created.itemId
@@ -580,6 +582,7 @@ export function CreateCatalogItemPage() {
       dimensionValuesMap,
       firstVariantName,
       manualSku,
+      minOrderQuantity,
       name,
       showManualDescription,
       showManualName,
@@ -730,6 +733,31 @@ export function CreateCatalogItemPage() {
                       disabled={busy}
                       fullWidth
                     />
+                  </div>
+                ) : null}
+                {!usesMatrix ? (
+                  <div className="ecu-companies-form__field">
+                    <NumberBox
+                      id="ci-min-order-qty"
+                      label="Compra mínima (cantidad)"
+                      labelPosition="outlined"
+                      variant="outline"
+                      min={1}
+                      step={1}
+                      showSpinButtons
+                      value={minOrderQuantity}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setMinOrderQuantity(
+                          Math.max(1, Math.floor(Number(e.target.value) || 1))
+                        )
+                      }
+                      disabled={busy}
+                      fullWidth
+                    />
+                    <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                      Cantidad mínima que debe comprar el cliente de este producto en la
+                      tienda online.
+                    </p>
                   </div>
                 ) : null}
                 {showManualDescription ? (

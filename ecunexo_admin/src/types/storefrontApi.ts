@@ -31,6 +31,7 @@ export type EcommerceStorefrontSettings = {
   maxPendingOrders: number
   maintenanceEnabled: boolean
   maintenanceMessage: string
+  minOrderAmount: number
 }
 
 export type UpdateEcommerceStorefrontSettingsInput = {
@@ -44,6 +45,7 @@ export type UpdateEcommerceStorefrontSettingsInput = {
   maxPendingOrders: number
   maintenanceEnabled: boolean
   maintenanceMessage: string | null
+  minOrderAmount: number
 }
 
 export type EcommerceBlockedContactKind = 'Email' | 'Phone'

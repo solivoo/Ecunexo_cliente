@@ -57,10 +57,13 @@ public sealed class GetEcommerceCheckoutOptionsHandler
             ? null
             : settings.ContactWhatsapp;
 
+        var minOrderAmount = settings.MinOrderAmount > 0m ? settings.MinOrderAmount : (decimal?)null;
+
         return Result.Success(new EcommerceCheckoutOptionsDto(
             paymentMethods,
             shippingMethods,
             whatsappPhone,
-            _turnstile.ResolvedSiteKey));
+            _turnstile.ResolvedSiteKey,
+            minOrderAmount));
     }
 }

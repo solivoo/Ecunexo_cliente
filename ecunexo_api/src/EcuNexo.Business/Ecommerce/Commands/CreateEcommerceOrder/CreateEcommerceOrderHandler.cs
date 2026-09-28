@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog;
@@ -157,11 +158,23 @@ public sealed class CreateEcommerceOrderHandler
             order.AddItem(itemResult.Value!);
         }
 
+        if (command.MinOrderAmount > 0m && order.Subtotal < command.MinOrderAmount)
+        {
+            return Result.Failure<CreateEcommerceOrderResponse>(
+                new Error(
+                    "ecommerce.order.min_order_amount",
+                    $"El pedido mínimo es ${FormatCurrency(command.MinOrderAmount)}.",
+                    ErrorType.Validation));
+        }
+
         await _orders.AddAsync(order, ct).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return ToResponse(order);
     }
+
+    private static string FormatCurrency(decimal value) =>
+        value.ToString("0.00", CultureInfo.InvariantCulture);
 
     private static CreateEcommerceOrderResponse ToResponse(EcommerceOrder order) =>
         new(

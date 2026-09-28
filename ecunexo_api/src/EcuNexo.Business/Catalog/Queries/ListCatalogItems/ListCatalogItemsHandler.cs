@@ -67,7 +67,8 @@ public sealed class ListCatalogItemsHandler
                     i.HierarchyPathJson,
                     i.CustomAttributesJson,
                     i.IsHiddenFromStorefront,
-                    i.ParentId is { } pid && parentNames.TryGetValue(pid, out var parentName) ? parentName : null);
+                    i.ParentId is { } pid && parentNames.TryGetValue(pid, out var parentName) ? parentName : null,
+                    i.MinOrderQuantity);
             })
             .ToList();
         return Result.Success(items);

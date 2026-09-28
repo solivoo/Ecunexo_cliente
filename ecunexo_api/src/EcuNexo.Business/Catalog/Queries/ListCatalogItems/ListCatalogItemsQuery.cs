@@ -31,4 +31,5 @@ public sealed record CatalogItemListItemResponse(
     string? HierarchyPathJson = null,
     string? CustomAttributesJson = null,
     bool IsHiddenFromStorefront = false,
-    string? ParentName = null);
+    string? ParentName = null,
+    decimal MinOrderQuantity = 1);

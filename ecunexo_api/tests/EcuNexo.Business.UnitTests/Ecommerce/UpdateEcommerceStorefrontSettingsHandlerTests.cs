@@ -22,7 +22,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         _sut = new UpdateEcommerceStorefrontSettingsHandler(_validator, _settings, _idGenerator, _unitOfWork);
     }
 
-    [Fact(DisplayName = "Hace upsert de los diez settings tenant y devuelve el estado guardado")]
+    [Fact(DisplayName = "Hace upsert de los once settings tenant y devuelve el estado guardado")]
     public async Task Handle_WithoutExistingSettings_CreatesAll()
     {
         var tenantId = Guid.CreateVersion7();
@@ -46,6 +46,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             MaxPendingOrders: 12,
             MaintenanceEnabled: true,
             MaintenanceMessage: "  Volvemos pronto  ",
+            MinOrderAmount: 25.5m,
             UpdatedBy: Guid.CreateVersion7());
 
         var result = await _sut.Handle(command, CancellationToken.None);
@@ -64,8 +65,9 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         dto.MaxPendingOrders.Should().Be(12);
         dto.MaintenanceEnabled.Should().BeTrue();
         dto.MaintenanceMessage.Should().Be("Volvemos pronto");
+        dto.MinOrderAmount.Should().Be(25.5m);
 
-        await _settings.Received(10).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
+        await _settings.Received(11).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -96,6 +98,8 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
                 SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontMaintenanceEnabled, "false", SettingScope.Tenant, scopeId).Value!,
             [EcommerceSettingCodes.StorefrontMaintenanceMessage] =
                 SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontMaintenanceMessage, "\"\"", SettingScope.Tenant, scopeId).Value!,
+            [EcommerceSettingCodes.StorefrontMinOrderAmount] =
+                SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontMinOrderAmount, "0", SettingScope.Tenant, scopeId).Value!,
         };
 
         _settings
@@ -121,6 +125,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         rows[EcommerceSettingCodes.StorefrontReserveOnOrder].ValueJson.Should().Be("true");
         rows[EcommerceSettingCodes.StorefrontOrdersNotificationEmail].ValueJson.Should().Be("\"\"");
         rows[EcommerceSettingCodes.StorefrontMaxPendingOrders].ValueJson.Should().Be("3");
+        rows[EcommerceSettingCodes.StorefrontMinOrderAmount].ValueJson.Should().Be("0");
     }
 
     [Fact(DisplayName = "El validador rechaza métodos vacíos, costos negativos y hold fuera de rango")]
@@ -177,6 +182,24 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             24,
             MaxPendingOrders: 51));
         tooHighPendingOrders.IsValid.Should().BeFalse();
+
+        var negativeMinOrderAmount = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
+            tenantId,
+            ["BankTransfer"],
+            [new UpdateEcommerceStorefrontShippingMethodInput("Courier", 0m)],
+            null,
+            24,
+            MinOrderAmount: -0.01m));
+        negativeMinOrderAmount.IsValid.Should().BeFalse();
+
+        var tooHighMinOrderAmount = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
+            tenantId,
+            ["BankTransfer"],
+            [new UpdateEcommerceStorefrontShippingMethodInput("Courier", 0m)],
+            null,
+            24,
+            MinOrderAmount: 10000.01m));
+        tooHighMinOrderAmount.IsValid.Should().BeFalse();
 
         var unknownCode = await _validator.ValidateAsync(new UpdateEcommerceStorefrontSettingsCommand(
             tenantId,

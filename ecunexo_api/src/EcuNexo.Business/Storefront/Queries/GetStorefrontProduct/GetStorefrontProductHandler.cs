@@ -144,7 +144,8 @@ public sealed class GetStorefrontProductHandler
                     availability,
                     variantPrice,
                     variantOriginalPrice,
-                    variantDiscountPercent);
+                    variantDiscountPercent,
+                    item.MinOrderQuantity);
             })
             .ToList();
 
@@ -170,7 +171,8 @@ public sealed class GetStorefrontProductHandler
             ParseAttributes(item.HierarchyPathJson, item.CustomAttributesJson),
             item.CreatedAt,
             item.UpdatedAt,
-            likeCount);
+            likeCount,
+            item.MinOrderQuantity);
 
         return Result.Success(dto);
     }
@@ -222,13 +224,17 @@ public sealed class GetStorefrontProductHandler
         IReadOnlyDictionary<Guid, decimal> availability,
         decimal? price,
         decimal? originalPrice,
-        int? discountPercent)
+        int? discountPercent,
+        decimal productMinOrderQuantity)
     {
         var available = availability.TryGetValue(variant.Id, out var value) ? value : 0m;
         var gallery = variant.Images?.Select(MapImage).ToList();
         var mainGalleryImage = variant.Images is { Count: > 0 } variantImages
             ? variantImages.FirstOrDefault(i => i.IsMain) ?? variantImages[0]
             : null;
+        var minOrderQuantity = variant.MinOrderQuantity >= 1m
+            ? variant.MinOrderQuantity
+            : productMinOrderQuantity;
 
         return new StorefrontVariantDto(
             variant.Id,
@@ -245,7 +251,8 @@ public sealed class GetStorefrontProductHandler
             variant.ImageInherited,
             variant.ImageInheritedFrom,
             gallery,
-            variant.ExtraColors);
+            variant.ExtraColors,
+            minOrderQuantity);
     }
 
     private static StorefrontImageDto MapImage(CatalogItemImageResponse image) =>

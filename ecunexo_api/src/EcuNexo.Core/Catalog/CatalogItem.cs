@@ -68,6 +68,9 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
     public decimal? BasePrice { get; private set; }
 
+    /// <summary>Cantidad mínima de compra por ítem vendible (SKU). Por defecto 1.</summary>
+    public decimal MinOrderQuantity { get; private set; } = 1m;
+
     public string CustomAttributesJson { get; private set; }
 
     public CatalogItemStatus Status { get; private set; }
@@ -96,7 +99,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string categorySchemaJson,
         Guid? familyId = null,
         string? hierarchyPathJson = null,
-        string? barcode = null)
+        string? barcode = null,
+        decimal? minOrderQuantity = null)
     {
         if (tenantId == Guid.Empty)
         {
@@ -152,6 +156,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(barcodeResult.Error!);
         }
 
+        var minOrderResult = NormalizeMinOrderQuantity(minOrderQuantity);
+        if (minOrderResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(minOrderResult.Error!);
+        }
+
         return new CatalogItem
         {
             Id = id,
@@ -164,6 +174,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             Sku = skuResult.Value,
             Barcode = barcodeResult.Value,
             BasePrice = priceResult.Value,
+            MinOrderQuantity = minOrderResult.Value,
             CustomAttributesJson = attrs.Value!,
             Status = CatalogItemStatus.Active,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -336,6 +347,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             Sku = skuResult.Value,
             Barcode = barcodeResult.Value,
             BasePrice = priceResult.Value,
+            MinOrderQuantity = parent.MinOrderQuantity,
             CustomAttributesJson = attrs.Value!,
             Status = CatalogItemStatus.Active,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -563,7 +575,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string categorySchemaJson,
         Guid? updatedBy,
         Guid? familyId = null,
-        string? hierarchyPathJson = null)
+        string? hierarchyPathJson = null,
+        decimal? minOrderQuantity = null)
     {
         var nameResult = NormalizeName(name);
         if (nameResult.IsFailure)
@@ -601,6 +614,17 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure(path.Error!);
         }
 
+        if (minOrderQuantity is { } minOrder)
+        {
+            var minResult = NormalizeMinOrderQuantity(minOrder);
+            if (minResult.IsFailure)
+            {
+                return Result.Failure(minResult.Error!);
+            }
+
+            MinOrderQuantity = minResult.Value;
+        }
+
         Name = nameResult.Value!;
         Description = descResult.Value;
         Sku = skuResult.Value;
@@ -622,6 +646,20 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         Barcode = normalized.Value;
+        Touch(updatedBy);
+        return Result.Success();
+    }
+
+    /// <summary>Define la cantidad mínima de compra del ítem vendible (por defecto 1).</summary>
+    public Result SetMinOrderQuantity(decimal minOrderQuantity, Guid? updatedBy = null)
+    {
+        var normalized = NormalizeMinOrderQuantity(minOrderQuantity);
+        if (normalized.IsFailure)
+        {
+            return Result.Failure(normalized.Error!);
+        }
+
+        MinOrderQuantity = normalized.Value;
         Touch(updatedBy);
         return Result.Success();
     }
@@ -1642,5 +1680,33 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         return Result.Success<decimal?>(decimal.Round(basePrice.Value, 4, MidpointRounding.AwayFromZero));
+    }
+
+    /// <summary>
+    /// Normaliza la cantidad mínima de compra. Sin valor usa 1 (comportamiento histórico).
+    /// Valores enteros se guardan como enteros; los fraccionarios se redondean a 4 decimales.
+    /// </summary>
+    private static Result<decimal> NormalizeMinOrderQuantity(decimal? minOrderQuantity)
+    {
+        if (minOrderQuantity is null)
+        {
+            return Result.Success(1m);
+        }
+
+        if (minOrderQuantity.Value < 1m)
+        {
+            return Result.Failure<decimal>(
+                new Error(
+                    "catalog.item.min_order_quantity.range",
+                    "La compra mínima por producto debe ser al menos 1.",
+                    ErrorType.Validation));
+        }
+
+        var value = minOrderQuantity.Value;
+        var normalized = value == decimal.Truncate(value)
+            ? decimal.Truncate(value)
+            : decimal.Round(value, 4, MidpointRounding.AwayFromZero);
+
+        return Result.Success(normalized);
     }
 }

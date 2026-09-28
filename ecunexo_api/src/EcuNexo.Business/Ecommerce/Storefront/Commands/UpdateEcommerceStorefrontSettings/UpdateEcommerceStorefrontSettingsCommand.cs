@@ -16,4 +16,5 @@ public sealed record UpdateEcommerceStorefrontSettingsCommand(
     int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders,
     bool MaintenanceEnabled = false,
     string? MaintenanceMessage = null,
+    decimal MinOrderAmount = EcommerceStorefrontSettingsReader.DefaultMinOrderAmount,
     Guid? UpdatedBy = null) : ICommand<EcommerceStorefrontSettingsDto>;

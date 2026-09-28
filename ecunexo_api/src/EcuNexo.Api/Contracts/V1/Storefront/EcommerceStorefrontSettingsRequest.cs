@@ -15,7 +15,8 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
     string? OrdersNotificationEmail = null,
     int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders,
     bool MaintenanceEnabled = false,
-    string? MaintenanceMessage = null)
+    string? MaintenanceMessage = null,
+    decimal MinOrderAmount = EcommerceStorefrontSettingsReader.DefaultMinOrderAmount)
 {
     public UpdateEcommerceStorefrontSettingsCommand ToCommand(Guid tenantId, Guid? updatedBy) =>
         new(
@@ -32,5 +33,6 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
             MaxPendingOrders,
             MaintenanceEnabled,
             MaintenanceMessage,
+            MinOrderAmount,
             updatedBy);
 }
