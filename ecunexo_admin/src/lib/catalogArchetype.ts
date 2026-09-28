@@ -328,7 +328,7 @@ export function resolveTemplateDimensions(
     const sizeFound = map.get('talla') || map.get('tallas')
     dims.push({
       name: 'Talla',
-      values: sizeFound?.values || ['35-38', '39-41', '42-44'],
+      values: sizeFound?.values ?? [],
       isColor: false,
       photoGroup: false,
       type: 'size',

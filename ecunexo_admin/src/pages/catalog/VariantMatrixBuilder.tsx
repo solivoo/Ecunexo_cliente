@@ -5,7 +5,6 @@ import { EcuColorListInput, EcuMediaListInput, EcuTagInput } from '@/components/
 import {
   findDuplicateSkuValues,
   isColorDimension,
-  isSizeAxisName,
   parseMediaValue,
   type ArchetypeAttributeField,
   type DimensionLookup,
@@ -223,31 +222,16 @@ export function VariantMatrixBuilder({
     [colorHexMap]
   )
 
-  // Dimensions Array
-  const [dimensions, setDimensions] = useState<DimensionState[]>([
-    {
-      id: 'dim-1',
-      name: 'Talla',
-      dimensionType: 'Talla',
-      values: ['35-38', '39-41', '42-44'],
-      activeValues: ['35-38', '39-41', '42-44'],
-    },
-  ])
+  // Dimensions Array: nacen vacías; solo la plantilla las define.
+  const [dimensions, setDimensions] = useState<DimensionState[]>([])
 
   // Sync initialDimensions from template if provided
   useEffect(() => {
     if (!initialDimensions || initialDimensions.length === 0) return
     const newDims: DimensionState[] = initialDimensions.map((d, idx) => {
       const isColor = d.isColor || isColorDimension(d.name)
-      const isSize = d.type === 'size' || isSizeAxisName(d.name)
-      // Los colores se asignan únicamente por hexadecimal: sin presets nominales.
-      const values = isColor
-        ? []
-        : d.values && d.values.length > 0
-          ? d.values
-          : isSize
-            ? ['35-38', '39-41', '42-44']
-            : []
+      // Sin presets: los valores vienen del diccionario/plantilla (o se agregan con «+ Nueva»).
+      const values = isColor ? [] : (d.values ?? [])
       return {
         id: `dim-tpl-${idx}`,
         name: d.name,
