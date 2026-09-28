@@ -212,19 +212,27 @@ export function CatalogItemsGrid({
         header: 'SKU',
         width: 140,
         sortable: true,
-        renderCell: (_value: CatalogItemGridRow['sku'], row: CatalogItemGridRow) =>
-          row.sku ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-              <code className="ecu-code">{row.sku}</code>
-              {row.isMatrixParent ? (
+        renderCell: (_value: CatalogItemGridRow['sku'], row: CatalogItemGridRow) => {
+          if (row.isMatrixParent) {
+            return row.sku ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                <code className="ecu-code">{row.sku}</code>
                 <span className="ecu-chip ecu-chip--accent" title="Código de modelo matriz">
                   Modelo
                 </span>
-              ) : null}
-            </span>
-          ) : (
-            '—'
-          ),
+              </span>
+            ) : (
+              <span
+                className="ecu-chip"
+                title="Asigna el código de modelo al editar este producto"
+              >
+                Modelo sin código
+              </span>
+            )
+          }
+
+          return row.sku ? <code className="ecu-code">{row.sku}</code> : '—'
+        },
       },
       {
         key: 'status',
@@ -328,6 +336,13 @@ export function CatalogItemsGrid({
                     {row.isMatrixParent ? 'Modelo:' : 'SKU:'}
                   </span>
                   <code className="ecu-code">{row.sku}</code>
+                </span>
+              ) : row.isMatrixParent ? (
+                <span
+                  className="ecu-chip"
+                  title="Asigna el código de modelo al editar este producto"
+                >
+                  Modelo sin código
                 </span>
               ) : null}
               <CatalogKindMark kind={row.kind} />
