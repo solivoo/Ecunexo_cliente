@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.62.9`.
+* **Última Versión Publicada:** `v0.63.0`.
 * **Hitos Recientes Completados:**
+  - **Storefront — Revisión de catálogo para la vitrina (v0.63.0):**
+    * `IStorefrontCatalogRepository.GetLastCatalogChangeAtAsync` calcula el máximo `updated_at ?? created_at` sobre ítems, plantillas, listas, precios de producto y promociones del tenant (sin filtrar borrados, para detectar bajas).
+    * Nueva query `GetStorefrontStatus` + endpoint anónimo `GET /api/v1/public/tenants/{tenantId}/storefront/status` con rate limit `storefront-read` y caché en memoria 10 s (`StorefrontCacheKeys.ForStatus`); DTO `StorefrontStatusDto(Revision, UpdatedAt)`.
+    * El ecommerce (v1.1.0) consume la revisión, muestra la pantalla «Estamos actualizando la tienda» y recarga al estabilizarse (sin interrumpir checkout). Verificado E2E: crear/eliminar un ítem cambia y restaura la revisión.
   - **Catálogo — Confirmar al pie y colores a la derecha (v0.62.9):**
     * `CreateCatalogItemPage`: botón «Guardar producto» movido de `PageHeader.actions` al pie del formulario (junto a Cancelar).
     * `EcuColorListInput`: selector + «Añadir» primero (izquierda) y chips acumulándose a la derecha.

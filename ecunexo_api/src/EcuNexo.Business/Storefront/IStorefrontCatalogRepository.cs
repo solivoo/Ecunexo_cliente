@@ -13,4 +13,7 @@ public interface IStorefrontCatalogRepository
         Guid tenantId,
         Guid catalogItemId,
         CancellationToken ct);
+
+    /// <summary>Momento de la última modificación relevante del catálogo (ítems, plantillas, precios y promociones).</summary>
+    Task<DateTimeOffset?> GetLastCatalogChangeAtAsync(Guid tenantId, CancellationToken ct);
 }

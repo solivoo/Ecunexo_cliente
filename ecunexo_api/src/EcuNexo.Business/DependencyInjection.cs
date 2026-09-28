@@ -138,6 +138,7 @@ using EcuNexo.Business.Storefront.Commands.SetPrimaryStorefrontDomain;
 using EcuNexo.Business.Storefront.Commands.UnlikeStorefrontProduct;
 using EcuNexo.Business.Storefront.Commands.VerifyStorefrontDomain;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontLikeMetrics;
+using EcuNexo.Business.Storefront.Queries.GetStorefrontStatus;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontDomains;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontFacets;
@@ -428,6 +429,7 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<ListStorefrontProductsQuery, StorefrontProductPageDto>, ListStorefrontProductsHandler>();
         services.AddScoped<IQueryHandler<ListStorefrontFacetsQuery, StorefrontFacetsDto>, ListStorefrontFacetsHandler>();
         services.AddScoped<IQueryHandler<GetStorefrontProductQuery, StorefrontProductDetailDto>, GetStorefrontProductHandler>();
+        services.AddScoped<IQueryHandler<GetStorefrontStatusQuery, StorefrontStatusDto>, GetStorefrontStatusHandler>();
         services.AddScoped<IQueryHandler<ResolveStorefrontQuery, StorefrontResolveResponse>, ResolveStorefrontHandler>();
         services.AddScoped<IQueryHandler<ListStorefrontDomainsQuery, IReadOnlyList<StorefrontDomainDto>>, ListStorefrontDomainsHandler>();
         services.AddScoped<ICommandHandler<CreateStorefrontDomainCommand, StorefrontDomainDto>, CreateStorefrontDomainHandler>();

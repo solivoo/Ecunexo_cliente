@@ -14,6 +14,7 @@ using EcuNexo.Business.Storefront.Commands.UnlikeStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontFacets;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontProducts;
+using EcuNexo.Business.Storefront.Queries.GetStorefrontStatus;
 using EcuNexo.Business.Storefront.Queries.ResolveStorefront;
 using Microsoft.AspNetCore.Mvc;
 
@@ -45,6 +46,8 @@ public static class StorefrontEndpoints
         storefront.MapDelete("/products/{productId:guid}/like", UnlikeProductAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Likes);
         storefront.MapGet("/checkout-options", GetCheckoutOptionsAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
+        storefront.MapGet("/status", GetStatusAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
         storefront.MapPost("/orders", CreateOrderAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Orders);
@@ -83,6 +86,19 @@ public static class StorefrontEndpoints
 
         http.Response.Headers.CacheControl = "public,max-age=60";
         return Results.Ok(result.Value);
+    }
+
+    private static async Task<IResult> GetStatusAsync(
+        Guid tenantId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<GetStorefrontStatusQuery, StorefrontStatusDto>(
+                new GetStorefrontStatusQuery(tenantId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
     }
 
     private static async Task<IResult> ListFacetsAsync(
