@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
 import { Pencil, Trash2 } from 'lucide-react'
 import {
@@ -30,6 +30,7 @@ const gridMessages = createSpanishDataGridMessages('precio', 'precios')
 export function ProductPricesListPage() {
   const toast = useToast()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const tenantId = useAppSelector(selectTenantId)
   const canRead = useHasPermission('catalog.pricing.read')
   const canCreate = useHasPermission('catalog.pricing.create')
@@ -41,7 +42,7 @@ export function ProductPricesListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [listFilter, setListFilter] = useState('')
+  const [listFilter, setListFilter] = useState(() => searchParams.get('priceListId') ?? '')
   const [vigencyFilter, setVigencyFilter] = useState('vigent')
   const [confirm, setConfirm] = useState<ProductPriceListItemDto | null>(null)
   const [deleting, setDeleting] = useState(false)

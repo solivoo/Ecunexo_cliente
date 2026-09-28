@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.64.2`.
+* **Última Versión Publicada:** `v0.64.3`.
 * **Hitos Recientes Completados:**
+  - **Precios — Grid de productos para asignar precios (v0.64.3):**
+    * `ProductPriceFormPage`: grilla de productos (SKU, descripción/nombre, precio vigente de la lista, estado, acción $) con búsqueda y paginación; `selectItem` llena el formulario; la lista vigente se carga completa (`listProductPrices` por lista) y alimenta grilla + contexto (precio actual, costo, margen).
+    * `PriceListFormPage`: hint de que los precios se cargan por producto; `PriceListsListPage`: acción `$` por fila → `/catalogo/precios/productos?priceListId=`; `ProductPricesListPage`: inicializa el filtro desde `?priceListId=`.
   - **Catálogo — SKU + descripción como identificación (v0.64.2):**
     * Alta: tarjeta «Identidad» con Descripción por defecto (si la plantilla no la captura) y Nombre cuando no lo captura; `finalDescription` usa el campo o el atributo.
     * `CatalogItemPicker` (precios) y `InventoryItemSelectModal`: etiqueta `SKU · Descripción` (respaldo al nombre/valores de eje) y búsqueda por descripción.

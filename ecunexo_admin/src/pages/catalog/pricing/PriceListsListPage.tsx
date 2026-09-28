@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, Popup, useToast, type ColumnDef } from 'glubox'
-import { Pencil, Trash2 } from 'lucide-react'
+import { DollarSign, Pencil, Trash2 } from 'lucide-react'
 import {
   EmptyState,
   GridIconButton,
@@ -152,11 +152,16 @@ export function PriceListsListPage() {
         key: 'id',
         header: 'Acciones',
         sticky: 'right',
-        width: 112,
+        width: 148,
         align: 'center',
         sortable: false,
         renderCell: (_value, row) => (
           <div className="ecu-companies-grid__actions">
+            <GridIconButton
+              label={`Ver precios de «${row.code}»`}
+              icon={DollarSign}
+              onClick={() => navigate(`/catalogo/precios/productos?priceListId=${row.id}`)}
+            />
             {canEdit ? (
               <GridIconButton
                 label="Editar"

@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Button,
   CheckButton,
+  DataGrid,
   DateBox,
   NumberBox,
   Select,
   TextBox,
   useToast,
+  type ColumnDef,
 } from 'glubox'
-import { Trash2 } from 'lucide-react'
+import { DollarSign, Trash2 } from 'lucide-react'
 import {
   GridIconButton,
   PageHeader,
@@ -17,9 +19,10 @@ import {
   StatusBadge,
 } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
+import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
-import { CatalogItemPicker } from '@/pages/catalog/pricing/CatalogItemPicker'
 import { todayIso } from '@/pages/catalog/pricing/pricingFormat'
 import { listCatalogItems } from '@/services/catalogApi'
 import { listStock } from '@/services/inventoryApi'
@@ -34,6 +37,8 @@ import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
 import type { PriceListDto, PriceTierBody } from '@/types/pricingApi'
+
+type ProductPriceRow = CatalogItemListItemDto & { actions?: string }
 
 type TierDraft = {
   quantityFrom: string
@@ -64,7 +69,8 @@ export function ProductPriceFormPage() {
   const [itemLabel, setItemLabel] = useState('')
   const [listId, setListId] = useState(() => searchParams.get('priceListId') ?? '')
   const [price, setPrice] = useState('')
-  const [currentVigent, setCurrentVigent] = useState<{ price: number; validFrom: string } | null>(null)
+  const [pricesByItem, setPricesByItem] = useState<Map<string, { price: number; validFrom: string }>>(new Map())
+  const [search, setSearch] = useState('')
   const [costInfo, setCostInfo] = useState<{ averageCost: number } | null>(null)
   const [validFrom, setValidFrom] = useState(todayIso())
   const [validTo, setValidTo] = useState('')
@@ -129,23 +135,25 @@ export function ProductPriceFormPage() {
     }
   }, [isEdit, priceId, tenantId])
 
-  // Precio vigente actual en la lista elegida: permite renovar con contexto.
+  // Precios vigentes de la lista: alimentan la grilla y el contexto del producto elegido.
   useEffect(() => {
-    if (isEdit || !tenantId || !itemId || !listId) return
+    if (isEdit || !tenantId || !listId) return
     let cancelled = false
-    listProductPrices(tenantId, {
-      priceListId: listId,
-      catalogItemId: itemId,
-      onlyVigent: true,
-    })
+    listProductPrices(tenantId, { priceListId: listId, onlyVigent: true })
       .then((rows) => {
         if (cancelled) return
-        const current = rows[0] ?? null
-        setCurrentVigent(current ? { price: current.price, validFrom: current.validFrom } : null)
-        if (current) setPrice((prev) => (prev.trim() ? prev : String(current.price)))
+        const map = new Map(
+          rows.map((row) => [row.catalogItemId, { price: row.price, validFrom: row.validFrom }])
+        )
+        setPricesByItem(map)
+        setPrice((prev) => {
+          if (prev.trim() || !itemId) return prev
+          const entry = map.get(itemId)
+          return entry ? String(entry.price) : prev
+        })
       })
       .catch(() => {
-        if (!cancelled) setCurrentVigent(null)
+        if (!cancelled) setPricesByItem(new Map())
       })
     return () => {
       cancelled = true
@@ -174,12 +182,110 @@ export function ProductPriceFormPage() {
 
   const selectedItem = items.find((i) => i.id === itemId) ?? null
   const selectedList = lists.find((l) => l.id === listId) ?? null
+  const currentVigent = itemId ? pricesByItem.get(itemId) ?? null : null
   const renewing = !isEdit && currentVigent != null
   const numericEnteredPrice = Number(price)
   const marginPercent =
     costInfo && costInfo.averageCost > 0 && Number.isFinite(numericEnteredPrice) && numericEnteredPrice > 0
       ? ((numericEnteredPrice - costInfo.averageCost) / numericEnteredPrice) * 100
       : null
+
+  const selectItem = useCallback(
+    (item: CatalogItemListItemDto) => {
+      setItemId(item.id)
+      setCostInfo(null)
+      const entry = pricesByItem.get(item.id)
+      setPrice(entry ? String(entry.price) : '')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+    [pricesByItem]
+  )
+
+  const filteredItems = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    if (!term) return items
+    return items.filter(
+      (item) =>
+        (item.sku ?? '').toLowerCase().includes(term) ||
+        item.name.toLowerCase().includes(term) ||
+        (item.description ?? '').toLowerCase().includes(term)
+    )
+  }, [items, search])
+
+  const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
+  const pageRows = useMemo(
+    () =>
+      filteredItems.slice(
+        paging.pageIndex * paging.pageSize,
+        (paging.pageIndex + 1) * paging.pageSize
+      ),
+    [filteredItems, paging.pageIndex, paging.pageSize]
+  )
+  const gridMessages = useMemo(() => createSpanishDataGridMessages('producto', 'productos'), [])
+  const gridColumns = useMemo<ColumnDef<ProductPriceRow>[]>(
+    () => [
+      {
+        key: 'sku',
+        header: 'SKU',
+        width: 140,
+        renderCell: (_value, row) => <code className="ecu-code">{row.sku ?? '—'}</code>,
+      },
+      {
+        key: 'description',
+        header: 'Producto',
+        renderCell: (_value, row) => (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <strong style={{ fontSize: '0.85rem' }}>{row.description?.trim() || row.name}</strong>
+            {row.description?.trim() ? (
+              <span className="app-shell__muted" style={{ fontSize: '0.75rem' }}>
+                {row.name}
+              </span>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        key: 'basePrice',
+        header: 'Precio (lista)',
+        width: 140,
+        renderCell: (_value, row) => {
+          const entry = pricesByItem.get(row.id)
+          return entry ? (
+            <span style={{ fontWeight: 600 }}>${entry.price.toFixed(2)}</span>
+          ) : (
+            <span className="app-shell__muted">Sin precio</span>
+          )
+        },
+      },
+      {
+        key: 'status',
+        header: 'Estado',
+        width: 110,
+        renderCell: (_value, row) => (
+          <StatusBadge
+            tone={Number(row.status) === 0 ? 'success' : 'neutral'}
+            withDot={Number(row.status) === 0}
+          >
+            {Number(row.status) === 0 ? 'Activo' : 'Inactivo'}
+          </StatusBadge>
+        ),
+      },
+      {
+        key: 'actions',
+        header: '',
+        width: 110,
+        sticky: 'right',
+        renderCell: (_value, row) => (
+          <GridIconButton
+            label={itemId === row.id ? 'Producto seleccionado' : 'Asignar precio a este producto'}
+            icon={DollarSign}
+            onClick={() => selectItem(row)}
+          />
+        ),
+      },
+    ],
+    [itemId, pricesByItem, selectItem]
+  )
 
   const buildTiers = useCallback((): PriceTierBody[] => {
     return tiers
@@ -317,26 +423,19 @@ export function ProductPriceFormPage() {
               <p className="ecu-companies-form__hint" style={{ marginBottom: '0.75rem' }}>
                 Producto: <strong>{itemLabel || '—'}</strong>
               </p>
-            ) : (
-              <CatalogItemPicker
-                items={items}
-                value={itemId}
-                onChange={(id) => {
-                  setItemId(id)
-                  setPrice('')
-                  setCurrentVigent(null)
-                  setCostInfo(null)
+            ) : selectedItem ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap',
                 }}
-                disabled={busy || loading}
-                searchId="pp-item-search"
-                selectId="pp-item-select"
-                placeholder="Buscar por nombre o SKU…"
-              />
-            )}
-
-            {selectedItem ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.6rem' }}>
+              >
                 <span className="ecu-chip">{selectedItem.sku ?? 'Sin SKU'}</span>
+                <strong style={{ fontSize: '0.9rem' }}>
+                  {selectedItem.description?.trim() || selectedItem.name}
+                </strong>
                 {costInfo ? (
                   <span className="ecu-chip">Costo prom. ${costInfo.averageCost.toFixed(4)}</span>
                 ) : null}
@@ -357,9 +456,28 @@ export function ProductPriceFormPage() {
                   <span className="ecu-chip">
                     Actual: ${currentVigent.price.toFixed(2)} · desde {currentVigent.validFrom}
                   </span>
-                ) : null}
+                ) : (
+                  <span className="ecu-chip">Sin precio vigente</span>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy || loading}
+                  onClick={() => {
+                    setItemId('')
+                    setPrice('')
+                    setCostInfo(null)
+                  }}
+                >
+                  Cambiar producto
+                </Button>
               </div>
-            ) : null}
+            ) : (
+              <p className="ecu-hint" style={{ margin: 0 }}>
+                Selecciona un producto del listado de abajo para asignarle el precio.
+              </p>
+            )}
 
             <div className="ecu-companies-form__grid ecu-companies-form__grid--3" style={{ marginTop: '0.75rem' }}>
               <div className="ecu-companies-form__field">
@@ -377,7 +495,6 @@ export function ProductPriceFormPage() {
                   onChange={(value) => {
                     setListId(String(value))
                     setPrice('')
-                    setCurrentVigent(null)
                   }}
                   disabled={busy || loading || isEdit}
                 />
@@ -464,6 +581,48 @@ export function ProductPriceFormPage() {
               </div>
             ) : null}
           </SectionCard>
+
+          {!isEdit ? (
+            <SectionCard
+              title="Productos"
+              subtitle="Elige el producto a cotizar; cada fila muestra su precio vigente en la lista."
+            >
+              <div
+                className="ecu-companies-form__grid ecu-companies-form__grid--4"
+                style={{ marginBottom: '0.75rem' }}
+              >
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                  <TextBox
+                    id="pp-grid-search"
+                    label="Buscar producto"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={search}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                      setSearch(e.target.value)
+                      onPageChange(0)
+                    }}
+                    placeholder="SKU, descripción o nombre…"
+                    disabled={busy || loading}
+                    fullWidth
+                  />
+                </div>
+              </div>
+              <div style={{ width: '100%', overflowX: 'auto' }}>
+                <DataGrid<ProductPriceRow>
+                  dataSource={pageRows}
+                  keyExpr="id"
+                  columns={gridColumns}
+                  paging={paging}
+                  pageSizeOptions={pageSizeOptions}
+                  onPageChange={onPageChange}
+                  onPageSizeChange={onPageSizeChange}
+                  messages={gridMessages}
+                  loading={loading}
+                />
+              </div>
+            </SectionCard>
+          ) : null}
 
           <SectionCard
             title="Escalas por cantidad"

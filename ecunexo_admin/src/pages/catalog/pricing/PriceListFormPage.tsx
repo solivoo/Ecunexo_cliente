@@ -152,6 +152,11 @@ export function PriceListFormPage() {
 
         <form onSubmit={(e) => void onSubmit(e)} noValidate>
           <SectionCard title="Datos de la lista">
+            <p className="ecu-hint" style={{ marginTop: 0 }}>
+              La lista define el código, la moneda y la vigencia. Los <strong>precios de cada
+              producto</strong> se cargan en <strong>Catálogo → Precios → Precios de productos</strong> (individual o
+              con «Carga masiva»); desde la lista puedes abrir sus precios con el ícono $.
+            </p>
             {error ? (
               <div className="ecu-form-error-banner" role="alert">
                 <span className="material-symbols-outlined">error</span>
