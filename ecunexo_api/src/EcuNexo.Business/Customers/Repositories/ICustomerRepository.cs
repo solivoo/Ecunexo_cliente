@@ -5,6 +5,8 @@ namespace EcuNexo.Business.Customers.Repositories;
 public interface ICustomerRepository
 {
     Task AddAsync(Customer customer, CancellationToken ct);
+
+    Task<bool> HasPriceListAssignmentAsync(Guid tenantId, Guid priceListId, CancellationToken ct);
     Task<Customer?> GetByIdAsync(Guid tenantId, Guid customerId, CancellationToken ct);
     Task<Customer?> GetByTaxIdAsync(Guid tenantId, string taxId, CancellationToken ct);
     Task<Customer?> GetTrackedByIdAsync(Guid tenantId, Guid customerId, CancellationToken ct);

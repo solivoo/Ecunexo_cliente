@@ -153,12 +153,13 @@ public static class PricingEndpoints
     private static async Task<IResult> DeletePriceListAsync(
         Guid tenantId,
         Guid priceListId,
+        bool? permanent,
         ISender sender,
         CancellationToken ct)
     {
         var result = await sender
             .SendAsync<DeletePriceListCommand, DeletePriceListResponse>(
-                new DeletePriceListCommand(tenantId, priceListId),
+                new DeletePriceListCommand(tenantId, priceListId, permanent ?? false),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

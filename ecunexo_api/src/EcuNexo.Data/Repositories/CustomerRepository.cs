@@ -19,6 +19,13 @@ public sealed class CustomerRepository : ICustomerRepository
         return Task.CompletedTask;
     }
 
+    public Task<bool> HasPriceListAssignmentAsync(Guid tenantId, Guid priceListId, CancellationToken ct) =>
+        _db.Customers.AnyAsync(
+            c => c.TenantId == tenantId
+                && c.PriceListId == priceListId
+                && c.DeletedAt == null,
+            ct);
+
     public Task<Customer?> GetByIdAsync(Guid tenantId, Guid customerId, CancellationToken ct) =>
         _db.Customers.AsNoTracking()
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == customerId && c.DeletedAt == null, ct);

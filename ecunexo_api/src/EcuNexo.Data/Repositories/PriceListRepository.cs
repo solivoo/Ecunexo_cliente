@@ -54,4 +54,10 @@ public sealed class PriceListRepository : IPriceListRepository
                 && l.Code == code
                 && (excludeId == null || l.Id != excludeId.Value),
             ct);
+
+    public Task RemoveAsync(PriceList list, CancellationToken ct)
+    {
+        _db.PriceLists.Remove(list);
+        return Task.CompletedTask;
+    }
 }

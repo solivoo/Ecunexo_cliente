@@ -17,4 +17,6 @@ public interface IPriceListRepository
     Task<IReadOnlyList<PriceList>> ListAsync(Guid tenantId, bool onlyActive, CancellationToken ct);
 
     Task<bool> CodeExistsAsync(Guid tenantId, string code, Guid? excludeId, CancellationToken ct);
+
+    Task RemoveAsync(PriceList list, CancellationToken ct);
 }

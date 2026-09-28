@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, Popup, useToast, type ColumnDef } from 'glubox'
-import { DollarSign, Pencil, Power, Trash2, Users } from 'lucide-react'
+import { DollarSign, Pencil, Power, Trash2, Users, XCircle } from 'lucide-react'
 import {
   EmptyState,
   GridIconButton,
@@ -40,6 +40,8 @@ export function PriceListsListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<PriceListDto | null>(null)
+  const [permanentConfirm, setPermanentConfirm] = useState<PriceListDto | null>(null)
+  const [permanentDeleting, setPermanentDeleting] = useState(false)
   const [assignedList, setAssignedList] = useState<PriceListDto | null>(null)
   const [assignedCustomers, setAssignedCustomers] = useState<CustomerDto[]>([])
   const [assignedLoading, setAssignedLoading] = useState(false)
@@ -89,7 +91,30 @@ export function PriceListsListPage() {
     }
   }, [confirm, load, tenantId, toast])
 
-      const handleActivate = useCallback(
+  const handlePermanentDelete = useCallback(async () => {
+    if (!tenantId || !permanentConfirm) return
+    setPermanentDeleting(true)
+    try {
+      await deletePriceList(tenantId, permanentConfirm.id, true)
+      toast.show({
+        title: 'Lista eliminada',
+        message: `«${permanentConfirm.code}» se eliminó definitivamente.`,
+        variant: 'success',
+      })
+      setPermanentConfirm(null)
+      await load()
+    } catch (err: unknown) {
+      toast.show({
+        title: 'No se pudo eliminar',
+        message: readApiError(err, 'Solo se pueden eliminar listas sin precios ni clientes asignados.'),
+        variant: 'error',
+      })
+    } finally {
+      setPermanentDeleting(false)
+    }
+  }, [load, permanentConfirm, tenantId, toast])
+
+  const handleActivate = useCallback(
     async (row: PriceListDto) => {
       if (!tenantId || !canEdit) return
       try {
@@ -240,12 +265,22 @@ const columns = useMemo((): ColumnDef<PriceListRow>[] => {
                 />
               ) : null
             ) : canEdit ? (
-              <GridIconButton
-                label={`Activar «${row.code}»`}
-                icon={Power}
-                active
-                onClick={() => void handleActivate(row)}
-              />
+              <>
+                <GridIconButton
+                  label={`Activar «${row.code}»`}
+                  icon={Power}
+                  active
+                  onClick={() => void handleActivate(row)}
+                />
+                {canDelete && !row.isDefault ? (
+                  <GridIconButton
+                    label={`Eliminar definitivamente «${row.code}»`}
+                    icon={XCircle}
+                    danger
+                    onClick={() => setPermanentConfirm(row)}
+                  />
+                ) : null}
+              </>
             ) : null}
           </div>
         ),
@@ -372,6 +407,35 @@ const columns = useMemo((): ColumnDef<PriceListRow>[] => {
           <p className="app-shell__muted">
             ¿Desactivar <strong>{confirm.name}</strong>? Los precios históricos se conservan y la lista
             deja de usarse para nuevas ventas.
+          </p>
+        ) : null}
+      </Popup>
+      <Popup
+        open={permanentConfirm !== null}
+        title="Eliminar lista definitivamente"
+        onClose={() => (permanentDeleting ? undefined : setPermanentConfirm(null))}
+        width="min(92vw, 30rem)"
+        actions={[
+          {
+            id: 'cancel',
+            label: 'Cancelar',
+            variant: 'ghost',
+            onClick: () => setPermanentConfirm(null),
+            disabled: permanentDeleting,
+          },
+          {
+            id: 'delete',
+            label: 'Sí, eliminar',
+            variant: 'primary',
+            onClick: () => void handlePermanentDelete(),
+            disabled: permanentDeleting,
+          },
+        ]}
+      >
+        {permanentConfirm ? (
+          <p className="app-shell__muted">
+            ¿Eliminar definitivamente <strong>{permanentConfirm.name}</strong>? Solo es posible si no
+            tiene precios y ningún cliente la tiene asignada. Esta acción no se puede deshacer.
           </p>
         ) : null}
       </Popup>

@@ -6,6 +6,8 @@ public interface IProductPriceRepository
 {
     Task AddAsync(ProductPrice price, CancellationToken ct);
 
+    Task<bool> HasPricesForListAsync(Guid tenantId, Guid priceListId, CancellationToken ct);
+
     Task<ProductPrice?> GetByIdAsync(Guid tenantId, Guid productPriceId, CancellationToken ct);
 
     Task<ProductPrice?> GetTrackedByIdAsync(Guid tenantId, Guid productPriceId, CancellationToken ct);

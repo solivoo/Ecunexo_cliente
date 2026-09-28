@@ -46,6 +46,12 @@ internal sealed class InMemoryPriceListRepository : IPriceListRepository
             && l.Code == code
             && (excludeId is null || l.Id != excludeId.Value)));
 
+    public Task RemoveAsync(PriceList list, CancellationToken ct)
+    {
+        _items.Remove(list);
+        return Task.CompletedTask;
+    }
+
     private PriceList? Find(Guid tenantId, Guid priceListId) =>
         _items.FirstOrDefault(l => l.TenantId == tenantId && l.Id == priceListId);
 }
@@ -63,6 +69,9 @@ internal sealed class InMemoryProductPriceRepository : IProductPriceRepository
         _items.Add(price);
         return Task.CompletedTask;
     }
+
+    public Task<bool> HasPricesForListAsync(Guid tenantId, Guid priceListId, CancellationToken ct) =>
+        Task.FromResult(_items.Any(p => p.TenantId == tenantId && p.PriceListId == priceListId));
 
     public Task<ProductPrice?> GetByIdAsync(Guid tenantId, Guid productPriceId, CancellationToken ct) =>
         Task.FromResult(Find(tenantId, productPriceId));

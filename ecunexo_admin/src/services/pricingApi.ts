@@ -49,8 +49,14 @@ export async function updatePriceList(
   await api.put(`${base(tenantId)}/price-lists/${priceListId}`, body)
 }
 
-export async function deletePriceList(tenantId: string, priceListId: string): Promise<void> {
-  await api.delete(`${base(tenantId)}/price-lists/${priceListId}`)
+export async function deletePriceList(
+  tenantId: string,
+  priceListId: string,
+  permanent = false
+): Promise<void> {
+  await api.delete(`${base(tenantId)}/price-lists/${priceListId}`, {
+    params: permanent ? { permanent: true } : undefined,
+  })
 }
 
 export async function listProductPrices(

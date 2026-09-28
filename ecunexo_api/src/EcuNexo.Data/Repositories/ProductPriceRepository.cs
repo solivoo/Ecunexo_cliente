@@ -20,6 +20,11 @@ public sealed class ProductPriceRepository : IProductPriceRepository
         return Task.CompletedTask;
     }
 
+    public Task<bool> HasPricesForListAsync(Guid tenantId, Guid priceListId, CancellationToken ct) =>
+        _db.ProductPrices.AnyAsync(
+            p => p.TenantId == tenantId && p.PriceListId == priceListId,
+            ct);
+
     public Task<ProductPrice?> GetByIdAsync(Guid tenantId, Guid productPriceId, CancellationToken ct) =>
         _db.ProductPrices.AsNoTracking()
             .Include(p => p.Tiers)
