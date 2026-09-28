@@ -47,7 +47,7 @@ public sealed class CreateProductPriceHandlerTests
     }
 
     [Fact(DisplayName = "Una vigencia superpuesta con un precio acotado es rechazada")]
-    public async Task Handle_OverlappingBoundedValidity_Fails()
+    public async Task Handle_OverlappingBoundedValidity_ClosesPreviousAndCreates()
     {
         var tenantId = Guid.CreateVersion7();
         var item = Physical(tenantId);
@@ -55,7 +55,8 @@ public sealed class CreateProductPriceHandlerTests
         var list = List(tenantId);
         lists.Seed(list);
         var prices = new InMemoryProductPriceRepository();
-        prices.Seed(Price(tenantId, list.Id, item.Id, 10m, validTo: Today.AddDays(60)));
+        var previous = Price(tenantId, list.Id, item.Id, 10m, validTo: Today.AddDays(60));
+        prices.Seed(previous);
         var handler = Handler(lists, prices, new InMemoryPriceChangeLogRepository(), new InMemoryUnitOfWork(), ItemRepository(item));
 
         var result = await handler.Handle(
@@ -69,8 +70,8 @@ public sealed class CreateProductPriceHandlerTests
                 null),
             CancellationToken.None);
 
-        result.IsFailure.Should().BeTrue();
-        result.Error!.Code.Should().Be("catalog.pricing.price.overlap");
+        result.IsSuccess.Should().BeTrue();
+        previous.ValidTo.Should().Be(Today.AddDays(9));
     }
 
     [Fact(DisplayName = "Un producto inexistente no admite precio")]
