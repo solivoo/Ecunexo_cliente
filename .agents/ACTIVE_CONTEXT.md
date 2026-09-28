@@ -7,8 +7,10 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.62.5`.
+* **Última Versión Publicada:** `v0.62.6`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Fotos de variante en línea y ordenables (v0.62.6):**
+    * `VariantMatrixBuilder`: la fila de Foto renderiza todas las `stagedImages` como miniaturas (44px) en un flex `nowrap` con scroll horizontal, con flechas `ArrowLeft/ArrowRight` que llaman a `handleMoveRowPhoto` (la primera es portada) y botón «Añadir foto».
   - **Catálogo — Colores en una sola línea (v0.62.5):**
     * `EcuColorListInput`: chips + selector + «Añadir» en un único flex `nowrap` con `overflow-x: auto`; chips con `flex-shrink: 0`. Aplica a la ficha y a las variantes.
   - **Catálogo — Alta sin datos quemados (v0.62.4):**

@@ -1727,39 +1727,95 @@ export function VariantMatrixBuilder({
                         </button>
                       </div>
 
-                      {/* Foto exclusiva de la variante (SKU) — modal para galería y orden */}
+                      {/* Foto exclusiva de la variante (SKU) — miniaturas en línea con orden */}
                       {photoScope !== 'group' && photoScope !== 'model' && (
                         <div className="ecu-variant-sub-item-field" style={{ minWidth: '100%', flex: '1 1 100%' }}>
                           <label className="ecu-variant-sub-item-label">Foto</label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            {row.stagedImages && row.stagedImages.length > 0 ? (
-                              <button
-                                type="button"
-                                className="ecu-variant-group-photo-thumb"
-                                style={{ width: 40, height: 40, cursor: 'pointer', border: 'none', padding: 0 }}
-                                onClick={() => handleOpenRowPhotoModal(row.id)}
-                                disabled={disabled}
-                                title="Administrar fotos de este código"
-                              >
-                                <img src={row.stagedImages[0].previewUrl} alt={row.variantTitle} />
-                                {row.stagedImages.length > 1 && (
-                                  <span className="ecu-variant-sub-item-photo-count">
-                                    +{row.stagedImages.length - 1}
-                                  </span>
-                                )}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="ecu-variant-sub-item-photo-add"
-                                onClick={() => handleOpenRowPhotoModal(row.id)}
-                                disabled={disabled}
-                                title="Administrar fotos de este código"
-                              >
-                                <Camera size={12} /> Foto
-                              </button>
-                            )}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              flexWrap: 'nowrap',
+                              overflowX: 'auto',
+                              paddingBottom: '0.15rem',
+                            }}
+                          >
+                            {(row.stagedImages ?? []).map((img, imgIdx) => {
+                              const images = row.stagedImages ?? []
+                              return (
+                                <div key={img.id} style={{ position: 'relative', flexShrink: 0 }}>
+                                  <button
+                                    type="button"
+                                    className="ecu-variant-group-photo-thumb"
+                                    style={{ width: 44, height: 44, cursor: 'pointer', border: 'none', padding: 0 }}
+                                    onClick={() => handleOpenRowPhotoModal(row.id)}
+                                    disabled={disabled}
+                                    title="Administrar fotos de este código"
+                                  >
+                                    <img src={img.previewUrl} alt={row.variantTitle} />
+                                  </button>
+                                  {imgIdx > 0 && (
+                                    <button
+                                      type="button"
+                                      className="ecu-variant-card__icon-btn"
+                                      style={{
+                                        position: 'absolute',
+                                        left: '-7px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        width: 16,
+                                        height: 16,
+                                        padding: 0,
+                                        zIndex: 1,
+                                      }}
+                                      onClick={() => handleMoveRowPhoto(row.id, img.id, -1)}
+                                      disabled={disabled}
+                                      title="Mover a la izquierda"
+                                    >
+                                      <ArrowLeft size={10} />
+                                    </button>
+                                  )}
+                                  {imgIdx < images.length - 1 && (
+                                    <button
+                                      type="button"
+                                      className="ecu-variant-card__icon-btn"
+                                      style={{
+                                        position: 'absolute',
+                                        right: '-7px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        width: 16,
+                                        height: 16,
+                                        padding: 0,
+                                        zIndex: 1,
+                                      }}
+                                      onClick={() => handleMoveRowPhoto(row.id, img.id, 1)}
+                                      disabled={disabled}
+                                      title="Mover a la derecha"
+                                    >
+                                      <ArrowRight size={10} />
+                                    </button>
+                                  )}
+                                </div>
+                              )
+                            })}
+                            <button
+                              type="button"
+                              className="ecu-variant-sub-item-photo-add"
+                              style={{ flexShrink: 0 }}
+                              onClick={() => handleOpenRowPhotoModal(row.id)}
+                              disabled={disabled}
+                              title="Administrar fotos de este código"
+                            >
+                              <Camera size={12} /> Añadir foto
+                            </button>
                           </div>
+                          {(row.stagedImages?.length ?? 0) > 1 ? (
+                            <span style={{ fontSize: '0.68rem', color: 'var(--glb-muted, #94a3b8)' }}>
+                              La primera es la portada; usa las flechas para reordenar.
+                            </span>
+                          ) : null}
                         </div>
                       )}
 
