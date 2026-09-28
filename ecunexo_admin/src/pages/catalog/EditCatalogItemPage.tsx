@@ -496,7 +496,21 @@ export function EditCatalogItemPage() {
       setError(null)
       setBusy(true)
       try {
-        if (!name.trim()) throw new Error('El nombre del ítem es obligatorio.')
+        const templateNameValue = templateCapturesName
+          ? modelAttributeFields
+              .filter((field) =>
+                /^nombre\b|^name$|^producto$/.test(field.key.trim().toLowerCase())
+              )
+              .map(
+                (field) =>
+                  customAttributes.find(
+                    (row) => row.key.trim().toLowerCase() === field.key.trim().toLowerCase()
+                  )?.value.trim() ?? ''
+              )
+              .find((value) => value) ?? ''
+          : ''
+        const payloadName = templateCapturesName ? templateNameValue || name.trim() : name.trim()
+        if (!payloadName) throw new Error('El nombre del ítem es obligatorio.')
         const kindNum = Number(kind) as CatalogItemKind
         if (kindNum === CatalogItemKind.Physical && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
@@ -509,7 +523,7 @@ export function EditCatalogItemPage() {
 
         await updateCatalogItem(tenantId, itemId, {
           kind: kindNum,
-          name: name.trim(),
+          name: payloadName,
           description: description.trim() || null,
           sku: sku.trim() || null,
           barcode: barcode.trim() || null,
@@ -544,8 +558,10 @@ export function EditCatalogItemPage() {
       item,
       itemId,
       kind,
+      modelAttributeFields,
       name,
       navigate,
+      templateCapturesName,
       sku,
       status,
       tags,

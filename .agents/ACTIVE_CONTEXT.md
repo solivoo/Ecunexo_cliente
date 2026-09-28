@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.64.0`.
+* **Última Versión Publicada:** `v0.64.1`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Nombre propio del producto y precio desde la lista (v0.64.1):**
+    * Alta (`CreateCatalogItemPage`): tarjeta «Identidad» con Nombre requerido cuando la plantilla no lo captura; si lo captura, se exige completarlo; se eliminó el fallback al nombre de la plantilla. Edición (`EditCatalogItemPage`): `payloadName` derivado del atributo «Nombre» cuando la plantilla lo captura.
+    * `EditCatalogItemVariantsSection`: columna «Precio (lista)» con el precio vigente de la lista predeterminada (`listPriceLists` + `listProductPrices`), o «Sin precio» enlazando a `/catalogo/precios/productos/nuevo?catalogItemId=…`.
   - **Catálogo — Edición de ítem reordenada y variantes según plantilla (v0.64.0):**
     * `EditCatalogItemPage`: sin «Ficha comercial»; orden Identidad → Datos de la plantilla (`ArchetypeModelFields` con `bare`) → Avanzado (etiquetas/atributos libres colapsados) → Variantes → Fotos → acciones sticky al pie con `form="edit-catalog-item"`; estado en el encabezado; sin chips de ruta jerárquica duplicados.
     * `EditCatalogItemVariantsSection`: el modal «Añadir Variante» recibe `variantAttributeFields`/`dimensionValuesMap`/upload y renderiza ejes con «+ Nueva…» y atributos de variante; se retiró precio y el sync masivo de `basePrice`.

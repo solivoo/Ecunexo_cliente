@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Select, useToast, type PageActionItem } from 'glubox'
+import { Button, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import { Layers, Save } from 'lucide-react'
 import {
   EcuPageActions,
@@ -91,6 +91,7 @@ export function CreateCatalogItemPage() {
   const [productTemplates, setProductTemplates] = useState<ProductTemplateDto[]>([])
   const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [name, setName] = useState('')
   const [matrixData, setMatrixData] = useState<{
     variants: MatrixVariantPayloadWithImage[]
     variantDimensionsJson: string
@@ -253,6 +254,7 @@ export function CreateCatalogItemPage() {
     ? findTemplateAttributeValue(DESCRIPTION_FIELD_KEYS)
     : ''
   const derivedTemplateSku = appliedTemplate ? findTemplateAttributeValue(CODE_FIELD_KEYS) : ''
+  const showManualName = !hasTemplateNameField
 
   const handleApplyTemplate = useCallback((templateId: string) => {
     setSelectedTemplateId(templateId)
@@ -329,7 +331,14 @@ export function CreateCatalogItemPage() {
         if (!selectedTemplateId || !appliedTemplate) {
           throw new Error('Elige una plantilla para registrar el producto.')
         }
-        const finalName = derivedTemplateName || appliedTemplate.name
+        const finalName = showManualName ? name.trim() : derivedTemplateName
+        if (!finalName) {
+          throw new Error(
+            showManualName
+              ? 'Escribe el nombre del producto: identifica al ítem en todo el sistema.'
+              : 'Completa el atributo «Nombre» de la plantilla para identificar el producto.'
+          )
+        }
         const finalDescription = derivedTemplateDescription
 
         const kindNum = CatalogItemKind.Physical
@@ -516,6 +525,8 @@ export function CreateCatalogItemPage() {
       derivedTemplateName,
       derivedTemplateSku,
       dimensionValuesMap,
+      name,
+      showManualName,
       matrixData,
       maxVariants,
       navigate,
@@ -607,8 +618,8 @@ export function CreateCatalogItemPage() {
                   {derivedTemplateName
                     ? `Se registrará como «${derivedTemplateName}».`
                     : hasTemplateNameField
-                      ? `Completa el atributo «Nombre» para personalizar el nombre; mientras tanto se usará «${appliedTemplate.name}».`
-                      : `La plantilla no captura «Nombre»: se usará «${appliedTemplate.name}». Agrega un atributo «Nombre» para personalizarlo.`}
+                      ? 'Completa el atributo «Nombre» para poder registrar el producto.'
+                      : 'Completa el nombre del producto en «Identidad».'}
                   {!usesMatrix && !derivedTemplateSku
                     ? ' El código único se generará automáticamente.'
                     : ''}
@@ -626,6 +637,30 @@ export function CreateCatalogItemPage() {
               <span className="material-symbols-outlined">error</span>
               <span>{error}</span>
             </div>
+          ) : null}
+
+          {appliedTemplate && showManualName ? (
+            <SectionCard title="Identidad">
+              <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
+                  <TextBox
+                    id="ci-name"
+                    label="Nombre del producto"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={name}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                    placeholder="Ej. Calcetín Hello Kitty"
+                    required
+                    disabled={busy}
+                    fullWidth
+                  />
+                </div>
+              </div>
+              <span className="ecu-hint">
+                La plantilla no captura «Nombre»; este nombre identifica al producto en todo el sistema.
+              </span>
+            </SectionCard>
           ) : null}
 
           {appliedTemplate &&
@@ -707,7 +742,7 @@ export function CreateCatalogItemPage() {
                 <VariantMatrixBuilder
                   key={selectedTemplateId}
                   tenantId={tenantId}
-                  baseName={derivedTemplateName || appliedTemplate?.name || ''}
+                  baseName={derivedTemplateName || name.trim() || appliedTemplate?.name || ''}
                   basePrice=""
                   disabled={busy}
                   onChange={setMatrixData}

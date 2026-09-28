@@ -14,6 +14,7 @@ import {
   updateCatalogItem,
   uploadCatalogItemImage,
 } from '@/services/catalogApi'
+import { listPriceLists, listProductPrices } from '@/services/pricingApi'
 import {
   CatalogItemKind,
   type CatalogItemDetailDto,
@@ -201,6 +202,7 @@ export function EditCatalogItemVariantsSection({
   const [dimValues, setDimValues] = useState<Record<string, string>>({})
   const [extraDimValues, setExtraDimValues] = useState<Record<string, string[]>>({})
   const [attributeValues, setAttributeValues] = useState<CustomAttributeRow[]>([])
+  const [listPrices, setListPrices] = useState<Map<string, number>>(new Map())
   const [variantImage, setVariantImage] = useState<File | null>(null)
   const [variantImagePreview, setVariantImagePreview] = useState<string | null>(null)
 
@@ -217,6 +219,30 @@ export function EditCatalogItemVariantsSection({
       }
     }
   }, [variantImagePreview])
+
+  // Precios vigentes por SKU desde la lista predeterminada (el precio vive en Gestión de precios).
+  useEffect(() => {
+    if (!tenantId) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const lists = await listPriceLists(tenantId, true)
+        const preferred = lists.find((l) => l.isDefault) ?? lists[0]
+        if (!preferred) return
+        const rows = await listProductPrices(tenantId, {
+          priceListId: preferred.id,
+          onlyVigent: true,
+        })
+        if (cancelled) return
+        setListPrices(new Map(rows.map((row) => [row.catalogItemId, row.price])))
+      } catch {
+        if (!cancelled) setListPrices(new Map())
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [tenantId, parentItem.variants])
 
   // Parse variant dimensions from parent
   const dimensions = useMemo<VariantDimensionDef[]>(() => {
@@ -529,13 +555,38 @@ export function EditCatalogItemVariantsSection({
       },
       {
         key: 'basePrice',
-        header: 'Precio',
-        width: 110,
-        renderCell: (_value: unknown, row: VariantRow) => (
-          <span style={{ fontWeight: 700, color: 'var(--shell-primary, #4f46e5)' }}>
-            {row.basePrice != null ? `$${Number(row.basePrice).toFixed(2)}` : '—'}
-          </span>
-        ),
+        header: 'Precio (lista)',
+        width: 150,
+        renderCell: (_value: unknown, row: VariantRow) => {
+          const price = listPrices.get(row.id)
+          if (price == null) {
+            return (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`/catalogo/precios/productos/nuevo?catalogItemId=${row.id}`)
+                }
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  color: 'var(--glb-muted, #64748b)',
+                  fontSize: '0.8rem',
+                }}
+                title="Asignar precio en Gestión de precios"
+              >
+                Sin precio
+              </button>
+            )
+          }
+          return (
+            <span style={{ fontWeight: 700, color: 'var(--shell-primary, #4f46e5)' }}>
+              ${price.toFixed(2)}
+            </span>
+          )
+        },
       },
       {
         key: 'status',
@@ -588,7 +639,9 @@ export function EditCatalogItemVariantsSection({
     canEdit,
     handleOpenColorsModal,
     handleOpenReassignModal,
+    listPrices,
     matrixAxes,
+    navigate,
     openVariantAdmin,
     parseAttributes,
   ])
