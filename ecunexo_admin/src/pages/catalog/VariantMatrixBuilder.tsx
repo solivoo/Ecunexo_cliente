@@ -1729,7 +1729,6 @@ export function VariantMatrixBuilder({
                           onClick={() => handleDuplicateVariantRow(row.id)}
                           disabled={disabled}
                           title="Duplicar esta talla"
-                          style={{ marginRight: '0.25rem' }}
                         >
                           <Copy size={13} />
                         </button>

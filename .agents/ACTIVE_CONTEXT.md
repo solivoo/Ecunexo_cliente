@@ -7,8 +7,10 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.62.2`.
+* **Última Versión Publicada:** `v0.62.3`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Acciones de variante arriba a la derecha (v0.62.3):**
+    * `.ecu-variant-sub-item-row` con `position: relative` y `padding-right: 6.25rem`; `.ecu-variant-sub-item-actions` absoluto arriba-derecha (duplicar/eliminar en una sola línea), fuera del flujo flex.
   - **Catálogo — Fila de variante compacta y fotos al final (v0.62.2):**
     * Se eliminó el `#` de fila y el salto forzado; monolineales (ejes, SKU, Cód. Barras, texto/select/número/booleano) comparten línea; `colorlist`, `multiselect` y `media` van a fila completa; acciones antes de la fila de Foto, que queda última con miniatura de 40 px.
   - **Catálogo — Matriz de variantes ordenada por tipo (v0.62.1):**
