@@ -216,9 +216,14 @@ export function ProductPriceFormPage() {
       setCostInfo(null)
       const entry = pricesByItem.get(item.id)
       setPrice(entry ? String(entry.price) : '')
+      toast.show({
+        title: 'Producto seleccionado',
+        message: `${item.description?.trim() || item.name} · define el precio y guarda.`,
+        variant: 'info',
+      })
       window.scrollTo({ top: 0, behavior: 'smooth' })
     },
-    [pricesByItem]
+    [pricesByItem, toast]
   )
 
   const filteredItems = useMemo(() => {
@@ -292,19 +297,27 @@ export function ProductPriceFormPage() {
       },
       {
         key: 'actions',
-        header: '',
-        width: 110,
+        header: 'Acciones',
+        width: 170,
         sticky: 'right',
-        renderCell: (_value, row) => (
-          <GridIconButton
-            label={itemId === row.id ? 'Producto seleccionado' : 'Asignar precio a este producto'}
-            icon={DollarSign}
-            onClick={() => selectItem(row)}
-          />
-        ),
+        renderCell: (_value, row) => {
+          const selected = itemId === row.id
+          return (
+            <Button
+              type="button"
+              size="sm"
+              variant={selected ? 'primary' : 'outline'}
+              iconLeft={<DollarSign size={14} />}
+              disabled={busy || loading}
+              onClick={() => selectItem(row)}
+            >
+              {selected ? 'Seleccionado' : 'Asignar precio'}
+            </Button>
+          )
+        },
       },
     ],
-    [itemId, pricesByItem, selectItem]
+    [busy, itemId, loading, pricesByItem, selectItem]
   )
 
   const buildTiers = useCallback((): PriceTierBody[] => {
@@ -500,7 +513,9 @@ export function ProductPriceFormPage() {
               </div>
             ) : (
               <p className="ecu-hint" style={{ margin: 0 }}>
-                Selecciona un producto del listado de abajo para asignarle el precio.
+                Pasos: 1) Elige la lista · 2) Define precio y vigencia · 3) Selecciona el
+                producto en la grilla de abajo · 4) Opcional: escalas por cantidad · 5) {'"'}Crear
+                precio{'"'}.
               </p>
             )}
 
@@ -647,6 +662,10 @@ export function ProductPriceFormPage() {
                   dataSource={pageRows}
                   keyExpr="id"
                   columns={gridColumns}
+                  selectionMode="single"
+                  selectedRowIds={itemId ? [itemId] : []}
+                  onRowSelect={(row) => selectItem(row)}
+                  showSearch={false}
                   paging={paging}
                   pageSizeOptions={pageSizeOptions}
                   onPageChange={onPageChange}
@@ -662,9 +681,14 @@ export function ProductPriceFormPage() {
             title="Escalas por cantidad"
             subtitle="Opcional. El motor usa la escala cuya cantidad inicial sea la mayor aplicable."
           >
+            <p className="ecu-companies-form__hint" style={{ marginBottom: '0.75rem' }}>
+              Opcional. Ejemplo: «desde 1 hasta 11» → $3.50, y «desde 12» con «hasta» vacío →
+              $3.00 para 12 o más. Si no agregas escalas, se aplica el precio de lista para
+              cualquier cantidad.
+            </p>
             {tiers.length === 0 ? (
               <p className="app-shell__muted" style={{ marginBottom: '0.75rem' }}>
-                Sin escalas: se aplicará el precio de lista para cualquier cantidad.
+                Sin escalas todavía: usa «+ Añadir escala» si vendes por volumen.
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -684,6 +708,7 @@ export function ProductPriceFormPage() {
                         onChange={(e: ChangeEvent<HTMLInputElement>) =>
                           updateTier(index, { quantityFrom: e.target.value })
                         }
+                        placeholder="Ej. 12"
                         min={0}
                         step={1}
                         showSpinButtons
@@ -701,6 +726,7 @@ export function ProductPriceFormPage() {
                         onChange={(e: ChangeEvent<HTMLInputElement>) =>
                           updateTier(index, { quantityTo: e.target.value })
                         }
+                        placeholder="Sin límite"
                         min={0}
                         step={1}
                         showSpinButtons
@@ -718,6 +744,7 @@ export function ProductPriceFormPage() {
                         onChange={(e: ChangeEvent<HTMLInputElement>) =>
                           updateTier(index, { unitPrice: e.target.value })
                         }
+                        placeholder="Ej. 3.00"
                         min={0}
                         step={0.01}
                         showSpinButtons
