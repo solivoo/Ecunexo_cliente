@@ -163,9 +163,10 @@ internal static class MenuCatalogSeedData
         Item("catalog-pricing", "catalog", "Gestión de precios", "circle-dollar-sign", null, 4, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
         Item("catalog-pricing-lists", "catalog-pricing", "Listas de precios", "list", "catalogo/precios/listas", 1, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
         Item("catalog-pricing-products", "catalog-pricing", "Precios de productos", "tag", "catalogo/precios/productos", 2, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
-        Item("catalog-pricing-promotions", "catalog-pricing", "Promociones", "percent", "catalogo/precios/promociones", 3, MenuContextKind.Operational, "catalog", ["catalog.promotions.manage", "catalog.promotions.deactivate"]),
-        Item("catalog-pricing-history", "catalog-pricing", "Historial", "history", "catalogo/precios/historial", 4, MenuContextKind.Operational, "catalog", ["catalog.pricing.history.read"]),
-        Item("catalog-pricing-simulator", "catalog-pricing", "Simulador", "calculator", "catalogo/precios/simulador", 5, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
+        Item("catalog-pricing-matrix", "catalog-pricing", "Matriz de precios", "table", "catalogo/precios/matriz", 3, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
+        Item("catalog-pricing-promotions", "catalog-pricing", "Promociones", "percent", "catalogo/precios/promociones", 4, MenuContextKind.Operational, "catalog", ["catalog.promotions.manage", "catalog.promotions.deactivate"]),
+        Item("catalog-pricing-history", "catalog-pricing", "Historial", "history", "catalogo/precios/historial", 5, MenuContextKind.Operational, "catalog", ["catalog.pricing.history.read"]),
+        Item("catalog-pricing-simulator", "catalog-pricing", "Simulador", "calculator", "catalogo/precios/simulador", 6, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
 
         Item("warehousing", null, "Bodegas", "warehouse", null, 52, MenuContextKind.Operational, "warehousing", ["warehousing.read"]),
         Item("warehousing-list", "warehousing", "Ubicaciones", "warehouse", "bodegas", 1, MenuContextKind.Operational, "warehousing", ["warehousing.read", "warehousing.locations.manage"]),
