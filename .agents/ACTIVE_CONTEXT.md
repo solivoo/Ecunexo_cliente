@@ -7,8 +7,10 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.62.1`.
+* **Última Versión Publicada:** `v0.62.2`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Fila de variante compacta y fotos al final (v0.62.2):**
+    * Se eliminó el `#` de fila y el salto forzado; monolineales (ejes, SKU, Cód. Barras, texto/select/número/booleano) comparten línea; `colorlist`, `multiselect` y `media` van a fila completa; acciones antes de la fila de Foto, que queda última con miniatura de 40 px.
   - **Catálogo — Matriz de variantes ordenada por tipo (v0.62.1):**
     * `VariantMatrixBuilder`: fila con ejes + identidad (SKU, Cód. Barras, Foto) y luego atributos ordenados por tipo (`orderedVariantAttributeFields`: texto/listas → colores → etiquetas → fotos), con anchos por tipo (etiquetas 220px, media a línea completa).
   - **Precios — Carga masiva por lote (v0.62.0):**

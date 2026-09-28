@@ -1438,10 +1438,8 @@ export function VariantMatrixBuilder({
 
                 {/* Sub-items (Tallas / Variantes físicas) */}
                 <div className="ecu-variant-group-card__items-table">
-                  {group.rows.map((row, rowIdx) => (
+                  {group.rows.map((row) => (
                     <div key={row.id} className="ecu-variant-sub-item-row">
-                      <span className="ecu-variant-sub-item-num">#{rowIdx + 1}</span>
-
                       {/* Dimensiones Hijas (Talla, Largo, etc.) */}
                       {childDims.map((dim) => {
                         const currentVal = row.dimensionValues[dim.name] || ''
@@ -1594,44 +1592,6 @@ export function VariantMatrixBuilder({
                         />
                       </div>
 
-                      {/* Foto exclusiva de la variante (SKU) — modal para galería y orden */}
-                      {photoScope !== 'group' && photoScope !== 'model' && (
-                        <div className="ecu-variant-sub-item-field" style={{ minWidth: '96px', maxWidth: '120px' }}>
-                          <label className="ecu-variant-sub-item-label">Foto</label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            {row.stagedImages && row.stagedImages.length > 0 ? (
-                              <button
-                                type="button"
-                                className="ecu-variant-group-photo-thumb"
-                                style={{ width: 36, height: 36, cursor: 'pointer', border: 'none', padding: 0 }}
-                                onClick={() => handleOpenRowPhotoModal(row.id)}
-                                disabled={disabled}
-                                title="Administrar fotos de este código"
-                              >
-                                <img src={row.stagedImages[0].previewUrl} alt={row.variantTitle} />
-                                {row.stagedImages.length > 1 && (
-                                  <span className="ecu-variant-sub-item-photo-count">
-                                    +{row.stagedImages.length - 1}
-                                  </span>
-                                )}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="ecu-variant-sub-item-photo-add"
-                                onClick={() => handleOpenRowPhotoModal(row.id)}
-                                disabled={disabled}
-                                title="Administrar fotos de este código"
-                              >
-                                <Camera size={12} /> Foto
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Salto de línea para legibilidad de la ficha de variante */}
-                      <div className="ecu-variant-sub-item-break" aria-hidden />
 
                       {/* Atributos del nivel terminal: se capturan por variante */}
                       {orderedVariantAttributeFields.map((field) => {
@@ -1644,11 +1604,11 @@ export function VariantMatrixBuilder({
                             key={`attr-${field.key}`}
                             className="ecu-variant-sub-item-field"
                             style={
-                              dataType === 'media'
+                              dataType === 'media' ||
+                              dataType === 'colorlist' ||
+                              dataType === 'multiselect'
                                 ? { minWidth: '100%', flex: '1 1 100%' }
-                                : dataType === 'multiselect'
-                                  ? { minWidth: '220px', flex: '1 1 220px', maxWidth: '320px' }
-                                  : { minWidth: '170px', flex: '1 1 170px', maxWidth: '240px' }
+                                : { minWidth: '170px', flex: '1 1 170px', maxWidth: '240px' }
                             }
                           >
                             <label className="ecu-variant-sub-item-label">{field.key}</label>
@@ -1783,6 +1743,43 @@ export function VariantMatrixBuilder({
                           <Trash2 size={13} />
                         </button>
                       </div>
+
+                      {/* Foto exclusiva de la variante (SKU) — modal para galería y orden */}
+                      {photoScope !== 'group' && photoScope !== 'model' && (
+                        <div className="ecu-variant-sub-item-field" style={{ minWidth: '100%', flex: '1 1 100%' }}>
+                          <label className="ecu-variant-sub-item-label">Foto</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            {row.stagedImages && row.stagedImages.length > 0 ? (
+                              <button
+                                type="button"
+                                className="ecu-variant-group-photo-thumb"
+                                style={{ width: 40, height: 40, cursor: 'pointer', border: 'none', padding: 0 }}
+                                onClick={() => handleOpenRowPhotoModal(row.id)}
+                                disabled={disabled}
+                                title="Administrar fotos de este código"
+                              >
+                                <img src={row.stagedImages[0].previewUrl} alt={row.variantTitle} />
+                                {row.stagedImages.length > 1 && (
+                                  <span className="ecu-variant-sub-item-photo-count">
+                                    +{row.stagedImages.length - 1}
+                                  </span>
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="ecu-variant-sub-item-photo-add"
+                                onClick={() => handleOpenRowPhotoModal(row.id)}
+                                disabled={disabled}
+                                title="Administrar fotos de este código"
+                              >
+                                <Camera size={12} /> Foto
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   ))}
                 </div>
