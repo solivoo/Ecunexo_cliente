@@ -193,6 +193,11 @@ export function CatalogItemsGrid({
         renderCell: (_value: CatalogItemGridRow['name'], row: CatalogItemGridRow) => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <strong>{row.name}</strong>
+            {row.description ? (
+              <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+                {row.description}
+              </span>
+            ) : null}
             {row.isHiddenFromStorefront ? <CatalogHiddenMark /> : null}
             {row.isMatrixParent ? <CatalogVariantNote count={row.variantCount ?? 0} /> : null}
           </div>

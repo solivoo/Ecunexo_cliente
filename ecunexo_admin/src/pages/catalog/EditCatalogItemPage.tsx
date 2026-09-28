@@ -179,15 +179,6 @@ export function EditCatalogItemPage() {
     [familyLevels, dimensionValuesMap]
   )
 
-  const templateCapturesName = useMemo(
-    () =>
-      modelAttributeFields.some((field) => {
-        const key = field.key.trim().toLowerCase()
-        return key === 'nombre' || key.startsWith('nombre ') || key === 'name' || key === 'producto'
-      }),
-    [modelAttributeFields]
-  )
-
   const templateCapturesDescription = useMemo(
     () =>
       modelAttributeFields.some((field) => {
@@ -197,11 +188,29 @@ export function EditCatalogItemPage() {
     [modelAttributeFields]
   )
 
-  const showNameField = !templateCapturesName
-  const showSkuField = true
   const showDescriptionField = !templateCapturesDescription
   const showBarcodeField = !item?.isMatrixParent
-  const showIdentityCard = showNameField || showSkuField || showDescriptionField || showBarcodeField
+
+  // Primer nivel de la plantilla: su información compone el nombre visible del ítem.
+  const firstLevelFields = useMemo(() => {
+    if (modelAttributeFields.length === 0) return []
+    const minIndex = Math.min(...modelAttributeFields.map((field) => field.levelIndex))
+    return modelAttributeFields.filter((field) => field.levelIndex === minIndex)
+  }, [modelAttributeFields])
+
+  const composedName = useMemo(
+    () =>
+      firstLevelFields
+        .map(
+          (field) =>
+            customAttributes
+              .find((row) => row.key.trim().toLowerCase() === field.key.trim().toLowerCase())
+              ?.value.trim() ?? ''
+        )
+        .filter(Boolean)
+        .join(' '),
+    [customAttributes, firstLevelFields]
+  )
 
   const variantDimensionNames = useMemo<string[]>(
     () => parseVariantDimensionNames(item?.variantDimensionsJson),
@@ -496,21 +505,7 @@ export function EditCatalogItemPage() {
       setError(null)
       setBusy(true)
       try {
-        const templateNameValue = templateCapturesName
-          ? modelAttributeFields
-              .filter((field) =>
-                /^nombre\b|^name$|^producto$/.test(field.key.trim().toLowerCase())
-              )
-              .map(
-                (field) =>
-                  customAttributes.find(
-                    (row) => row.key.trim().toLowerCase() === field.key.trim().toLowerCase()
-                  )?.value.trim() ?? ''
-              )
-              .find((value) => value) ?? ''
-          : ''
-        const payloadName = templateCapturesName ? templateNameValue || name.trim() : name.trim()
-        if (!payloadName) throw new Error('El nombre del ítem es obligatorio.')
+        const payloadName = composedName || name.trim() || sku.trim() || 'Producto'
         const kindNum = Number(kind) as CatalogItemKind
         if (kindNum === CatalogItemKind.Physical && !item?.isMatrixParent && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
@@ -536,7 +531,7 @@ export function EditCatalogItemPage() {
 
         toast.show({
           title: 'Ítem actualizado',
-          message: `«${name.trim()}» se guardó correctamente.`,
+          message: `«${payloadName}» se guardó correctamente.`,
           variant: 'success',
         })
         void navigate('/catalogo/items', { replace: true })
@@ -551,6 +546,7 @@ export function EditCatalogItemPage() {
     },
     [
       barcode,
+      composedName,
       customAttributes,
       description,
       dimensionValuesMap,
@@ -558,10 +554,8 @@ export function EditCatalogItemPage() {
       item,
       itemId,
       kind,
-      modelAttributeFields,
       name,
       navigate,
-      templateCapturesName,
       sku,
       status,
       tags,
@@ -775,82 +769,66 @@ export function EditCatalogItemPage() {
                 </div>
               ) : null}
 
-              {showIdentityCard ? (
-                <SectionCard title="Identidad">
-                  <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
-                    {showNameField ? (
-                      <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                        <TextBox
-                          id="ei-name"
-                          label="Nombre"
-                          labelPosition="outlined"
-                          variant="outline"
-                          value={name}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                          placeholder="Escriba aquí..."
-                          required
-                          disabled={busy}
-                          fullWidth
-                        />
-                      </div>
-                    ) : null}
-                    {showSkuField ? (
-                      <div className="ecu-companies-form__field">
-                        <TextBox
-                          id="ei-sku"
-                          label={item?.isMatrixParent ? 'Código de modelo' : 'Código / SKU'}
-                          labelPosition="outlined"
-                          variant="outline"
-                          value={sku}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            setSku(e.target.value.toUpperCase())
-                          }
-                          placeholder={
-                            item?.isMatrixParent
-                              ? 'Prefijo para los SKU de las variantes'
-                              : 'Escriba aquí...'
-                          }
-                          required={Number(kind) === CatalogItemKind.Physical && !item?.isMatrixParent}
-                          disabled={busy}
-                          fullWidth
-                        />
-                      </div>
-                    ) : null}
-                    {showDescriptionField ? (
-                      <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                        <TextBox
-                          id="ei-desc"
-                          label="Descripción"
-                          labelPosition="outlined"
-                          variant="outline"
-                          value={description}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
-                          placeholder="Escriba aquí..."
-                          disabled={busy}
-                          fullWidth
-                        />
-                      </div>
-                    ) : null}
-                    {showBarcodeField ? (
-                      <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                        <TextBox
-                          id="ei-barcode"
-                          label="Código de barras (opcional)"
-                          labelPosition="outlined"
-                          variant="outline"
-                          value={barcode}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            setBarcode(e.target.value.toUpperCase())
-                          }
-                          placeholder="EAN / UPC / Code128"
-                          disabled={busy}
-                          fullWidth
-                        />
-                      </div>
-                    ) : null}
+              <SectionCard title="Datos del producto">
+                <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
+                  <div className="ecu-companies-form__field">
+                    <TextBox
+                      id="ei-sku"
+                      label={item?.isMatrixParent ? 'Código de modelo' : 'SKU'}
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={sku}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setSku(e.target.value.toUpperCase())
+                      }
+                      placeholder={
+                        item?.isMatrixParent
+                          ? 'Prefijo para los SKU de las variantes'
+                          : 'Ej. CALC-001'
+                      }
+                      required={Number(kind) === CatalogItemKind.Physical && !item?.isMatrixParent}
+                      disabled={busy}
+                      fullWidth
+                    />
                   </div>
-                </SectionCard>
-              ) : null}
+                  {showDescriptionField ? (
+                    <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                      <TextBox
+                        id="ei-desc"
+                        label="Descripción"
+                        labelPosition="outlined"
+                        variant="outline"
+                        value={description}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+                        placeholder="Escriba aquí..."
+                        disabled={busy}
+                        fullWidth
+                      />
+                    </div>
+                  ) : null}
+                  {showBarcodeField ? (
+                    <div className="ecu-companies-form__field">
+                      <TextBox
+                        id="ei-barcode"
+                        label="Código de barras (opcional)"
+                        labelPosition="outlined"
+                        variant="outline"
+                        value={barcode}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                          setBarcode(e.target.value.toUpperCase())
+                        }
+                        placeholder="EAN / UPC / Code128"
+                        disabled={busy}
+                        fullWidth
+                      />
+                    </div>
+                  ) : null}
+                </div>
+                <span className="ecu-hint">
+                  El nombre visible se arma con la información del primer nivel; el SKU identifica el
+                  ítem en todo el sistema.
+                </span>
+              </SectionCard>
 
               {modelAttributeFields.length > 0 && !isVariantChild ? (
                 <SectionCard
