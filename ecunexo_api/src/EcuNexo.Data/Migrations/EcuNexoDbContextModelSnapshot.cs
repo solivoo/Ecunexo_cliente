@@ -365,6 +365,12 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("sku");
 
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");
