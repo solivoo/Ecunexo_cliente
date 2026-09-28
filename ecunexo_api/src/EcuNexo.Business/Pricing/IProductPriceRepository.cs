@@ -8,6 +8,13 @@ public interface IProductPriceRepository
 
     Task<bool> HasPricesForListAsync(Guid tenantId, Guid priceListId, CancellationToken ct);
 
+    Task<ProductPrice?> GetByExactStartTrackedAsync(
+        Guid tenantId,
+        Guid priceListId,
+        Guid catalogItemId,
+        DateOnly validFrom,
+        CancellationToken ct);
+
     Task<ProductPrice?> GetByIdAsync(Guid tenantId, Guid productPriceId, CancellationToken ct);
 
     Task<ProductPrice?> GetTrackedByIdAsync(Guid tenantId, Guid productPriceId, CancellationToken ct);

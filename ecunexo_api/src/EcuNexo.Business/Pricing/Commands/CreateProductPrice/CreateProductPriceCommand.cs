@@ -69,12 +69,76 @@ public sealed class CreateProductPriceHandler
         }
 
         decimal? previousPrice = null;
+
+        // Upsert: si ya existe un precio (activo o no) con la misma fecha de inicio, se actualiza
+        // en lugar de insertar (evita violar el índice único tenant+lista+ítem+desde).
+        var existing = await _productPrices
+            .GetByExactStartTrackedAsync(command.TenantId, list.Id, item.Id, command.ValidFrom, ct)
+            .ConfigureAwait(false);
+        if (existing is not null)
+        {
+            previousPrice = existing.Price;
+            var changed = existing.ChangePrice(command.Price, _caller.UserId);
+            if (changed.IsFailure)
+            {
+                return Result.Failure<CreateProductPriceResponse>(changed.Error!);
+            }
+
+            var validity = existing.SetValidity(command.ValidFrom, command.ValidTo, _caller.UserId);
+            if (validity.IsFailure)
+            {
+                return Result.Failure<CreateProductPriceResponse>(validity.Error!);
+            }
+
+            if (!existing.IsActive)
+            {
+                existing.SetActive(true, _caller.UserId);
+            }
+
+            if (command.Tiers is not null)
+            {
+                foreach (var tier in existing.Tiers.ToList())
+                {
+                    existing.DeactivateTier(tier.Id, _caller.UserId);
+                }
+
+                foreach (var tier in command.Tiers)
+                {
+                    var added = existing.AddTier(_idGenerator.NewId(), tier.QuantityFrom, tier.QuantityTo, tier.UnitPrice, _caller.UserId);
+                    if (added.IsFailure)
+                    {
+                        return Result.Failure<CreateProductPriceResponse>(added.Error!);
+                    }
+                }
+            }
+
+            var upsertLog = PriceChangeLog.Create(
+                _idGenerator.NewId(),
+                command.TenantId,
+                list.Id,
+                item.Id,
+                previousPrice,
+                command.Price,
+                command.ValidFrom,
+                command.ValidTo,
+                command.Reason,
+                _caller.UserId);
+            if (upsertLog.IsFailure)
+            {
+                return Result.Failure<CreateProductPriceResponse>(upsertLog.Error!);
+            }
+
+            await _priceHistory.AddAsync(upsertLog.Value!, ct).ConfigureAwait(false);
+            await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+            return Result.Success(new CreateProductPriceResponse(existing.Id, existing.TenantId));
+        }
+
         var overlap = await _productPrices
             .GetOverlappingTrackedAsync(command.TenantId, list.Id, item.Id, command.ValidFrom, command.ValidTo, null, ct)
             .ConfigureAwait(false);
         if (overlap is not null)
         {
-            if (overlap.ValidTo is null && overlap.ValidFrom < command.ValidFrom)
+            if (overlap.ValidFrom < command.ValidFrom)
             {
                 previousPrice = overlap.Price;
                 var close = overlap.SetValidity(overlap.ValidFrom, command.ValidFrom.AddDays(-1), _caller.UserId);

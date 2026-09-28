@@ -353,10 +353,6 @@ export function ProductPriceFormPage() {
         if (!Number.isFinite(numericPrice) || numericPrice < 0) {
           throw new Error('El precio debe ser un número mayor o igual a cero.')
         }
-        if (renewing && !reason.trim()) {
-          throw new Error('Indica el motivo del cambio de precio.')
-        }
-
         const tierPayload = buildTiers()
         for (const tier of tierPayload) {
           if (!Number.isFinite(tier.quantityFrom) || tier.quantityFrom <= 0) {

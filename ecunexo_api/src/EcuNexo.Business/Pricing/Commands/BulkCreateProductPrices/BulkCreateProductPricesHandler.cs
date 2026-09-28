@@ -85,6 +85,67 @@ public sealed class BulkCreateProductPricesHandler
             var item = itemsById[input.CatalogItemId];
             decimal? previousPrice = null;
 
+            var existing = await _productPrices
+                .GetByExactStartTrackedAsync(command.TenantId, list.Id, item.Id, command.ValidFrom, ct)
+                .ConfigureAwait(false);
+            if (existing is not null)
+            {
+                previousPrice = existing.Price;
+                var changed = existing.ChangePrice(input.Price, _caller.UserId);
+                if (changed.IsFailure)
+                {
+                    return Result.Failure<BulkCreateProductPricesResponse>(changed.Error!);
+                }
+
+                var validity = existing.SetValidity(command.ValidFrom, command.ValidTo, _caller.UserId);
+                if (validity.IsFailure)
+                {
+                    return Result.Failure<BulkCreateProductPricesResponse>(validity.Error!);
+                }
+
+                if (!existing.IsActive)
+                {
+                    existing.SetActive(true, _caller.UserId);
+                }
+
+                if (input.Tiers is { Count: > 0 })
+                {
+                    foreach (var tier in existing.Tiers.ToList())
+                    {
+                        existing.DeactivateTier(tier.Id, _caller.UserId);
+                    }
+
+                    foreach (var tier in input.Tiers)
+                    {
+                        var added = existing.AddTier(_idGenerator.NewId(), tier.QuantityFrom, tier.QuantityTo, tier.UnitPrice, _caller.UserId);
+                        if (added.IsFailure)
+                        {
+                            return Result.Failure<BulkCreateProductPricesResponse>(added.Error!);
+                        }
+                    }
+                }
+
+                var upsertLog = PriceChangeLog.Create(
+                    _idGenerator.NewId(),
+                    command.TenantId,
+                    list.Id,
+                    item.Id,
+                    previousPrice,
+                    input.Price,
+                    command.ValidFrom,
+                    command.ValidTo,
+                    command.Reason,
+                    _caller.UserId);
+                if (upsertLog.IsFailure)
+                {
+                    return Result.Failure<BulkCreateProductPricesResponse>(upsertLog.Error!);
+                }
+
+                await _priceHistory.AddAsync(upsertLog.Value!, ct).ConfigureAwait(false);
+                createdCount++;
+                continue;
+            }
+
             var overlap = await _productPrices
                 .GetOverlappingTrackedAsync(
                     command.TenantId,
@@ -98,7 +159,7 @@ public sealed class BulkCreateProductPricesHandler
 
             if (overlap is not null)
             {
-                if (overlap.ValidTo is null && overlap.ValidFrom < command.ValidFrom)
+                if (overlap.ValidFrom < command.ValidFrom)
                 {
                     previousPrice = overlap.Price;
                     var close = overlap.SetValidity(overlap.ValidFrom, command.ValidFrom.AddDays(-1), _caller.UserId);

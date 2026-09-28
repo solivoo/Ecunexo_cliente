@@ -73,6 +73,18 @@ internal sealed class InMemoryProductPriceRepository : IProductPriceRepository
     public Task<bool> HasPricesForListAsync(Guid tenantId, Guid priceListId, CancellationToken ct) =>
         Task.FromResult(_items.Any(p => p.TenantId == tenantId && p.PriceListId == priceListId));
 
+    public Task<ProductPrice?> GetByExactStartTrackedAsync(
+        Guid tenantId,
+        Guid priceListId,
+        Guid catalogItemId,
+        DateOnly validFrom,
+        CancellationToken ct) =>
+        Task.FromResult(_items.FirstOrDefault(p =>
+            p.TenantId == tenantId
+            && p.PriceListId == priceListId
+            && p.CatalogItemId == catalogItemId
+            && p.ValidFrom == validFrom));
+
     public Task<ProductPrice?> GetByIdAsync(Guid tenantId, Guid productPriceId, CancellationToken ct) =>
         Task.FromResult(Find(tenantId, productPriceId));
 

@@ -25,6 +25,21 @@ public sealed class ProductPriceRepository : IProductPriceRepository
             p => p.TenantId == tenantId && p.PriceListId == priceListId,
             ct);
 
+    public Task<ProductPrice?> GetByExactStartTrackedAsync(
+        Guid tenantId,
+        Guid priceListId,
+        Guid catalogItemId,
+        DateOnly validFrom,
+        CancellationToken ct) =>
+        _db.ProductPrices
+            .Include(p => p.Tiers)
+            .FirstOrDefaultAsync(
+                p => p.TenantId == tenantId
+                    && p.PriceListId == priceListId
+                    && p.CatalogItemId == catalogItemId
+                    && p.ValidFrom == validFrom,
+                ct);
+
     public Task<ProductPrice?> GetByIdAsync(Guid tenantId, Guid productPriceId, CancellationToken ct) =>
         _db.ProductPrices.AsNoTracking()
             .Include(p => p.Tiers)
