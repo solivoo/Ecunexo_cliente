@@ -326,6 +326,23 @@ export function EditCatalogItemVariantsSection({
         if (key) attributes[key] = row.value
       }
 
+      const requiresName = variantAttributeFields.some(
+        (field) => field.key.trim().toLowerCase() === 'nombre'
+      )
+      if (requiresName) {
+        const hasName = Object.entries(attributes).some(
+          ([key, value]) => key.trim().toLowerCase() === 'nombre' && value.trim()
+        )
+        if (!hasName) {
+          toast.show({
+            title: 'Campo requerido',
+            message: 'El Nombre de la variante es obligatorio.',
+            variant: 'error',
+          })
+          return
+        }
+      }
+
       setBusy(true)
       try {
         const createdVariant = await addCatalogItemVariant(tenantId, parentItem.id, {

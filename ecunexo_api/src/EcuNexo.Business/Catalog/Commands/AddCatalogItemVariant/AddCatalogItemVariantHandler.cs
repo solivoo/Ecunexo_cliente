@@ -95,6 +95,17 @@ public sealed class AddCatalogItemVariantHandler
 
         var child = childResult.Value!;
         child.SetSortOrder(parent.Variants.Count);
+        if (parent.Variants.Count == 0)
+        {
+            var parentName = CatalogVariantNameResolver.ResolveFromAttributes(command.CustomAttributesJson)
+                ?? command.VariantTitle;
+            var renamed = parent.Rename(parentName);
+            if (renamed.IsFailure)
+            {
+                return Result.Failure<AddCatalogItemVariantResponse>(renamed.Error!);
+            }
+        }
+
         await _items.AddAsync(child, ct).ConfigureAwait(false);
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);

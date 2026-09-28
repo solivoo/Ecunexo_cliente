@@ -143,6 +143,18 @@ public sealed class CreateCatalogItemMatrixHandler
         }
 
         var parent = parentResult.Value!;
+        var firstVariantName = command.Variants
+            .Select(v => CatalogVariantNameResolver.ResolveFromAttributes(v.CustomAttributesJson))
+            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
+        if (!string.IsNullOrWhiteSpace(firstVariantName))
+        {
+            var renamed = parent.Rename(firstVariantName!);
+            if (renamed.IsFailure)
+            {
+                return Result.Failure<CreateCatalogItemMatrixResponse>(renamed.Error!);
+            }
+        }
+
         await _items.AddAsync(parent, ct).ConfigureAwait(false);
 
         var variantIds = new List<Guid>();

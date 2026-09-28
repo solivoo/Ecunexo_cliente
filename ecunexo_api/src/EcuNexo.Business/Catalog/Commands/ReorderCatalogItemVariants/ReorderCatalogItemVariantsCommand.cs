@@ -72,6 +72,13 @@ public sealed class ReorderCatalogItemVariantsHandler
             }
         }
 
+        var firstVariant = variants[command.VariantIds[0]];
+        var firstName = CatalogVariantNameResolver.ResolveFromAttributes(firstVariant.CustomAttributesJson);
+        if (!string.IsNullOrWhiteSpace(firstName))
+        {
+            parent.Rename(firstName!);
+        }
+
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return new ReorderCatalogItemVariantsResponse(parent.Id, command.VariantIds.Count);

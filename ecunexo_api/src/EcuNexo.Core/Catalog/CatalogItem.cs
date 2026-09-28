@@ -640,6 +640,20 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         return Result.Success();
     }
 
+    /// <summary>Renombra el ítem (usado para sincronizar el nombre del producto con su primera variante).</summary>
+    public Result Rename(string name, Guid? updatedBy = null)
+    {
+        var normalized = NormalizeName(name);
+        if (normalized.IsFailure)
+        {
+            return Result.Failure(normalized.Error!);
+        }
+
+        Name = normalized.Value!;
+        Touch(updatedBy);
+        return Result.Success();
+    }
+
     private static string PreserveSystemAttributes(string? existingJson, string newJson)
     {
         if (string.IsNullOrWhiteSpace(existingJson) || existingJson == CatalogAttributeSchema.EmptyObjectJson)

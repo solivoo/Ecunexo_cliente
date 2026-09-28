@@ -141,6 +141,26 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
             return Result.Failure<UpdateCatalogItemResponse>(barcodeResult.Error!);
         }
 
+        // La primera variante define el nombre visible del producto (padre).
+        if (item.ParentId is { } parentId && item.SortOrder == 0)
+        {
+            var variantName = CatalogVariantNameResolver.ResolveFromAttributes(item.CustomAttributesJson);
+            if (!string.IsNullOrWhiteSpace(variantName))
+            {
+                var parent = await _items
+                    .GetTrackedByIdAsync(command.TenantId, parentId, ct)
+                    .ConfigureAwait(false);
+                if (parent is not null)
+                {
+                    var renamed = parent.Rename(variantName!);
+                    if (renamed.IsFailure)
+                    {
+                        return Result.Failure<UpdateCatalogItemResponse>(renamed.Error!);
+                    }
+                }
+            }
+        }
+
         if (command.Status is { } status)
         {
             if (status == CatalogItemStatus.Active

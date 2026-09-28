@@ -144,7 +144,17 @@ export function ProductTemplateBuilderPage() {
 
     setSaving(true)
     try {
-      const hierarchyTreeJson = JSON.stringify(levels)
+      const withVariantDefaults = levels.map((level) => {
+        if ((level.axes?.length ?? 0) === 0) return level
+        const attributes = [...level.attributes]
+        for (const attribute of ['Nombre', 'Descripción']) {
+          if (!attributes.some((current) => current.trim().toLowerCase() === attribute.toLowerCase())) {
+            attributes.push(attribute)
+          }
+        }
+        return { ...level, attributes }
+      })
+      const hierarchyTreeJson = JSON.stringify(withVariantDefaults)
       const payload = {
         name: trimmedName,
         description: description.trim() || null,

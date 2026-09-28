@@ -775,6 +775,7 @@ export function EditCatalogItemPage() {
                 </div>
               ) : null}
 
+              {!item?.isMatrixParent ? (
               <SectionCard title="Datos del producto">
                 <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                   {showNameField ? (
@@ -849,6 +850,7 @@ export function EditCatalogItemPage() {
                   lo complementan en listados y búsquedas.
                 </span>
               </SectionCard>
+              ) : null}
 
               {modelAttributeFields.length > 0 && !isVariantChild ? (
                 <SectionCard

@@ -1256,12 +1256,20 @@ export function VariantMatrixBuilder({
       }
     })
 
+    const variantNameFieldKey = variantAttributeFields.find(
+      (field) => field.key.trim().toLowerCase() === 'nombre'
+    )?.key
     const invalidReason =
       payloadVariants.length === 0
         ? 'Agrega al menos una variante física.'
         : payloadVariants.some((v) => v.variantTitle.length === 0)
           ? 'Completa el título de todas las variantes.'
-          : duplicateSkus.length > 0
+          : variantNameFieldKey &&
+              rows.some(
+                (row) => !(row.variantAttributes?.[variantNameFieldKey] ?? '').trim()
+              )
+            ? 'Completa el Nombre de todas las variantes.'
+            : duplicateSkus.length > 0
             ? `El SKU «${duplicateSkus[0]}» está repetido. Cámbialo en una de las variantes.`
             : payloadVariants.some((v) => v.sku.length === 0)
               ? 'Completa el SKU de todas las variantes.'
