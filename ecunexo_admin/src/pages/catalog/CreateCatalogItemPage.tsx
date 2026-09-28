@@ -92,6 +92,7 @@ export function CreateCatalogItemPage() {
   const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [matrixData, setMatrixData] = useState<{
     variants: MatrixVariantPayloadWithImage[]
     variantDimensionsJson: string
@@ -254,7 +255,13 @@ export function CreateCatalogItemPage() {
     ? findTemplateAttributeValue(DESCRIPTION_FIELD_KEYS)
     : ''
   const derivedTemplateSku = appliedTemplate ? findTemplateAttributeValue(CODE_FIELD_KEYS) : ''
+  const hasTemplateDescriptionField = useMemo(
+    () => modelAttributeFields.some((f) => matchesFieldKey(f.key, DESCRIPTION_FIELD_KEYS)),
+    [modelAttributeFields]
+  )
   const showManualName = !hasTemplateNameField
+  const showManualDescription = !hasTemplateDescriptionField
+  const showIdentityCard = showManualName || showManualDescription
 
   const handleApplyTemplate = useCallback((templateId: string) => {
     setSelectedTemplateId(templateId)
@@ -339,7 +346,9 @@ export function CreateCatalogItemPage() {
               : 'Completa el atributo «Nombre» de la plantilla para identificar el producto.'
           )
         }
-        const finalDescription = derivedTemplateDescription
+        const finalDescription = showManualDescription
+          ? description.trim()
+          : derivedTemplateDescription
 
         const kindNum = CatalogItemKind.Physical
         let finalSku = derivedTemplateSku
@@ -524,8 +533,10 @@ export function CreateCatalogItemPage() {
       derivedTemplateDescription,
       derivedTemplateName,
       derivedTemplateSku,
+      description,
       dimensionValuesMap,
       name,
+      showManualDescription,
       showManualName,
       matrixData,
       maxVariants,
@@ -639,26 +650,43 @@ export function CreateCatalogItemPage() {
             </div>
           ) : null}
 
-          {appliedTemplate && showManualName ? (
+          {appliedTemplate && showIdentityCard ? (
             <SectionCard title="Identidad">
               <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
-                <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
-                  <TextBox
-                    id="ci-name"
-                    label="Nombre del producto"
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={name}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                    placeholder="Ej. Calcetín Hello Kitty"
-                    required
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
+                {showManualName ? (
+                  <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                    <TextBox
+                      id="ci-name"
+                      label="Nombre del producto"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={name}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                      placeholder="Ej. Calcetín Hello Kitty"
+                      required
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                ) : null}
+                {showManualDescription ? (
+                  <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
+                    <TextBox
+                      id="ci-description"
+                      label="Descripción"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={description}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+                      placeholder="Ej. Calcetín deportivo de algodón"
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                ) : null}
               </div>
               <span className="ecu-hint">
-                La plantilla no captura «Nombre»; este nombre identifica al producto en todo el sistema.
+                Nombre y descripción acompañan al SKU para identificar el producto en todo el sistema.
               </span>
             </SectionCard>
           ) : null}

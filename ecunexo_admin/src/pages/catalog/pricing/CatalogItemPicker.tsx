@@ -33,13 +33,16 @@ export function CatalogItemPicker({
       ? items.filter((item) => {
           const name = item.name.toLowerCase()
           const sku = (item.sku ?? '').toLowerCase()
-          return name.includes(term) || sku.includes(term)
+          const description = (item.description ?? '').toLowerCase()
+          return name.includes(term) || sku.includes(term) || description.includes(term)
         })
       : items
 
     return filtered.slice(0, MAX_OPTIONS).map((item) => ({
       value: item.id,
-      label: item.sku ? `${item.name} · ${item.sku}` : item.name,
+      label: item.sku
+        ? `${item.sku} · ${item.description?.trim() || item.name}`
+        : item.description?.trim() || item.name,
     }))
   }, [items, search])
 

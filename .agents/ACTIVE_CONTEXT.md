@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.64.1`.
+* **Última Versión Publicada:** `v0.64.2`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — SKU + descripción como identificación (v0.64.2):**
+    * Alta: tarjeta «Identidad» con Descripción por defecto (si la plantilla no la captura) y Nombre cuando no lo captura; `finalDescription` usa el campo o el atributo.
+    * `CatalogItemPicker` (precios) y `InventoryItemSelectModal`: etiqueta `SKU · Descripción` (respaldo al nombre/valores de eje) y búsqueda por descripción.
   - **Catálogo — Nombre propio del producto y precio desde la lista (v0.64.1):**
     * Alta (`CreateCatalogItemPage`): tarjeta «Identidad» con Nombre requerido cuando la plantilla no lo captura; si lo captura, se exige completarlo; se eliminó el fallback al nombre de la plantilla. Edición (`EditCatalogItemPage`): `payloadName` derivado del atributo «Nombre» cuando la plantilla lo captura.
     * `EditCatalogItemVariantsSection`: columna «Precio (lista)» con el precio vigente de la lista predeterminada (`listPriceLists` + `listProductPrices`), o «Sin precio» enlazando a `/catalogo/precios/productos/nuevo?catalogItemId=…`.

@@ -144,7 +144,7 @@ export function InventoryItemSelectModal({
       const cleanDisplayName = formatVariantDisplayName(item.name, parentName)
       const stock = stockByItemId.get(item.id) ?? 0
 
-      const searchKey = `${item.sku ?? ''} ${item.name} ${parentName ?? ''} ${cleanDisplayName}`.toLowerCase()
+      const searchKey = `${item.sku ?? ''} ${item.name} ${item.description ?? ''} ${parentName ?? ''} ${cleanDisplayName}`.toLowerCase()
 
       return {
         id: item.id,
@@ -317,8 +317,13 @@ export function InventoryItemSelectModal({
               {row.parentName ? (
                 <span className="ecu-inv-modal__parent-name">{row.parentName}</span>
               ) : null}
-              <span className="ecu-inv-modal__item-name" title={row.name}>
-                {row.cleanDisplayName !== '—' ? row.cleanDisplayName : row.name}
+              <span
+                className="ecu-inv-modal__item-name"
+                title={row.item.description?.trim() || row.name}
+              >
+                {row.sku ? `${row.sku} · ` : ''}
+                {row.item.description?.trim() ||
+                  (row.cleanDisplayName !== '—' ? row.cleanDisplayName : row.name)}
               </span>
             </div>
           </div>
