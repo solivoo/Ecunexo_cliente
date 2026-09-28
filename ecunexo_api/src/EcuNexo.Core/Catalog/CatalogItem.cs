@@ -40,6 +40,9 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
     /// <summary>Oculta el ítem en la tienda online sin desactivarlo ni borrarlo (sigue operativo internamente).</summary>
     public bool IsHiddenFromStorefront { get; private set; }
 
+    /// <summary>Orden de presentación de la variante dentro de su producto (0 = primera).</summary>
+    public int SortOrder { get; private set; }
+
     public string? VariantDimensionsJson { get; private set; }
 
     public Guid TenantId { get; private set; }
@@ -619,6 +622,20 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         Barcode = normalized.Value;
+        Touch(updatedBy);
+        return Result.Success();
+    }
+
+    /// <summary>Define el orden de presentación de la variante dentro de su producto.</summary>
+    public Result SetSortOrder(int sortOrder, Guid? updatedBy = null)
+    {
+        if (sortOrder < 0)
+        {
+            return Result.Failure(
+                new Error("catalog.item.sort_order.range", "El orden no puede ser negativo.", ErrorType.Validation));
+        }
+
+        SortOrder = sortOrder;
         Touch(updatedBy);
         return Result.Success();
     }

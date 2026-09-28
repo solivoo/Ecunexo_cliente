@@ -43,7 +43,8 @@ public sealed record CatalogItemVariantDto(
     IReadOnlyList<CatalogItemImageResponse>? Images = null,
     IReadOnlyList<string>? Tags = null,
     IReadOnlyList<string>? ExtraColors = null,
-    string? Barcode = null);
+    string? Barcode = null,
+    int SortOrder = 0);
 
 /// <summary>
 /// Contrato de lectura de la matriz: profundidad, ejes tipados y valores usados en fotos por grupo.

@@ -278,6 +278,18 @@ export async function addCatalogItemVariant(
   return data
 }
 
+export async function reorderCatalogItemVariants(
+  tenantId: string,
+  parentId: string,
+  variantIds: string[]
+): Promise<{ parentItemId: string; variantsCount: number }> {
+  const { data } = await api.put<{ parentItemId: string; variantsCount: number }>(
+    `/api/v1/tenants/${tenantId}/catalog/items/${parentId}/variants/order`,
+    { variantIds }
+  )
+  return data
+}
+
 export async function listProductTemplates(tenantId: string): Promise<ProductTemplateDto[]> {
   const { data } = await api.get<ProductTemplateDto[]>(
     `/api/v1/tenants/${tenantId}/catalog/product-templates`

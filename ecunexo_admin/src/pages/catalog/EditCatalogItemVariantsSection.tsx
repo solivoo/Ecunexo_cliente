@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, ColorPicker, DataGrid, DEFAULT_COLOR_PRESETS, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
-import { ArrowLeftRight, Camera, Palette, Pencil, Plus, Sparkles, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Camera, Palette, Pencil, Plus, Sparkles, X } from 'lucide-react'
 import { SectionCard, StatusBadge } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
@@ -14,6 +14,7 @@ import {
   updateCatalogItem,
   uploadCatalogItemImage,
 } from '@/services/catalogApi'
+import { reorderCatalogItemVariants } from '@/services/catalogApi'
 import { listPriceLists, listProductPrices } from '@/services/pricingApi'
 import {
   CatalogItemKind,
@@ -98,6 +99,7 @@ export function EditCatalogItemVariantsSection({
 
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [reordering, setReordering] = useState(false)
 
   // Reassign / Move variant state
   const [reassignModalOpen, setReassignModalOpen] = useState(false)
@@ -423,6 +425,38 @@ export function EditCatalogItemVariantsSection({
     setCustomColorHex('#3b82f6')
   }, [])
 
+  const handleReorderVariant = useCallback(
+    async (row: VariantRow, delta: -1 | 1) => {
+      if (!canEdit || reordering) return
+      const ordered = [...variants]
+      const index = ordered.findIndex((variant) => variant.id === row.id)
+      const target = index + delta
+      if (index < 0 || target < 0 || target >= ordered.length) return
+
+      const [moved] = ordered.splice(index, 1)
+      ordered.splice(target, 0, moved)
+
+      setReordering(true)
+      try {
+        await reorderCatalogItemVariants(
+          tenantId,
+          parentItem.id,
+          ordered.map((variant) => variant.id)
+        )
+        await onRefreshRequired()
+      } catch (err: unknown) {
+        toast.show({
+          title: 'No se pudo reordenar',
+          message: readApiError(err, 'Intenta nuevamente.'),
+          variant: 'error',
+        })
+      } finally {
+        setReordering(false)
+      }
+    },
+    [canEdit, onRefreshRequired, parentItem.id, reordering, tenantId, toast, variants]
+  )
+
   const handleSaveVariantColors = useCallback(async () => {
     if (!tenantId || !colorsModalVariant) return
     setSavingColors(true)
@@ -603,47 +637,69 @@ export function EditCatalogItemVariantsSection({
       },
       {
         key: 'actions',
-        header: '',
-        width: 112,
+        header: 'Acciones',
+        width: 170,
         sticky: 'right',
-        renderCell: (_value: unknown, row: VariantRow) => (
-          <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-            <GridIconButton
-              label="Administrar variante"
-              icon={Pencil}
-              onClick={() => openVariantAdmin(row.id)}
-            />
-            {canEdit && (
+        renderCell: (_value: unknown, row: VariantRow) => {
+          const index = variants.findIndex((variant) => variant.id === row.id)
+          return (
+            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+              {canEdit ? (
+                <>
+                  <GridIconButton
+                    label="Mostrar primero (subir)"
+                    icon={ArrowUp}
+                    disabled={reordering || index <= 0}
+                    onClick={() => void handleReorderVariant(row, -1)}
+                  />
+                  <GridIconButton
+                    label="Mostrar después (bajar)"
+                    icon={ArrowDown}
+                    disabled={reordering || index < 0 || index >= variants.length - 1}
+                    onClick={() => void handleReorderVariant(row, 1)}
+                  />
+                </>
+              ) : null}
               <GridIconButton
-                label="Colores de la variante"
-                icon={Palette}
-                onClick={() => {
-                  handleOpenColorsModal(row)
-                }}
+                label="Administrar variante"
+                icon={Pencil}
+                onClick={() => openVariantAdmin(row.id)}
               />
-            )}
-            {canEdit && (
-              <GridIconButton
-                label="Reasignar / Mover a otro producto matriz"
-                icon={ArrowLeftRight}
-                onClick={() => {
-                  void handleOpenReassignModal(row)
-                }}
-              />
-            )}
-          </div>
-        ),
+              {canEdit && (
+                <GridIconButton
+                  label="Colores de la variante"
+                  icon={Palette}
+                  onClick={() => {
+                    handleOpenColorsModal(row)
+                  }}
+                />
+              )}
+              {canEdit && (
+                <GridIconButton
+                  label="Reasignar / Mover a otro producto matriz"
+                  icon={ArrowLeftRight}
+                  onClick={() => {
+                    void handleOpenReassignModal(row)
+                  }}
+                />
+              )}
+            </div>
+          )
+        },
       },
     ]
   }, [
     canEdit,
     handleOpenColorsModal,
     handleOpenReassignModal,
+    handleReorderVariant,
     listPrices,
     matrixAxes,
     navigate,
     openVariantAdmin,
     parseAttributes,
+    reordering,
+    variants,
   ])
 
   const variantsSubtitle = useMemo(() => {

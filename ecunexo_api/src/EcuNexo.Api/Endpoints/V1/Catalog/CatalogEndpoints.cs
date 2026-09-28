@@ -15,6 +15,7 @@ using EcuNexo.Business.Catalog.Commands.DeleteCatalogItemImage;
 using EcuNexo.Business.Catalog.Commands.DeleteProductTemplate;
 using EcuNexo.Business.Catalog.Commands.DeleteVariantDimensionTemplate;
 using EcuNexo.Business.Catalog.Commands.ReassignCatalogItemVariantParent;
+using EcuNexo.Business.Catalog.Commands.ReorderCatalogItemVariants;
 using EcuNexo.Business.Catalog.Commands.ReorderCatalogItemImages;
 using EcuNexo.Business.Catalog.Commands.SetCatalogItemMainImage;
 using EcuNexo.Business.Catalog.Commands.SetCatalogItemStorefrontVisibility;
@@ -62,6 +63,8 @@ public static class CatalogEndpoints
                     "catalog.matrix.create",
                     "catalog.matrix.update"));
         items.MapPost("/{itemId:guid}/reassign-parent", ReassignItemVariantParentAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
+        items.MapPut("/{itemId:guid}/variants/order", ReorderItemVariantsAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
         items.MapGet("/", ListItemsAsync)
             .AddEndpointFilter(
@@ -245,6 +248,25 @@ public static class CatalogEndpoints
 
         var result = await sender
             .SendAsync<ReassignCatalogItemVariantParentCommand, ReassignCatalogItemVariantParentResponse>(command, ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> ReorderItemVariantsAsync(
+        Guid tenantId,
+        Guid itemId,
+        ReorderCatalogItemVariantsRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var command = new ReorderCatalogItemVariantsCommand(
+            tenantId,
+            itemId,
+            body.VariantIds);
+
+        var result = await sender
+            .SendAsync<ReorderCatalogItemVariantsCommand, ReorderCatalogItemVariantsResponse>(command, ct)
             .ConfigureAwait(false);
 
         return result.ToHttpResult();

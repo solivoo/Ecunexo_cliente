@@ -61,6 +61,9 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
             .HasConversion<int>()
             .IsRequired();
 
+        builder.Property(i => i.SortOrder)
+            .HasDefaultValue(0);
+
         builder.Property(i => i.Name)
             .HasMaxLength(CatalogItem.NameMaxLength)
             .IsRequired();

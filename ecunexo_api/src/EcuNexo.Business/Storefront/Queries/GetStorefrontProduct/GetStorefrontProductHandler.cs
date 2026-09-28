@@ -71,7 +71,10 @@ public sealed class GetStorefrontProductHandler
         }
 
         var item = detailResult.Value!;
-        var variants = item.Variants ?? [];
+        var variants = (item.Variants ?? [])
+            .OrderBy(v => v.SortOrder)
+            .ThenBy(v => v.Name)
+            .ToList();
 
         var ids = new HashSet<Guid> { item.Id };
         foreach (var variant in variants)

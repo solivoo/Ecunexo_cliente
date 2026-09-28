@@ -86,6 +86,7 @@ export type CatalogItemVariantSummaryDto = {
   images?: CatalogItemImageDto[] | null
   tags?: string[] | null
   extraColors?: string[] | null
+  sortOrder?: number
 }
 
 export type CatalogMatrixAxisDto = {

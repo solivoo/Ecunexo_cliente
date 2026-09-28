@@ -94,6 +94,7 @@ public sealed class AddCatalogItemVariantHandler
         }
 
         var child = childResult.Value!;
+        child.SetSortOrder(parent.Variants.Count);
         await _items.AddAsync(child, ct).ConfigureAwait(false);
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);

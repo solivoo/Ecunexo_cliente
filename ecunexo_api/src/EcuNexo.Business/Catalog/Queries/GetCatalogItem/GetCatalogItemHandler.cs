@@ -68,6 +68,8 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
 
         var variants = item.Variants
             .Where(v => v.DeletedAt == null)
+            .OrderBy(v => v.SortOrder)
+            .ThenBy(v => v.Name)
             .Select(v =>
             {
                 var ownImages = v.Images.OrderBy(i => i.DisplayOrder).ToList();
@@ -130,7 +132,8 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                     gallery,
                     ResolveVariantStringList(v, "tags"),
                     ResolveVariantStringList(v, "colores_secundarios"),
-                    v.Barcode);
+                    v.Barcode,
+                    v.SortOrder);
             })
             .ToList();
 
