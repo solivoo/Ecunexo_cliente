@@ -453,11 +453,22 @@ export function ProductPricesMatrixPage() {
             {coverage.length === 0 ? (
               <span className="app-shell__muted">Sin listas activas.</span>
             ) : (
-              coverage.map(({ list, withPrice, total }) => (
-                <span key={list.id} className="ecu-chip">
-                  {list.code}: {withPrice}/{total}
-                </span>
-              ))
+              coverage.map(({ list, withPrice, total }) => {
+                const today = todayIso()
+                const vigencia = !list.isActive
+                  ? { tone: 'neutral' as const, label: 'Inactiva' }
+                  : list.validTo && list.validTo < today
+                    ? { tone: 'danger' as const, label: 'Vencida' }
+                      : list.validTo && (new Date(`${list.validTo}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000 <= 7
+                        ? { tone: 'warning' as const, label: 'Por vencer' }
+                        : { tone: 'success' as const, label: 'Vigente' }
+                return (
+                  <span key={list.id} className="ecu-chip" style={{ display: 'inline-flex', gap: '0.4rem', alignItems: 'center' }}>
+                    {list.code}: {withPrice}/{total}
+                    <StatusBadge tone={vigencia.tone}>{vigencia.label}</StatusBadge>
+                  </span>
+                )
+              })
             )}
           </div>
         </SectionCard>
