@@ -167,9 +167,7 @@ public static class CatalogEndpoints
             v.Sku,
             v.Barcode,
             v.BasePrice,
-            v.CustomAttributesJson,
-            v.InitialStock,
-            v.InitialStockWarehouseId)).ToList();
+            v.CustomAttributesJson)).ToList();
 
         var command = new CreateCatalogItemMatrixCommand(
             tenantId,
@@ -213,8 +211,6 @@ public static class CatalogEndpoints
             body.Sku,
             body.BasePrice,
             body.CustomAttributesJson,
-            body.InitialStock,
-            body.InitialStockWarehouseId,
             body.Barcode);
 
         var result = await sender

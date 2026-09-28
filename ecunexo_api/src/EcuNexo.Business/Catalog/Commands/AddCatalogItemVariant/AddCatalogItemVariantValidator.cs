@@ -34,12 +34,5 @@ public sealed class AddCatalogItemVariantValidator : AbstractValidator<AddCatalo
                 .GreaterThanOrEqualTo(0)
                 .WithMessage("El precio base de la variante no puede ser negativo.");
         });
-
-        When(c => c.InitialStock.HasValue && c.InitialStock.Value > 0, () =>
-        {
-            RuleFor(c => c.InitialStockWarehouseId)
-                .NotEmpty()
-                .WithMessage("Debe seleccionar una bodega para el stock inicial.");
-        });
     }
 }

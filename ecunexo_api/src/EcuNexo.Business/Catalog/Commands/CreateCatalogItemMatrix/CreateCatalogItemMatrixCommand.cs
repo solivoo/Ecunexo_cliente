@@ -21,9 +21,7 @@ public sealed record CreateVariantChildDto(
     string Sku,
     string? Barcode = null,
     decimal? BasePrice = null,
-    string? CustomAttributesJson = null,
-    decimal? InitialStock = null,
-    Guid? InitialStockWarehouseId = null);
+    string? CustomAttributesJson = null);
 
 public sealed record CreateCatalogItemMatrixResponse(
     Guid ParentItemId,

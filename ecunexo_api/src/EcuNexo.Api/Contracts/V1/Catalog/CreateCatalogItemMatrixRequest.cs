@@ -17,6 +17,4 @@ public sealed record CreateVariantChildRequest(
     string Sku,
     string? Barcode = null,
     decimal? BasePrice = null,
-    string? CustomAttributesJson = null,
-    decimal? InitialStock = null,
-    Guid? InitialStockWarehouseId = null);
+    string? CustomAttributesJson = null);

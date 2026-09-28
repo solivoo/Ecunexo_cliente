@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.63.0`.
+* **Última Versión Publicada:** `v0.64.0`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Edición de ítem reordenada y variantes según plantilla (v0.64.0):**
+    * `EditCatalogItemPage`: sin «Ficha comercial»; orden Identidad → Datos de la plantilla (`ArchetypeModelFields` con `bare`) → Avanzado (etiquetas/atributos libres colapsados) → Variantes → Fotos → acciones sticky al pie con `form="edit-catalog-item"`; estado en el encabezado; sin chips de ruta jerárquica duplicados.
+    * `EditCatalogItemVariantsSection`: el modal «Añadir Variante» recibe `variantAttributeFields`/`dimensionValuesMap`/upload y renderiza ejes con «+ Nueva…» y atributos de variante; se retiró precio y el sync masivo de `basePrice`.
+    * API: eliminado `InitialStock`/`InitialStockWarehouseId` de `AddCatalogItemVariant` y `CreateCatalogItemMatrix` (handlers, contratos, validador, tests) por la regla de que el stock entra solo por documentos de inventario. 422 tests Business en verde.
   - **Storefront — Revisión de catálogo para la vitrina (v0.63.0):**
     * `IStorefrontCatalogRepository.GetLastCatalogChangeAtAsync` calcula el máximo `updated_at ?? created_at` sobre ítems, plantillas, listas, precios de producto y promociones del tenant (sin filtrar borrados, para detectar bajas).
     * Nueva query `GetStorefrontStatus` + endpoint anónimo `GET /api/v1/public/tenants/{tenantId}/storefront/status` con rate limit `storefront-read` y caché en memoria 10 s (`StorefrontCacheKeys.ForStatus`); DTO `StorefrontStatusDto(Revision, UpdatedAt)`.

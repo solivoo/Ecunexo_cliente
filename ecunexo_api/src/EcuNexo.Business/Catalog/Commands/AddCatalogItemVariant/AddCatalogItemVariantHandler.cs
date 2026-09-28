@@ -1,11 +1,8 @@
 using EcuNexo.Business.Abstractions;
-using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Tenancy;
-using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
-using EcuNexo.Core.Inventory;
 using FluentValidation;
 
 namespace EcuNexo.Business.Catalog.Commands.AddCatalogItemVariant;
@@ -17,8 +14,6 @@ public sealed class AddCatalogItemVariantHandler
     private readonly IIdGenerator _idGenerator;
     private readonly ITenantRepository _tenants;
     private readonly ICatalogItemRepository _items;
-    private readonly IStockRepository _stocks;
-    private readonly IWarehouseRepository _warehouses;
     private readonly IUnitOfWork _unitOfWork;
 
     public AddCatalogItemVariantHandler(
@@ -26,16 +21,12 @@ public sealed class AddCatalogItemVariantHandler
         IIdGenerator idGenerator,
         ITenantRepository tenants,
         ICatalogItemRepository items,
-        IStockRepository stocks,
-        IWarehouseRepository warehouses,
         IUnitOfWork unitOfWork)
     {
         _validator = validator;
         _idGenerator = idGenerator;
         _tenants = tenants;
         _items = items;
-        _stocks = stocks;
-        _warehouses = warehouses;
         _unitOfWork = unitOfWork;
     }
 
@@ -104,25 +95,6 @@ public sealed class AddCatalogItemVariantHandler
 
         var child = childResult.Value!;
         await _items.AddAsync(child, ct).ConfigureAwait(false);
-
-        if (command.InitialStock is decimal initialQty && initialQty > 0 && command.InitialStockWarehouseId is Guid warehouseId)
-        {
-            if (await _warehouses.GetActiveByIdAsync(command.TenantId, warehouseId, ct).ConfigureAwait(false) is not null)
-            {
-                var stockResult = Stock.Create(
-                    _idGenerator.NewId(),
-                    command.TenantId,
-                    childId,
-                    warehouseId);
-
-                if (stockResult.IsSuccess)
-                {
-                    var stock = stockResult.Value!;
-                    stock.Increase(initialQty, null);
-                    await _stocks.AddAsync(stock, ct).ConfigureAwait(false);
-                }
-            }
-        }
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
 

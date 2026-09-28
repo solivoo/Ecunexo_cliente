@@ -1,10 +1,8 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.CreateCatalogItemMatrix;
-using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Platform;
 using EcuNexo.Business.Tenancy;
-using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Tenancy;
@@ -19,8 +17,6 @@ public sealed class CreateCatalogItemMatrixHandlerTests
     private readonly ICatalogItemRepository _items = Substitute.For<ICatalogItemRepository>();
     private readonly ISysSettingRepository _settings = Substitute.For<ISysSettingRepository>();
     private readonly IProductTemplateRepository _templates = Substitute.For<IProductTemplateRepository>();
-    private readonly IStockRepository _stocks = Substitute.For<IStockRepository>();
-    private readonly IWarehouseRepository _warehouses = Substitute.For<IWarehouseRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly CreateCatalogItemMatrixValidator _validator = new();
 
@@ -32,8 +28,6 @@ public sealed class CreateCatalogItemMatrixHandlerTests
             _items,
             _settings,
             _templates,
-            _stocks,
-            _warehouses,
             _unitOfWork);
 
     [Fact(DisplayName = "Crear producto matriz con variantes genera padre e hijos en BD")]

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, ColorPicker, DataGrid, DEFAULT_COLOR_PRESETS, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
-import { ArrowLeftRight, Camera, Palette, Pencil, Plus, RefreshCw, Sparkles, X } from 'lucide-react'
+import { ArrowLeftRight, Camera, Palette, Pencil, Plus, Sparkles, X } from 'lucide-react'
 import { SectionCard, StatusBadge } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
@@ -19,8 +19,17 @@ import {
   type CatalogItemDetailDto,
   type CatalogItemListItemDto,
   type CatalogItemVariantSummaryDto,
+  type TenantMediaAssetDto,
 } from '@/types/catalogApi'
-import { buildVariantAdminSummary, formatVariantDisplayName, isHexColorToken } from '@/lib/catalogArchetype'
+import {
+  buildVariantAdminSummary,
+  formatVariantDisplayName,
+  isHexColorToken,
+  type ArchetypeAttributeField,
+  type DimensionLookup,
+} from '@/lib/catalogArchetype'
+import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
+import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 import { VariantAdminSummaryBlock } from '@/pages/catalog/VariantAdminSummaryBlock'
 import type { CatalogMatrixAxisDto } from '@/types/catalogApi'
 
@@ -52,6 +61,11 @@ export type EditCatalogItemVariantsSectionProps = {
   readonly photoHint?: string | null
   /** Oculta el selector de foto al crear variante cuando la plantilla no usa fotos. */
   readonly showPhotoField?: boolean
+  /** Atributos que la plantilla captura por variante (Color, Actividad, Tag…). */
+  readonly variantAttributeFields?: ArchetypeAttributeField[]
+  readonly dimensionValuesMap?: Map<string, DimensionLookup>
+  readonly onUploadMedia?: (file: File) => Promise<TenantMediaAssetDto>
+  readonly onMediaError?: (message: string) => void
 }
 
 type VariantDimensionDef = {
@@ -73,14 +87,16 @@ export function EditCatalogItemVariantsSection({
   maxVariants = null,
   photoHint = null,
   showPhotoField = true,
+  variantAttributeFields = [],
+  dimensionValuesMap,
+  onUploadMedia,
+  onMediaError,
 }: EditCatalogItemVariantsSectionProps) {
   const toast = useToast()
   const navigate = useNavigate()
 
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [syncModalOpen, setSyncModalOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [syncing, setSyncing] = useState(false)
 
   // Reassign / Move variant state
   const [reassignModalOpen, setReassignModalOpen] = useState(false)
@@ -182,8 +198,9 @@ export function EditCatalogItemVariantsSection({
   // Form states for adding a new variant
   const [variantTitle, setVariantTitle] = useState('')
   const [sku, setSku] = useState('')
-  const [price, setPrice] = useState(parentItem.basePrice != null ? String(parentItem.basePrice) : '')
   const [dimValues, setDimValues] = useState<Record<string, string>>({})
+  const [extraDimValues, setExtraDimValues] = useState<Record<string, string[]>>({})
+  const [attributeValues, setAttributeValues] = useState<CustomAttributeRow[]>([])
   const [variantImage, setVariantImage] = useState<File | null>(null)
   const [variantImagePreview, setVariantImagePreview] = useState<string | null>(null)
 
@@ -221,19 +238,31 @@ export function EditCatalogItemVariantsSection({
     setVariantImagePreview(null)
     setVariantTitle('')
     setSku('')
-    setPrice(parentItem.basePrice != null ? String(parentItem.basePrice) : '')
+    setExtraDimValues({})
+    setAttributeValues([])
     const initialDims: Record<string, string> = {}
     for (const d of dimensions) {
       initialDims[d.name.toLowerCase()] = d.values[0] ?? ''
     }
     setDimValues(initialDims)
+    setVariantTitle(dimensions.map((d) => d.values[0] ?? '').filter(Boolean).join(' - '))
     setAddModalOpen(true)
-  }, [dimensions, parentItem.basePrice, variantImagePreview])
+  }, [dimensions, variantImagePreview])
 
   // Auto-suggest variant title when dimensions change in add modal
   const handleDimChange = useCallback(
     (dimName: string, val: string) => {
-      const updated = { ...dimValues, [dimName.toLowerCase()]: val }
+      let chosen = val
+      if (val === '__add_new__') {
+        const created = window.prompt(`Nueva opción para «${dimName}»:`)
+        if (!created || !created.trim()) return
+        chosen = created.trim()
+        setExtraDimValues((prev) => ({
+          ...prev,
+          [dimName.toLowerCase()]: [...(prev[dimName.toLowerCase()] ?? []), chosen],
+        }))
+      }
+      const updated = { ...dimValues, [dimName.toLowerCase()]: chosen }
       setDimValues(updated)
       const valuesJoined = Object.values(updated).filter(Boolean).join(' - ')
       setVariantTitle(valuesJoined)
@@ -255,14 +284,18 @@ export function EditCatalogItemVariantsSection({
         return
       }
 
-      let parsedPrice: number | null = null
-      if (price.trim()) {
-        const p = Number(price.replace(',', '.'))
-        if (Number.isNaN(p) || p < 0) {
-          toast.show({ title: 'Precio inválido', message: 'El precio debe ser un número mayor o igual a 0.', variant: 'error' })
-          return
-        }
-        parsedPrice = p
+      const missingDim = dimensions.find(
+        (d) => !(dimValues[d.name.toLowerCase()] ?? '').trim()
+      )
+      if (missingDim) {
+        toast.show({ title: 'Campo requerido', message: `Selecciona el valor de «${missingDim.name}».`, variant: 'error' })
+        return
+      }
+
+      const attributes: Record<string, string> = { ...dimValues }
+      for (const row of attributeValues) {
+        const key = row.key.trim()
+        if (key) attributes[key] = row.value
       }
 
       setBusy(true)
@@ -270,8 +303,7 @@ export function EditCatalogItemVariantsSection({
         const createdVariant = await addCatalogItemVariant(tenantId, parentItem.id, {
           variantTitle: variantTitle.trim(),
           sku: sku.trim().toUpperCase(),
-          basePrice: parsedPrice,
-          customAttributesJson: JSON.stringify(dimValues),
+          customAttributesJson: JSON.stringify(attributes),
         })
 
         if (variantImage && createdVariant.variantItemId) {
@@ -311,10 +343,11 @@ export function EditCatalogItemVariantsSection({
       }
     },
     [
+      attributeValues,
+      dimensions,
       dimValues,
       onRefreshRequired,
       parentItem.id,
-      price,
       sku,
       tenantId,
       toast,
@@ -324,63 +357,10 @@ export function EditCatalogItemVariantsSection({
     ]
   )
 
-  // Bulk sync price from parent to all variants
-  const handleSyncPriceToAll = useCallback(async () => {
-    if (!tenantId || !parentItem.variants || parentItem.variants.length === 0) return
-    if (parentItem.basePrice == null) {
-      toast.show({ title: 'Sin precio base', message: 'El producto matriz no tiene un precio base configurado.', variant: 'warning' })
-      return
-    }
-
-    setSyncing(true)
-    try {
-      let updatedCount = 0
-      for (const v of parentItem.variants) {
-        await updateCatalogItem(tenantId, v.id, {
-          name: v.name,
-          sku: v.sku,
-          basePrice: parentItem.basePrice,
-          customAttributesJson: v.customAttributesJson,
-          status: v.status,
-          kind: parentItem.kind,
-          familyId: parentItem.familyId ?? null,
-          hierarchyPathJson: parentItem.hierarchyPathJson ?? null,
-        })
-        updatedCount++
-      }
-
-      toast.show({
-        title: 'Precios sincronizados',
-        message: `Se actualizó el precio a $${Number(parentItem.basePrice).toFixed(2)} en ${updatedCount} variante(s).`,
-        variant: 'success',
-      })
-      setSyncModalOpen(false)
-      await onRefreshRequired()
-    } catch (err) {
-      toast.show({
-        title: 'Error al sincronizar',
-        message: readApiError(err, 'Ocurrió un error al actualizar los precios.'),
-        variant: 'error',
-      })
-    } finally {
-      setSyncing(false)
-    }
-  }, [onRefreshRequired, parentItem, tenantId, toast])
 
   // KPIs
   const variants = useMemo(() => parentItem.variants ?? [], [parentItem.variants])
   const activeCount = useMemo(() => variants.filter((v) => Number(v.status) === 0).length, [variants])
-  const prices = useMemo(
-    () => variants.map((v) => v.basePrice).filter((p): p is number => p != null),
-    [variants]
-  )
-  const minPrice = prices.length > 0 ? Math.min(...prices) : null
-  const maxPrice = prices.length > 0 ? Math.max(...prices) : null
-  const priceRangeLabel = useMemo(() => {
-    if (minPrice == null) return 'Sin precio'
-    if (minPrice === maxPrice) return `$${minPrice.toFixed(2)}`
-    return `$${minPrice.toFixed(2)} - $${maxPrice?.toFixed(2)}`
-  }, [maxPrice, minPrice])
 
   const rows = useMemo<VariantRow[]>(
     () => variants.map((v) => ({ ...v })),
@@ -620,9 +600,8 @@ export function EditCatalogItemVariantsSection({
     parts.push(
       `${variants.length} ${variants.length === 1 ? 'combinación' : 'combinaciones'} · ${activeCount} activas`
     )
-    if (priceRangeLabel !== '—') parts.push(`Precios ${priceRangeLabel}`)
     return parts.join(' · ')
-  }, [activeCount, photoHint, priceRangeLabel, variants.length])
+  }, [activeCount, photoHint, variants.length])
 
   return (
     <div style={{ marginTop: '1.25rem' }}>
@@ -632,18 +611,6 @@ export function EditCatalogItemVariantsSection({
         action={
           canEdit ? (
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              {variants.length > 0 && parentItem.basePrice != null && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSyncModalOpen(true)}
-                  title="Sincronizar el precio base a todas las variantes"
-                >
-                  <RefreshCw size={14} style={{ marginRight: '0.35rem' }} />
-                  Sincronizar precio (${Number(parentItem.basePrice).toFixed(2)})
-                </Button>
-              )}
               <Button
                 type="button"
                 variant="primary"
@@ -735,7 +702,14 @@ export function EditCatalogItemVariantsSection({
                             label={d.name}
                             labelPosition="outlined"
                             variant="outline"
-                            options={d.values.map((v) => ({ value: v, label: v }))}
+                            options={[
+                              ...d.values.map((v) => ({ value: v, label: v })),
+                              ...(extraDimValues[d.name.toLowerCase()] ?? []).map((v) => ({
+                                value: v,
+                                label: v,
+                              })),
+                              { value: '__add_new__', label: '+ Nueva…' },
+                            ]}
                             value={currentVal}
                             onChange={(val) => handleDimChange(d.name, val)}
                             fullWidth
@@ -782,16 +756,49 @@ export function EditCatalogItemVariantsSection({
               />
             </div>
 
-            <TextBox
-              id="var-price"
-              label="Precio base de la variante"
-              labelPosition="outlined"
-              variant="outline"
-              value={price}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setPrice(e.target.value)}
-              placeholder="0.00"
-              fullWidth
-            />
+            {variantAttributeFields.length > 0 ? (
+              <div
+                style={{
+                  padding: '0.85rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.02))',
+                  border: '1px solid var(--glb-border, #e2e8f0)',
+                }}
+              >
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.6rem' }}>
+                  Datos de la variante (según plantilla)
+                </div>
+                <ArchetypeModelFields
+                  fields={variantAttributeFields}
+                  values={attributeValues}
+                  dimensionValuesMap={dimensionValuesMap ?? new Map()}
+                  onChangeValue={(key, value) =>
+                    setAttributeValues((prev) => {
+                      const index = prev.findIndex(
+                        (row) => row.key.trim().toLowerCase() === key.trim().toLowerCase()
+                      )
+                      if (index >= 0) {
+                        const next = [...prev]
+                        next[index] = { ...next[index], value }
+                        return next
+                      }
+                      return [
+                        ...prev,
+                        {
+                          id: `attr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                          key,
+                          value,
+                        },
+                      ]
+                    })
+                  }
+                  onUploadMedia={onUploadMedia}
+                  onMediaError={onMediaError}
+                  disabled={busy}
+                  bare
+                />
+              </div>
+            ) : null}
 
             {/* Selector de fotografía específica de la variante */}
             {showPhotoField && (
@@ -845,41 +852,6 @@ export function EditCatalogItemVariantsSection({
         </form>
       </Popup>
 
-      {/* Modal de confirmación para sincronizar precio base masivo */}
-      <Popup
-        open={syncModalOpen}
-        onClose={() => setSyncModalOpen(false)}
-        title="Sincronizar Precio Base a Todas las Variantes"
-        width="min(92vw, 28rem)"
-        actions={[
-          {
-            id: 'cancel',
-            label: 'Cancelar',
-            variant: 'outline',
-            onClick: () => setSyncModalOpen(false),
-            disabled: syncing,
-          },
-          {
-            id: 'confirm',
-            label: syncing ? 'Actualizando…' : 'Confirmar y Actualizar',
-            variant: 'primary',
-            onClick: () => void handleSyncPriceToAll(),
-            disabled: syncing,
-          },
-        ]}
-      >
-        <div style={{ padding: '0.5rem 0' }}>
-          <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', color: 'var(--glb-text, #1e293b)', lineHeight: 1.5 }}>
-            Se actualizará el precio base de las <strong>{variants.length}</strong> variantes al valor del ítem principal:{' '}
-            <strong style={{ color: 'var(--shell-primary, #4f46e5)' }}>
-              ${Number(parentItem.basePrice ?? 0).toFixed(2)}
-            </strong>.
-          </p>
-          <p className="app-shell__muted" style={{ fontSize: '0.825rem', margin: 0 }}>
-            Esta acción modificará los precios individuales de todas las variantes hijas en el catálogo.
-          </p>
-        </div>
-      </Popup>
 
       {/* Modal para mover / reasignar variante a otro padre o independizar */}
       <Popup

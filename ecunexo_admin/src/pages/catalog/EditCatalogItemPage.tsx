@@ -16,6 +16,7 @@ import {
   buildDimensionValuesMap,
   buildHierarchyPathJson,
   getModelAttributeFields,
+  getVariantAttributeFields,
   readPhotoChoice,
   buildVariantAdminSummary,
   formatVariantDisplayName,
@@ -52,7 +53,6 @@ import {
   CatalogItemStatus,
   type CatalogItemDetailDto,
   type CatalogItemListItemDto,
-  type HierarchyPathEntry,
   type ProductTemplateDto,
   type ProductTemplateLevel,
   type ReassignmentAuditRecord,
@@ -106,16 +106,6 @@ export function EditCatalogItemPage() {
   const [status, setStatus] = useState(String(CatalogItemStatus.Active))
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
   const [tags, setTags] = useState<string[]>([])
-
-  const hierarchyPath = useMemo<HierarchyPathEntry[]>(() => {
-    if (!item?.hierarchyPathJson) return []
-    try {
-      const parsed = JSON.parse(item.hierarchyPathJson)
-      return Array.isArray(parsed) ? parsed : []
-    } catch {
-      return []
-    }
-  }, [item])
 
   const familyTemplate = useMemo(
     () => productTemplates.find((t) => t.id === item?.familyId),
@@ -183,6 +173,35 @@ export function EditCatalogItemPage() {
     () => getModelAttributeFields(familyLevels, dimensionValuesMap),
     [familyLevels, dimensionValuesMap]
   )
+
+  const variantAttributeFields = useMemo(
+    () => getVariantAttributeFields(familyLevels, dimensionValuesMap),
+    [familyLevels, dimensionValuesMap]
+  )
+
+  const templateCapturesName = useMemo(
+    () =>
+      modelAttributeFields.some((field) => {
+        const key = field.key.trim().toLowerCase()
+        return key === 'nombre' || key.startsWith('nombre ') || key === 'name' || key === 'producto'
+      }),
+    [modelAttributeFields]
+  )
+
+  const templateCapturesDescription = useMemo(
+    () =>
+      modelAttributeFields.some((field) => {
+        const key = field.key.trim().toLowerCase()
+        return key === 'descripcion' || key.startsWith('descripcion ') || key === 'detalle' || key === 'nota' || key === 'notas'
+      }),
+    [modelAttributeFields]
+  )
+
+  const showNameField = !templateCapturesName
+  const showSkuField = !item?.isMatrixParent
+  const showDescriptionField = !templateCapturesDescription
+  const showBarcodeField = !item?.isMatrixParent
+  const showIdentityCard = showNameField || showSkuField || showDescriptionField || showBarcodeField
 
   const variantDimensionNames = useMemo<string[]>(
     () => parseVariantDimensionNames(item?.variantDimensionsJson),
@@ -629,6 +648,18 @@ export function EditCatalogItemPage() {
             ) : undefined
           }
           actions={
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <Select
+                id="ei-status"
+                options={[
+                  { value: String(CatalogItemStatus.Active), label: 'Activo' },
+                  { value: String(CatalogItemStatus.Inactive), label: 'Inactivo' },
+                ]}
+                value={status}
+                onChange={setStatus}
+                size="sm"
+                disabled={busy}
+              />
             <EcuPageActions
               items={actionItems}
               variant="outline"
@@ -637,6 +668,7 @@ export function EditCatalogItemPage() {
               onNavigate={(route: string) => navigate(route)}
               onActionSelect={handlePageActionSelect}
             />
+            </div>
           }
         />
 
@@ -718,244 +750,173 @@ export function EditCatalogItemPage() {
               </div>
             )}
 
-            {hierarchyPath.length > 0 && !isVariantChild && (
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '0.4rem',
-                  marginBottom: '1rem',
-                }}
-              >
-                {hierarchyPath.map((entry, idx) => (
-                  <StatusBadge key={`${entry.level}-${entry.name}-${idx}`} tone="neutral">
-                    {entry.name}: {entry.value}
-                  </StatusBadge>
-                ))}
-              </div>
-            )}
 
-            <form onSubmit={(e) => void onSubmit(e)} noValidate>
-            {modelAttributeFields.length > 0 && !isVariantChild && (
-              <SectionCard
-                title="Datos del modelo"
-                subtitle={familyTemplate?.name}
-                action={
-                  familyTemplate ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/catalogo/plantillas/${familyTemplate.id}`)}
-                    >
-                      Editar plantilla
-                    </Button>
-                  ) : undefined
-                }
-              >
-                <ArchetypeModelFields
-                  fields={modelAttributeFields}
-                  values={customAttributes}
-                  dimensionValuesMap={dimensionValuesMap}
-                  onChangeValue={setAttributeValue}
-                  onUploadMedia={handleUploadMedia}
-                  onMediaError={handleMediaError}
-                  disabled={busy}
-                />
-              </SectionCard>
-            )}
-            <SectionCard title={isVariantChild ? 'Datos del código' : 'Ficha comercial'}>
+            <form id="edit-catalog-item" onSubmit={(e) => void onSubmit(e)} noValidate>
               {error ? (
-                <div className="ecu-form-error-banner" role="alert">
+                <div className="ecu-form-error-banner" role="alert" style={{ marginBottom: '1rem' }}>
                   <span className="material-symbols-outlined">error</span>
                   <span>{error}</span>
                 </div>
               ) : null}
 
-              <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
-                <div className="ecu-companies-form__field">
-                  <Select
-                    id="ei-kind"
-                    label="Tipo de ítem"
-                    labelPosition="outlined"
-                    variant="outline"
-                    options={[
-                      { value: String(CatalogItemKind.Service), label: 'Servicio (intangible)' },
-                      { value: String(CatalogItemKind.Physical), label: 'Físico (con inventario)' },
-                    ]}
-                    value={kind}
-                    onChange={setKind}
-                    disabled={busy || isVariantChild}
-                    fullWidth
-                  />
-                </div>
-                <div className="ecu-companies-form__field">
-                  <Select
-                    id="ei-status"
-                    label="Estado"
-                    labelPosition="outlined"
-                    variant="outline"
-                    options={[
-                      { value: String(CatalogItemStatus.Active), label: 'Activo' },
-                      { value: String(CatalogItemStatus.Inactive), label: 'Inactivo' },
-                    ]}
-                    value={status}
-                    onChange={setStatus}
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
-                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                  <TextBox
-                    id="ei-name"
-                    label="Nombre"
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={name}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                    placeholder="Escriba aquí..."
-                    required
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
-                <div className="ecu-companies-form__field">
-                  <TextBox
-                    id="ei-sku"
-                    label={
-                      item?.isMatrixParent
-                        ? 'Código Modelo / Prefijo SKU (opcional)'
-                        : Number(kind) === CatalogItemKind.Physical
-                          ? 'Código SKU (obligatorio)'
-                          : 'Código SKU (opcional)'
-                    }
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={sku}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                      setSku(e.target.value.toUpperCase())
-                    }
-                    placeholder="Escriba aquí..."
-                    required={Number(kind) === CatalogItemKind.Physical && !item?.isMatrixParent}
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
-                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                  <TextBox
-                    id="ei-desc"
-                    label="Descripción comercial"
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={description}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
-                    placeholder="Escriba aquí..."
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
-                {!item?.isMatrixParent && (
-                  <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                    <TextBox
-                      id="ei-barcode"
-                      label="Código de barras (opcional)"
-                      labelPosition="outlined"
-                      variant="outline"
-                      value={barcode}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                        setBarcode(e.target.value.toUpperCase())
-                      }
-                      placeholder="EAN / UPC / Code128"
-                      disabled={busy}
-                      fullWidth
-                    />
+              {showIdentityCard ? (
+                <SectionCard title="Identidad">
+                  <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
+                    {showNameField ? (
+                      <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                        <TextBox
+                          id="ei-name"
+                          label="Nombre"
+                          labelPosition="outlined"
+                          variant="outline"
+                          value={name}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                          placeholder="Escriba aquí..."
+                          required
+                          disabled={busy}
+                          fullWidth
+                        />
+                      </div>
+                    ) : null}
+                    {showSkuField ? (
+                      <div className="ecu-companies-form__field">
+                        <TextBox
+                          id="ei-sku"
+                          label="Código / SKU"
+                          labelPosition="outlined"
+                          variant="outline"
+                          value={sku}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            setSku(e.target.value.toUpperCase())
+                          }
+                          placeholder="Escriba aquí..."
+                          required={Number(kind) === CatalogItemKind.Physical && !item?.isMatrixParent}
+                          disabled={busy}
+                          fullWidth
+                        />
+                      </div>
+                    ) : null}
+                    {showDescriptionField ? (
+                      <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                        <TextBox
+                          id="ei-desc"
+                          label="Descripción"
+                          labelPosition="outlined"
+                          variant="outline"
+                          value={description}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+                          placeholder="Escriba aquí..."
+                          disabled={busy}
+                          fullWidth
+                        />
+                      </div>
+                    ) : null}
+                    {showBarcodeField ? (
+                      <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                        <TextBox
+                          id="ei-barcode"
+                          label="Código de barras (opcional)"
+                          labelPosition="outlined"
+                          variant="outline"
+                          value={barcode}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            setBarcode(e.target.value.toUpperCase())
+                          }
+                          placeholder="EAN / UPC / Code128"
+                          disabled={busy}
+                          fullWidth
+                        />
+                      </div>
+                    ) : null}
                   </div>
-                )}
-              </div>
+                </SectionCard>
+              ) : null}
 
-              <div
-                style={{
-                  marginTop: '1.25rem',
-                  paddingTop: '1.25rem',
-                  borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
-                }}
-              >
-                {!isVariantChild && (
-                  <div style={{ marginBottom: '1.25rem' }}>
-                    <EcuTagInput
-                      tags={tags}
-                      onChange={setTags}
-                      label="Etiquetas"
-                      placeholder="Deportivo, Premium, temporada…"
-                      helperText="Búsqueda en POS y tienda; se heredan a las variantes."
-                      suggestedTags={suggestedTags}
-                      disabled={busy}
-                    />
-                  </div>
-                )}
+              {modelAttributeFields.length > 0 && !isVariantChild ? (
+                <SectionCard
+                  title="Datos de la plantilla"
+                  subtitle={familyTemplate?.name}
+                  action={
+                    familyTemplate ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/catalogo/plantillas/${familyTemplate.id}`)}
+                      >
+                        Editar plantilla
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  <ArchetypeModelFields
+                    fields={modelAttributeFields}
+                    values={customAttributes}
+                    dimensionValuesMap={dimensionValuesMap}
+                    onChangeValue={setAttributeValue}
+                    onUploadMedia={handleUploadMedia}
+                    onMediaError={handleMediaError}
+                    disabled={busy}
+                    bare
+                  />
+                </SectionCard>
+              ) : null}
 
-                {familyTemplate && freeAttributeRows.length > 0 && (
-                  <div
+              <SectionCard title="Avanzado">
+                <details>
+                  <summary
                     style={{
-                      display: 'flex',
-                      gap: '0.35rem',
-                      flexWrap: 'wrap',
-                      marginBottom: '1rem',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      color: 'var(--glb-muted, #64748b)',
                     }}
                   >
-                    {freeAttributeRows.map((row) => (
-                      <StatusBadge key={row.id} tone="neutral">
-                        {row.key}: {row.value || '—'}
-                      </StatusBadge>
-                    ))}
+                    Etiquetas de búsqueda y atributos libres
+                  </summary>
+                  <div style={{ marginTop: '1rem' }}>
+                    {!isVariantChild ? (
+                      <div style={{ marginBottom: '1.25rem' }}>
+                        <EcuTagInput
+                          tags={tags}
+                          onChange={setTags}
+                          label="Etiquetas"
+                          placeholder="Deportivo, Premium, temporada…"
+                          helperText="Búsqueda en POS y tienda; se heredan a las variantes. Recomendado: declararlas en la plantilla como «Tags»."
+                          suggestedTags={suggestedTags}
+                          disabled={busy}
+                        />
+                      </div>
+                    ) : null}
+
+                    {familyTemplate && freeAttributeRows.length > 0 ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '0.35rem',
+                          flexWrap: 'wrap',
+                          marginBottom: '1rem',
+                        }}
+                      >
+                        {freeAttributeRows.map((row) => (
+                          <StatusBadge key={row.id} tone="neutral">
+                            {row.key}: {row.value || '—'}
+                          </StatusBadge>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {!familyTemplate ? (
+                      <ItemCustomAttributesEditor
+                        attributes={freeAttributeRows}
+                        onChange={handleFreeAttributesChange}
+                        excludeKeys={reservedAttributeKeys}
+                        disabled={busy}
+                      />
+                    ) : null}
                   </div>
-                )}
-
-                {!familyTemplate && (
-                  <>
-                    <ItemCustomAttributesEditor
-                      attributes={freeAttributeRows}
-                      onChange={handleFreeAttributesChange}
-                      excludeKeys={reservedAttributeKeys}
-                      disabled={busy}
-                    />
-                  </>
-                )}
-              </div>
-
-              <div
-                className="ecu-companies-form__actions"
-                style={{
-                  marginTop: '1.5rem',
-                  paddingTop: '1rem',
-                  borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
-                }}
-              >
-                <Button type="submit" variant="primary" loading={busy} disabled={busy || deleting}>
-                  Guardar Cambios
-                </Button>
-                {canDelete ? (
-                  <Button
-                    type="button"
-                    variant="danger"
-                    loading={deleting}
-                    disabled={busy || deleting}
-                    onClick={() => setConfirmDelete(true)}
-                  >
-                    Eliminar
-                  </Button>
-                ) : null}
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={busy || deleting}
-                  onClick={goToList}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </SectionCard>
-          </form>
+                </details>
+              </SectionCard>
+            </form>
 
           {tenantId && item?.isMatrixParent && (
             <EditCatalogItemVariantsSection
@@ -968,6 +929,10 @@ export function EditCatalogItemPage() {
                 showVariantPhotosHint ? 'Fotos por SKU en Administrar (sm / lg / xl)' : null
               }
               showPhotoField={templateAllowsPhotos}
+              variantAttributeFields={variantAttributeFields}
+              dimensionValuesMap={dimensionValuesMap}
+              onUploadMedia={handleUploadMedia}
+              onMediaError={handleMediaError}
               onRefreshRequired={async () => {
                 const fresh = await getCatalogItem(tenantId, item.id)
                 setItem(fresh)
@@ -1072,6 +1037,52 @@ export function EditCatalogItemPage() {
               </SectionCard>
             </div>
           )}
+
+          <div
+            className="ecu-companies-form__actions"
+            style={{
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 5,
+              marginTop: '1.25rem',
+              padding: '0.9rem 1rem',
+              borderRadius: '0.75rem',
+              border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.08))',
+              background: 'var(--glb-surface, #fff)',
+              display: 'flex',
+              gap: '0.75rem',
+              alignItems: 'center',
+            }}
+          >
+            <Button
+              type="submit"
+              form="edit-catalog-item"
+              variant="primary"
+              loading={busy}
+              disabled={busy || deleting}
+            >
+              Guardar Cambios
+            </Button>
+            {canDelete ? (
+              <Button
+                type="button"
+                variant="danger"
+                loading={deleting}
+                disabled={busy || deleting}
+                onClick={() => setConfirmDelete(true)}
+              >
+                Eliminar
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || deleting}
+              onClick={goToList}
+            >
+              Cancelar
+            </Button>
+          </div>
         </>
       )}
       </div>

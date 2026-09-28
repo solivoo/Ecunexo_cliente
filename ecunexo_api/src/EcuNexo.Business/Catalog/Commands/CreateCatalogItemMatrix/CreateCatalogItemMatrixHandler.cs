@@ -1,12 +1,9 @@
 using EcuNexo.Business.Abstractions;
-using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Platform;
 using EcuNexo.Business.Tenancy;
-using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
-using EcuNexo.Core.Inventory;
 using FluentValidation;
 
 namespace EcuNexo.Business.Catalog.Commands.CreateCatalogItemMatrix;
@@ -20,8 +17,6 @@ public sealed class CreateCatalogItemMatrixHandler
     private readonly ICatalogItemRepository _items;
     private readonly ISysSettingRepository _settings;
     private readonly IProductTemplateRepository _templates;
-    private readonly IStockRepository _stocks;
-    private readonly IWarehouseRepository _warehouses;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateCatalogItemMatrixHandler(
@@ -31,8 +26,6 @@ public sealed class CreateCatalogItemMatrixHandler
         ICatalogItemRepository items,
         ISysSettingRepository settings,
         IProductTemplateRepository templates,
-        IStockRepository stocks,
-        IWarehouseRepository warehouses,
         IUnitOfWork unitOfWork)
     {
         _validator = validator;
@@ -41,8 +34,6 @@ public sealed class CreateCatalogItemMatrixHandler
         _items = items;
         _settings = settings;
         _templates = templates;
-        _stocks = stocks;
-        _warehouses = warehouses;
         _unitOfWork = unitOfWork;
     }
 
@@ -177,26 +168,6 @@ public sealed class CreateCatalogItemMatrixHandler
             var child = childResult.Value!;
             await _items.AddAsync(child, ct).ConfigureAwait(false);
             variantIds.Add(childId);
-
-            // Inicializar saldo en bodega si se indicó
-            if (v.InitialStock is decimal initialQty && initialQty > 0 && v.InitialStockWarehouseId is Guid warehouseId)
-            {
-                if (await _warehouses.GetActiveByIdAsync(command.TenantId, warehouseId, ct).ConfigureAwait(false) is not null)
-                {
-                    var stockResult = Stock.Create(
-                        _idGenerator.NewId(),
-                        command.TenantId,
-                        childId,
-                        warehouseId);
-
-                    if (stockResult.IsSuccess)
-                    {
-                        var stock = stockResult.Value!;
-                        stock.Increase(initialQty, null);
-                        await _stocks.AddAsync(stock, ct).ConfigureAwait(false);
-                    }
-                }
-            }
         }
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);

@@ -1,14 +1,11 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Commands.AddCatalogItemVariant;
-using EcuNexo.Business.Inventory;
+
 using EcuNexo.Business.Tenancy;
-using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Catalog;
-using EcuNexo.Core.Inventory;
 using EcuNexo.Core.Tenancy;
-using EcuNexo.Core.Warehousing;
 using NSubstitute;
 
 namespace EcuNexo.Business.UnitTests.Catalog;
@@ -18,8 +15,6 @@ public sealed class AddCatalogItemVariantHandlerTests
     private readonly IIdGenerator _idGenerator = Substitute.For<IIdGenerator>();
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly ICatalogItemRepository _items = Substitute.For<ICatalogItemRepository>();
-    private readonly IStockRepository _stocks = Substitute.For<IStockRepository>();
-    private readonly IWarehouseRepository _warehouses = Substitute.For<IWarehouseRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly AddCatalogItemVariantValidator _validator = new();
 
@@ -29,8 +24,6 @@ public sealed class AddCatalogItemVariantHandlerTests
             _idGenerator,
             _tenants,
             _items,
-            _stocks,
-            _warehouses,
             _unitOfWork);
 
     [Fact(DisplayName = "Añadir variante a producto matriz existente tiene éxito")]
@@ -176,57 +169,6 @@ public sealed class AddCatalogItemVariantHandlerTests
         result.Error!.Code.Should().Be("catalog.variant.sku.duplicate");
     }
 
-    [Fact(DisplayName = "Añadir variante con stock inicial crea registro de inventario")]
-    public async Task Handle_WithInitialStock_CreatesStockRecord()
-    {
-        var tenantId = Guid.CreateVersion7();
-        var parentId = Guid.CreateVersion7();
-        var childId = Guid.CreateVersion7();
-        var warehouseId = Guid.CreateVersion7();
-
-        var parent = CatalogItem.CreateMatrixParent(
-            parentId,
-            tenantId,
-            CatalogItemKind.Physical,
-            "Medias Algodón",
-            null,
-            "MED-01",
-            3.00m,
-            "[{\"name\":\"Talla\",\"values\":[\"35-38\"]}]",
-            null,
-            CatalogAttributeSchema.EmptyArrayJson).Value!;
-
-        var warehouse = Warehouse.Create(
-            warehouseId,
-            tenantId,
-            "Bodega Central",
-            "BOD-01",
-            isMain: true).Value!;
-
-        _items.GetTrackedByIdAsync(tenantId, parentId, Arg.Any<CancellationToken>())
-            .Returns(parent);
-        _items.SkuExistsIgnoreCaseAsync(tenantId, "MED-01-4244", null, Arg.Any<CancellationToken>())
-            .Returns(false);
-        _warehouses.GetActiveByIdAsync(tenantId, warehouseId, Arg.Any<CancellationToken>())
-            .Returns(warehouse);
-        _idGenerator.NewId().Returns(childId, Guid.CreateVersion7());
-
-        var command = new AddCatalogItemVariantCommand(
-            tenantId,
-            parentId,
-            "42-44",
-            "MED-01-4244",
-            BasePrice: 3.50m,
-            InitialStock: 50m,
-            InitialStockWarehouseId: warehouseId);
-
-        var sut = CreateSut();
-
-        var result = await sut.Handle(command, CancellationToken.None);
-
-        result.IsSuccess.Should().BeTrue();
-        await _stocks.Received(1).AddAsync(Arg.Is<Stock>(s => s.CatalogItemId == childId && s.Quantity == 50m), Arg.Any<CancellationToken>());
-    }
 
     [Fact(DisplayName = "Añadir variante bloquea cuando se alcanza el límite de variantes del plan")]
     public async Task Handle_VariantLimitReached_ReturnsForbidden()
