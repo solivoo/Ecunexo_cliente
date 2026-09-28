@@ -53,6 +53,7 @@ public sealed class ListStockHandler : IQueryHandler<ListStockQuery, IReadOnlyLi
                 s.Id,
                 s.CatalogItemId,
                 items.TryGetValue(s.CatalogItemId, out var item) ? item.Name : "—",
+                items.TryGetValue(s.CatalogItemId, out var itemDesc) ? itemDesc.Description : null,
                 items.TryGetValue(s.CatalogItemId, out var item2) ? item2.Sku : null,
                 s.WarehouseId,
                 warehouses.TryGetValue(s.WarehouseId, out var wh) ? wh.Name : "—",

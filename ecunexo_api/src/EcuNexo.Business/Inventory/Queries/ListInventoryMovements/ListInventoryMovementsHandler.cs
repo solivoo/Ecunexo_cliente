@@ -49,7 +49,9 @@ public sealed class ListInventoryMovementsHandler
                 m.UnitCost,
                 m.UnitCost is decimal cost
                     ? decimal.Round(cost * m.Quantity, 4, MidpointRounding.AwayFromZero)
-                    : null))
+                    : null,
+                items.TryGetValue(m.CatalogItemId, out var itemSku) ? itemSku.Sku : null,
+                items.TryGetValue(m.CatalogItemId, out var itemDesc) ? itemDesc.Description : null))
             .ToList();
         return Result.Success(list);
     }

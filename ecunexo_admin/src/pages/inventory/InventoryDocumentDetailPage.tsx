@@ -309,7 +309,10 @@ export function InventoryDocumentDetailPage() {
                       <tr key={line.catalogItemId}>
                         <td className="ecu-doc-lines__n">{idx + 1}</td>
                         <td>
-                          <strong>{line.catalogItemName}</strong>
+                          <strong>
+                            {line.catalogItemSku ? `${line.catalogItemSku} · ` : ''}
+                            {line.catalogItemDescription?.trim() || line.catalogItemName}
+                          </strong>
                         </td>
                         <td className="ecu-doc-lines__qty">
                           <span style={{ fontWeight: 600 }}>{line.quantity.toFixed(2)}</span>

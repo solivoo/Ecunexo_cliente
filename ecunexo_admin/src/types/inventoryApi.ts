@@ -79,6 +79,7 @@ export type StockListItemDto = {
   id: string
   catalogItemId: string
   catalogItemName: string
+  catalogItemDescription?: string | null
   sku: string | null
   warehouseId: string
   warehouseName: string
@@ -114,6 +115,8 @@ export type InventoryDocumentLineDto = {
   quantity: number
   unitCost?: number | null
   totalCost?: number | null
+  catalogItemSku?: string | null
+  catalogItemDescription?: string | null
 }
 
 export type InventoryDocumentDetailDto = {
@@ -153,6 +156,8 @@ export type InventoryMovementListItemDto = {
   id: string
   catalogItemId: string
   catalogItemName: string
+  catalogItemSku?: string | null
+  catalogItemDescription?: string | null
   warehouseId: string
   warehouseName: string
   documentId: string

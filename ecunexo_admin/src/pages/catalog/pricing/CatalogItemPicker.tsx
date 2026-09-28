@@ -1,5 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { Select, TextBox } from 'glubox'
+import { formatVariantDisplayName } from '@/lib/catalogArchetype'
 import type { CatalogItemListItemDto } from '@/types/catalogApi'
 
 const MAX_OPTIONS = 200
@@ -40,9 +41,12 @@ export function CatalogItemPicker({
 
     return filtered.slice(0, MAX_OPTIONS).map((item) => ({
       value: item.id,
-      label: item.sku
-        ? `${item.sku} · ${item.description?.trim() || item.name}`
-        : item.description?.trim() || item.name,
+      label: (() => {
+        const display =
+          item.description?.trim() ||
+          (item.parentId ? formatVariantDisplayName(item.name, item.parentName ?? null) : item.name)
+        return item.sku ? `${item.sku} · ${display}` : display
+      })(),
     }))
   }, [items, search])
 

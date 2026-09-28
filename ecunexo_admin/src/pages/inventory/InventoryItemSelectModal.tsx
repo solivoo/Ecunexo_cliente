@@ -314,9 +314,6 @@ export function InventoryItemSelectModal({
               </div>
             )}
             <div className="ecu-inv-modal__item-details">
-              {row.parentName ? (
-                <span className="ecu-inv-modal__parent-name">{row.parentName}</span>
-              ) : null}
               <span
                 className="ecu-inv-modal__item-name"
                 title={row.item.description?.trim() || row.name}

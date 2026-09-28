@@ -102,7 +102,12 @@ export function InventoryKardexPage() {
         header: 'Ítem físico',
         width: 240,
         sortable: true,
-        renderCell: (_v: Row['catalogItemName'], row: Row) => <strong>{row.catalogItemName}</strong>,
+        renderCell: (_v: Row['catalogItemName'], row: Row) => (
+          <strong>
+            {row.catalogItemSku ? `${row.catalogItemSku} · ` : ''}
+            {row.catalogItemDescription?.trim() || row.catalogItemName}
+          </strong>
+        ),
       },
       {
         key: 'warehouseName',

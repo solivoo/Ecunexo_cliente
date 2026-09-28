@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.64.5`.
+* **Última Versión Publicada:** `v0.64.6`.
 * **Hitos Recientes Completados:**
+  - **Inventario/Precios — Identificación por SKU de la variante (v0.64.6):**
+    * API: `CatalogItemListItemResponse.ParentName`; respuestas de stock/líneas de documento/movimientos exponen `CatalogItemDescription` y `CatalogItemSku`.
+    * Admin: saldos, kárdex y detalle de documentos muestran `SKU · Descripción` (respaldo nombre); el modal de inventario ya no antepone el nombre del padre; el picker de precios usa `formatVariantDisplayName(name, parentName)` para variantes.
+    * Aclaración del usuario: NO crear un nombre matriz agregado; la identificación es por SKU + nombre/valores de cada variante. 422 tests Business en verde.
   - **Precios — Margen sugerido por lista (v0.64.5):**
     * `PriceList.SuggestedMarginPercent` (0–1000, `NormalizeMargin`) + columna `suggested_margin_percent` (migración `AddPriceListSuggestedMarginPercent`); comandos/contratos/DTO actualizados.
     * Admin: campo «Margen sugerido (%)» en la lista; en el formulario de precio, precarga priorizada: vigente de la lista → costo promedio × (1+margen/100) cuando no hay vigente; hint con el margen de la lista. 353 Core + 422 Business en verde.

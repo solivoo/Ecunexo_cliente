@@ -11,7 +11,9 @@ public sealed record InventoryDocumentLineResponse(
     string CatalogItemName,
     decimal Quantity,
     decimal? UnitCost = null,
-    decimal? TotalCost = null);
+    decimal? TotalCost = null,
+    string? CatalogItemSku = null,
+    string? CatalogItemDescription = null);
 
 public sealed record InventoryDocumentDetailResponse(
     Guid Id,

@@ -19,4 +19,6 @@ public sealed record InventoryMovementListItemResponse(
     decimal Quantity,
     DateTimeOffset OccurredAt,
     decimal? UnitCost = null,
-    decimal? TotalCost = null);
+    decimal? TotalCost = null,
+    string? CatalogItemSku = null,
+    string? CatalogItemDescription = null);

@@ -70,7 +70,9 @@ public sealed class GetInventoryDocumentHandler
                         l.UnitCost,
                         l.UnitCost is decimal cost
                             ? decimal.Round(cost * l.Quantity, 4, MidpointRounding.AwayFromZero)
-                            : null))
+                            : null,
+                        items.TryGetValue(l.CatalogItemId, out var itemSku) ? itemSku.Sku : null,
+                        items.TryGetValue(l.CatalogItemId, out var itemDesc) ? itemDesc.Description : null))
                     .ToList()));
     }
 }

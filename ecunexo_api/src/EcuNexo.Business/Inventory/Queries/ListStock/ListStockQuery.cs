@@ -12,6 +12,7 @@ public sealed record StockListItemResponse(
     Guid Id,
     Guid CatalogItemId,
     string CatalogItemName,
+    string? CatalogItemDescription,
     string? Sku,
     Guid WarehouseId,
     string WarehouseName,

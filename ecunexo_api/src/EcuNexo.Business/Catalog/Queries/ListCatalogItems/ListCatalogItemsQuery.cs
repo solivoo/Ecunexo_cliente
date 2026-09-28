@@ -29,4 +29,5 @@ public sealed record CatalogItemListItemResponse(
     string? FamilyName = null,
     string? HierarchyPathJson = null,
     string? CustomAttributesJson = null,
-    bool IsHiddenFromStorefront = false);
+    bool IsHiddenFromStorefront = false,
+    string? ParentName = null);

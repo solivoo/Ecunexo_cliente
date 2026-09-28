@@ -27,6 +27,10 @@ public sealed class ListCatalogItemsHandler
             list = list.Where(i => i.ParentId == null).ToList();
         }
 
+        var parentNames = list
+            .Where(i => i.ParentId == null)
+            .ToDictionary(i => i.Id, i => i.Name);
+
         Dictionary<Guid, string> familyNames = [];
         if (list.Any(i => i.FamilyId.HasValue))
         {
@@ -57,7 +61,8 @@ public sealed class ListCatalogItemsHandler
                     i.FamilyId is { } fid && familyNames.TryGetValue(fid, out var fn) ? fn : null,
                     i.HierarchyPathJson,
                     i.CustomAttributesJson,
-                    i.IsHiddenFromStorefront);
+                    i.IsHiddenFromStorefront,
+                    i.ParentId is { } pid && parentNames.TryGetValue(pid, out var parentName) ? parentName : null);
             })
             .ToList();
         return Result.Success(items);

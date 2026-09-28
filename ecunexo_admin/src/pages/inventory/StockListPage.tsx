@@ -159,7 +159,10 @@ export function StockListPage() {
         sortable: true,
         renderCell: (_v: Row['catalogItemName'], row: Row) => (
           <div>
-            <strong>{row.catalogItemName}</strong>
+            <strong>
+              {row.sku ? `${row.sku} · ` : ''}
+              {row.catalogItemDescription?.trim() || row.catalogItemName}
+            </strong>
             {row.isBelowMinimum ? (
               <div style={{ marginTop: 2 }}>
                 <span className="ecu-status ecu-status--danger">
@@ -432,7 +435,13 @@ export function StockListPage() {
 
       <Popup
         open={inspectingStock !== null}
-        title={inspectingStock ? `Ficha técnica: ${inspectingStock.catalogItemName}` : 'Ficha técnica'}
+        title={
+          inspectingStock
+            ? `Ficha técnica: ${inspectingStock.sku ? `${inspectingStock.sku} · ` : ''}${
+                inspectingStock.catalogItemDescription?.trim() || inspectingStock.catalogItemName
+              }`
+            : 'Ficha técnica'
+        }
         onClose={() => setInspectingStock(null)}
         width="min(94vw, 38rem)"
         actions={[
