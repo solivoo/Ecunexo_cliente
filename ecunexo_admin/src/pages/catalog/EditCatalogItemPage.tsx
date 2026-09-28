@@ -199,6 +199,7 @@ export function EditCatalogItemPage() {
 
   const showDescriptionField = !templateCapturesDescription
   const showNameField = !templateCapturesName
+  const showSkuField = !item?.isMatrixParent
   const showBarcodeField = !item?.isMatrixParent
 
   const variantDimensionNames = useMemo<string[]>(
@@ -524,7 +525,7 @@ export function EditCatalogItemPage() {
           kind: kindNum,
           name: payloadName,
           description: description.trim() || null,
-          sku: sku.trim() || null,
+          sku: item?.isMatrixParent ? null : sku.trim() || null,
           barcode: barcode.trim() || null,
           basePrice: null,
           customAttributesJson: serializeCustomAttributes(customAttributes, tags),
@@ -792,26 +793,24 @@ export function EditCatalogItemPage() {
                       />
                     </div>
                   ) : null}
-                  <div className="ecu-companies-form__field">
-                    <TextBox
-                      id="ei-sku"
-                      label={item?.isMatrixParent ? 'Código de modelo' : 'SKU'}
-                      labelPosition="outlined"
-                      variant="outline"
-                      value={sku}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                        setSku(e.target.value.toUpperCase())
-                      }
-                      placeholder={
-                        item?.isMatrixParent
-                          ? 'Prefijo para los SKU de las variantes'
-                          : 'Ej. CALC-001'
-                      }
-                      required={Number(kind) === CatalogItemKind.Physical && !item?.isMatrixParent}
-                      disabled={busy}
-                      fullWidth
-                    />
-                  </div>
+                  {showSkuField ? (
+                    <div className="ecu-companies-form__field">
+                      <TextBox
+                        id="ei-sku"
+                        label="SKU"
+                        labelPosition="outlined"
+                        variant="outline"
+                        value={sku}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                          setSku(e.target.value.toUpperCase())
+                        }
+                        placeholder="Ej. CALC-001"
+                        required={Number(kind) === CatalogItemKind.Physical}
+                        disabled={busy}
+                        fullWidth
+                      />
+                    </div>
+                  ) : null}
                   {showDescriptionField ? (
                     <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                       <TextBox

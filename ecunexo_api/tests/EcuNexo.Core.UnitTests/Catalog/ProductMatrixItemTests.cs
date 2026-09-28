@@ -28,7 +28,7 @@ public sealed class ProductMatrixItemTests
         var item = result.Value!;
         item.IsMatrixParent.Should().BeTrue();
         item.ParentId.Should().BeNull();
-        item.Sku.Should().Be("CALC-DEP");
+        item.Sku.Should().BeNull();
         item.VariantDimensionsJson.Should().Contain("Talla");
         item.Variants.Should().BeEmpty();
     }

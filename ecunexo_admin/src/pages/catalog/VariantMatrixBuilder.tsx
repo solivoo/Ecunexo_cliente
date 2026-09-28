@@ -66,8 +66,8 @@ export type VariantMatrixBuilderProps = {
   tenantId: string | null
   baseName: string
   basePrice: string
-  /** Código de modelo (SKU del padre): prefijo para autogenerar los SKU de las variantes. */
-  modelCode?: string
+  /** Prefijo (nombre del producto): base para autogenerar los SKU de las variantes. */
+  skuPrefix?: string
   parentTags?: readonly string[]
   disabled?: boolean
   onChange: (data: {
@@ -202,7 +202,7 @@ export function VariantMatrixBuilder({
   tenantId: _tenantId,
   baseName,
   basePrice,
-  modelCode = '',
+  skuPrefix = '',
   parentTags = NO_PARENT_TAGS,
   disabled = false,
   onChange,
@@ -399,15 +399,15 @@ export function VariantMatrixBuilder({
     )
   }, [])
 
-  const skuPrefix = useMemo(
-    () => (modelCode.trim() ? normalizeSkuBase(modelCode).slice(0, 16) : ''),
-    [modelCode]
+  const skuBase = useMemo(
+    () => (skuPrefix.trim() ? normalizeSkuBase(skuPrefix).slice(0, 16) : ''),
+    [skuPrefix]
   )
 
-  /** SKU autogenerado: código de modelo + valores de dimensión (mismo orden de ejes). */
+  /** SKU autogenerado: prefijo del producto + valores de dimensión (mismo orden de ejes). */
   const buildSkuForRow = useCallback(
     (dimensionValues: Record<string, string>): string => {
-      const base = normalizeSkuBase(modelCode).slice(0, 16)
+      const base = skuBase
       const parts = Object.values(dimensionValues)
         .map((value) =>
           skuTokenFromDimension(value, (hex) => resolveHumanDimensionValue('', hex))
@@ -415,12 +415,12 @@ export function VariantMatrixBuilder({
         .filter(Boolean)
       return [base, ...parts].filter(Boolean).join('-').slice(0, SKU_MAX_LENGTH)
     },
-    [modelCode, resolveHumanDimensionValue]
+    [resolveHumanDimensionValue, skuBase]
   )
 
   // Autocompleta el SKU de las filas que el usuario no haya escrito manualmente.
   useEffect(() => {
-    if (!modelCode.trim()) return
+    if (!skuPrefix.trim()) return
     setRows((prev) => {
       let changed = false
       const next = prev.map((row) => {
@@ -434,7 +434,7 @@ export function VariantMatrixBuilder({
       })
       return changed ? next : prev
     })
-  }, [buildSkuForRow, dimensions, modelCode, rows])
+  }, [buildSkuForRow, dimensions, rows, skuPrefix])
 
   const handleVariantAttributeChange = useCallback((rowId: string, key: string, value: string) => {
     setRows((prev) =>
@@ -1515,8 +1515,8 @@ export function VariantMatrixBuilder({
                       <div className="ecu-variant-sub-item-field" style={{ minWidth: '190px', flex: '1.4 1 190px', maxWidth: '260px' }}>
                         <label className="ecu-variant-sub-item-label">
                           SKU *
-                          {skuPrefix ? (
-                            <span className="app-shell__muted"> · {skuPrefix}-…</span>
+                          {skuBase ? (
+                            <span className="app-shell__muted"> · {skuBase}-…</span>
                           ) : null}
                         </label>
                         <TextBox
@@ -1526,7 +1526,7 @@ export function VariantMatrixBuilder({
                           onChange={(e: ChangeEvent<HTMLInputElement>) =>
                             updateRow(row.id, 'sku', e.target.value.toUpperCase())
                           }
-                          placeholder={skuPrefix ? `${skuPrefix}-…` : 'Ej. NIK-001-0001'}
+                          placeholder={skuBase ? `${skuBase}-…` : 'Ej. NIK-001-0001'}
                           error={duplicateSkuSet.has(row.sku.trim().toUpperCase())}
                           errorMessage={
                             duplicateSkuSet.has(row.sku.trim().toUpperCase())

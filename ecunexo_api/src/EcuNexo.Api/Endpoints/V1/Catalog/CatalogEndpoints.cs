@@ -255,12 +255,13 @@ public static class CatalogEndpoints
         CatalogItemKind? kind,
         CatalogItemStatus? status,
         bool? onlyRoots,
+        bool? includeParents,
         ISender sender,
         CancellationToken ct)
     {
         var result = await sender
             .AskAsync<ListCatalogItemsQuery, IReadOnlyList<CatalogItemListItemResponse>>(
-                new ListCatalogItemsQuery(tenantId, kind, status, onlyRoots ?? false),
+                new ListCatalogItemsQuery(tenantId, kind, status, onlyRoots ?? false, includeParents ?? true),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

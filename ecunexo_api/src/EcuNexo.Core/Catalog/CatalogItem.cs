@@ -1566,6 +1566,11 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
     private static Result<string?> NormalizeSku(CatalogItemKind kind, string? sku, bool isMatrixParent = false)
     {
+        if (isMatrixParent)
+        {
+            return Result.Success<string?>(null);
+        }
+
         if (string.IsNullOrWhiteSpace(sku))
         {
             if (kind == CatalogItemKind.Physical && !isMatrixParent)

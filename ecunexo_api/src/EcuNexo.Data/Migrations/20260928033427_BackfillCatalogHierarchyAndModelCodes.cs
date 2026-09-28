@@ -84,20 +84,7 @@ namespace EcuNexo.Data.Migrations
                 WHERE i.id = built.item_id;
                 """);
 
-            // 2) Código de modelo para plantillas padre (matriz) sin SKU:
-            //    slug del nombre + 8 caracteres del id para garantizar unicidad.
-            migrationBuilder.Sql(
-                """
-                UPDATE catalog.items
-                SET sku = trim(both '-' from left(
-                              regexp_replace(
-                                  translate(upper(name), 'ÁÉÍÓÚÜÑ', 'AEIOUUN'),
-                                  '[^A-Z0-9]+', '-', 'g'), 24))
-                          || '-' || upper(left(replace(id::text, '-', ''), 8))
-                WHERE is_matrix_parent = TRUE
-                  AND (sku IS NULL OR btrim(sku) = '')
-                  AND deleted_at IS NULL;
-                """);
+
         }
 
         /// <inheritdoc />

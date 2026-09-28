@@ -22,7 +22,12 @@ export async function listCatalogItems(
   tenantId: string,
   kindOrOptions?:
     | CatalogItemKind
-    | { kind?: CatalogItemKind; status?: CatalogItemStatus; onlyRoots?: boolean },
+    | {
+        kind?: CatalogItemKind
+        status?: CatalogItemStatus
+        onlyRoots?: boolean
+        includeParents?: boolean
+      },
   status?: CatalogItemStatus,
   onlyRoots?: boolean
 ): Promise<CatalogItemListItemDto[]> {
@@ -31,6 +36,8 @@ export async function listCatalogItems(
     if (kindOrOptions.kind !== undefined) params.kind = kindOrOptions.kind
     if (kindOrOptions.status !== undefined) params.status = kindOrOptions.status
     if (kindOrOptions.onlyRoots !== undefined) params.onlyRoots = kindOrOptions.onlyRoots
+    if (kindOrOptions.includeParents !== undefined)
+      params.includeParents = kindOrOptions.includeParents
   } else {
     if (kindOrOptions !== undefined) params.kind = kindOrOptions
     if (status !== undefined) params.status = status

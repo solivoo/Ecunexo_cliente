@@ -140,10 +140,10 @@ public sealed class CatalogItemTests
         var entry = historyEl[0];
         entry.GetProperty("reason").GetString().Should().Be("Movido por corrección de catálogo");
         entry.GetProperty("previous_parent_id").GetString().Should().Be(parentA.Id.ToString());
-        entry.GetProperty("previous_parent_sku").GetString().Should().Be("MAT-A");
+        entry.GetProperty("previous_parent_sku").GetString().Should().BeNull();
         entry.GetProperty("previous_parent_name").GetString().Should().Be("Matriz A");
         entry.GetProperty("target_parent_id").GetString().Should().Be(parentB.Id.ToString());
-        entry.GetProperty("target_parent_sku").GetString().Should().Be("MAT-B");
+        entry.GetProperty("target_parent_sku").GetString().Should().BeNull();
         entry.GetProperty("target_parent_name").GetString().Should().Be("Matriz B");
         entry.GetProperty("moved_by").GetString().Should().Be(userId.ToString());
     }

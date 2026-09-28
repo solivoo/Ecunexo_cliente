@@ -22,14 +22,19 @@ public sealed class ListCatalogItemsHandler
         CancellationToken ct)
     {
         var list = await _items.ListActiveByTenantAsync(query.TenantId, query.Kind, query.Status, ct).ConfigureAwait(false);
+        var parentNames = list
+            .Where(i => i.ParentId == null)
+            .ToDictionary(i => i.Id, i => i.Name);
+
         if (query.OnlyRoots)
         {
             list = list.Where(i => i.ParentId == null).ToList();
         }
 
-        var parentNames = list
-            .Where(i => i.ParentId == null)
-            .ToDictionary(i => i.Id, i => i.Name);
+        if (!query.IncludeParents)
+        {
+            list = list.Where(i => !i.IsMatrixParent).ToList();
+        }
 
         Dictionary<Guid, string> familyNames = [];
         if (list.Any(i => i.FamilyId.HasValue))

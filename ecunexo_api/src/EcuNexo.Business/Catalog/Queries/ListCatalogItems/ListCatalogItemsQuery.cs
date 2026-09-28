@@ -7,7 +7,8 @@ public sealed record ListCatalogItemsQuery(
     Guid TenantId,
     CatalogItemKind? Kind = null,
     CatalogItemStatus? Status = null,
-    bool OnlyRoots = false)
+    bool OnlyRoots = false,
+    bool IncludeParents = true)
     : IQuery<IReadOnlyList<CatalogItemListItemResponse>>;
 
 public sealed record CatalogItemListItemResponse(

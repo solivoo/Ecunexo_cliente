@@ -52,7 +52,7 @@ export function CatalogItemsListPage() {
       if (!tenantId) return
       setLoading(true)
       try {
-        setRows(await listCatalogItems(tenantId, { onlyRoots: true }))
+        setRows(await listCatalogItems(tenantId, { includeParents: false }))
         setError(null)
       } catch (err: unknown) {
         const message = readApiError(err, 'No se pudo cargar el catálogo.')

@@ -264,15 +264,17 @@ export function CreateCatalogItemPage() {
   )
   const showManualDescription = !hasTemplateDescriptionField
 
-  // Código de modelo (SKU del padre): prefijo para autogenerar los SKU de cada variante.
-  const matrixModelCode = useMemo(() => {
+  // Prefijo para autogenerar los SKU de cada variante a partir del nombre del producto.
+  const variantSkuPrefix = useMemo(() => {
     const seedName = (showManualName ? name.trim() : derivedTemplateName) || ''
-    const base =
-      manualSku.trim() ||
-      derivedTemplateSku ||
-      (seedName ? generateSkuFromName(seedName) : '')
-    return base.toUpperCase()
-  }, [derivedTemplateName, derivedTemplateSku, manualSku, name, showManualName])
+    return seedName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 16)
+  }, [derivedTemplateName, name, showManualName])
 
   const handleApplyTemplate = useCallback((templateId: string) => {
     setSelectedTemplateId(templateId)
@@ -386,7 +388,7 @@ export function CreateCatalogItemPage() {
             kind: kindNum,
             name: finalName,
             description: finalDescription || null,
-            modelCode: matrixModelCode || null,
+            modelCode: null,
             basePrice: null,
             variantDimensionsJson: matrixData.variantDimensionsJson,
             variants: matrixData.variants,
@@ -546,7 +548,6 @@ export function CreateCatalogItemPage() {
       showManualDescription,
       showManualName,
       matrixData,
-      matrixModelCode,
       maxVariants,
       navigate,
       photoChoice,
@@ -677,26 +678,24 @@ export function CreateCatalogItemPage() {
                     />
                   </div>
                 ) : null}
-                <div className="ecu-companies-form__field">
-                  <TextBox
-                    id="ci-sku"
-                    label={usesMatrix ? 'Código de modelo' : 'SKU'}
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={manualSku}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                      setManualSku(e.target.value.toUpperCase())
-                    }
-                    placeholder={
-                      usesMatrix
-                        ? 'Prefijo para los SKU de las variantes (opcional)'
-                        : 'Ej. CALC-001'
-                    }
-                    required={!usesMatrix}
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
+                {!usesMatrix ? (
+                  <div className="ecu-companies-form__field">
+                    <TextBox
+                      id="ci-sku"
+                      label="SKU"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={manualSku}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setManualSku(e.target.value.toUpperCase())
+                      }
+                      placeholder="Ej. CALC-001"
+                      required
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                ) : null}
                 {showManualDescription ? (
                   <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
                     <TextBox
@@ -763,14 +762,9 @@ export function CreateCatalogItemPage() {
               <SectionCard
                 title="Variaciones"
                 subtitle={
-                  [
-                    templateAllDimensions?.length
-                      ? `Ejes: ${templateAllDimensions.map((d) => d.name).join(' × ')}`
-                      : null,
-                    matrixModelCode ? `Código de modelo: ${matrixModelCode}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || undefined
+                  templateAllDimensions?.length
+                    ? `Ejes: ${templateAllDimensions.map((d) => d.name).join(' × ')}`
+                    : undefined
                 }
               >
                 {remainingVariants != null && (
@@ -810,7 +804,7 @@ export function CreateCatalogItemPage() {
                     ''
                   }
                   basePrice=""
-                  modelCode={matrixModelCode}
+                  skuPrefix={variantSkuPrefix}
                   disabled={busy}
                   onChange={setMatrixData}
                   availableImages={stagedImages}
