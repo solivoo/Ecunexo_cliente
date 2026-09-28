@@ -1424,6 +1424,28 @@ export function VariantMatrixBuilder({
                 <div className="ecu-variant-group-card__items-table">
                   {group.rows.map((row) => (
                     <div key={row.id} className="ecu-variant-sub-item-row">
+                      {/* SKU (Obligatorio) */}
+                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '190px', flex: '1.4 1 190px', maxWidth: '260px' }}>
+                        <label className="ecu-variant-sub-item-label">SKU *</label>
+                        <TextBox
+                          size="sm"
+                          variant="outline"
+                          value={row.sku}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            updateRow(row.id, 'sku', e.target.value.toUpperCase())
+                          }
+                          placeholder="Ej. NIK-001-0001"
+                          error={duplicateSkuSet.has(row.sku.trim().toUpperCase())}
+                          errorMessage={
+                            duplicateSkuSet.has(row.sku.trim().toUpperCase())
+                              ? 'SKU repetido'
+                              : undefined
+                          }
+                          disabled={disabled}
+                          fullWidth
+                        />
+                      </div>
+
                       {/* Dimensiones Hijas (Talla, Largo, etc.) */}
                       {childDims.map((dim) => {
                         const currentVal = row.dimensionValues[dim.name] || ''
@@ -1537,28 +1559,6 @@ export function VariantMatrixBuilder({
                           </div>
                         )
                       })()}
-
-                      {/* SKU (Obligatorio) */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '190px', flex: '1.4 1 190px', maxWidth: '260px' }}>
-                        <label className="ecu-variant-sub-item-label">SKU *</label>
-                        <TextBox
-                          size="sm"
-                          variant="outline"
-                          value={row.sku}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            updateRow(row.id, 'sku', e.target.value.toUpperCase())
-                          }
-                          placeholder="Ej. NIK-001-0001"
-                          error={duplicateSkuSet.has(row.sku.trim().toUpperCase())}
-                          errorMessage={
-                            duplicateSkuSet.has(row.sku.trim().toUpperCase())
-                              ? 'SKU repetido'
-                              : undefined
-                          }
-                          disabled={disabled}
-                          fullWidth
-                        />
-                      </div>
 
                       {/* Cód. Barras */}
                       <div className="ecu-variant-sub-item-field" style={{ minWidth: '150px', flex: '1 1 150px' }}>

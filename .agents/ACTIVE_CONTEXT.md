@@ -7,8 +7,10 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.62.6`.
+* **Última Versión Publicada:** `v0.62.7`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — SKU primero en la fila (v0.62.7):**
+    * `VariantMatrixBuilder`: el bloque SKU se movió al inicio de la fila (antes de los ejes y demás campos).
   - **Catálogo — Fotos de variante en línea y ordenables (v0.62.6):**
     * `VariantMatrixBuilder`: la fila de Foto renderiza todas las `stagedImages` como miniaturas (44px) en un flex `nowrap` con scroll horizontal, con flechas `ArrowLeft/ArrowRight` que llaman a `handleMoveRowPhoto` (la primera es portada) y botón «Añadir foto».
   - **Catálogo — Colores en una sola línea (v0.62.5):**
