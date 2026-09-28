@@ -571,16 +571,6 @@ export function CreateCatalogItemPage() {
                 renderIcon={renderSidebarIcon}
                 onNavigate={(route: string) => navigate(route)}
               />
-              <Button
-                type="submit"
-                form="create-catalog-item"
-                variant="primary"
-                loading={busy}
-                disabled={busy || !appliedTemplate}
-              >
-                <Save size={16} />
-                <span>{uploadStatus || 'Guardar producto'}</span>
-              </Button>
             </div>
           }
         />
@@ -737,6 +727,16 @@ export function CreateCatalogItemPage() {
             className="ecu-companies-form__actions"
             style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingTop: '0.25rem' }}
           >
+            <Button
+              type="submit"
+              form="create-catalog-item"
+              variant="primary"
+              loading={busy}
+              disabled={busy || !appliedTemplate}
+            >
+              <Save size={16} />
+              <span>{uploadStatus || 'Guardar producto'}</span>
+            </Button>
             <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
               Cancelar
             </Button>

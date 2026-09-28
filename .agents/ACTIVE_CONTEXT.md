@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.62.8`.
+* **Última Versión Publicada:** `v0.62.9`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Confirmar al pie y colores a la derecha (v0.62.9):**
+    * `CreateCatalogItemPage`: botón «Guardar producto» movido de `PageHeader.actions` al pie del formulario (junto a Cancelar).
+    * `EcuColorListInput`: selector + «Añadir» primero (izquierda) y chips acumulándose a la derecha.
   - **Catálogo — Miniaturas de foto con orden y hover (v0.62.8):**
     * `variantMatrixBuilder.css`: clases `.ecu-variant-photo-thumb` (badge de orden) y `__bar` (flechas ‹ › que aparecen en hover/focus-within); `VariantMatrixBuilder` usa el wrapper con badge y barra interna en lugar de flechas superpuestas.
   - **Catálogo — SKU primero en la fila (v0.62.7):**

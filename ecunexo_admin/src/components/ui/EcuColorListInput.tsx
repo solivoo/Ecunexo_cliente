@@ -65,6 +65,23 @@ export function EcuColorListInput({
           paddingBottom: '0.15rem',
         }}
       >
+        {!disabled && colors.length < maxColors && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+            <ColorPicker
+              value={draft}
+              onChange={(hex: string) => setDraft(hex)}
+              size="sm"
+              variant="outline"
+              disabled={disabled}
+              width={140}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={!canAdd}>
+              <Plus size={13} />
+              <span>Añadir</span>
+            </Button>
+          </div>
+        )}
+
         {colors.map((color) => (
           <span
             key={color}
@@ -112,22 +129,6 @@ export function EcuColorListInput({
           </span>
         ))}
 
-        {!disabled && colors.length < maxColors && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-            <ColorPicker
-              value={draft}
-              onChange={(hex: string) => setDraft(hex)}
-              size="sm"
-              variant="outline"
-              disabled={disabled}
-              width={140}
-            />
-            <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={!canAdd}>
-              <Plus size={13} />
-              <span>Añadir</span>
-            </Button>
-          </div>
-        )}
       </div>
 
       {helperText && (
