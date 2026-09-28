@@ -1,5 +1,6 @@
 import { api } from '@/lib/apiClient'
 import type {
+  BulkCreateProductPricesBody,
   CreatePriceListBody,
   CreateProductPriceBody,
   CreatePromotionBody,
@@ -59,6 +60,17 @@ export async function listProductPrices(
   const { data } = await api.get<ProductPriceListItemDto[]>(`${base(tenantId)}/prices`, {
     params: filters,
   })
+  return data
+}
+
+export async function bulkCreateProductPrices(
+  tenantId: string,
+  body: BulkCreateProductPricesBody
+): Promise<{ priceListId: string; createdCount: number }> {
+  const { data } = await api.post<{ priceListId: string; createdCount: number }>(
+    `${base(tenantId)}/prices/bulk`,
+    body
+  )
   return data
 }
 

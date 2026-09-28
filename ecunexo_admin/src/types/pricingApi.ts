@@ -174,6 +174,19 @@ export type UpdatePromotionBody = Omit<CreatePromotionBody, 'code'> & {
   isActive?: boolean | null
 }
 
+export type BulkPriceItemBody = {
+  catalogItemId: string
+  price: number
+}
+
+export type BulkCreateProductPricesBody = {
+  priceListId: string
+  validFrom: string
+  validTo: string | null
+  reason: string | null
+  items: BulkPriceItemBody[]
+}
+
 export type ResolvePriceBody = {
   catalogItemId: string
   quantity: number

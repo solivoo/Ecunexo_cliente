@@ -242,13 +242,22 @@ export function ProductPricesListPage() {
               description="Crea una vigencia de precio para un producto en una lista comercial."
               action={
                 canCreate ? (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => navigate('/catalogo/precios/productos/nuevo')}
-                  >
-                    + Nuevo Precio
-                  </Button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => navigate('/catalogo/precios/productos/nuevo')}
+                    >
+                      + Nuevo Precio
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/catalogo/precios/productos/masivo')}
+                    >
+                      Carga masiva
+                    </Button>
+                  </div>
                 ) : undefined
               }
             />
@@ -302,13 +311,22 @@ export function ProductPricesListPage() {
                   </div>
                   <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
                   {canCreate ? (
-                    <Button
-                      type="button"
-                      variant="primary"
-                      onClick={() => navigate('/catalogo/precios/productos/nuevo')}
-                    >
-                      + Nuevo Precio
-                    </Button>
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => navigate('/catalogo/precios/productos/masivo')}
+                      >
+                        Carga masiva
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="primary"
+                        onClick={() => navigate('/catalogo/precios/productos/nuevo')}
+                      >
+                        + Nuevo Precio
+                      </Button>
+                    </>
                   ) : null}
                 </div>
               }

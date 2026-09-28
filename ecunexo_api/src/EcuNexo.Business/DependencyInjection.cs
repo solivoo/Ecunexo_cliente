@@ -1,5 +1,6 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Pricing;
+using EcuNexo.Business.Pricing.Commands.BulkCreateProductPrices;
 using EcuNexo.Business.Pricing.Commands.CreatePriceList;
 using EcuNexo.Business.Pricing.Commands.CreateProductPrice;
 using EcuNexo.Business.Pricing.Commands.CreatePromotion;
@@ -445,6 +446,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<UpdatePriceListCommand, UpdatePriceListResponse>, UpdatePriceListHandler>();
         services.AddScoped<ICommandHandler<DeletePriceListCommand, DeletePriceListResponse>, DeletePriceListHandler>();
         services.AddScoped<ICommandHandler<CreateProductPriceCommand, CreateProductPriceResponse>, CreateProductPriceHandler>();
+        services.AddScoped<ICommandHandler<BulkCreateProductPricesCommand, BulkCreateProductPricesResponse>, BulkCreateProductPricesHandler>();
         services.AddScoped<ICommandHandler<UpdateProductPriceCommand, UpdateProductPriceResponse>, UpdateProductPriceHandler>();
         services.AddScoped<ICommandHandler<DeleteProductPriceCommand, DeleteProductPriceResponse>, DeleteProductPriceHandler>();
         services.AddScoped<ICommandHandler<CreatePromotionCommand, CreatePromotionResponse>, CreatePromotionHandler>();

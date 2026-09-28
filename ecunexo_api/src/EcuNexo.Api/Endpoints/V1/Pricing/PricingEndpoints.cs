@@ -6,6 +6,7 @@ using EcuNexo.Api.Security;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Pricing.Commands.CreatePriceList;
+using EcuNexo.Business.Pricing.Commands.BulkCreateProductPrices;
 using EcuNexo.Business.Pricing.Commands.CreateProductPrice;
 using EcuNexo.Business.Pricing.Commands.CreatePromotion;
 using EcuNexo.Business.Pricing.Commands.DeletePriceList;
@@ -58,6 +59,8 @@ public static class PricingEndpoints
             .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.read"));
         prices.MapGet("/{priceId:guid}", GetProductPriceAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.read"));
+        prices.MapPost("/bulk", BulkCreateProductPricesAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.create"));
         prices.MapGet("/history", GetPriceHistoryAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.history.read"));
         prices.MapPost("/", CreateProductPriceAsync)
@@ -210,6 +213,20 @@ public static class PricingEndpoints
         return Results.Created(
             $"/api/v1/tenants/{value.TenantId}/catalog/pricing/prices/{value.ProductPriceId}",
             value);
+    }
+
+    private static async Task<IResult> BulkCreateProductPricesAsync(
+        Guid tenantId,
+        BulkCreateProductPricesRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<BulkCreateProductPricesCommand, BulkCreateProductPricesResponse>(
+                body.ToCommand(tenantId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
     }
 
     private static async Task<IResult> UpdateProductPriceAsync(

@@ -7,8 +7,12 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.61.0`.
+* **Última Versión Publicada:** `v0.62.0`.
 * **Hitos Recientes Completados:**
+  - **Precios — Carga masiva por lote (v0.62.0):**
+    * API: comando `BulkCreateProductPrices` (valida lista/productos, cierra la vigencia abierta anterior, crea precio + historial por ítem y guarda una sola vez) expuesto en `POST /catalog/pricing/prices/bulk` (permiso `catalog.pricing.create`, hasta 500 ítems sin repetidos). Tests del handler (crea/cierra/log, duplicados, no encontrado).
+    * Admin: `ProductPricesBulkPage` (`/catalogo/precios/productos/masivo`) con vigencia (lista/fecha/motivo), búsqueda de productos, precio actual precargado, aplicar a todos/solo vacíos, edición por fila y total de lote; botón «Carga masiva» en el listado.
+    * Verificado end-to-end: lote de 2 productos → `createdCount 2`, precios consultables por filtro; limpieza total. 419 tests Business en verde; `tsc`/`build` admin.
   - **Precios — Nuevo precio con contexto, vigencia y margen (v0.61.0):**
     * `ProductPriceFormPage`: precio vacío + obligatorio, contexto del producto (SKU), precio vigente por lista (`Actual: $X · desde …`), costo promedio del stock y margen en vivo; modo «Renovar vigencia» con motivo obligatorio; chips de moneda/IVA/vigencia de la lista; escalas con «hasta» opcional; preselección por query params (`catalogItemId`, `priceListId`).
     * API: filtro `catalogItemId` en `ListProductPrices` y en `ListStock`; acción «Asignar precio» en Catálogo → Ítems (permiso `catalog.pricing.create`).

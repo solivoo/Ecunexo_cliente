@@ -1,4 +1,5 @@
 using EcuNexo.Business.Pricing;
+using EcuNexo.Business.Pricing.Commands.BulkCreateProductPrices;
 using EcuNexo.Business.Pricing.Commands.CreateProductPrice;
 using EcuNexo.Business.Pricing.Commands.UpdateProductPrice;
 using EcuNexo.Business.Pricing.Queries.ResolvePrice;
@@ -56,4 +57,23 @@ public sealed record ResolvePriceRequest(
 {
     public ResolvePriceQuery ToQuery(Guid tenantId) =>
         new(tenantId, CatalogItemId, Quantity, Date, PriceListId);
+}
+
+public sealed record BulkPriceItemRequest(Guid CatalogItemId, decimal Price);
+
+public sealed record BulkCreateProductPricesRequest(
+    Guid PriceListId,
+    DateOnly ValidFrom,
+    DateOnly? ValidTo,
+    string? Reason,
+    IReadOnlyList<BulkPriceItemRequest> Items)
+{
+    public BulkCreateProductPricesCommand ToCommand(Guid tenantId) =>
+        new(
+            tenantId,
+            PriceListId,
+            ValidFrom,
+            ValidTo,
+            Reason,
+            Items.Select(i => new BulkPriceItemInput(i.CatalogItemId, i.Price)).ToList());
 }
