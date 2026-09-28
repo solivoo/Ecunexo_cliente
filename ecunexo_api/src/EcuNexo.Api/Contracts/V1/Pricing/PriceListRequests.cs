@@ -12,10 +12,11 @@ public sealed record CreatePriceListRequest(
     DateOnly ValidFrom,
     DateOnly? ValidTo,
     int Priority,
-    bool IsDefault)
+    bool IsDefault,
+    decimal? SuggestedMarginPercent = null)
 {
     public CreatePriceListCommand ToCommand(Guid tenantId) =>
-        new(tenantId, Code, Name, Description, Currency, PricesIncludeTax, ValidFrom, ValidTo, Priority, IsDefault);
+        new(tenantId, Code, Name, Description, Currency, PricesIncludeTax, ValidFrom, ValidTo, Priority, IsDefault, SuggestedMarginPercent);
 }
 
 public sealed record UpdatePriceListRequest(
@@ -26,8 +27,9 @@ public sealed record UpdatePriceListRequest(
     DateOnly ValidFrom,
     DateOnly? ValidTo,
     int Priority,
-    bool IsDefault)
+    bool IsDefault,
+    decimal? SuggestedMarginPercent = null)
 {
     public UpdatePriceListCommand ToCommand(Guid tenantId, Guid priceListId) =>
-        new(tenantId, priceListId, Name, Description, Currency, PricesIncludeTax, ValidFrom, ValidTo, Priority, IsDefault);
+        new(tenantId, priceListId, Name, Description, Currency, PricesIncludeTax, ValidFrom, ValidTo, Priority, IsDefault, SuggestedMarginPercent);
 }

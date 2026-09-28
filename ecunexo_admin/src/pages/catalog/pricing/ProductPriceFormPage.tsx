@@ -146,11 +146,6 @@ export function ProductPriceFormPage() {
           rows.map((row) => [row.catalogItemId, { price: row.price, validFrom: row.validFrom }])
         )
         setPricesByItem(map)
-        setPrice((prev) => {
-          if (prev.trim() || !itemId) return prev
-          const entry = map.get(itemId)
-          return entry ? String(entry.price) : prev
-        })
       })
       .catch(() => {
         if (!cancelled) setPricesByItem(new Map())
@@ -189,6 +184,31 @@ export function ProductPriceFormPage() {
     costInfo && costInfo.averageCost > 0 && Number.isFinite(numericEnteredPrice) && numericEnteredPrice > 0
       ? ((numericEnteredPrice - costInfo.averageCost) / numericEnteredPrice) * 100
       : null
+
+  // Precarga del precio: vigente de la lista, o sugerido por margen sobre el costo promedio.
+  useEffect(() => {
+    if (isEdit || !itemId || !listId) return
+    let cancelled = false
+    void (async () => {
+      await Promise.resolve()
+      if (cancelled) return
+      setPrice((prev) => {
+        if (prev.trim()) return prev
+        const vigent = pricesByItem.get(itemId)
+        if (vigent) return String(vigent.price)
+        const cost = costInfo?.averageCost ?? 0
+        const margin = selectedList?.suggestedMarginPercent
+        if (cost > 0 && margin && margin > 0) {
+          return (cost * (1 + margin / 100)).toFixed(2)
+        }
+        return prev
+      })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [costInfo, isEdit, itemId, listId, pricesByItem, selectedList])
+
 
   const selectItem = useCallback(
     (item: CatalogItemListItemDto) => {
@@ -521,6 +541,12 @@ export function ProductPriceFormPage() {
                 {renewing ? (
                   <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
                     Cerrará la vigencia anterior e iniciará el {validFrom}.
+                  </span>
+                ) : null}
+                {selectedList?.suggestedMarginPercent ? (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
+                    Lista con margen sugerido del {selectedList.suggestedMarginPercent}% sobre el costo
+                    promedio.
                   </span>
                 ) : null}
               </div>

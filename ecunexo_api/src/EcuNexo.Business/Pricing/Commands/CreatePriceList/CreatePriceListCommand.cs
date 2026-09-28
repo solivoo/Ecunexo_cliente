@@ -15,7 +15,8 @@ public sealed record CreatePriceListCommand(
     DateOnly ValidFrom,
     DateOnly? ValidTo,
     int Priority,
-    bool IsDefault) : ICommand<CreatePriceListResponse>;
+    bool IsDefault,
+    decimal? SuggestedMarginPercent = null) : ICommand<CreatePriceListResponse>;
 
 public sealed record CreatePriceListResponse(Guid PriceListId, Guid TenantId);
 
@@ -68,7 +69,8 @@ public sealed class CreatePriceListHandler : ICommandHandler<CreatePriceListComm
             command.ValidTo,
             command.Priority,
             command.IsDefault,
-            _caller.UserId);
+            _caller.UserId,
+            command.SuggestedMarginPercent);
         if (created.IsFailure)
         {
             return Result.Failure<CreatePriceListResponse>(created.Error!);

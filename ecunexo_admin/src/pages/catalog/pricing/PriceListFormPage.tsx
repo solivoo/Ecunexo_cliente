@@ -36,6 +36,7 @@ export function PriceListFormPage() {
   const [validTo, setValidTo] = useState('')
   const [pricesIncludeTax, setPricesIncludeTax] = useState(false)
   const [isDefault, setIsDefault] = useState(false)
+  const [suggestedMargin, setSuggestedMargin] = useState('')
 
   useEffect(() => {
     if (!isEdit || !tenantId) return
@@ -58,6 +59,7 @@ export function PriceListFormPage() {
         setValidTo(list.validTo ?? '')
         setPricesIncludeTax(list.pricesIncludeTax)
         setIsDefault(list.isDefault)
+        setSuggestedMargin(list.suggestedMarginPercent != null ? String(list.suggestedMarginPercent) : '')
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(readApiError(err, 'No se pudo cargar la lista de precios.'))
@@ -89,6 +91,7 @@ export function PriceListFormPage() {
           validTo: validTo || null,
           priority,
           isDefault,
+          suggestedMarginPercent: suggestedMargin.trim() === '' ? null : Number(suggestedMargin) || null,
         }
 
         if (isEdit && priceListId) {
@@ -256,6 +259,24 @@ export function PriceListFormPage() {
                   disabled={busy || loading}
                   fullWidth
                 />
+                <NumberBox
+                  id="pl-margin"
+                  label="Margen sugerido (%)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={suggestedMargin === '' ? '' : Number(suggestedMargin)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setSuggestedMargin(e.target.value)}
+                  step={1}
+                  min={0}
+                  max={1000}
+                  showSpinButtons
+                  disabled={busy || loading}
+                  fullWidth
+                />
+                <span className="ecu-hint">
+                  Opcional. Si se define, al asignar precio a un producto sin precio vigente se
+                  precarga <strong>costo promedio × (1 + margen/100)</strong>.
+                </span>
               </div>
               <div className="ecu-companies-form__field sri-config-field--check-align">
                 <CheckButton

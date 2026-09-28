@@ -49,6 +49,9 @@ public sealed class PriceList : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
     public bool IsActive { get; private set; }
 
+    /// <summary>Margen sugerido (%) sobre el costo promedio para precargar precios (0-1000). Null = sin sugerencia.</summary>
+    public decimal? SuggestedMarginPercent { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset? UpdatedAt { get; private set; }
@@ -69,7 +72,8 @@ public sealed class PriceList : AggregateRoot<Guid>, ITenantEntity, IAuditable
         DateOnly? validTo,
         int priority,
         bool isDefault,
-        Guid? createdBy = null)
+        Guid? createdBy = null,
+        decimal? suggestedMarginPercent = null)
     {
         if (id == Guid.Empty || tenantId == Guid.Empty)
         {
@@ -107,6 +111,12 @@ public sealed class PriceList : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<PriceList>(rangeResult.Error!);
         }
 
+        var marginResult = NormalizeMargin(suggestedMarginPercent);
+        if (marginResult.IsFailure)
+        {
+            return Result.Failure<PriceList>(marginResult.Error!);
+        }
+
         return new PriceList
         {
             Id = id,
@@ -118,6 +128,7 @@ public sealed class PriceList : AggregateRoot<Guid>, ITenantEntity, IAuditable
             PricesIncludeTax = pricesIncludeTax,
             ValidFrom = validFrom,
             ValidTo = validTo,
+            SuggestedMarginPercent = marginResult.Value,
             Priority = priority,
             IsDefault = isDefault,
             IsActive = true,
@@ -134,7 +145,8 @@ public sealed class PriceList : AggregateRoot<Guid>, ITenantEntity, IAuditable
         DateOnly validFrom,
         DateOnly? validTo,
         int priority,
-        Guid? updatedBy = null)
+        Guid? updatedBy = null,
+        decimal? suggestedMarginPercent = null)
     {
         var nameResult = NormalizeName(name);
         if (nameResult.IsFailure)
@@ -160,6 +172,12 @@ public sealed class PriceList : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure(rangeResult.Error!);
         }
 
+        var marginResult = NormalizeMargin(suggestedMarginPercent);
+        if (marginResult.IsFailure)
+        {
+            return Result.Failure(marginResult.Error!);
+        }
+
         Name = nameResult.Value!;
         Description = descriptionResult.Value;
         Currency = currencyResult.Value!;
@@ -167,6 +185,7 @@ public sealed class PriceList : AggregateRoot<Guid>, ITenantEntity, IAuditable
         ValidFrom = validFrom;
         ValidTo = validTo;
         Priority = priority;
+        SuggestedMarginPercent = marginResult.Value;
         Touch(updatedBy);
         return Result.Success();
     }
@@ -275,6 +294,25 @@ public sealed class PriceList : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         return Result.Success(normalized);
+    }
+
+    private static Result<decimal?> NormalizeMargin(decimal? margin)
+    {
+        if (margin is null)
+        {
+            return Result.Success<decimal?>(null);
+        }
+
+        if (margin < 0 || margin > 1000)
+        {
+            return Result.Failure<decimal?>(
+                new Error(
+                    "catalog.pricing.price_list.margin.range",
+                    "El margen sugerido debe estar entre 0 y 1000 por ciento.",
+                    ErrorType.Validation));
+        }
+
+        return Result.Success<decimal?>(decimal.Round(margin.Value, 2, MidpointRounding.AwayFromZero));
     }
 
     private static Result ValidateRange(DateOnly validFrom, DateOnly? validTo)

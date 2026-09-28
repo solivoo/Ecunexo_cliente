@@ -28,6 +28,7 @@ export type PriceListDto = {
   priority: number
   isDefault: boolean
   isActive: boolean
+  suggestedMarginPercent?: number | null
 }
 
 export type CreatePriceListBody = {
@@ -40,6 +41,7 @@ export type CreatePriceListBody = {
   validTo: string | null
   priority: number
   isDefault: boolean
+  suggestedMarginPercent?: number | null
 }
 
 export type UpdatePriceListBody = Omit<CreatePriceListBody, 'code'>

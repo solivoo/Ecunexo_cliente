@@ -7,8 +7,11 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.64.4`.
+* **Última Versión Publicada:** `v0.64.5`.
 * **Hitos Recientes Completados:**
+  - **Precios — Margen sugerido por lista (v0.64.5):**
+    * `PriceList.SuggestedMarginPercent` (0–1000, `NormalizeMargin`) + columna `suggested_margin_percent` (migración `AddPriceListSuggestedMarginPercent`); comandos/contratos/DTO actualizados.
+    * Admin: campo «Margen sugerido (%)» en la lista; en el formulario de precio, precarga priorizada: vigente de la lista → costo promedio × (1+margen/100) cuando no hay vigente; hint con el margen de la lista. 353 Core + 422 Business en verde.
   - **Precios — Check «Precio activo» al crear (v0.64.4):**
     * API: `CreateProductPriceCommand.IsActive` (por defecto true) + `price.SetActive(false)` al crear; contrato `CreateProductPriceRequest.IsActive`.
     * Admin: `CheckButton` visible también en alta (con ayuda si se desactiva), `isActive` en el payload y toast acorde. 422 tests Business en verde.

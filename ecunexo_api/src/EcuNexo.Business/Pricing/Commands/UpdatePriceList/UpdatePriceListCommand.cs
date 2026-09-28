@@ -13,7 +13,8 @@ public sealed record UpdatePriceListCommand(
     DateOnly ValidFrom,
     DateOnly? ValidTo,
     int Priority,
-    bool IsDefault) : ICommand<UpdatePriceListResponse>;
+    bool IsDefault,
+    decimal? SuggestedMarginPercent = null) : ICommand<UpdatePriceListResponse>;
 
 public sealed record UpdatePriceListResponse(Guid PriceListId, Guid TenantId);
 
@@ -71,7 +72,8 @@ public sealed class UpdatePriceListHandler : ICommandHandler<UpdatePriceListComm
             command.ValidFrom,
             command.ValidTo,
             command.Priority,
-            _caller.UserId);
+            _caller.UserId,
+            command.SuggestedMarginPercent);
         if (updated.IsFailure)
         {
             return Result.Failure<UpdatePriceListResponse>(updated.Error!);

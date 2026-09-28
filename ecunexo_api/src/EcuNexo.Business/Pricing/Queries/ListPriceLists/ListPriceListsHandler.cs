@@ -30,7 +30,8 @@ public sealed class ListPriceListsHandler
                 l.ValidTo,
                 l.Priority,
                 l.IsDefault,
-                l.IsActive))
+                l.IsActive,
+                l.SuggestedMarginPercent))
             .ToList();
 
         return Result.Success(response);

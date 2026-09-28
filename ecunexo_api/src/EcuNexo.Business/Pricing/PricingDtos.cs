@@ -13,7 +13,8 @@ public sealed record PriceListResponse(
     DateOnly? ValidTo,
     int Priority,
     bool IsDefault,
-    bool IsActive);
+    bool IsActive,
+    decimal? SuggestedMarginPercent = null);
 
 public sealed record ProductPriceFilter(
     Guid TenantId,
