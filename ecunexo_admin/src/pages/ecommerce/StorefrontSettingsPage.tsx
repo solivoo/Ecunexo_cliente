@@ -427,6 +427,8 @@ export function StorefrontSettingsPage() {
       contactWhatsapp,
       holdHours,
       instructions,
+      maintenanceEnabled,
+      maintenanceMessage,
       maxPendingOrders,
       minOrderAmount,
       ordersNotificationEmail,
