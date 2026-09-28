@@ -30,7 +30,8 @@ public sealed record CreateCustomerApiRequest(
     string? City = null,
     string? ContactPerson = null,
     string? Notes = null,
-    bool ReturnExistingIfExists = false);
+    bool ReturnExistingIfExists = false,
+    Guid? PriceListId = null);
 
 public sealed record UpdateCustomerApiRequest(
     string Name,
@@ -43,7 +44,8 @@ public sealed record UpdateCustomerApiRequest(
     string? City = null,
     string? ContactPerson = null,
     string? Notes = null,
-    bool? IsActive = null);
+    bool? IsActive = null,
+    Guid? PriceListId = null);
 
 public sealed record ToggleCustomerStatusApiRequest(bool IsActive);
 

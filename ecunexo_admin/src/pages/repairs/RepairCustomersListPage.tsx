@@ -58,6 +58,7 @@ import {
   updateCustomer,
   upsertCustomerRepairRates,
 } from '@/services/customersApi'
+import { listPriceLists } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
@@ -68,6 +69,7 @@ import {
   type CustomerDto,
   type CustomerTypeDefinitionDto,
 } from '@/types/customersApi'
+import type { PriceListDto } from '@/types/pricingApi'
 import './ecu-customer-form.css'
 
 type CustomerRow = CustomerDto & Record<string, unknown>
@@ -89,6 +91,7 @@ export default function RepairCustomersListPage() {
 
   const [customers, setCustomers] = useState<CustomerDto[]>([])
   const [customerTypes, setCustomerTypes] = useState<CustomerTypeDefinitionDto[]>([])
+  const [priceLists, setPriceLists] = useState<PriceListDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -102,6 +105,7 @@ export default function RepairCustomersListPage() {
 
   // Campos de formulario
   const [customerType, setCustomerType] = useState<CustomerType>(CustomerType.CorporativoB2B)
+  const [priceListId, setPriceListId] = useState('')
   const [identificationType, setIdentificationType] = useState<CustomerIdentificationType>(
     CustomerIdentificationType.Ruc
   )
@@ -135,12 +139,14 @@ export default function RepairCustomersListPage() {
       setLoading(true)
       setError(null)
       try {
-        const [data, types] = await Promise.all([
+        const [data, types, lists] = await Promise.all([
           listCustomers(tenantId),
           listCustomerTypes(tenantId, false),
+          listPriceLists(tenantId, true),
         ])
         setCustomers(data)
         setCustomerTypes(types)
+        setPriceLists(lists)
         if (!opts?.silent) {
           toast.show({
             title: 'Actualizado',
@@ -258,6 +264,7 @@ export default function RepairCustomersListPage() {
     setAddress('')
     setCity('')
     setNotes('')
+    setPriceListId('')
     setIsActive(true)
     setFormError(null)
     setModalOpen(true)
@@ -276,6 +283,7 @@ export default function RepairCustomersListPage() {
     setAddress(customer.address ?? '')
     setCity(customer.city ?? '')
     setNotes(customer.notes ?? '')
+    setPriceListId(customer.priceListId ?? '')
     setIsActive(customer.isActive)
     setFormError(null)
     setModalOpen(true)
@@ -411,6 +419,7 @@ export default function RepairCustomersListPage() {
         city: city.trim() || null,
         notes: notes.trim() || null,
         isActive,
+        priceListId: priceListId || null,
       }
 
       if (editingCustomer) {
@@ -915,6 +924,26 @@ export default function RepairCustomersListPage() {
                   value={String(customerType)}
                   onChange={handleCustomerTypeChange}
                   options={formTypeOptions}
+                  fullWidth
+                  disabled={saving}
+                />
+              </div>
+
+              <div className="ecu-customer-form__field">
+                <Select
+                  id="customer-price-list"
+                  label="Lista de precios (opcional)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={priceListId}
+                  onChange={(value) => setPriceListId(String(value))}
+                  options={[
+                    { value: '', label: 'Predeterminada de la empresa' },
+                    ...priceLists.map((list) => ({
+                      value: list.id,
+                      label: `${list.code} · ${list.name}`,
+                    })),
+                  ]}
                   fullWidth
                   disabled={saving}
                 />

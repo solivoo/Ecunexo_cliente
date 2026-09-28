@@ -176,6 +176,8 @@ export type UseInvoiceEmitFormArgs = {
   readonly branding: TenantBranding
   readonly canCreate: boolean
   readonly orderIdToInvoice?: string | null
+  /** Lista de precios efectiva (del cliente o elegida manualmente); vacío = predeterminada. */
+  readonly priceListId?: string | null
 }
 
 export function useInvoiceEmitForm({
@@ -183,6 +185,7 @@ export function useInvoiceEmitForm({
   branding,
   canCreate,
   orderIdToInvoice = null,
+  priceListId = null,
 }: UseInvoiceEmitFormArgs) {
   const toast = useToast()
   const [loadingTenant, setLoadingTenant] = useState(Boolean(tenantId))
@@ -477,6 +480,7 @@ export function useInvoiceEmitForm({
         catalogItemId: target.catalogItemId,
         quantity,
         date: todayIsoDate(),
+        priceListId: priceListId || undefined,
       })
         .then((resolved) => {
           if (resolveTokens.current.get(lineId) !== token) return
@@ -492,7 +496,7 @@ export function useInvoiceEmitForm({
           // Sin pricing configurado se conserva el precio actual de la línea.
         })
     },
-    [ensureTrailingEmptyLine, lines, tenantId]
+    [ensureTrailingEmptyLine, lines, priceListId, tenantId]
   )
 
   const addProductLine = useCallback(
@@ -541,6 +545,7 @@ export function useInvoiceEmitForm({
         catalogItemId: item.id,
         quantity: normalizedQuantity,
         date: todayIsoDate(),
+        priceListId: priceListId || undefined,
       })
         .then((resolved) => {
           applyLine(pricingToLinePatch(resolved, normalizedQuantity))

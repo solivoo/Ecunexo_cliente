@@ -39,6 +39,7 @@ import { ProductTemplateBuilderPage } from '@/pages/catalog/ProductTemplateBuild
 import { PriceListsListPage } from '@/pages/catalog/pricing/PriceListsListPage'
 import { PriceListFormPage } from '@/pages/catalog/pricing/PriceListFormPage'
 import { ProductPricesBulkPage } from '@/pages/catalog/pricing/ProductPricesBulkPage'
+import { ProductPricesMatrixPage } from '@/pages/catalog/pricing/ProductPricesMatrixPage'
 import { ProductPricesListPage } from '@/pages/catalog/pricing/ProductPricesListPage'
 import { ProductPriceFormPage } from '@/pages/catalog/pricing/ProductPriceFormPage'
 import { PromotionsListPage } from '@/pages/catalog/pricing/PromotionsListPage'
@@ -165,6 +166,7 @@ export const routes: RouteObject[] = [
           { path: 'catalogo/precios/productos', element: <ProductPricesListPage /> },
           { path: 'catalogo/precios/productos/nuevo', element: <ProductPriceFormPage /> },
           { path: 'catalogo/precios/productos/masivo', element: <ProductPricesBulkPage /> },
+          { path: 'catalogo/precios/matriz', element: <ProductPricesMatrixPage /> },
           { path: 'catalogo/precios/productos/:priceId', element: <ProductPriceFormPage /> },
           { path: 'catalogo/precios/promociones', element: <PromotionsListPage /> },
           { path: 'catalogo/precios/promociones/nueva', element: <PromotionFormPage /> },

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Layers, Pencil, Trash2 } from 'lucide-react'
 import {
   EmptyState,
   GridIconButton,
@@ -220,6 +220,15 @@ export function ProductPricesListPage() {
         <PageHeader
           title="Precios de Productos"
           subtitle="Precios por lista con vigencia. Cambiar un precio cierra la vigencia anterior y conserva el historial."
+          actions={
+            <Button
+              variant="outline"
+              iconLeft={<Layers size={16} />}
+              onClick={() => navigate('/catalogo/precios/matriz')}
+            >
+              Vista matriz
+            </Button>
+          }
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de precios">

@@ -10,9 +10,11 @@ import {
   type InvoiceCounterpartyValues,
 } from '@/pages/facturacion/invoiceFormTypes'
 import { createCustomer, listCustomers, lookupCustomerSri } from '@/services/customersApi'
+import { listPriceLists } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { CustomerDto } from '@/types/customersApi'
+import type { PriceListDto } from '@/types/pricingApi'
 import { deriveEcuadorCityFromTaxId } from '@/lib/ecuadorTaxIdValidator'
 
 export type InvoiceClientFieldsProps = {
@@ -25,6 +27,7 @@ export type InvoiceClientFieldsProps = {
   ) => void
   readonly onCounterpartyReplace?: (next: InvoiceCounterpartyValues) => void
   readonly onPaymentFormChange: (code: string) => void
+  readonly onPriceListChange?: (priceListId: string) => void
 }
 
 function customerToCounterparty(
@@ -67,11 +70,14 @@ export function InvoiceClientFields({
   onCounterpartyChange,
   onCounterpartyReplace,
   onPaymentFormChange,
+  onPriceListChange,
 }: InvoiceClientFieldsProps) {
   const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
   const [directory, setDirectory] = useState<CustomerDto[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
+  const [priceLists, setPriceLists] = useState<PriceListDto[]>([])
+  const [priceListId, setPriceListId] = useState('')
   const [directoryError, setDirectoryError] = useState<string | null>(null)
   const [searchingSri, setSearchingSri] = useState(false)
   const [savingDirectory, setSavingDirectory] = useState(false)
@@ -105,9 +111,13 @@ export function InvoiceClientFields({
     let active = true
     void (async () => {
       try {
-        const list = await listCustomers(tenantId)
+        const [list, lists] = await Promise.all([
+          listCustomers(tenantId),
+          listPriceLists(tenantId, true),
+        ])
         if (!active) return
         setDirectory(list.filter((c) => c.isActive))
+        setPriceLists(lists)
         setDirectoryError(null)
       } catch {
         if (!active) return
@@ -135,10 +145,15 @@ export function InvoiceClientFields({
     setSelectedCustomerId(customerId)
     if (!customerId || disabled) {
       setLookupBanner(null)
+      setPriceListId('')
+      onPriceListChange?.('')
       return
     }
     const customer = directory.find((c) => c.id === customerId)
     if (!customer) return
+    const customerListId = customer.priceListId ?? ''
+    setPriceListId(customerListId)
+    onPriceListChange?.(customerListId)
     const next = customerToCounterparty(customer, counterparty)
     lastSearchedTaxId.current = next.identification.trim()
     if (onCounterpartyReplace) {
@@ -169,6 +184,9 @@ export function InvoiceClientFields({
     try {
       const res = await lookupCustomerSri(tenantId, targetTaxId)
       if (res.foundInLocalDirectory && res.localCustomer) {
+        const foundListId = res.localCustomer.priceListId ?? ''
+        setPriceListId(foundListId)
+        onPriceListChange?.(foundListId)
         const next = customerToCounterparty(res.localCustomer, counterparty)
         if (onCounterpartyReplace) {
           onCounterpartyReplace(next)
@@ -318,6 +336,27 @@ export function InvoiceClientFields({
             value={selectedCustomerId}
             onChange={handleDirectorySelect}
             disabled={disabled || directory.length === 0}
+            fullWidth
+          />
+          <Select
+            id="inv-price-list"
+            label="Lista de precios"
+            labelPosition="outlined"
+            variant="outline"
+            options={[
+              { value: '', label: 'Predeterminada de la empresa' },
+              ...priceLists.map((list) => ({
+                value: list.id,
+                label: `${list.code} · ${list.name}`,
+              })),
+            ]}
+            value={priceListId}
+            onChange={(value) => {
+              const next = String(value)
+              setPriceListId(next)
+              onPriceListChange?.(next)
+            }}
+            disabled={disabled}
             fullWidth
           />
           {directoryError && (

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, Popup, useToast, type ColumnDef } from 'glubox'
-import { DollarSign, Pencil, Trash2 } from 'lucide-react'
+import { DollarSign, Pencil, Trash2, Users } from 'lucide-react'
 import {
   EmptyState,
   GridIconButton,
@@ -17,9 +17,11 @@ import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { listCustomers } from '@/services/customersApi'
 import { deletePriceList, listPriceLists } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
+import type { CustomerDto } from '@/types/customersApi'
 import type { PriceListDto } from '@/types/pricingApi'
 
 type PriceListRow = PriceListDto & Record<string, unknown>
@@ -38,6 +40,9 @@ export function PriceListsListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<PriceListDto | null>(null)
+  const [assignedList, setAssignedList] = useState<PriceListDto | null>(null)
+  const [assignedCustomers, setAssignedCustomers] = useState<CustomerDto[]>([])
+  const [assignedLoading, setAssignedLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
 
@@ -84,7 +89,24 @@ export function PriceListsListPage() {
     }
   }, [confirm, load, tenantId, toast])
 
-  const columns = useMemo((): ColumnDef<PriceListRow>[] => {
+    const handleShowAssigned = useCallback(
+    async (list: PriceListDto) => {
+      if (!tenantId) return
+      setAssignedList(list)
+      setAssignedLoading(true)
+      try {
+        const customers = await listCustomers(tenantId)
+        setAssignedCustomers(customers.filter((customer) => customer.priceListId === list.id))
+      } catch {
+        setAssignedCustomers([])
+      } finally {
+        setAssignedLoading(false)
+      }
+    },
+    [tenantId]
+  )
+
+const columns = useMemo((): ColumnDef<PriceListRow>[] => {
     const cols: ColumnDef<PriceListRow>[] = [
       {
         key: 'code',
@@ -161,6 +183,11 @@ export function PriceListsListPage() {
               label={`Ver precios de «${row.code}»`}
               icon={DollarSign}
               onClick={() => navigate(`/catalogo/precios/productos?priceListId=${row.id}`)}
+            />
+            <GridIconButton
+              label={`Ver clientes con la lista «${row.code}»`}
+              icon={Users}
+              onClick={() => void handleShowAssigned(row)}
             />
             {canEdit ? (
               <GridIconButton
@@ -305,6 +332,38 @@ export function PriceListsListPage() {
             deja de usarse para nuevas ventas.
           </p>
         ) : null}
+      </Popup>
+      <Popup
+        open={assignedList !== null}
+        title={assignedList ? `Clientes con la lista «${assignedList.code}»` : 'Clientes asignados'}
+        onClose={() => setAssignedList(null)}
+        width="min(92vw, 34rem)"
+        actions={[
+          {
+            id: 'close',
+            label: 'Cerrar',
+            variant: 'ghost',
+            onClick: () => setAssignedList(null),
+          },
+        ]}
+      >
+        {assignedLoading ? (
+          <p className="app-shell__muted">Cargando clientes…</p>
+        ) : assignedCustomers.length === 0 ? (
+          <p className="app-shell__muted">
+            Ningún cliente tiene asignada esta lista. Asígnala desde la ficha del cliente; sin
+            asignación se usa la lista predeterminada.
+          </p>
+        ) : (
+          <ul style={{ margin: 0, paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            {assignedCustomers.map((customer) => (
+              <li key={customer.id}>
+                <strong>{customer.name}</strong>
+                {customer.taxId ? ` · ${customer.taxId}` : ''}
+              </li>
+            ))}
+          </ul>
+        )}
       </Popup>
     </TenantSessionGate>
   )

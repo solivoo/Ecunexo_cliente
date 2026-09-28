@@ -40,6 +40,9 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
 
     public string? Notes { get; private set; }
 
+    /// <summary>Lista de precios asignada al cliente (opcional); resuelve su precio por defecto.</summary>
+    public Guid? PriceListId { get; private set; }
+
     public bool IsActive { get; private set; } = true;
 
     public DateTimeOffset CreatedAt { get; private set; }
@@ -66,7 +69,8 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         string? notes = null,
         CustomerType customerType = CustomerType.CorporativoB2B,
         CustomerIdentificationType identificationType = CustomerIdentificationType.Ruc,
-        string? city = null)
+        string? city = null,
+        Guid? priceListId = null)
     {
         if (id == Guid.Empty)
         {
@@ -141,6 +145,7 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
             City = city?.Trim(),
             ContactPerson = contactPerson?.Trim(),
             Notes = notes?.Trim(),
+            PriceListId = priceListId == Guid.Empty ? null : priceListId,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -156,7 +161,9 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         string? notes,
         CustomerType? customerType = null,
         CustomerIdentificationType? identificationType = null,
-        string? city = null)
+        string? city = null,
+        Guid? priceListId = null,
+        bool assignPriceList = false)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -219,6 +226,11 @@ public sealed class Customer : AggregateRoot<Guid>, ITenantEntity, IAuditable, I
         City = city?.Trim();
         ContactPerson = contactPerson?.Trim();
         Notes = notes?.Trim();
+        if (assignPriceList)
+        {
+            PriceListId = priceListId == Guid.Empty ? null : priceListId;
+        }
+
         UpdatedAt = DateTimeOffset.UtcNow;
 
         return Result.Success();

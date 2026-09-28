@@ -90,6 +90,7 @@ export type CustomerDto = {
   isActive: boolean
   createdAt: string
   updatedAt?: string | null
+  priceListId?: string | null
 }
 
 export type CustomerLookupResponse = {

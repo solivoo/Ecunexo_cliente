@@ -70,6 +70,7 @@ export type RepairCustomerDto = {
   notes: string | null
   isActive: boolean
   createdAt: string
+  priceListId?: string | null
 }
 
 export type CustomerDto = RepairCustomerDto
@@ -82,6 +83,7 @@ export type CreateCustomerBody = {
   address?: string | null
   contactPerson?: string | null
   notes?: string | null
+  priceListId?: string | null
 }
 
 export type UpdateCustomerBody = {
@@ -93,6 +95,7 @@ export type UpdateCustomerBody = {
   contactPerson?: string | null
   notes?: string | null
   isActive?: boolean
+  priceListId?: string | null
 }
 
 export type BatchListItemDto = {

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button } from 'glubox'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
@@ -22,7 +23,14 @@ export function FacturaEmitirPage() {
   const canCreate = useHasPermission('facturacion.facturas.create')
   const tenantId = useAppSelector(selectTenantId)
   const branding = useAppSelector(selectTenantBranding)
-  const form = useInvoiceEmitForm({ tenantId, branding, canCreate, orderIdToInvoice })
+  const [priceListId, setPriceListId] = useState('')
+  const form = useInvoiceEmitForm({
+    tenantId,
+    branding,
+    canCreate,
+    orderIdToInvoice,
+    priceListId,
+  })
   const profile = form.emitProfile
   const totals = computeTotals(form.lines)
   /** Validar/firmar sin enviar al SRI son ayudas de certificación: solo en ambiente de pruebas. */
@@ -176,6 +184,7 @@ export function FacturaEmitirPage() {
                 onHeaderChange={form.patchHeader}
                 onCounterpartyChange={form.patchCounterparty}
                 onCounterpartyReplace={form.replaceCounterparty}
+                onPriceListChange={setPriceListId}
               />
             </SectionCard>
 

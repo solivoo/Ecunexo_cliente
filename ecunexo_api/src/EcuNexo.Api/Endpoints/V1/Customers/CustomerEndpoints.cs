@@ -5,6 +5,7 @@ using EcuNexo.Api.Extensions;
 using EcuNexo.Api.Security;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Customers.Repositories;
+using EcuNexo.Business.Pricing;
 using EcuNexo.Core.Customers;
 using Microsoft.AspNetCore.Mvc;
 
@@ -192,12 +193,20 @@ public static class CustomerEndpoints
         [FromBody] CreateCustomerApiRequest request,
         [FromServices] ICustomerRepository customerRepo,
         [FromServices] ICustomerTypeDefinitionRepository typeRepo,
+        [FromServices] IPriceListRepository priceListRepo,
         [FromServices] IUnitOfWork unitOfWork,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return Results.BadRequest(new { error = "El nombre o razón social del cliente es obligatorio." });
+        }
+
+        var priceListError = await EnsureActivePriceListAsync(tenantId, request.PriceListId, priceListRepo, ct)
+            .ConfigureAwait(false);
+        if (priceListError is not null)
+        {
+            return priceListError;
         }
 
         var typeCheck = await EnsureActiveCustomerTypeAsync(tenantId, request.CustomerType, typeRepo, ct)
@@ -241,7 +250,8 @@ public static class CustomerEndpoints
             request.Notes,
             request.CustomerType,
             request.IdentificationType,
-            city: request.City);
+            city: request.City,
+            priceListId: request.PriceListId);
 
         if (customerResult.IsFailure)
         {
@@ -260,12 +270,20 @@ public static class CustomerEndpoints
         [FromBody] UpdateCustomerApiRequest request,
         [FromServices] ICustomerRepository customerRepo,
         [FromServices] ICustomerTypeDefinitionRepository typeRepo,
+        [FromServices] IPriceListRepository priceListRepo,
         [FromServices] IUnitOfWork unitOfWork,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return Results.BadRequest(new { error = "El nombre o razón social del cliente es obligatorio." });
+        }
+
+        var priceListError = await EnsureActivePriceListAsync(tenantId, request.PriceListId, priceListRepo, ct)
+            .ConfigureAwait(false);
+        if (priceListError is not null)
+        {
+            return priceListError;
         }
 
         var customer = await customerRepo.GetTrackedByIdAsync(tenantId, customerId, ct).ConfigureAwait(false);
@@ -307,7 +325,9 @@ public static class CustomerEndpoints
             request.Notes,
             request.CustomerType,
             request.IdentificationType,
-            city: request.City);
+            city: request.City,
+            priceListId: request.PriceListId,
+            assignPriceList: true);
 
         if (updateResult.IsFailure)
         {
@@ -468,6 +488,26 @@ public static class CustomerEndpoints
         if (definition is null || !definition.IsActive)
         {
             return Results.BadRequest(new { error = "El tipo de cliente no existe o está desactivado." });
+        }
+
+        return null;
+    }
+
+    private static async Task<IResult?> EnsureActivePriceListAsync(
+        Guid tenantId,
+        Guid? priceListId,
+        IPriceListRepository priceListRepo,
+        CancellationToken ct)
+    {
+        if (priceListId is not { } listId || listId == Guid.Empty)
+        {
+            return null;
+        }
+
+        var list = await priceListRepo.GetByIdAsync(tenantId, listId, ct).ConfigureAwait(false);
+        if (list is null || !list.IsActive)
+        {
+            return Results.BadRequest(new { error = "La lista de precios seleccionada no existe o está inactiva." });
         }
 
         return null;

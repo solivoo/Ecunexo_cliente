@@ -54,6 +54,8 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.ContactPerson)
             .HasMaxLength(120);
 
+        builder.Property(c => c.PriceListId);
+
         builder.Property(c => c.Notes)
             .HasMaxLength(500);
 
