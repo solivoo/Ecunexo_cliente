@@ -559,7 +559,7 @@ export function useInvoiceEmitForm({
           })
         })
     },
-    [ensureTrailingEmptyLine, tenantId, toast]
+    [ensureTrailingEmptyLine, tenantId, toast, priceListId]
   )
 
   /** Limpia cliente/líneas/notas tras crear comprobante; conserva emisor y punto de emisión. */
