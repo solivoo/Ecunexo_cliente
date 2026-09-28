@@ -71,6 +71,7 @@ export function ProductPriceFormPage() {
   const [price, setPrice] = useState('')
   const [pricesByItem, setPricesByItem] = useState<Map<string, { price: number; validFrom: string }>>(new Map())
   const [search, setSearch] = useState('')
+  const [includeMatrixParents, setIncludeMatrixParents] = useState(false)
   const [costInfo, setCostInfo] = useState<{ averageCost: number } | null>(null)
   const [validFrom, setValidFrom] = useState(todayIso())
   const [validTo, setValidTo] = useState('')
@@ -228,14 +229,27 @@ export function ProductPriceFormPage() {
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase()
-    if (!term) return items
-    return items.filter(
+    const visible = includeMatrixParents ? items : items.filter((item) => !item.isMatrixParent)
+    if (!term) return visible
+    return visible.filter(
       (item) =>
         (item.sku ?? '').toLowerCase().includes(term) ||
         item.name.toLowerCase().includes(term) ||
         (item.description ?? '').toLowerCase().includes(term)
     )
-  }, [items, search])
+  }, [includeMatrixParents, items, search])
+
+  // Descripción del padre por id: si la variante hereda la descripción genérica del padre,
+  // se prefiere su propio nombre (que incluye los atributos) como título visible.
+  const descriptionsByItem = useMemo(
+    () =>
+      new Map(
+        items
+          .filter((item) => item.isMatrixParent)
+          .map((item) => [item.id, (item.description ?? '').trim().toLowerCase()])
+      ),
+    [items]
+  )
 
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
   const pageRows = useMemo(
@@ -258,16 +272,35 @@ export function ProductPriceFormPage() {
       {
         key: 'description',
         header: 'Producto',
-        renderCell: (_value, row) => (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <strong style={{ fontSize: '0.85rem' }}>{row.description?.trim() || row.name}</strong>
-            {row.description?.trim() ? (
-              <span className="app-shell__muted" style={{ fontSize: '0.75rem' }}>
-                {row.name}
-              </span>
-            ) : null}
-          </div>
-        ),
+        renderCell: (_value, row) => {
+          const ownDescription = (row.description ?? '').trim()
+          const parentDescription = row.parentId
+            ? descriptionsByItem.get(row.parentId)
+            : undefined
+          const inheritedDescription =
+            Boolean(ownDescription) &&
+            Boolean(parentDescription) &&
+            parentDescription === ownDescription.toLowerCase()
+          const title = ownDescription && !inheritedDescription ? ownDescription : row.name
+          const subtitle =
+            ownDescription && !inheritedDescription ? row.name : null
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <strong style={{ fontSize: '0.85rem' }}>{title}</strong>
+              {subtitle ? (
+                <span className="app-shell__muted" style={{ fontSize: '0.75rem' }}>
+                  {subtitle}
+                </span>
+              ) : null}
+              {row.isMatrixParent ? (
+                <span style={{ fontSize: '0.7rem', color: 'var(--glb-muted)' }}>
+                  Plantilla base · {row.variantCount ?? 0} variantes: asigna el precio a cada variante
+                </span>
+              ) : null}
+            </div>
+          )
+        },
       },
       {
         key: 'basePrice',
@@ -317,7 +350,7 @@ export function ProductPriceFormPage() {
         },
       },
     ],
-    [busy, itemId, loading, pricesByItem, selectItem]
+    [busy, descriptionsByItem, itemId, loading, pricesByItem, selectItem]
   )
 
   const buildTiers = useCallback((): PriceTierBody[] => {
@@ -634,7 +667,7 @@ export function ProductPriceFormPage() {
           {!isEdit ? (
             <SectionCard
               title="Productos"
-              subtitle="Elige el producto a cotizar; cada fila muestra su precio vigente en la lista."
+              subtitle="Elige el producto a cotizar; las plantillas (padres con variantes) se ocultan porque cada variante lleva su propio SKU y precio."
             >
               <div
                 className="ecu-companies-form__grid ecu-companies-form__grid--4"
@@ -655,6 +688,16 @@ export function ProductPriceFormPage() {
                     disabled={busy || loading}
                     fullWidth
                   />
+                </div>
+                <div className="ecu-companies-form__field sri-config-field--check-align">
+                  <CheckButton
+                    variant="ghost"
+                    checked={includeMatrixParents}
+                    onChange={setIncludeMatrixParents}
+                    disabled={busy || loading}
+                  >
+                    Incluir plantillas (padres con variantes)
+                  </CheckButton>
                 </div>
               </div>
               <div style={{ width: '100%', overflowX: 'auto' }}>
