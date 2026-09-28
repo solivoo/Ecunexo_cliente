@@ -5,6 +5,7 @@ import {
   readBillingEmitProfile,
 } from '@/lib/billingEmitProfile'
 import { readBillingEmissionPoint } from '@/lib/billingSriEmission'
+import { buildLineDescriptionFromCatalogItem } from '@/lib/catalogAttributes'
 import {
   emitErrorTitle,
   emitToastTitle,
@@ -505,7 +506,7 @@ export function useInvoiceEmitForm({
             catalogItemId: item.id,
             itemKind: item.kind === CatalogItemKind.Physical ? 'physical' : 'service',
             sku: (item.sku ?? '').trim().slice(0, 25),
-            description: item.name,
+            description: buildLineDescriptionFromCatalogItem(item),
             unitPrice: item.basePrice ?? 0,
             quantity: normalizedQuantity,
             ivaRate: normalizeLineIvaRate(15),

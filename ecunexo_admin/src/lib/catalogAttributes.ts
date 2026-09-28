@@ -62,3 +62,26 @@ export function buildAttributeSearchString(raw: string | null | undefined): stri
   const entries = flattenAttributeEntries(raw)
   return entries.map((e) => `${e.label} ${e.value}`).join(' ')
 }
+
+/**
+ * Descripción de línea para documentos (factura/guía) a partir del ítem de catálogo:
+ * nombre + descripción (si aporta) + atributos (Marca/Modelo/Talla/Color…).
+ * El backend de facturación acepta hasta 500 caracteres.
+ */
+export function buildLineDescriptionFromCatalogItem(item: {
+  readonly name: string
+  readonly description?: string | null
+  readonly customAttributesJson?: string | null
+}): string {
+  const name = item.name.trim()
+  const parts: string[] = name ? [name] : []
+  const description = (item.description ?? '').trim()
+  if (description && !name.toLowerCase().includes(description.toLowerCase())) {
+    parts.push(description)
+  }
+  const attributes = flattenAttributeEntries(item.customAttributesJson)
+    .map((entry) => `${entry.label}: ${entry.value}`)
+    .join(' · ')
+  if (attributes) parts.push(attributes)
+  return parts.join(' · ').slice(0, 500)
+}

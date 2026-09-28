@@ -11,6 +11,7 @@ import {
   type InvoiceLineDraft,
   type InvoiceLineItemKind,
 } from '@/pages/facturacion/invoiceFormTypes'
+import { buildLineDescriptionFromCatalogItem } from '@/lib/catalogAttributes'
 import { listCatalogItems } from '@/services/catalogApi'
 import { selectEnabledModules } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
@@ -141,7 +142,7 @@ export function InvoiceLinesSection({
       catalogItemId: catalog.id,
       itemKind: kindToSnapshot(catalog.kind),
       sku: (catalog.sku ?? '').trim().slice(0, 25),
-      description: catalog.name,
+      description: buildLineDescriptionFromCatalogItem(catalog),
       unitPrice: catalog.basePrice ?? 0,
       ivaRate: normalizeLineIvaRate(15),
     })
