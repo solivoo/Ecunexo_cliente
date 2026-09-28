@@ -2,7 +2,10 @@ using EcuNexo.Business.Abstractions;
 
 namespace EcuNexo.Business.Pricing.Commands.BulkCreateProductPrices;
 
-public sealed record BulkPriceItemInput(Guid CatalogItemId, decimal Price);
+public sealed record BulkPriceItemInput(
+    Guid CatalogItemId,
+    decimal Price,
+    IReadOnlyList<PriceTierInput>? Tiers = null);
 
 public sealed record BulkCreateProductPricesCommand(
     Guid TenantId,

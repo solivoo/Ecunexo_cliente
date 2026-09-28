@@ -59,7 +59,10 @@ public sealed record ResolvePriceRequest(
         new(tenantId, CatalogItemId, Quantity, Date, PriceListId);
 }
 
-public sealed record BulkPriceItemRequest(Guid CatalogItemId, decimal Price);
+public sealed record BulkPriceItemRequest(
+    Guid CatalogItemId,
+    decimal Price,
+    IReadOnlyList<PriceTierRequest>? Tiers = null);
 
 public sealed record BulkCreateProductPricesRequest(
     Guid PriceListId,
@@ -75,5 +78,8 @@ public sealed record BulkCreateProductPricesRequest(
             ValidFrom,
             ValidTo,
             Reason,
-            Items.Select(i => new BulkPriceItemInput(i.CatalogItemId, i.Price)).ToList());
+            Items.Select(i => new BulkPriceItemInput(
+                i.CatalogItemId,
+                i.Price,
+                i.Tiers?.Select(t => new PriceTierInput(t.QuantityFrom, t.QuantityTo, t.UnitPrice)).ToList())).ToList());
 }

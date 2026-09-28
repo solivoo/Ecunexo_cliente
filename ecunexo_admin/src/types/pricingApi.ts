@@ -180,6 +180,7 @@ export type UpdatePromotionBody = Omit<CreatePromotionBody, 'code'> & {
 export type BulkPriceItemBody = {
   catalogItemId: string
   price: number
+  tiers?: PriceTierBody[]
 }
 
 export type BulkCreateProductPricesBody = {

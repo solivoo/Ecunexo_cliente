@@ -131,6 +131,23 @@ public sealed class BulkCreateProductPricesHandler
                 return Result.Failure<BulkCreateProductPricesResponse>(created.Error!);
             }
 
+            if (input.Tiers is { Count: > 0 })
+            {
+                foreach (var tier in input.Tiers)
+                {
+                    var added = created.Value!.AddTier(
+                        _idGenerator.NewId(),
+                        tier.QuantityFrom,
+                        tier.QuantityTo,
+                        tier.UnitPrice,
+                        _caller.UserId);
+                    if (added.IsFailure)
+                    {
+                        return Result.Failure<BulkCreateProductPricesResponse>(added.Error!);
+                    }
+                }
+            }
+
             await _productPrices.AddAsync(created.Value!, ct).ConfigureAwait(false);
 
             var log = PriceChangeLog.Create(

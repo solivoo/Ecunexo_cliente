@@ -11,7 +11,7 @@ import {
   useToast,
   type ColumnDef,
 } from 'glubox'
-import { DollarSign, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import {
   GridIconButton,
   PageHeader,
@@ -27,6 +27,7 @@ import { todayIso } from '@/pages/catalog/pricing/pricingFormat'
 import { listCatalogItems } from '@/services/catalogApi'
 import { listStock } from '@/services/inventoryApi'
 import {
+  bulkCreateProductPrices,
   createProductPrice,
   getProductPrice,
   listPriceLists,
@@ -65,13 +66,16 @@ export function ProductPriceFormPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [itemId, setItemId] = useState(() => searchParams.get('catalogItemId') ?? '')
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>(() => {
+    const fromUrl = searchParams.get('catalogItemId')
+    return fromUrl ? [fromUrl] : []
+  })
+  const itemId = selectedItemIds[0] ?? ''
   const [itemLabel, setItemLabel] = useState('')
   const [listId, setListId] = useState(() => searchParams.get('priceListId') ?? '')
   const [price, setPrice] = useState('')
   const [pricesByItem, setPricesByItem] = useState<Map<string, { price: number; validFrom: string }>>(new Map())
   const [search, setSearch] = useState('')
-  const [includeMatrixParents, setIncludeMatrixParents] = useState(false)
   const [costInfo, setCostInfo] = useState<{ averageCost: number } | null>(null)
   const [validFrom, setValidFrom] = useState(todayIso())
   const [validTo, setValidTo] = useState('')
@@ -103,7 +107,7 @@ export function ProductPriceFormPage() {
       tasks.push(
         getProductPrice(tenantId, priceId).then((detail) => {
           if (cancelled) return
-          setItemId(detail.catalogItemId)
+          setSelectedItemIds([detail.catalogItemId])
           setItemLabel(detail.sku ? `${detail.itemName} · ${detail.sku}` : detail.itemName)
           setListId(detail.priceListId)
           setPrice(String(detail.price))
@@ -211,25 +215,26 @@ export function ProductPriceFormPage() {
   }, [costInfo, isEdit, itemId, listId, pricesByItem, selectedList])
 
 
-  const selectItem = useCallback(
-    (item: CatalogItemListItemDto) => {
-      setItemId(item.id)
+  const handleSelectionChange = useCallback(
+    (rows: ProductPriceRow[]) => {
+      const ids = rows.map((row) => row.id)
+      setSelectedItemIds(ids)
       setCostInfo(null)
-      const entry = pricesByItem.get(item.id)
-      setPrice(entry ? String(entry.price) : '')
-      toast.show({
-        title: 'Producto seleccionado',
-        message: `${item.description?.trim() || item.name} · define el precio y guarda.`,
-        variant: 'info',
-      })
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      setPrice('')
+      if (ids.length > 1) {
+        toast.show({
+          title: `${ids.length} productos seleccionados`,
+          message: 'El precio y las escalas se aplicarán a todos.',
+          variant: 'info',
+        })
+      }
     },
-    [pricesByItem, toast]
+    [toast]
   )
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase()
-    const visible = includeMatrixParents ? items : items.filter((item) => !item.isMatrixParent)
+    const visible = items.filter((item) => !item.isMatrixParent)
     if (!term) return visible
     return visible.filter(
       (item) =>
@@ -237,7 +242,7 @@ export function ProductPriceFormPage() {
         item.name.toLowerCase().includes(term) ||
         (item.description ?? '').toLowerCase().includes(term)
     )
-  }, [includeMatrixParents, items, search])
+  }, [items, search])
 
   // Descripción del padre por id: si la variante hereda la descripción genérica del padre,
   // se prefiere su propio nombre (que incluye los atributos) como título visible.
@@ -252,14 +257,6 @@ export function ProductPriceFormPage() {
   )
 
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
-  const pageRows = useMemo(
-    () =>
-      filteredItems.slice(
-        paging.pageIndex * paging.pageSize,
-        (paging.pageIndex + 1) * paging.pageSize
-      ),
-    [filteredItems, paging.pageIndex, paging.pageSize]
-  )
   const gridMessages = useMemo(() => createSpanishDataGridMessages('producto', 'productos'), [])
   const gridColumns = useMemo<ColumnDef<ProductPriceRow>[]>(
     () => [
@@ -328,29 +325,8 @@ export function ProductPriceFormPage() {
           </StatusBadge>
         ),
       },
-      {
-        key: 'actions',
-        header: 'Acciones',
-        width: 170,
-        sticky: 'right',
-        renderCell: (_value, row) => {
-          const selected = itemId === row.id
-          return (
-            <Button
-              type="button"
-              size="sm"
-              variant={selected ? 'primary' : 'outline'}
-              iconLeft={<DollarSign size={14} />}
-              disabled={busy || loading}
-              onClick={() => selectItem(row)}
-            >
-              {selected ? 'Seleccionado' : 'Asignar precio'}
-            </Button>
-          )
-        },
-      },
     ],
-    [busy, descriptionsByItem, itemId, loading, pricesByItem, selectItem]
+    [descriptionsByItem, pricesByItem]
   )
 
   const buildTiers = useCallback((): PriceTierBody[] => {
@@ -370,7 +346,7 @@ export function ProductPriceFormPage() {
       setError(null)
       setBusy(true)
       try {
-        if (!isEdit && !itemId) throw new Error('Selecciona el producto a cotizar.')
+        if (!isEdit && selectedItemIds.length === 0) throw new Error('Selecciona al menos un producto.')
         if (!listId) throw new Error('Selecciona la lista de precios.')
         if (!price.trim()) throw new Error('El precio es obligatorio.')
         const numericPrice = Number(price)
@@ -404,10 +380,10 @@ export function ProductPriceFormPage() {
             tiers: tierPayload,
           })
           toast.show({ title: 'Precio actualizado', message: 'La vigencia fue guardada.', variant: 'success' })
-        } else {
+        } else if (selectedItemIds.length === 1) {
           await createProductPrice(tenantId, {
             priceListId: listId,
-            catalogItemId: itemId,
+            catalogItemId: selectedItemIds[0],
             price: numericPrice,
             validFrom,
             validTo: validTo || null,
@@ -418,6 +394,26 @@ export function ProductPriceFormPage() {
           toast.show({
             title: 'Precio creado',
             message: isActive ? 'La nueva vigencia está activa.' : 'La vigencia se guardó inactiva.',
+            variant: 'success',
+          })
+        } else {
+          const { createdCount } = await bulkCreateProductPrices(tenantId, {
+            priceListId: listId,
+            validFrom,
+            validTo: validTo || null,
+            reason: reason.trim() || null,
+            items: selectedItemIds.map((catalogItemId) => ({
+              catalogItemId,
+              price: numericPrice,
+              tiers: tierPayload,
+            })),
+          })
+          toast.show({
+            title: 'Precios creados',
+            message:
+              createdCount === 1
+                ? 'Se creó 1 vigencia.'
+                : `Se crearon ${createdCount} vigencias para los ${selectedItemIds.length} productos seleccionados.`,
             variant: 'success',
           })
         }
@@ -436,7 +432,7 @@ export function ProductPriceFormPage() {
       buildTiers,
       isActive,
       isEdit,
-      itemId,
+      selectedItemIds,
       listId,
       navigate,
       price,
@@ -536,7 +532,7 @@ export function ProductPriceFormPage() {
                   size="sm"
                   disabled={busy || loading}
                   onClick={() => {
-                    setItemId('')
+                    setSelectedItemIds([])
                     setPrice('')
                     setCostInfo(null)
                   }}
@@ -547,7 +543,7 @@ export function ProductPriceFormPage() {
             ) : (
               <p className="ecu-hint" style={{ margin: 0 }}>
                 Pasos: 1) Elige la lista · 2) Define precio y vigencia · 3) Selecciona el
-                producto en la grilla de abajo · 4) Opcional: escalas por cantidad · 5) {'"'}Crear
+                uno o varios productos en la grilla de abajo · 4) Opcional: escalas por cantidad · 5) {'"'}Crear
                 precio{'"'}.
               </p>
             )}
@@ -689,25 +685,48 @@ export function ProductPriceFormPage() {
                     fullWidth
                   />
                 </div>
-                <div className="ecu-companies-form__field sri-config-field--check-align">
-                  <CheckButton
-                    variant="ghost"
-                    checked={includeMatrixParents}
-                    onChange={setIncludeMatrixParents}
-                    disabled={busy || loading}
-                  >
-                    Incluir plantillas (padres con variantes)
-                  </CheckButton>
-                </div>
               </div>
+              {selectedItemIds.length > 0 && !isEdit ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    flexWrap: 'wrap',
+                    marginBottom: '0.6rem',
+                  }}
+                >
+                  <StatusBadge tone="primary">
+                    {selectedItemIds.length} seleccionado{selectedItemIds.length === 1 ? '' : 's'}
+                  </StatusBadge>
+                  {selectedItem ? (
+                    <span className="app-shell__muted">
+                      {selectedItem.name}
+                      {selectedItem.sku ? ` · ${selectedItem.sku}` : ''}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedItemIds([])
+                      setPrice('')
+                      setCostInfo(null)
+                    }}
+                  >
+                    Limpiar selección
+                  </Button>
+                </div>
+              ) : null}
               <div style={{ width: '100%', overflowX: 'auto' }}>
                 <DataGrid<ProductPriceRow>
-                  dataSource={pageRows}
+                  dataSource={filteredItems as ProductPriceRow[]}
                   keyExpr="id"
                   columns={gridColumns}
-                  selectionMode="single"
-                  selectedRowIds={itemId ? [itemId] : []}
-                  onRowSelect={(row) => selectItem(row)}
+                  selectionMode="multiple"
+                  selectedRowIds={selectedItemIds}
+                  onSelectionChange={(rows) => handleSelectionChange(rows as ProductPriceRow[])}
                   showSearch={false}
                   paging={paging}
                   pageSizeOptions={pageSizeOptions}
