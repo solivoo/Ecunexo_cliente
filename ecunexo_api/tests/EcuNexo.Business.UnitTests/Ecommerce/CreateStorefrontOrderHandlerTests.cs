@@ -57,6 +57,10 @@ public sealed class CreateStorefrontOrderHandlerTests
             _orderEmailNotifier,
             _sender,
             _logger);
+
+        _settings
+            .ResolveAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(DefaultSettings);
     }
 
     [Fact(DisplayName = "Crea el pedido invitado con costo de envío del setting y datos de sistema")]

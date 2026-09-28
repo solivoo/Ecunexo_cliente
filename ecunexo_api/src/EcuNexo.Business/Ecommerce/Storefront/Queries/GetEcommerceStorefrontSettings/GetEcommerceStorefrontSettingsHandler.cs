@@ -32,5 +32,7 @@ public sealed class GetEcommerceStorefrontSettingsHandler
             settings.ReserveOnOrder,
             settings.ContactWhatsapp,
             settings.OrdersNotificationEmail,
-            settings.MaxPendingOrders);
+            settings.MaxPendingOrders,
+            settings.MaintenanceEnabled,
+            settings.MaintenanceMessage);
 }

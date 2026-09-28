@@ -14,4 +14,6 @@ public sealed record UpdateEcommerceStorefrontSettingsCommand(
     string? ContactWhatsapp = null,
     string? OrdersNotificationEmail = null,
     int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders,
+    bool MaintenanceEnabled = false,
+    string? MaintenanceMessage = null,
     Guid? UpdatedBy = null) : ICommand<EcommerceStorefrontSettingsDto>;

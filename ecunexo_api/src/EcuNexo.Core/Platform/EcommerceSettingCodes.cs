@@ -29,4 +29,10 @@ public static class EcommerceSettingCodes
 
     /// <summary>Máximo de pedidos pendientes por contacto en la tienda (1..50).</summary>
     public const string StorefrontMaxPendingOrders = "ecommerce.storefront.max_pending_orders";
+
+    /// <summary>Si es <c>true</c>, la tienda muestra una pantalla de mantenimiento y no acepta pedidos.</summary>
+    public const string StorefrontMaintenanceEnabled = "ecommerce.storefront.maintenance";
+
+    /// <summary>Mensaje mostrado al comprador durante el mantenimiento (opcional).</summary>
+    public const string StorefrontMaintenanceMessage = "ecommerce.storefront.maintenance_message";
 }

@@ -72,6 +72,11 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
             command.MaxPendingOrders,
             EcommerceStorefrontSettingsReader.MinMaxPendingOrders,
             EcommerceStorefrontSettingsReader.MaxMaxPendingOrders);
+        var maintenanceMessage = (command.MaintenanceMessage?.Trim() ?? string.Empty);
+        if (maintenanceMessage.Length > EcommerceStorefrontSettingsReader.MaintenanceMessageMaxLength)
+        {
+            maintenanceMessage = maintenanceMessage[..EcommerceStorefrontSettingsReader.MaintenanceMessageMaxLength];
+        }
 
         var scopeId = command.TenantId.ToString("D");
         var payloads = new (string Code, string Json)[]
@@ -104,6 +109,12 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
             (
                 EcommerceSettingCodes.StorefrontMaxPendingOrders,
                 JsonSerializer.Serialize(maxPendingOrders)),
+            (
+                EcommerceSettingCodes.StorefrontMaintenanceEnabled,
+                JsonSerializer.Serialize(command.MaintenanceEnabled)),
+            (
+                EcommerceSettingCodes.StorefrontMaintenanceMessage,
+                JsonSerializer.Serialize(maintenanceMessage)),
         };
 
         foreach (var (code, json) in payloads)
@@ -127,7 +138,9 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
             command.ReserveOnOrder,
             contactWhatsapp,
             ordersNotificationEmail,
-            maxPendingOrders));
+            maxPendingOrders,
+            command.MaintenanceEnabled,
+            maintenanceMessage));
     }
 
     private async Task<Result> UpsertAsync(

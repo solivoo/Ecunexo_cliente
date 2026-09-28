@@ -44,6 +44,7 @@ const DEFAULT_MAX_PENDING_ORDERS = 3
 const MAX_INSTRUCTIONS_LENGTH = 2000
 const MAX_WHATSAPP_LENGTH = 20
 const MAX_NOTIFICATION_EMAIL_LENGTH = 254
+const MAINTENANCE_MESSAGE_MAX_LENGTH = 300
 const WHATSAPP_ALLOWED_PATTERN = /^[0-9+\s]*$/
 const EMAIL_ALLOWED_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -96,6 +97,8 @@ export function StorefrontSettingsPage() {
   const [contactWhatsapp, setContactWhatsapp] = useState('')
   const [ordersNotificationEmail, setOrdersNotificationEmail] = useState('')
   const [maxPendingOrders, setMaxPendingOrders] = useState(DEFAULT_MAX_PENDING_ORDERS)
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false)
+  const [maintenanceMessage, setMaintenanceMessage] = useState('')
 
   const [blockedContacts, setBlockedContacts] = useState<EcommerceBlockedContact[]>([])
   const [blockedLoading, setBlockedLoading] = useState(true)
@@ -126,6 +129,8 @@ export function StorefrontSettingsPage() {
         setContactWhatsapp(settings.contactWhatsapp ?? '')
         setOrdersNotificationEmail(settings.ordersNotificationEmail ?? '')
         setMaxPendingOrders(settings.maxPendingOrders ?? DEFAULT_MAX_PENDING_ORDERS)
+        setMaintenanceEnabled(settings.maintenanceEnabled ?? false)
+        setMaintenanceMessage(settings.maintenanceMessage ?? '')
         setError(null)
       })
       .catch((err: unknown) => {
@@ -380,11 +385,15 @@ export function StorefrontSettingsPage() {
           contactWhatsapp: whatsapp || null,
           ordersNotificationEmail: notificationEmail || null,
           maxPendingOrders,
+          maintenanceEnabled,
+          maintenanceMessage: maintenanceMessage.trim() || null,
         })
         setError(null)
         toast.show({
           title: 'Configuración guardada',
-          message: 'Los métodos de pago, envíos, contacto, avisos y reservas ya están vigentes en la tienda.',
+          message: maintenanceEnabled
+            ? 'Configuración guardada. La tienda quedó en mantenimiento.'
+            : 'Los métodos de pago, envíos, contacto, avisos y reservas ya están vigentes en la tienda.',
           variant: 'success',
         })
       } catch (err: unknown) {
@@ -789,6 +798,43 @@ export function StorefrontSettingsPage() {
                   Pedidos impagos que puede acumular un mismo correo o teléfono. Rango permitido:{' '}
                   {MIN_MAX_PENDING_ORDERS} a {MAX_MAX_PENDING_ORDERS} (por defecto{' '}
                   {DEFAULT_MAX_PENDING_ORDERS}).
+                </p>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Mantenimiento"
+            subtitle="Mientras esté activo, la tienda muestra una pantalla de mantenimiento y no acepta pedidos."
+          >
+            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+              <div className="ecu-companies-form__field sri-config-field--check-align">
+                <CheckButton
+                  variant="ghost"
+                  checked={maintenanceEnabled}
+                  onChange={setMaintenanceEnabled}
+                  disabled={saving}
+                >
+                  Tienda en mantenimiento
+                </CheckButton>
+              </div>
+              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                <TextArea
+                  id="storefront-maintenance-message"
+                  label="Mensaje para el comprador (opcional)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  rows={3}
+                  maxLength={MAINTENANCE_MESSAGE_MAX_LENGTH}
+                  value={maintenanceMessage}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setMaintenanceMessage(e.target.value)}
+                  placeholder="Ej. Estamos actualizando la tienda. Volvemos en unas horas."
+                  disabled={saving}
+                  fullWidth
+                />
+                <p className="ecu-companies-form__hint">
+                  Se muestra en la pantalla de mantenimiento. Máximo {MAINTENANCE_MESSAGE_MAX_LENGTH}{' '}
+                  caracteres.
                 </p>
               </div>
             </div>

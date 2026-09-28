@@ -1,5 +1,7 @@
+using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontStatus;
+using EcuNexo.Core.Ecommerce;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Tenancy;
 using Microsoft.Extensions.Caching.Memory;
@@ -11,7 +13,21 @@ public sealed class GetStorefrontStatusHandlerTests : IDisposable
 {
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
     private readonly IStorefrontCatalogRepository _catalog = Substitute.For<IStorefrontCatalogRepository>();
+    private readonly IEcommerceStorefrontSettingsReader _settings = CreateSettingsReader();
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());
+
+    private static IEcommerceStorefrontSettingsReader CreateSettingsReader()
+    {
+        var reader = Substitute.For<IEcommerceStorefrontSettingsReader>();
+        reader
+            .ResolveAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new EcommerceStorefrontSettings(
+                [EcommercePaymentMethod.BankTransfer],
+                [new ShippingMethodOption(EcommerceShippingMethod.Courier, 0m)],
+                string.Empty,
+                EcommerceStorefrontSettingsReader.DefaultPaymentHoldHours));
+        return reader;
+    }
 
     public void Dispose() => _cache.Dispose();
 
@@ -25,7 +41,7 @@ public sealed class GetStorefrontStatusHandlerTests : IDisposable
             .GetLastCatalogChangeAtAsync(tenantId, Arg.Any<CancellationToken>())
             .Returns(lastChange);
 
-        var sut = new GetStorefrontStatusHandler(_tenants, _catalog, _cache);
+        var sut = new GetStorefrontStatusHandler(_tenants, _catalog, _settings, _cache);
         var result = await sut.Handle(new GetStorefrontStatusQuery(tenantId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -42,7 +58,7 @@ public sealed class GetStorefrontStatusHandlerTests : IDisposable
             .GetLastCatalogChangeAtAsync(tenantId, Arg.Any<CancellationToken>())
             .Returns(new DateTimeOffset(2026, 9, 27, 12, 0, 0, TimeSpan.Zero));
 
-        var sut = new GetStorefrontStatusHandler(_tenants, _catalog, _cache);
+        var sut = new GetStorefrontStatusHandler(_tenants, _catalog, _settings, _cache);
         await sut.Handle(new GetStorefrontStatusQuery(tenantId), CancellationToken.None);
         await sut.Handle(new GetStorefrontStatusQuery(tenantId), CancellationToken.None);
 
@@ -59,7 +75,7 @@ public sealed class GetStorefrontStatusHandlerTests : IDisposable
             .GetLastCatalogChangeAtAsync(tenantId, Arg.Any<CancellationToken>())
             .Returns((DateTimeOffset?)null);
 
-        var sut = new GetStorefrontStatusHandler(_tenants, _catalog, _cache);
+        var sut = new GetStorefrontStatusHandler(_tenants, _catalog, _settings, _cache);
         var result = await sut.Handle(new GetStorefrontStatusQuery(tenantId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -82,7 +98,7 @@ public sealed class GetStorefrontStatusHandlerTests : IDisposable
                     ModuleEntitlement.FromTier(TenantModuleCodes.Catalog, ModuleTier.Small),
                 }).Value!);
 
-        var sut = new GetStorefrontStatusHandler(_tenants, _catalog, _cache);
+        var sut = new GetStorefrontStatusHandler(_tenants, _catalog, _settings, _cache);
         var result = await sut.Handle(new GetStorefrontStatusQuery(tenantId), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();

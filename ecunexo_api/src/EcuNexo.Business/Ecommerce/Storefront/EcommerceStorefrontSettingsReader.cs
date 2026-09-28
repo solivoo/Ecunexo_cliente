@@ -19,6 +19,7 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
     public const int DefaultMaxPendingOrders = 3;
     public const int MinMaxPendingOrders = 1;
     public const int MaxMaxPendingOrders = 50;
+    public const int MaintenanceMessageMaxLength = 300;
 
     private static readonly IReadOnlyList<EcommercePaymentMethod> DefaultPaymentMethods =
         [EcommercePaymentMethod.BankTransfer];
@@ -58,7 +59,9 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
             ReadReserveOnOrder(values),
             ReadContactWhatsapp(values),
             ReadOrdersNotificationEmail(values),
-            ReadMaxPendingOrders(values));
+            ReadMaxPendingOrders(values),
+            ReadMaintenanceEnabled(values),
+            ReadMaintenanceMessage(values));
     }
 
     internal static bool TryParsePaymentMethod(string? raw, out EcommercePaymentMethod method)
@@ -222,6 +225,36 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
         };
 
         return Math.Clamp(maxPendingOrders, MinMaxPendingOrders, MaxMaxPendingOrders);
+    }
+
+    private static bool ReadMaintenanceEnabled(IReadOnlyDictionary<string, JsonElement> values)
+    {
+        if (!values.TryGetValue(EcommerceSettingCodes.StorefrontMaintenanceEnabled, out var element))
+        {
+            return false;
+        }
+
+        return element.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.String when bool.TryParse(element.GetString(), out var parsed) => parsed,
+            _ => false,
+        };
+    }
+
+    private static string ReadMaintenanceMessage(IReadOnlyDictionary<string, JsonElement> values)
+    {
+        if (!values.TryGetValue(EcommerceSettingCodes.StorefrontMaintenanceMessage, out var element)
+            || element.ValueKind != JsonValueKind.String)
+        {
+            return string.Empty;
+        }
+
+        var message = element.GetString()?.Trim() ?? string.Empty;
+        return message.Length <= MaintenanceMessageMaxLength
+            ? message
+            : message[..MaintenanceMessageMaxLength];
     }
 
     private static decimal ReadCost(JsonElement element)

@@ -122,6 +122,18 @@ public sealed class CreateStorefrontOrderHandler
         CreateStorefrontOrderCommand command,
         CancellationToken ct)
     {
+        var storefrontSettings = await _settings
+            .ResolveAsync(command.TenantId, ct)
+            .ConfigureAwait(false);
+        if (storefrontSettings.MaintenanceEnabled)
+        {
+            var maintenanceMessage = string.IsNullOrWhiteSpace(storefrontSettings.MaintenanceMessage)
+                ? "La tienda está en mantenimiento. Vuelve pronto."
+                : storefrontSettings.MaintenanceMessage;
+            return Result.Failure<StorefrontOrderCreatedDto>(
+                new Error("ecommerce.storefront.maintenance", maintenanceMessage, ErrorType.Conflict));
+        }
+
         var validation = await _validator.ValidateAsync(command, ct).ConfigureAwait(false);
         if (!validation.IsValid)
         {

@@ -13,7 +13,9 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
     bool ReserveOnOrder = true,
     string? ContactWhatsapp = null,
     string? OrdersNotificationEmail = null,
-    int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders)
+    int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders,
+    bool MaintenanceEnabled = false,
+    string? MaintenanceMessage = null)
 {
     public UpdateEcommerceStorefrontSettingsCommand ToCommand(Guid tenantId, Guid? updatedBy) =>
         new(
@@ -28,5 +30,7 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
             ContactWhatsapp,
             OrdersNotificationEmail,
             MaxPendingOrders,
+            MaintenanceEnabled,
+            MaintenanceMessage,
             updatedBy);
 }

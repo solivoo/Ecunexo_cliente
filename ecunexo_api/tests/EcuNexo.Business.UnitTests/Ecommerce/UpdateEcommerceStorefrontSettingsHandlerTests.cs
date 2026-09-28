@@ -22,7 +22,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         _sut = new UpdateEcommerceStorefrontSettingsHandler(_validator, _settings, _idGenerator, _unitOfWork);
     }
 
-    [Fact(DisplayName = "Hace upsert de los ocho settings tenant y devuelve el estado guardado")]
+    [Fact(DisplayName = "Hace upsert de los diez settings tenant y devuelve el estado guardado")]
     public async Task Handle_WithoutExistingSettings_CreatesAll()
     {
         var tenantId = Guid.CreateVersion7();
@@ -44,6 +44,8 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             ContactWhatsapp: "+593 99 999 9999",
             OrdersNotificationEmail: "  Pedidos@Tienda.COM  ",
             MaxPendingOrders: 12,
+            MaintenanceEnabled: true,
+            MaintenanceMessage: "  Volvemos pronto  ",
             UpdatedBy: Guid.CreateVersion7());
 
         var result = await _sut.Handle(command, CancellationToken.None);
@@ -60,8 +62,10 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         dto.ContactWhatsapp.Should().Be("593999999999");
         dto.OrdersNotificationEmail.Should().Be("pedidos@tienda.com");
         dto.MaxPendingOrders.Should().Be(12);
+        dto.MaintenanceEnabled.Should().BeTrue();
+        dto.MaintenanceMessage.Should().Be("Volvemos pronto");
 
-        await _settings.Received(8).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
+        await _settings.Received(10).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -88,6 +92,10 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
                 SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontOrdersNotificationEmail, "\"\"", SettingScope.Tenant, scopeId).Value!,
             [EcommerceSettingCodes.StorefrontMaxPendingOrders] =
                 SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontMaxPendingOrders, "3", SettingScope.Tenant, scopeId).Value!,
+            [EcommerceSettingCodes.StorefrontMaintenanceEnabled] =
+                SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontMaintenanceEnabled, "false", SettingScope.Tenant, scopeId).Value!,
+            [EcommerceSettingCodes.StorefrontMaintenanceMessage] =
+                SysSetting.Create(Guid.CreateVersion7(), EcommerceSettingCodes.StorefrontMaintenanceMessage, "\"\"", SettingScope.Tenant, scopeId).Value!,
         };
 
         _settings

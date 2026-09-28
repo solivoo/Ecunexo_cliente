@@ -15,7 +15,9 @@ public sealed record EcommerceStorefrontSettingsDto(
     bool ReserveOnOrder,
     string ContactWhatsapp,
     string OrdersNotificationEmail,
-    int MaxPendingOrders);
+    int MaxPendingOrders,
+    bool MaintenanceEnabled,
+    string MaintenanceMessage);
 
 /// <summary>Opciones de pago y envío expuestas al comprador anónimo.</summary>
 public sealed record EcommerceCheckoutOptionsDto(

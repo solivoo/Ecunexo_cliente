@@ -8,9 +8,14 @@ public sealed class UpdateEcommerceStorefrontSettingsValidator
     public const int BankTransferInstructionsMaxLength = 2000;
     public const int ContactWhatsappMaxLength = 20;
     public const int OrdersNotificationEmailMaxLength = 254;
+    public const int MaintenanceMessageMaxLength = EcommerceStorefrontSettingsReader.MaintenanceMessageMaxLength;
 
     public UpdateEcommerceStorefrontSettingsValidator()
     {
+        RuleFor(x => x.MaintenanceMessage)
+            .MaximumLength(MaintenanceMessageMaxLength)
+            .WithMessage($"El mensaje de mantenimiento no puede superar {MaintenanceMessageMaxLength} caracteres.");
+
         RuleFor(x => x.TenantId)
             .NotEmpty()
             .WithMessage("El tenant es obligatorio.");

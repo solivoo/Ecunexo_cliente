@@ -14,7 +14,9 @@ public sealed record EcommerceStorefrontSettings(
     bool ReserveOnOrder = true,
     string ContactWhatsapp = "",
     string OrdersNotificationEmail = "",
-    int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders);
+    int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders,
+    bool MaintenanceEnabled = false,
+    string MaintenanceMessage = "");
 
 /// <summary>
 /// Lee la configuración efectiva de la tienda (global/plan/tenant) aplicando defaults seguros.

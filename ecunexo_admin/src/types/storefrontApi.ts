@@ -29,6 +29,8 @@ export type EcommerceStorefrontSettings = {
   contactWhatsapp: string
   ordersNotificationEmail: string
   maxPendingOrders: number
+  maintenanceEnabled: boolean
+  maintenanceMessage: string
 }
 
 export type UpdateEcommerceStorefrontSettingsInput = {
@@ -40,6 +42,8 @@ export type UpdateEcommerceStorefrontSettingsInput = {
   contactWhatsapp: string | null
   ordersNotificationEmail: string | null
   maxPendingOrders: number
+  maintenanceEnabled: boolean
+  maintenanceMessage: string | null
 }
 
 export type EcommerceBlockedContactKind = 'Email' | 'Phone'
