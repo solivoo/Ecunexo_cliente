@@ -268,6 +268,20 @@ export function PromotionFormPage() {
       setError(null)
       setBusy(true)
       try {
+        if (tenantId) {
+          const existing = await listPromotions(tenantId, false).catch(() => [])
+          const duplicated = existing.some(
+            (promotion) => promotion.priority === priority && promotion.id !== promotionId
+          )
+          if (duplicated) {
+            toast.show({
+              title: 'Prioridad repetida',
+              message:
+                'Otra promoción tiene la misma prioridad; el orden se decidirá por código. Usa prioridades distintas para un control explícito.',
+              variant: 'warning',
+            })
+          }
+        }
         if (!name.trim()) throw new Error('El nombre de la promoción es obligatorio.')
         if (!isEdit && !code.trim()) throw new Error('El código de la promoción es obligatorio.')
         const numericValue = Number(value)
@@ -434,6 +448,10 @@ export function PromotionFormPage() {
                   disabled={busy || loading}
                   fullWidth
                 />
+                <p className="ecu-companies-form__hint">
+                  Mayor prioridad se aplica primero; si hay empate desempata el código y una promoción
+                  no acumulable corta las de menor prioridad.
+                </p>
               </div>
               <div className="ecu-companies-form__field">
                 <DateBox
