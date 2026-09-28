@@ -54,72 +54,81 @@ export function EcuColorListInput({
         </div>
       )}
 
-      {colors.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-          {colors.map((color) => (
+      {/* Todo en una sola línea: chips + selector + añadir (scroll horizontal si no cabe). */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.4rem',
+          flexWrap: 'nowrap',
+          overflowX: 'auto',
+          paddingBottom: '0.15rem',
+        }}
+      >
+        {colors.map((color) => (
+          <span
+            key={color}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              padding: '0.2rem 0.55rem',
+              borderRadius: '9999px',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              flexShrink: 0,
+              border: '1px solid var(--shell-border, rgba(0,0,0,0.15))',
+              background: 'var(--glb-surface, #fff)',
+              color: 'var(--glb-text)',
+            }}
+          >
             <span
-              key={color}
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                padding: '0.2rem 0.55rem',
-                borderRadius: '9999px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                border: '1px solid var(--shell-border, rgba(0,0,0,0.15))',
-                background: 'var(--glb-surface, #fff)',
-                color: 'var(--glb-text)',
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                background: color,
+                border: '1px solid rgba(0,0,0,0.15)',
               }}
-            >
-              <span
+            />
+            <span>{color}</span>
+            {!disabled && (
+              <button
+                type="button"
+                onClick={() => handleRemove(color)}
+                aria-label={`Quitar ${color}`}
                 style={{
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  background: color,
-                  border: '1px solid rgba(0,0,0,0.15)',
+                  display: 'inline-flex',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: 'var(--glb-muted, #94a3b8)',
                 }}
-              />
-              <span>{color}</span>
-              {!disabled && (
-                <button
-                  type="button"
-                  onClick={() => handleRemove(color)}
-                  aria-label={`Quitar ${color}`}
-                  style={{
-                    display: 'inline-flex',
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    cursor: 'pointer',
-                    color: 'var(--glb-muted, #94a3b8)',
-                  }}
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </span>
-          ))}
-        </div>
-      )}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </span>
+        ))}
 
-      {!disabled && colors.length < maxColors && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <ColorPicker
-            value={draft}
-            onChange={(hex: string) => setDraft(hex)}
-            size="sm"
-            variant="outline"
-            disabled={disabled}
-            width={140}
-          />
-          <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={!canAdd}>
-            <Plus size={13} />
-            <span>Añadir</span>
-          </Button>
-        </div>
-      )}
+        {!disabled && colors.length < maxColors && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+            <ColorPicker
+              value={draft}
+              onChange={(hex: string) => setDraft(hex)}
+              size="sm"
+              variant="outline"
+              disabled={disabled}
+              width={140}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={!canAdd}>
+              <Plus size={13} />
+              <span>Añadir</span>
+            </Button>
+          </div>
+        )}
+      </div>
 
       {helperText && (
         <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>{helperText}</span>

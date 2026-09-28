@@ -7,8 +7,10 @@
 ## 1. Estado Actual del Repositorio
 
 * **Rama Activa:** `main` (sincronizada con `origin/main`).
-* **Última Versión Publicada:** `v0.62.4`.
+* **Última Versión Publicada:** `v0.62.5`.
 * **Hitos Recientes Completados:**
+  - **Catálogo — Colores en una sola línea (v0.62.5):**
+    * `EcuColorListInput`: chips + selector + «Añadir» en un único flex `nowrap` con `overflow-x: auto`; chips con `flex-shrink: 0`. Aplica a la ficha y a las variantes.
   - **Catálogo — Alta sin datos quemados (v0.62.4):**
     * Se eliminaron los fallbacks `['35-38','39-41','42-44']` de `VariantMatrixBuilder` (estado inicial y sync de la plantilla) y de `resolveTemplateDimensions`; la matriz nace vacía y solo usa valores de plantilla/diccionario.
     * Verificación de la plantilla desplegada EVERCHIC: Nivel 1 sin ejes (Marca, Modelo, Categoria, Material; sin fotos) y Nivel 2 con ejes Caña + Talla y datos Color/Actividad/Tag con foto por variante; la UI corresponde.
