@@ -34,7 +34,9 @@ export function PriceSimulatorPage() {
 
   useEffect(() => {
     if (!tenantId || !canRead) return
-    void listCatalogItems(tenantId, { kind: CatalogItemKind.Physical }).then(setItems).catch(() => setItems([]))
+    void listCatalogItems(tenantId, { kind: CatalogItemKind.Physical })
+      .then((data) => setItems(data.filter((item) => !item.isMatrixParent)))
+      .catch(() => setItems([]))
     void listPriceLists(tenantId, true).then(setLists).catch(() => setLists([]))
   }, [canRead, tenantId])
 

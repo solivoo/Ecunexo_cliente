@@ -198,7 +198,7 @@ export function EditCatalogItemPage() {
   )
 
   const showNameField = !templateCapturesName
-  const showSkuField = !item?.isMatrixParent
+  const showSkuField = true
   const showDescriptionField = !templateCapturesDescription
   const showBarcodeField = !item?.isMatrixParent
   const showIdentityCard = showNameField || showSkuField || showDescriptionField || showBarcodeField
@@ -512,7 +512,7 @@ export function EditCatalogItemPage() {
         const payloadName = templateCapturesName ? templateNameValue || name.trim() : name.trim()
         if (!payloadName) throw new Error('El nombre del ítem es obligatorio.')
         const kindNum = Number(kind) as CatalogItemKind
-        if (kindNum === CatalogItemKind.Physical && !sku.trim()) {
+        if (kindNum === CatalogItemKind.Physical && !item?.isMatrixParent && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
         }
 
@@ -798,14 +798,18 @@ export function EditCatalogItemPage() {
                       <div className="ecu-companies-form__field">
                         <TextBox
                           id="ei-sku"
-                          label="Código / SKU"
+                          label={item?.isMatrixParent ? 'Código de modelo' : 'Código / SKU'}
                           labelPosition="outlined"
                           variant="outline"
                           value={sku}
                           onChange={(e: ChangeEvent<HTMLInputElement>) =>
                             setSku(e.target.value.toUpperCase())
                           }
-                          placeholder="Escriba aquí..."
+                          placeholder={
+                            item?.isMatrixParent
+                              ? 'Prefijo para los SKU de las variantes'
+                              : 'Escriba aquí...'
+                          }
                           required={Number(kind) === CatalogItemKind.Physical && !item?.isMatrixParent}
                           disabled={busy}
                           fullWidth

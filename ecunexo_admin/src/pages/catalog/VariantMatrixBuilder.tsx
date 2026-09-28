@@ -36,6 +36,7 @@ export type VariantRowState = {
   variantTitle: string
   isManualTitle?: boolean
   sku: string
+  isManualSku?: boolean
   barcode: string
   basePrice: string
   isManualPrice?: boolean
@@ -65,6 +66,8 @@ export type VariantMatrixBuilderProps = {
   tenantId: string | null
   baseName: string
   basePrice: string
+  /** Código de modelo (SKU del padre): prefijo para autogenerar los SKU de las variantes. */
+  modelCode?: string
   parentTags?: readonly string[]
   disabled?: boolean
   onChange: (data: {
@@ -119,6 +122,46 @@ function normalizeHexColor(value: string): string {
   return clean.toLowerCase()
 }
 
+const SKU_MAX_LENGTH = 40
+
+function normalizeSkuToken(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '')
+}
+
+/** Base del SKU conservando separadores: «CALCETIN-D-85AMHG». */
+function normalizeSkuBase(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** Convierte el valor de una dimensión en un fragmento de SKU legible. */
+function skuTokenFromDimension(
+  value: string,
+  humanize: (value: string) => string
+): string {
+  const clean = value.trim()
+  if (!clean) return ''
+  if (HEX_COLOR_PATTERN.test(clean)) {
+    const name = normalizeSkuToken(humanize(clean))
+    return name ? name.slice(0, 3) : clean.replace('#', '').slice(0, 6).toUpperCase()
+  }
+  const segments = clean
+    .split('/')
+    .map((part) => part.trim())
+    .filter(Boolean)
+  const token = normalizeSkuToken(segments.length > 1 ? segments[segments.length - 1] : clean)
+  if (!token) return ''
+  return /^\d+$/.test(token) ? token : token.slice(0, 4)
+}
+
 /** Una dimensión de color siempre está activa: se asigna por hexadecimal aunque no tenga presets. */
 function isDimensionActive(dim: DimensionState): boolean {
   return (
@@ -159,6 +202,7 @@ export function VariantMatrixBuilder({
   tenantId: _tenantId,
   baseName,
   basePrice,
+  modelCode = '',
   parentTags = NO_PARENT_TAGS,
   disabled = false,
   onChange,
@@ -293,6 +337,7 @@ export function VariantMatrixBuilder({
           variantTitle: autoTitle,
           isManualTitle: false,
           sku: '',
+          isManualSku: false,
           barcode: '',
           basePrice: defaultPrice,
           isManualPrice: false,
@@ -319,6 +364,7 @@ export function VariantMatrixBuilder({
         ...source,
         id: newId,
         sku: '',
+        isManualSku: false,
         variantTitle: `${source.variantTitle} (Copia)`,
         isManualTitle: false,
         variantTags: [...(source.variantTags ?? [])],
@@ -345,11 +391,50 @@ export function VariantMatrixBuilder({
           updated.isManualTitle = true
         } else if (field === 'basePrice') {
           updated.isManualPrice = true
+        } else if (field === 'sku') {
+          updated.isManualSku = true
         }
         return updated
       })
     )
   }, [])
+
+  const skuPrefix = useMemo(
+    () => (modelCode.trim() ? normalizeSkuBase(modelCode).slice(0, 16) : ''),
+    [modelCode]
+  )
+
+  /** SKU autogenerado: código de modelo + valores de dimensión (mismo orden de ejes). */
+  const buildSkuForRow = useCallback(
+    (dimensionValues: Record<string, string>): string => {
+      const base = normalizeSkuBase(modelCode).slice(0, 16)
+      const parts = Object.values(dimensionValues)
+        .map((value) =>
+          skuTokenFromDimension(value, (hex) => resolveHumanDimensionValue('', hex))
+        )
+        .filter(Boolean)
+      return [base, ...parts].filter(Boolean).join('-').slice(0, SKU_MAX_LENGTH)
+    },
+    [modelCode, resolveHumanDimensionValue]
+  )
+
+  // Autocompleta el SKU de las filas que el usuario no haya escrito manualmente.
+  useEffect(() => {
+    if (!modelCode.trim()) return
+    setRows((prev) => {
+      let changed = false
+      const next = prev.map((row) => {
+        if (row.isManualSku && row.sku.trim()) return row
+        const generated = buildSkuForRow(row.dimensionValues)
+        if (generated && generated !== row.sku) {
+          changed = true
+          return { ...row, sku: generated }
+        }
+        return row
+      })
+      return changed ? next : prev
+    })
+  }, [buildSkuForRow, dimensions, modelCode, rows])
 
   const handleVariantAttributeChange = useCallback((rowId: string, key: string, value: string) => {
     setRows((prev) =>
@@ -850,6 +935,7 @@ export function VariantMatrixBuilder({
         variantTitle: `${groupVal} / ${availableVal}`,
         isManualTitle: false,
         sku: '',
+        isManualSku: false,
         barcode: '',
         basePrice: defaultPrice,
         isManualPrice: false,
@@ -911,6 +997,7 @@ export function VariantMatrixBuilder({
           variantTitle: label,
           isManualTitle: false,
           sku: '',
+          isManualSku: false,
           stagedImages: [],
           stagedImagePreview: null,
         }
@@ -1426,7 +1513,12 @@ export function VariantMatrixBuilder({
                     <div key={row.id} className="ecu-variant-sub-item-row">
                       {/* SKU (Obligatorio) */}
                       <div className="ecu-variant-sub-item-field" style={{ minWidth: '190px', flex: '1.4 1 190px', maxWidth: '260px' }}>
-                        <label className="ecu-variant-sub-item-label">SKU *</label>
+                        <label className="ecu-variant-sub-item-label">
+                          SKU *
+                          {skuPrefix ? (
+                            <span className="app-shell__muted"> · {skuPrefix}-…</span>
+                          ) : null}
+                        </label>
                         <TextBox
                           size="sm"
                           variant="outline"
@@ -1434,7 +1526,7 @@ export function VariantMatrixBuilder({
                           onChange={(e: ChangeEvent<HTMLInputElement>) =>
                             updateRow(row.id, 'sku', e.target.value.toUpperCase())
                           }
-                          placeholder="Ej. NIK-001-0001"
+                          placeholder={skuPrefix ? `${skuPrefix}-…` : 'Ej. NIK-001-0001'}
                           error={duplicateSkuSet.has(row.sku.trim().toUpperCase())}
                           errorMessage={
                             duplicateSkuSet.has(row.sku.trim().toUpperCase())

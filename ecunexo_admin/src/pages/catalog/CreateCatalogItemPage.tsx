@@ -263,6 +263,12 @@ export function CreateCatalogItemPage() {
   const showManualDescription = !hasTemplateDescriptionField
   const showIdentityCard = showManualName || showManualDescription
 
+  // Código de modelo (SKU del padre): prefijo para autogenerar los SKU de cada variante.
+  const matrixModelCode = useMemo(() => {
+    const finalName = showManualName ? name.trim() : derivedTemplateName
+    return (derivedTemplateSku || (finalName ? generateSkuFromName(finalName) : '')).toUpperCase()
+  }, [derivedTemplateName, derivedTemplateSku, name, showManualName])
+
   const handleApplyTemplate = useCallback((templateId: string) => {
     setSelectedTemplateId(templateId)
     setCustomAttributes([])
@@ -380,7 +386,7 @@ export function CreateCatalogItemPage() {
             kind: kindNum,
             name: finalName,
             description: finalDescription || null,
-            modelCode: null,
+            modelCode: matrixModelCode || null,
             basePrice: null,
             variantDimensionsJson: matrixData.variantDimensionsJson,
             variants: matrixData.variants,
@@ -539,6 +545,7 @@ export function CreateCatalogItemPage() {
       showManualDescription,
       showManualName,
       matrixData,
+      matrixModelCode,
       maxVariants,
       navigate,
       photoChoice,
@@ -734,9 +741,14 @@ export function CreateCatalogItemPage() {
               <SectionCard
                 title="Variaciones"
                 subtitle={
-                  templateAllDimensions?.length
-                    ? `Ejes: ${templateAllDimensions.map((d) => d.name).join(' × ')}`
-                    : undefined
+                  [
+                    templateAllDimensions?.length
+                      ? `Ejes: ${templateAllDimensions.map((d) => d.name).join(' × ')}`
+                      : null,
+                    matrixModelCode ? `Código de modelo: ${matrixModelCode}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || undefined
                 }
               >
                 {remainingVariants != null && (
@@ -772,6 +784,7 @@ export function CreateCatalogItemPage() {
                   tenantId={tenantId}
                   baseName={derivedTemplateName || name.trim() || appliedTemplate?.name || ''}
                   basePrice=""
+                  modelCode={matrixModelCode}
                   disabled={busy}
                   onChange={setMatrixData}
                   availableImages={stagedImages}
