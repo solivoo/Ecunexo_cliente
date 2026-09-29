@@ -31,6 +31,7 @@ function staticTitle(pathname: string, search: string): string | null {
   if (/^\/equipo\/departamentos\/[^/]+\/editar$/.test(pathname)) return 'Editar departamento'
   if (pathname === '/app/configuracion') return 'Configuración'
   if (pathname === '/catalogo/items/nuevo') return 'Nuevo ítem'
+  if (/^\/catalogo\/items\/[^/]+\/variantes\/nueva$/.test(pathname)) return 'Nueva variante'
   if (/^\/catalogo\/items\/[^/]+$/.test(pathname)) return 'Editar ítem'
   if (pathname === '/catalogo/plantillas') return 'Plantillas de producto'
   if (pathname === '/catalogo/plantillas/nueva') return 'Nueva plantilla'

@@ -33,6 +33,7 @@ import { UsersListPage } from '@/pages/team/UsersListPage'
 import { CreateCatalogItemPage } from '@/pages/catalog/CreateCatalogItemPage'
 import { CatalogItemsListPage } from '@/pages/catalog/CatalogItemsListPage'
 import { EditCatalogItemPage } from '@/pages/catalog/EditCatalogItemPage'
+import { CreateCatalogVariantPage } from '@/pages/catalog/CreateCatalogVariantPage'
 import { CatalogAttributesListPage } from '@/pages/catalog/CatalogAttributesListPage'
 import { ProductTemplatesListPage } from '@/pages/catalog/ProductTemplatesListPage'
 import { ProductTemplateBuilderPage } from '@/pages/catalog/ProductTemplateBuilderPage'
@@ -159,6 +160,7 @@ export const routes: RouteObject[] = [
           { path: 'catalogo/items', element: <CatalogItemsListPage /> },
           { path: 'catalogo/items/nuevo', element: <CreateCatalogItemPage /> },
           { path: 'catalogo/items/:itemId', element: <EditCatalogItemPage /> },
+          { path: 'catalogo/items/:itemId/variantes/nueva', element: <CreateCatalogVariantPage /> },
           { path: 'catalogo/atributos', element: <CatalogAttributesListPage /> },
           { path: 'catalogo/plantillas', element: <ProductTemplatesListPage /> },
           { path: 'catalogo/plantillas/nueva', element: <ProductTemplateBuilderPage /> },

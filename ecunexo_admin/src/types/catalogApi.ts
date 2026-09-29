@@ -198,6 +198,7 @@ export type AddCatalogItemVariantBody = {
   variantTitle: string
   sku: string
   basePrice?: number | null
+  barcode?: string | null
   customAttributesJson?: string | null
   initialStock?: number | null
   initialStockWarehouseId?: string | null
