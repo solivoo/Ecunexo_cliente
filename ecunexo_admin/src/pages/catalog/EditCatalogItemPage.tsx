@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, NumberBox, Popup, Select, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Button, ColorPicker, NumberBox, Popup, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   EcuTagInput,
@@ -198,8 +198,8 @@ export function EditCatalogItemPage() {
     [modelAttributeFields]
   )
 
-  const showDescriptionField = !templateCapturesDescription
-  const showNameField = !templateCapturesName
+  const showDescriptionField = isVariantChild || !templateCapturesDescription
+  const showNameField = isVariantChild || !templateCapturesName
   const showSkuField = !item?.isMatrixParent
   const showBarcodeField = !item?.isMatrixParent
 
@@ -213,10 +213,11 @@ export function EditCatalogItemPage() {
       Array.from(
         new Set([
           ...modelAttributeFields.map((field) => field.key.trim().toLowerCase()),
+          ...variantAttributeFields.map((field) => field.key.trim().toLowerCase()),
           ...variantDimensionNames.map((name) => name.toLowerCase()),
         ])
       ),
-    [modelAttributeFields, variantDimensionNames]
+    [modelAttributeFields, variantAttributeFields, variantDimensionNames]
   )
 
   const freeAttributeRows = useMemo(
@@ -497,7 +498,7 @@ export function EditCatalogItemPage() {
       setError(null)
       setBusy(true)
       try {
-        const templateNameValue = templateCapturesName
+        const templateNameValue = !isVariantChild && templateCapturesName
           ? modelAttributeFields
               .filter((field) =>
                 /^nombre\b|^name$|^producto$/.test(field.key.trim().toLowerCase())
@@ -510,9 +511,14 @@ export function EditCatalogItemPage() {
               )
               .find((value) => value) ?? ''
           : ''
-        const payloadName = (templateCapturesName ? templateNameValue || name.trim() : name.trim()) ||
+        const payloadName =
+          (isVariantChild
+            ? name.trim()
+            : templateCapturesName
+              ? templateNameValue || name.trim()
+              : name.trim()) ||
           sku.trim() ||
-          'Producto'
+          (isVariantChild ? 'Variante' : 'Producto')
         const kindNum = Number(kind) as CatalogItemKind
         if (kindNum === CatalogItemKind.Physical && !item?.isMatrixParent && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
@@ -559,6 +565,7 @@ export function EditCatalogItemPage() {
       dimensionValuesMap,
       familyLevels,
       item,
+      isVariantChild,
       itemId,
       kind,
       modelAttributeFields,
@@ -881,7 +888,130 @@ export function EditCatalogItemPage() {
               </SectionCard>
               ) : null}
 
-              {modelAttributeFields.length > 0 && !isVariantChild ? (
+              {isVariantChild && variantAxisEntries.length > 0 && (
+                <SectionCard
+                  title="Dimensiones de la variante"
+                  subtitle={`Valores de la combinación física (${variantAxisEntries.map((e) => e.name).join(' × ')})`}
+                >
+                  <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+                    {variantAxisEntries.map((entry) => {
+                      const lookup = dimensionValuesMap?.get(entry.name.trim().toLowerCase())
+                      const axisFromDescriptor = item?.matrixDescriptor?.axes?.find(
+                        (a) => a.name.trim().toLowerCase() === entry.name.trim().toLowerCase()
+                      )
+                      const isColor =
+                        entry.type === 'color' ||
+                        isHexColorToken(entry.value) ||
+                        lookup?.isColor ||
+                        axisFromDescriptor?.type === 'color'
+
+                      const currentValue = entry.value
+                      const availableOptions = Array.from(
+                        new Set([
+                          ...(axisFromDescriptor?.values ?? []),
+                          ...(lookup?.values ?? []),
+                        ])
+                      )
+
+                      if (isColor) {
+                        return (
+                          <div key={entry.name} className="ecu-companies-form__field">
+                            <label
+                              className="ecu-companies-form__label"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                marginBottom: '0.35rem',
+                                fontSize: '0.85rem',
+                                fontWeight: 500,
+                              }}
+                            >
+                              <span>{entry.name}</span>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  width: 14,
+                                  height: 14,
+                                  borderRadius: '50%',
+                                  backgroundColor: currentValue || '#3b82f6',
+                                  border: '1px solid rgba(0,0,0,0.2)',
+                                }}
+                              />
+                            </label>
+                            <ColorPicker
+                              value={currentValue || '#3b82f6'}
+                              onChange={(hex: string) => setAttributeValue(entry.name, hex)}
+                              disabled={busy}
+                            />
+                          </div>
+                        )
+                      }
+
+                      if (availableOptions.length > 0) {
+                        const options = [
+                          ...availableOptions.map((opt) => ({ value: opt, label: opt })),
+                          ...(currentValue && !availableOptions.includes(currentValue)
+                            ? [{ value: currentValue, label: currentValue }]
+                            : []),
+                        ]
+                        return (
+                          <div key={entry.name} className="ecu-companies-form__field">
+                            <Select
+                              id={`axis-${entry.name}`}
+                              label={entry.name}
+                              labelPosition="outlined"
+                              variant="outline"
+                              value={currentValue}
+                              onChange={(val: string) => setAttributeValue(entry.name, val)}
+                              options={options}
+                              disabled={busy}
+                              fullWidth
+                            />
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <div key={entry.name} className="ecu-companies-form__field">
+                          <TextBox
+                            id={`axis-${entry.name}`}
+                            label={entry.name}
+                            labelPosition="outlined"
+                            variant="outline"
+                            value={currentValue}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                              setAttributeValue(entry.name, e.target.value)
+                            }
+                            disabled={busy}
+                            fullWidth
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </SectionCard>
+              )}
+
+              {isVariantChild && variantAttributeFields.length > 0 ? (
+                <SectionCard
+                  title="Propiedades de la variante"
+                  subtitle={familyTemplate ? `Plantilla: ${familyTemplate.name}` : undefined}
+                >
+                  <ArchetypeModelFields
+                    fields={variantAttributeFields}
+                    values={customAttributes}
+                    dimensionValuesMap={dimensionValuesMap}
+                    onChangeValue={setAttributeValue}
+                    onUploadMedia={handleUploadMedia}
+                    onMediaError={handleMediaError}
+                    disabled={busy}
+                    bare
+                  />
+                </SectionCard>
+              ) : null}
+
+              {!isVariantChild && modelAttributeFields.length > 0 ? (
                 <SectionCard
                   title="Datos de la plantilla"
                   subtitle={familyTemplate?.name}
@@ -923,19 +1053,21 @@ export function EditCatalogItemPage() {
                     Etiquetas de búsqueda y atributos libres
                   </summary>
                   <div style={{ marginTop: '1rem' }}>
-                    {!isVariantChild ? (
-                      <div style={{ marginBottom: '1.25rem' }}>
-                        <EcuTagInput
-                          tags={tags}
-                          onChange={setTags}
-                          label="Etiquetas"
-                          placeholder="Deportivo, Premium, temporada…"
-                          helperText="Búsqueda en POS y tienda; se heredan a las variantes. Recomendado: declararlas en la plantilla como «Tags»."
-                          suggestedTags={suggestedTags}
-                          disabled={busy}
-                        />
-                      </div>
-                    ) : null}
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <EcuTagInput
+                        tags={tags}
+                        onChange={setTags}
+                        label="Etiquetas"
+                        placeholder="Deportivo, Premium, temporada…"
+                        helperText={
+                          isVariantChild
+                            ? 'Etiquetas de búsqueda específicas para esta variante en POS y tienda.'
+                            : 'Búsqueda en POS y tienda; se heredan a las variantes. Recomendado: declararlas en la plantilla como «Tags».'
+                        }
+                        suggestedTags={suggestedTags}
+                        disabled={busy}
+                      />
+                    </div>
 
                     {familyTemplate && freeAttributeRows.length > 0 ? (
                       <div

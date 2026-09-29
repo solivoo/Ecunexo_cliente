@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, ColorPicker, DataGrid, DEFAULT_COLOR_PRESETS, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Camera, Palette, Pencil, Plus, Sparkles, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Camera, Palette, Pencil, Plus, SlidersHorizontal, Sparkles, X } from 'lucide-react'
 import { SectionCard, StatusBadge } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
@@ -214,6 +214,14 @@ export function EditCatalogItemVariantsSection({
   const [customColorHex, setCustomColorHex] = useState('#3b82f6')
   const [savingColors, setSavingColors] = useState(false)
 
+  // Quick Edit modal per variant
+  const [editModalVariant, setEditModalVariant] = useState<VariantRow | null>(null)
+  const [editModalSku, setEditModalSku] = useState('')
+  const [editModalBarcode, setEditModalBarcode] = useState('')
+  const [editModalDimValues, setEditModalDimValues] = useState<Record<string, string>>({})
+  const [editModalAttributeValues, setEditModalAttributeValues] = useState<CustomAttributeRow[]>([])
+  const [savingEditModal, setSavingEditModal] = useState(false)
+
   useEffect(() => {
     return () => {
       if (variantImagePreview) {
@@ -396,6 +404,7 @@ export function EditCatalogItemVariantsSection({
       sku,
       tenantId,
       toast,
+      variantAttributeFields,
       variantImage,
       variantImagePreview,
       variantTitle,
@@ -538,6 +547,87 @@ export function EditCatalogItemVariantsSection({
     [navigate]
   )
 
+  const handleOpenEditModal = useCallback(
+    (row: VariantRow) => {
+      setEditModalVariant(row)
+      setEditModalSku(row.sku ?? '')
+      setEditModalBarcode(row.barcode ?? '')
+
+      const attrs = parseAttributes(row.customAttributesJson)
+      const dims: Record<string, string> = {}
+      for (const d of dimensions) {
+        const key = d.name.toLowerCase()
+        dims[key] = row.dimensionValues?.[d.name] || attrs[key] || attrs[d.name] || ''
+      }
+      setEditModalDimValues(dims)
+
+      const customAttrRows: CustomAttributeRow[] = []
+      for (const [k, v] of Object.entries(attrs)) {
+        if (typeof v === 'string') {
+          customAttrRows.push({
+            id: `attr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            key: k,
+            value: v,
+          })
+        }
+      }
+      setEditModalAttributeValues(customAttrRows)
+    },
+    [dimensions, parseAttributes]
+  )
+
+  const handleSaveEditModal = useCallback(async () => {
+    if (!tenantId || !editModalVariant) return
+    setSavingEditModal(true)
+    try {
+      const currentAttrs = parseAttributes(editModalVariant.customAttributesJson)
+      const merged: Record<string, string> = { ...currentAttrs, ...editModalDimValues }
+      for (const row of editModalAttributeValues) {
+        const key = row.key.trim()
+        if (key) merged[key] = row.value
+      }
+
+      await updateCatalogItem(tenantId, editModalVariant.id, {
+        kind: parentItem.kind,
+        name: editModalVariant.name,
+        sku: editModalSku.trim() || null,
+        barcode: editModalBarcode.trim() || null,
+        basePrice: editModalVariant.basePrice,
+        customAttributesJson: JSON.stringify(merged),
+        familyId: parentItem.familyId ?? null,
+        hierarchyPathJson: parentItem.hierarchyPathJson ?? null,
+        status: editModalVariant.status,
+      })
+
+      toast.show({
+        title: 'Variante actualizada',
+        message: `Se actualizaron las propiedades de «${editModalSku || editModalVariant.sku}».`,
+        variant: 'success',
+      })
+      setEditModalVariant(null)
+      await onRefreshRequired()
+    } catch (err: unknown) {
+      toast.show({
+        title: 'Error al actualizar',
+        message: readApiError(err, 'No se pudo guardar la variante.'),
+        variant: 'error',
+      })
+    } finally {
+      setSavingEditModal(false)
+    }
+  }, [
+    tenantId,
+    editModalVariant,
+    parentItem,
+    editModalSku,
+    editModalBarcode,
+    editModalDimValues,
+    editModalAttributeValues,
+    parseAttributes,
+    toast,
+    onRefreshRequired,
+  ])
+
   const columns = useMemo<ColumnDef<VariantRow>[]>(() => {
     const axisColumns = matrixAxes.map((axis) => ({
       key: `axis-${axis.name}`,
@@ -577,8 +667,52 @@ export function EditCatalogItemVariantsSection({
       },
     })) as unknown as ColumnDef<VariantRow>[]
 
+    const templateAttributeColumns = variantAttributeFields.map((field) => ({
+      key: `varattr-${field.key}`,
+      header: field.key,
+      width: 140,
+      renderCell: (_value: unknown, row: VariantRow) => {
+        const attrs = parseAttributes(row.customAttributesJson)
+        const val = attrs[field.key] || attrs[field.key.toLowerCase()] || ''
+        if (!val) {
+          return (
+            <span className="app-shell__muted" style={{ fontSize: '0.8rem' }}>
+              —
+            </span>
+          )
+        }
+        try {
+          const parsed = JSON.parse(val)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return (
+              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                {parsed.slice(0, 2).map((t: string) => (
+                  <StatusBadge key={t} tone="neutral">
+                    {t}
+                  </StatusBadge>
+                ))}
+                {parsed.length > 2 && (
+                  <span className="app-shell__muted" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                    +{parsed.length - 2}
+                  </span>
+                )}
+              </div>
+            )
+          }
+        } catch {
+          // not JSON array
+        }
+        return (
+          <span style={{ fontSize: '0.82rem', fontWeight: 500 }} title={val}>
+            {val}
+          </span>
+        )
+      },
+    })) as unknown as ColumnDef<VariantRow>[]
+
     return [
       ...axisColumns,
+      ...templateAttributeColumns,
       {
         key: 'sku',
         header: 'SKU',
@@ -655,7 +789,7 @@ export function EditCatalogItemVariantsSection({
       {
         key: 'actions',
         header: 'Acciones',
-        width: 170,
+        width: 180,
         sticky: 'right',
         renderCell: (_value: unknown, row: VariantRow) => {
           const index = variants.findIndex((variant) => variant.id === row.id)
@@ -675,10 +809,15 @@ export function EditCatalogItemVariantsSection({
                     disabled={reordering || index < 0 || index >= variants.length - 1}
                     onClick={() => void handleReorderVariant(row, 1)}
                   />
+                  <GridIconButton
+                    label="Edición rápida de propiedades"
+                    icon={SlidersHorizontal}
+                    onClick={() => handleOpenEditModal(row)}
+                  />
                 </>
               ) : null}
               <GridIconButton
-                label="Administrar variante"
+                label="Administrar variante (Ficha completa)"
                 icon={Pencil}
                 onClick={() => openVariantAdmin(row.id)}
               />
@@ -708,6 +847,7 @@ export function EditCatalogItemVariantsSection({
   }, [
     canEdit,
     handleOpenColorsModal,
+    handleOpenEditModal,
     handleOpenReassignModal,
     handleReorderVariant,
     listPrices,
@@ -716,6 +856,7 @@ export function EditCatalogItemVariantsSection({
     openVariantAdmin,
     parseAttributes,
     reordering,
+    variantAttributeFields,
     variants,
   ])
 
@@ -1206,6 +1347,240 @@ export function EditCatalogItemVariantsSection({
             </div>
           )}
         </div>
+      </Popup>
+
+      {/* Modal para edición rápida de variante */}
+      <Popup
+        open={Boolean(editModalVariant)}
+        onClose={() => !savingEditModal && setEditModalVariant(null)}
+        title={
+          editModalVariant
+            ? `Editar Variante — ${editModalVariant.sku || editModalVariant.name}`
+            : 'Editar Variante'
+        }
+        width="min(92vw, 38rem)"
+        actions={[
+          {
+            id: 'open-full',
+            label: 'Abrir ficha completa ↗',
+            variant: 'outline',
+            onClick: () => {
+              if (editModalVariant) {
+                openVariantAdmin(editModalVariant.id)
+              }
+            },
+            disabled: savingEditModal,
+          },
+          {
+            id: 'cancel',
+            label: 'Cancelar',
+            variant: 'outline',
+            onClick: () => setEditModalVariant(null),
+            disabled: savingEditModal,
+          },
+          {
+            id: 'save',
+            label: savingEditModal ? 'Guardando…' : 'Guardar Cambios',
+            variant: 'primary',
+            onClick: () => void handleSaveEditModal(),
+            disabled: savingEditModal,
+          },
+        ]}
+      >
+        {editModalVariant ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
+            <p className="app-shell__muted" style={{ margin: '0 0 0.5rem', fontSize: '0.875rem' }}>
+              Producto Matriz: <strong>{parentItem.name}</strong>
+            </p>
+
+            {/* Dimensiones dinámicas */}
+            {dimensions.length > 0 ? (
+              <div
+                style={{
+                  padding: '0.85rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.02))',
+                  border: '1px solid var(--glb-border, #e2e8f0)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <Sparkles size={15} color="var(--shell-primary, #4f46e5)" />
+                  <span>Dimensiones de la matriz:</span>
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: dimensions.length > 1 ? '1fr 1fr' : '1fr',
+                    gap: '0.75rem',
+                  }}
+                >
+                  {dimensions.map((d) => {
+                    const currentVal = editModalDimValues[d.name.toLowerCase()] ?? ''
+                    const axisFromDescriptor = parentItem.matrixDescriptor?.axes?.find(
+                      (a) => a.name.trim().toLowerCase() === d.name.trim().toLowerCase()
+                    )
+                    const lookup = dimensionValuesMap?.get(d.name.trim().toLowerCase())
+                    const isColor =
+                      axisFromDescriptor?.type === 'color' ||
+                      lookup?.isColor ||
+                      isHexColorToken(currentVal)
+
+                    if (isColor) {
+                      return (
+                        <div key={d.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span>{d.name}</span>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                width: 14,
+                                height: 14,
+                                borderRadius: '50%',
+                                backgroundColor: currentVal || '#3b82f6',
+                                border: '1px solid rgba(0,0,0,0.2)',
+                              }}
+                            />
+                          </label>
+                          <ColorPicker
+                            value={currentVal || '#3b82f6'}
+                            onChange={(hex: string) =>
+                              setEditModalDimValues((prev) => ({ ...prev, [d.name.toLowerCase()]: hex }))
+                            }
+                            disabled={savingEditModal}
+                          />
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div key={d.name}>
+                        {d.values.length > 0 ? (
+                          <Select
+                            id={`edit-dim-${d.name}`}
+                            label={d.name}
+                            labelPosition="outlined"
+                            variant="outline"
+                            options={[
+                              ...d.values.map((v) => ({ value: v, label: v })),
+                              ...(currentVal && !d.values.includes(currentVal)
+                                ? [{ value: currentVal, label: currentVal }]
+                                : []),
+                            ]}
+                            value={currentVal}
+                            onChange={(val) =>
+                              setEditModalDimValues((prev) => ({ ...prev, [d.name.toLowerCase()]: val }))
+                            }
+                            fullWidth
+                            disabled={savingEditModal}
+                          />
+                        ) : (
+                          <TextBox
+                            id={`edit-dim-${d.name}`}
+                            label={d.name}
+                            labelPosition="outlined"
+                            variant="outline"
+                            value={currentVal}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                              setEditModalDimValues((prev) => ({
+                                ...prev,
+                                [d.name.toLowerCase()]: e.target.value,
+                              }))
+                            }
+                            fullWidth
+                            disabled={savingEditModal}
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <TextBox
+                id="edit-var-sku"
+                label="SKU físico de la variante"
+                labelPosition="outlined"
+                variant="outline"
+                value={editModalSku}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  setEditModalSku(e.target.value.toUpperCase())
+                }
+                required
+                fullWidth
+                disabled={savingEditModal}
+              />
+              <TextBox
+                id="edit-var-barcode"
+                label="Código de barras (opcional)"
+                labelPosition="outlined"
+                variant="outline"
+                value={editModalBarcode}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  setEditModalBarcode(e.target.value.toUpperCase())
+                }
+                fullWidth
+                disabled={savingEditModal}
+              />
+            </div>
+
+            {variantAttributeFields.length > 0 ? (
+              <div
+                style={{
+                  padding: '0.85rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.02))',
+                  border: '1px solid var(--glb-border, #e2e8f0)',
+                }}
+              >
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.6rem' }}>
+                  Datos de la variante (según plantilla)
+                </div>
+                <ArchetypeModelFields
+                  fields={variantAttributeFields}
+                  values={editModalAttributeValues}
+                  dimensionValuesMap={dimensionValuesMap ?? new Map()}
+                  onChangeValue={(key, value) =>
+                    setEditModalAttributeValues((prev) => {
+                      const index = prev.findIndex(
+                        (row) => row.key.trim().toLowerCase() === key.trim().toLowerCase()
+                      )
+                      if (index >= 0) {
+                        const next = [...prev]
+                        next[index] = { ...next[index], value }
+                        return next
+                      }
+                      return [
+                        ...prev,
+                        {
+                          id: `attr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                          key,
+                          value,
+                        },
+                      ]
+                    })
+                  }
+                  onUploadMedia={onUploadMedia}
+                  onMediaError={onMediaError}
+                  disabled={savingEditModal}
+                  bare
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </Popup>
     </div>
   )
