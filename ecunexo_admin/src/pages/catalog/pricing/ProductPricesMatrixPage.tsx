@@ -173,6 +173,10 @@ export function ProductPricesMatrixPage() {
     })
   }
 
+  const [quickPrice, setQuickPrice] = useState('')
+  const [quickListId, setQuickListId] = useState('__all__')
+  const [quickBusy, setQuickBusy] = useState(false)
+
   const saveCell = useCallback(
     async (row: MatrixRow, list: PriceListDto, raw: string) => {
       if (!tenantId || !canManage) return
@@ -182,32 +186,38 @@ export function ProductPricesMatrixPage() {
         return
       }
 
-      const cellKey = `${row.id}:${list.id}`
-      const current = row.matrix[list.id]
-      if (current && current.price === value && current.validFrom === validFrom) return
+      // Si la fila editada forma parte de una selección múltiple, aplicar el precio a todos los seleccionados
+      const targetRows = selectedIds.includes(row.id) && selectedIds.length > 1
+        ? rows.filter((r) => selectedIds.includes(r.id))
+        : [row]
 
-      markCellBusy(cellKey, true)
+      for (const r of targetRows) {
+        markCellBusy(`${r.id}:${list.id}`, true)
+      }
+
       try {
-        if (current && current.validFrom === validFrom) {
-          await updateProductPrice(tenantId, current.priceId, {
-            price: value,
-            validFrom,
-            validTo: null,
-            reason: 'Actualización desde matriz de precios',
-            isActive: true,
-            tiers: [],
-          })
-          setMatrix((prev) => {
-            const next = new Map(prev)
-            const entry = { ...(next.get(row.id) ?? {}) }
-            entry[list.id] = { priceId: current.priceId, price: value, validFrom }
-            next.set(row.id, entry)
-            return next
-          })
-        } else {
-          const created = await createProductPrice(tenantId, {
+        const toCreate: MatrixRow[] = []
+        for (const r of targetRows) {
+          const current = r.matrix[list.id]
+          if (current && current.validFrom === validFrom) {
+            await updateProductPrice(tenantId, current.priceId, {
+              price: value,
+              validFrom,
+              validTo: null,
+              reason: 'Actualización desde matriz de precios',
+              isActive: true,
+              tiers: [],
+            })
+          } else {
+            toCreate.push(r)
+          }
+        }
+
+        if (toCreate.length === 1) {
+          const single = toCreate[0]
+          await createProductPrice(tenantId, {
             priceListId: list.id,
-            catalogItemId: row.id,
+            catalogItemId: single.id,
             price: value,
             validFrom,
             validTo: null,
@@ -215,19 +225,34 @@ export function ProductPricesMatrixPage() {
             tiers: [],
             isActive: true,
           })
-          setMatrix((prev) => {
-            const next = new Map(prev)
-            const entry = { ...(next.get(row.id) ?? {}) }
-            entry[list.id] = { priceId: created.productPriceId, price: value, validFrom }
-            next.set(row.id, entry)
-            return next
+        } else if (toCreate.length > 1) {
+          await bulkCreateProductPrices(tenantId, {
+            priceListId: list.id,
+            validFrom,
+            validTo: null,
+            reason: 'Actualización masiva desde matriz de precios',
+            items: toCreate.map((r) => ({
+              catalogItemId: r.id,
+              price: value,
+            })),
           })
         }
-        toast.show({
-          title: 'Precio guardado',
-          message: `${row.sku ?? row.name} · ${list.code} → $${value.toFixed(2)}`,
-          variant: 'success',
-        })
+
+        await load({ silent: true })
+
+        if (targetRows.length > 1) {
+          toast.show({
+            title: 'Precios actualizados',
+            message: `$${value.toFixed(2)} aplicado a los ${targetRows.length} productos seleccionados en ${list.code}.`,
+            variant: 'success',
+          })
+        } else {
+          toast.show({
+            title: 'Precio guardado',
+            message: `${row.sku ?? row.name} · ${list.code} → $${value.toFixed(2)}`,
+            variant: 'success',
+          })
+        }
       } catch (err: unknown) {
         toast.show({
           title: 'No se pudo guardar',
@@ -235,11 +260,77 @@ export function ProductPricesMatrixPage() {
           variant: 'error',
         })
       } finally {
-        markCellBusy(cellKey, false)
+        for (const r of targetRows) {
+          markCellBusy(`${r.id}:${list.id}`, false)
+        }
       }
     },
-    [canManage, tenantId, toast, validFrom]
+    [canManage, load, rows, selectedIds, tenantId, toast, validFrom]
   )
+
+  const handleQuickApplyPrice = useCallback(async () => {
+    if (!tenantId || !canManage || selectedIds.length === 0) return
+    const numeric = parsePriceInput(quickPrice)
+    if (numeric === null) {
+      toast.show({ title: 'Precio inválido', message: 'Ingresa un número mayor o igual a cero.', variant: 'error' })
+      return
+    }
+
+    setQuickBusy(true)
+    try {
+      const targetLists = quickListId === '__all__'
+        ? activeLists
+        : activeLists.filter((l) => l.id === quickListId)
+
+      for (const list of targetLists) {
+        const toCreate: string[] = []
+        for (const id of selectedIds) {
+          const cell = matrix.get(id)?.[list.id]
+          if (cell && cell.validFrom === validFrom) {
+            await updateProductPrice(tenantId, cell.priceId, {
+              price: numeric,
+              validFrom,
+              validTo: null,
+              reason: 'Actualización rápida desde matriz',
+              isActive: true,
+              tiers: [],
+            })
+          } else {
+            toCreate.push(id)
+          }
+        }
+
+        if (toCreate.length > 0) {
+          await bulkCreateProductPrices(tenantId, {
+            priceListId: list.id,
+            validFrom,
+            validTo: null,
+            reason: 'Actualización rápida desde matriz',
+            items: toCreate.map((catalogItemId) => ({
+              catalogItemId,
+              price: numeric,
+            })),
+          })
+        }
+      }
+
+      await load({ silent: true })
+      toast.show({
+        title: 'Precios asignados en lote',
+        message: `Se aplicó $${numeric.toFixed(2)} a ${selectedIds.length} producto(s) en ${targetLists.length} lista(s).`,
+        variant: 'success',
+      })
+      setQuickPrice('')
+    } catch (err: unknown) {
+      toast.show({
+        title: 'Error al aplicar precios',
+        message: readApiError(err, 'No se pudieron aplicar los precios.'),
+        variant: 'error',
+      })
+    } finally {
+      setQuickBusy(false)
+    }
+  }, [activeLists, canManage, load, matrix, quickListId, quickPrice, selectedIds, tenantId, toast, validFrom])
 
   const selectedRows = useMemo(
     () => rows.filter((row) => selectedIds.includes(row.id)),
@@ -531,9 +622,85 @@ export function ProductPricesMatrixPage() {
               Solo productos con listas sin precio
             </CheckButton>
             <span className="app-shell__muted" style={{ fontSize: '0.8rem' }}>
-              Haz clic en una celda para editar el precio; Enter o salir guarda.
+              Haz clic en una celda para editar el precio; Enter o salir guarda. Si tienes varios seleccionados, se aplica a todos.
             </span>
           </div>
+
+          {selectedIds.length > 0 && canManage ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                backgroundColor: 'var(--shell-surface-subtle, rgba(37, 99, 235, 0.12))',
+                border: '1px solid var(--shell-border, rgba(59, 130, 246, 0.3))',
+                borderRadius: '8px',
+                padding: '0.6rem 1rem',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <StatusBadge tone="primary">
+                  {selectedIds.length} producto{selectedIds.length === 1 ? '' : 's'} seleccionado{selectedIds.length === 1 ? '' : 's'}
+                </StatusBadge>
+                <span style={{ fontSize: '0.85rem', color: 'var(--glb-text, inherit)' }}>
+                  Asignar mismo precio a todos:
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div style={{ width: 170 }}>
+                  <Select
+                    id="quick-bulk-list"
+                    size="sm"
+                    variant="outline"
+                    options={[
+                      { value: '__all__', label: 'Todas las listas' },
+                      ...activeLists.map((l) => ({ value: l.id, label: l.code })),
+                    ]}
+                    value={quickListId}
+                    onChange={(val) => setQuickListId(String(val))}
+                  />
+                </div>
+
+                <div style={{ width: 110 }}>
+                  <NumberBox
+                    id="quick-bulk-price"
+                    size="sm"
+                    variant="outline"
+                    placeholder="0.00"
+                    value={quickPrice === '' ? '' : Number(quickPrice)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setQuickPrice(e.target.value)}
+                    min={0}
+                    step={0.01}
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  disabled={!quickPrice.trim() || Number(quickPrice) < 0 || quickBusy}
+                  loading={quickBusy}
+                  onClick={() => void handleQuickApplyPrice()}
+                >
+                  Asignar precio
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={quickBusy}
+                  onClick={() => setSelectedIds([])}
+                >
+                  Deseleccionar
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           {visibleRows.length === 0 && !loading ? (
             <EmptyState
