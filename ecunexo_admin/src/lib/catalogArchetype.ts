@@ -412,6 +412,20 @@ export function getModelAttributeFields(
   return fields
 }
 
+export const RESERVED_VARIANT_ATTRIBUTE_KEYS = new Set([
+  'nombre',
+  'name',
+  'descripcion',
+  'descripción',
+  'description',
+  'sku',
+  'precio',
+  'price',
+  'barcode',
+  'codigo_de_barras',
+  'código de barras',
+])
+
 /** Atributos descriptivos declarados en el nivel terminal: se capturan por variante (no generan SKU). */
 export function getVariantAttributeFields(
   levels: readonly ProductTemplateLevel[],
@@ -435,7 +449,7 @@ export function getVariantAttributeFields(
     terminal.attributes.forEach((attr) => {
       const clean = attr.trim()
       const lower = clean.toLowerCase()
-      if (!clean || seen.has(lower) || axisNames.has(lower)) return
+      if (!clean || seen.has(lower) || axisNames.has(lower) || RESERVED_VARIANT_ATTRIBUTE_KEYS.has(lower)) return
       seen.add(lower)
       fields.push({ key: clean, levelName: terminal.name, levelIndex: levels.length })
     })
@@ -445,7 +459,7 @@ export function getVariantAttributeFields(
   names.forEach((attr) => {
     const clean = attr.trim()
     const lower = clean.toLowerCase()
-    if (!clean || seen.has(lower)) return
+    if (!clean || seen.has(lower) || RESERVED_VARIANT_ATTRIBUTE_KEYS.has(lower)) return
     if (resolveIsVariantAxis(map, clean, levels.length, levels.length)) return
     seen.add(lower)
     fields.push({ key: clean, levelName: terminal.name, levelIndex: levels.length })

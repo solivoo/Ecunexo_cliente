@@ -334,23 +334,6 @@ export function EditCatalogItemVariantsSection({
         if (key) attributes[key] = row.value
       }
 
-      const requiresName = variantAttributeFields.some(
-        (field) => field.key.trim().toLowerCase() === 'nombre'
-      )
-      if (requiresName) {
-        const hasName = Object.entries(attributes).some(
-          ([key, value]) => key.trim().toLowerCase() === 'nombre' && value.trim()
-        )
-        if (!hasName) {
-          toast.show({
-            title: 'Campo requerido',
-            message: 'El Nombre de la variante es obligatorio.',
-            variant: 'error',
-          })
-          return
-        }
-      }
-
       setBusy(true)
       try {
         const createdVariant = await addCatalogItemVariant(tenantId, parentItem.id, {
@@ -961,20 +944,24 @@ export function EditCatalogItemVariantsSection({
                 <div style={{ display: 'grid', gridTemplateColumns: dimensions.length > 1 ? '1fr 1fr' : '1fr', gap: '0.75rem' }}>
                   {dimensions.map((d) => {
                     const currentVal = dimValues[d.name.toLowerCase()] ?? ''
+                    const lookup = dimensionValuesMap?.get(d.name.trim().toLowerCase())
+                    const allDimValues = Array.from(
+                      new Set([
+                        ...d.values,
+                        ...(lookup?.values ?? []),
+                        ...(extraDimValues[d.name.toLowerCase()] ?? []),
+                      ])
+                    )
                     return (
                       <div key={d.name}>
-                        {d.values.length > 0 ? (
+                        {allDimValues.length > 0 ? (
                           <Select
                             id={`dim-${d.name}`}
                             label={d.name}
                             labelPosition="outlined"
                             variant="outline"
                             options={[
-                              ...d.values.map((v) => ({ value: v, label: v })),
-                              ...(extraDimValues[d.name.toLowerCase()] ?? []).map((v) => ({
-                                value: v,
-                                label: v,
-                              })),
+                              ...allDimValues.map((v) => ({ value: v, label: v })),
                               { value: '__add_new__', label: '+ Nueva…' },
                             ]}
                             value={currentVal}

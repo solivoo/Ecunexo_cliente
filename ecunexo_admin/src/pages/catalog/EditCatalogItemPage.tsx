@@ -176,15 +176,8 @@ export function EditCatalogItemPage() {
   )
 
   const variantAttributeFields = useMemo(
-    () => {
-      const fields = getVariantAttributeFields(familyLevels, dimensionValuesMap)
-      // En variantes físicas, filtramos atributos que dupliquen "Nombre" ya que se gestiona
-      // comercialmente en la variante y modelo.
-      return isVariantChild
-        ? fields.filter((f) => !['nombre', 'name'].includes(f.key.trim().toLowerCase()))
-        : fields
-    },
-    [familyLevels, dimensionValuesMap, isVariantChild]
+    () => getVariantAttributeFields(familyLevels, dimensionValuesMap),
+    [familyLevels, dimensionValuesMap]
   )
 
   const templateCapturesDescription = useMemo(
@@ -1389,14 +1382,7 @@ export function EditCatalogItemPage() {
           <div
             className="ecu-companies-form__actions"
             style={{
-              position: 'sticky',
-              bottom: 0,
-              zIndex: 5,
-              marginTop: '1.25rem',
-              padding: '0.9rem 1rem',
-              borderRadius: '0.75rem',
-              border: '1px solid var(--shell-border, rgba(0, 0, 0, 0.08))',
-              background: 'var(--glb-surface, #fff)',
+              marginTop: '1.5rem',
               display: 'flex',
               gap: '0.75rem',
               alignItems: 'center',

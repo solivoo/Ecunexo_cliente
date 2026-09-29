@@ -95,7 +95,7 @@ public sealed class AddCatalogItemVariantHandler
 
         var child = childResult.Value!;
         child.SetSortOrder(parent.Variants.Count);
-        if (parent.Variants.Count == 0)
+        if (parent.Variants.Count == 0 && (string.IsNullOrWhiteSpace(parent.Name) || parent.Name.Equals("Producto", StringComparison.OrdinalIgnoreCase)))
         {
             var parentName = CatalogVariantNameResolver.ResolveFromAttributes(command.CustomAttributesJson)
                 ?? command.VariantTitle;
