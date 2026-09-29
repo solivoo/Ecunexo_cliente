@@ -143,15 +143,18 @@ public sealed class CreateCatalogItemMatrixHandler
         }
 
         var parent = parentResult.Value!;
-        var firstVariantName = command.Variants
-            .Select(v => CatalogVariantNameResolver.ResolveFromAttributes(v.CustomAttributesJson))
-            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
-        if (!string.IsNullOrWhiteSpace(firstVariantName))
+        if (string.IsNullOrWhiteSpace(command.Name) || command.Name.Trim().Equals("Producto", StringComparison.OrdinalIgnoreCase))
         {
-            var renamed = parent.Rename(firstVariantName!);
-            if (renamed.IsFailure)
+            var firstVariantName = command.Variants
+                .Select(v => CatalogVariantNameResolver.ResolveFromAttributes(v.CustomAttributesJson))
+                .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
+            if (!string.IsNullOrWhiteSpace(firstVariantName))
             {
-                return Result.Failure<CreateCatalogItemMatrixResponse>(renamed.Error!);
+                var renamed = parent.Rename(firstVariantName!);
+                if (renamed.IsFailure)
+                {
+                    return Result.Failure<CreateCatalogItemMatrixResponse>(renamed.Error!);
+                }
             }
         }
 

@@ -28,7 +28,8 @@ public sealed record CatalogItemDetailResponse(
     CatalogMatrixDescriptorDto? MatrixDescriptor = null,
     bool IsHiddenFromStorefront = false,
     string? Barcode = null,
-    decimal MinOrderQuantity = 1);
+    decimal MinOrderQuantity = 1,
+    string? ParentDescription = null);
 
 public sealed record CatalogItemVariantDto(
     Guid Id,

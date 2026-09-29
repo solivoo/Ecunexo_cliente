@@ -121,6 +121,7 @@ export type CatalogItemDetailDto = {
   isMatrixParent?: boolean
   parentId?: string | null
   parentName?: string | null
+  parentDescription?: string | null
   variantDimensionsJson?: string | null
   variants?: CatalogItemVariantSummaryDto[] | null
   familyId?: string | null

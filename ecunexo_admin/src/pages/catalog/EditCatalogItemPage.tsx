@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button, ColorPicker, NumberBox, Popup, Select, TextBox, useToast, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
@@ -19,7 +19,6 @@ import {
   getVariantAttributeFields,
   readPhotoChoice,
   buildVariantAdminSummary,
-  formatVariantDisplayName,
   isHexColorToken,
 } from '@/lib/catalogArchetype'
 import { VariantAdminSummaryBlock } from '@/pages/catalog/VariantAdminSummaryBlock'
@@ -139,6 +138,7 @@ export function EditCatalogItemPage() {
   }, [familyLevels, item?.isMatrixParent, item?.matrixDescriptor?.axes])
 
   const isVariantChild = Boolean(item?.parentId)
+  const isMatrixParent = Boolean(item?.isMatrixParent)
 
   /** La plantilla decide si hay fotos: sin plantilla (alta manual) siempre se permite galería. */
   const templateAllowsPhotos = !familyTemplate || photoChoice !== 'none'
@@ -176,8 +176,15 @@ export function EditCatalogItemPage() {
   )
 
   const variantAttributeFields = useMemo(
-    () => getVariantAttributeFields(familyLevels, dimensionValuesMap),
-    [familyLevels, dimensionValuesMap]
+    () => {
+      const fields = getVariantAttributeFields(familyLevels, dimensionValuesMap)
+      // En variantes físicas, filtramos atributos que dupliquen "Nombre" ya que se gestiona
+      // comercialmente en la variante y modelo.
+      return isVariantChild
+        ? fields.filter((f) => !['nombre', 'name'].includes(f.key.trim().toLowerCase()))
+        : fields
+    },
+    [familyLevels, dimensionValuesMap, isVariantChild]
   )
 
   const templateCapturesDescription = useMemo(
@@ -198,10 +205,12 @@ export function EditCatalogItemPage() {
     [modelAttributeFields]
   )
 
-  const showDescriptionField = isVariantChild || !templateCapturesDescription
-  const showNameField = isVariantChild || !templateCapturesName
-  const showSkuField = !item?.isMatrixParent
-  const showBarcodeField = !item?.isMatrixParent
+  // La matriz define el nombre y descripción general (sin SKU).
+  // La variante física define su nombre comercial, SKU y dimensiones (sin descripción libre vacía arriba).
+  const showDescriptionField = isMatrixParent || (!isVariantChild && !templateCapturesDescription)
+  const showNameField = isMatrixParent || isVariantChild || !templateCapturesName
+  const showSkuField = !isMatrixParent
+  const showBarcodeField = !isMatrixParent
 
   const variantDimensionNames = useMemo<string[]>(
     () => parseVariantDimensionNames(item?.variantDimensionsJson),
@@ -514,13 +523,15 @@ export function EditCatalogItemPage() {
         const payloadName =
           (isVariantChild
             ? name.trim()
-            : templateCapturesName
-              ? templateNameValue || name.trim()
-              : name.trim()) ||
+            : isMatrixParent
+              ? name.trim()
+              : templateCapturesName
+                ? templateNameValue || name.trim()
+                : name.trim()) ||
           sku.trim() ||
-          (isVariantChild ? 'Variante' : 'Producto')
+          (isVariantChild ? 'Variante' : isMatrixParent ? 'Producto Matriz' : 'Producto')
         const kindNum = Number(kind) as CatalogItemKind
-        if (kindNum === CatalogItemKind.Physical && !item?.isMatrixParent && !sku.trim()) {
+        if (kindNum === CatalogItemKind.Physical && !isMatrixParent && !sku.trim()) {
           throw new Error('El SKU es obligatorio para ítems físicos.')
         }
 
@@ -532,15 +543,17 @@ export function EditCatalogItemPage() {
         await updateCatalogItem(tenantId, itemId, {
           kind: kindNum,
           name: payloadName,
-          description: description.trim() || null,
-          sku: item?.isMatrixParent ? null : sku.trim() || null,
-          barcode: barcode.trim() || null,
+          description: isVariantChild
+            ? description.trim() || item.description || null
+            : description.trim() || null,
+          sku: isMatrixParent ? null : sku.trim() || null,
+          barcode: isMatrixParent ? null : barcode.trim() || null,
           basePrice: null,
           customAttributesJson: serializeCustomAttributes(customAttributes, tags),
           status: Number(status) as typeof CatalogItemStatus.Active,
           familyId: item.familyId ?? null,
           hierarchyPathJson,
-          minOrderQuantity: item.isMatrixParent ? null : minOrderQuantity,
+          minOrderQuantity: isMatrixParent ? null : minOrderQuantity,
         })
 
         toast.show({
@@ -635,25 +648,35 @@ export function EditCatalogItemPage() {
         <PageHeader
           title={
             item
-              ? item.parentId
-                ? item.sku || formatVariantDisplayName(item.name, item.parentName)
-                : item.name
+              ? isVariantChild
+                ? item.name || item.sku || 'Variante'
+                : item.name || 'Producto'
               : 'Editar Ítem'
           }
           subtitle={
             item
-              ? item.parentId
+              ? isVariantChild
                 ? [
-                    `Variante de «${item.parentName || 'matriz'}»`,
-                    formatVariantDisplayName(item.name, item.parentName),
-                  ].join(' · ')
-                : [
-                    item.kind === CatalogItemKind.Physical ? 'Físico' : 'Servicio',
-                    item.familyName ? `Plantilla: ${item.familyName}` : null,
+                    item.parentName ? `Variante de «${item.parentName}»` : 'Variante física',
                     item.sku ? `SKU ${item.sku}` : null,
                   ]
                     .filter(Boolean)
                     .join(' · ')
+                : isMatrixParent
+                  ? [
+                      'Producto Matriz (Modelo base)',
+                      item.familyName ? `Plantilla: ${item.familyName}` : null,
+                      `${item.variants?.length ?? 0} variante(s) física(s)`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : [
+                      item.kind === CatalogItemKind.Physical ? 'Físico' : 'Servicio',
+                      item.familyName ? `Plantilla: ${item.familyName}` : null,
+                      item.sku ? `SKU ${item.sku}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
               : 'Cargando…'
           }
           badge={
@@ -661,10 +684,10 @@ export function EditCatalogItemPage() {
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 {item.isMatrixParent && (
                   <StatusBadge tone="primary" withDot>
-                    Variantes ({item.variants?.length ?? 0})
+                    Producto Matriz ({item.variants?.length ?? 0} variantes)
                   </StatusBadge>
                 )}
-                {item.parentId && <StatusBadge tone="neutral">Variante</StatusBadge>}
+                {item.parentId && <StatusBadge tone="neutral">Variante física</StatusBadge>}
                 <StatusBadge
                   tone={Number(status) === CatalogItemStatus.Active ? 'success' : 'neutral'}
                   withDot={Number(status) === CatalogItemStatus.Active}
@@ -786,30 +809,152 @@ export function EditCatalogItemPage() {
                 </div>
               ) : null}
 
-              {!item?.isMatrixParent ? (
-              <SectionCard title="Datos del producto">
-                <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
+              <SectionCard
+                title={
+                  isMatrixParent
+                    ? 'Producto Matriz (Modelo base)'
+                    : isVariantChild
+                      ? 'Datos de la variante física'
+                      : 'Datos del producto'
+                }
+                subtitle={
+                  isMatrixParent
+                    ? 'La matriz agrupa las variantes, define el nombre comercial y la descripción general. La matriz no lleva SKU.'
+                    : isVariantChild && item?.parentName
+                      ? `Variante perteneciente a la matriz: ${item.parentName}`
+                      : undefined
+                }
+              >
+                {/* Referencia a la matriz cuando editamos una variante física */}
+                {isVariantChild && item?.parentId ? (
+                  <div
+                    style={{
+                      marginBottom: '1.25rem',
+                      padding: '0.85rem 1rem',
+                      backgroundColor: 'var(--glb-surface-secondary, rgba(0, 0, 0, 0.03))',
+                      borderRadius: '8px',
+                      border: '1px solid var(--glb-border, #e5e7eb)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.4rem',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            color: 'var(--glb-text-secondary, #6b7280)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          Producto Matriz:
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.95rem',
+                            fontWeight: 600,
+                            color: 'var(--glb-primary, #2563eb)',
+                          }}
+                        >
+                          {item.parentName || 'Modelo base'}
+                        </span>
+                      </div>
+                      <Link
+                        to={`/catalogo/items/${item.parentId}`}
+                        style={{
+                          fontSize: '0.8rem',
+                          fontWeight: 500,
+                          color: 'var(--glb-primary, #2563eb)',
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                        }}
+                      >
+                        <span>Ver modelo matriz</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>
+                          arrow_forward
+                        </span>
+                      </Link>
+                    </div>
+                    {item.parentDescription ? (
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: '0.83rem',
+                          color: 'var(--glb-text-secondary, #4b5563)',
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        «{item.parentDescription}»
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div
+                  className={`ecu-companies-form__grid ${
+                    isMatrixParent
+                      ? 'ecu-companies-form__grid--2'
+                      : 'ecu-companies-form__grid--4'
+                  }`}
+                >
                   {showNameField ? (
-                    <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                    <div
+                      className={`ecu-companies-form__field ${
+                        isMatrixParent
+                          ? 'ecu-companies-form__field--span-2'
+                          : 'ecu-companies-form__field--span-2'
+                      }`}
+                    >
                       <TextBox
                         id="ei-name"
-                        label="Nombre del producto"
+                        label={
+                          isMatrixParent
+                            ? 'Nombre de la matriz'
+                            : isVariantChild
+                              ? 'Nombre comercial de la variante'
+                              : 'Nombre del producto'
+                        }
                         labelPosition="outlined"
                         variant="outline"
                         value={name}
                         onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                        placeholder="Ej. Calcetín Hello Kitty"
+                        placeholder={
+                          isMatrixParent
+                            ? 'Ej. Calcetín Nike blanca logo negro'
+                            : isVariantChild
+                              ? 'Ej. Calcetín Nike blanca logo negro - Larga / 10-12'
+                              : 'Ej. Calcetín Hello Kitty'
+                        }
+                        helperText={
+                          isVariantChild
+                            ? 'Nombre completo del ítem físico utilizado en ventas y facturación.'
+                            : undefined
+                        }
                         required
                         disabled={busy}
                         fullWidth
                       />
                     </div>
                   ) : null}
+
                   {showSkuField ? (
                     <div className="ecu-companies-form__field">
                       <TextBox
                         id="ei-sku"
-                        label="SKU"
+                        label={isVariantChild ? 'SKU (Variante)' : 'SKU'}
                         labelPosition="outlined"
                         variant="outline"
                         value={sku}
@@ -823,21 +968,39 @@ export function EditCatalogItemPage() {
                       />
                     </div>
                   ) : null}
+
                   {showDescriptionField ? (
-                    <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                    <div
+                      className={`ecu-companies-form__field ${
+                        isMatrixParent
+                          ? 'ecu-companies-form__field--span-2'
+                          : 'ecu-companies-form__field--span-2'
+                      }`}
+                    >
                       <TextBox
                         id="ei-desc"
-                        label="Descripción"
+                        label={
+                          isMatrixParent
+                            ? 'Descripción general de la matriz'
+                            : 'Descripción'
+                        }
                         labelPosition="outlined"
                         variant="outline"
                         value={description}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
-                        placeholder="Escriba aquí..."
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                          setDescription(e.target.value)
+                        }
+                        placeholder={
+                          isMatrixParent
+                            ? 'Ej. Calcetín deportivo de algodón con tecnología absorbente'
+                            : 'Escriba aquí...'
+                        }
                         disabled={busy}
                         fullWidth
                       />
                     </div>
                   ) : null}
+
                   {showBarcodeField ? (
                     <div className="ecu-companies-form__field">
                       <TextBox
@@ -855,6 +1018,7 @@ export function EditCatalogItemPage() {
                       />
                     </div>
                   ) : null}
+
                   {showBarcodeField ? (
                     <div className="ecu-companies-form__field">
                       <NumberBox
@@ -881,12 +1045,15 @@ export function EditCatalogItemPage() {
                     </div>
                   ) : null}
                 </div>
+
                 <span className="ecu-hint">
-                  El nombre identifica el producto; el primer nivel de la plantilla y la descripción
-                  lo complementan en listados y búsquedas.
+                  {isMatrixParent
+                    ? 'El nombre y la descripción general identifican al producto matriz. Las existencias y SKUs se gestionan en las variantes abajo.'
+                    : isVariantChild
+                      ? 'El SKU identifica individualmente a esta combinación física en almacén, pedidos y facturación.'
+                      : 'El nombre identifica el producto; el primer nivel de la plantilla y la descripción lo complementan en listados y búsquedas.'}
                 </span>
               </SectionCard>
-              ) : null}
 
               {isVariantChild && variantAxisEntries.length > 0 && (
                 <SectionCard

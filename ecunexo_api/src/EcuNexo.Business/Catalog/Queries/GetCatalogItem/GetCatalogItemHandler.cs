@@ -145,6 +145,7 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 .ConfigureAwait(false);
         }
         var parentName = parent?.Name;
+        var parentDescription = parent?.Description;
 
         var matrixSource = item.IsMatrixParent ? item : parent;
         var matrixAxes = item.IsMatrixParent ? axes : ParseMatrixAxes(matrixSource?.VariantDimensionsJson);
@@ -181,7 +182,8 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 matrixDescriptor,
                 item.IsHiddenFromStorefront,
                 item.Barcode,
-                item.MinOrderQuantity));
+                item.MinOrderQuantity,
+                parentDescription));
     }
 
     private static IReadOnlyList<MatrixAxisDef> ParseMatrixAxes(string? variantDimensionsJson)

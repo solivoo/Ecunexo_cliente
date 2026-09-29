@@ -294,7 +294,7 @@ export function CreateCatalogItemPage() {
   const variantSkuPrefix = useMemo(() => {
     const seedName =
       manualSku.trim() ||
-      (usesMatrix ? firstVariantName || derivedTemplateName || appliedTemplate?.name : '') ||
+      (usesMatrix ? name.trim() || firstVariantName || derivedTemplateName || appliedTemplate?.name : '') ||
       (showManualName ? name.trim() : derivedTemplateName) ||
       ''
     return seedName
@@ -382,7 +382,7 @@ export function CreateCatalogItemPage() {
           throw new Error('Elige una plantilla para registrar el producto.')
         }
         const nameSeed = usesMatrix
-          ? firstVariantName || derivedTemplateName
+          ? name.trim() || firstVariantName || derivedTemplateName
           : showManualName
             ? name.trim()
             : derivedTemplateName
@@ -395,7 +395,8 @@ export function CreateCatalogItemPage() {
 
         const finalName = nameSeed || finalSku || 'Producto'
         const finalDescription = usesMatrix
-          ? readVariantAttribute(matrixData.variants[0]?.customAttributesJson, 'descripcion') ||
+          ? description.trim() ||
+            readVariantAttribute(matrixData.variants[0]?.customAttributesJson, 'descripcion') ||
             derivedTemplateDescription
           : showManualDescription
             ? description.trim()
@@ -679,7 +680,9 @@ export function CreateCatalogItemPage() {
                     ? `Se registrará como «${
                         showManualName ? name.trim() : derivedTemplateName
                       }».`
-                    : 'Escribe el nombre del producto: identifica al ítem en listados y búsquedas.'}
+                    : usesMatrix
+                      ? 'Escribe el nombre de la matriz: identifica al modelo base en el catálogo.'
+                      : 'Escribe el nombre del producto: identifica al ítem en listados y búsquedas.'}
                   {!usesMatrix && !manualSku.trim() && !derivedTemplateSku
                     ? ' El SKU se generará automáticamente si lo dejas vacío.'
                     : ''}
@@ -700,45 +703,66 @@ export function CreateCatalogItemPage() {
           ) : null}
 
           {appliedTemplate ? (
-            <SectionCard title="Datos del producto">
+            <SectionCard
+              title={usesMatrix ? 'Producto Matriz (Modelo base)' : 'Datos del producto'}
+              subtitle={
+                usesMatrix
+                  ? 'La matriz agrupa las variantes, define el nombre comercial y la descripción general. La matriz no lleva SKU; cada variante física llevará su propio SKU abajo.'
+                  : undefined
+              }
+            >
               <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
                 {showManualName ? (
                   <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                     <TextBox
                       id="ci-name"
-                      label="Nombre del producto"
+                      label={usesMatrix ? 'Nombre de la matriz' : 'Nombre del producto'}
                       labelPosition="outlined"
                       variant="outline"
                       value={name}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                      placeholder="Ej. Calcetín Hello Kitty"
+                      placeholder={usesMatrix ? 'Ej. Calcetín Nike blanca logo negro' : 'Ej. Calcetín Hello Kitty'}
                       required
                       disabled={busy}
                       fullWidth
                     />
                   </div>
                 ) : null}
-                <div className="ecu-companies-form__field">
-                  <TextBox
-                    id="ci-sku"
-                    label={usesMatrix ? 'SKU / Código base del modelo' : 'SKU'}
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={manualSku}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                      setManualSku(e.target.value.toUpperCase())
-                    }
-                    placeholder={usesMatrix ? 'Ej. PLANT-001 (prefijo variantes)' : 'Ej. CALC-001'}
-                    helperText={
-                      usesMatrix
-                        ? 'Prefijo opcional para autogenerar los SKU de las variantes.'
-                        : undefined
-                    }
-                    required={!usesMatrix}
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
+                {!usesMatrix ? (
+                  <div className="ecu-companies-form__field">
+                    <TextBox
+                      id="ci-sku"
+                      label="SKU"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={manualSku}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setManualSku(e.target.value.toUpperCase())
+                      }
+                      placeholder="Ej. CALC-001"
+                      required
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                ) : (
+                  <div className="ecu-companies-form__field">
+                    <TextBox
+                      id="ci-sku"
+                      label="Prefijo SKU para variantes (opcional)"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={manualSku}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setManualSku(e.target.value.toUpperCase())
+                      }
+                      placeholder="Ej. NIK-BLA"
+                      helperText="Opcional. Prefijo sugerido para los SKU de las variantes abajo."
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
                 {!usesMatrix ? (
                   <div className="ecu-companies-form__field">
                     <NumberBox
@@ -768,12 +792,16 @@ export function CreateCatalogItemPage() {
                   <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
                     <TextBox
                       id="ci-description"
-                      label="Descripción"
+                      label={usesMatrix ? 'Descripción general de la matriz' : 'Descripción'}
                       labelPosition="outlined"
                       variant="outline"
                       value={description}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
-                      placeholder="Ej. Calcetín deportivo de algodón"
+                      placeholder={
+                        usesMatrix
+                          ? 'Ej. Calcetín blanco deportivo de algodón con tecnología absorbente'
+                          : 'Ej. Calcetín deportivo de algodón'
+                      }
                       disabled={busy}
                       fullWidth
                     />
@@ -782,7 +810,7 @@ export function CreateCatalogItemPage() {
               </div>
               <span className="ecu-hint">
                 {usesMatrix
-                  ? 'El SKU o código base sirve como prefijo para las variantes físicas. Puedes personalizar el SKU de cada variante abajo.'
+                  ? 'El nombre y la descripción identifican al modelo matriz. Cada combinación física abajo tendrá su propio SKU y existencias.'
                   : 'El nombre identifica el producto; el primer nivel de la plantilla y la descripción lo complementan en listados y búsquedas.'}
               </span>
             </SectionCard>
