@@ -241,6 +241,17 @@
             "order": 6,
             "placeholder": false,
             "children": []
+          },
+          {
+            "id": "catalog-pricing-shipping",
+            "label": "Tarifas de envío",
+            "route": "catalogo/precios/envios",
+            "icon": "truck",
+            "requiredPermission": "catalog.pricing.read",
+            "requiredModule": "catalog",
+            "order": 7,
+            "placeholder": false,
+            "children": []
           }
         ]
       }

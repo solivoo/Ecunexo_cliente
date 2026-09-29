@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, Popup, useToast, type ColumnDef } from 'glubox'
-import { DollarSign, Pencil, Power, Trash2, Users, XCircle } from 'lucide-react'
+import { DollarSign, Layers, Pencil, Power, Trash2, Truck, Users, XCircle } from 'lucide-react'
 import {
   EmptyState,
   GridIconButton,
@@ -310,6 +310,31 @@ const columns = useMemo((): ColumnDef<PriceListRow>[] => {
         <PageHeader
           title="Listas de Precios"
           subtitle="Listas comerciales (público, mayorista, distribuidor) con vigencia, prioridad y moneda."
+          actions={
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Button
+                variant="outline"
+                iconLeft={<Truck size={16} />}
+                onClick={() => navigate('/catalogo/precios/envios')}
+              >
+                Tarifas de envío
+              </Button>
+              <Button
+                variant="outline"
+                iconLeft={<Layers size={16} />}
+                onClick={() => navigate('/catalogo/precios/escalas-volumen')}
+              >
+                Escalas por cantidad
+              </Button>
+              <Button
+                variant="outline"
+                iconLeft={<DollarSign size={16} />}
+                onClick={() => navigate('/catalogo/precios/productos')}
+              >
+                Precios de productos
+              </Button>
+            </div>
+          }
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de listas">
