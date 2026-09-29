@@ -168,7 +168,6 @@ internal static class MenuCatalogSeedData
         Item("catalog-pricing-promotions", "catalog-pricing", "Promociones", "percent", "catalogo/precios/promociones", 5, MenuContextKind.Operational, "catalog", ["catalog.promotions.manage", "catalog.promotions.deactivate"]),
         Item("catalog-pricing-history", "catalog-pricing", "Historial", "history", "catalogo/precios/historial", 6, MenuContextKind.Operational, "catalog", ["catalog.pricing.history.read"]),
         Item("catalog-pricing-simulator", "catalog-pricing", "Simulador", "calculator", "catalogo/precios/simulador", 7, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
-        Item("catalog-pricing-shipping", "catalog-pricing", "Tarifas de envío", "truck", "catalogo/precios/envios", 8, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
 
         Item("warehousing", null, "Bodegas", "warehouse", null, 52, MenuContextKind.Operational, "warehousing", ["warehousing.read"]),
         Item("warehousing-list", "warehousing", "Ubicaciones", "warehouse", "bodegas", 1, MenuContextKind.Operational, "warehousing", ["warehousing.read", "warehousing.locations.manage"]),
@@ -191,7 +190,10 @@ internal static class MenuCatalogSeedData
         Item("ecommerce-orders", "ecommerce", "Pedidos", "shopping-bag", "ecommerce/pedidos", 1, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
         Item("ecommerce-storefront", "ecommerce", "Vitrina y dominios", "globe", "ecommerce/vitrina", 2, MenuContextKind.Operational, "ecommerce", ["ecommerce.storefront.manage"]),
         Item("ecommerce-configuracion", "ecommerce", "Configuración de tienda", "settings", "ecommerce/configuracion", 3, MenuContextKind.Operational, "ecommerce", ["ecommerce.storefront.manage"]),
-        Item("ecommerce-shipping", "ecommerce", "Tarifas de envío", "truck", "ecommerce/envios", 4, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
+        Item("ecommerce-shipping-group", "ecommerce", "Envíos", "truck", null, 4, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
+        Item("ecommerce-shipping-methods", "ecommerce-shipping-group", "Métodos de envío", "truck", "ecommerce/envios/metodos", 1, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
+        Item("ecommerce-shipping-zones", "ecommerce-shipping-group", "Zonas", "map-pin", "ecommerce/envios/zonas", 2, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
+        Item("ecommerce-shipping-rates", "ecommerce-shipping-group", "Tarifas", "calculator", "ecommerce/envios/tarifas", 3, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Facturas", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
@@ -239,6 +241,8 @@ internal static class MenuCatalogSeedData
     /// <summary>Ítems retirados del menú SPA; el seeder los desactiva en Development.</summary>
     public static IReadOnlyList<string> RetiredMenuItemIds { get; } =
     [
+        "catalog-pricing-shipping",
+        "ecommerce-shipping",
         "configuracion-correo",
         "sub-correo",
         "org",

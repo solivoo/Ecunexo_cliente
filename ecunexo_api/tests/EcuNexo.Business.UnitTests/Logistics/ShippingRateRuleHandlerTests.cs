@@ -138,7 +138,7 @@ public sealed class ShippingRateRuleHandlerTests
     {
         var repo = new InMemoryShippingRateRuleRepository();
         repo.Items.AddRange([
-            ShippingRateRule.Create(Guid.NewGuid(), TenantId, "Servientrega", "Provincia", "Servientrega Provincia", 6.00m, minQuantity: 1m, sortOrder: 1).Value!,
+            ShippingRateRule.Create(Guid.NewGuid(), TenantId, "Servientrega", "Provincia", "Servientrega Provincia", 6.00m, minQuantity: 1m, taxRate: 15m, sortOrder: 1).Value!,
             ShippingRateRule.Create(Guid.NewGuid(), TenantId, "Cooperativa", "Provincia", "Cooperativa a partir de 36u", 6.00m, minQuantity: 36m, sortOrder: 2, notes: "Flete pesado por bulto").Value!
         ]);
 

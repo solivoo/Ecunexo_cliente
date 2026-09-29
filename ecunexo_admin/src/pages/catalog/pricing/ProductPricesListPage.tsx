@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
-import { CheckSquare, Layers, Pencil, Trash2, Truck, X } from 'lucide-react'
+import { Calculator, CheckSquare, Layers, Pencil, Trash2, X } from 'lucide-react'
 import {
   EmptyState,
   GridIconButton,
@@ -607,17 +607,17 @@ export function ProductPricesListPage() {
               </Button>
               <Button
                 variant="outline"
-                iconLeft={<Truck size={16} />}
-                onClick={() => navigate('/catalogo/precios/envios')}
-              >
-                Tarifas de envío
-              </Button>
-              <Button
-                variant="outline"
                 iconLeft={<Layers size={16} />}
                 onClick={() => navigate('/catalogo/precios/matriz')}
               >
                 Vista matriz
+              </Button>
+              <Button
+                variant="outline"
+                iconLeft={<Calculator size={16} />}
+                onClick={() => navigate('/catalogo/precios/simulador')}
+              >
+                Simulador
               </Button>
             </div>
           }
@@ -839,25 +839,28 @@ export function ProductPricesListPage() {
               selectedRowIds={selectedIds}
               onSelectionChange={(selected) => setSelectedIds(selected.map((r) => r.catalogItemId))}
               showSearch={false}
+              toolbarLeft={
+                <div style={{ minWidth: 260, maxWidth: 360, width: '100%' }}>
+                  <TextBox
+                    id="pp-search"
+                    label="Buscar producto o SKU"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={search}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                    placeholder="Escribe nombre o SKU…"
+                    fullWidth
+                  />
+                </div>
+              }
               toolbarRight={
-                <div className="ecu-grid-toolbar-actions">
-                  <div style={{ minWidth: 180 }}>
-                    <TextBox
-                      id="pp-search"
-                      label="Buscar"
-                      labelPosition="outlined"
-                      variant="outline"
-                      value={search}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-                      placeholder="Nombre o SKU…"
-                      fullWidth
-                    />
-                  </div>
-
+                <div className="ecu-grid-toolbar-actions" style={{ display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   {availableTemplates.length > 0 ? (
-                    <div style={{ minWidth: 160 }}>
+                    <div style={{ minWidth: 165 }}>
                       <Select
                         id="pp-template-filter"
+                        label="Plantilla"
+                        labelPosition="outlined"
                         aria-label="Filtrar por plantilla"
                         variant="outline"
                         options={[
@@ -870,9 +873,11 @@ export function ProductPricesListPage() {
                     </div>
                   ) : null}
 
-                  <div style={{ minWidth: 160 }}>
+                  <div style={{ minWidth: 180 }}>
                     <Select
                       id="pp-scheme-filter"
+                      label="Escala por cantidad"
+                      labelPosition="outlined"
                       aria-label="Filtrar por escala"
                       variant="outline"
                       options={[
@@ -886,9 +891,11 @@ export function ProductPricesListPage() {
                     />
                   </div>
 
-                  <div style={{ minWidth: 120 }}>
+                  <div style={{ minWidth: 125 }}>
                     <Select
                       id="pp-vigency-filter"
+                      label="Vigencia"
+                      labelPosition="outlined"
                       aria-label="Filtrar por vigencia"
                       variant="outline"
                       options={[
@@ -941,25 +948,28 @@ export function ProductPricesListPage() {
               selectedRowIds={selectedIds}
               onSelectionChange={(selected) => setSelectedIds(selected.map((r) => r.id))}
               showSearch={false}
+              toolbarLeft={
+                <div style={{ minWidth: 260, maxWidth: 360, width: '100%' }}>
+                  <TextBox
+                    id="pp-search-tab"
+                    label="Buscar producto o SKU"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={search}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                    placeholder="Escribe nombre o SKU…"
+                    fullWidth
+                  />
+                </div>
+              }
               toolbarRight={
-                <div className="ecu-grid-toolbar-actions">
-                  <div style={{ minWidth: 180 }}>
-                    <TextBox
-                      id="pp-search"
-                      label="Buscar"
-                      labelPosition="outlined"
-                      variant="outline"
-                      value={search}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-                      placeholder="Nombre o SKU…"
-                      fullWidth
-                    />
-                  </div>
-
+                <div className="ecu-grid-toolbar-actions" style={{ display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   {availableTemplates.length > 0 ? (
-                    <div style={{ minWidth: 160 }}>
+                    <div style={{ minWidth: 165 }}>
                       <Select
-                        id="pp-template-filter"
+                        id="pp-template-filter-tab"
+                        label="Plantilla"
+                        labelPosition="outlined"
                         aria-label="Filtrar por plantilla"
                         variant="outline"
                         options={[
@@ -972,9 +982,11 @@ export function ProductPricesListPage() {
                     </div>
                   ) : null}
 
-                  <div style={{ minWidth: 160 }}>
+                  <div style={{ minWidth: 180 }}>
                     <Select
-                      id="pp-scheme-filter"
+                      id="pp-scheme-filter-tab"
+                      label="Escala por cantidad"
+                      labelPosition="outlined"
                       aria-label="Filtrar por escala"
                       variant="outline"
                       options={[
@@ -988,9 +1000,11 @@ export function ProductPricesListPage() {
                     />
                   </div>
 
-                  <div style={{ minWidth: 120 }}>
+                  <div style={{ minWidth: 125 }}>
                     <Select
-                      id="pp-vigency-filter"
+                      id="pp-vigency-filter-tab"
+                      label="Vigencia"
+                      labelPosition="outlined"
                       aria-label="Filtrar por vigencia"
                       variant="outline"
                       options={[

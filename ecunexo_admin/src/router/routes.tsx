@@ -47,7 +47,9 @@ import { PromotionFormPage } from '@/pages/catalog/pricing/PromotionFormPage'
 import { PriceHistoryPage } from '@/pages/catalog/pricing/PriceHistoryPage'
 import { PriceSimulatorPage } from '@/pages/catalog/pricing/PriceSimulatorPage'
 import { VolumeDiscountSchemesListPage } from '@/pages/catalog/pricing/VolumeDiscountSchemesListPage'
-import { ShippingRatesMatrixPage } from '@/pages/catalog/pricing/ShippingRatesMatrixPage'
+import { ShippingMethodsPage } from '@/pages/ecommerce/shipping/ShippingMethodsPage'
+import { ShippingZonesPage } from '@/pages/ecommerce/shipping/ShippingZonesPage'
+import { ShippingRatesMatrixPage } from '@/pages/ecommerce/shipping/ShippingRatesMatrixPage'
 import { CreateInventoryDocumentPage } from '@/pages/inventory/CreateInventoryDocumentPage'
 import { InventoryDocumentDetailPage } from '@/pages/inventory/InventoryDocumentDetailPage'
 import { InventoryDocumentsListPage } from '@/pages/inventory/InventoryDocumentsListPage'
@@ -170,7 +172,7 @@ export const routes: RouteObject[] = [
           { path: 'catalogo/precios/productos/masivo', element: <ProductPricesBulkPage /> },
           { path: 'catalogo/precios/matriz', element: <ProductPricesMatrixPage /> },
           { path: 'catalogo/precios/escalas-volumen', element: <VolumeDiscountSchemesListPage /> },
-          { path: 'catalogo/precios/envios', element: <ShippingRatesMatrixPage /> },
+          { path: 'catalogo/precios/envios', element: <Navigate to="/ecommerce/envios/tarifas" replace /> },
           { path: 'catalogo/precios/productos/:priceId', element: <ProductPriceFormPage /> },
           { path: 'catalogo/precios/promociones', element: <PromotionsListPage /> },
           { path: 'catalogo/precios/promociones/nueva', element: <PromotionFormPage /> },
@@ -200,7 +202,10 @@ export const routes: RouteObject[] = [
           { path: 'ecommerce', element: <Navigate to="/ecommerce/pedidos" replace /> },
           { path: 'ecommerce/pedidos', element: <EcommerceOrdersListPage /> },
           { path: 'ecommerce/pedidos/:orderId', element: <EcommerceOrderDetailPage /> },
-          { path: 'ecommerce/envios', element: <ShippingRatesMatrixPage /> },
+          { path: 'ecommerce/envios', element: <Navigate to="/ecommerce/envios/metodos" replace /> },
+          { path: 'ecommerce/envios/metodos', element: <ShippingMethodsPage /> },
+          { path: 'ecommerce/envios/zonas', element: <ShippingZonesPage /> },
+          { path: 'ecommerce/envios/tarifas', element: <ShippingRatesMatrixPage /> },
           { path: 'ecommerce/vitrina', element: <StorefrontDomainsPage /> },
           { path: 'ecommerce/configuracion', element: <StorefrontSettingsPage /> },
           { path: 'compras/documentos', element: <ComprasDocumentosPage /> },

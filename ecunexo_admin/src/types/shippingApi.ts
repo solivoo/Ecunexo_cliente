@@ -67,3 +67,63 @@ export interface ResolvedShippingOptionDto {
   unitsNeeded: number | null
   isRecommended: boolean
 }
+
+export interface ShippingZoneDto {
+  id: string
+  tenantId: string
+  code: string
+  name: string
+  description: string | null
+  provinces: string | null
+  sortOrder: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string | null
+}
+
+export interface CreateShippingZoneBody {
+  code: string
+  name: string
+  description?: string | null
+  provinces?: string | null
+  sortOrder?: number
+}
+
+export interface UpdateShippingZoneBody {
+  code: string
+  name: string
+  description?: string | null
+  provinces?: string | null
+  sortOrder?: number
+  isActive?: boolean
+}
+
+export interface ShippingMethodDto {
+  id: string
+  tenantId: string
+  code: string
+  name: string
+  description: string | null
+  estimatedDays: string | null
+  sortOrder: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string | null
+}
+
+export interface CreateShippingMethodBody {
+  code: string
+  name: string
+  description?: string | null
+  estimatedDays?: string | null
+  sortOrder?: number
+}
+
+export interface UpdateShippingMethodBody {
+  code: string
+  name: string
+  description?: string | null
+  estimatedDays?: string | null
+  sortOrder?: number
+  isActive?: boolean
+}

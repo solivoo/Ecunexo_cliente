@@ -83,6 +83,22 @@ public sealed class ShippingRateRuleConfiguration : IEntityTypeConfiguration<Shi
         builder.Property(r => r.UpdatedBy)
             .HasColumnType("uuid");
 
+        builder.Property(r => r.ShippingZoneId)
+            .HasColumnType("uuid");
+
+        builder.HasOne(r => r.ShippingZone)
+            .WithMany()
+            .HasForeignKey(r => r.ShippingZoneId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Property(r => r.ShippingMethodId)
+            .HasColumnType("uuid");
+
+        builder.HasOne(r => r.ShippingMethod)
+            .WithMany()
+            .HasForeignKey(r => r.ShippingMethodId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(r => new { r.TenantId, r.Zone, r.Carrier, r.IsActive })
             .HasDatabaseName("ix_shipping_rate_rules_tenant_zone_carrier");
 

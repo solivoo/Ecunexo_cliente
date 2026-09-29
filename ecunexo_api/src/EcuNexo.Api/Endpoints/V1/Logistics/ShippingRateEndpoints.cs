@@ -28,7 +28,7 @@ public static class ShippingRateEndpoints
             .RequireAuthorization();
 
         group.MapGet("/", ListShippingRatesAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("ecommerce.orders.read", "catalog.pricing.read", "invoicing.invoices.read"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("ecommerce.orders.read", "catalog.pricing.read", "facturacion.read", "facturacion.facturas.read"));
 
         group.MapPost("/", CreateShippingRateAsync)
             .AddEndpointFilter(PermissionFilters.RequireAny("ecommerce.orders.manage", "catalog.pricing.create"));
@@ -40,7 +40,7 @@ public static class ShippingRateEndpoints
             .AddEndpointFilter(PermissionFilters.RequireAny("ecommerce.orders.manage", "catalog.pricing.delete"));
 
         group.MapPost("/resolve", ResolveShippingRatesAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("ecommerce.orders.read", "catalog.pricing.read", "invoicing.invoices.create", "invoicing.invoices.read"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("ecommerce.orders.read", "catalog.pricing.read", "facturacion.facturas.create", "facturacion.read"));
 
         return app;
     }

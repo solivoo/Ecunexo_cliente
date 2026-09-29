@@ -91,6 +91,14 @@ public sealed class ShippingRateRule : AggregateRoot<Guid>, ITenantEntity, IAudi
 
     public Guid? UpdatedBy { get; private set; }
 
+    public Guid? ShippingZoneId { get; private set; }
+
+    public ShippingZone? ShippingZone { get; private set; }
+
+    public Guid? ShippingMethodId { get; private set; }
+
+    public ShippingMethod? ShippingMethod { get; private set; }
+
     public static Result<ShippingRateRule> Create(
         Guid id,
         Guid tenantId,
@@ -101,11 +109,13 @@ public sealed class ShippingRateRule : AggregateRoot<Guid>, ITenantEntity, IAudi
         decimal minQuantity = 1m,
         decimal? maxQuantity = null,
         decimal? minOrderAmount = null,
-        decimal taxRate = 15m,
+        decimal taxRate = 0m,
         string? estimatedDays = null,
         string? notes = null,
         int sortOrder = 0,
-        Guid? createdBy = null)
+        Guid? createdBy = null,
+        Guid? shippingZoneId = null,
+        Guid? shippingMethodId = null)
     {
         if (id == Guid.Empty || tenantId == Guid.Empty)
         {
@@ -134,6 +144,8 @@ public sealed class ShippingRateRule : AggregateRoot<Guid>, ITenantEntity, IAudi
             EstimatedDays = string.IsNullOrWhiteSpace(estimatedDays) ? null : estimatedDays.Trim(),
             Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
             SortOrder = sortOrder,
+            ShippingZoneId = shippingZoneId,
+            ShippingMethodId = shippingMethodId,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,
@@ -155,7 +167,9 @@ public sealed class ShippingRateRule : AggregateRoot<Guid>, ITenantEntity, IAudi
         string? notes,
         int sortOrder,
         bool? isActive,
-        Guid? updatedBy)
+        Guid? updatedBy,
+        Guid? shippingZoneId = null,
+        Guid? shippingMethodId = null)
     {
         var validationResult = Validate(carrier, zone, name, price, minQuantity, maxQuantity, minOrderAmount, taxRate, estimatedDays, notes);
         if (validationResult.IsFailure)
@@ -174,6 +188,8 @@ public sealed class ShippingRateRule : AggregateRoot<Guid>, ITenantEntity, IAudi
         EstimatedDays = string.IsNullOrWhiteSpace(estimatedDays) ? null : estimatedDays.Trim();
         Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
         SortOrder = sortOrder;
+        ShippingZoneId = shippingZoneId ?? ShippingZoneId;
+        ShippingMethodId = shippingMethodId ?? ShippingMethodId;
 
         if (isActive.HasValue)
         {

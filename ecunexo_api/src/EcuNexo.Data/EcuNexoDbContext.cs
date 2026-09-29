@@ -159,6 +159,10 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<ShippingRateRule> ShippingRateRules => Set<ShippingRateRule>();
 
+    public DbSet<ShippingZone> ShippingZones => Set<ShippingZone>();
+
+    public DbSet<ShippingMethod> ShippingMethods => Set<ShippingMethod>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(EcuNexoDbContext).Assembly);
