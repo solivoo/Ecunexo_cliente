@@ -593,10 +593,11 @@ export function VolumeDiscountSchemesListPage() {
 
           <div
             style={{
-              border: '1px solid var(--color-border-subtle, #e2e8f0)',
+              border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
               borderRadius: '8px',
               padding: '1rem',
-              backgroundColor: 'var(--color-surface-subtle, #f8fafc)',
+              backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.08))',
+              color: 'var(--glb-text, var(--shell-text, inherit))',
             }}
           >
             <div
@@ -608,8 +609,10 @@ export function VolumeDiscountSchemesListPage() {
               }}
             >
               <div>
-                <strong style={{ fontSize: '0.9375rem' }}>Tramos de Cantidad</strong>
-                <p className="app-shell__muted" style={{ margin: '2px 0 0', fontSize: '0.8125rem' }}>
+                <strong style={{ fontSize: '0.9375rem', color: 'var(--glb-text, var(--shell-text, inherit))' }}>
+                  Tramos de Cantidad
+                </strong>
+                <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: 'var(--glb-muted, var(--shell-muted, #94a3b8))' }}>
                   Define rangos no solapados. El último tramo puede dejar el límite «Hasta» en blanco para aplicar a partir de esa cantidad en adelante.
                 </p>
               </div>
@@ -632,7 +635,7 @@ export function VolumeDiscountSchemesListPage() {
                   gap: '0.5rem',
                   fontWeight: 600,
                   fontSize: '0.8125rem',
-                  color: 'var(--color-text-muted, #64748b)',
+                  color: 'var(--glb-muted, var(--shell-muted, #94a3b8))',
                   paddingBottom: '4px',
                 }}
               >

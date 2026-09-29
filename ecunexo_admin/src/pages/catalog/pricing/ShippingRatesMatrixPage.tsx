@@ -713,10 +713,11 @@ export function ShippingRatesMatrixPage() {
                       onClick={() => setFormZone(z.value)}
                       style={{
                         fontSize: '0.65rem',
-                        padding: '0.1rem 0.35rem',
-                        borderRadius: '3px',
-                        border: '1px solid #cbd5e1',
-                        background: '#f8fafc',
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '4px',
+                        border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.25))',
+                        background: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.08))',
+                        color: 'var(--glb-text, var(--shell-text, inherit))',
                         cursor: 'pointer',
                       }}
                     >
