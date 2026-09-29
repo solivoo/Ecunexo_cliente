@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Button,
   CheckButton,
@@ -85,6 +85,7 @@ export function ProductPriceFormPage() {
   const [tiers, setTiers] = useState<TierDraft[]>([])
   const [schemes, setSchemes] = useState<VolumeDiscountSchemeDto[]>([])
   const [volumeDiscountSchemeId, setVolumeDiscountSchemeId] = useState<string>('')
+  const [showCatalogPicker, setShowCatalogPicker] = useState<boolean>(() => !searchParams.get('catalogItemId'))
 
   useEffect(() => {
     if (!tenantId) return
@@ -482,80 +483,251 @@ export function ProductPriceFormPage() {
           title={isEdit ? 'Editar Precio' : 'Nuevo Precio'}
           subtitle="Una nueva vigencia cierra la anterior sin destruir el historial."
           badge={<StatusBadge tone="primary">{isEdit ? 'Edición' : 'Nueva vigencia'}</StatusBadge>}
+          actions={
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy || loading}
+                onClick={() => void navigate('/catalogo/precios/productos')}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                loading={busy}
+                disabled={busy || loading || (!isEdit && selectedItemIds.length === 0)}
+                onClick={() => void onSubmit()}
+              >
+                {isEdit ? 'Guardar cambios' : renewing ? 'Renovar vigencia' : 'Crear precio'}
+              </Button>
+            </div>
+          }
         />
 
         <form onSubmit={(e) => void onSubmit(e)} noValidate>
-          <SectionCard title="Datos de la vigencia">
-            {error ? (
-              <div className="ecu-form-error-banner" role="alert">
-                <span className="material-symbols-outlined">error</span>
-                <span>{error}</span>
-              </div>
-            ) : null}
+          {error ? (
+            <div className="ecu-form-error-banner" role="alert" style={{ marginBottom: '1rem' }}>
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
+            </div>
+          ) : null}
 
+          {/* PASO 1: SELECCIÓN DEL PRODUCTO */}
+          <SectionCard
+            title="1. Producto a fijar precio"
+            subtitle={
+              isEdit
+                ? 'Producto asociado a esta vigencia de precio.'
+                : selectedItemIds.length > 0
+                  ? 'Producto seleccionado. Puedes modificar la selección si deseas cotizar otro.'
+                  : 'Busca y selecciona el producto al que deseas asignar o renovar el precio.'
+            }
+          >
             {isEdit ? (
-              <p className="ecu-companies-form__hint" style={{ marginBottom: '0.75rem' }}>
-                Producto: <strong>{itemLabel || '—'}</strong>
-              </p>
-            ) : selectedItem ? (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <span className="ecu-chip">{selectedItem.sku ?? 'Sin SKU'}</span>
-                <strong style={{ fontSize: '0.9rem' }}>
-                  {selectedItem.description?.trim() || selectedItem.name}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <StatusBadge tone="neutral">Producto</StatusBadge>
+                {selectedItem?.sku ? (
+                  <span className="ecu-code" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem' }}>
+                    {selectedItem.sku}
+                  </span>
+                ) : null}
+                <strong style={{ fontSize: '1rem', color: 'var(--glb-text, inherit)' }}>
+                  {itemLabel || selectedItem?.name || '—'}
                 </strong>
                 {costInfo ? (
                   <span className="ecu-chip">Costo prom. ${costInfo.averageCost.toFixed(4)}</span>
                 ) : null}
-                {marginPercent != null ? (
-                  <span
-                    className="ecu-chip"
-                    style={{
-                      color:
-                        marginPercent >= 0
-                          ? 'var(--color-success, #16a34a)'
-                          : 'var(--color-danger, #ef4444)',
-                    }}
-                  >
-                    Margen {marginPercent.toFixed(1)}%
-                  </span>
-                ) : null}
-                {currentVigent ? (
-                  <span className="ecu-chip">
-                    Actual: ${currentVigent.price.toFixed(2)} · desde {currentVigent.validFrom}
-                  </span>
-                ) : (
-                  <span className="ecu-chip">Sin precio vigente</span>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy || loading}
-                  onClick={() => {
-                    setSelectedItemIds([])
-                    setPrice('')
-                    setCostInfo(null)
+              </div>
+            ) : selectedItemIds.length > 0 ? (
+              <>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem',
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+                    backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.05))',
+                    marginBottom: showCatalogPicker ? '1rem' : 0,
                   }}
                 >
-                  Cambiar producto
-                </Button>
-              </div>
-            ) : (
-              <p className="ecu-hint" style={{ margin: 0 }}>
-                Pasos: 1) Elige la lista · 2) Define precio y vigencia · 3) Selecciona el
-                uno o varios productos en la grilla de abajo · 4) Opcional: escalas por cantidad · 5) {'"'}Crear
-                precio{'"'}.
-              </p>
-            )}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <StatusBadge tone="success">
+                        {selectedItemIds.length === 1
+                          ? 'Producto seleccionado'
+                          : `${selectedItemIds.length} productos seleccionados`}
+                      </StatusBadge>
+                      {selectedItem ? (
+                        <>
+                          <span
+                            className="ecu-code"
+                            style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem' }}
+                          >
+                            {selectedItem.sku ?? 'Sin SKU'}
+                          </span>
+                          <strong style={{ fontSize: '1rem', color: 'var(--glb-text, inherit)' }}>
+                            {selectedItem.description?.trim() || selectedItem.name}
+                          </strong>
+                        </>
+                      ) : null}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy || loading}
+                        onClick={() => setShowCatalogPicker((prev) => !prev)}
+                      >
+                        {showCatalogPicker ? 'Ocultar catálogo' : 'Cambiar / Ver catálogo'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={busy || loading}
+                        onClick={() => {
+                          setSelectedItemIds([])
+                          setPrice('')
+                          setCostInfo(null)
+                          setShowCatalogPicker(true)
+                        }}
+                      >
+                        Limpiar selección
+                      </Button>
+                    </div>
+                  </div>
 
-            <div className="ecu-companies-form__grid ecu-companies-form__grid--3" style={{ marginTop: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {costInfo ? (
+                      <span className="ecu-chip">Costo promedio: ${costInfo.averageCost.toFixed(4)}</span>
+                    ) : null}
+                    {currentVigent ? (
+                      <span className="ecu-chip">
+                        Precio vigente en lista: <strong>${currentVigent.price.toFixed(2)}</strong> (desde {currentVigent.validFrom})
+                      </span>
+                    ) : (
+                      <span className="ecu-chip">Sin precio vigente en esta lista</span>
+                    )}
+                    {marginPercent != null ? (
+                      <span
+                        className="ecu-chip"
+                        style={{
+                          color: marginPercent >= 0 ? 'var(--color-success, #16a34a)' : 'var(--color-danger, #ef4444)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Margen estimado: {marginPercent.toFixed(1)}%
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {showCatalogPicker ? (
+                  <div>
+                    <div
+                      className="ecu-companies-form__grid ecu-companies-form__grid--4"
+                      style={{ marginBottom: '0.75rem' }}
+                    >
+                      <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                        <TextBox
+                          id="pp-grid-search"
+                          label="Buscar producto por SKU o descripción"
+                          labelPosition="outlined"
+                          variant="outline"
+                          value={search}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                            setSearch(e.target.value)
+                            onPageChange(0)
+                          }}
+                          placeholder="Escribe para buscar en el catálogo…"
+                          disabled={busy || loading}
+                          fullWidth
+                        />
+                      </div>
+                    </div>
+                    <div style={{ width: '100%', overflowX: 'auto' }}>
+                      <DataGrid<ProductPriceRow>
+                        dataSource={filteredItems as ProductPriceRow[]}
+                        keyExpr="id"
+                        columns={gridColumns}
+                        selectionMode="multiple"
+                        selectedRowIds={selectedItemIds}
+                        onSelectionChange={(rows) => handleSelectionChange(rows as ProductPriceRow[])}
+                        showSearch={false}
+                        paging={paging}
+                        pageSizeOptions={pageSizeOptions}
+                        onPageChange={onPageChange}
+                        onPageSizeChange={onPageSizeChange}
+                        messages={gridMessages}
+                        loading={loading}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div>
+                <div
+                  className="ecu-companies-form__grid ecu-companies-form__grid--4"
+                  style={{ marginBottom: '0.75rem' }}
+                >
+                  <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                    <TextBox
+                      id="pp-grid-search"
+                      label="Buscar producto por SKU o descripción"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={search}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                        setSearch(e.target.value)
+                        onPageChange(0)
+                      }}
+                      placeholder="Escribe para buscar en el catálogo…"
+                      disabled={busy || loading}
+                      fullWidth
+                    />
+                  </div>
+                </div>
+                <div style={{ width: '100%', overflowX: 'auto' }}>
+                  <DataGrid<ProductPriceRow>
+                    dataSource={filteredItems as ProductPriceRow[]}
+                    keyExpr="id"
+                    columns={gridColumns}
+                    selectionMode="multiple"
+                    selectedRowIds={selectedItemIds}
+                    onSelectionChange={(rows) => handleSelectionChange(rows as ProductPriceRow[])}
+                    showSearch={false}
+                    paging={paging}
+                    pageSizeOptions={pageSizeOptions}
+                    onPageChange={onPageChange}
+                    onPageSizeChange={onPageSizeChange}
+                    messages={gridMessages}
+                    loading={loading}
+                  />
+                </div>
+              </div>
+            )}
+          </SectionCard>
+
+          {/* PASO 2: PRECIO Y CONDICIONES */}
+          <SectionCard
+            title="2. Precio y Condiciones de Lista"
+            subtitle="Define el precio base de venta, la lista aplicable y la vigencia temporal."
+          >
+            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
               <div className="ecu-companies-form__field">
                 <Select
                   id="pp-list"
@@ -578,7 +750,7 @@ export function ProductPriceFormPage() {
               <div className="ecu-companies-form__field">
                 <NumberBox
                   id="pp-price"
-                  label="Precio"
+                  label="Precio base unitario"
                   labelPosition="outlined"
                   variant="outline"
                   value={price === '' ? '' : Number(price)}
@@ -596,8 +768,7 @@ export function ProductPriceFormPage() {
                 ) : null}
                 {selectedList?.suggestedMarginPercent ? (
                   <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
-                    Lista con margen sugerido del {selectedList.suggestedMarginPercent}% sobre el costo
-                    promedio.
+                    Lista con margen sugerido del {selectedList.suggestedMarginPercent}% sobre costo promedio.
                   </span>
                 ) : null}
               </div>
@@ -616,7 +787,7 @@ export function ProductPriceFormPage() {
               <div className="ecu-companies-form__field">
                 <DateBox
                   id="pp-to"
-                  label="Vigente hasta"
+                  label="Vigente hasta (opcional)"
                   labelPosition="outlined"
                   variant="outline"
                   value={validTo}
@@ -633,7 +804,7 @@ export function ProductPriceFormPage() {
                   variant="outline"
                   value={reason}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setReason(e.target.value)}
-                  placeholder="Escriba aquí…"
+                  placeholder="Ej: Ajuste por inflación, promoción o nuevo costo…"
                   disabled={busy || loading}
                   fullWidth
                 />
@@ -649,14 +820,14 @@ export function ProductPriceFormPage() {
                 </CheckButton>
                 {!isEdit ? (
                   <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
-                    Si lo desactivas, se guarda pero no se usará al cotizar.
+                    Si lo desactivas, se guarda pero no se usará al cotizar o vender.
                   </span>
                 ) : null}
               </div>
             </div>
 
             {selectedList ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.75rem' }}>
                 <span className="ecu-chip">{selectedList.currency}</span>
                 {selectedList.pricesIncludeTax ? <span className="ecu-chip">IVA incluido</span> : null}
                 <span className="ecu-chip">
@@ -667,91 +838,13 @@ export function ProductPriceFormPage() {
             ) : null}
           </SectionCard>
 
-          {!isEdit ? (
-            <SectionCard
-              title="Productos"
-              subtitle="Elige el producto a cotizar; las plantillas (padres con variantes) se ocultan porque cada variante lleva su propio SKU y precio."
-            >
-              <div
-                className="ecu-companies-form__grid ecu-companies-form__grid--4"
-                style={{ marginBottom: '0.75rem' }}
-              >
-                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                  <TextBox
-                    id="pp-grid-search"
-                    label="Buscar producto"
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={search}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                      setSearch(e.target.value)
-                      onPageChange(0)
-                    }}
-                    placeholder="SKU, descripción o nombre…"
-                    disabled={busy || loading}
-                    fullWidth
-                  />
-                </div>
-              </div>
-              {selectedItemIds.length > 0 && !isEdit ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    flexWrap: 'wrap',
-                    marginBottom: '0.6rem',
-                  }}
-                >
-                  <StatusBadge tone="primary">
-                    {selectedItemIds.length} seleccionado{selectedItemIds.length === 1 ? '' : 's'}
-                  </StatusBadge>
-                  {selectedItem ? (
-                    <span className="app-shell__muted">
-                      {selectedItem.name}
-                      {selectedItem.sku ? ` · ${selectedItem.sku}` : ''}
-                    </span>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedItemIds([])
-                      setPrice('')
-                      setCostInfo(null)
-                    }}
-                  >
-                    Limpiar selección
-                  </Button>
-                </div>
-              ) : null}
-              <div style={{ width: '100%', overflowX: 'auto' }}>
-                <DataGrid<ProductPriceRow>
-                  dataSource={filteredItems as ProductPriceRow[]}
-                  keyExpr="id"
-                  columns={gridColumns}
-                  selectionMode="multiple"
-                  selectedRowIds={selectedItemIds}
-                  onSelectionChange={(rows) => handleSelectionChange(rows as ProductPriceRow[])}
-                  showSearch={false}
-                  paging={paging}
-                  pageSizeOptions={pageSizeOptions}
-                  onPageChange={onPageChange}
-                  onPageSizeChange={onPageSizeChange}
-                  messages={gridMessages}
-                  loading={loading}
-                />
-              </div>
-            </SectionCard>
-          ) : null}
-
+          {/* PASO 3: ESCALAS DE DESCUENTO POR VOLUMEN */}
           <SectionCard
-            title="Escala de Descuento por Volumen (Reutilizable)"
+            title="3. Descuento por Volumen (Opcional)"
             subtitle="Asigna un esquema estandarizado (ej: Docena Calcetines) para aplicar descuentos escalonados sin reescribir tramos."
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div style={{ maxWidth: 420 }}>
+              <div style={{ maxWidth: 460 }}>
                 <Select
                   id="pp-volume-scheme"
                   label="Esquema por volumen"
@@ -779,130 +872,173 @@ export function ProductPriceFormPage() {
                     <div
                       style={{
                         padding: '0.75rem 1rem',
-                        backgroundColor: 'var(--color-surface-subtle, #f8fafc)',
-                        border: '1px solid var(--color-border-subtle, #e2e8f0)',
+                        backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.08))',
+                        border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
                         borderRadius: '6px',
                         fontSize: '0.875rem',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                        <span style={{ fontWeight: 600 }}>Tramos configurados:</span>
+                        <span style={{ fontWeight: 600 }}>Tramos configurados en el esquema:</span>
                         <span>{formatVolumeTiersSummary(selectedScheme.type, selectedScheme.tiers)}</span>
                       </div>
                       <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.8125rem' }}>
-                        Nota: Las escalas manuales específicas definidas abajo tienen prioridad sobre este esquema.
+                        Este esquema se aplicará automáticamente según la cantidad comprada en pedidos o facturas.
                       </p>
                     </div>
                   )
                 })()
               ) : null}
-            </div>
-          </SectionCard>
 
-          <SectionCard
-            title="Escalas por cantidad (Específicas manuales)"
-            subtitle="Opcional. El motor usa la escala cuya cantidad inicial sea la mayor aplicable."
-          >
-            <p className="ecu-companies-form__hint" style={{ marginBottom: '0.75rem' }}>
-              Opcional. Ejemplo: «desde 1 hasta 11» → $3.50, y «desde 12» con «hasta» vacío →
-              $3.00 para 12 o más. Si no agregas escalas, se aplica el precio de lista para
-              cualquier cantidad.
-            </p>
-            {tiers.length === 0 ? (
-              <p className="app-shell__muted" style={{ marginBottom: '0.75rem' }}>
-                Sin escalas todavía: usa «+ Añadir escala» si vendes por volumen.
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {tiers.map((tier, index) => (
-                  <div
-                    key={`tier-${index}`}
-                    className="ecu-companies-form__grid ecu-companies-form__grid--4"
-                    style={{ alignItems: 'end' }}
-                  >
-                    <div className="ecu-companies-form__field">
-                      <NumberBox
-                        id={`tier-from-${index}`}
-                        label="Cantidad desde"
-                        labelPosition="outlined"
-                        variant="outline"
-                        value={tier.quantityFrom === '' ? '' : Number(tier.quantityFrom)}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          updateTier(index, { quantityFrom: e.target.value })
-                        }
-                        placeholder="Ej. 12"
-                        min={0}
-                        step={1}
-                        showSpinButtons
-                        disabled={busy || loading}
-                        fullWidth
-                      />
-                    </div>
-                    <div className="ecu-companies-form__field">
-                      <NumberBox
-                        id={`tier-to-${index}`}
-                        label="Cantidad hasta"
-                        labelPosition="outlined"
-                        variant="outline"
-                        value={tier.quantityTo === '' ? '' : Number(tier.quantityTo)}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          updateTier(index, { quantityTo: e.target.value })
-                        }
-                        placeholder="Sin límite"
-                        min={0}
-                        step={1}
-                        showSpinButtons
-                        disabled={busy || loading}
-                        fullWidth
-                      />
-                    </div>
-                    <div className="ecu-companies-form__field">
-                      <NumberBox
-                        id={`tier-price-${index}`}
-                        label="Precio unitario"
-                        labelPosition="outlined"
-                        variant="outline"
-                        value={tier.unitPrice === '' ? '' : Number(tier.unitPrice)}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          updateTier(index, { unitPrice: e.target.value })
-                        }
-                        placeholder="Ej. 3.00"
-                        min={0}
-                        step={0.01}
-                        showSpinButtons
-                        disabled={busy || loading}
-                        fullWidth
-                      />
-                    </div>
-                    <div className="ecu-companies-form__field" style={{ paddingBottom: '0.35rem' }}>
-                      <GridIconButton
-                        label="Quitar escala"
-                        icon={Trash2}
-                        danger
-                        disabled={busy || loading}
-                        onClick={() => removeTier(index)}
-                      />
-                    </div>
-                  </div>
-                ))}
+              <div style={{ marginTop: '0.25rem' }}>
+                <Link
+                  to="/catalogo/precios/escalas-volumen"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    fontSize: '0.8125rem',
+                    color: 'var(--glb-primary, #2563eb)',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Administrar o crear esquemas de volumen reutilizables ↗
+                </Link>
               </div>
-            )}
 
-            <div style={{ marginTop: '0.75rem' }}>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy || loading}
-                onClick={() => setTiers((current) => [...current, emptyTier()])}
+              {/* Tramos específicos manuales (Avanzado / Colapsado para evitar información innecesaria) */}
+              <details
+                open={tiers.length > 0}
+                style={{
+                  marginTop: '0.75rem',
+                  border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+                  borderRadius: '8px',
+                  padding: '0.85rem 1.25rem',
+                  backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.04))',
+                }}
               >
-                + Añadir escala
-              </Button>
+                <summary
+                  style={{
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    color: 'var(--glb-text, inherit)',
+                    userSelect: 'none',
+                  }}
+                >
+                  Configuración manual de tramos específicos para este precio{' '}
+                  {tiers.length > 0 ? `(${tiers.length} configurada${tiers.length === 1 ? '' : 's'})` : '(Avanzado)'}
+                </summary>
+
+                <div style={{ marginTop: '0.75rem' }}>
+                  <p className="ecu-companies-form__hint" style={{ marginBottom: '0.75rem' }}>
+                    Opcional. Úsalo únicamente si este producto requiere escalas específicas que no aplican a ningún otro producto.
+                    Ejemplo: «desde 1 hasta 11» → $3.50, y «desde 12» con «hasta» vacío → $3.00.
+                  </p>
+
+                  {tiers.length === 0 ? (
+                    <p className="app-shell__muted" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+                      Sin escalas manuales específicas. Si usas un esquema reutilizable arriba, no es necesario configurar nada aquí.
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {tiers.map((tier, index) => (
+                        <div
+                          key={`tier-${index}`}
+                          className="ecu-companies-form__grid ecu-companies-form__grid--4"
+                          style={{ alignItems: 'end' }}
+                        >
+                          <div className="ecu-companies-form__field">
+                            <NumberBox
+                              id={`tier-from-${index}`}
+                              label="Cantidad desde"
+                              labelPosition="outlined"
+                              variant="outline"
+                              value={tier.quantityFrom === '' ? '' : Number(tier.quantityFrom)}
+                              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                                updateTier(index, { quantityFrom: e.target.value })
+                              }
+                              placeholder="Ej. 12"
+                              min={0}
+                              step={1}
+                              showSpinButtons
+                              disabled={busy || loading}
+                              fullWidth
+                            />
+                          </div>
+                          <div className="ecu-companies-form__field">
+                            <NumberBox
+                              id={`tier-to-${index}`}
+                              label="Cantidad hasta"
+                              labelPosition="outlined"
+                              variant="outline"
+                              value={tier.quantityTo === '' ? '' : Number(tier.quantityTo)}
+                              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                                updateTier(index, { quantityTo: e.target.value })
+                              }
+                              placeholder="Sin límite"
+                              min={0}
+                              step={1}
+                              showSpinButtons
+                              disabled={busy || loading}
+                              fullWidth
+                            />
+                          </div>
+                          <div className="ecu-companies-form__field">
+                            <NumberBox
+                              id={`tier-price-${index}`}
+                              label="Precio unitario"
+                              labelPosition="outlined"
+                              variant="outline"
+                              value={tier.unitPrice === '' ? '' : Number(tier.unitPrice)}
+                              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                                updateTier(index, { unitPrice: e.target.value })
+                              }
+                              placeholder="Ej. 3.00"
+                              min={0}
+                              step={0.01}
+                              showSpinButtons
+                              disabled={busy || loading}
+                              fullWidth
+                            />
+                          </div>
+                          <div className="ecu-companies-form__field" style={{ paddingBottom: '0.35rem' }}>
+                            <GridIconButton
+                              label="Quitar escala"
+                              icon={Trash2}
+                              danger
+                              disabled={busy || loading}
+                              onClick={() => removeTier(index)}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={busy || loading}
+                      onClick={() => setTiers((current) => [...current, emptyTier()])}
+                    >
+                      + Añadir tramo manual
+                    </Button>
+                  </div>
+                </div>
+              </details>
             </div>
           </SectionCard>
 
           <SectionCard>
             <div className="ecu-companies-form__actions">
-              <Button type="submit" variant="primary" loading={busy} disabled={busy || loading}>
+              <Button
+                type="submit"
+                variant="primary"
+                loading={busy}
+                disabled={busy || loading || (!isEdit && selectedItemIds.length === 0)}
+              >
                 {isEdit ? 'Guardar cambios' : renewing ? 'Renovar vigencia' : 'Crear precio'}
               </Button>
               <Button
