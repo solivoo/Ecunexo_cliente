@@ -290,9 +290,10 @@ export function CreateCatalogItemPage() {
     [matrixData.variants]
   )
 
-  // Prefijo para autogenerar los SKU de cada variante a partir del nombre del producto.
+  // Prefijo para autogenerar los SKU de cada variante a partir del SKU manual, nombre o plantilla.
   const variantSkuPrefix = useMemo(() => {
     const seedName =
+      manualSku.trim() ||
       (usesMatrix ? firstVariantName || derivedTemplateName || appliedTemplate?.name : '') ||
       (showManualName ? name.trim() : derivedTemplateName) ||
       ''
@@ -303,7 +304,7 @@ export function CreateCatalogItemPage() {
       .replace(/[^A-Z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
       .slice(0, 16)
-  }, [appliedTemplate?.name, derivedTemplateName, firstVariantName, name, showManualName, usesMatrix])
+  }, [appliedTemplate?.name, derivedTemplateName, firstVariantName, manualSku, name, showManualName, usesMatrix])
 
   const handleApplyTemplate = useCallback((templateId: string) => {
     setSelectedTemplateId(templateId)
@@ -424,7 +425,7 @@ export function CreateCatalogItemPage() {
             kind: kindNum,
             name: finalName,
             description: finalDescription || null,
-            modelCode: null,
+            modelCode: manualSku.trim() || null,
             basePrice: null,
             variantDimensionsJson: matrixData.variantDimensionsJson,
             variants: matrixData.variants,
@@ -698,7 +699,7 @@ export function CreateCatalogItemPage() {
             </div>
           ) : null}
 
-          {appliedTemplate && !usesMatrix ? (
+          {appliedTemplate ? (
             <SectionCard title="Datos del producto">
               <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
                 {showManualName ? (
@@ -717,24 +718,27 @@ export function CreateCatalogItemPage() {
                     />
                   </div>
                 ) : null}
-                {!usesMatrix ? (
-                  <div className="ecu-companies-form__field">
-                    <TextBox
-                      id="ci-sku"
-                      label="SKU"
-                      labelPosition="outlined"
-                      variant="outline"
-                      value={manualSku}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                        setManualSku(e.target.value.toUpperCase())
-                      }
-                      placeholder="Ej. CALC-001"
-                      required
-                      disabled={busy}
-                      fullWidth
-                    />
-                  </div>
-                ) : null}
+                <div className="ecu-companies-form__field">
+                  <TextBox
+                    id="ci-sku"
+                    label={usesMatrix ? 'SKU / Código base del modelo' : 'SKU'}
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={manualSku}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setManualSku(e.target.value.toUpperCase())
+                    }
+                    placeholder={usesMatrix ? 'Ej. PLANT-001 (prefijo variantes)' : 'Ej. CALC-001'}
+                    helperText={
+                      usesMatrix
+                        ? 'Prefijo opcional para autogenerar los SKU de las variantes.'
+                        : undefined
+                    }
+                    required={!usesMatrix}
+                    disabled={busy}
+                    fullWidth
+                  />
+                </div>
                 {!usesMatrix ? (
                   <div className="ecu-companies-form__field">
                     <NumberBox
@@ -777,8 +781,9 @@ export function CreateCatalogItemPage() {
                 ) : null}
               </div>
               <span className="ecu-hint">
-                El nombre identifica el producto; el primer nivel de la plantilla y la descripción lo
-                complementan en listados y búsquedas.
+                {usesMatrix
+                  ? 'El SKU o código base sirve como prefijo para las variantes físicas. Puedes personalizar el SKU de cada variante abajo.'
+                  : 'El nombre identifica el producto; el primer nivel de la plantilla y la descripción lo complementan en listados y búsquedas.'}
               </span>
             </SectionCard>
           ) : null}

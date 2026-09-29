@@ -413,9 +413,27 @@ export function VariantMatrixBuilder({
           skuTokenFromDimension(value, (hex) => resolveHumanDimensionValue('', hex))
         )
         .filter(Boolean)
-      return [base, ...parts].filter(Boolean).join('-').slice(0, SKU_MAX_LENGTH)
+      const raw = [base, ...parts].filter(Boolean).join('-')
+      return raw.replace(/-+/g, '-').replace(/^-+|-+$/g, '').slice(0, SKU_MAX_LENGTH)
     },
     [resolveHumanDimensionValue, skuBase]
+  )
+
+  const handleResetSku = useCallback(
+    (rowId: string) => {
+      setRows((prev) =>
+        prev.map((r) => {
+          if (r.id !== rowId) return r
+          const generated = buildSkuForRow(r.dimensionValues)
+          return {
+            ...r,
+            sku: generated,
+            isManualSku: false,
+          }
+        })
+      )
+    },
+    [buildSkuForRow]
   )
 
   // Autocompleta el SKU de las filas que el usuario no haya escrito manualmente.
@@ -424,7 +442,7 @@ export function VariantMatrixBuilder({
     setRows((prev) => {
       let changed = false
       const next = prev.map((row) => {
-        if (row.isManualSku && row.sku.trim()) return row
+        if (row.isManualSku) return row
         const generated = buildSkuForRow(row.dimensionValues)
         if (generated && generated !== row.sku) {
           changed = true
@@ -434,7 +452,7 @@ export function VariantMatrixBuilder({
       })
       return changed ? next : prev
     })
-  }, [buildSkuForRow, dimensions, rows, skuPrefix])
+  }, [buildSkuForRow, dimensions, skuPrefix])
 
   const handleVariantAttributeChange = useCallback((rowId: string, key: string, value: string) => {
     setRows((prev) =>
@@ -585,18 +603,19 @@ export function VariantMatrixBuilder({
           const updatedDims = { ...r.dimensionValues, [dimName]: newValue }
           const variationLabel = buildRowLabel(updatedDims)
           const autoTitle = variationLabel || 'Variante'
+          const nextSku = !r.isManualSku ? buildSkuForRow(updatedDims) : r.sku
 
           return {
             ...r,
             dimensionValues: updatedDims,
             variationLabel,
             variantTitle: r.isManualTitle ? r.variantTitle : autoTitle,
-            sku: r.sku, // El SKU nunca se recrea automáticamente
+            sku: nextSku,
           }
         })
       )
     },
-    [buildRowLabel]
+    [buildRowLabel, buildSkuForRow]
   )
 
   // Group Image Toggle from general gallery
@@ -934,7 +953,7 @@ export function VariantMatrixBuilder({
         variationLabel: `${groupVal} / ${availableVal}`,
         variantTitle: `${groupVal} / ${availableVal}`,
         isManualTitle: false,
-        sku: '',
+        sku: buildSkuForRow(dimensionValues),
         isManualSku: false,
         barcode: '',
         basePrice: defaultPrice,
@@ -948,7 +967,7 @@ export function VariantMatrixBuilder({
 
       setRows((prev) => [...prev, newRow])
     },
-    [basePrice, childDims, groupValueOf, photoScope, primaryDim, rows]
+    [basePrice, buildSkuForRow, childDims, groupValueOf, photoScope, primaryDim, rows]
   )
 
   // Add new group (e.g. Color)
@@ -996,7 +1015,7 @@ export function VariantMatrixBuilder({
           variationLabel: label,
           variantTitle: label,
           isManualTitle: false,
-          sku: '',
+          sku: buildSkuForRow(updatedDims),
           isManualSku: false,
           stagedImages: [],
           stagedImagePreview: null,
@@ -1010,7 +1029,7 @@ export function VariantMatrixBuilder({
         variant: 'success',
       })
     },
-    [childDims, groupValueOf, primaryDim, rows, toast]
+    [buildSkuForRow, childDims, groupValueOf, primaryDim, rows, toast]
   )
 
   const handleDuplicateGroup = useCallback(
@@ -1085,11 +1104,13 @@ export function VariantMatrixBuilder({
           const updatedDims = { ...r.dimensionValues, [primaryDim.name]: targetVal }
           const subVal = childDims.map((cd) => updatedDims[cd.name]).filter(Boolean).join(' / ')
           const label = `${targetVal}${subVal ? ` / ${subVal}` : ''}`
+          const nextSku = !r.isManualSku ? buildSkuForRow(updatedDims) : r.sku
           return {
             ...r,
             dimensionValues: updatedDims,
             variationLabel: label,
             variantTitle: r.isManualTitle ? r.variantTitle : label,
+            sku: nextSku,
           }
         })
       )
@@ -1107,7 +1128,7 @@ export function VariantMatrixBuilder({
         })
       }
     },
-    [childDims, groupValueOf, handleAddCustomOptionToDimension, photoGroupKeyOf, photoScope, primaryDim, rows]
+    [buildSkuForRow, childDims, groupValueOf, handleAddCustomOptionToDimension, photoGroupKeyOf, photoScope, primaryDim, rows]
   )
 
   const handleConfirmColorModal = useCallback(() => {
@@ -1521,12 +1542,34 @@ export function VariantMatrixBuilder({
                     <div key={row.id} className="ecu-variant-sub-item-row">
                       {/* SKU (Obligatorio) */}
                       <div className="ecu-variant-sub-item-field" style={{ minWidth: '190px', flex: '1.4 1 190px', maxWidth: '260px' }}>
-                        <label className="ecu-variant-sub-item-label">
-                          SKU *
-                          {skuBase ? (
-                            <span className="app-shell__muted"> · {skuBase}-…</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                          <label className="ecu-variant-sub-item-label" style={{ margin: 0 }}>
+                            SKU *
+                            {skuBase && !row.isManualSku ? (
+                              <span className="app-shell__muted"> · {skuBase}-…</span>
+                            ) : null}
+                          </label>
+                          {row.isManualSku ? (
+                            <button
+                              type="button"
+                              className="ecu-variant-sub-item-sku-reset"
+                              onClick={() => handleResetSku(row.id)}
+                              title="Restablecer al SKU sugerido automáticamente"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: 0,
+                                fontSize: '0.72rem',
+                                color: 'var(--glb-primary, #6366f1)',
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                                fontWeight: 500,
+                              }}
+                            >
+                              Auto
+                            </button>
                           ) : null}
-                        </label>
+                        </div>
                         <TextBox
                           size="sm"
                           variant="outline"
