@@ -91,7 +91,8 @@ public sealed class PricingService : IPricingService
             productPrice.Tiers,
             activePromotions,
             taxRate,
-            priceList.PricesIncludeTax);
+            priceList.PricesIncludeTax,
+            productPrice.VolumeDiscountScheme);
         if (calculation.IsFailure)
         {
             return Result.Failure<PricingResult>(calculation.Error!);

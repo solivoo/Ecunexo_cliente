@@ -203,6 +203,57 @@ public sealed class PriceCalculatorTests
         result.Error!.Code.Should().Be("catalog.pricing.tax_rate.range");
     }
 
+    [Fact(DisplayName = "Esquema de volumen porcentual calcula el descuento correctamente")]
+    public void Calculate_WithPercentageVolumeScheme_AppliesDiscount()
+    {
+        var scheme = VolumeDiscountScheme.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Escala Calcetines",
+            null,
+            VolumeDiscountSchemeType.Percentage).Value!;
+        scheme.AddTier(Guid.NewGuid(), 6m, 11m, 15m);
+        scheme.AddTier(Guid.NewGuid(), 12m, null, 25m);
+
+        // Compra 10 pares a $3.00 c/u -> Subtotal $30.00 -> 15% OFF = $4.50 de descuento -> Neto $25.50
+        var result = PriceCalculator.Calculate(3m, 10m, NoTiers, NoPromotions, 0.15m, pricesIncludeTax: false, scheme);
+
+        result.IsSuccess.Should().BeTrue();
+        var calc = result.Value!;
+        calc.UnitPrice.Should().Be(3m);
+        calc.Subtotal.Should().Be(30m);
+        calc.DiscountAmount.Should().Be(4.50m);
+        calc.NetPrice.Should().Be(25.50m);
+        calc.TaxAmount.Should().Be(3.83m); // 25.50 * 0.15 = 3.825 -> 3.83
+        calc.FinalPrice.Should().Be(29.33m);
+        calc.TierLabel.Should().Be("6 - 11");
+        calc.AppliedRules.Should().Contain(r => r.StartsWith("ESQUEMA_Escala Calcetines_6"));
+    }
+
+    [Fact(DisplayName = "Escala específica de producto tiene prioridad sobre esquema de volumen")]
+    public void Calculate_ProductTierOverridesVolumeScheme()
+    {
+        var productTier = CreateTier(6m, null, 2.70m); // PVP $2.70 fijo
+
+        var scheme = VolumeDiscountScheme.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Escala General",
+            null,
+            VolumeDiscountSchemeType.Percentage).Value!;
+        scheme.AddTier(Guid.NewGuid(), 6m, null, 20m); // 20% OFF
+
+        var result = PriceCalculator.Calculate(3m, 10m, [productTier], NoPromotions, 0m, pricesIncludeTax: false, scheme);
+
+        result.IsSuccess.Should().BeTrue();
+        var calc = result.Value!;
+        calc.UnitPrice.Should().Be(2.70m);
+        calc.DiscountAmount.Should().Be(0m);
+        calc.Subtotal.Should().Be(27m);
+        calc.AppliedRules.Should().Contain("ESCALA_6");
+        calc.AppliedRules.Should().NotContain(r => r.StartsWith("ESQUEMA_"));
+    }
+
     private static QuantityTier CreateTier(decimal from, decimal? to, decimal unitPrice) =>
         QuantityTier.Create(Guid.CreateVersion7(), Guid.CreateVersion7(), from, to, unitPrice).Value!;
 

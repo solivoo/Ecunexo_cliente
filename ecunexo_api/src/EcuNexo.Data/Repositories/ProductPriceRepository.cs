@@ -43,11 +43,15 @@ public sealed class ProductPriceRepository : IProductPriceRepository
     public Task<ProductPrice?> GetByIdAsync(Guid tenantId, Guid productPriceId, CancellationToken ct) =>
         _db.ProductPrices.AsNoTracking()
             .Include(p => p.Tiers)
+            .Include(p => p.VolumeDiscountScheme)
+                .ThenInclude(s => s!.Tiers)
             .FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == productPriceId, ct);
 
     public Task<ProductPrice?> GetTrackedByIdAsync(Guid tenantId, Guid productPriceId, CancellationToken ct) =>
         _db.ProductPrices
             .Include(p => p.Tiers)
+            .Include(p => p.VolumeDiscountScheme)
+                .ThenInclude(s => s!.Tiers)
             .FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == productPriceId, ct);
 
     public Task<ProductPrice?> GetVigentAsync(
@@ -58,6 +62,8 @@ public sealed class ProductPriceRepository : IProductPriceRepository
         CancellationToken ct) =>
         _db.ProductPrices.AsNoTracking()
             .Include(p => p.Tiers)
+            .Include(p => p.VolumeDiscountScheme)
+                .ThenInclude(s => s!.Tiers)
             .Where(p => p.TenantId == tenantId
                 && p.PriceListId == priceListId
                 && p.CatalogItemId == catalogItemId
@@ -130,12 +136,15 @@ public sealed class ProductPriceRepository : IProductPriceRepository
             from p in _db.ProductPrices.AsNoTracking()
             join i in _db.CatalogItems.AsNoTracking() on p.CatalogItemId equals i.Id
             join l in _db.PriceLists.AsNoTracking() on p.PriceListId equals l.Id
+            join s in _db.VolumeDiscountSchemes.AsNoTracking() on p.VolumeDiscountSchemeId equals (Guid?)s.Id into schemes
+            from s in schemes.DefaultIfEmpty()
             where p.TenantId == filter.TenantId
             select new
             {
                 Price = p,
                 Item = i,
                 List = l,
+                SchemeName = s != null ? s.Name : null,
             };
 
         if (filter.PriceListId is { } priceListId)
@@ -182,7 +191,9 @@ public sealed class ProductPriceRepository : IProductPriceRepository
                 r.Price.Price,
                 r.Price.ValidFrom,
                 r.Price.ValidTo,
-                r.Price.IsActive))
+                r.Price.IsActive,
+                r.Price.VolumeDiscountSchemeId,
+                r.SchemeName))
             .ToListAsync(ct)
             .ConfigureAwait(false);
     }

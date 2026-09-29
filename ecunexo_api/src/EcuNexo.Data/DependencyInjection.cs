@@ -70,6 +70,7 @@ public static class DependencyInjection
         services.AddScoped<IInvoiceStockEgressRepository, InvoiceStockEgressRepository>();
         services.AddScoped<IPriceListRepository, PriceListRepository>();
         services.AddScoped<IProductPriceRepository, ProductPriceRepository>();
+        services.AddScoped<IVolumeDiscountSchemeRepository, VolumeDiscountSchemeRepository>();
         services.AddScoped<IPromotionRepository, PromotionRepository>();
         services.AddScoped<IPriceChangeLogRepository, PriceChangeLogRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();

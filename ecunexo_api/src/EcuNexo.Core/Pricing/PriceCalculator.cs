@@ -21,7 +21,8 @@ public static class PriceCalculator
         IReadOnlyList<QuantityTier> tiers,
         IReadOnlyList<Promotion> promotions,
         decimal taxRate,
-        bool pricesIncludeTax)
+        bool pricesIncludeTax,
+        VolumeDiscountScheme? volumeScheme = null)
     {
         if (listPrice < 0)
         {
@@ -58,9 +59,46 @@ public static class PriceCalculator
             appliedRules.Add($"ESCALA_{tier.QuantityFrom:0.####}");
         }
 
+        decimal volumeDiscount = 0m;
+        if (tier is null && volumeScheme is not null && volumeScheme.IsActive)
+        {
+            var schemeTier = volumeScheme.Tiers
+                .Where(t => t.IsActive && t.Includes(quantity))
+                .OrderByDescending(t => t.QuantityFrom)
+                .FirstOrDefault();
+
+            if (schemeTier is not null)
+            {
+                tierLabel = schemeTier.QuantityTo is null
+                    ? $"{schemeTier.QuantityFrom:0.####}+"
+                    : $"{schemeTier.QuantityFrom:0.####} - {schemeTier.QuantityTo.Value:0.####}";
+
+                switch (volumeScheme.Type)
+                {
+                    case VolumeDiscountSchemeType.Percentage:
+                        volumeDiscount = (unitPrice * quantity) * schemeTier.Value / 100m;
+                        appliedRules.Add($"ESQUEMA_{volumeScheme.Name}_{schemeTier.QuantityFrom:0.####}_{schemeTier.Value:0.##}%");
+                        break;
+                    case VolumeDiscountSchemeType.FixedAmount:
+                        volumeDiscount = schemeTier.Value * quantity;
+                        appliedRules.Add($"ESQUEMA_{volumeScheme.Name}_{schemeTier.QuantityFrom:0.####}_${schemeTier.Value:0.00}");
+                        break;
+                    case VolumeDiscountSchemeType.FixedPrice:
+                        if (schemeTier.Value < unitPrice)
+                        {
+                            volumeDiscount = (unitPrice - schemeTier.Value) * quantity;
+                        }
+                        appliedRules.Add($"ESQUEMA_{volumeScheme.Name}_{schemeTier.QuantityFrom:0.####}_PVP${schemeTier.Value:0.00}");
+                        break;
+                }
+            }
+        }
+
         var subtotal = RoundMoney(unitPrice * quantity);
-        var discount = CalculateDiscount(subtotal, unitPrice, quantity, promotions, appliedRules);
-        var discountAmount = Math.Min(RoundMoney(discount), subtotal);
+        var baseForPromotions = Math.Max(0m, subtotal - volumeDiscount);
+        var promoDiscount = CalculateDiscount(baseForPromotions, unitPrice, quantity, promotions, appliedRules);
+        var totalDiscount = volumeDiscount + promoDiscount;
+        var discountAmount = Math.Min(RoundMoney(totalDiscount), subtotal);
         var netPrice = subtotal - discountAmount;
 
         decimal taxableBase;

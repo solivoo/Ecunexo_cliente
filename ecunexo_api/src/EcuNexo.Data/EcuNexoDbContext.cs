@@ -152,6 +152,10 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<PriceChangeLog> PriceChangeLogs => Set<PriceChangeLog>();
 
+    public DbSet<VolumeDiscountScheme> VolumeDiscountSchemes => Set<VolumeDiscountScheme>();
+
+    public DbSet<VolumeDiscountTier> VolumeDiscountTiers => Set<VolumeDiscountTier>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(EcuNexoDbContext).Assembly);

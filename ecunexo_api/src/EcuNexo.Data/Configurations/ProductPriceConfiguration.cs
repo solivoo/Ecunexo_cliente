@@ -83,6 +83,14 @@ public sealed class ProductPriceConfiguration : IEntityTypeConfiguration<Product
             .HasForeignKey(t => t.ProductPriceId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.Property(p => p.VolumeDiscountSchemeId)
+            .HasColumnType("uuid");
+
+        builder.HasOne(p => p.VolumeDiscountScheme)
+            .WithMany()
+            .HasForeignKey(p => p.VolumeDiscountSchemeId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.Property<uint>("xmin")
             .IsRowVersion()
             .HasColumnName("xmin");

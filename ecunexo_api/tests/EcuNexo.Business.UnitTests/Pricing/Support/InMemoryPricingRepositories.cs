@@ -311,3 +311,39 @@ internal sealed class TestCallerContext : ICallerContext
 
     public bool IsSubscriptionHolder => false;
 }
+
+internal sealed class InMemoryVolumeDiscountSchemeRepository : IVolumeDiscountSchemeRepository
+{
+    private readonly List<VolumeDiscountScheme> _items = [];
+
+    public IReadOnlyList<VolumeDiscountScheme> Items => _items;
+
+    public void Seed(VolumeDiscountScheme scheme) => _items.Add(scheme);
+
+    public Task AddAsync(VolumeDiscountScheme scheme, CancellationToken ct)
+    {
+        _items.Add(scheme);
+        return Task.CompletedTask;
+    }
+
+    public Task<VolumeDiscountScheme?> GetByIdAsync(Guid tenantId, Guid schemeId, CancellationToken ct) =>
+        Task.FromResult(_items.FirstOrDefault(s => s.TenantId == tenantId && s.Id == schemeId));
+
+    public Task<VolumeDiscountScheme?> GetTrackedByIdAsync(Guid tenantId, Guid schemeId, CancellationToken ct) =>
+        Task.FromResult(_items.FirstOrDefault(s => s.TenantId == tenantId && s.Id == schemeId));
+
+    public Task<IReadOnlyList<VolumeDiscountScheme>> ListAsync(Guid tenantId, bool onlyActive, CancellationToken ct)
+    {
+        IReadOnlyList<VolumeDiscountScheme> result = _items
+            .Where(s => s.TenantId == tenantId && (!onlyActive || s.IsActive))
+            .OrderBy(s => s.Name)
+            .ToList();
+        return Task.FromResult(result);
+    }
+
+    public Task<bool> NameExistsAsync(Guid tenantId, string name, Guid? excludeId, CancellationToken ct) =>
+        Task.FromResult(_items.Any(s =>
+            s.TenantId == tenantId
+            && s.Name.Equals(name.Trim(), StringComparison.OrdinalIgnoreCase)
+            && (excludeId is null || s.Id != excludeId.Value)));
+}

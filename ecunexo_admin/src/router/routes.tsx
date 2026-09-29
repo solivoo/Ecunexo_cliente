@@ -46,6 +46,7 @@ import { PromotionsListPage } from '@/pages/catalog/pricing/PromotionsListPage'
 import { PromotionFormPage } from '@/pages/catalog/pricing/PromotionFormPage'
 import { PriceHistoryPage } from '@/pages/catalog/pricing/PriceHistoryPage'
 import { PriceSimulatorPage } from '@/pages/catalog/pricing/PriceSimulatorPage'
+import { VolumeDiscountSchemesListPage } from '@/pages/catalog/pricing/VolumeDiscountSchemesListPage'
 import { CreateInventoryDocumentPage } from '@/pages/inventory/CreateInventoryDocumentPage'
 import { InventoryDocumentDetailPage } from '@/pages/inventory/InventoryDocumentDetailPage'
 import { InventoryDocumentsListPage } from '@/pages/inventory/InventoryDocumentsListPage'
@@ -167,6 +168,7 @@ export const routes: RouteObject[] = [
           { path: 'catalogo/precios/productos/nuevo', element: <ProductPriceFormPage /> },
           { path: 'catalogo/precios/productos/masivo', element: <ProductPricesBulkPage /> },
           { path: 'catalogo/precios/matriz', element: <ProductPricesMatrixPage /> },
+          { path: 'catalogo/precios/escalas-volumen', element: <VolumeDiscountSchemesListPage /> },
           { path: 'catalogo/precios/productos/:priceId', element: <ProductPriceFormPage /> },
           { path: 'catalogo/precios/promociones', element: <PromotionsListPage /> },
           { path: 'catalogo/precios/promociones/nueva', element: <PromotionFormPage /> },

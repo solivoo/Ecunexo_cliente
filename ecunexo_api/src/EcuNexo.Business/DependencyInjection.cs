@@ -11,11 +11,17 @@ using EcuNexo.Business.Pricing.Commands.SetPromotionActive;
 using EcuNexo.Business.Pricing.Commands.UpdatePriceList;
 using EcuNexo.Business.Pricing.Commands.UpdateProductPrice;
 using EcuNexo.Business.Pricing.Commands.UpdatePromotion;
+using EcuNexo.Business.Pricing.Commands.AssignVolumeDiscountScheme;
+using EcuNexo.Business.Pricing.Commands.CreateVolumeDiscountScheme;
+using EcuNexo.Business.Pricing.Commands.DeleteVolumeDiscountScheme;
+using EcuNexo.Business.Pricing.Commands.UpdateVolumeDiscountScheme;
 using EcuNexo.Business.Pricing.Queries.GetPriceHistory;
 using EcuNexo.Business.Pricing.Queries.GetProductPrice;
+using EcuNexo.Business.Pricing.Queries.GetVolumeDiscountScheme;
 using EcuNexo.Business.Pricing.Queries.ListPriceLists;
 using EcuNexo.Business.Pricing.Queries.ListProductPrices;
 using EcuNexo.Business.Pricing.Queries.ListPromotions;
+using EcuNexo.Business.Pricing.Queries.ListVolumeDiscountSchemes;
 using EcuNexo.Business.Pricing.Queries.ResolvePrice;
 using EcuNexo.Business.Accounting;
 using EcuNexo.Business.CreditNotes.Commands.CreateCreditNote;
@@ -463,6 +469,12 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<GetPriceHistoryQuery, IReadOnlyList<PriceHistoryItemResponse>>, GetPriceHistoryHandler>();
         services.AddScoped<IQueryHandler<ListPromotionsQuery, IReadOnlyList<PromotionResponse>>, ListPromotionsHandler>();
         services.AddScoped<IQueryHandler<ResolvePriceQuery, PricingResult>, ResolvePriceHandler>();
+        services.AddScoped<ICommandHandler<CreateVolumeDiscountSchemeCommand, CreateVolumeDiscountSchemeResponse>, CreateVolumeDiscountSchemeHandler>();
+        services.AddScoped<ICommandHandler<UpdateVolumeDiscountSchemeCommand, UpdateVolumeDiscountSchemeResponse>, UpdateVolumeDiscountSchemeHandler>();
+        services.AddScoped<ICommandHandler<DeleteVolumeDiscountSchemeCommand, DeleteVolumeDiscountSchemeResponse>, DeleteVolumeDiscountSchemeHandler>();
+        services.AddScoped<ICommandHandler<AssignVolumeDiscountSchemeCommand, AssignVolumeDiscountSchemeResponse>, AssignVolumeDiscountSchemeHandler>();
+        services.AddScoped<IQueryHandler<ListVolumeDiscountSchemesQuery, IReadOnlyList<VolumeDiscountSchemeResponse>>, ListVolumeDiscountSchemesHandler>();
+        services.AddScoped<IQueryHandler<GetVolumeDiscountSchemeQuery, VolumeDiscountSchemeResponse>, GetVolumeDiscountSchemeHandler>();
 
         return services;
     }

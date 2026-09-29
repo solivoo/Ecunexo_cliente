@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, NumberBox, Select, TextArea, TextBox, useToast } from 'glubox'
+import { Button, NumberBox, Popup, Select, TextArea, TextBox, useToast } from 'glubox'
 import {
   EcuPageActions,
   PageHeader,
   SectionCard,
   StatusBadge,
 } from '@/components/ui'
-import { Boxes, Layers, Plus, ScanBarcode, Trash2 } from 'lucide-react'
+import { AlertTriangle, Boxes, Layers, Plus, ScanBarcode, Trash2 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -61,6 +61,10 @@ export function CreateInventoryDocumentPage() {
   const [isSelectModalOpen, setIsSelectModalOpen] = useState(false)
   const [selectModalMode, setSelectModalMode] = useState<'search' | 'matrix'>('search')
   const [scannedBarcode, setScannedBarcode] = useState('')
+  const [isZeroCostModalOpen, setIsZeroCostModalOpen] = useState(false)
+  const [zeroCostLines, setZeroCostLines] = useState<
+    { catalogItemId: string; quantity: number; unitCost: number | null }[]
+  >([])
 
   const isTransfer = Number(documentType) === InventoryDocumentType.Transfer
   const isAdjustment = Number(documentType) === InventoryDocumentType.Adjustment
@@ -220,6 +224,11 @@ export function CreateInventoryDocumentPage() {
     [items]
   )
 
+  const nameOf = useCallback(
+    (catalogItemId: string) => items.find((i) => i.id === catalogItemId)?.name || 'Artículo',
+    [items]
+  )
+
   const goToList = useCallback(() => {
     void navigate('/inventario/documentos')
   }, [navigate])
@@ -243,7 +252,7 @@ export function CreateInventoryDocumentPage() {
   )
 
   const onSubmit = useCallback(
-    async (e?: FormEvent) => {
+    async (e?: FormEvent, allowZeroCost = false) => {
       e?.preventDefault()
       if (!tenantId) return
       setError(null)
@@ -265,6 +274,20 @@ export function CreateInventoryDocumentPage() {
             throw new Error('La factura de compra debe ser 001-001-000000123.')
           }
         }
+
+        // Validación: en recepciones no se permite dejar el costo vacío por descuido
+        if (isReceipt) {
+          const emptyCostRow = lines.find((l) => l.catalogItemId && l.unitCost.trim() === '')
+          if (emptyCostRow) {
+            const itemName = nameOf(emptyCostRow.catalogItemId)
+            const itemSku = skuOf(emptyCostRow.catalogItemId)
+            const label = itemSku !== '—' ? `${itemName} (${itemSku})` : itemName
+            throw new Error(
+              `Debes especificar el costo unitario para «${label}». Si corresponde a una muestra o bonificación sin costo, ingresa 0.00.`
+            )
+          }
+        }
+
         const parsed = lines
           .map((l) => ({
             catalogItemId: l.catalogItemId,
@@ -286,6 +309,17 @@ export function CreateInventoryDocumentPage() {
               ? 'Las cantidades contadas no pueden ser negativas.'
               : 'Las cantidades deben ser mayores que cero.'
           )
+        }
+
+        // Advertencia preventiva si hay artículos con costo $0.00 en recepción
+        if (isReceipt && !allowZeroCost) {
+          const zeroLines = parsed.filter((l) => l.unitCost === 0)
+          if (zeroLines.length > 0) {
+            setZeroCostLines(zeroLines)
+            setIsZeroCostModalOpen(true)
+            setBusy(false)
+            return
+          }
         }
 
         const created = await createInventoryDocument(tenantId, {
@@ -341,9 +375,11 @@ export function CreateInventoryDocumentPage() {
       isReceipt,
       isTransfer,
       lines,
+      nameOf,
       navigate,
       notes,
       receiptOrigin,
+      skuOf,
       sourceDocumentNumber,
       tenantId,
       toast,
@@ -632,8 +668,8 @@ export function CreateInventoryDocumentPage() {
                       {isAdjustment ? 'Cantidad contada' : 'Cantidad'}
                     </th>
                     {isReceipt && (
-                      <th scope="col" className="ecu-doc-lines__qty">
-                        Costo unitario
+                      <th scope="col" className="ecu-doc-lines__qty" style={{ minWidth: '150px' }}>
+                        Costo unitario (neto sin IVA)
                       </th>
                     )}
                     <th scope="col" className="ecu-doc-lines__actions">
@@ -729,7 +765,7 @@ export function CreateInventoryDocumentPage() {
                                 )
                               )
                             }
-                            placeholder="Opcional"
+                            placeholder="0.00 (sin IVA)"
                             disabled={busy}
                             fullWidth
                           />
@@ -766,9 +802,14 @@ export function CreateInventoryDocumentPage() {
                 Agregar línea
               </Button>
               {isReceipt ? (
-                <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: 'var(--glb-text)' }}>
-                  Total costo: <strong>${receiptCostTotal.toFixed(2)}</strong>
-                </span>
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--glb-text-muted, #a1a1aa)' }}>
+                    * Costo neto unitario antes de IVA. Si es muestra o regalo, ingresa 0.00.
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--glb-text)' }}>
+                    Total costo: <strong>${receiptCostTotal.toFixed(2)}</strong>
+                  </span>
+                </div>
               ) : null}
             </div>
 
@@ -804,6 +845,104 @@ export function CreateInventoryDocumentPage() {
           onClose={() => setIsSelectModalOpen(false)}
           onAddLines={handleAddLinesFromModal}
         />
+
+        {isZeroCostModalOpen ? (
+          <Popup
+            open={isZeroCostModalOpen}
+            title="Confirmar Artículos con Costo $0.00"
+            onClose={() => setIsZeroCostModalOpen(false)}
+            width="min(92vw, 34rem)"
+            actions={[
+              {
+                id: 'cancel-zero',
+                label: 'Revisar costos',
+                variant: 'outline',
+                onClick: () => setIsZeroCostModalOpen(false),
+                disabled: busy,
+              },
+              {
+                id: 'confirm-zero',
+                label: 'Confirmar e Ingresar',
+                variant: 'primary',
+                loading: busy,
+                disabled: busy,
+                onClick: () => {
+                  setIsZeroCostModalOpen(false)
+                  void onSubmit(undefined, true)
+                },
+              },
+            ]}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                  border: '1px solid rgba(234, 179, 8, 0.25)',
+                  color: 'var(--glb-text)',
+                }}
+              >
+                <AlertTriangle size={20} style={{ color: '#eab308', flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ fontSize: '0.875rem', lineHeight: 1.45 }}>
+                  <strong>Atención:</strong> Se detectaron artículos con costo unitario de <strong>$0.00</strong>. Esto significa que ingresarán al inventario sin valorización monetaria (no sumarán al valor en libros de la bodega).
+                </div>
+              </div>
+
+              <p style={{ fontSize: '0.85rem', color: 'var(--glb-text-muted, #a1a1aa)', margin: 0 }}>
+                Verifica si corresponden a bonificaciones, muestras gratis o artículos sin costo de adquisición:
+              </p>
+
+              <ul
+                style={{
+                  listStyle: 'none',
+                  padding: 0,
+                  margin: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  maxHeight: '180px',
+                  overflowY: 'auto',
+                }}
+              >
+                {zeroCostLines.map((item, idx) => (
+                  <li
+                    key={`zero-item-${idx}`}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '6px',
+                      backgroundColor: 'var(--glb-surface-card, rgba(255, 255, 255, 0.04))',
+                      border: '1px solid var(--glb-surface-border, rgba(255, 255, 255, 0.08))',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontWeight: 600 }}>{nameOf(item.catalogItemId)}</span>
+                      {skuOf(item.catalogItemId) !== '—' && (
+                        <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', opacity: 0.7 }}>
+                          ({skuOf(item.catalogItemId)})
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontWeight: 600, color: 'var(--shell-primary, #6366f1)' }}>
+                      {item.quantity} un.
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <p style={{ fontSize: '0.8rem', color: 'var(--glb-text-muted, #888)', margin: 0 }}>
+                Si fue un descuido involuntario, presiona <strong>«Revisar costos»</strong> para colocar el precio neto real antes de continuar.
+              </p>
+            </div>
+          </Popup>
+        ) : null}
       </div>
     </TenantSessionGate>
   )

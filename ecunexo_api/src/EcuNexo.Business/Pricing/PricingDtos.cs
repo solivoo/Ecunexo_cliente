@@ -36,7 +36,9 @@ public sealed record ProductPriceListRow(
     decimal Price,
     DateOnly ValidFrom,
     DateOnly? ValidTo,
-    bool IsActive);
+    bool IsActive,
+    Guid? VolumeDiscountSchemeId = null,
+    string? VolumeDiscountSchemeName = null);
 
 public sealed record ProductPriceListItemResponse(
     Guid Id,
@@ -49,7 +51,9 @@ public sealed record ProductPriceListItemResponse(
     decimal Price,
     DateOnly ValidFrom,
     DateOnly? ValidTo,
-    bool IsActive);
+    bool IsActive,
+    Guid? VolumeDiscountSchemeId = null,
+    string? VolumeDiscountSchemeName = null);
 
 public sealed record PriceTierInput(decimal QuantityFrom, decimal? QuantityTo, decimal UnitPrice);
 
@@ -67,7 +71,26 @@ public sealed record ProductPriceDetailResponse(
     DateOnly ValidFrom,
     DateOnly? ValidTo,
     bool IsActive,
-    IReadOnlyList<PriceTierResponse> Tiers);
+    IReadOnlyList<PriceTierResponse> Tiers,
+    Guid? VolumeDiscountSchemeId = null,
+    string? VolumeDiscountSchemeName = null);
+
+public sealed record VolumeDiscountTierInput(decimal QuantityFrom, decimal? QuantityTo, decimal Value);
+
+public sealed record VolumeDiscountTierResponse(
+    Guid Id,
+    decimal QuantityFrom,
+    decimal? QuantityTo,
+    decimal Value,
+    bool IsActive);
+
+public sealed record VolumeDiscountSchemeResponse(
+    Guid Id,
+    string Name,
+    string? Description,
+    VolumeDiscountSchemeType Type,
+    bool IsActive,
+    IReadOnlyList<VolumeDiscountTierResponse> Tiers);
 
 /// <summary>Proyección de historial con nombres de producto y lista.</summary>
 public sealed record PriceHistoryRow(

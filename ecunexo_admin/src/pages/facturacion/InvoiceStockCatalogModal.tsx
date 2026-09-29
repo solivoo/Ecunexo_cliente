@@ -6,9 +6,11 @@ import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { flattenAttributeEntries } from '@/lib/catalogAttributes'
 import { listCatalogItems } from '@/services/catalogApi'
+import { listProductPrices } from '@/services/pricingApi'
 import { listStock } from '@/services/inventoryApi'
 import { CatalogItemKind, CatalogItemStatus, type CatalogItemListItemDto } from '@/types/catalogApi'
 import type { StockListItemDto } from '@/types/inventoryApi'
+import type { ProductPriceListItemDto } from '@/types/pricingApi'
 
 export type InvoiceStockCatalogModalProps = {
   readonly open: boolean
@@ -85,6 +87,7 @@ export function InvoiceStockCatalogModal({
 }: InvoiceStockCatalogModalProps) {
   const [catalogItems, setCatalogItems] = useState<CatalogItemListItemDto[]>([])
   const [stockItems, setStockItems] = useState<StockListItemDto[]>([])
+  const [priceItems, setPriceItems] = useState<ProductPriceListItemDto[]>([])
   const [loading, setLoading] = useState(false)
   const [filterMode, setFilterMode] = useState<'all' | 'physical' | 'service' | 'with_stock'>('all')
   const [quantities, setQuantities] = useState<Record<string, number>>({})
@@ -106,15 +109,17 @@ export function InvoiceStockCatalogModal({
     void (async () => {
       setLoading(true)
       try {
-        const [items, stocks] = await Promise.all([
+        const [items, stocks, prices] = await Promise.all([
           listCatalogItems(tenantId).catch(() => []),
           listStock(tenantId).catch(() => []),
+          listProductPrices(tenantId, { onlyVigent: true }).catch(() => []),
         ])
         if (!cancelled) {
           setCatalogItems(
             items.filter((i) => i.status === CatalogItemStatus.Active && !i.isMatrixParent)
           )
           setStockItems(stocks)
+          setPriceItems(prices)
         }
       } finally {
         if (!cancelled) {
@@ -136,6 +141,13 @@ export function InvoiceStockCatalogModal({
       stockByItem.set(s.catalogItemId, list)
     }
 
+    const priceByItem = new Map<string, number>()
+    for (const p of priceItems) {
+      if (!priceByItem.has(p.catalogItemId) && p.isActive) {
+        priceByItem.set(p.catalogItemId, p.price)
+      }
+    }
+
     return catalogItems.map((item) => {
       const customAttrEntries = flattenAttributeEntries(item.customAttributesJson)
       const descAttrChips = parseDescriptionAttributes(item.description)
@@ -149,13 +161,15 @@ export function InvoiceStockCatalogModal({
 
       const attrSearchStr = mergedAttributes.map((a) => `${a.label} ${a.value}`).join(' ')
 
+      const activePrice = priceByItem.get(item.id) ?? item.basePrice ?? 0
+
       if (item.kind === CatalogItemKind.Service) {
         return {
           id: item.id,
           name: item.name,
           kind: 'service',
           stock: 0,
-          price: item.basePrice ?? 0,
+          price: activePrice,
           qty: 1,
           item,
           totalStock: null,
@@ -179,7 +193,7 @@ export function InvoiceStockCatalogModal({
         name: item.name,
         kind: 'physical',
         stock: totalStock,
-        price: item.basePrice ?? 0,
+        price: activePrice,
         qty: 1,
         item,
         totalStock,
@@ -189,7 +203,7 @@ export function InvoiceStockCatalogModal({
         searchKey: `${item.sku ?? ''} ${item.name} ${item.description ?? ''} ${attrSearchStr}`.toLowerCase(),
       }
     })
-  }, [catalogItems, stockItems])
+  }, [catalogItems, stockItems, priceItems])
 
   const filteredProducts = useMemo(() => {
     return productsWithStock.filter((p) => {
@@ -229,7 +243,11 @@ export function InvoiceStockCatalogModal({
     itemsToProcess.forEach((row, index) => {
       const qty = quantities[row.id] ?? 1
       const currentTargetLine = index === 0 ? targetLineId : null
-      onSelectProduct(row.item, qty, currentTargetLine)
+      const itemWithPrice: CatalogItemListItemDto = {
+        ...row.item,
+        basePrice: row.price > 0 ? row.price : row.item.basePrice,
+      }
+      onSelectProduct(itemWithPrice, qty, currentTargetLine)
     })
 
     onClose()
@@ -299,7 +317,7 @@ export function InvoiceStockCatalogModal({
               </strong>
             </div>
 
-            {row.item.description && (
+            {row.item.description?.trim() ? (
               <p
                 style={{
                   margin: 0,
@@ -312,30 +330,9 @@ export function InvoiceStockCatalogModal({
                   overflow: 'hidden',
                 }}
               >
-                {row.item.description}
+                {row.item.description.trim()}
               </p>
-            )}
-
-            {row.attributes.length > 0 && (
-              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
-                {row.attributes.map((attr, idx) => (
-                  <span
-                    key={idx}
-                    style={{
-                      fontSize: '0.72rem',
-                      padding: '0.08rem 0.45rem',
-                      borderRadius: '4px',
-                      backgroundColor: 'var(--glb-surface-variant, rgba(255,255,255,0.06))',
-                      border: '1px solid var(--shell-border, rgba(255,255,255,0.1))',
-                      color: 'var(--glb-text)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {attr.label ? `${attr.label}: ${attr.value}` : attr.value}
-                  </span>
-                ))}
-              </div>
-            )}
+            ) : null}
           </div>
         ),
       },
@@ -421,7 +418,7 @@ export function InvoiceStockCatalogModal({
               color: 'var(--glb-text)',
             }}
           >
-            ${(row.item.basePrice ?? 0).toFixed(2)}
+            ${row.price.toFixed(2)}
           </span>
         ),
       },

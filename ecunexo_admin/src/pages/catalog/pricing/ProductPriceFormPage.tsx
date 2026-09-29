@@ -23,7 +23,7 @@ import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
-import { todayIso } from '@/pages/catalog/pricing/pricingFormat'
+import { formatVolumeTiersSummary, todayIso, volumeSchemeTypeLabel } from '@/pages/catalog/pricing/pricingFormat'
 import { listCatalogItems } from '@/services/catalogApi'
 import { listStock } from '@/services/inventoryApi'
 import {
@@ -32,12 +32,13 @@ import {
   getProductPrice,
   listPriceLists,
   listProductPrices,
+  listVolumeDiscountSchemes,
   updateProductPrice,
 } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
-import type { PriceListDto, PriceTierBody } from '@/types/pricingApi'
+import type { PriceListDto, PriceTierBody, VolumeDiscountSchemeDto } from '@/types/pricingApi'
 
 type ProductPriceRow = CatalogItemListItemDto & { actions?: string }
 
@@ -82,10 +83,13 @@ export function ProductPriceFormPage() {
   const [reason, setReason] = useState('')
   const [isActive, setIsActive] = useState(true)
   const [tiers, setTiers] = useState<TierDraft[]>([])
+  const [schemes, setSchemes] = useState<VolumeDiscountSchemeDto[]>([])
+  const [volumeDiscountSchemeId, setVolumeDiscountSchemeId] = useState<string>('')
 
   useEffect(() => {
     if (!tenantId) return
     let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     const tasks: Promise<unknown>[] = [
       listCatalogItems(tenantId, { kind: CatalogItemKind.Physical }).then((data) => {
@@ -101,6 +105,9 @@ export function ProductPriceFormPage() {
           })
         }
       }),
+      listVolumeDiscountSchemes(tenantId, true).then((data) => {
+        if (!cancelled) setSchemes(data)
+      }),
     ]
 
     if (isEdit && priceId) {
@@ -114,6 +121,7 @@ export function ProductPriceFormPage() {
           setValidFrom(detail.validFrom)
           setValidTo(detail.validTo ?? '')
           setIsActive(detail.isActive)
+          setVolumeDiscountSchemeId(detail.volumeDiscountSchemeId ?? '')
           setTiers(
             detail.tiers
               .filter((tier) => tier.isActive !== false)
@@ -374,6 +382,7 @@ export function ProductPriceFormPage() {
             reason: reason.trim() || null,
             isActive,
             tiers: tierPayload,
+            volumeDiscountSchemeId: volumeDiscountSchemeId || null,
           })
           toast.show({ title: 'Precio actualizado', message: 'La vigencia fue guardada.', variant: 'success' })
         } else if (selectedItemIds.length === 1) {
@@ -386,6 +395,7 @@ export function ProductPriceFormPage() {
             reason: reason.trim() || null,
             tiers: tierPayload,
             isActive,
+            volumeDiscountSchemeId: volumeDiscountSchemeId || null,
           })
           toast.show({
             title: 'Precio creado',
@@ -439,6 +449,7 @@ export function ProductPriceFormPage() {
       toast,
       validFrom,
       validTo,
+      volumeDiscountSchemeId,
     ]
   )
 
@@ -736,7 +747,60 @@ export function ProductPriceFormPage() {
           ) : null}
 
           <SectionCard
-            title="Escalas por cantidad"
+            title="Escala de Descuento por Volumen (Reutilizable)"
+            subtitle="Asigna un esquema estandarizado (ej: Docena Calcetines) para aplicar descuentos escalonados sin reescribir tramos."
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ maxWidth: 420 }}>
+                <Select
+                  id="pp-volume-scheme"
+                  label="Esquema por volumen"
+                  labelPosition="outlined"
+                  variant="outline"
+                  options={[
+                    { value: '', label: '— Sin escala reutilizable (Precio estándar) —' },
+                    ...schemes.map((s) => ({
+                      value: s.id,
+                      label: `${s.name} (${volumeSchemeTypeLabel(s.type)})`,
+                    })),
+                  ]}
+                  value={volumeDiscountSchemeId}
+                  onChange={(val) => setVolumeDiscountSchemeId(String(val))}
+                  disabled={busy || loading}
+                  fullWidth
+                />
+              </div>
+
+              {volumeDiscountSchemeId ? (
+                (() => {
+                  const selectedScheme = schemes.find((s) => s.id === volumeDiscountSchemeId)
+                  if (!selectedScheme) return null
+                  return (
+                    <div
+                      style={{
+                        padding: '0.75rem 1rem',
+                        backgroundColor: 'var(--color-surface-subtle, #f8fafc)',
+                        border: '1px solid var(--color-border-subtle, #e2e8f0)',
+                        borderRadius: '6px',
+                        fontSize: '0.875rem',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 600 }}>Tramos configurados:</span>
+                        <span>{formatVolumeTiersSummary(selectedScheme.type, selectedScheme.tiers)}</span>
+                      </div>
+                      <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.8125rem' }}>
+                        Nota: Las escalas manuales específicas definidas abajo tienen prioridad sobre este esquema.
+                      </p>
+                    </div>
+                  )
+                })()
+              ) : null}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Escalas por cantidad (Específicas manuales)"
             subtitle="Opcional. El motor usa la escala cuya cantidad inicial sea la mayor aplicable."
           >
             <p className="ecu-companies-form__hint" style={{ marginBottom: '0.75rem' }}>

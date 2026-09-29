@@ -1,4 +1,4 @@
-import { PromotionTargetType, PromotionType } from '@/types/pricingApi'
+import { PromotionTargetType, PromotionType, VolumeDiscountSchemeType } from '@/types/pricingApi'
 
 const moneyFormatter = new Intl.NumberFormat('es-EC', {
   style: 'currency',
@@ -50,3 +50,25 @@ export function promotionValueLabel(type: PromotionType, value: number): string 
 export function isVigentOn(validFrom: string, validTo: string | null, date: string): boolean {
   return validFrom <= date && (validTo === null || validTo >= date)
 }
+
+export function volumeSchemeTypeLabel(type: VolumeDiscountSchemeType): string {
+  if (type === VolumeDiscountSchemeType.Percentage) return 'Porcentaje (%)'
+  if (type === VolumeDiscountSchemeType.FixedAmount) return 'Descuento fijo ($)'
+  return 'Precio unitario fijo ($)'
+}
+
+export function formatVolumeTiersSummary(
+  type: VolumeDiscountSchemeType,
+  tiers: { quantityFrom: number; quantityTo: number | null; value: number }[]
+): string {
+  if (!tiers || tiers.length === 0) return 'Sin tramos definidos'
+  const sorted = [...tiers].sort((a, b) => a.quantityFrom - b.quantityFrom)
+  return sorted
+    .map((t) => {
+      const range = t.quantityTo ? `${t.quantityFrom}–${t.quantityTo} un.` : `≥${t.quantityFrom} un.`
+      const val = type === VolumeDiscountSchemeType.Percentage ? `${t.value}%` : formatMoney(t.value)
+      return `${range}: -${val}`
+    })
+    .join(' | ')
+}
+

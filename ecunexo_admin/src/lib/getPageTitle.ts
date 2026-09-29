@@ -39,6 +39,7 @@ function staticTitle(pathname: string, search: string): string | null {
   if (/^\/catalogo\/precios\/listas\/[^/]+$/.test(pathname)) return 'Editar lista de precios'
   if (pathname === '/catalogo/precios/productos/nuevo') return 'Nuevo precio'
   if (pathname === '/catalogo/precios/matriz') return 'Matriz de precios'
+  if (pathname === '/catalogo/precios/escalas-volumen') return 'Escalas por cantidad'
   if (/^\/catalogo\/precios\/productos\/[^/]+$/.test(pathname)) return 'Editar precio'
   if (pathname === '/catalogo/precios/promociones/nueva') return 'Nueva promoción'
   if (/^\/catalogo\/precios\/promociones\/[^/]+$/.test(pathname)) return 'Editar promoción'

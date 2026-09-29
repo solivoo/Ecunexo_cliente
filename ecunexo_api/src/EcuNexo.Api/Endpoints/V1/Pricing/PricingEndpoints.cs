@@ -16,11 +16,17 @@ using EcuNexo.Business.Pricing.Commands.SetPromotionActive;
 using EcuNexo.Business.Pricing.Commands.UpdatePriceList;
 using EcuNexo.Business.Pricing.Commands.UpdateProductPrice;
 using EcuNexo.Business.Pricing.Commands.UpdatePromotion;
+using EcuNexo.Business.Pricing.Commands.AssignVolumeDiscountScheme;
+using EcuNexo.Business.Pricing.Commands.CreateVolumeDiscountScheme;
+using EcuNexo.Business.Pricing.Commands.DeleteVolumeDiscountScheme;
+using EcuNexo.Business.Pricing.Commands.UpdateVolumeDiscountScheme;
 using EcuNexo.Business.Pricing.Queries.GetPriceHistory;
 using EcuNexo.Business.Pricing.Queries.GetProductPrice;
+using EcuNexo.Business.Pricing.Queries.GetVolumeDiscountScheme;
 using EcuNexo.Business.Pricing.Queries.ListPriceLists;
 using EcuNexo.Business.Pricing.Queries.ListProductPrices;
 using EcuNexo.Business.Pricing.Queries.ListPromotions;
+using EcuNexo.Business.Pricing.Queries.ListVolumeDiscountSchemes;
 using EcuNexo.Business.Pricing.Queries.ResolvePrice;
 
 namespace EcuNexo.Api.Endpoints.V1.Pricing;
@@ -89,6 +95,25 @@ public static class PricingEndpoints
                 PermissionFilters.RequireAny(
                     "catalog.promotions.manage",
                     "catalog.promotions.deactivate"));
+
+        RouteGroupBuilder volumeSchemes = app
+            .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/pricing/volume-schemes")
+            .WithApiVersionSet(versionSet)
+            .WithTags("Pricing")
+            .RequireAuthorization();
+
+        volumeSchemes.MapGet("/", ListVolumeDiscountSchemesAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.read"));
+        volumeSchemes.MapGet("/{schemeId:guid}", GetVolumeDiscountSchemeAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.read"));
+        volumeSchemes.MapPost("/", CreateVolumeDiscountSchemeAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.create"));
+        volumeSchemes.MapPut("/{schemeId:guid}", UpdateVolumeDiscountSchemeAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.update"));
+        volumeSchemes.MapDelete("/{schemeId:guid}", DeleteVolumeDiscountSchemeAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.delete"));
+        volumeSchemes.MapPost("/bulk-assign", AssignVolumeDiscountSchemeAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.update"));
 
         app.MapPost(
                 "/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/pricing/resolve",
@@ -368,6 +393,93 @@ public static class PricingEndpoints
     {
         var result = await sender
             .AskAsync<ResolvePriceQuery, PricingResult>(body.ToQuery(tenantId), ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> ListVolumeDiscountSchemesAsync(
+        Guid tenantId,
+        bool? onlyActive,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<ListVolumeDiscountSchemesQuery, IReadOnlyList<VolumeDiscountSchemeResponse>>(
+                new ListVolumeDiscountSchemesQuery(tenantId, onlyActive ?? true),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetVolumeDiscountSchemeAsync(
+        Guid tenantId,
+        Guid schemeId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<GetVolumeDiscountSchemeQuery, VolumeDiscountSchemeResponse>(
+                new GetVolumeDiscountSchemeQuery(tenantId, schemeId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> CreateVolumeDiscountSchemeAsync(
+        Guid tenantId,
+        CreateVolumeDiscountSchemeRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var tiers = body.Tiers?.Select(t => new VolumeDiscountTierInput(t.QuantityFrom, t.QuantityTo, t.Value)).ToList();
+        var result = await sender
+            .SendAsync<CreateVolumeDiscountSchemeCommand, CreateVolumeDiscountSchemeResponse>(
+                new CreateVolumeDiscountSchemeCommand(tenantId, body.Name, body.Description, body.Type, tiers),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> UpdateVolumeDiscountSchemeAsync(
+        Guid tenantId,
+        Guid schemeId,
+        UpdateVolumeDiscountSchemeRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var tiers = body.Tiers?.Select(t => new VolumeDiscountTierInput(t.QuantityFrom, t.QuantityTo, t.Value)).ToList();
+        var result = await sender
+            .SendAsync<UpdateVolumeDiscountSchemeCommand, UpdateVolumeDiscountSchemeResponse>(
+                new UpdateVolumeDiscountSchemeCommand(tenantId, schemeId, body.Name, body.Description, body.Type, body.IsActive, tiers),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> DeleteVolumeDiscountSchemeAsync(
+        Guid tenantId,
+        Guid schemeId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<DeleteVolumeDiscountSchemeCommand, DeleteVolumeDiscountSchemeResponse>(
+                new DeleteVolumeDiscountSchemeCommand(tenantId, schemeId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> AssignVolumeDiscountSchemeAsync(
+        Guid tenantId,
+        AssignVolumeDiscountSchemeRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<AssignVolumeDiscountSchemeCommand, AssignVolumeDiscountSchemeResponse>(
+                new AssignVolumeDiscountSchemeCommand(tenantId, body.PriceListId, body.VolumeDiscountSchemeId, body.CatalogItemIds),
+                ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();
     }

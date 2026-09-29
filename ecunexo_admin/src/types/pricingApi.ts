@@ -73,6 +73,8 @@ export type ProductPriceListItemDto = {
   validFrom: string
   validTo: string | null
   isActive: boolean
+  volumeDiscountSchemeId?: string | null
+  volumeDiscountSchemeName?: string | null
 }
 
 export type ProductPriceDetailDto = {
@@ -88,6 +90,8 @@ export type ProductPriceDetailDto = {
   validTo: string | null
   isActive: boolean
   tiers: PriceTierDto[]
+  volumeDiscountSchemeId?: string | null
+  volumeDiscountSchemeName?: string | null
 }
 
 export type ProductPriceFilters = {
@@ -107,6 +111,7 @@ export type CreateProductPriceBody = {
   reason: string | null
   tiers: PriceTierBody[]
   isActive?: boolean
+  volumeDiscountSchemeId?: string | null
 }
 
 export type UpdateProductPriceBody = {
@@ -116,6 +121,62 @@ export type UpdateProductPriceBody = {
   reason: string | null
   isActive: boolean | null
   tiers: PriceTierBody[]
+  volumeDiscountSchemeId?: string | null
+}
+
+export const VolumeDiscountSchemeType = {
+  Percentage: 0,
+  FixedAmount: 1,
+  FixedPrice: 2,
+} as const
+
+export type VolumeDiscountSchemeType =
+  (typeof VolumeDiscountSchemeType)[keyof typeof VolumeDiscountSchemeType]
+
+export type VolumeDiscountTierDto = {
+  id: string
+  quantityFrom: number
+  quantityTo: number | null
+  value: number
+  isActive: boolean
+}
+
+export type VolumeDiscountTierBody = {
+  quantityFrom: number
+  quantityTo: number | null
+  value: number
+  isActive?: boolean
+}
+
+export type VolumeDiscountSchemeDto = {
+  id: string
+  tenantId: string
+  name: string
+  description: string | null
+  type: VolumeDiscountSchemeType
+  isActive: boolean
+  tiers: VolumeDiscountTierDto[]
+}
+
+export type CreateVolumeDiscountSchemeBody = {
+  name: string
+  description?: string | null
+  type: VolumeDiscountSchemeType
+  tiers?: VolumeDiscountTierBody[]
+}
+
+export type UpdateVolumeDiscountSchemeBody = {
+  name: string
+  description?: string | null
+  type: VolumeDiscountSchemeType
+  isActive?: boolean
+  tiers?: VolumeDiscountTierBody[]
+}
+
+export type AssignVolumeDiscountSchemeBody = {
+  priceListId: string
+  volumeDiscountSchemeId: string | null
+  catalogItemIds: string[]
 }
 
 export type PriceHistoryItemDto = {

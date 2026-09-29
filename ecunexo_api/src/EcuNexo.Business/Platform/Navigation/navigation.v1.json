@@ -199,13 +199,24 @@
             "children": []
           },
           {
+            "id": "catalog-pricing-volume-schemes",
+            "label": "Escalas por cantidad",
+            "route": "catalogo/precios/escalas-volumen",
+            "icon": "layers",
+            "requiredPermission": "catalog.pricing.read",
+            "requiredModule": "catalog",
+            "order": 3,
+            "placeholder": false,
+            "children": []
+          },
+          {
             "id": "catalog-pricing-promotions",
             "label": "Promociones",
             "route": "catalogo/precios/promociones",
             "icon": "percent",
             "requiredPermission": "catalog.promotions.manage",
             "requiredModule": "catalog",
-            "order": 3,
+            "order": 4,
             "placeholder": false,
             "children": []
           },
@@ -216,7 +227,7 @@
             "icon": "history",
             "requiredPermission": "catalog.pricing.history.read",
             "requiredModule": "catalog",
-            "order": 4,
+            "order": 5,
             "placeholder": false,
             "children": []
           },
@@ -227,7 +238,7 @@
             "icon": "calculator",
             "requiredPermission": "catalog.pricing.read",
             "requiredModule": "catalog",
-            "order": 5,
+            "order": 6,
             "placeholder": false,
             "children": []
           }

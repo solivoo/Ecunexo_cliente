@@ -16,6 +16,10 @@ import type {
   UpdatePriceListBody,
   UpdateProductPriceBody,
   UpdatePromotionBody,
+  AssignVolumeDiscountSchemeBody,
+  CreateVolumeDiscountSchemeBody,
+  UpdateVolumeDiscountSchemeBody,
+  VolumeDiscountSchemeDto,
 } from '@/types/pricingApi'
 
 const base = (tenantId: string) => `/api/v1/tenants/${tenantId}/catalog/pricing`
@@ -177,3 +181,66 @@ export async function resolvePrice(
   const { data } = await api.post<PricingResultDto>(`${base(tenantId)}/resolve`, body)
   return data
 }
+
+export async function listVolumeDiscountSchemes(
+  tenantId: string,
+  onlyActive = true
+): Promise<VolumeDiscountSchemeDto[]> {
+  const { data } = await api.get<VolumeDiscountSchemeDto[]>(`${base(tenantId)}/volume-schemes`, {
+    params: { onlyActive },
+  })
+  return data
+}
+
+export async function getVolumeDiscountScheme(
+  tenantId: string,
+  schemeId: string
+): Promise<VolumeDiscountSchemeDto> {
+  const { data } = await api.get<VolumeDiscountSchemeDto>(`${base(tenantId)}/volume-schemes/${schemeId}`)
+  return data
+}
+
+export async function createVolumeDiscountScheme(
+  tenantId: string,
+  body: CreateVolumeDiscountSchemeBody
+): Promise<{ schemeId: string; tenantId: string }> {
+  const { data } = await api.post<{ schemeId: string; tenantId: string }>(
+    `${base(tenantId)}/volume-schemes`,
+    body
+  )
+  return data
+}
+
+export async function updateVolumeDiscountScheme(
+  tenantId: string,
+  schemeId: string,
+  body: UpdateVolumeDiscountSchemeBody
+): Promise<{ schemeId: string; tenantId: string }> {
+  const { data } = await api.put<{ schemeId: string; tenantId: string }>(
+    `${base(tenantId)}/volume-schemes/${schemeId}`,
+    body
+  )
+  return data
+}
+
+export async function deleteVolumeDiscountScheme(
+  tenantId: string,
+  schemeId: string
+): Promise<{ schemeId: string; isActive: boolean }> {
+  const { data } = await api.delete<{ schemeId: string; isActive: boolean }>(
+    `${base(tenantId)}/volume-schemes/${schemeId}`
+  )
+  return data
+}
+
+export async function assignVolumeDiscountScheme(
+  tenantId: string,
+  body: AssignVolumeDiscountSchemeBody
+): Promise<{ assignedCount: number }> {
+  const { data } = await api.post<{ assignedCount: number }>(
+    `${base(tenantId)}/volume-schemes/bulk-assign`,
+    body
+  )
+  return data
+}
+

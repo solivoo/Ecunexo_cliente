@@ -37,6 +37,10 @@ public sealed class ProductPrice : AggregateRoot<Guid>, ITenantEntity, IAuditabl
 
     public bool IsActive { get; private set; }
 
+    public Guid? VolumeDiscountSchemeId { get; private set; }
+
+    public VolumeDiscountScheme? VolumeDiscountScheme { get; private set; }
+
     public IReadOnlyList<QuantityTier> Tiers => _tiers.AsReadOnly();
 
     public DateTimeOffset CreatedAt { get; private set; }
@@ -55,7 +59,8 @@ public sealed class ProductPrice : AggregateRoot<Guid>, ITenantEntity, IAuditabl
         decimal price,
         DateOnly validFrom,
         DateOnly? validTo,
-        Guid? createdBy = null)
+        Guid? createdBy = null,
+        Guid? volumeDiscountSchemeId = null)
     {
         if (id == Guid.Empty || tenantId == Guid.Empty || priceListId == Guid.Empty || catalogItemId == Guid.Empty)
         {
@@ -79,9 +84,17 @@ public sealed class ProductPrice : AggregateRoot<Guid>, ITenantEntity, IAuditabl
             ValidFrom = validFrom,
             ValidTo = validTo,
             IsActive = true,
+            VolumeDiscountSchemeId = volumeDiscountSchemeId,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,
         };
+    }
+
+    public Result AssignVolumeDiscountScheme(Guid? schemeId, Guid? updatedBy = null)
+    {
+        VolumeDiscountSchemeId = schemeId;
+        Touch(updatedBy);
+        return Result.Success();
     }
 
     /// <summary>Corrige el precio de la fila vigente. El cambio de precio comercial se hace cerrando vigencia.</summary>
