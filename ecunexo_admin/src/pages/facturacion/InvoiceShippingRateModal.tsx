@@ -70,29 +70,30 @@ export function InvoiceShippingRateModal({
         {/* Resumen de carga a despachar */}
         <div
           style={{
-            backgroundColor: 'var(--glb-surface-variant, #f8fafc)',
-            border: '1px solid var(--glb-border, #e2e8f0)',
-            borderRadius: '6px',
-            padding: '0.75rem',
+            backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.08))',
+            border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+            borderRadius: '8px',
+            padding: '0.75rem 1rem',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             fontSize: '0.85rem',
+            color: 'var(--glb-text, var(--shell-text, inherit))',
           }}
         >
           <div>
-            <span style={{ color: 'var(--glb-muted, #64748b)' }}>Volumen en factura:</span>{' '}
-            <strong>{totalUnits} unidades</strong>
+            <span style={{ color: 'var(--glb-muted, var(--shell-muted, #94a3b8))' }}>Volumen en factura:</span>{' '}
+            <strong style={{ color: 'var(--glb-text, var(--shell-text, inherit))' }}>{totalUnits} unidades</strong>
           </div>
           <div>
-            <span style={{ color: 'var(--glb-muted, #64748b)' }}>Subtotal productos:</span>{' '}
-            <strong>{formatMoney(subtotalAmount)}</strong>
+            <span style={{ color: 'var(--glb-muted, var(--shell-muted, #94a3b8))' }}>Subtotal productos:</span>{' '}
+            <strong style={{ color: 'var(--glb-text, var(--shell-text, inherit))' }}>{formatMoney(subtotalAmount)}</strong>
           </div>
         </div>
 
         {/* Selector de Zona */}
         <div>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem', color: 'var(--glb-text, var(--shell-text, inherit))' }}>
             Zona de Destino:
           </label>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -100,7 +101,7 @@ export function InvoiceShippingRateModal({
               <TextBox
                 value={zone}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setZone(e.target.value)}
-                placeholder="Ej: Local, Provincia, Galapagos"
+                placeholder="Ej: Local, Provincia, Galapagos, Oriente"
                 labelPosition="outlined"
               />
             </div>
@@ -115,21 +116,22 @@ export function InvoiceShippingRateModal({
               Buscar
             </Button>
           </div>
-          <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.35rem' }}>
+          <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
             {COMMON_ZONES.map((z) => (
               <button
                 key={z}
                 type="button"
                 onClick={() => setZone(z)}
                 style={{
-                  fontSize: '0.7rem',
-                  padding: '0.15rem 0.45rem',
-                  borderRadius: '4px',
-                  border: zone === z ? '1px solid #0284c7' : '1px solid #cbd5e1',
-                  background: zone === z ? '#e0f2fe' : '#ffffff',
-                  color: zone === z ? '#0369a1' : '#334155',
+                  fontSize: '0.75rem',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '6px',
+                  border: zone === z ? '1px solid #0284c7' : '1px solid var(--shell-border, rgba(125, 125, 125, 0.25))',
+                  background: zone === z ? 'rgba(2, 132, 199, 0.2)' : 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.08))',
+                  color: zone === z ? '#38bdf8' : 'var(--glb-text, var(--shell-text, inherit))',
                   cursor: 'pointer',
                   fontWeight: zone === z ? 600 : 400,
+                  transition: 'all 0.15s ease',
                 }}
               >
                 {z}
@@ -147,11 +149,11 @@ export function InvoiceShippingRateModal({
         {/* Lista de opciones resueltas */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '380px', overflowY: 'auto' }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--glb-muted, #64748b)' }}>
+            <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--glb-muted, #94a3b8)' }}>
               Consultando matriz de envíos...
             </div>
           ) : options.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--glb-muted, #64748b)', fontSize: '0.85rem' }}>
+            <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--glb-muted, #94a3b8)', fontSize: '0.85rem' }}>
               No se encontraron tarifas configuradas para la zona &quot;{zone}&quot;. Puedes configurarlas en <strong>Catálogo → Tarifas de Envío</strong>.
             </div>
           ) : (
@@ -159,20 +161,23 @@ export function InvoiceShippingRateModal({
               <div
                 key={opt.ruleId}
                 style={{
-                  border: opt.isRecommended ? '2px solid #16a34a' : '1px solid var(--glb-border, #e2e8f0)',
-                  backgroundColor: opt.isRecommended ? 'rgba(22, 163, 74, 0.03)' : 'var(--glb-surface, #ffffff)',
+                  border: opt.isRecommended ? '2px solid #16a34a' : '1px solid var(--shell-border, rgba(125, 125, 125, 0.25))',
+                  backgroundColor: opt.isRecommended ? 'rgba(22, 163, 74, 0.08)' : 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.04))',
                   borderRadius: '8px',
                   padding: '0.875rem',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   gap: '1rem',
+                  opacity: opt.isEligible ? 1 : 0.65,
                 }}
               >
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
                     <Truck size={16} style={{ color: '#0284c7' }} />
-                    <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{opt.name}</span>
+                    <span style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--glb-text, var(--shell-text, inherit))' }}>
+                      {opt.name}
+                    </span>
                     {opt.isRecommended ? (
                       <span
                         style={{
@@ -192,13 +197,13 @@ export function InvoiceShippingRateModal({
                     ) : null}
                   </div>
 
-                  <div style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #64748b)' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--glb-muted, var(--shell-muted, #94a3b8))' }}>
                     Transportista: <strong>{opt.carrier}</strong> • Zona: {opt.zone}
                     {opt.estimatedDays ? ` • Entrega: ${opt.estimatedDays}` : ''}
                   </div>
 
                   {opt.notes ? (
-                    <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '0.2rem', fontStyle: 'italic' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted, var(--shell-muted, #94a3b8))', marginTop: '0.2rem', fontStyle: 'italic' }}>
                       {opt.notes}
                     </div>
                   ) : null}
@@ -208,7 +213,7 @@ export function InvoiceShippingRateModal({
                       style={{
                         marginTop: '0.35rem',
                         fontSize: '0.75rem',
-                        color: '#d97706',
+                        color: '#f59e0b',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.25rem',
@@ -221,10 +226,10 @@ export function InvoiceShippingRateModal({
                 </div>
 
                 <div style={{ textAlign: 'right', minWidth: '130px' }}>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a' }}>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--glb-text, var(--shell-text, inherit))' }}>
                     {formatMoney(opt.totalPrice)}
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--glb-muted, #64748b)', marginBottom: '0.5rem' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--glb-muted, var(--shell-muted, #94a3b8))', marginBottom: '0.5rem' }}>
                     Base {formatMoney(opt.basePrice)} + 15% IVA
                   </div>
                   <Button
