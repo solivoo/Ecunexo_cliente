@@ -181,7 +181,9 @@ export function VolumeDiscountSchemesListPage() {
       return 'Debes definir al menos un tramo de cantidad con su descuento.'
     }
 
-    const sorted = [...formTiers].sort((a, b) => a.quantityFrom - b.quantityFrom)
+    const sorted = [...formTiers]
+      .map((t) => ({ ...t, quantityTo: t.quantityTo && t.quantityTo > 0 ? t.quantityTo : null }))
+      .sort((a, b) => a.quantityFrom - b.quantityFrom)
     for (let i = 0; i < sorted.length; i++) {
       const tier = sorted[i]
       if (tier.quantityFrom < 1) {
@@ -228,7 +230,7 @@ export function VolumeDiscountSchemesListPage() {
 
     const tiersPayload: VolumeDiscountTierBody[] = formTiers.map((t) => ({
       quantityFrom: t.quantityFrom,
-      quantityTo: t.quantityTo,
+      quantityTo: t.quantityTo && t.quantityTo > 0 ? t.quantityTo : null,
       value: t.value,
       isActive: true,
     }))
@@ -670,12 +672,13 @@ export function VolumeDiscountSchemesListPage() {
                     placeholder="Desde"
                   />
                   <NumberBox
-                    value={tier.quantityTo ?? 0}
+                    value={tier.quantityTo && tier.quantityTo > 0 ? tier.quantityTo : ''}
                     min={tier.quantityFrom}
                     step={1}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => {
                       const raw = e.target.value.trim()
-                      handleTierChange(idx, 'quantityTo', raw ? Number(raw) : null)
+                      const num = Number(raw)
+                      handleTierChange(idx, 'quantityTo', !raw || isNaN(num) || num <= 0 ? null : num)
                     }}
                     variant="outline"
                     placeholder="En adelante"
