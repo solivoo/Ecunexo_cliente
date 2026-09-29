@@ -296,9 +296,9 @@ export function ProductPricesListPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
-                background: 'rgba(16, 185, 129, 0.12)',
-                color: '#047857',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
+                background: 'rgba(16, 185, 129, 0.16)',
+                color: '#34d399',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
                 padding: '2px 8px',
                 borderRadius: '6px',
                 fontSize: '0.8125rem',
@@ -439,20 +439,20 @@ export function ProductPricesListPage() {
               justifyContent: 'space-between',
               flexWrap: 'wrap',
               gap: '1rem',
-              backgroundColor: '#eff6ff',
-              border: '1px solid #bfdbfe',
+              backgroundColor: 'var(--shell-surface-subtle, rgba(37, 99, 235, 0.12))',
+              border: '1px solid var(--shell-border, rgba(59, 130, 246, 0.3))',
               borderRadius: '8px',
               padding: '0.75rem 1.25rem',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <CheckSquare size={20} color="#2563eb" />
+              <CheckSquare size={20} color="#3b82f6" />
               <div>
-                <strong style={{ color: '#1e3a8a', fontSize: '0.9375rem' }}>
+                <strong style={{ color: 'var(--glb-text, var(--shell-text, inherit))', fontSize: '0.9375rem' }}>
                   {selectedIds.length} precio(s) seleccionado(s)
                 </strong>
-                <p style={{ margin: 0, fontSize: '0.8125rem', color: '#3b82f6' }}>
+                <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--glb-muted, var(--shell-muted, #93c5fd))' }}>
                   Asigna o cambia la escala de descuento por volumen a todos los ítems seleccionados.
                 </p>
               </div>
