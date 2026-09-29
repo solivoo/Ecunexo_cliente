@@ -3,6 +3,7 @@ using EcuNexo.Business.Accounting.Repositories;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Identity;
 using EcuNexo.Business.Inventory;
+using EcuNexo.Business.Logistics;
 using EcuNexo.Business.Platform;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Customers.Repositories;
@@ -71,6 +72,7 @@ public static class DependencyInjection
         services.AddScoped<IPriceListRepository, PriceListRepository>();
         services.AddScoped<IProductPriceRepository, ProductPriceRepository>();
         services.AddScoped<IVolumeDiscountSchemeRepository, VolumeDiscountSchemeRepository>();
+        services.AddScoped<IShippingRateRuleRepository, ShippingRateRuleRepository>();
         services.AddScoped<IPromotionRepository, PromotionRepository>();
         services.AddScoped<IPriceChangeLogRepository, PriceChangeLogRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();

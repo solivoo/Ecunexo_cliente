@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from 'glubox'
-import { Boxes, Package, Plus } from 'lucide-react'
+import { Boxes, Package, Plus, Truck } from 'lucide-react'
 import { SectionCard } from '@/components/ui'
 import { InvoiceLineRow } from '@/pages/facturacion/InvoiceLineRow'
+import { InvoiceShippingRateModal } from '@/pages/facturacion/InvoiceShippingRateModal'
 import { InvoiceStockCatalogModal } from '@/pages/facturacion/InvoiceStockCatalogModal'
 import { InvoiceSummaryBox } from '@/pages/facturacion/InvoiceSummaryBox'
 import {
@@ -31,6 +32,7 @@ export type InvoiceLinesSectionProps = {
     quantity: number,
     targetLineId?: string | null
   ) => void
+  readonly onAddShippingRate?: (rate: import('@/types/shippingApi').ResolvedShippingOptionDto) => void
 }
 
 function kindToSnapshot(kind: CatalogItemKind): InvoiceLineItemKind {
@@ -46,6 +48,7 @@ export function InvoiceLinesSection({
   onRemove,
   onChange,
   onAddProduct,
+  onAddShippingRate,
 }: InvoiceLinesSectionProps) {
   const totals = computeTotals(lines)
   const enabledModules = useAppSelector(selectEnabledModules)
@@ -57,7 +60,13 @@ export function InvoiceLinesSection({
   const [catalogItems, setCatalogItems] = useState<CatalogItemListItemDto[]>([])
   const [catalogError, setCatalogError] = useState<string | null>(null)
   const [isStockModalOpen, setIsStockModalOpen] = useState(false)
+  const [isShippingModalOpen, setIsShippingModalOpen] = useState(false)
   const [activeLineForModal, setActiveLineForModal] = useState<string | null>(null)
+
+  const totalUnits = useMemo(
+    () => lines.reduce((acc, l) => acc + (Number(l.quantity) || 0), 0),
+    [lines]
+  )
 
   const handleOpenStockModal = (lineId: string | null) => {
     setActiveLineForModal(lineId)
@@ -148,6 +157,30 @@ export function InvoiceLinesSection({
     })
   }
 
+  const handleSelectShippingRate = (rate: import('@/types/shippingApi').ResolvedShippingOptionDto) => {
+    if (onAddShippingRate) {
+      onAddShippingRate(rate)
+      return
+    }
+    const emptyLine = lines.find((l) => !l.productId && !l.description.trim())
+    const patch: Partial<InvoiceLineDraft> = {
+      sku: 'ENV-TRANSPORTE',
+      description: `Servicio de envío: ${rate.name} (${rate.carrier} - ${rate.zone})`,
+      quantity: 1,
+      unitPrice: rate.basePrice,
+      discount: 0,
+      ivaRate: normalizeLineIvaRate(rate.taxRate ?? 15),
+      itemKind: 'service',
+      catalogItemId: null,
+      productId: '',
+    }
+    if (emptyLine) {
+      onChange(emptyLine.id, patch)
+    } else {
+      onAdd()
+    }
+  }
+
   const content = (
     <div className="factura-emitir__lines-content">
       {catalogError ? (
@@ -216,10 +249,22 @@ export function InvoiceLinesSection({
       </div>
 
       <div className="factura-emitir__detail-foot">
-        <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={onAdd}>
-          <Plus size={15} strokeWidth={2} aria-hidden />
-          Agregar línea
-        </Button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={onAdd}>
+            <Plus size={15} strokeWidth={2} aria-hidden />
+            Agregar línea
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            onClick={() => setIsShippingModalOpen(true)}
+          >
+            <Truck size={15} strokeWidth={1.75} aria-hidden />
+            + Agregar Envío
+          </Button>
+        </div>
 
         <InvoiceSummaryBox totals={totals} />
       </div>
@@ -233,6 +278,15 @@ export function InvoiceLinesSection({
         tenantId={tenantId}
         targetLineId={activeLineForModal}
         onSelectProduct={handleSelectProductFromModal}
+      />
+
+      <InvoiceShippingRateModal
+        open={isShippingModalOpen}
+        onClose={() => setIsShippingModalOpen(false)}
+        tenantId={tenantId}
+        totalUnits={totalUnits}
+        subtotalAmount={totals.subtotal}
+        onSelectShippingRate={handleSelectShippingRate}
       />
     </div>
   )
@@ -251,16 +305,28 @@ export function InvoiceLinesSection({
       }
       subtitle="Ítems facturados, inventario, precios e impuestos"
       action={
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          onClick={() => handleOpenStockModal(null)}
-        >
-          <Boxes size={15} strokeWidth={1.75} aria-hidden />
-          Ver catálogo y stock
-        </Button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            onClick={() => setIsShippingModalOpen(true)}
+          >
+            <Truck size={15} strokeWidth={1.75} aria-hidden />
+            + Agregar Envío
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            onClick={() => handleOpenStockModal(null)}
+          >
+            <Boxes size={15} strokeWidth={1.75} aria-hidden />
+            Ver catálogo y stock
+          </Button>
+        </div>
       }
     >
       {content}

@@ -197,6 +197,7 @@ export function FacturaEmitirPage() {
               onRemove={form.removeLine}
               onChange={form.patchLine}
               onAddProduct={form.addProductLine}
+              onAddShippingRate={form.addShippingRateLine}
             />
 
             <SectionCard

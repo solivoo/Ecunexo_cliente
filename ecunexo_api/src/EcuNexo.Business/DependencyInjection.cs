@@ -22,6 +22,12 @@ using EcuNexo.Business.Pricing.Queries.ListPriceLists;
 using EcuNexo.Business.Pricing.Queries.ListProductPrices;
 using EcuNexo.Business.Pricing.Queries.ListPromotions;
 using EcuNexo.Business.Pricing.Queries.ListVolumeDiscountSchemes;
+using EcuNexo.Business.Logistics;
+using EcuNexo.Business.Logistics.Commands.CreateShippingRateRule;
+using EcuNexo.Business.Logistics.Commands.DeleteShippingRateRule;
+using EcuNexo.Business.Logistics.Commands.UpdateShippingRateRule;
+using EcuNexo.Business.Logistics.Queries.ListShippingRateRules;
+using EcuNexo.Business.Logistics.Queries.ResolveShippingRates;
 using EcuNexo.Business.Pricing.Queries.ResolvePrice;
 using EcuNexo.Business.Accounting;
 using EcuNexo.Business.CreditNotes.Commands.CreateCreditNote;
@@ -475,6 +481,11 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<AssignVolumeDiscountSchemeCommand, AssignVolumeDiscountSchemeResponse>, AssignVolumeDiscountSchemeHandler>();
         services.AddScoped<IQueryHandler<ListVolumeDiscountSchemesQuery, IReadOnlyList<VolumeDiscountSchemeResponse>>, ListVolumeDiscountSchemesHandler>();
         services.AddScoped<IQueryHandler<GetVolumeDiscountSchemeQuery, VolumeDiscountSchemeResponse>, GetVolumeDiscountSchemeHandler>();
+        services.AddScoped<ICommandHandler<CreateShippingRateRuleCommand, ShippingRateRuleDto>, CreateShippingRateRuleHandler>();
+        services.AddScoped<ICommandHandler<UpdateShippingRateRuleCommand, ShippingRateRuleDto>, UpdateShippingRateRuleHandler>();
+        services.AddScoped<ICommandHandler<DeleteShippingRateRuleCommand, bool>, DeleteShippingRateRuleHandler>();
+        services.AddScoped<IQueryHandler<ListShippingRateRulesQuery, IReadOnlyList<ShippingRateRuleDto>>, ListShippingRateRulesHandler>();
+        services.AddScoped<IQueryHandler<ResolveShippingRatesQuery, IReadOnlyList<ResolvedShippingOptionDto>>, ResolveShippingRatesHandler>();
 
         return services;
     }

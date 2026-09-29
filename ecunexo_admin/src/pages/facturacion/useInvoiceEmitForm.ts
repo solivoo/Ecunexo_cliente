@@ -56,6 +56,7 @@ import { getEcommerceOrderById, linkEcommerceOrderInvoice } from '@/services/eco
 import { resolvePrice } from '@/services/pricingApi'
 import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
 import type { EcommerceOrderDetailDto } from '@/types/ecommerceApi'
+import type { ResolvedShippingOptionDto } from '@/types/shippingApi'
 import type { TenantBranding } from '@/types/tenantBranding'
 import { readApiError } from '@/lib/readApiError'
 
@@ -155,7 +156,7 @@ function normalizeOrderItemIvaRate(rate: number): number {
 }
 
 function buildOrderLines(order: EcommerceOrderDetailDto): InvoiceLineDraft[] {
-  return order.items
+  const lines: InvoiceLineDraft[] = order.items
     .filter((item) => item.quantity > 0)
     .map((item) => ({
       id: newLineId(),
@@ -169,6 +170,23 @@ function buildOrderLines(order: EcommerceOrderDetailDto): InvoiceLineDraft[] {
       catalogItemId: item.catalogItemId,
       itemKind: null,
     }))
+
+  if (order.shippingCost && order.shippingCost > 0) {
+    lines.push({
+      id: newLineId(),
+      productId: '',
+      sku: 'ENV-TRANSPORTE',
+      description: `Servicio de envío y entrega${order.shipping?.carrier ? ` (${order.shipping.carrier})` : ''}`,
+      quantity: 1,
+      unitPrice: order.shippingCost,
+      discount: 0,
+      ivaRate: 15,
+      catalogItemId: null,
+      itemKind: 'service',
+    })
+  }
+
+  return lines
 }
 
 export type UseInvoiceEmitFormArgs = {
@@ -562,6 +580,31 @@ export function useInvoiceEmitForm({
     [ensureTrailingEmptyLine, tenantId, toast, priceListId]
   )
 
+  const addShippingRateLine = useCallback(
+    (rate: ResolvedShippingOptionDto) => {
+      setLines((prev) => {
+        const linePatch: Partial<InvoiceLineDraft> = {
+          productId: '',
+          catalogItemId: null,
+          itemKind: 'service',
+          sku: 'ENV-TRANSPORTE',
+          description: `Servicio de envío: ${rate.name} (${rate.carrier} - ${rate.zone})`,
+          unitPrice: rate.basePrice,
+          quantity: 1,
+          discount: 0,
+          ivaRate: normalizeLineIvaRate(rate.taxRate ?? 15),
+        }
+
+        const emptyLine = prev.find((l) => !l.productId && !l.description.trim())
+        if (emptyLine) {
+          return prev.map((l) => (l.id === emptyLine.id ? { ...l, ...linePatch } : l))
+        }
+        return [...prev, { ...createEmptyLine(newLineId()), ...linePatch }]
+      })
+    },
+    []
+  )
+
   /** Limpia cliente/líneas/notas tras crear comprobante; conserva emisor y punto de emisión. */
   const resetFormAfterSuccessfulEmit = useCallback(() => {
     setCounterparty(INITIAL_COUNTERPARTY)
@@ -886,6 +929,7 @@ export function useInvoiceEmitForm({
     removeLine,
     patchLine,
     addProductLine,
+    addShippingRateLine,
     onSubmit,
   }
 }

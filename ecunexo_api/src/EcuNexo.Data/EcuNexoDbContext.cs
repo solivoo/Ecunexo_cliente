@@ -6,6 +6,7 @@ using EcuNexo.Core.Customers;
 using EcuNexo.Core.Ecommerce;
 using EcuNexo.Core.Identity;
 using EcuNexo.Core.Inventory;
+using EcuNexo.Core.Logistics;
 using EcuNexo.Core.Platform;
 using EcuNexo.Core.Platform.Navigation;
 using EcuNexo.Core.Pricing;
@@ -155,6 +156,8 @@ public sealed class EcuNexoDbContext : DbContext
     public DbSet<VolumeDiscountScheme> VolumeDiscountSchemes => Set<VolumeDiscountScheme>();
 
     public DbSet<VolumeDiscountTier> VolumeDiscountTiers => Set<VolumeDiscountTier>();
+
+    public DbSet<ShippingRateRule> ShippingRateRules => Set<ShippingRateRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { DataGrid, Select, useToast, type ColumnDef } from 'glubox'
+import { Button, DataGrid, Select, useToast, type ColumnDef } from 'glubox'
 import {
   EmptyState,
   GridDateRangeBox,
@@ -244,6 +244,15 @@ export function EcommerceOrdersListPage() {
           title="Pedidos Ecommerce"
           badge={<StatusBadge tone="primary">Ventas Online</StatusBadge>}
           subtitle="Administración y despacho de pedidos online con reserva automática de stock e integración SRI."
+          actions={
+            <Button
+              variant="outline"
+              iconLeft={<Truck size={16} />}
+              onClick={() => navigate('/ecommerce/envios')}
+            >
+              Tarifas de envío
+            </Button>
+          }
         />
 
         {/* Strip de KPIs */}

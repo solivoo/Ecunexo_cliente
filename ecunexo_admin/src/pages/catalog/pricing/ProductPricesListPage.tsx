@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
-import { CheckSquare, Layers, Pencil, Trash2, X } from 'lucide-react'
+import { CheckSquare, Layers, Pencil, Trash2, Truck, X } from 'lucide-react'
 import {
   EmptyState,
   GridIconButton,
@@ -404,6 +404,13 @@ export function ProductPricesListPage() {
                 onClick={() => navigate('/catalogo/precios/escalas-volumen')}
               >
                 Escalas por cantidad
+              </Button>
+              <Button
+                variant="outline"
+                iconLeft={<Truck size={16} />}
+                onClick={() => navigate('/catalogo/precios/envios')}
+              >
+                Tarifas de envío
               </Button>
               <Button
                 variant="outline"
