@@ -382,10 +382,10 @@ export function CreateCatalogVariantPage() {
   if (loadingParent) {
     return (
       <TenantSessionGate title="Añadir Variante" lead="Cargando producto matriz…">
-        <div style={{ maxWidth: 1000, margin: '2rem auto', padding: '1rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '1rem', color: 'var(--glb-text-muted, #64748b)' }}>
-            Cargando producto matriz…
-          </div>
+        <div className="ecu-dashboard-layout ecu-section-page">
+          <SectionCard title="Cargando…">
+            <p className="app-shell__muted">Recuperando datos del producto matriz…</p>
+          </SectionCard>
         </div>
       </TenantSessionGate>
     )
@@ -394,7 +394,7 @@ export function CreateCatalogVariantPage() {
   if (!parentItem) {
     return (
       <TenantSessionGate title="Añadir Variante" lead="Producto matriz no encontrado.">
-        <div style={{ maxWidth: 1000, margin: '2rem auto', padding: '1rem' }}>
+        <div className="ecu-dashboard-layout ecu-section-page">
           <SectionCard title="Producto no encontrado">
             <p style={{ color: 'var(--glb-text-muted, #64748b)', marginBottom: '1rem' }}>
               El producto matriz solicitado no existe o no se pudo cargar.
@@ -412,7 +412,7 @@ export function CreateCatalogVariantPage() {
   if (!parentItem.isMatrixParent) {
     return (
       <TenantSessionGate title="Añadir Variante" lead="Producto no admite variantes.">
-        <div style={{ maxWidth: 1000, margin: '2rem auto', padding: '1rem' }}>
+        <div className="ecu-dashboard-layout ecu-section-page">
           <SectionCard title="Producto no admite variantes">
             <p style={{ color: 'var(--glb-text-muted, #64748b)', marginBottom: '1rem' }}>
               El ítem «{parentItem.name}» es un producto simple o una variante física existente, no un producto matriz.
@@ -429,10 +429,7 @@ export function CreateCatalogVariantPage() {
 
   return (
     <TenantSessionGate title="Añadir Variante" lead="Crear nueva variante física para la matriz.">
-      <div
-        className="ecu-catalog-form-page"
-        style={{ maxWidth: 1000, margin: '0 auto', paddingBottom: '3rem' }}
-      >
+      <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Añadir Variante"
           subtitle={`Crea una nueva variante física vinculada al producto matriz «${parentItem.name}».`}
@@ -449,7 +446,13 @@ export function CreateCatalogVariantPage() {
 
         <form
           onSubmit={handleSubmit}
-          style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1.25rem' }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.25rem',
+            marginTop: '1.25rem',
+            paddingBottom: '3rem',
+          }}
         >
           {/* Tarjeta de Referencia del Producto Matriz */}
           <SectionCard
