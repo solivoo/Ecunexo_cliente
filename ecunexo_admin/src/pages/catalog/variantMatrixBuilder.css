@@ -966,15 +966,15 @@ html.sf-dark-mode .ecu-variant-card__select {
 }
 
 .ecu-variant-sub-item-row {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
   gap: 0.75rem;
   position: relative;
   padding: 0.5rem 6.25rem 0.5rem 0.65rem;
   border-radius: 8px;
   border: 1px solid var(--glb-border, #f1f5f9);
   background: var(--glb-surface, #ffffff);
-  flex-wrap: wrap;
   transition: background 0.1s, border-color 0.1s;
 }
 
@@ -998,7 +998,38 @@ html.sf-dark-mode .ecu-variant-card__select {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.ecu-variant-sub-item-field--span-2 {
+  grid-column: span 2;
+}
+
+.ecu-variant-sub-item-field--span-4 {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 959px) {
+  .ecu-variant-sub-item-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ecu-variant-sub-item-field--span-2 {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 639px) {
+  .ecu-variant-sub-item-row {
+    grid-template-columns: 1fr;
+    padding-right: 3.5rem;
+  }
+
+  .ecu-variant-sub-item-field--span-2,
+  .ecu-variant-sub-item-field--span-4 {
+    grid-column: 1 / -1;
+  }
 }
 
 .ecu-variant-sub-item-label {

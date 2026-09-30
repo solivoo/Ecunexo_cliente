@@ -146,13 +146,13 @@ export function ProductTemplateBuilderPage() {
     try {
       const withVariantDefaults = levels.map((level) => {
         if ((level.axes?.length ?? 0) === 0) return level
-        const attributes = [...level.attributes]
-        for (const attribute of ['Nombre', 'Descripción']) {
-          if (!attributes.some((current) => current.trim().toLowerCase() === attribute.toLowerCase())) {
-            attributes.push(attribute)
-          }
-        }
-        return { ...level, attributes }
+        // Nombre y Descripción van al inicio del nivel con ejes: en la matriz el UI
+        // coloca Nombre justo después del SKU.
+        const identityKeys = ['nombre', 'descripcion', 'descripción']
+        const rest = level.attributes.filter(
+          (current) => !identityKeys.includes(current.trim().toLowerCase())
+        )
+        return { ...level, attributes: ['Nombre', 'Descripción', ...rest] }
       })
       const hierarchyTreeJson = JSON.stringify(withVariantDefaults)
       const payload = {

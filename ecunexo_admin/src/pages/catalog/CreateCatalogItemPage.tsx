@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, NumberBox, Select, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Button, NumberBox, Select, TextArea, TextBox, useToast, type PageActionItem } from 'glubox'
 import { Layers, Save } from 'lucide-react'
 import {
   EcuPageActions,
@@ -109,6 +109,8 @@ export function CreateCatalogItemPage() {
   const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [manualSku, setManualSku] = useState('')
+  const [matrixCode, setMatrixCode] = useState('')
+  const [existingSkus, setExistingSkus] = useState<Set<string>>(new Set())
   const [minOrderQuantity, setMinOrderQuantity] = useState(1)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -290,22 +292,6 @@ export function CreateCatalogItemPage() {
     [matrixData.variants]
   )
 
-  // Prefijo para autogenerar los SKU de cada variante a partir del SKU manual, nombre o plantilla.
-  const variantSkuPrefix = useMemo(() => {
-    const seedName =
-      manualSku.trim() ||
-      (usesMatrix ? name.trim() || firstVariantName || derivedTemplateName || appliedTemplate?.name : '') ||
-      (showManualName ? name.trim() : derivedTemplateName) ||
-      ''
-    return seedName
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 16)
-  }, [appliedTemplate?.name, derivedTemplateName, firstVariantName, manualSku, name, showManualName, usesMatrix])
-
   const handleApplyTemplate = useCallback((templateId: string) => {
     setSelectedTemplateId(templateId)
     setCustomAttributes([])
@@ -317,21 +303,29 @@ export function CreateCatalogItemPage() {
     let cancelled = false
     void (async () => {
       try {
-        const [tplList, dimList, items] = await Promise.all([
+        const [tplList, dimList, items, allItems] = await Promise.all([
           listProductTemplates(tenantId),
           listVariantDimensionTemplates(tenantId),
           listCatalogItems(tenantId, { onlyRoots: true }).catch(() => []),
+          listCatalogItems(tenantId, { onlyRoots: false, includeParents: true }).catch(() => []),
         ])
         if (!cancelled) {
           setProductTemplates(tplList.filter((t) => t.isActive))
           setDimensionTemplates(dimList)
           setUsedVariants(items.reduce((sum, i) => sum + (i.variantCount ?? 0), 0))
+          const skus = new Set(
+            allItems
+              .map((i) => i.sku?.trim().toUpperCase())
+              .filter((s): s is string => Boolean(s))
+          )
+          setExistingSkus(skus)
         }
       } catch {
         if (!cancelled) {
           setProductTemplates([])
           setDimensionTemplates([])
           setUsedVariants(0)
+          setExistingSkus(new Set())
         }
       }
     })()
@@ -348,7 +342,7 @@ export function CreateCatalogItemPage() {
     () => [
       {
         id: 'list',
-        label: 'Listado de ítems',
+        label: 'Listado de matrices y productos',
         icon: 'package',
         route: '/catalogo/items',
         disabled: false,
@@ -422,11 +416,16 @@ export function CreateCatalogItemPage() {
             )
           }
 
+          const matrixCodeClean = matrixCode.trim().toUpperCase()
+          if (matrixCodeClean && existingSkus.has(matrixCodeClean)) {
+            throw new Error(`El código de matriz «${matrixCodeClean}» ya existe en el catálogo. Usa un código único.`)
+          }
+
           const createdMatrix = await createCatalogItemMatrix(tenantId, {
             kind: kindNum,
             name: finalName,
             description: finalDescription || null,
-            modelCode: manualSku.trim() || null,
+            modelCode: matrixCodeClean || null,
             basePrice: null,
             variantDimensionsJson: matrixData.variantDimensionsJson,
             variants: matrixData.variants,
@@ -510,6 +509,10 @@ export function CreateCatalogItemPage() {
             }
           }
         } else {
+          const cleanSku = finalSku?.trim().toUpperCase()
+          if (cleanSku && existingSkus.has(cleanSku)) {
+            throw new Error(`El SKU «${cleanSku}» ya existe en el catálogo. Usa un SKU único.`)
+          }
           const created = await createCatalogItem(tenantId, {
             kind: kindNum,
             name: finalName,
@@ -554,9 +557,9 @@ export function CreateCatalogItemPage() {
         }
 
         toast.show({
-          title: usesMatrix ? 'Producto creado' : 'Producto creado',
+          title: usesMatrix ? 'Matriz producto creada' : 'Producto creado',
           message: usesMatrix
-            ? `«${finalName}» quedó registrado con ${matrixData.variants.length} códigos.`
+            ? `«${finalName}» quedó registrada como matriz con ${matrixData.variants.length} variantes físicas.`
             : autoGeneratedSku
               ? `«${finalName}» quedó registrado con el código «${finalSku}».`
               : `«${finalName}» quedó registrado en el catálogo.`,
@@ -565,7 +568,9 @@ export function CreateCatalogItemPage() {
         void navigate('/catalogo/items', { replace: true })
       } catch (err: unknown) {
         const message =
-          err instanceof Error ? err.message : readApiError(err, 'No se pudo crear el ítem.')
+          err instanceof Error
+            ? err.message
+            : readApiError(err, usesMatrix ? 'No se pudo crear la matriz producto.' : 'No se pudo crear el producto.')
         setError(message)
         toast.show({ title: 'No se pudo crear', message, variant: 'error' })
       } finally {
@@ -584,6 +589,8 @@ export function CreateCatalogItemPage() {
       dimensionValuesMap,
       firstVariantName,
       manualSku,
+      matrixCode,
+      existingSkus,
       minOrderQuantity,
       name,
       showManualDescription,
@@ -603,7 +610,7 @@ export function CreateCatalogItemPage() {
 
   if (!canCreate) {
     return (
-      <TenantSessionGate title="Nuevo ítem" lead="Alta en el maestro de catálogo.">
+      <TenantSessionGate title="Nueva matriz producto" lead="Alta en el maestro de catálogo.">
         <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
@@ -624,11 +631,15 @@ export function CreateCatalogItemPage() {
   }
 
   return (
-    <TenantSessionGate title="Nuevo ítem" lead="Alta en el maestro de catálogo (sin stock).">
+    <TenantSessionGate title="Nueva matriz producto" lead="Alta en el maestro de catálogo (sin stock).">
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
-          title="Nuevo producto"
-          subtitle="Elige plantilla o producto simple; el formulario muestra solo lo necesario."
+          title={usesMatrix ? 'Nueva matriz producto' : 'Nuevo producto'}
+          subtitle={
+            usesMatrix
+              ? 'Configura la matriz producto y genera sus variantes físicas según la plantilla.'
+              : 'Elige plantilla o producto simple; el formulario muestra solo lo necesario.'
+          }
           badge={
             <StatusBadge tone="primary" withDot>
               Alta
@@ -649,48 +660,58 @@ export function CreateCatalogItemPage() {
 
         <form id="create-catalog-item" onSubmit={(e) => void onSubmit(e)} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <SectionCard title="Plantilla">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
               {productTemplates.length === 0 ? (
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
-                  No hay plantillas activas. Crea una en «Plantillas de producto» para registrar
-                  productos.
-                </p>
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
+                    No hay plantillas activas. Crea una en «Plantillas de producto» para registrar
+                    productos.
+                  </p>
+                </div>
               ) : (
-                <Select
-                  id="ci-template"
-                  label="Plantilla"
-                  labelPosition="outlined"
-                  variant="outline"
-                  options={[
-                    { value: '', label: 'Elige una plantilla' },
-                    ...productTemplates.map((t) => ({ value: t.id, label: t.name })),
-                  ]}
-                  value={selectedTemplateId}
-                  onChange={handleApplyTemplate}
-                  disabled={busy}
-                  fullWidth
-                />
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                  <Select
+                    id="ci-template"
+                    label="Plantilla"
+                    labelPosition="outlined"
+                    variant="outline"
+                    options={[
+                      { value: '', label: 'Elige una plantilla' },
+                      ...productTemplates.map((t) => ({ value: t.id, label: t.name })),
+                    ]}
+                    value={selectedTemplateId}
+                    onChange={handleApplyTemplate}
+                    disabled={busy}
+                    fullWidth
+                  />
+                </div>
               )}
               {appliedTemplate && templateSummary ? (
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-text)' }}>{templateSummary}</p>
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-text)' }}>{templateSummary}</p>
+                </div>
               ) : null}
               {appliedTemplate ? (
-                <p className="ecu-hint" style={{ margin: 0 }}>
-                  {(showManualName ? name.trim() : derivedTemplateName)
-                    ? `Se registrará como «${
-                        showManualName ? name.trim() : derivedTemplateName
-                      }».`
-                    : usesMatrix
-                      ? 'Escribe el nombre de la matriz: identifica al modelo base en el catálogo.'
-                      : 'Escribe el nombre del producto: identifica al ítem en listados y búsquedas.'}
-                  {!usesMatrix && !manualSku.trim() && !derivedTemplateSku
-                    ? ' El SKU se generará automáticamente si lo dejas vacío.'
-                    : ''}
-                </p>
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
+                  <p className="ecu-hint" style={{ margin: 0 }}>
+                    {(showManualName ? name.trim() : derivedTemplateName)
+                      ? `Se registrará como «${
+                          showManualName ? name.trim() : derivedTemplateName
+                        }».`
+                      : usesMatrix
+                        ? 'Escribe el nombre de la matriz: identifica al modelo base en el catálogo.'
+                        : 'Escribe el nombre del producto: identifica al ítem en listados y búsquedas.'}
+                    {!usesMatrix && !manualSku.trim() && !derivedTemplateSku
+                      ? ' El SKU se generará automáticamente si lo dejas vacío.'
+                      : ''}
+                  </p>
+                </div>
               ) : productTemplates.length > 0 ? (
-                <p className="ecu-hint" style={{ margin: 0 }}>
-                  Selecciona una plantilla para cargar el formulario.
-                </p>
+                <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
+                  <p className="ecu-hint" style={{ margin: 0 }}>
+                    Selecciona una plantilla para cargar el formulario.
+                  </p>
+                </div>
               ) : null}
             </div>
           </SectionCard>
@@ -704,19 +725,25 @@ export function CreateCatalogItemPage() {
 
           {appliedTemplate ? (
             <SectionCard
-              title={usesMatrix ? 'Producto Matriz (Modelo base)' : 'Datos del producto'}
+              title={usesMatrix ? 'Matriz Producto (Modelo base)' : 'Datos del producto'}
               subtitle={
                 usesMatrix
                   ? 'La matriz agrupa las variantes, define el nombre comercial y la descripción general. La matriz no lleva SKU; cada variante física llevará su propio SKU abajo.'
                   : undefined
               }
             >
-              <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+              <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                 {showManualName ? (
-                  <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                  <div
+                    className={`ecu-companies-form__field ${
+                      usesMatrix
+                        ? 'ecu-companies-form__field--span-3'
+                        : 'ecu-companies-form__field--span-2'
+                    }`}
+                  >
                     <TextBox
                       id="ci-name"
-                      label={usesMatrix ? 'Nombre de la matriz' : 'Nombre del producto'}
+                      label={usesMatrix ? 'Nombre de la matriz producto' : 'Nombre del producto'}
                       labelPosition="outlined"
                       variant="outline"
                       value={name}
@@ -728,7 +755,29 @@ export function CreateCatalogItemPage() {
                     />
                   </div>
                 ) : null}
-                {!usesMatrix ? (
+                {usesMatrix ? (
+                  <div className="ecu-companies-form__field">
+                    <TextBox
+                      id="ci-matrix-code"
+                      label="Código de matriz"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={matrixCode}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setMatrixCode(e.target.value.toUpperCase())
+                      }
+                      placeholder="Ej. MAT-DEP-001"
+                      error={matrixCode.trim() ? existingSkus.has(matrixCode.trim().toUpperCase()) : false}
+                      errorMessage={
+                        matrixCode.trim() && existingSkus.has(matrixCode.trim().toUpperCase())
+                          ? 'Este código de matriz ya existe en el catálogo'
+                          : undefined
+                      }
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                ) : (
                   <div className="ecu-companies-form__field">
                     <TextBox
                       id="ci-sku"
@@ -740,24 +789,13 @@ export function CreateCatalogItemPage() {
                         setManualSku(e.target.value.toUpperCase())
                       }
                       placeholder="Ej. CALC-001"
-                      required
-                      disabled={busy}
-                      fullWidth
-                    />
-                  </div>
-                ) : (
-                  <div className="ecu-companies-form__field">
-                    <TextBox
-                      id="ci-sku"
-                      label="Prefijo SKU para variantes (opcional)"
-                      labelPosition="outlined"
-                      variant="outline"
-                      value={manualSku}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                        setManualSku(e.target.value.toUpperCase())
+                      error={manualSku.trim() ? existingSkus.has(manualSku.trim().toUpperCase()) : false}
+                      errorMessage={
+                        manualSku.trim() && existingSkus.has(manualSku.trim().toUpperCase())
+                          ? 'Este SKU ya existe en el catálogo'
+                          : undefined
                       }
-                      placeholder="Ej. NIK-BLA"
-                      helperText="Opcional. Prefijo sugerido para los SKU de las variantes abajo."
+                      required
                       disabled={busy}
                       fullWidth
                     />
@@ -789,14 +827,14 @@ export function CreateCatalogItemPage() {
                   </div>
                 ) : null}
                 {showManualDescription ? (
-                  <div className="ecu-companies-form__field ecu-companies-form__field--span-3">
-                    <TextBox
+                  <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
+                    <TextArea
                       id="ci-description"
                       label={usesMatrix ? 'Descripción general de la matriz' : 'Descripción'}
                       labelPosition="outlined"
                       variant="outline"
                       value={description}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+                      onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
                       placeholder={
                         usesMatrix
                           ? 'Ej. Calcetín blanco deportivo de algodón con tecnología absorbente'
@@ -901,7 +939,8 @@ export function CreateCatalogItemPage() {
                     ''
                   }
                   basePrice=""
-                  skuPrefix={variantSkuPrefix}
+                  matrixCode={matrixCode}
+                  existingSkus={existingSkus}
                   disabled={busy}
                   onChange={setMatrixData}
                   availableImages={stagedImages}
@@ -922,13 +961,14 @@ export function CreateCatalogItemPage() {
           >
             <Button
               type="submit"
+              width={400}
               form="create-catalog-item"
               variant="primary"
               loading={busy}
               disabled={busy || !appliedTemplate}
             >
               <Save size={16} />
-              <span>{uploadStatus || 'Guardar producto'}</span>
+              <span>{uploadStatus || (usesMatrix ? 'Guardar matriz producto' : 'Guardar producto')}</span>
             </Button>
             <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
               Cancelar

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { Button, ColorPicker, DEFAULT_COLOR_PRESETS, NumberBox, Popup, Select, TextBox, useToast } from 'glubox'
+import { Button, ColorPicker, DEFAULT_COLOR_PRESETS, NumberBox, Popup, Select, TextArea, TextBox, useToast } from 'glubox'
 import { ArrowLeft, ArrowRight, Camera, Check, Copy, Layers, Plus, Trash2, Upload, X } from 'lucide-react'
 import { EcuColorListInput, EcuMediaListInput, EcuTagInput } from '@/components/ui'
 import {
@@ -66,8 +66,8 @@ export type VariantMatrixBuilderProps = {
   tenantId: string | null
   baseName: string
   basePrice: string
-  /** Prefijo (nombre del producto): base para autogenerar los SKU de las variantes. */
-  skuPrefix?: string
+  matrixCode?: string
+  existingSkus?: ReadonlySet<string>
   parentTags?: readonly string[]
   disabled?: boolean
   onChange: (data: {
@@ -122,46 +122,6 @@ function normalizeHexColor(value: string): string {
   return clean.toLowerCase()
 }
 
-const SKU_MAX_LENGTH = 40
-
-function normalizeSkuToken(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '')
-}
-
-/** Base del SKU conservando separadores: «CALCETIN-D-85AMHG». */
-function normalizeSkuBase(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
-/** Convierte el valor de una dimensión en un fragmento de SKU legible. */
-function skuTokenFromDimension(
-  value: string,
-  humanize: (value: string) => string
-): string {
-  const clean = value.trim()
-  if (!clean) return ''
-  if (HEX_COLOR_PATTERN.test(clean)) {
-    const name = normalizeSkuToken(humanize(clean))
-    return name ? name.slice(0, 3) : clean.replace('#', '').slice(0, 6).toUpperCase()
-  }
-  const segments = clean
-    .split('/')
-    .map((part) => part.trim())
-    .filter(Boolean)
-  const token = normalizeSkuToken(segments.length > 1 ? segments[segments.length - 1] : clean)
-  if (!token) return ''
-  return /^\d+$/.test(token) ? token : token.slice(0, 4)
-}
-
 /** Una dimensión de color siempre está activa: se asigna por hexadecimal aunque no tenga presets. */
 function isDimensionActive(dim: DimensionState): boolean {
   return (
@@ -198,11 +158,29 @@ function combineHierarchyTags(
   return Array.from(set)
 }
 
+/** Atributos de plantilla que alimentan el índice de búsqueda `tags` (no Actividad/Temática). */
+function isSearchTagAttributeKey(key: string): boolean {
+  const clean = key
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+  return clean === 'tag' || clean === 'tags' || clean === 'etiqueta' || clean === 'etiquetas'
+}
+
+function splitTagValues(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((t) => t.trim().replace(/^#+/, '').trim())
+    .filter(Boolean)
+}
+
 export function VariantMatrixBuilder({
   tenantId: _tenantId,
   baseName,
   basePrice,
-  skuPrefix = '',
+  matrixCode = '',
+  existingSkus,
   parentTags = NO_PARENT_TAGS,
   disabled = false,
   onChange,
@@ -293,7 +271,15 @@ export function VariantMatrixBuilder({
   // Generated Variant Rows
   const [rows, setRows] = useState<VariantRowState[]>([])
 
-
+  // Clave del atributo que representa el "Nombre" de la variante (si la plantilla nivel terminal lo define)
+  const variantNameFieldKey = useMemo(
+    () =>
+      variantAttributeFields.find((f) => {
+        const lower = f.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        return lower === 'nombre' || lower === 'name'
+      })?.key,
+    [variantAttributeFields]
+  )
 
   // Add custom option to an existing dimension
   const handleAddCustomOptionToDimension = useCallback((dimId: string, newVal: string) => {
@@ -328,6 +314,10 @@ export function VariantMatrixBuilder({
 
       const variationLabel = Object.values(dimensionValues).filter(Boolean).join(' / ')
       const autoTitle = variationLabel || 'Variante 1'
+      const initAttrs: Record<string, string> = {}
+      if (variantNameFieldKey) {
+        initAttrs[variantNameFieldKey] = ''
+      }
 
       setRows([
         {
@@ -345,12 +335,12 @@ export function VariantMatrixBuilder({
           stagedImagePreview: null,
           stagedImages: [],
           variantTags: [],
-          variantAttributes: {},
+          variantAttributes: initAttrs,
           extraColors: [],
         },
       ])
     }
-  }, [dimensions, basePrice, rows.length])
+  }, [dimensions, basePrice, rows.length, variantNameFieldKey])
 
   // Duplicar una fila de variante
   const handleDuplicateVariantRow = useCallback(
@@ -359,15 +349,27 @@ export function VariantMatrixBuilder({
       if (!source) return
 
       const newId = `var-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+      const nextCopyTitle = `${source.variantTitle} (Copia)`
 
       const duplicated: VariantRowState = {
         ...source,
         id: newId,
         sku: '',
         isManualSku: false,
-        variantTitle: `${source.variantTitle} (Copia)`,
+        variantTitle: nextCopyTitle,
         isManualTitle: false,
         variantTags: [...(source.variantTags ?? [])],
+        variantAttributes: {
+          ...(source.variantAttributes ?? {}),
+          ...(variantNameFieldKey
+            ? {
+                [variantNameFieldKey]:
+                  source.variantAttributes?.[variantNameFieldKey]?.trim()
+                    ? `${source.variantAttributes[variantNameFieldKey].trim()} (Copia)`
+                    : '',
+              }
+            : {}),
+        },
         extraColors: [...(source.extraColors ?? [])],
       }
 
@@ -378,7 +380,7 @@ export function VariantMatrixBuilder({
         message: 'Completa el SKU de la nueva variante.',
       })
     },
-    [rows, toast]
+    [rows, toast, variantNameFieldKey]
   )
 
   // Row field update
@@ -399,70 +401,28 @@ export function VariantMatrixBuilder({
     )
   }, [])
 
-  const skuBase = useMemo(
-    () => (skuPrefix.trim() ? normalizeSkuBase(skuPrefix).slice(0, 16) : ''),
-    [skuPrefix]
-  )
+  const handleVariantAttributeChange = useCallback(
+    (rowId: string, key: string, value: string) => {
+      const lowerNorm = key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const isName = lowerNorm === 'nombre' || lowerNorm === 'name'
+      const isSearchTag = isSearchTagAttributeKey(key)
 
-  /** SKU autogenerado: prefijo del producto + valores de dimensión (mismo orden de ejes). */
-  const buildSkuForRow = useCallback(
-    (dimensionValues: Record<string, string>): string => {
-      const base = skuBase
-      const parts = Object.values(dimensionValues)
-        .map((value) =>
-          skuTokenFromDimension(value, (hex) => resolveHumanDimensionValue('', hex))
-        )
-        .filter(Boolean)
-      const raw = [base, ...parts].filter(Boolean).join('-')
-      return raw.replace(/-+/g, '-').replace(/^-+|-+$/g, '').slice(0, SKU_MAX_LENGTH)
-    },
-    [resolveHumanDimensionValue, skuBase]
-  )
-
-  const handleResetSku = useCallback(
-    (rowId: string) => {
       setRows((prev) =>
         prev.map((r) => {
           if (r.id !== rowId) return r
-          const generated = buildSkuForRow(r.dimensionValues)
           return {
             ...r,
-            sku: generated,
-            isManualSku: false,
+            variantTitle: isName && value.trim() ? value.trim() : r.variantTitle,
+            isManualTitle: isName ? Boolean(value.trim()) : r.isManualTitle,
+            variantAttributes: { ...(r.variantAttributes ?? {}), [key]: value },
+            // Tag/Tags de plantilla alimentan el índice de búsqueda de la variante.
+            ...(isSearchTag ? { variantTags: splitTagValues(value) } : {}),
           }
         })
       )
     },
-    [buildSkuForRow]
+    []
   )
-
-  // Autocompleta el SKU de las filas que el usuario no haya escrito manualmente.
-  useEffect(() => {
-    if (!skuPrefix.trim()) return
-    setRows((prev) => {
-      let changed = false
-      const next = prev.map((row) => {
-        if (row.isManualSku) return row
-        const generated = buildSkuForRow(row.dimensionValues)
-        if (generated && generated !== row.sku) {
-          changed = true
-          return { ...row, sku: generated }
-        }
-        return row
-      })
-      return changed ? next : prev
-    })
-  }, [buildSkuForRow, dimensions, skuPrefix])
-
-  const handleVariantAttributeChange = useCallback((rowId: string, key: string, value: string) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === rowId
-          ? { ...r, variantAttributes: { ...(r.variantAttributes ?? {}), [key]: value } }
-          : r
-      )
-    )
-  }, [])
 
   const handleExtraColorsChange = useCallback((rowId: string, colors: string[]) => {
     setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, extraColors: colors } : r)))
@@ -504,9 +464,13 @@ export function VariantMatrixBuilder({
     [dimensions, primaryDim]
   )
 
-  // Orden estable de los atributos por tipo de control: texto/selects, colores, etiquetas y fotos.
+  // Orden estable de los atributos por tipo de control: Nombre junto al SKU, Descripción al final de la fila, etc.
   const orderedVariantAttributeFields = useMemo(() => {
     const rankOf = (field: ArchetypeAttributeField): number => {
+      const cleanLower = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      if (cleanLower === 'nombre' || cleanLower === 'name') return 0
+      if (cleanLower === 'descripcion' || cleanLower === 'description') return 5
+
       const lookup = dimensionValuesMap?.get(field.key.trim().toLowerCase())
       const dataType = lookup?.dataType ?? 'text'
       const hasOptions = (lookup?.values.length ?? 0) > 0
@@ -521,6 +485,24 @@ export function VariantMatrixBuilder({
       .sort((a, b) => a.rank - b.rank || a.index - b.index)
       .map((entry) => entry.field)
   }, [dimensionValuesMap, variantAttributeFields])
+
+  const variantNameField = useMemo(
+    () =>
+      orderedVariantAttributeFields.find((field) => {
+        const cleanLower = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        return cleanLower === 'nombre' || cleanLower === 'name'
+      }) ?? null,
+    [orderedVariantAttributeFields]
+  )
+
+  const variantFieldsAfterSku = useMemo(
+    () =>
+      orderedVariantAttributeFields.filter((field) => {
+        const cleanLower = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        return cleanLower !== 'nombre' && cleanLower !== 'name'
+      }),
+    [orderedVariantAttributeFields]
+  )
 
   // El bloque «Colores» solo aplica cuando hay un eje de color (base + adicionales por SKU);
   // si Color es un atributo de variante (lista/múltiple), se captura como cualquier otro dato.
@@ -571,6 +553,30 @@ export function VariantMatrixBuilder({
     [duplicateSkus]
   )
 
+  const normalizedMatrixCode = useMemo(
+    () => matrixCode.trim().toUpperCase(),
+    [matrixCode]
+  )
+
+  const matrixCodeCollision = useMemo(() => {
+    if (!normalizedMatrixCode) return null
+    const match = rows.find((r) => r.sku.trim().toUpperCase() === normalizedMatrixCode)
+    return match ? match.sku.trim() : null
+  }, [normalizedMatrixCode, rows])
+
+  const existingSkuCollisions = useMemo(() => {
+    if (!existingSkus || existingSkus.size === 0) return []
+    const collisions: string[] = []
+    for (const r of rows) {
+      const clean = r.sku.trim().toUpperCase()
+      if (clean && existingSkus.has(clean) && !collisions.includes(clean)) {
+        collisions.push(clean)
+      }
+    }
+    return collisions
+  }, [existingSkus, rows])
+
+
   // Cambio de dimensión en una fila específica (selección por variante) - NO recrear el SKU
   const buildRowLabel = useCallback(
     (dimensionValues: Record<string, string>) => {
@@ -603,19 +609,17 @@ export function VariantMatrixBuilder({
           const updatedDims = { ...r.dimensionValues, [dimName]: newValue }
           const variationLabel = buildRowLabel(updatedDims)
           const autoTitle = variationLabel || 'Variante'
-          const nextSku = !r.isManualSku ? buildSkuForRow(updatedDims) : r.sku
-
           return {
             ...r,
             dimensionValues: updatedDims,
             variationLabel,
             variantTitle: r.isManualTitle ? r.variantTitle : autoTitle,
-            sku: nextSku,
+            sku: r.sku,
           }
         })
       )
     },
-    [buildRowLabel, buildSkuForRow]
+    [buildRowLabel]
   )
 
   // Group Image Toggle from general gallery
@@ -947,13 +951,15 @@ export function VariantMatrixBuilder({
 
       const rowId = `var-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 
+      const subTitle = `${groupVal} / ${availableVal}`
+
       const newRow: VariantRowState = {
         id: rowId,
         dimensionValues,
-        variationLabel: `${groupVal} / ${availableVal}`,
-        variantTitle: `${groupVal} / ${availableVal}`,
+        variationLabel: subTitle,
+        variantTitle: subTitle,
         isManualTitle: false,
-        sku: buildSkuForRow(dimensionValues),
+        sku: '',
         isManualSku: false,
         barcode: '',
         basePrice: defaultPrice,
@@ -961,13 +967,13 @@ export function VariantMatrixBuilder({
         stagedImages: groupImages,
         stagedImagePreview: groupImages[0]?.previewUrl || null,
         variantTags: [],
-        variantAttributes: {},
+        variantAttributes: variantNameFieldKey ? { [variantNameFieldKey]: '' } : {},
         extraColors: [],
       }
 
       setRows((prev) => [...prev, newRow])
     },
-    [basePrice, buildSkuForRow, childDims, groupValueOf, photoScope, primaryDim, rows]
+    [basePrice, childDims, groupValueOf, photoScope, primaryDim, rows, variantNameFieldKey]
   )
 
   // Add new group (e.g. Color)
@@ -1015,8 +1021,11 @@ export function VariantMatrixBuilder({
           variationLabel: label,
           variantTitle: label,
           isManualTitle: false,
-          sku: buildSkuForRow(updatedDims),
+          sku: '',
           isManualSku: false,
+          variantAttributes: {
+            ...(r.variantAttributes ?? {}),
+          },
           stagedImages: [],
           stagedImagePreview: null,
         }
@@ -1029,7 +1038,7 @@ export function VariantMatrixBuilder({
         variant: 'success',
       })
     },
-    [buildSkuForRow, childDims, groupValueOf, primaryDim, rows, toast]
+    [childDims, groupValueOf, primaryDim, rows, toast]
   )
 
   const handleDuplicateGroup = useCallback(
@@ -1104,13 +1113,12 @@ export function VariantMatrixBuilder({
           const updatedDims = { ...r.dimensionValues, [primaryDim.name]: targetVal }
           const subVal = childDims.map((cd) => updatedDims[cd.name]).filter(Boolean).join(' / ')
           const label = `${targetVal}${subVal ? ` / ${subVal}` : ''}`
-          const nextSku = !r.isManualSku ? buildSkuForRow(updatedDims) : r.sku
           return {
             ...r,
             dimensionValues: updatedDims,
             variationLabel: label,
             variantTitle: r.isManualTitle ? r.variantTitle : label,
-            sku: nextSku,
+            sku: r.sku,
           }
         })
       )
@@ -1128,7 +1136,7 @@ export function VariantMatrixBuilder({
         })
       }
     },
-    [buildSkuForRow, childDims, groupValueOf, handleAddCustomOptionToDimension, photoGroupKeyOf, photoScope, primaryDim, rows]
+    [childDims, groupValueOf, handleAddCustomOptionToDimension, photoGroupKeyOf, photoScope, primaryDim, rows]
   )
 
   const handleConfirmColorModal = useCallback(() => {
@@ -1242,8 +1250,16 @@ export function VariantMatrixBuilder({
       }
       if (r.variantAttributes) {
         Object.entries(r.variantAttributes).forEach(([attrName, val]) => {
-          if (val && typeof val === 'string' && val.trim()) {
-            customAttrs[attrName.trim().toLowerCase()] = val.trim()
+          if (!val || typeof val !== 'string' || !val.trim()) return
+          // Tag/Tags se consolidan abajo en customAttrs.tags (array de búsqueda).
+          if (isSearchTagAttributeKey(attrName)) return
+
+          const rawLower = attrName.trim().toLowerCase()
+          const cleanKey = rawLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          // Actividad, Temática, etc. (multiselect): lista separada por coma bajo su propia clave.
+          customAttrs[cleanKey] = val.trim()
+          if (rawLower !== cleanKey) {
+            customAttrs[rawLower] = val.trim()
           }
         })
       }
@@ -1251,16 +1267,21 @@ export function VariantMatrixBuilder({
         customAttrs['colores_secundarios'] = r.extraColors
       }
 
-      // Sintetizar tags: tags del padre + dimensiones de la variante + tags específicos de la variante
+      // Sintetizar tags: padre + dimensiones + Tag/Tags de la variante (sin pisar Actividad/Temática).
       const combinedTags = combineHierarchyTags(parentTags, r.dimensionValues, r.variantTags)
       if (combinedTags.length > 0) {
         customAttrs['tags'] = combinedTags
       }
 
       const rowLabel = buildRowLabel(r.dimensionValues)
+      const variantNameAttr = variantNameFieldKey ? r.variantAttributes?.[variantNameFieldKey]?.trim() : ''
       const finalTitle = r.isManualTitle && r.variantTitle.trim()
         ? r.variantTitle.trim()
-        : rowLabel || r.variantTitle.trim() || 'Variante'
+        : variantNameAttr || rowLabel || r.variantTitle.trim() || 'Variante'
+
+      if (variantNameAttr) {
+        customAttrs['nombre'] = variantNameAttr
+      }
 
       return {
         variantTitle: finalTitle,
@@ -1277,24 +1298,20 @@ export function VariantMatrixBuilder({
       }
     })
 
-    const variantNameFieldKey = variantAttributeFields.find(
-      (field) => field.key.trim().toLowerCase() === 'nombre'
-    )?.key
     const invalidReason =
       payloadVariants.length === 0
         ? 'Agrega al menos una variante física.'
         : payloadVariants.some((v) => v.variantTitle.length === 0)
           ? 'Completa el título de todas las variantes.'
-          : variantNameFieldKey &&
-              rows.some(
-                (row) => !(row.variantAttributes?.[variantNameFieldKey] ?? '').trim()
-              )
-            ? 'Completa el Nombre de todas las variantes.'
-            : duplicateSkus.length > 0
-            ? `El SKU «${duplicateSkus[0]}» está repetido. Cámbialo en una de las variantes.`
-            : payloadVariants.some((v) => v.sku.length === 0)
-              ? 'Completa el SKU de todas las variantes.'
-              : null
+          : duplicateSkus.length > 0
+          ? `El SKU «${duplicateSkus[0]}» está repetido en más de una variante.`
+          : matrixCodeCollision
+          ? `El SKU «${matrixCodeCollision}» no puede ser igual al código de la matriz.`
+          : existingSkuCollisions.length > 0
+          ? `El SKU «${existingSkuCollisions[0]}» ya existe en el catálogo. Usa un SKU único.`
+          : payloadVariants.some((v) => v.sku.length === 0)
+            ? 'Completa el SKU de todas las variantes.'
+            : null
 
     onChange({
       variants: payloadVariants,
@@ -1315,6 +1332,10 @@ export function VariantMatrixBuilder({
     groupStagedImages,
     onChange,
     duplicateSkus,
+    matrixCodeCollision,
+    existingSkuCollisions,
+    variantNameFieldKey,
+    buildRowLabel,
   ])
 
   const renderGroupPhotosBar = (groupKey: string, label: string, images: VariantImageItem[]) => (
@@ -1541,53 +1562,66 @@ export function VariantMatrixBuilder({
                   {group.rows.map((row) => (
                     <div key={row.id} className="ecu-variant-sub-item-row">
                       {/* SKU (Obligatorio) */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '190px', flex: '1.4 1 190px', maxWidth: '260px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <div className="ecu-variant-sub-item-field">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <label className="ecu-variant-sub-item-label" style={{ margin: 0 }}>
                             SKU *
-                            {skuBase && !row.isManualSku ? (
-                              <span className="app-shell__muted"> · {skuBase}-…</span>
-                            ) : null}
                           </label>
-                          {row.isManualSku ? (
-                            <button
-                              type="button"
-                              className="ecu-variant-sub-item-sku-reset"
-                              onClick={() => handleResetSku(row.id)}
-                              title="Restablecer al SKU sugerido automáticamente"
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                padding: 0,
-                                fontSize: '0.72rem',
-                                color: 'var(--glb-primary, #6366f1)',
-                                cursor: 'pointer',
-                                textDecoration: 'underline',
-                                fontWeight: 500,
-                              }}
-                            >
-                              Auto
-                            </button>
-                          ) : null}
                         </div>
-                        <TextBox
-                          size="sm"
-                          variant="outline"
-                          value={row.sku}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            updateRow(row.id, 'sku', e.target.value.toUpperCase())
-                          }
-                          placeholder={skuBase ? `${skuBase}-…` : 'Ej. NIK-001-0001'}
-                          error={duplicateSkuSet.has(row.sku.trim().toUpperCase())}
-                          errorMessage={
-                            duplicateSkuSet.has(row.sku.trim().toUpperCase())
-                              ? 'SKU repetido'
-                              : undefined
-                          }
-                          disabled={disabled}
-                          fullWidth
-                        />
+                        {(() => {
+                          const cleanSku = row.sku.trim().toUpperCase()
+                          const isDupInMatrix = duplicateSkuSet.has(cleanSku)
+                          const isDupInDb = cleanSku ? Boolean(existingSkus?.has(cleanSku)) : false
+                          const isSameAsMatrix =
+                            cleanSku && normalizedMatrixCode ? cleanSku === normalizedMatrixCode : false
+                          const hasError = isDupInMatrix || isDupInDb || isSameAsMatrix
+                          const errorMsg = isDupInMatrix
+                            ? 'SKU repetido en la matriz'
+                            : isSameAsMatrix
+                              ? 'Igual al código de matriz'
+                              : isDupInDb
+                                ? 'Ya existe en el catálogo'
+                                : undefined
+
+                          return (
+                            <TextBox
+                              size="sm"
+                              variant="outline"
+                              value={row.sku}
+                              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                                updateRow(row.id, 'sku', e.target.value.toUpperCase())
+                              }
+                              placeholder="Ej. VAR-001"
+                              error={hasError}
+                              errorMessage={errorMsg}
+                              disabled={disabled}
+                              fullWidth
+                            />
+                          )
+                        })()}
                       </div>
+
+                      {/* Nombre: segundo campo, al lado del SKU (orden fijado por plantilla + UI) */}
+                      {variantNameField ? (
+                        <div className="ecu-variant-sub-item-field">
+                          <label className="ecu-variant-sub-item-label">{variantNameField.key}</label>
+                          <TextBox
+                            size="sm"
+                            variant="outline"
+                            value={row.variantAttributes?.[variantNameField.key] ?? ''}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                              handleVariantAttributeChange(
+                                row.id,
+                                variantNameField.key,
+                                e.target.value
+                              )
+                            }
+                            placeholder="Nombre de la variante"
+                            disabled={disabled}
+                            fullWidth
+                          />
+                        </div>
+                      ) : null}
 
                       {/* Dimensiones Hijas (Talla, Largo, etc.) */}
                       {childDims.map((dim) => {
@@ -1595,7 +1629,7 @@ export function VariantMatrixBuilder({
                         const availableVals = dim.values.length > 0 ? dim.values : dim.activeValues
 
                         return (
-                          <div key={dim.id} className="ecu-variant-sub-item-field" style={{ minWidth: '140px', flex: '1 1 140px', maxWidth: '190px' }}>
+                          <div key={dim.id} className="ecu-variant-sub-item-field">
                             <label className="ecu-variant-sub-item-label">{dim.name}</label>
                             <Select
                               size="sm"
@@ -1636,10 +1670,7 @@ export function VariantMatrixBuilder({
                         const hasColors = Boolean(baseHex) || extras.length > 0
 
                         return (
-                          <div
-                            className="ecu-variant-sub-item-field"
-                            style={{ minWidth: '210px', flex: '1.3 1 210px', maxWidth: '300px' }}
-                          >
+                          <div className="ecu-variant-sub-item-field">
                             <label className="ecu-variant-sub-item-label">Colores</label>
                             {hasColors ? (
                               <div className="ecu-variant-color-field">
@@ -1704,7 +1735,7 @@ export function VariantMatrixBuilder({
                       })()}
 
                       {/* Cód. Barras */}
-                      <div className="ecu-variant-sub-item-field" style={{ minWidth: '150px', flex: '1 1 150px' }}>
+                      <div className="ecu-variant-sub-item-field">
                         <label className="ecu-variant-sub-item-label">Cód. Barras</label>
                         <TextBox
                           size="sm"
@@ -1720,23 +1751,25 @@ export function VariantMatrixBuilder({
                       </div>
 
 
-                      {/* Atributos del nivel terminal: se capturan por variante */}
-                      {orderedVariantAttributeFields.map((field) => {
+                      {/* Atributos del nivel terminal: se capturan por variante (Nombre ya va junto al SKU) */}
+                      {variantFieldsAfterSku.map((field) => {
                         const lookup = dimensionValuesMap?.get(field.key.trim().toLowerCase())
                         const dataType = lookup?.dataType ?? 'text'
                         const value = row.variantAttributes?.[field.key] ?? ''
+                        const lowerNorm = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        const isDesc = lowerNorm === 'descripcion' || lowerNorm === 'description'
 
                         return (
                           <div
                             key={`attr-${field.key}`}
-                            className="ecu-variant-sub-item-field"
-                            style={
+                            className={`ecu-variant-sub-item-field${
                               dataType === 'media' ||
                               dataType === 'colorlist' ||
-                              dataType === 'multiselect'
-                                ? { minWidth: '100%', flex: '1 1 100%' }
-                                : { minWidth: '170px', flex: '1 1 170px', maxWidth: '240px' }
-                            }
+                              dataType === 'multiselect' ||
+                              isDesc
+                                ? ' ecu-variant-sub-item-field--span-4'
+                                : ''
+                            }`}
                           >
                             <label className="ecu-variant-sub-item-label">{field.key}</label>
                             {dataType === 'boolean' ? (
@@ -1780,10 +1813,9 @@ export function VariantMatrixBuilder({
                               />
                             ) : dataType === 'multiselect' ? (
                               <EcuTagInput
-                                label={undefined}
                                 tags={value
                                   .split(',')
-                                  .map((v) => v.trim())
+                                  .map((v) => v.trim().replace(/^#+/, '').trim())
                                   .filter(Boolean)}
                                 suggestedTags={lookup?.values ?? []}
                                 onChange={(tags: string[]) =>
@@ -1832,6 +1864,20 @@ export function VariantMatrixBuilder({
                                 disabled={disabled}
                                 fullWidth
                               />
+                            ) : isDesc ? (
+                              <TextArea
+                                size="sm"
+                                variant="outline"
+                                value={value}
+                                onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                                  handleVariantAttributeChange(row.id, field.key, e.target.value)
+                                }
+                                placeholder="Descripción de la variante"
+                                rows={2}
+                                resize="vertical"
+                                disabled={disabled}
+                                fullWidth
+                              />
                             ) : (
                               <TextBox
                                 size="sm"
@@ -1872,7 +1918,7 @@ export function VariantMatrixBuilder({
 
                       {/* Foto exclusiva de la variante (SKU) — miniaturas en línea con orden */}
                       {photoScope !== 'group' && photoScope !== 'model' && (
-                        <div className="ecu-variant-sub-item-field" style={{ minWidth: '100%', flex: '1 1 100%' }}>
+                        <div className="ecu-variant-sub-item-field ecu-variant-sub-item-field--span-4">
                           <label className="ecu-variant-sub-item-label">Foto</label>
                           <div
                             style={{

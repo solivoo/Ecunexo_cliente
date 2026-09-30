@@ -16,7 +16,7 @@ export interface EcuTagInputProps {
 export function EcuTagInput({
   tags,
   onChange,
-  label = 'Etiquetas / Tags',
+  label,
   placeholder = 'Añadir etiqueta (ej. Nike, Algodon, Antideslizante)...',
   helperText,
   suggestedTags = [],
