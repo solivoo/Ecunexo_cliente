@@ -137,6 +137,11 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
 
         if (entitlement is null)
         {
+            if (EnabledModuleCodes is not null && EnabledModuleCodes.Any(c => string.Equals(c, moduleCode, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
             return false;
         }
 
@@ -547,6 +552,12 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
         ModuleEntitlements = moduleEntitlements;
         UpdatedAt = DateTimeOffset.UtcNow;
         return Result.Success();
+    }
+
+    public void SetEntitlements(IReadOnlyList<ModuleEntitlement> entitlements)
+    {
+        ModuleEntitlements = entitlements;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public Result SetBrandMarks(Guid? lightLogoId, Guid? darkLogoId, bool preferWordmark)

@@ -170,6 +170,25 @@ public sealed class MenuNavigationMapperTests
         GetSessionHandler.ResolveEnabledModules(tenant).Should().BeNull();
     }
 
+    [Fact(DisplayName = "Entitlements se unen con los módulos legacy para no perder módulos activos")]
+    public void ResolveEnabledModules_UnionsEntitlementsWithLegacyEnabledModules()
+    {
+        var tenant = Tenant.Create(
+            Guid.CreateVersion7(),
+            "Empresa Demo",
+            new ServicePlan("Medium", 10, 2),
+            enabledModuleCodes: [TenantModuleCodes.Identity, TenantModuleCodes.Catalog],
+            moduleEntitlements:
+            [
+                ModuleEntitlement.FromTier(TenantModuleCodes.Identity, ModuleTier.Small),
+            ]).Value!;
+
+        var modules = GetSessionHandler.ResolveEnabledModules(tenant);
+
+        modules.Should().NotBeNull();
+        modules!.Should().BeEquivalentTo([TenantModuleCodes.Identity, TenantModuleCodes.Catalog]);
+    }
+
     private static MenuItem Item(
         string id,
         string? parentId,

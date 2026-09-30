@@ -120,14 +120,23 @@ public sealed class GetSessionHandler : IQueryHandler<GetSessionQuery, SessionRe
     }
 
     /// <summary>
-    /// Módulos efectivos del tenant: los entitlements (modelo vigente) mandan sobre la lista
-    /// legacy; sin entitlements ni lista, null = todos (compatibilidad).
+    /// Módulos efectivos del tenant: combina entitlements con la lista habilitada;
+    /// sin entitlements ni lista, null = todos (compatibilidad).
     /// </summary>
     internal static IReadOnlyList<string>? ResolveEnabledModules(Tenant tenant)
     {
         if (tenant.ModuleEntitlements is { Count: > 0 } entitlements)
         {
-            return entitlements.Select(e => e.ModuleCode).ToList();
+            var codes = new HashSet<string>(entitlements.Select(e => e.ModuleCode), StringComparer.OrdinalIgnoreCase);
+            if (tenant.EnabledModuleCodes is not null)
+            {
+                foreach (var code in tenant.EnabledModuleCodes)
+                {
+                    codes.Add(code);
+                }
+            }
+
+            return codes.ToList();
         }
 
         return tenant.EnabledModuleCodes?.AsReadOnly();

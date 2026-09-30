@@ -33,6 +33,8 @@ internal static class MenuCatalogSeeder
         // Roles system de tenants (p. ej. creados vía licencia) reciben permisos nuevos del catálogo.
         await EnsureSystemRolesHaveAllActivePermissionsAsync(sender, db, cancellationToken)
             .ConfigureAwait(false);
+
+        await EnsureTenantEntitlementsAsync(db, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<bool> EnsurePermissionsAsync(
@@ -276,6 +278,53 @@ internal static class MenuCatalogSeeder
             }
 
             throw new InvalidOperationException($"{grant.Error?.Code}: {grant.Error?.Message}");
+        }
+    }
+
+    private static async Task EnsureTenantEntitlementsAsync(
+        EcuNexoDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var tenants = await db.Tenants.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var changed = false;
+
+        foreach (var tenant in tenants)
+        {
+            if (tenant.EnabledModuleCodes is null || tenant.EnabledModuleCodes.Count == 0)
+            {
+                continue;
+            }
+
+            var currentEntitlements = tenant.ModuleEntitlements is not null
+                ? new List<ModuleEntitlement>(tenant.ModuleEntitlements)
+                : new List<ModuleEntitlement>();
+
+            var tenantModified = false;
+
+            if (tenant.EnabledModuleCodes.Contains(TenantModuleCodes.Catalog, StringComparer.OrdinalIgnoreCase)
+                && !currentEntitlements.Any(e => string.Equals(e.ModuleCode, TenantModuleCodes.Catalog, StringComparison.OrdinalIgnoreCase)))
+            {
+                currentEntitlements.Add(ModuleEntitlement.FromTier(TenantModuleCodes.Catalog, ModuleTier.Big));
+                tenantModified = true;
+            }
+
+            if (tenant.EnabledModuleCodes.Contains(TenantModuleCodes.Accounting, StringComparer.OrdinalIgnoreCase)
+                && !currentEntitlements.Any(e => string.Equals(e.ModuleCode, TenantModuleCodes.Accounting, StringComparison.OrdinalIgnoreCase)))
+            {
+                currentEntitlements.Add(ModuleEntitlement.FromTier(TenantModuleCodes.Accounting, ModuleTier.Small));
+                tenantModified = true;
+            }
+
+            if (tenantModified)
+            {
+                tenant.SetEntitlements(currentEntitlements);
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 }
