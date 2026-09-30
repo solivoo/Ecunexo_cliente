@@ -326,10 +326,25 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(attrs.Error!);
         }
 
-        var combinedName = $"{parent.Name} - {variantTitle.Trim()}";
-        if (combinedName.Length > NameMaxLength)
+        // Nombre y descripción comerciales de la variante (no concatenar ni heredar del padre).
+        // Prioridad del nombre: atributo «nombre»/«name» de la hija → variantTitle (ejes o título).
+        var resolvedName =
+            TryReadStringAttribute(customAttributesJson, "nombre", "name")
+            ?? variantTitle.Trim();
+        if (resolvedName.Length > NameMaxLength)
         {
-            combinedName = combinedName[..NameMaxLength];
+            resolvedName = resolvedName[..NameMaxLength];
+        }
+
+        var resolvedDescription = TryReadStringAttribute(
+            customAttributesJson,
+            "descripcion",
+            "descripción",
+            "description");
+        var descResult = NormalizeDescription(resolvedDescription);
+        if (descResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(descResult.Error!);
         }
 
         return new CatalogItem
@@ -342,8 +357,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             FamilyId = parent.FamilyId,
             HierarchyPathJson = parent.HierarchyPathJson,
             Kind = parent.Kind,
-            Name = combinedName,
-            Description = parent.Description,
+            Name = resolvedName,
+            Description = descResult.Value,
             Sku = skuResult.Value,
             Barcode = barcodeResult.Value,
             BasePrice = priceResult.Value,
@@ -1591,6 +1606,49 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         return Result.Success(trimmed);
+    }
+
+    /// <summary>Lee el primer atributo string no vacío cuya clave coincida (case-insensitive).</summary>
+    private static string? TryReadStringAttribute(string? attributesJson, params string[] keys)
+    {
+        if (string.IsNullOrWhiteSpace(attributesJson) || keys.Length == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(attributesJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            var wanted = new HashSet<string>(
+                keys.Select(k => k.Trim().ToLowerInvariant()),
+                StringComparer.Ordinal);
+
+            foreach (var property in doc.RootElement.EnumerateObject())
+            {
+                var key = property.Name.Trim().ToLowerInvariant();
+                if (!wanted.Contains(key) || property.Value.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
+
+                var value = property.Value.GetString()?.Trim();
+                if (!string.IsNullOrEmpty(value))
+                {
+                    return value;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // JSON inválido: sin atributo
+        }
+
+        return null;
     }
 
     private static Result<string?> NormalizeDescription(string? description)

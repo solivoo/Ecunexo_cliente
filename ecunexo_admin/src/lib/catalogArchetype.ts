@@ -413,11 +413,6 @@ export function getModelAttributeFields(
 }
 
 export const RESERVED_VARIANT_ATTRIBUTE_KEYS = new Set([
-  'nombre',
-  'name',
-  'descripcion',
-  'descripción',
-  'description',
   'sku',
   'precio',
   'price',

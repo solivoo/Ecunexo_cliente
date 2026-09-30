@@ -237,7 +237,7 @@ export function CatalogItemsListPage() {
                     variant="primary"
                     onClick={() => navigate('/catalogo/items/nuevo')}
                   >
-                    + Nuevo Ítem
+                    + Nueva Matriz Producto
                   </Button>
                 ) : undefined
               }
@@ -293,7 +293,7 @@ export function CatalogItemsListPage() {
                       variant="primary"
                       onClick={() => navigate('/catalogo/items/nuevo')}
                     >
-                      + Nuevo Ítem
+                      + Nueva Matriz Producto
                     </Button>
                   )}
                   <EcuPageActions

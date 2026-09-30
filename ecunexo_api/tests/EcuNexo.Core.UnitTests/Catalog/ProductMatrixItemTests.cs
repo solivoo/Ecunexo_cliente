@@ -57,7 +57,7 @@ public sealed class ProductMatrixItemTests
         result.Value!.IsMatrixParent.Should().BeTrue();
     }
 
-    [Fact(DisplayName = "Crear variante hija vinculada al producto matriz hereda datos y requiere SKU")]
+    [Fact(DisplayName = "Crear variante hija usa su propio nombre/descripcion y requiere SKU")]
     public void CreateVariantChild_LinkedToParent_SucceedsAndEnforcesSku()
     {
         var tenantId = Guid.CreateVersion7();
@@ -86,17 +86,47 @@ public sealed class ProductMatrixItemTests
             variantTitle: "35-38",
             sku: "CALC-01-3538",
             basePrice: null, // hereda 3.50
-            customAttributesJson: "{\"talla\": \"35-38\"}",
+            customAttributesJson: "{\"talla\": \"35-38\", \"nombre\": \"Calcetín Runner 35-38\", \"descripcion\": \"Variante corta algodón\"}",
             categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson);
 
         childResult.IsSuccess.Should().BeTrue();
         var child = childResult.Value!;
         child.ParentId.Should().Be(parent.Id);
         child.IsMatrixParent.Should().BeFalse();
-        child.Name.Should().Be("Calcetín Deportivo - 35-38");
+        child.Name.Should().Be("Calcetín Runner 35-38");
+        child.Description.Should().Be("Variante corta algodón");
         child.Sku.Should().Be("CALC-01-3538");
         child.BasePrice.Should().Be(3.50m);
         child.Kind.Should().Be(CatalogItemKind.Physical);
+    }
+
+    [Fact(DisplayName = "Crear variante sin attrs de nombre/descripcion usa el título y no hereda descripcion del padre")]
+    public void CreateVariantChild_WithoutNameAttrs_UsesTitleAndSkipsParentDescription()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var parent = CatalogItem.CreateMatrixParent(
+            Guid.CreateVersion7(),
+            tenantId,
+            CatalogItemKind.Physical,
+            "Calcetín Deportivo",
+            "Descripción del padre",
+            modelCode: "CALC-01",
+            basePrice: 3.50m,
+            variantDimensionsJson: "[{\"name\": \"Talla\", \"values\": [\"35-38\"]}]",
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var child = CatalogItem.CreateVariantChild(
+            Guid.CreateVersion7(),
+            parent,
+            variantTitle: "35-38",
+            sku: "CALC-01-3538",
+            basePrice: null,
+            customAttributesJson: "{\"talla\": \"35-38\"}",
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        child.Name.Should().Be("35-38");
+        child.Description.Should().BeNull();
     }
 
     [Fact(DisplayName = "Crear variante hija sobre un ítem que no es matriz es rechazado")]

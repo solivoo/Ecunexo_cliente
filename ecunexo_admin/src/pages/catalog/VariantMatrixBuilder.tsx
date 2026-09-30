@@ -1283,6 +1283,23 @@ export function VariantMatrixBuilder({
         customAttrs['nombre'] = variantNameAttr
       }
 
+      const variantDescAttr = (() => {
+        for (const [key, val] of Object.entries(r.variantAttributes ?? {})) {
+          const clean = key
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+          if ((clean === 'descripcion' || clean === 'description') && val.trim()) {
+            return val.trim()
+          }
+        }
+        return ''
+      })()
+      if (variantDescAttr) {
+        customAttrs['descripcion'] = variantDescAttr
+      }
+
       return {
         variantTitle: finalTitle,
         sku: r.sku.trim(),

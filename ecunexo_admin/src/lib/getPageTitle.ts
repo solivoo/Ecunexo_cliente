@@ -30,7 +30,7 @@ function staticTitle(pathname: string, search: string): string | null {
   if (/^\/organizacion\/empresas\/[^/]+\/editar$/.test(pathname)) return 'Editar empresa'
   if (/^\/equipo\/departamentos\/[^/]+\/editar$/.test(pathname)) return 'Editar departamento'
   if (pathname === '/app/configuracion') return 'Configuración'
-  if (pathname === '/catalogo/items/nuevo') return 'Nuevo ítem'
+  if (pathname === '/catalogo/items/nuevo') return 'Nueva matriz producto'
   if (/^\/catalogo\/items\/[^/]+\/variantes\/nueva$/.test(pathname)) return 'Nueva variante'
   if (/^\/catalogo\/items\/[^/]+$/.test(pathname)) return 'Editar ítem'
   if (pathname === '/catalogo/plantillas') return 'Plantillas de producto'
