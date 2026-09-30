@@ -258,6 +258,26 @@
   border-bottom: 1px solid var(--idt-rule);
 }
 
+/* No pisar los modificadores de la librería: las celdas ordenables/redimensionables
+   y de checkbox ya traen su propio padding interno (cabecera compacta). */
+.ecu-section-page .glb-datagrid__header-cell--sortable {
+  padding: 0;
+}
+
+.ecu-section-page .glb-datagrid__header-cell--resizable {
+  padding-right: 0.5rem;
+}
+
+.ecu-section-page .glb-datagrid__header-cell--checkbox,
+.ecu-section-page .glb-datagrid__cell--checkbox {
+  padding-inline: 0.5rem;
+}
+
+.ecu-section-page .glb-datagrid__table tr > :first-child.glb-datagrid__header-cell--checkbox,
+.ecu-section-page .glb-datagrid__table tr > :first-child.glb-datagrid__cell--checkbox {
+  padding-left: 0.5rem;
+}
+
 /* Bordes alineados con la barra de mando */
 .ecu-section-page .glb-datagrid__table tr > :first-child {
   padding-left: 1.15rem;
@@ -604,6 +624,15 @@ html.sf-dark-mode .ecu-section-page .ecu-chip {
   .ecu-section-page .glb-datagrid__summary,
   .ecu-section-page .glb-datagrid__pagination {
     padding-inline: 0.9rem;
+  }
+
+  .ecu-section-page .glb-datagrid__header-cell--sortable {
+    padding-inline: 0;
+  }
+
+  .ecu-section-page .glb-datagrid__header-cell--checkbox,
+  .ecu-section-page .glb-datagrid__cell--checkbox {
+    padding-inline: 0.5rem;
   }
 
   .ecu-section-page .glb-datagrid__table tr > :first-child,
