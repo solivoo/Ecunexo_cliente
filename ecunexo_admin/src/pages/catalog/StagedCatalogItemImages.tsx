@@ -1,16 +1,6 @@
-import { useState, useRef, type ChangeEvent, type DragEvent } from 'react'
-import { Button, Popup, TextBox, useToast } from 'glubox'
-import {
-  ArrowLeft,
-  ArrowRight,
-  Camera,
-  ExternalLink,
-  Sparkles,
-  Star,
-  Tag,
-  Trash2,
-  Upload,
-} from 'lucide-react'
+import { useRef, useState, type ChangeEvent } from 'react'
+import { Button, Popup, TextBox, useToast, FileBox } from 'glubox'
+import { Camera, Sparkles, Star, Tag } from 'lucide-react'
 import { CameraCaptureModal } from './CameraCaptureModal'
 import './catalog-item-image-gallery.css'
 
@@ -34,6 +24,52 @@ export interface StagedCatalogItemImagesProps {
 const MAX_IMAGES = 8
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024 // 8 MB
 
+function fileKey(file: File): string {
+  return `${file.name}:${file.size}:${file.lastModified}`
+}
+
+function syncStagedFromFiles(
+  previous: StagedItemImage[],
+  files: File[]
+): StagedItemImage[] {
+  const prevByKey = new Map(previous.map((img) => [fileKey(img.file), img]))
+  const usedIds = new Set<string>()
+  const next: StagedItemImage[] = []
+
+  for (const file of files) {
+    const key = fileKey(file)
+    const prev = prevByKey.get(key)
+    if (prev && !usedIds.has(prev.id)) {
+      usedIds.add(prev.id)
+      next.push({ ...prev, file, isMain: false })
+      continue
+    }
+
+    next.push({
+      id: `staged-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+      altText: '',
+      isMain: false,
+    })
+  }
+
+  for (const old of previous) {
+    if (!next.some((img) => img.id === old.id)) {
+      URL.revokeObjectURL(old.previewUrl)
+    }
+  }
+
+  if (next.length > 0) {
+    next[0] = { ...next[0], isMain: true }
+  }
+
+  return next
+}
+
+/**
+ * Galería de fotos al crear ítem: `FileBox` reorderable de glubox (miniaturas + drag).
+ */
 export function StagedCatalogItemImages({
   stagedImages,
   onStagedImagesChange,
@@ -43,162 +79,50 @@ export function StagedCatalogItemImages({
   hideBanner = false,
 }: StagedCatalogItemImagesProps) {
   const toast = useToast()
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const cameraInputRef = useRef<HTMLInputElement | null>(null)
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false)
-  const [isDragging, setIsDragging] = useState(false)
-
-  // Modales
-  const [selectedPreview, setSelectedPreview] = useState<StagedItemImage | null>(null)
   const [editingAltImg, setEditingAltImg] = useState<StagedItemImage | null>(null)
   const [altTextValue, setAltTextValue] = useState('')
 
-  const remainingQuota = MAX_IMAGES - stagedImages.length
+  const busy = disabled || uploading
 
-  const handleAddFiles = (filesList: File[]) => {
-    if (!filesList.length || disabled || uploading) return
+  const applyFiles = (files: File[], announceAdd = false) => {
+    const prevCount = stagedImages.length
+    const next = syncStagedFromFiles(stagedImages, files.slice(0, MAX_IMAGES))
+    onStagedImagesChange(next)
 
-    if (remainingQuota <= 0) {
-      toast.show({
-        variant: 'warning',
-        message: `Has alcanzado el límite máximo de ${MAX_IMAGES} fotografías.`,
-      })
-      return
-    }
-
-    const filesToProcess = filesList.slice(0, remainingQuota)
-    if (filesList.length > remainingQuota) {
-      toast.show({
-        variant: 'info',
-        message: `Solo se agregarán ${remainingQuota} fotos para no superar el límite de ${MAX_IMAGES}.`,
-      })
-    }
-
-    const newStaged: StagedItemImage[] = []
-    let hasMain = stagedImages.some((img) => img.isMain)
-
-    for (const file of filesToProcess) {
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        toast.show({
-          variant: 'error',
-          message: `El archivo ${file.name} supera 8 MB y fue descartado.`,
-        })
-        continue
-      }
-
-      if (!file.type.startsWith('image/')) {
-        toast.show({
-          variant: 'error',
-          message: `El archivo ${file.name} no es una imagen válida.`,
-        })
-        continue
-      }
-
-      const previewUrl = URL.createObjectURL(file)
-      const isMain = !hasMain
-      if (isMain) hasMain = true
-
-      newStaged.push({
-        id: `staged-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        file,
-        previewUrl,
-        altText: '',
-        isMain,
-      })
-    }
-
-    if (newStaged.length > 0) {
-      onStagedImagesChange([...stagedImages, newStaged[0], ...newStaged.slice(1)])
+    if (announceAdd && next.length > prevCount) {
+      const added = next.length - prevCount
       toast.show({
         variant: 'success',
-        message: `${newStaged.length} ${newStaged.length === 1 ? 'fotografía anexada' : 'fotografías anexadas'}. Se guardarán con el ítem.`,
+        message: `${added} ${added === 1 ? 'fotografía anexada' : 'fotografías anexadas'}. Se guardarán con el ítem.`,
       })
     }
   }
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? [])
-    e.target.value = ''
-    if (files.length > 0) {
-      handleAddFiles(files)
-    }
+  const handleFileBoxChange = (files: File[]) => {
+    if (busy) return
+    applyFiles(files, files.length > stagedImages.length)
   }
 
-  const handleDragOver = (e: DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!disabled && !uploading) {
-      setIsDragging(true)
-    }
-  }
-
-  const handleDragLeave = (e: DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
-  }
-
-  const handleDrop = (e: DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
-    if (disabled || uploading) return
-
-    const droppedFiles = Array.from(e.dataTransfer.files ?? []).filter((f) =>
-      f.type.startsWith('image/')
-    )
-
-    if (droppedFiles.length === 0) {
-      toast.show({
-        variant: 'error',
-        message: 'Por favor arrastra archivos de imagen válidos (JPG, PNG, WebP).',
-      })
-      return
-    }
-
-    handleAddFiles(droppedFiles)
+  const handleAddFiles = (filesList: File[]) => {
+    if (!filesList.length || busy) return
+    applyFiles([...stagedImages.map((s) => s.file), ...filesList], true)
   }
 
   const handleSetMain = (targetId: string) => {
-    if (disabled || uploading) return
-    const updated = stagedImages.map((img) => ({
-      ...img,
-      isMain: img.id === targetId,
-    }))
-    onStagedImagesChange(updated)
+    if (busy) return
+    const target = stagedImages.find((img) => img.id === targetId)
+    if (!target) return
+
+    const reordered = [
+      { ...target, isMain: true },
+      ...stagedImages.filter((img) => img.id !== targetId).map((img) => ({ ...img, isMain: false })),
+    ]
+    onStagedImagesChange(reordered)
     toast.show({
       variant: 'success',
-      message: 'Foto seleccionada como portada principal.',
-    })
-  }
-
-  const handleMove = (currentIndex: number, direction: -1 | 1) => {
-    const targetIndex = currentIndex + direction
-    if (targetIndex < 0 || targetIndex >= stagedImages.length || disabled || uploading) return
-
-    const reordered = [...stagedImages]
-    const [moved] = reordered.splice(currentIndex, 1)
-    reordered.splice(targetIndex, 0, moved)
-    onStagedImagesChange(reordered)
-  }
-
-  const handleDelete = (targetImg: StagedItemImage) => {
-    if (disabled || uploading) return
-    URL.revokeObjectURL(targetImg.previewUrl)
-    const remaining = stagedImages.filter((img) => img.id !== targetImg.id)
-
-    // Si borró la principal y quedan fotos, marcar la primera como principal
-    if (targetImg.isMain && remaining.length > 0) {
-      remaining[0] = { ...remaining[0], isMain: true }
-    }
-
-    onStagedImagesChange(remaining)
-    if (selectedPreview?.id === targetImg.id) {
-      setSelectedPreview(null)
-    }
-    toast.show({
-      variant: 'info',
-      message: `Fotografía «${targetImg.file.name}» removida.`,
+      message: 'Foto seleccionada como portada principal (primera en la lista).',
     })
   }
 
@@ -216,14 +140,13 @@ export function StagedCatalogItemImages({
   }
 
   const handleTriggerCamera = () => {
-    if (disabled || uploading || stagedImages.length >= MAX_IMAGES) return
+    if (busy || stagedImages.length >= MAX_IMAGES) return
 
     const isTouchOrMobile =
       'ontouchstart' in window ||
       navigator.maxTouchPoints > 0 ||
       /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 
-    // En dispositivos táctiles/móviles o si no hay WebRTC seguro (ej. HTTP en red local), abrir cámara nativa
     if (isTouchOrMobile || !navigator.mediaDevices?.getUserMedia) {
       cameraInputRef.current?.click()
     } else {
@@ -233,7 +156,6 @@ export function StagedCatalogItemImages({
 
   return (
     <div className="ecu-product-gallery">
-      {/* Banner Informativo con cuota de fotografías (se omite cuando está anidado en una sección con título) */}
       {!hideBanner ? (
         <div className="ecu-product-gallery__banner">
           <div>
@@ -241,7 +163,7 @@ export function StagedCatalogItemImages({
               Fotografías para Vitrina y E-commerce
             </h4>
             <p className="ecu-product-gallery__subtitle">
-              Anexa hasta 8 fotografías. Al guardar el ítem se optimizarán automáticamente en formato WebP responsive.
+              Anexa hasta 8 fotografías. Arrastra las miniaturas para ordenar; la primera es la portada.
             </p>
           </div>
 
@@ -255,294 +177,191 @@ export function StagedCatalogItemImages({
               type="button"
               variant="outline"
               size="sm"
-              disabled={disabled || uploading || stagedImages.length >= MAX_IMAGES}
+              disabled={busy || stagedImages.length >= MAX_IMAGES}
               onClick={handleTriggerCamera}
               title="Abrir cámara del dispositivo para capturar foto"
             >
               <Camera size={14} className="mr-1.5" aria-hidden />
               Tomar Foto
             </Button>
-
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              disabled={disabled || uploading || stagedImages.length >= MAX_IMAGES}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload size={14} className="mr-1.5" aria-hidden />
-              {uploading ? uploadStatus || 'Subiendo...' : 'Añadir Fotos'}
-            </Button>
           </div>
         </div>
-      ) : stagedImages.length > 0 ? (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.65rem' }}>
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '0.65rem',
+            marginBottom: '0.65rem',
+            flexWrap: 'wrap',
+          }}
+        >
           <span className="ecu-product-gallery__count-badge">
             <Sparkles size={13} style={{ color: 'var(--shell-primary)' }} aria-hidden />
-            {stagedImages.length} de {MAX_IMAGES} fotos cargadas
+            {stagedImages.length} de {MAX_IMAGES} fotos
           </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy || stagedImages.length >= MAX_IMAGES}
+            onClick={handleTriggerCamera}
+          >
+            <Camera size={14} className="mr-1.5" aria-hidden />
+            Tomar Foto
+          </Button>
         </div>
-      ) : null}
+      )}
 
-      {/* Input de archivo invisible nativo (selección múltiple) */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-        disabled={disabled || uploading || stagedImages.length >= MAX_IMAGES}
-      />
-
-      {/* Input nativo directo para captura con cámara */}
       <input
         ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
         style={{ display: 'none' }}
-        onChange={handleFileChange}
-        disabled={disabled || uploading || stagedImages.length >= MAX_IMAGES}
+        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+          const files = Array.from(e.target.files ?? [])
+          e.target.value = ''
+          if (files.length > 0) handleAddFiles(files)
+        }}
+        disabled={busy || stagedImages.length >= MAX_IMAGES}
       />
 
-      {/* Zona Drag & Drop interactiva */}
-      {!disabled && stagedImages.length < MAX_IMAGES && (
+      <FileBox
+        label={hideBanner ? undefined : 'Imágenes del producto'}
+        labelPosition="outlined"
+        variant="outline"
+        size="sm"
+        reorderable
+        accept="image/jpeg,image/png,image/webp,image/*"
+        maxFiles={MAX_IMAGES}
+        maxSize={MAX_FILE_SIZE_BYTES}
+        value={stagedImages.map((img) => img.file)}
+        onChange={handleFileBoxChange}
+        disabled={busy}
+        fullWidth
+        helperText={
+          uploading
+            ? uploadStatus || 'Subiendo…'
+            : 'JPG, PNG o WebP · máx. 8 MB · arrastra para reordenar · la primera es portada'
+        }
+        onReject={(rejected) => {
+          const first = rejected[0]
+          if (!first) return
+          const reason =
+            first.reason === 'size'
+              ? 'supera 8 MB'
+              : first.reason === 'type'
+                ? 'no es una imagen válida'
+                : `excede el límite de ${MAX_IMAGES} fotos`
+          toast.show({
+            variant: 'error',
+            message: `«${first.file.name}» ${reason}.`,
+          })
+        }}
+      />
+
+      {stagedImages.length > 0 ? (
         <div
-          className={`ecu-product-gallery__dropzone ${
-            isDragging ? 'ecu-product-gallery__dropzone--active' : ''
-          }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              fileInputRef.current?.click()
-            }
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.45rem',
+            marginTop: '0.75rem',
           }}
         >
-          <div className="ecu-product-gallery__dropzone-icon">
-            <Upload size={22} strokeWidth={2.2} aria-hidden />
-          </div>
-          <p className="ecu-product-gallery__dropzone-title">
-            {isDragging
-              ? '¡Suelta las imágenes aquí para anexarlas al nuevo ítem!'
-              : 'Arrastra tus fotografías aquí o haz clic para seleccionar'}
-          </p>
-          <p className="ecu-product-gallery__dropzone-hint">
-            Recomendado: imágenes cuadradas 1:1 (mín. 800×800 px) · Formatos WebP, JPG o PNG hasta 8 MB por archivo.
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.5rem' }}>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={disabled || uploading}
-              onClick={(e) => {
-                e.stopPropagation()
-                handleTriggerCamera()
-              }}
-            >
-              <Camera size={14} className="mr-1.5" aria-hidden />
-              Tomar Foto
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              disabled={disabled || uploading}
-              onClick={(e) => {
-                e.stopPropagation()
-                fileInputRef.current?.click()
-              }}
-            >
-              <Upload size={14} className="mr-1.5" aria-hidden />
-              Seleccionar archivos
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Grid de imágenes anexadas */}
-      {stagedImages.length > 0 && (
-        <div className="ecu-product-gallery__grid">
-          {stagedImages.map((img, index) => {
-            const isFirst = index === 0
-            const isLast = index === stagedImages.length - 1
-
-            return (
-              <div
-                key={img.id}
-                className={`ecu-product-gallery__card ${
-                  img.isMain ? 'ecu-product-gallery__card--main' : ''
-                }`}
-              >
-                {/* Ratio 1:1 Cuadrado */}
-                <div className="ecu-product-gallery__thumb-wrap">
-                  <img
-                    src={img.previewUrl}
-                    alt={img.altText || img.file.name}
-                    className="ecu-product-gallery__thumb-img"
-                  />
-
-                  {/* Badge de Portada */}
-                  {img.isMain && (
-                    <div className="ecu-product-gallery__main-badge">
-                      <Star size={11} className="fill-white" aria-hidden />
-                      <span>Portada</span>
-                    </div>
-                  )}
-
-                  {/* Indicador de posición en carrusel */}
-                  <div className="ecu-product-gallery__order-pill" title="Posición en el carrusel">
-                    #{index + 1}
-                  </div>
-
-                  {/* Overlay de acciones */}
-                  <div className="ecu-product-gallery__actions-overlay">
-                    <button
-                      type="button"
-                      title="Ver vista previa"
-                      onClick={() => setSelectedPreview(img)}
-                      className="ecu-product-gallery__icon-btn"
-                    >
-                      <ExternalLink size={14} aria-hidden />
-                    </button>
-
-                    <button
-                      type="button"
-                      title="Editar Alt Text (SEO)"
-                      onClick={() => {
-                        setEditingAltImg(img)
-                        setAltTextValue(img.altText || '')
-                      }}
-                      className="ecu-product-gallery__icon-btn"
-                    >
-                      <Tag size={14} aria-hidden />
-                    </button>
-
-                    {!img.isMain && (
-                      <button
-                        type="button"
-                        title="Hacer Portada Principal"
-                        disabled={disabled || uploading}
-                        onClick={() => handleSetMain(img.id)}
-                        className="ecu-product-gallery__icon-btn ecu-product-gallery__icon-btn--primary"
-                      >
-                        <Star size={14} aria-hidden />
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      title="Quitar fotografía"
-                      disabled={disabled || uploading}
-                      onClick={() => handleDelete(img)}
-                      className="ecu-product-gallery__icon-btn ecu-product-gallery__icon-btn--danger"
-                    >
-                      <Trash2 size={14} aria-hidden />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Metadatos inferiores */}
-                <div className="ecu-product-gallery__card-meta">
-                  <span className="ecu-product-gallery__card-filename" title={img.file.name}>
-                    {img.file.name}
-                  </span>
-                  <div className="ecu-product-gallery__card-details">
-                    <span>{Math.round(img.file.size / 1024)} KB</span>
-                    <span>{img.isMain ? 'Portada' : `Foto #${index + 1}`}</span>
-                  </div>
-
-                  {/* Botón rápido de Alt Text SEO */}
-                  <button
-                    type="button"
-                    className="ecu-product-gallery__card-alt"
-                    onClick={() => {
-                      setEditingAltImg(img)
-                      setAltTextValue(img.altText || '')
-                    }}
-                    title="Editar texto alternativo para SEO en Google"
-                  >
-                    <Tag size={11} aria-hidden />
-                    <span>{img.altText ? `Alt: "${img.altText}"` : '+ Añadir Alt Text SEO'}</span>
-                  </button>
-                </div>
-
-                {/* Controles de reordenamiento */}
-                {stagedImages.length > 1 && (
-                  <div className="ecu-product-gallery__card-reorder">
-                    <span className="ecu-product-gallery__reorder-label">Mover orden</span>
-                    <div className="ecu-product-gallery__reorder-actions">
-                      <button
-                        type="button"
-                        className="ecu-product-gallery__reorder-btn"
-                        disabled={isFirst || disabled || uploading}
-                        onClick={() => handleMove(index, -1)}
-                        title="Mover hacia la izquierda"
-                      >
-                        <ArrowLeft size={13} aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        className="ecu-product-gallery__reorder-btn"
-                        disabled={isLast || disabled || uploading}
-                        onClick={() => handleMove(index, 1)}
-                        title="Mover hacia la derecha"
-                      >
-                        <ArrowRight size={13} aria-hidden />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Modal Popup: Vista Previa Glubox */}
-      {selectedPreview && (
-        <Popup
-          open={true}
-          title={`Vista Previa — ${selectedPreview.file.name}`}
-          onClose={() => setSelectedPreview(null)}
-          width="min(95vw, 36rem)"
-          actions={[
-            {
-              id: 'close',
-              label: 'Cerrar',
-              variant: 'secondary',
-              onClick: () => setSelectedPreview(null),
-            },
-          ]}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
-            <img
-              src={selectedPreview.previewUrl}
-              alt={selectedPreview.altText || selectedPreview.file.name}
+          <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--glb-text)' }}>
+            Portada y texto alternativo (SEO)
+          </span>
+          {stagedImages.map((img, index) => (
+            <div
+              key={img.id}
               style={{
-                maxWidth: '100%',
-                maxHeight: '60vh',
-                objectFit: 'contain',
-                borderRadius: '0.5rem',
-                border: '1px solid var(--shell-border)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.55rem',
+                padding: '0.4rem 0.55rem',
+                borderRadius: 8,
+                border: '1px solid var(--shell-border, rgba(0,0,0,0.1))',
+                background: img.isMain
+                  ? 'color-mix(in srgb, var(--shell-primary, #3b82f6) 6%, transparent)'
+                  : 'var(--glb-surface, #fff)',
               }}
-            />
-            <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--shell-muted)', textAlign: 'center' }}>
-              Archivo original: <strong>{selectedPreview.file.name}</strong> ({Math.round(selectedPreview.file.size / 1024)} KB).
-              Se procesará y optimizará automáticamente en WebP al guardar el ítem.
-            </p>
-          </div>
-        </Popup>
-      )}
+            >
+              <img
+                src={img.previewUrl}
+                alt=""
+                style={{
+                  width: 40,
+                  height: 40,
+                  objectFit: 'cover',
+                  borderRadius: 6,
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    color: 'var(--glb-text)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={img.file.name}
+                >
+                  #{index + 1} · {img.file.name}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--glb-muted)' }}>
+                  {img.altText ? `Alt: ${img.altText}` : 'Sin texto alternativo'}
+                </div>
+              </div>
+              {!img.isMain ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => handleSetMain(img.id)}
+                  title="Hacer portada (mueve a la primera posición)"
+                >
+                  <Star size={14} />
+                </Button>
+              ) : (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    color: 'var(--shell-primary)',
+                  }}
+                >
+                  <Star size={12} /> Portada
+                </span>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  setEditingAltImg(img)
+                  setAltTextValue(img.altText || '')
+                }}
+                title="Editar Alt Text (SEO)"
+              >
+                <Tag size={14} />
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
-      {/* Modal Popup: Edición de Alt Text (SEO Google) */}
-      {editingAltImg && (
+      {editingAltImg ? (
         <Popup
           open={true}
           title="Texto Alternativo (SEO & Accesibilidad)"
@@ -565,7 +384,8 @@ export function StagedCatalogItemImages({
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--shell-muted)' }}>
-              El texto alternativo describe la imagen para lectores de pantalla y ayuda a posicionar tu producto en Google Imágenes.
+              El texto alternativo describe la imagen para lectores de pantalla y ayuda a
+              posicionar tu producto en Google Imágenes.
             </p>
 
             <TextBox
@@ -580,9 +400,8 @@ export function StagedCatalogItemImages({
             />
           </div>
         </Popup>
-      )}
+      ) : null}
 
-      {/* Modal de Captura de Fotografía con Cámara */}
       <CameraCaptureModal
         isOpen={isCameraModalOpen}
         onClose={() => setIsCameraModalOpen(false)}

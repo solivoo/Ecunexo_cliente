@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Button, ColorPicker, NumberBox, Popup, Select, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Button, ColorPicker, NumberBox, Popup, Select, TextArea, TextBox, useToast, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   EcuTagInput,
@@ -199,11 +199,25 @@ export function EditCatalogItemPage() {
   )
 
   // La matriz define el nombre y descripción general (sin SKU).
-  // La variante física define su nombre comercial, SKU y dimensiones (sin descripción libre vacía arriba).
-  const showDescriptionField = isMatrixParent || (!isVariantChild && !templateCapturesDescription)
+  // La variante física define nombre, SKU, descripción y dims (coherente con crear matriz).
+  const showDescriptionField =
+    isMatrixParent || isVariantChild || (!isVariantChild && !templateCapturesDescription)
   const showNameField = isMatrixParent || isVariantChild || !templateCapturesName
   const showSkuField = !isMatrixParent
   const showBarcodeField = !isMatrixParent
+
+  const variantFieldsForArchetype = useMemo(
+    () =>
+      isVariantChild
+        ? variantAttributeFields.filter((field) => {
+            const n = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            if (showNameField && (n === 'nombre' || n === 'name')) return false
+            if (showDescriptionField && (n === 'descripcion' || n === 'description')) return false
+            return true
+          })
+        : variantAttributeFields,
+    [isVariantChild, showDescriptionField, showNameField, variantAttributeFields]
+  )
 
   const variantDimensionNames = useMemo<string[]>(
     () => parseVariantDimensionNames(item?.variantDimensionsJson),
@@ -903,51 +917,11 @@ export function EditCatalogItemPage() {
                       : 'ecu-companies-form__grid--4'
                   }`}
                 >
-                  {showNameField ? (
-                    <div
-                      className={`ecu-companies-form__field ${
-                        isMatrixParent
-                          ? 'ecu-companies-form__field--span-2'
-                          : 'ecu-companies-form__field--span-2'
-                      }`}
-                    >
-                      <TextBox
-                        id="ei-name"
-                        label={
-                          isMatrixParent
-                            ? 'Nombre de la matriz'
-                            : isVariantChild
-                              ? 'Nombre comercial de la variante'
-                              : 'Nombre del producto'
-                        }
-                        labelPosition="outlined"
-                        variant="outline"
-                        value={name}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                        placeholder={
-                          isMatrixParent
-                            ? 'Ej. Calcetín Nike blanca logo negro'
-                            : isVariantChild
-                              ? 'Ej. Calcetín Nike blanca logo negro - Larga / 10-12'
-                              : 'Ej. Calcetín Hello Kitty'
-                        }
-                        helperText={
-                          isVariantChild
-                            ? 'Nombre completo del ítem físico utilizado en ventas y facturación.'
-                            : undefined
-                        }
-                        required
-                        disabled={busy}
-                        fullWidth
-                      />
-                    </div>
-                  ) : null}
-
-                  {showSkuField ? (
+                  {isVariantChild && showSkuField ? (
                     <div className="ecu-companies-form__field">
                       <TextBox
                         id="ei-sku"
-                        label={isVariantChild ? 'SKU (Variante)' : 'SKU'}
+                        label="SKU"
                         labelPosition="outlined"
                         variant="outline"
                         value={sku}
@@ -962,32 +936,56 @@ export function EditCatalogItemPage() {
                     </div>
                   ) : null}
 
-                  {showDescriptionField ? (
+                  {showNameField ? (
                     <div
                       className={`ecu-companies-form__field ${
-                        isMatrixParent
+                        isVariantChild
                           ? 'ecu-companies-form__field--span-2'
-                          : 'ecu-companies-form__field--span-2'
+                          : isMatrixParent
+                            ? 'ecu-companies-form__field--span-2'
+                            : 'ecu-companies-form__field--span-2'
                       }`}
                     >
                       <TextBox
-                        id="ei-desc"
+                        id="ei-name"
                         label={
                           isMatrixParent
-                            ? 'Descripción general de la matriz'
-                            : 'Descripción'
+                            ? 'Nombre de la matriz'
+                            : isVariantChild
+                              ? 'Nombre'
+                              : 'Nombre del producto'
                         }
                         labelPosition="outlined"
                         variant="outline"
-                        value={description}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          setDescription(e.target.value)
-                        }
+                        value={name}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                         placeholder={
                           isMatrixParent
-                            ? 'Ej. Calcetín deportivo de algodón con tecnología absorbente'
-                            : 'Escriba aquí...'
+                            ? 'Ej. Calcetín Nike blanca logo negro'
+                            : isVariantChild
+                              ? 'Nombre de la variante'
+                              : 'Ej. Calcetín Hello Kitty'
                         }
+                        required
+                        disabled={busy}
+                        fullWidth
+                      />
+                    </div>
+                  ) : null}
+
+                  {!isVariantChild && showSkuField ? (
+                    <div className="ecu-companies-form__field">
+                      <TextBox
+                        id="ei-sku"
+                        label="SKU"
+                        labelPosition="outlined"
+                        variant="outline"
+                        value={sku}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                          setSku(e.target.value.toUpperCase())
+                        }
+                        placeholder="Ej. CALC-001"
+                        required={Number(kind) === CatalogItemKind.Physical}
                         disabled={busy}
                         fullWidth
                       />
@@ -1012,7 +1010,7 @@ export function EditCatalogItemPage() {
                     </div>
                   ) : null}
 
-                  {showBarcodeField ? (
+                  {showBarcodeField && !isVariantChild ? (
                     <div className="ecu-companies-form__field">
                       <NumberBox
                         id="ei-min-order-qty"
@@ -1035,6 +1033,36 @@ export function EditCatalogItemPage() {
                         Cantidad mínima que debe comprar el cliente de este producto en la
                         tienda online.
                       </p>
+                    </div>
+                  ) : null}
+
+                  {showDescriptionField ? (
+                    <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
+                      <TextArea
+                        id="ei-desc"
+                        label={
+                          isMatrixParent
+                            ? 'Descripción general de la matriz'
+                            : 'Descripción'
+                        }
+                        labelPosition="outlined"
+                        variant="outline"
+                        value={description}
+                        onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                          setDescription(e.target.value)
+                        }
+                        placeholder={
+                          isMatrixParent
+                            ? 'Ej. Calcetín deportivo de algodón con tecnología absorbente'
+                            : isVariantChild
+                              ? 'Descripción de la variante'
+                              : 'Escriba aquí...'
+                        }
+                        rows={isVariantChild || isMatrixParent ? 3 : 2}
+                        resize="vertical"
+                        disabled={busy}
+                        fullWidth
+                      />
                     </div>
                   ) : null}
                 </div>
@@ -1153,13 +1181,17 @@ export function EditCatalogItemPage() {
                 </SectionCard>
               )}
 
-              {isVariantChild && variantAttributeFields.length > 0 ? (
+              {isVariantChild && variantFieldsForArchetype.length > 0 ? (
                 <SectionCard
-                  title="Propiedades de la variante"
-                  subtitle={familyTemplate ? `Plantilla: ${familyTemplate.name}` : undefined}
+                  title="Datos de la plantilla"
+                  subtitle={
+                    familyTemplate
+                      ? `Plantilla «${familyTemplate.name}»: mismos atributos que al crear la matriz.`
+                      : undefined
+                  }
                 >
                   <ArchetypeModelFields
-                    fields={variantAttributeFields}
+                    fields={variantFieldsForArchetype}
                     values={customAttributes}
                     dimensionValuesMap={dimensionValuesMap}
                     onChangeValue={setAttributeValue}

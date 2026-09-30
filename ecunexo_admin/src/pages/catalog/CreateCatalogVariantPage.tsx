@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, NumberBox, Select, TextBox, useToast, type PageActionItem } from 'glubox'
-import { ArrowLeft, Camera, Layers, Package, Save, Sparkles, X } from 'lucide-react'
+import { Button, useToast, FileBox, type PageActionItem } from 'glubox'
+import { ArrowLeft, Camera, Layers, Package, Save } from 'lucide-react'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { EcuPageActions, PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
@@ -11,6 +11,7 @@ import { readApiError } from '@/lib/readApiError'
 import {
   addCatalogItemVariant,
   getCatalogItem,
+  listCatalogItems,
   listProductTemplates,
   listVariantDimensionTemplates,
   uploadCatalogItemImage,
@@ -28,7 +29,7 @@ import {
   getVariantAttributeFields,
   readPhotoChoice,
 } from '@/lib/catalogArchetype'
-import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
+import { VariantPhysicalFields } from '@/pages/catalog/VariantPhysicalFields'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 import '@/pages/catalog/variantMatrixBuilder.css'
 
@@ -44,7 +45,7 @@ export function CreateCatalogVariantPage() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  const canEdit = useHasPermission('catalog.items.update')
+  const canEdit = useHasPermission('catalog.item.update')
   const { maxVariants } = useCatalogLimits()
 
   // Matrix parent state
@@ -52,14 +53,12 @@ export function CreateCatalogVariantPage() {
   const [parentItem, setParentItem] = useState<CatalogItemDetailDto | null>(null)
   const [templates, setTemplates] = useState<ProductTemplateDto[]>([])
   const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
+  const [existingSkus, setExistingSkus] = useState<Set<string>>(new Set())
 
   // Form state
   const [dimValues, setDimValues] = useState<Record<string, string>>({})
-  const [extraDimValues, setExtraDimValues] = useState<Record<string, string[]>>({})
-  const [variantTitle, setVariantTitle] = useState('')
   const [sku, setSku] = useState('')
   const [barcode, setBarcode] = useState('')
-  const [basePrice, setBasePrice] = useState<number | null>(null)
   const [attributeValues, setAttributeValues] = useState<CustomAttributeRow[]>([])
   const [variantImage, setVariantImage] = useState<File | null>(null)
   const [variantImagePreview, setVariantImagePreview] = useState<string | null>(null)
@@ -74,17 +73,18 @@ export function CreateCatalogVariantPage() {
     }
   }, [variantImagePreview])
 
-  // Load parent item and templates
+  // Load parent item, templates and SKUs existentes (unicidad)
   useEffect(() => {
     if (!tenantId || !itemId) return
     let cancelled = false
 
     void (async () => {
       try {
-        const [itemRes, tplRes, dimRes] = await Promise.all([
+        const [itemRes, tplRes, dimRes, allItems] = await Promise.all([
           getCatalogItem(tenantId, itemId),
           listProductTemplates(tenantId).catch(() => []),
           listVariantDimensionTemplates(tenantId).catch(() => []),
+          listCatalogItems(tenantId, { onlyRoots: false, includeParents: true }).catch(() => []),
         ])
 
         if (cancelled) return
@@ -92,9 +92,20 @@ export function CreateCatalogVariantPage() {
         setParentItem(itemRes)
         setTemplates(tplRes)
         setDimensionTemplates(dimRes)
-        if (itemRes.basePrice !== null && itemRes.basePrice !== undefined) {
-          setBasePrice(Number(itemRes.basePrice))
+
+        const skus = new Set(
+          allItems
+            .map((i) => i.sku?.trim().toUpperCase())
+            .filter((s): s is string => Boolean(s))
+        )
+        // Incluir SKUs de variantes del padre por si el listado no las trae todas
+        const parentSku = itemRes.sku?.trim().toUpperCase()
+        if (parentSku) skus.add(parentSku)
+        for (const v of itemRes.variants ?? []) {
+          const vs = v.sku?.trim().toUpperCase()
+          if (vs) skus.add(vs)
         }
+        setExistingSkus(skus)
 
         // Parse dimensions from parent
         let parsedDims: DimensionEntry[] = []
@@ -112,7 +123,6 @@ export function CreateCatalogVariantPage() {
           initialDims[d.name.toLowerCase()] = d.values[0] ?? ''
         }
         setDimValues(initialDims)
-        setVariantTitle(parsedDims.map((d) => d.values[0] ?? '').filter(Boolean).join(' - '))
       } catch (err) {
         if (!cancelled) {
           toast.show({
@@ -185,6 +195,12 @@ export function CreateCatalogVariantPage() {
   const currentVariantCount = parentItem?.variants?.length ?? 0
   const remainingVariants = maxVariants !== null ? Math.max(0, maxVariants - currentVariantCount) : null
 
+  const cleanSku = sku.trim().toUpperCase()
+  const skuAlreadyExists = Boolean(cleanSku) && existingSkus.has(cleanSku)
+  const skuErrorMessage = skuAlreadyExists
+    ? 'Este SKU ya existe en el catálogo. Usa uno distinto.'
+    : undefined
+
   const actionItems = useMemo<PageActionItem[]>(
     () => [
       {
@@ -215,25 +231,9 @@ export function CreateCatalogVariantPage() {
   )
 
   // Dimension change handler
-  const handleDimChange = useCallback(
-    (dimName: string, val: string) => {
-      let chosen = val
-      if (val === '__add_new__') {
-        const created = window.prompt(`Nueva opción para «${dimName}»:`)
-        if (!created || !created.trim()) return
-        chosen = created.trim()
-        setExtraDimValues((prev) => ({
-          ...prev,
-          [dimName.toLowerCase()]: [...(prev[dimName.toLowerCase()] ?? []), chosen],
-        }))
-      }
-      const updated = { ...dimValues, [dimName.toLowerCase()]: chosen }
-      setDimValues(updated)
-      const valuesJoined = Object.values(updated).filter(Boolean).join(' - ')
-      setVariantTitle(valuesJoined)
-    },
-    [dimValues]
-  )
+  const handleDimChange = useCallback((dimName: string, val: string) => {
+    setDimValues((prev) => ({ ...prev, [dimName.toLowerCase()]: val }))
+  }, [])
 
   // Attribute row change handler
   const handleAttributeChange = useCallback((key: string, value: string) => {
@@ -256,6 +256,21 @@ export function CreateCatalogVariantPage() {
       ]
     })
   }, [])
+
+  const attributeValueMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const row of attributeValues) map[row.key] = row.value
+    return map
+  }, [attributeValues])
+
+  const resolveVariantTitle = useCallback(() => {
+    for (const row of attributeValues) {
+      const n = row.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      if ((n === 'nombre' || n === 'name') && row.value.trim()) return row.value.trim()
+    }
+    const fromDims = Object.values(dimValues).map((v) => v.trim()).filter(Boolean).join(' / ')
+    return fromDims || 'Variante'
+  }, [attributeValues, dimValues])
 
   // Submit variant creation
   const handleSubmit = useCallback(
@@ -281,19 +296,20 @@ export function CreateCatalogVariantPage() {
         return
       }
 
-      if (!variantTitle.trim()) {
+      if (!sku.trim()) {
         toast.show({
           title: 'Campo requerido',
-          message: 'El título de la variante es obligatorio (ej. Larga - 10-12).',
+          message: 'El SKU físico de la variante es obligatorio.',
           variant: 'error',
         })
         return
       }
 
-      if (!sku.trim()) {
+      const skuClean = sku.trim().toUpperCase()
+      if (existingSkus.has(skuClean)) {
         toast.show({
-          title: 'Campo requerido',
-          message: 'El SKU físico de la variante es obligatorio.',
+          title: 'SKU duplicado',
+          message: `El SKU «${skuClean}» ya existe en el catálogo. Elige otro código.`,
           variant: 'error',
         })
         return
@@ -305,27 +321,32 @@ export function CreateCatalogVariantPage() {
       if (missingDims.length > 0) {
         toast.show({
           title: 'Dimensiones requeridas',
-          message: `Por favor completa las dimensiones de la variante: ${missingDims.map((d) => d.name).join(', ')}.`,
+          message: `Completa las dimensiones: ${missingDims.map((d) => d.name).join(', ')}.`,
           variant: 'error',
         })
         return
       }
 
+      const finalTitle = resolveVariantTitle()
       const attributes: Record<string, string> = { ...dimValues }
       for (const row of attributeValues) {
         const key = row.key.trim()
-        if (key && row.value.trim()) {
-          attributes[key] = row.value.trim()
+        if (!key || !row.value.trim()) continue
+        const clean = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        attributes[key] = row.value.trim()
+        if (clean === 'nombre' || clean === 'name') attributes['nombre'] = row.value.trim()
+        if (clean === 'descripcion' || clean === 'description') {
+          attributes['descripcion'] = row.value.trim()
         }
       }
 
       setSubmitting(true)
       try {
         const createdVariant = await addCatalogItemVariant(tenantId, parentItem.id, {
-          variantTitle: variantTitle.trim(),
-          sku: sku.trim().toUpperCase(),
+          variantTitle: finalTitle,
+          sku: skuClean,
           barcode: barcode.trim() || null,
-          basePrice: basePrice !== null && !isNaN(basePrice) ? basePrice : null,
+          basePrice: null,
           customAttributesJson: JSON.stringify(attributes),
         })
 
@@ -335,7 +356,7 @@ export function CreateCatalogVariantPage() {
               tenantId,
               createdVariant.variantItemId,
               variantImage,
-              variantTitle.trim(),
+              finalTitle,
               true
             )
           } catch (imgErr) {
@@ -345,7 +366,7 @@ export function CreateCatalogVariantPage() {
 
         toast.show({
           title: 'Variante creada',
-          message: `La variante «${variantTitle.trim()}» se agregó exitosamente.`,
+          message: `La variante «${finalTitle}» se agregó exitosamente.`,
           variant: 'success',
         })
 
@@ -363,19 +384,19 @@ export function CreateCatalogVariantPage() {
     [
       attributeValues,
       barcode,
-      basePrice,
       canEdit,
       dimValues,
       dimensions,
+      existingSkus,
       maxVariants,
       navigate,
       parentItem,
       remainingVariants,
+      resolveVariantTitle,
       sku,
       tenantId,
       toast,
       variantImage,
-      variantTitle,
     ]
   )
 
@@ -514,156 +535,37 @@ export function CreateCatalogVariantPage() {
             )}
           </SectionCard>
 
-          {/* Dimensiones e Identificación de la Variante */}
+          {/* Misma fila de campos que al crear la matriz (SKU → Nombre → dims → attrs) */}
           <SectionCard
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Package size={18} color="var(--shell-primary, #4f46e5)" />
-                <span>Identificación y Dimensiones de la Variante</span>
+                <span>Variante física (según plantilla)</span>
               </div>
             }
+            subtitle={
+              familyTemplate
+                ? `Plantilla «${familyTemplate.name}»: mismos campos que al generar la matriz.`
+                : 'Completa SKU, dimensiones y datos de la plantilla.'
+            }
           >
-            {dimensions.length > 0 && (
-              <div
-                style={{
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.02))',
-                  border: '1px solid var(--glb-border, #e2e8f0)',
-                  marginBottom: '1.25rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem',
-                }}
-              >
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Sparkles size={15} color="var(--shell-primary, #4f46e5)" />
-                  <span>Dimensiones físicas de la matriz:</span>
-                </div>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: dimensions.length > 1 ? 'repeat(auto-fit, minmax(200px, 1fr))' : '1fr',
-                    gap: '0.85rem',
-                  }}
-                >
-                  {dimensions.map((d) => {
-                    const currentVal = dimValues[d.name.toLowerCase()] ?? ''
-                    const lookup = dimensionValuesMap?.get(d.name.trim().toLowerCase())
-                    const allDimValues = Array.from(
-                      new Set([
-                        ...d.values,
-                        ...(lookup?.values ?? []),
-                        ...(extraDimValues[d.name.toLowerCase()] ?? []),
-                      ])
-                    )
-
-                    return (
-                      <div key={d.name}>
-                        {allDimValues.length > 0 ? (
-                          <Select
-                            id={`dim-${d.name}`}
-                            label={d.name}
-                            labelPosition="outlined"
-                            variant="outline"
-                            options={[
-                              ...allDimValues.map((v) => ({ value: v, label: v })),
-                              { value: '__add_new__', label: '+ Nueva…' },
-                            ]}
-                            value={currentVal}
-                            onChange={(val) => handleDimChange(d.name, val)}
-                            fullWidth
-                          />
-                        ) : (
-                          <TextBox
-                            id={`dim-${d.name}`}
-                            label={d.name}
-                            labelPosition="outlined"
-                            variant="outline"
-                            value={currentVal}
-                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                              handleDimChange(d.name, e.target.value)
-                            }
-                            fullWidth
-                          />
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-              <TextBox
-                id="var-title"
-                label="Título / Talla de variante"
-                labelPosition="outlined"
-                variant="outline"
-                value={variantTitle}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setVariantTitle(e.target.value)}
-                placeholder="Ej. Larga - 10-12"
-                required
-                fullWidth
-              />
-
-              <TextBox
-                id="var-sku"
-                label="SKU físico de la variante"
-                labelPosition="outlined"
-                variant="outline"
-                value={sku}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setSku(e.target.value.toUpperCase())}
-                placeholder="Ej. NIK-CALC-LAR-1012"
-                required
-                fullWidth
-              />
-
-              <TextBox
-                id="var-barcode"
-                label="Código de barras (opcional)"
-                labelPosition="outlined"
-                variant="outline"
-                value={barcode}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setBarcode(e.target.value.toUpperCase())}
-                placeholder="Ej. 7861234567890"
-                fullWidth
-              />
-
-              <NumberBox
-                id="var-price"
-                label="Precio base (opcional)"
-                labelPosition="outlined"
-                variant="outline"
-                value={basePrice ?? undefined}
-                onChange={(val) => setBasePrice(val !== undefined && val !== null ? Number(val) : null)}
-                placeholder={parentItem.basePrice !== null ? `$${parentItem.basePrice}` : '0.00'}
-                min={0}
-                step={0.01}
-                fullWidth
-              />
-            </div>
+            <VariantPhysicalFields
+              sku={sku}
+              onSkuChange={setSku}
+              barcode={barcode}
+              onBarcodeChange={setBarcode}
+              dimensions={dimensions}
+              dimensionValues={dimValues}
+              onDimensionChange={handleDimChange}
+              variantAttributeFields={variantAttributeFields}
+              attributeValues={attributeValueMap}
+              onAttributeChange={handleAttributeChange}
+              dimensionValuesMap={dimensionValuesMap}
+              disabled={submitting}
+              skuError={skuAlreadyExists}
+              skuErrorMessage={skuErrorMessage}
+            />
           </SectionCard>
-
-          {/* Atributos adicionales según plantilla (Color, Actividad, etc.) */}
-          {variantAttributeFields.length > 0 && (
-            <SectionCard
-              title={
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Sparkles size={18} color="var(--shell-primary, #4f46e5)" />
-                  <span>Datos de la variante (según plantilla)</span>
-                </div>
-              }
-            >
-              <ArchetypeModelFields
-                fields={variantAttributeFields}
-                values={attributeValues}
-                dimensionValuesMap={dimensionValuesMap}
-                onChangeValue={handleAttributeChange}
-              />
-            </SectionCard>
-          )}
 
           {/* Fotografía específica de la variante */}
           {allowsVariantPhoto && (
@@ -675,91 +577,38 @@ export function CreateCatalogVariantPage() {
                 </div>
               }
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-                {variantImagePreview ? (
-                  <div
-                    style={{
-                      position: 'relative',
-                      width: 110,
-                      height: 110,
-                      borderRadius: 8,
-                      overflow: 'hidden',
-                      border: '1px solid var(--glb-border, #cbd5e1)',
-                      backgroundColor: '#fff',
-                    }}
-                  >
-                    <img
-                      src={variantImagePreview}
-                      alt="Preview variante"
-                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                    />
-                    <button
-                      type="button"
-                      style={{
-                        position: 'absolute',
-                        top: 4,
-                        right: 4,
-                        backgroundColor: 'rgba(0,0,0,0.65)',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '50%',
-                        width: 22,
-                        height: 22,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => {
-                        if (variantImagePreview) URL.revokeObjectURL(variantImagePreview)
-                        setVariantImage(null)
-                        setVariantImagePreview(null)
-                      }}
-                      disabled={submitting}
-                      title="Quitar foto"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ) : (
-                  <label
-                    className="ecu-var-img-btn"
-                    style={{
-                      padding: '0.65rem 1rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      cursor: 'pointer',
-                      border: '1px dashed var(--glb-border, #94a3b8)',
-                      borderRadius: '8px',
-                      backgroundColor: 'var(--glb-surface, #fff)',
-                    }}
-                  >
-                    <Camera size={18} color="var(--shell-primary, #4f46e5)" />
-                    <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                      Seleccionar foto para esta variante
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      disabled={submitting}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) {
-                          if (variantImagePreview) URL.revokeObjectURL(variantImagePreview)
-                          setVariantImage(file)
-                          setVariantImagePreview(URL.createObjectURL(file))
-                        }
-                        e.target.value = ''
-                      }}
-                    />
-                  </label>
-                )}
-
-                <div style={{ fontSize: '0.8rem', color: 'var(--glb-text-muted, #64748b)', maxWidth: 360 }}>
-                  Sube una foto que represente esta variante física específica (ej. calcetín en este color o presentación).
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 480 }}>
+                <FileBox
+                  label="Foto de la variante"
+                  labelPosition="outlined"
+                  variant="outline"
+                  size="sm"
+                  reorderable
+                  accept="image/jpeg,image/png,image/webp,image/*"
+                  maxFiles={1}
+                  maxSize={8 * 1024 * 1024}
+                  value={variantImage ? [variantImage] : []}
+                  disabled={submitting}
+                  fullWidth
+                  helperText="Una imagen que represente este color/presentación. JPG, PNG o WebP · máx. 8 MB."
+                  onChange={(files: File[]) => {
+                    const file = files[0] ?? null
+                    if (variantImagePreview) URL.revokeObjectURL(variantImagePreview)
+                    setVariantImage(file)
+                    setVariantImagePreview(file ? URL.createObjectURL(file) : null)
+                  }}
+                  onReject={(rejected) => {
+                    const first = rejected[0]
+                    if (!first) return
+                    toast.show({
+                      variant: 'error',
+                      message:
+                        first.reason === 'size'
+                          ? `«${first.file.name}» supera 8 MB.`
+                          : `«${first.file.name}» no es una imagen válida.`,
+                    })
+                  }}
+                />
               </div>
             </SectionCard>
           )}
@@ -777,7 +626,7 @@ export function CreateCatalogVariantPage() {
               type="submit"
               variant="primary"
               loading={submitting}
-              disabled={submitting || remainingVariants === 0}
+              disabled={submitting || remainingVariants === 0 || skuAlreadyExists}
             >
               <Save size={16} style={{ marginRight: '0.4rem' }} />
               {submitting ? 'Guardando variante…' : 'Guardar Variante'}

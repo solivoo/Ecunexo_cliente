@@ -1,5 +1,5 @@
-import { useState, useRef, useMemo, type ChangeEvent, type DragEvent } from 'react'
-import { Button, Popup, TextBox, useToast } from 'glubox'
+import { useState, useRef, useMemo, type ChangeEvent } from 'react'
+import { Button, Popup, TextBox, useToast, FileBox } from 'glubox'
 import {
   ArrowLeft,
   ArrowRight,
@@ -10,7 +10,6 @@ import {
   Star,
   Tag,
   Trash2,
-  Upload,
 } from 'lucide-react'
 import { CameraCaptureModal } from './CameraCaptureModal'
 import {
@@ -45,7 +44,6 @@ export function CatalogItemImageGallery({
   compact = false,
 }: CatalogItemImageGalleryProps) {
   const toast = useToast()
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const cameraInputRef = useRef<HTMLInputElement | null>(null)
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false)
 
@@ -53,7 +51,7 @@ export function CatalogItemImageGallery({
   const [uploading, setUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
+  const [pickerKey, setPickerKey] = useState(0)
 
   // Modales
   const [selectedPreview, setSelectedPreview] = useState<CatalogItemImageDto | null>(null)
@@ -127,6 +125,8 @@ export function CatalogItemImageGallery({
       })
       await onImagesChanged()
     }
+
+    setPickerKey((k) => k + 1)
   }
 
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -135,42 +135,6 @@ export function CatalogItemImageGallery({
     if (files.length > 0) {
       await uploadFiles(files)
     }
-  }
-
-  // Manejadores de Drag & Drop
-  const handleDragOver = (e: DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (canEdit && !uploading) {
-      setIsDragging(true)
-    }
-  }
-
-  const handleDragLeave = (e: DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
-  }
-
-  const handleDrop = async (e: DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
-    if (!canEdit || uploading) return
-
-    const droppedFiles = Array.from(e.dataTransfer.files ?? []).filter((f) =>
-      f.type.startsWith('image/')
-    )
-
-    if (droppedFiles.length === 0) {
-      toast.show({
-        variant: 'error',
-        message: 'Por favor arrastra archivos de imagen válidos (JPG, PNG, WebP).',
-      })
-      return
-    }
-
-    await uploadFiles(droppedFiles)
   }
 
   // Establecer como imagen principal
@@ -313,44 +277,20 @@ export function CatalogItemImageGallery({
           </span>
 
           {canEdit && (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={uploading || sortedImages.length >= MAX_IMAGES}
-                onClick={handleTriggerCamera}
-                title="Abrir cámara del dispositivo para capturar foto"
-              >
-                <Camera size={14} className="mr-1.5" aria-hidden />
-                Tomar Foto
-              </Button>
-
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                disabled={uploading || sortedImages.length >= MAX_IMAGES}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload size={14} className="mr-1.5" aria-hidden />
-                {uploading ? uploadStatus || 'Subiendo...' : 'Añadir Fotos'}
-              </Button>
-            </>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading || sortedImages.length >= MAX_IMAGES}
+              onClick={handleTriggerCamera}
+              title="Abrir cámara del dispositivo para capturar foto"
+            >
+              <Camera size={14} className="mr-1.5" aria-hidden />
+              Tomar Foto
+            </Button>
           )}
         </div>
       </div>
-
-      {/* Input invisible nativo con soporte multi-archivo */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-        disabled={uploading || sortedImages.length >= MAX_IMAGES}
-      />
 
       {/* Input nativo directo para captura con cámara */}
       <input
@@ -363,68 +303,46 @@ export function CatalogItemImageGallery({
         disabled={uploading || sortedImages.length >= MAX_IMAGES}
       />
 
-      {/* Zona Drag & Drop interactiva */}
-      {canEdit && sortedImages.length < MAX_IMAGES && (
-        <div
-          className={`ecu-product-gallery__dropzone ${
-            isDragging ? 'ecu-product-gallery__dropzone--active' : ''
-          }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              fileInputRef.current?.click()
-            }
+      {canEdit && sortedImages.length < MAX_IMAGES ? (
+        <FileBox
+          key={pickerKey}
+          label={sortedImages.length === 0 ? 'Añadir fotografías' : 'Añadir más fotos'}
+          labelPosition="outlined"
+          variant="outline"
+          size="sm"
+          reorderable
+          accept="image/jpeg,image/png,image/webp,image/*"
+          maxFiles={MAX_IMAGES - sortedImages.length}
+          maxSize={8 * 1024 * 1024}
+          disabled={uploading}
+          fullWidth
+          helperText={
+            uploading
+              ? uploadStatus || 'Subiendo y optimizando WebP…'
+              : 'JPG, PNG o WebP · máx. 8 MB · miniaturas con arrastre antes de confirmar'
+          }
+          onChange={(files: File[]) => {
+            void uploadFiles(files)
           }}
-        >
-          <div className="ecu-product-gallery__dropzone-icon">
-            <Upload size={22} strokeWidth={2.2} aria-hidden />
-          </div>
-          <p className="ecu-product-gallery__dropzone-title">
-            {isDragging
-              ? '¡Suelta las imágenes aquí para subirlas en bloque!'
-              : 'Arrastra tus fotografías aquí o haz clic para seleccionar varias'}
-          </p>
-          <p className="ecu-product-gallery__dropzone-hint">
-            Recomendado: relación 1:1 cuadrada (mín. 800×800 px) · Formatos WebP, JPG o PNG hasta 8 MB por archivo.
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.5rem' }}>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={uploading}
-              onClick={(e) => {
-                e.stopPropagation()
-                handleTriggerCamera()
-              }}
-            >
-              <Camera size={14} className="mr-1.5" aria-hidden />
-              Tomar Foto
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              disabled={uploading}
-              onClick={(e) => {
-                e.stopPropagation()
-                fileInputRef.current?.click()
-              }}
-            >
-              <Upload size={14} className="mr-1.5" aria-hidden />
-              Seleccionar archivos
-            </Button>
-          </div>
-        </div>
-      )}
+          onReject={(rejected) => {
+            const first = rejected[0]
+            if (!first) return
+            const reason =
+              first.reason === 'size'
+                ? 'supera 8 MB'
+                : first.reason === 'type'
+                  ? 'no es una imagen válida'
+                  : 'excede el límite de fotos'
+            toast.show({
+              variant: 'error',
+              message: `«${first.file.name}» ${reason}.`,
+            })
+          }}
+        />
+      ) : null}
 
       {/* Grid de imágenes de producto */}
-      {sortedImages.length === 0 && !(compact && canEdit) ? (
+      {sortedImages.length === 0 && !canEdit ? (
         <div
           style={{
             padding: compact ? '1.25rem 1rem' : '2.5rem 1rem',
@@ -459,20 +377,6 @@ export function CatalogItemImageGallery({
             <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.75rem', color: 'var(--shell-muted)' }}>
               Las fotos que subas aquí definirán la portada y el carrusel interactivo en tu tienda online.
             </p>
-          )}
-          {canEdit && !compact && (
-            <div style={{ marginTop: '0.85rem' }}>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={uploading || sortedImages.length >= MAX_IMAGES}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload size={14} className="mr-1.5" aria-hidden />
-                Seleccionar fotos
-              </Button>
-            </div>
           )}
         </div>
       ) : (

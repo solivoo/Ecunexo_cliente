@@ -1,5 +1,6 @@
-import { useRef, useState, type ChangeEvent } from 'react'
-import { ImagePlus, Loader2, X } from 'lucide-react'
+import { useState } from 'react'
+import { useToast, FileBox } from 'glubox'
+import { X } from 'lucide-react'
 import type { TenantMediaAssetDto } from '@/types/catalogApi'
 
 export interface EcuMediaListInputProps {
@@ -13,6 +14,9 @@ export interface EcuMediaListInputProps {
   readonly maxItems?: number
 }
 
+/**
+ * Fotos de atributos de plantilla: miniaturas ya subidas + `FileBox` reorderable de glubox para anexar.
+ */
 export function EcuMediaListInput({
   media,
   onChange,
@@ -23,127 +27,132 @@ export function EcuMediaListInput({
   disabled = false,
   maxItems = 6,
 }: EcuMediaListInputProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
+  const toast = useToast()
   const [uploading, setUploading] = useState(false)
-
-  const canAdd = !disabled && Boolean(onUpload) && media.length < maxItems
-
-  const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file || !onUpload) return
-
-    setUploading(true)
-    try {
-      const asset = await onUpload(file)
-      onChange([...media, asset])
-    } catch (err: unknown) {
-      onError?.(err instanceof Error ? err.message : 'No se pudo subir la foto.')
-    } finally {
-      setUploading(false)
-    }
-  }
+  const [pickerKey, setPickerKey] = useState(0)
+  const remaining = Math.max(0, maxItems - media.length)
+  const canAdd = !disabled && Boolean(onUpload) && remaining > 0 && !uploading
 
   const handleRemove = (storageKey: string) => {
     if (disabled) return
     onChange(media.filter((asset) => asset.storageKey !== storageKey))
   }
 
+  const handlePick = async (files: File[]) => {
+    if (!onUpload || files.length === 0 || disabled) return
+    setUploading(true)
+    const accepted = files.slice(0, remaining)
+    const next = [...media]
+    try {
+      for (const file of accepted) {
+        const asset = await onUpload(file)
+        next.push(asset)
+      }
+      onChange(next)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'No se pudo subir la foto.'
+      onError?.(message)
+      toast.show({ title: 'Error al subir', message, variant: 'error' })
+    } finally {
+      setUploading(false)
+      setPickerKey((k) => k + 1)
+    }
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-      {label && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+      {label ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--glb-text)' }}>
-            {label}
-          </label>
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--glb-text)' }}>{label}</span>
           <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
             {media.length} / {maxItems}
           </span>
         </div>
-      )}
+      ) : null}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-        {media.map((asset) => (
-          <div key={asset.storageKey} style={{ position: 'relative' }}>
-            <img
-              src={asset.thumbUrl}
-              alt=""
-              style={{
-                width: '76px',
-                height: '76px',
-                objectFit: 'cover',
-                borderRadius: '8px',
-                border: '1px solid var(--shell-border, rgba(0,0,0,0.12))',
-                background: 'var(--glb-surface-variant, rgba(0,0,0,0.03))',
-              }}
-            />
-            {!disabled && (
-              <button
-                type="button"
-                onClick={() => handleRemove(asset.storageKey)}
-                aria-label="Quitar foto"
+      {media.length > 0 ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          {media.map((asset) => (
+            <div key={asset.storageKey} style={{ position: 'relative' }}>
+              <img
+                src={asset.thumbUrl}
+                alt=""
                 style={{
-                  position: 'absolute',
-                  top: '-6px',
-                  right: '-6px',
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  border: '1px solid var(--shell-border, rgba(0,0,0,0.15))',
-                  background: 'var(--glb-surface, #fff)',
-                  color: 'var(--glb-danger, #ef4444)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  padding: 0,
+                  width: '76px',
+                  height: '76px',
+                  objectFit: 'cover',
+                  borderRadius: '8px',
+                  border: '1px solid var(--shell-border, rgba(0,0,0,0.12))',
+                  background: 'var(--glb-surface-variant, rgba(0,0,0,0.03))',
                 }}
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-        ))}
+              />
+              {!disabled ? (
+                <button
+                  type="button"
+                  onClick={() => handleRemove(asset.storageKey)}
+                  title="Quitar"
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 22,
+                    height: 22,
+                    borderRadius: '999px',
+                    border: 'none',
+                    background: 'rgba(15, 23, 42, 0.72)',
+                    color: '#fff',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
 
-        {canAdd && (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            style={{
-              width: '76px',
-              height: '76px',
-              borderRadius: '8px',
-              border: '1px dashed var(--shell-border, rgba(0,0,0,0.25))',
-              background: 'transparent',
-              color: 'var(--glb-muted, #64748b)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.2rem',
-              fontSize: '0.68rem',
-              fontWeight: 600,
-              cursor: uploading ? 'wait' : 'pointer',
-            }}
-          >
-            {uploading ? <Loader2 size={16} /> : <ImagePlus size={16} />}
-            <span>{uploading ? 'Subiendo...' : 'Añadir'}</span>
-          </button>
-        )}
-      </div>
+      {canAdd ? (
+        <FileBox
+          key={pickerKey}
+          label={media.length === 0 ? undefined : 'Añadir fotos'}
+          labelPosition="outlined"
+          variant="outline"
+          size="sm"
+          reorderable
+          accept="image/*"
+          maxFiles={remaining}
+          maxSize={8 * 1024 * 1024}
+          disabled={disabled || uploading}
+          fullWidth
+          helperText={
+            uploading
+              ? 'Subiendo…'
+              : helperText ?? `Hasta ${remaining} imagen(es). Arrastra para ordenar antes de confirmar.`
+          }
+          onChange={(files: File[]) => {
+            void handlePick(files)
+          }}
+          onReject={(rejected) => {
+            const first = rejected[0]
+            if (!first) return
+            const reason =
+              first.reason === 'size'
+                ? 'supera el tamaño máximo'
+                : first.reason === 'type'
+                  ? 'tipo no permitido'
+                  : 'límite de archivos'
+            onError?.(`«${first.file.name}» ${reason}.`)
+          }}
+        />
+      ) : null}
 
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={(event) => void handleFile(event)}
-      />
-
-      {helperText && (
+      {!canAdd && helperText && media.length === 0 ? (
         <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>{helperText}</span>
-      )}
+      ) : null}
     </div>
   )
 }

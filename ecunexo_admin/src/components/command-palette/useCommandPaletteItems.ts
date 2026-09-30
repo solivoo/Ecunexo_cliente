@@ -112,12 +112,12 @@ export function useCommandPaletteItems({
     if (hasPerm('catalog.item.create') || hasPerm('catalog.matrix.create')) {
       items.push({
         id: 'action-new-catalog-item',
-        title: 'Crear Producto o Servicio',
-        subtitle: 'Añadir nuevo item al catálogo con códigos y tarifas SRI',
+        title: 'Crear Matriz Producto o Servicio',
+        subtitle: 'Añadir nueva matriz producto o item al catálogo con códigos y variantes',
         category: 'Acciones Rápidas',
         icon: 'package',
         badge: 'Catálogo',
-        keywords: ['producto', 'servicio', 'item', 'articulo', 'precio', 'catalogo', 'tarifa', 'iva', 'nuevo'],
+        keywords: ['matriz', 'producto', 'servicio', 'item', 'articulo', 'precio', 'catalogo', 'tarifa', 'iva', 'nuevo', 'variantes'],
         onSelect: () => navigate('/catalogo/items/nuevo'),
       })
     }
