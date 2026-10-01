@@ -9,9 +9,7 @@ import {
 } from '@/lib/appPreferences'
 
 const THEME_OPTIONS = [
-  { value: 'default', label: 'Predeterminado' },
-  { value: 'modern', label: 'Moderno' },
-  { value: 'enterprise', label: 'Empresarial' },
+  { value: 'commerce', label: 'Commerce (Material Design / MUI)' },
 ] as const
 
 const DENSITY_OPTIONS = [

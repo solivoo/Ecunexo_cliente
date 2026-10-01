@@ -20,45 +20,49 @@ body,
   /* glubox Sidebar usa var(--glb-font-family); su default también es Poppins.
      Familia única para toda la aplicación. */
   --glb-font-family: Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --sf-color-primary: rgb(79, 70, 229);
+  --sf-color-primary: var(--glb-accent-surface, #1976d2);
+  --shell-primary-rgb: 25, 118, 210;
 
-  --c-surface: #ffffff;
+  --c-surface: var(--glb-surface, #ffffff);
   --c-surface-lowest: #ffffff;
-  --c-surface-subtle: #f8fafc;
-  --c-surface-container-high: #eae6f4;
-  --c-surface-container-highest: #f5f3ff;
-  --c-background: #fcf8ff;
-  --c-text-main: #1e293b;
-  --c-on-surface: #1b1b24;
-  --c-text-muted: #64748b;
-  --c-primary: #3525cd;
-  --c-on-primary: #ffffff;
-  --c-primary-container: #4f46e5;
-  --c-tertiary: #7c3aed;
-  --c-border: #e2e8f0;
-  --c-outline-variant: #c7c4d8;
+  --c-surface-subtle: var(--glb-surface-hover, #f5f5f5);
+  --c-surface-container-high: #f0f4f8;
+  --c-surface-container-highest: #e3edf7;
+  --c-background: var(--glb-app-bg, #fafafa);
+  --c-text-main: var(--glb-text, rgba(0, 0, 0, 0.87));
+  --c-on-surface: rgba(0, 0, 0, 0.87);
+  --c-text-muted: var(--glb-muted, rgba(0, 0, 0, 0.6));
+  --c-primary: var(--glb-accent-surface, #1976d2);
+  --c-on-primary: var(--glb-accent-on-fill, #ffffff);
+  --c-primary-container: var(--glb-accent-surface-hover, #1565c0);
+  --c-tertiary: #0284c7;
+  --c-border: var(--glb-border, rgba(0, 0, 0, 0.12));
+  --c-outline-variant: rgba(0, 0, 0, 0.16);
   --c-code-bg: #f1f5f9;
   --c-code-text: #334155;
 }
 
 html.sf-dark-mode {
-  --c-surface: #1a1b24;
-  --c-surface-lowest: #1a1b24;
-  --c-surface-subtle: #1e1f2a;
-  --c-surface-container-high: #22232e;
-  --c-surface-container-highest: #262735;
-  --c-background: #12131a;
-  --c-text-main: #e8e8ef;
-  --c-on-surface: #e8e8ef;
-  --c-text-muted: #9898a8;
-  --c-primary: #a78bfa;
-  --c-on-primary: #1e1b4b;
-  --c-primary-container: #c4b5fd;
-  --c-tertiary: #c4b5fd;
-  --c-border: #2c2d3a;
-  --c-outline-variant: #3f4054;
-  --c-code-bg: #1e1f2a;
-  --c-code-text: #c4b5fd;
+  --sf-color-primary: var(--glb-accent-surface, #90caf9);
+  --shell-primary-rgb: 144, 202, 249;
+
+  --c-surface: var(--glb-surface, #1e1e1e);
+  --c-surface-lowest: #161616;
+  --c-surface-subtle: var(--glb-surface-hover, #2c2c2c);
+  --c-surface-container-high: #252525;
+  --c-surface-container-highest: #2e2e2e;
+  --c-background: var(--glb-app-bg, #121212);
+  --c-text-main: var(--glb-text, #ffffff);
+  --c-on-surface: #ffffff;
+  --c-text-muted: var(--glb-muted, rgba(255, 255, 255, 0.7));
+  --c-primary: var(--glb-accent-surface, #90caf9);
+  --c-on-primary: var(--glb-accent-on-fill, rgba(0, 0, 0, 0.87));
+  --c-primary-container: #1e3a5f;
+  --c-tertiary: #90caf9;
+  --c-border: var(--glb-border, rgba(255, 255, 255, 0.12));
+  --c-outline-variant: rgba(255, 255, 255, 0.2);
+  --c-code-bg: #1e1e1e;
+  --c-code-text: #90caf9;
 }
 
 html[data-density='sm'] .app-shell {

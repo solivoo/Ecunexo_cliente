@@ -25,7 +25,7 @@ internal static class PlatformSettingsSeeder
         {
             ("ui.realtime.enabled", "false"),
             ("ui.theme.default", "\"system\""),
-            (UiPreferenceCodes.Palette, "\"default\""),
+            (UiPreferenceCodes.Palette, "\"commerce\""),
             (UiPreferenceCodes.Density, "\"md\""),
             (UiPreferenceCodes.MaxRecords, "10"),
             (UiPreferenceCodes.DefaultLookback, "\"1m\""),

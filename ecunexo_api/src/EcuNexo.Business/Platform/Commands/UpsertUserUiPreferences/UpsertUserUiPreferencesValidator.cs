@@ -5,7 +5,7 @@ namespace EcuNexo.Business.Platform.Commands.UpsertUserUiPreferences;
 public sealed class UpsertUserUiPreferencesValidator : AbstractValidator<UpsertUserUiPreferencesCommand>
 {
     private static readonly int[] AllowedRecords = [10, 20, 50, 100];
-    private static readonly string[] AllowedPalettes = ["default", "modern", "enterprise"];
+    private static readonly string[] AllowedPalettes = ["commerce", "default", "modern", "enterprise"];
     private static readonly string[] AllowedDensities = ["sm", "md", "lg"];
     private static readonly string[] AllowedLookbacks = ["1m", "3m", "6m", "1y"];
 
@@ -17,7 +17,7 @@ public sealed class UpsertUserUiPreferencesValidator : AbstractValidator<UpsertU
             .WithMessage("Los registros por página deben ser 10, 20, 50 o 100.");
         RuleFor(c => c.Palette)
             .Must(v => AllowedPalettes.Contains(v))
-            .WithMessage("El tema debe ser default, modern o enterprise.");
+            .WithMessage("El tema debe ser commerce, default, modern o enterprise.");
         RuleFor(c => c.Density)
             .Must(v => AllowedDensities.Contains(v))
             .WithMessage("El tamaño debe ser sm, md o lg.");

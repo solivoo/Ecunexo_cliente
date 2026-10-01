@@ -5,7 +5,7 @@ import {
   type GridLookback,
 } from '@/lib/gridLookback'
 
-export const GLUBOX_THEME_IDS = ['default', 'modern', 'enterprise'] as const
+export const GLUBOX_THEME_IDS = ['commerce'] as const
 export type GluboxThemeId = (typeof GLUBOX_THEME_IDS)[number]
 
 export const UI_DENSITY_IDS = ['sm', 'md', 'lg'] as const
@@ -48,7 +48,7 @@ const STORAGE_KEY = 'ecunexo.app.preferences'
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   maxRecords: 10,
   defaultLookback: DEFAULT_GRID_LOOKBACK,
-  gluboxTheme: 'default',
+  gluboxTheme: 'commerce',
   density: 'md',
   startDarkMode: true,
   toastPosition: 'bottom-right',
@@ -142,7 +142,7 @@ export function preferencesFromResolvedSettings(
 
 export function applyDocumentPreferences(prefs: AppPreferences): void {
   const root = document.documentElement
-  root.setAttribute('data-theme', prefs.gluboxTheme)
+  root.setAttribute('data-theme', prefs.gluboxTheme || 'commerce')
   root.setAttribute('data-density', prefs.density)
   applyEcuTheme(prefs.startDarkMode ? 'dark' : 'light')
 }
