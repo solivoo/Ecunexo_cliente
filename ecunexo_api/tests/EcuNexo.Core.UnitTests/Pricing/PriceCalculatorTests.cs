@@ -254,6 +254,31 @@ public sealed class PriceCalculatorTests
         calc.AppliedRules.Should().NotContain(r => r.StartsWith("ESQUEMA_"));
     }
 
+    [Fact(DisplayName = "Esquema de volumen combinado con promoción de precio fijo calcula sobre precio efectivo")]
+    public void Calculate_WithVolumeSchemeAndFixedPricePromotion_DoesNotDoubleDiscount()
+    {
+        var scheme = VolumeDiscountScheme.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Mayorista 10%",
+            null,
+            VolumeDiscountSchemeType.Percentage).Value!;
+        scheme.AddTier(Guid.NewGuid(), 10m, null, 10m); // 10% OFF
+
+        // PVP normal $100 -> con 10 unidades = $1000 subtotal, $100 desc. volumen ($90 c/u efectivo).
+        // Promoción FixedPrice a $85: debe descontar $5 adicional por unidad, total descuento $150 ($850 neto).
+        var fixedPromo = CreatePromotion("SUPER_PRECIO_85", PromotionType.FixedPrice, 85m, priority: 10, isStackable: true);
+
+        var result = PriceCalculator.Calculate(100m, 10m, NoTiers, [fixedPromo], 0m, pricesIncludeTax: false, scheme);
+
+        result.IsSuccess.Should().BeTrue();
+        var calc = result.Value!;
+        calc.Subtotal.Should().Be(1000m);
+        calc.DiscountAmount.Should().Be(150m);
+        calc.NetPrice.Should().Be(850m);
+        (calc.NetPrice / 10m).Should().Be(85m);
+    }
+
     private static QuantityTier CreateTier(decimal from, decimal? to, decimal unitPrice) =>
         QuantityTier.Create(Guid.CreateVersion7(), Guid.CreateVersion7(), from, to, unitPrice).Value!;
 

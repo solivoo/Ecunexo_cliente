@@ -175,6 +175,21 @@ public sealed class ProductPrice : AggregateRoot<Guid>, ITenantEntity, IAuditabl
         return tier.SetActive(false, updatedBy);
     }
 
+    /// <summary>
+    /// Limpia todas las escalas para reemplazarlas atómicamente evitando colisiones
+    /// con el índice único de BD (product_price_id, quantity_from).
+    /// </summary>
+    public void ClearTiers(Guid? updatedBy = null)
+    {
+        if (_tiers.Count == 0)
+        {
+            return;
+        }
+
+        _tiers.Clear();
+        Touch(updatedBy);
+    }
+
     /// <summary>True cuando el precio puede usarse en la fecha indicada.</summary>
     public bool IsValidOn(DateOnly date) =>
         IsActive && ValidFrom <= date && (ValidTo is null || ValidTo >= date);

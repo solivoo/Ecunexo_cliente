@@ -97,10 +97,7 @@ public sealed class CreateProductPriceHandler
 
             if (command.Tiers is not null)
             {
-                foreach (var tier in existing.Tiers.ToList())
-                {
-                    existing.DeactivateTier(tier.Id, _caller.UserId);
-                }
+                existing.ClearTiers(_caller.UserId);
 
                 foreach (var tier in command.Tiers)
                 {
@@ -169,6 +166,11 @@ public sealed class CreateProductPriceHandler
         }
 
         var price = created.Value!;
+        if (overlap?.VolumeDiscountSchemeId is { } prevSchemeId)
+        {
+            price.AssignVolumeDiscountScheme(prevSchemeId, _caller.UserId);
+        }
+
         if (!command.IsActive)
         {
             var deactivate = price.SetActive(false, _caller.UserId);

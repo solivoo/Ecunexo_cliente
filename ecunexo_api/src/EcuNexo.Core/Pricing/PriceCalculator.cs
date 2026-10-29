@@ -148,13 +148,15 @@ public static class PriceCalculator
             .ToList();
 
         var discount = 0m;
+        var effectiveUnitPrice = quantity > 0m ? subtotal / quantity : unitPrice;
+
         foreach (var promotion in ordered)
         {
             discount += promotion.Type switch
             {
                 PromotionType.Percentage => subtotal * promotion.Value / 100m,
                 PromotionType.FixedAmount => promotion.Value * quantity,
-                PromotionType.FixedPrice => Math.Max(0m, unitPrice - promotion.Value) * quantity,
+                PromotionType.FixedPrice => Math.Max(0m, effectiveUnitPrice - promotion.Value) * quantity,
                 _ => 0m,
             };
             appliedRules.Add($"PROMO_{promotion.Code}");

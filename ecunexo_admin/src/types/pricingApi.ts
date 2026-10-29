@@ -75,6 +75,8 @@ export type ProductPriceListItemDto = {
   isActive: boolean
   volumeDiscountSchemeId?: string | null
   volumeDiscountSchemeName?: string | null
+  averageCost?: number | null
+  pricesIncludeTax?: boolean
 }
 
 export type ProductPriceDetailDto = {
@@ -92,6 +94,8 @@ export type ProductPriceDetailDto = {
   tiers: PriceTierDto[]
   volumeDiscountSchemeId?: string | null
   volumeDiscountSchemeName?: string | null
+  averageCost?: number | null
+  pricesIncludeTax?: boolean
 }
 
 export type ProductPriceFilters = {
@@ -279,4 +283,7 @@ export type PricingResultDto = {
   pricesIncludeTax: boolean
   currency: string
   appliedRules: string[]
+  averageCost?: number | null
+  marginPercent?: number | null
+  isBelowCost?: boolean
 }

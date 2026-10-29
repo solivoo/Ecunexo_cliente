@@ -57,6 +57,13 @@ export function volumeSchemeTypeLabel(type: VolumeDiscountSchemeType): string {
   return 'Precio unitario fijo ($)'
 }
 
+/** Margen bruto (%) sobre el precio de venta, usando el costo promedio ponderado de inventario. */
+export function calculateMarginPercent(price: number, averageCost: number | null | undefined): number | null {
+  if (averageCost === null || averageCost === undefined || averageCost <= 0) return null
+  if (!Number.isFinite(price) || price <= 0) return null
+  return ((price - averageCost) / price) * 100
+}
+
 export function formatVolumeTiersSummary(
   type: VolumeDiscountSchemeType,
   tiers: { quantityFrom: number; quantityTo: number | null; value: number }[]

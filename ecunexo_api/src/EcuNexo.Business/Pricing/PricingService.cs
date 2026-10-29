@@ -1,5 +1,5 @@
 using EcuNexo.Business.Catalog;
-using EcuNexo.Core.Catalog;
+using EcuNexo.Business.Inventory;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Pricing;
 
@@ -16,19 +16,22 @@ public sealed class PricingService : IPricingService
     private readonly IPromotionRepository _promotions;
     private readonly ICatalogItemRepository _items;
     private readonly ITaxRateProvider _taxRates;
+    private readonly IStockRepository? _stocks;
 
     public PricingService(
         IPriceListRepository priceLists,
         IProductPriceRepository productPrices,
         IPromotionRepository promotions,
         ICatalogItemRepository items,
-        ITaxRateProvider taxRates)
+        ITaxRateProvider taxRates,
+        IStockRepository? stocks = null)
     {
         _priceLists = priceLists;
         _productPrices = productPrices;
         _promotions = promotions;
         _items = items;
         _taxRates = taxRates;
+        _stocks = stocks;
     }
 
     public async Task<Result<PricingResult>> ResolveAsync(
@@ -43,7 +46,7 @@ public sealed class PricingService : IPricingService
         }
 
         var item = await _items.GetActiveByIdAsync(tenantId, request.CatalogItemId, ct).ConfigureAwait(false);
-        if (item is null || item.Kind != CatalogItemKind.Physical)
+        if (item is null)
         {
             return Result.Failure<PricingResult>(
                 new Error("catalog.pricing.item.not_found", "El producto no existe o no está disponible.", ErrorType.NotFound));
@@ -69,7 +72,30 @@ public sealed class PricingService : IPricingService
             inheritedFromParent = productPrice is not null;
         }
 
-        if (productPrice is null)
+        var rules = new List<string> { $"LISTA_{priceList.Code}" };
+        if (inheritedFromParent)
+        {
+            rules.Add("PRECIO_HEREDADO_PADRE");
+        }
+
+        decimal basePrice;
+        IReadOnlyList<QuantityTier> tiers;
+        VolumeDiscountScheme? volumeScheme;
+
+        if (productPrice is not null)
+        {
+            basePrice = productPrice.Price;
+            tiers = productPrice.Tiers;
+            volumeScheme = productPrice.VolumeDiscountScheme;
+        }
+        else if (priceList.IsDefault && item.BasePrice is > 0m)
+        {
+            basePrice = item.BasePrice.Value;
+            tiers = Array.Empty<QuantityTier>();
+            volumeScheme = null;
+            rules.Add("PRECIO_BASE_CATALOGO");
+        }
+        else
         {
             return Result.Failure<PricingResult>(
                 new Error("catalog.pricing.price.not_found", "El producto no tiene precio vigente en la lista indicada.", ErrorType.NotFound));
@@ -86,26 +112,53 @@ public sealed class PricingService : IPricingService
             .ConfigureAwait(false);
 
         var calculation = PriceCalculator.Calculate(
-            productPrice.Price,
+            basePrice,
             request.Quantity,
-            productPrice.Tiers,
+            tiers,
             activePromotions,
             taxRate,
             priceList.PricesIncludeTax,
-            productPrice.VolumeDiscountScheme);
+            volumeScheme);
         if (calculation.IsFailure)
         {
             return Result.Failure<PricingResult>(calculation.Error!);
         }
 
         var calc = calculation.Value!;
-        var rules = new List<string> { $"LISTA_{priceList.Code}" };
-        if (inheritedFromParent)
-        {
-            rules.Add("PRECIO_HEREDADO_PADRE");
-        }
-
         rules.AddRange(calc.AppliedRules);
+
+        decimal? averageCost = null;
+        decimal? marginPercent = null;
+        var isBelowCost = false;
+
+        if (_stocks is not null)
+        {
+            var stockList = await _stocks.ListByTenantAsync(tenantId, request.WarehouseId, ct).ConfigureAwait(false);
+            var itemStocks = stockList.Where(s => s.CatalogItemId == item.Id && s.AverageCost > 0).ToList();
+            if (itemStocks.Count > 0)
+            {
+                var positiveStock = itemStocks.Where(s => s.Quantity > 0).ToList();
+                var totalQty = positiveStock.Sum(s => s.Quantity);
+                averageCost = totalQty > 0
+                    ? Math.Round(positiveStock.Sum(s => s.Quantity * s.AverageCost) / totalQty, 4)
+                    : Math.Round(itemStocks.Average(s => s.AverageCost), 4);
+
+                if (averageCost > 0m)
+                {
+                    var unitNetExcludingTax = request.Quantity > 0m ? calc.TaxableBase / request.Quantity : calc.TaxableBase;
+                    if (unitNetExcludingTax > 0m)
+                    {
+                        marginPercent = Math.Round(((unitNetExcludingTax - averageCost.Value) / unitNetExcludingTax) * 100m, 2);
+                    }
+
+                    if (unitNetExcludingTax < averageCost.Value)
+                    {
+                        isBelowCost = true;
+                        rules.Add("MARGIN_WARNING_BELOW_COST");
+                    }
+                }
+            }
+        }
 
         var result = new PricingResult(
             item.Id,
@@ -124,7 +177,10 @@ public sealed class PricingService : IPricingService
             calc.TaxRate,
             calc.PricesIncludeTax,
             priceList.Currency,
-            rules);
+            rules,
+            averageCost,
+            marginPercent,
+            isBelowCost);
 
         return Result.Success(result);
     }

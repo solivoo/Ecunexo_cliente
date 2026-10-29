@@ -31,7 +31,10 @@ public sealed record PricingResult(
     decimal TaxRate,
     bool PricesIncludeTax,
     string Currency,
-    IReadOnlyList<string> AppliedRules);
+    IReadOnlyList<string> AppliedRules,
+    decimal? AverageCost = null,
+    decimal? MarginPercent = null,
+    bool IsBelowCost = false);
 
 /// <summary>Única fuente de verdad del precio comercial de EcuNexo.</summary>
 public interface IPricingService

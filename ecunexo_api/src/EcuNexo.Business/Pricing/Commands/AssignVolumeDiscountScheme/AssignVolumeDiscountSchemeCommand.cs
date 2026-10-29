@@ -71,9 +71,18 @@ public sealed class AssignVolumeDiscountSchemeHandler : ICommandHandler<AssignVo
                 today,
                 ct).ConfigureAwait(false);
 
-            if (vigentPrice is not null)
+            Guid? targetPriceId = vigentPrice?.Id;
+            if (targetPriceId is null)
             {
-                var tracked = await _productPrices.GetTrackedByIdAsync(command.TenantId, vigentPrice.Id, ct).ConfigureAwait(false);
+                var candidatePrices = await _productPrices.ListAsync(
+                    new ProductPriceFilter(command.TenantId, null, command.PriceListId, null, false, itemId),
+                    ct).ConfigureAwait(false);
+                targetPriceId = candidatePrices.FirstOrDefault(p => p.IsActive)?.Id;
+            }
+
+            if (targetPriceId.HasValue)
+            {
+                var tracked = await _productPrices.GetTrackedByIdAsync(command.TenantId, targetPriceId.Value, ct).ConfigureAwait(false);
                 if (tracked is not null)
                 {
                     tracked.AssignVolumeDiscountScheme(command.VolumeDiscountSchemeId, _caller.UserId);

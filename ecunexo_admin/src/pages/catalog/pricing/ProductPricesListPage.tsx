@@ -18,6 +18,7 @@ import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import {
+  calculateMarginPercent,
   formatMoney,
   isVigentOn,
   todayIso,
@@ -345,6 +346,41 @@ export function ProductPricesListPage() {
         align: 'right',
         sortable: true,
         renderCell: (_value, row) => <span className="ecu-price">{formatMoney(row.price)}</span>,
+      },
+      {
+        key: 'averageCost',
+        header: 'Margen',
+        width: 130,
+        align: 'right',
+        sortable: true,
+        renderCell: (_value, row) => {
+          const margin = calculateMarginPercent(row.price, row.averageCost)
+          if (margin === null) {
+            return (
+              <span className="app-shell__muted" style={{ fontSize: '0.8125rem' }}>
+                Sin costo
+              </span>
+            )
+          }
+          const isBelowCost = margin < 0
+          const isLow = margin >= 0 && margin < 10
+          return (
+            <span
+              title={`Costo promedio: ${formatMoney(row.averageCost)}`}
+              style={{
+                fontWeight: 600,
+                color: isBelowCost
+                  ? 'var(--color-danger, #ef4444)'
+                  : isLow
+                    ? 'var(--color-warning, #f59e0b)'
+                    : 'var(--color-success, #16a34a)',
+              }}
+            >
+              {isBelowCost ? '⚠ ' : ''}
+              {margin.toFixed(1)}%
+            </span>
+          )
+        },
       },
       {
         key: 'volumeDiscountSchemeName',

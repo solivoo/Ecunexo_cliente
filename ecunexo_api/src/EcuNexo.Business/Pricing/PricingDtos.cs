@@ -38,7 +38,9 @@ public sealed record ProductPriceListRow(
     DateOnly? ValidTo,
     bool IsActive,
     Guid? VolumeDiscountSchemeId = null,
-    string? VolumeDiscountSchemeName = null);
+    string? VolumeDiscountSchemeName = null,
+    decimal? AverageCost = null,
+    bool PricesIncludeTax = false);
 
 public sealed record ProductPriceListItemResponse(
     Guid Id,
@@ -53,7 +55,9 @@ public sealed record ProductPriceListItemResponse(
     DateOnly? ValidTo,
     bool IsActive,
     Guid? VolumeDiscountSchemeId = null,
-    string? VolumeDiscountSchemeName = null);
+    string? VolumeDiscountSchemeName = null,
+    decimal? AverageCost = null,
+    bool PricesIncludeTax = false);
 
 public sealed record PriceTierInput(decimal QuantityFrom, decimal? QuantityTo, decimal UnitPrice);
 
@@ -73,7 +77,9 @@ public sealed record ProductPriceDetailResponse(
     bool IsActive,
     IReadOnlyList<PriceTierResponse> Tiers,
     Guid? VolumeDiscountSchemeId = null,
-    string? VolumeDiscountSchemeName = null);
+    string? VolumeDiscountSchemeName = null,
+    decimal? AverageCost = null,
+    bool PricesIncludeTax = false);
 
 public sealed record VolumeDiscountTierInput(decimal QuantityFrom, decimal? QuantityTo, decimal Value);
 

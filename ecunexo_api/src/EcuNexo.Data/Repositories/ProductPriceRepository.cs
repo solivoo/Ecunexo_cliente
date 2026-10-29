@@ -177,24 +177,75 @@ public sealed class ProductPriceRepository : IProductPriceRepository
                 && (r.Price.ValidTo == null || r.Price.ValidTo.Value >= date));
         }
 
-        return await query
+        var rows = await query
             .OrderBy(r => r.Item.Name)
             .ThenBy(r => r.List.Code)
-            .Select(r => new ProductPriceListRow(
+            .Select(r => new
+            {
                 r.Price.Id,
                 r.Price.CatalogItemId,
-                r.Item.Name,
+                ItemName = r.Item.Name,
                 r.Item.Sku,
                 r.Price.PriceListId,
-                r.List.Code,
-                r.List.Name,
+                ListCode = r.List.Code,
+                ListName = r.List.Name,
                 r.Price.Price,
                 r.Price.ValidFrom,
                 r.Price.ValidTo,
                 r.Price.IsActive,
                 r.Price.VolumeDiscountSchemeId,
-                r.SchemeName))
+                r.SchemeName,
+                r.List.PricesIncludeTax,
+            })
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        if (rows.Count == 0)
+        {
+            return Array.Empty<ProductPriceListRow>();
+        }
+
+        var itemIds = rows.Select(r => r.CatalogItemId).Distinct().ToList();
+        var stockStats = await _db.Stocks.AsNoTracking()
+            .Where(s => s.TenantId == filter.TenantId && itemIds.Contains(s.CatalogItemId))
+            .Select(s => new { s.CatalogItemId, s.Quantity, s.AverageCost })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var costsByItem = stockStats
+            .GroupBy(s => s.CatalogItemId)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    var positiveStock = g.Where(s => s.Quantity > 0 && s.AverageCost > 0).ToList();
+                    var totalQty = positiveStock.Sum(s => s.Quantity);
+                    if (totalQty > 0m)
+                    {
+                        return Math.Round(positiveStock.Sum(s => s.Quantity * s.AverageCost) / totalQty, 4);
+                    }
+
+                    var withCost = g.Where(s => s.AverageCost > 0).ToList();
+                    return withCost.Count > 0
+                        ? (decimal?)Math.Round(withCost.Average(s => s.AverageCost), 4)
+                        : null;
+                });
+
+        return rows.Select(r => new ProductPriceListRow(
+            r.Id,
+            r.CatalogItemId,
+            r.ItemName,
+            r.Sku,
+            r.PriceListId,
+            r.ListCode,
+            r.ListName,
+            r.Price,
+            r.ValidFrom,
+            r.ValidTo,
+            r.IsActive,
+            r.VolumeDiscountSchemeId,
+            r.SchemeName,
+            costsByItem.TryGetValue(r.CatalogItemId, out var avgCost) ? avgCost : null,
+            r.PricesIncludeTax)).ToList();
     }
 }

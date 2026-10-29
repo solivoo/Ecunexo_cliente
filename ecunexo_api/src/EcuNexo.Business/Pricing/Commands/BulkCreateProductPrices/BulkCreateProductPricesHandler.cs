@@ -110,10 +110,7 @@ public sealed class BulkCreateProductPricesHandler
 
                 if (input.Tiers is { Count: > 0 })
                 {
-                    foreach (var tier in existing.Tiers.ToList())
-                    {
-                        existing.DeactivateTier(tier.Id, _caller.UserId);
-                    }
+                    existing.ClearTiers(_caller.UserId);
 
                     foreach (var tier in input.Tiers)
                     {
@@ -190,6 +187,11 @@ public sealed class BulkCreateProductPricesHandler
             if (created.IsFailure)
             {
                 return Result.Failure<BulkCreateProductPricesResponse>(created.Error!);
+            }
+
+            if (overlap?.VolumeDiscountSchemeId is { } prevSchemeId)
+            {
+                created.Value!.AssignVolumeDiscountScheme(prevSchemeId, _caller.UserId);
             }
 
             if (input.Tiers is { Count: > 0 })

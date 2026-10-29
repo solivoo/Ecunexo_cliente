@@ -89,10 +89,7 @@ public sealed class UpdateProductPriceHandler
 
         if (command.Tiers is not null)
         {
-            foreach (var existing in price.Tiers.ToList())
-            {
-                price.DeactivateTier(existing.Id, _caller.UserId);
-            }
+            price.ClearTiers(_caller.UserId);
 
             foreach (var tier in command.Tiers)
             {

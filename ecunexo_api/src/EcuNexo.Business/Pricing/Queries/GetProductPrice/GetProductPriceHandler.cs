@@ -51,7 +51,10 @@ public sealed class GetProductPriceHandler
             price.IsActive,
             price.Tiers
                 .Select(t => new PriceTierResponse(t.QuantityFrom, t.QuantityTo, t.UnitPrice, t.IsActive))
-                .ToList());
+                .ToList(),
+            price.VolumeDiscountSchemeId,
+            price.VolumeDiscountScheme?.Name,
+            PricesIncludeTax: list?.PricesIncludeTax ?? false);
 
         return Result.Success(response);
     }

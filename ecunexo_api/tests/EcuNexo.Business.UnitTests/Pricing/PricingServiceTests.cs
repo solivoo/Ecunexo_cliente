@@ -1,4 +1,5 @@
 using EcuNexo.Business.Catalog;
+using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.UnitTests.Pricing.Support;
 using EcuNexo.Core.Catalog;
@@ -238,6 +239,73 @@ public sealed class PricingServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("catalog.pricing.quantity.range");
+    }
+
+    [Fact(DisplayName = "Sin precio en lista predeterminada, hace fallback a BasePrice del ítem")]
+    public async Task ResolveAsync_WithoutProductPrice_FallsBackToBasePrice()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var item = CatalogItem.Create(
+            Guid.CreateVersion7(),
+            tenantId,
+            CatalogItemKind.Physical,
+            "Filtro de Aire",
+            description: null,
+            sku: "FIL-001",
+            basePrice: 18.50m,
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var lists = new InMemoryPriceListRepository();
+        lists.Seed(List(tenantId, "DEF", isDefault: true));
+
+        var prices = new InMemoryProductPriceRepository();
+        var service = Service(lists, prices, item);
+
+        var result = await service.ResolveAsync(tenantId, new PricingRequest(item.Id, 1m, Today), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.ListPrice.Should().Be(18.50m);
+        result.Value.AppliedRules.Should().Contain("PRECIO_BASE_CATALOGO");
+    }
+
+    [Fact(DisplayName = "Calcula margen y alerta bajo costo contra costo promedio de inventario")]
+    public async Task ResolveAsync_WithStockCost_CalculatesMarginAndWarnsBelowCost()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var item = Physical(tenantId);
+
+        var lists = new InMemoryPriceListRepository();
+        var list = List(tenantId, "DEF", isDefault: true);
+        lists.Seed(list);
+
+        var prices = new InMemoryProductPriceRepository();
+        prices.Seed(Price(tenantId, list.Id, item.Id, 10m));
+
+        var stocks = Substitute.For<IStockRepository>();
+        var warehouseId = Guid.CreateVersion7();
+        var stock = EcuNexo.Core.Inventory.Stock.Create(Guid.NewGuid(), tenantId, item.Id, warehouseId).Value!;
+        stock.Increase(5m, null, 12.00m); // Costo promedio $12.00 vs precio neto $10.00
+        stocks.ListByTenantAsync(tenantId, Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
+            .Returns([stock]);
+
+        var items = Substitute.For<ICatalogItemRepository>();
+        items.GetActiveByIdAsync(item.TenantId, item.Id, Arg.Any<CancellationToken>()).Returns(item);
+
+        var service = new PricingService(
+            lists,
+            prices,
+            new InMemoryPromotionRepository(),
+            items,
+            new EcuadorTaxRateProvider(),
+            stocks);
+
+        var result = await service.ResolveAsync(tenantId, new PricingRequest(item.Id, 1m, Today), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.AverageCost.Should().Be(12.00m);
+        result.Value.IsBelowCost.Should().BeTrue();
+        result.Value.AppliedRules.Should().Contain("MARGIN_WARNING_BELOW_COST");
     }
 
     private static PricingService Service(

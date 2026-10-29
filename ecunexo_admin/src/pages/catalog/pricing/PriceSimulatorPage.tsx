@@ -14,7 +14,7 @@ import { listCatalogItems } from '@/services/catalogApi'
 import { listPriceLists, resolvePrice } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
+import type { CatalogItemListItemDto } from '@/types/catalogApi'
 import type { PriceListDto, PricingResultDto } from '@/types/pricingApi'
 
 export function PriceSimulatorPage() {
@@ -34,7 +34,7 @@ export function PriceSimulatorPage() {
 
   useEffect(() => {
     if (!tenantId || !canRead) return
-    void listCatalogItems(tenantId, { kind: CatalogItemKind.Physical })
+    void listCatalogItems(tenantId)
       .then((data) => setItems(data.filter((item) => !item.isMatrixParent)))
       .catch(() => setItems([]))
     void listPriceLists(tenantId, true).then(setLists).catch(() => setLists([]))
@@ -211,6 +211,55 @@ export function PriceSimulatorPage() {
                 <dd>{formatMoney(result.finalPrice)}</dd>
               </div>
             </dl>
+
+            {result.averageCost != null ? (
+              <div
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '8px',
+                  border: result.isBelowCost
+                    ? '1px solid var(--color-danger, #ef4444)'
+                    : '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+                  backgroundColor: result.isBelowCost
+                    ? 'rgba(239, 68, 68, 0.1)'
+                    : 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.05))',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <dt>Costo promedio (inventario)</dt>
+                  <dd>{formatMoney(result.averageCost)}</dd>
+                </div>
+                {result.marginPercent != null ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                    <dt>Margen estimado</dt>
+                    <dd
+                      style={{
+                        fontWeight: 600,
+                        color: result.isBelowCost
+                          ? 'var(--color-danger, #ef4444)'
+                          : 'var(--color-success, #16a34a)',
+                      }}
+                    >
+                      {result.marginPercent.toFixed(2)}%
+                    </dd>
+                  </div>
+                ) : null}
+                {result.isBelowCost ? (
+                  <p
+                    role="alert"
+                    style={{
+                      margin: '0.5rem 0 0',
+                      fontSize: '0.8125rem',
+                      color: 'var(--color-danger, #ef4444)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    ⚠ El precio neto está por debajo del costo promedio de inventario.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             {result.appliedRules.length > 0 ? (
               <div style={{ marginTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>

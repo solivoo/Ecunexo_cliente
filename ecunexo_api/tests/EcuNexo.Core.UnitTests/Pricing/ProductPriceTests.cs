@@ -113,6 +113,19 @@ public sealed class ProductPriceTests
         price.IsValidOn(new DateOnly(2026, 3, 1)).Should().BeFalse();
     }
 
+    [Fact]
+    public void ClearTiers_RemovesAllTiers()
+    {
+        var price = CreatePrice();
+        price.AddTier(Guid.NewGuid(), 6m, 11m, 9m);
+        price.AddTier(Guid.NewGuid(), 12m, null, 8m);
+        price.Tiers.Should().HaveCount(2);
+
+        price.ClearTiers();
+
+        price.Tiers.Should().BeEmpty();
+    }
+
     private static ProductPrice CreatePrice() =>
         ProductPrice.Create(
             Guid.CreateVersion7(),

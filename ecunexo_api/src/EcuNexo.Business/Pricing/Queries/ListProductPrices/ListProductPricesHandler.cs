@@ -38,7 +38,11 @@ public sealed class ListProductPricesHandler
                 r.Price,
                 r.ValidFrom,
                 r.ValidTo,
-                r.IsActive))
+                r.IsActive,
+                r.VolumeDiscountSchemeId,
+                r.VolumeDiscountSchemeName,
+                r.AverageCost,
+                r.PricesIncludeTax))
             .ToList();
 
         return Result.Success(response);
