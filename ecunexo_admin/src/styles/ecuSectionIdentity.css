@@ -27,19 +27,6 @@
   --idt-ok: #0f8a5f;
   --idt-warn: #b45309;
   --idt-danger: #b91c1c;
-
-  /* Tema del DataGrid: superficies planas, reglas internas, sin sombras */
-  --datagrid-header-bg: transparent;
-  --datagrid-header-text: var(--idt-muted);
-  --datagrid-header-border: var(--idt-rule);
-  --datagrid-border: var(--idt-rule);
-  --datagrid-row-bg: transparent;
-  --datagrid-row-alt-bg: transparent;
-  --datagrid-row-text: var(--idt-ink);
-  --datagrid-row-hover-bg: color-mix(in srgb, var(--shell-primary, #3525cd) 5%, transparent);
-  --datagrid-empty-text: var(--idt-muted);
-  --datagrid-shadow: none;
-  --datagrid-radius: 0;
 }
 
 /* --- 2. Portada (PageHeader) --------------------------------------------- */
@@ -69,8 +56,13 @@
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
   gap: 0;
-  margin-bottom: 0;
-  background: var(--shell-surface, #ffffff);
+  margin-bottom: 1rem;
+  background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--shell-primary, #3525cd) 4%, var(--shell-surface, #ffffff)) 0%,
+        var(--shell-surface, #ffffff) 72%
+      );
   border: 1px solid var(--shell-border, #e2e8f0);
   border-radius: 14px;
   overflow: hidden;
@@ -83,13 +75,14 @@
     'value'
     'label';
   align-content: end;
-  gap: 0.2rem;
+  gap: 0.28rem;
   min-width: 0;
-  padding: 0.8rem 1.1rem 0.75rem;
+  padding: 0.9rem 1.15rem 0.85rem;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  transition: background 0.18s ease;
 }
 
 .ecu-section-page .ecu-stat-grid > .ecu-stat-card + .ecu-stat-card {
@@ -100,7 +93,11 @@
   transform: none;
   border-color: transparent;
   box-shadow: none;
-  background: color-mix(in srgb, var(--shell-primary, #3525cd) 3%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--stat-tone, var(--shell-primary, #3525cd)) 6%,
+    transparent
+  );
 }
 
 .ecu-section-page .ecu-stat-card__header {
@@ -114,12 +111,47 @@
 
 .ecu-section-page .ecu-stat-card__value {
   grid-area: value;
-  font-size: 1.45rem;
+  font-size: 1.5rem;
   font-weight: 700;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums;
-  color: var(--idt-ink);
+  color: var(--stat-tone, var(--idt-ink));
+  animation: ecu-stat-value-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.ecu-section-page .ecu-stat-grid > .ecu-stat-card:nth-child(2) .ecu-stat-card__value {
+  animation-delay: 0.04s;
+}
+
+.ecu-section-page .ecu-stat-grid > .ecu-stat-card:nth-child(3) .ecu-stat-card__value {
+  animation-delay: 0.08s;
+}
+
+.ecu-section-page .ecu-stat-grid > .ecu-stat-card:nth-child(4) .ecu-stat-card__value {
+  animation-delay: 0.12s;
+}
+
+.ecu-section-page .ecu-stat-grid > .ecu-stat-card:nth-child(5) .ecu-stat-card__value {
+  animation-delay: 0.16s;
+}
+
+@keyframes ecu-stat-value-in {
+  from {
+    opacity: 0.55;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Total del módulo: un poco más presente, acento del tenant */
+.ecu-section-page .ecu-stat-card--lead .ecu-stat-card__value {
+  font-size: 1.7rem;
+  letter-spacing: -0.03em;
+  color: var(--shell-primary, #3525cd);
 }
 
 /* Valores tipo código (secuenciales, RUC, series): compactos para no dominar el riel. */
@@ -130,11 +162,14 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--idt-ink);
+  animation: none;
 }
 
 .ecu-section-page .ecu-stat-card__label {
   grid-area: label;
   margin: 0;
+  min-width: 0;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.005em;
@@ -143,6 +178,61 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Marcas alineadas con ecu-kind / ecu-status (sin píldoras ni icon tiles) */
+.ecu-section-page .ecu-stat-card--kind-physical .ecu-stat-card__label,
+.ecu-section-page .ecu-stat-card--kind-service .ecu-stat-card__label,
+.ecu-section-page .ecu-stat-card--status-ok .ecu-stat-card__label,
+.ecu-section-page .ecu-stat-card--status-warn .ecu-stat-card__label {
+  position: relative;
+  padding-left: 0.85rem;
+}
+
+.ecu-section-page .ecu-stat-card--kind-physical .ecu-stat-card__label::before,
+.ecu-section-page .ecu-stat-card--kind-service .ecu-stat-card__label::before,
+.ecu-section-page .ecu-stat-card--status-ok .ecu-stat-card__label::before,
+.ecu-section-page .ecu-stat-card--status-warn .ecu-stat-card__label::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0.45rem;
+  height: 0.45rem;
+  box-sizing: border-box;
+  transform: translateY(-50%);
+}
+
+.ecu-section-page .ecu-stat-card--kind-physical .ecu-stat-card__label::before {
+  border-radius: 2px;
+  background: var(--idt-ink);
+}
+
+.ecu-section-page .ecu-stat-card--kind-service .ecu-stat-card__label::before {
+  border-radius: 2px;
+  border: 1.5px dashed color-mix(in srgb, var(--idt-ink) 65%, transparent);
+}
+
+.ecu-section-page .ecu-stat-card--kind-service .ecu-stat-card__value {
+  color: color-mix(in srgb, var(--idt-ink) 72%, var(--idt-muted));
+}
+
+.ecu-section-page .ecu-stat-card--status-ok .ecu-stat-card__label::before {
+  border-radius: 50%;
+  background: var(--idt-ok);
+}
+
+.ecu-section-page .ecu-stat-card--status-ok .ecu-stat-card__value {
+  color: var(--idt-ok);
+}
+
+.ecu-section-page .ecu-stat-card--status-warn .ecu-stat-card__label::before {
+  border-radius: 50%;
+  background: var(--idt-warn);
+}
+
+.ecu-section-page .ecu-stat-card--status-warn .ecu-stat-card__value {
+  color: var(--idt-warn);
 }
 
 .ecu-section-page .ecu-stat-card__footer {
@@ -230,6 +320,7 @@
   margin-bottom: 0;
   padding: 0.7rem 1.15rem;
   border-bottom: 1px solid var(--idt-rule);
+  background: var(--glb-surface, var(--shell-surface, #ffffff));
 }
 
 .ecu-section-page .glb-datagrid__search {
@@ -238,52 +329,32 @@
 
 .ecu-section-page .glb-datagrid__viewport,
 .ecu-section-page .glb-datagrid__surface {
+  background: var(--glb-surface, var(--shell-surface, #ffffff));
   border-radius: 0;
   box-shadow: none;
 }
 
-.ecu-section-page .glb-datagrid__header-cell {
-  padding: 0.55rem 0.7rem;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  color: var(--idt-muted);
-  background: transparent;
-  border-bottom: 1px solid var(--idt-rule);
-}
+/* Cabecera: sin overrides — solo estilos de glubox */
 
 .ecu-section-page .glb-datagrid__cell {
   padding: 0.45rem 0.7rem;
   border-bottom: 1px solid var(--idt-rule);
 }
 
-/* No pisar los modificadores de la librería: las celdas ordenables/redimensionables
-   y de checkbox ya traen su propio padding interno (cabecera compacta). */
-.ecu-section-page .glb-datagrid__header-cell--sortable {
-  padding: 0;
-}
-
-.ecu-section-page .glb-datagrid__header-cell--resizable {
-  padding-right: 0.5rem;
-}
-
-.ecu-section-page .glb-datagrid__header-cell--checkbox,
 .ecu-section-page .glb-datagrid__cell--checkbox {
   padding-inline: 0.5rem;
 }
 
-.ecu-section-page .glb-datagrid__table tr > :first-child.glb-datagrid__header-cell--checkbox,
 .ecu-section-page .glb-datagrid__table tr > :first-child.glb-datagrid__cell--checkbox {
   padding-left: 0.5rem;
 }
 
-/* Bordes alineados con la barra de mando */
-.ecu-section-page .glb-datagrid__table tr > :first-child {
+/* Bordes alineados con la barra de mando (solo cuerpo) */
+.ecu-section-page .glb-datagrid__table tr > :first-child.glb-datagrid__cell {
   padding-left: 1.15rem;
 }
 
-.ecu-section-page .glb-datagrid__table tr > :last-child {
+.ecu-section-page .glb-datagrid__table tr > :last-child.glb-datagrid__cell {
   padding-right: 1.15rem;
 }
 
@@ -291,12 +362,12 @@
   background: var(--datagrid-row-hover-bg);
 }
 
-/* La columna fija tapa el scroll: fondo opaco para que no se transparente */
-.ecu-section-page .glb-datagrid__cell--sticky {
+/* Columna fija: fondo opaco solo en el cuerpo (la cabecera sticky sigue el gris de glubox) */
+.ecu-section-page .glb-datagrid__body .glb-datagrid__cell--sticky {
   background: var(--shell-surface, #ffffff);
 }
 
-.ecu-section-page .glb-datagrid__row:hover .glb-datagrid__cell--sticky {
+.ecu-section-page .glb-datagrid__body .glb-datagrid__row:hover .glb-datagrid__cell--sticky {
   background: color-mix(
     in srgb,
     var(--shell-primary, #3525cd) 5%,
@@ -309,7 +380,7 @@
   border: 0;
   border-top: 1px solid var(--idt-rule);
   border-radius: 0;
-  background: transparent;
+  background: var(--glb-surface, var(--shell-surface, #ffffff));
   padding: 0.55rem 1.15rem;
 }
 
@@ -581,12 +652,21 @@ html.sf-dark-mode .ecu-section-page {
 }
 
 html.sf-dark-mode .ecu-section-page .ecu-stat-grid {
-  background: color-mix(in srgb, var(--shell-surface, #1e293b) 92%, #ffffff 2%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--shell-primary, #818cf8) 8%, var(--shell-surface, #1e293b)) 0%,
+      color-mix(in srgb, var(--shell-surface, #1e293b) 96%, #ffffff 2%) 70%
+    );
   border-color: rgba(255, 255, 255, 0.09);
 }
 
 html.sf-dark-mode .ecu-section-page .ecu-stat-card:hover {
-  background: color-mix(in srgb, var(--shell-primary, #818cf8) 6%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--stat-tone, var(--shell-primary, #818cf8)) 10%,
+    transparent
+  );
 }
 
 html.sf-dark-mode .ecu-section-page .ecu-chip {
@@ -614,34 +694,36 @@ html.sf-dark-mode .ecu-section-page .ecu-chip {
     font-size: 1.25rem;
   }
 
+  .ecu-section-page .ecu-stat-card--lead .ecu-stat-card__value {
+    font-size: 1.4rem;
+  }
+
   .ecu-section-page .glb-datagrid__toolbar,
   .ecu-commandbar {
     padding-inline: 0.9rem;
   }
 
-  .ecu-section-page .glb-datagrid__header-cell,
   .ecu-section-page .glb-datagrid__cell,
   .ecu-section-page .glb-datagrid__summary,
   .ecu-section-page .glb-datagrid__pagination {
     padding-inline: 0.9rem;
   }
 
-  .ecu-section-page .glb-datagrid__header-cell--sortable {
-    padding-inline: 0;
-  }
-
-  .ecu-section-page .glb-datagrid__header-cell--checkbox,
   .ecu-section-page .glb-datagrid__cell--checkbox {
     padding-inline: 0.5rem;
   }
 
-  .ecu-section-page .glb-datagrid__table tr > :first-child,
-  .ecu-section-page .glb-datagrid__table tr > :last-child {
+  .ecu-section-page .glb-datagrid__table tr > :first-child.glb-datagrid__cell,
+  .ecu-section-page .glb-datagrid__table tr > :last-child.glb-datagrid__cell {
     padding-inline: 0.9rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ecu-section-page .ecu-stat-card__value {
+    animation: none;
+  }
+
   .ecu-section-page .ecu-stat-card,
   .ecu-section-page .ecu-stat-card:hover {
     transition: none;

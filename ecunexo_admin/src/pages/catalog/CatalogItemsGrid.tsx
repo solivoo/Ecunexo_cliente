@@ -92,7 +92,7 @@ function CatalogItemGridThumb({ row }: { readonly row: CatalogItemGridRow }) {
   if (!thumbUrl || hasError) {
     return (
       <div
-        className="catalog-item-thumb catalog-item-thumb--empty"
+        className="catalog-item-thumb"
         title={row.name}
         aria-label={row.name}
         style={{
@@ -178,19 +178,26 @@ export function CatalogItemsGrid({
     const cols: ColumnDef<CatalogItemGridRow>[] = [
       {
         key: 'mainImageThumbUrl',
-        header: 'Foto',
-        width: 68,
+        header: 'FOTO',
         align: 'center',
+        width: 68,
         sortable: false,
         renderCell: (_value: unknown, row: CatalogItemGridRow) => (
           <CatalogItemGridThumb row={row} />
         ),
       },
       {
+        key: 'sku',
+        header: 'SKU',
+        width: 50,
+        sortable: false,
+        renderCell: (_value: CatalogItemGridRow['sku'], row: CatalogItemGridRow) =>
+          row.sku ? <code className="ecu-code">{row.sku}</code> : '—',
+      },
+      {
         key: 'name',
-        header: 'Nombre',
+        header: 'NOMBRE',
         width: 240,
-        sortable: true,
         renderCell: (_value: CatalogItemGridRow['name'], row: CatalogItemGridRow) => {
           const levelSummary = firstLevelSummary(row.hierarchyPathJson)
           return (
@@ -214,41 +221,35 @@ export function CatalogItemsGrid({
       },
       {
         key: 'kind',
-        header: 'Tipo',
+        header: 'TIPO',
+        align: 'center',
         width: 110,
-        sortable: true,
+        sortable: false,
         renderCell: (_value: CatalogItemGridRow['kind'], row: CatalogItemGridRow) => (
           <CatalogKindMark kind={row.kind} />
         ),
       },
       {
-        key: 'sku',
-        header: 'SKU',
-        width: 140,
-        sortable: true,
-        renderCell: (_value: CatalogItemGridRow['sku'], row: CatalogItemGridRow) =>
-          row.sku ? <code className="ecu-code">{row.sku}</code> : '—',
-      },
-      {
         key: 'status',
-        header: 'Estado',
+        header: 'ESTADO',
+        align: 'center',
         width: 110,
-        sortable: true,
         renderCell: (_value: CatalogItemGridRow['status'], row: CatalogItemGridRow) => (
           <CatalogStatusMark status={row.status} />
         ),
       },
       {
         key: 'createdAt',
-        header: 'Alta',
+        header: 'ALTA',
+        align: 'center',
         width: 110,
-        sortable: true,
+        sortable: false,
         renderCell: (_value: CatalogItemGridRow['createdAt'], row: CatalogItemGridRow) =>
           formatDate(row.createdAt),
       },
     ]
 
-    if (canEdit || canDelete || canHide) {
+     if (canEdit || canDelete || canHide) {
       cols.push({
         key: 'id',
         header: 'Acciones',
@@ -297,6 +298,7 @@ export function CatalogItemsGrid({
         ),
       })
     }
+
 
     return cols
   }, [canAssignPrice, canDelete, canEdit, canHide, deletingId, hidingId, navigate, onDelete, onToggleHidden])
@@ -397,10 +399,10 @@ export function CatalogItemsGrid({
                 </Button>
               ) : null}
               {canDelete && onDelete ? (
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
+                <GridIconButton
+                  label="Eliminar ítem"
+                  icon={Trash2}
+                  danger
                   className="ecu-catalog-card__btn-delete"
                   disabled={deletingId === row.id}
                   loading={deletingId === row.id}
@@ -408,11 +410,7 @@ export function CatalogItemsGrid({
                     e.stopPropagation()
                     onDelete(row)
                   }}
-                  aria-label={`Eliminar ${row.name}`}
-                  title="Eliminar ítem"
-                >
-                  <Trash2 size={16} />
-                </Button>
+                />
               ) : null}
             </div>
           )}

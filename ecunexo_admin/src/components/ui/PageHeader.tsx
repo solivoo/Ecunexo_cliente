@@ -19,7 +19,7 @@ export function PageHeader({
     <header className={`ecu-page-header ${className}`.trim()}>
       <div className="ecu-page-header__main">
         <div className="ecu-page-header__title-row">
-          <h1 className="ecu-page-header__title">{title}</h1>
+          <h3 className="ecu-page-header__title">{title}</h3>
           {badge}
         </div>
         {subtitle && <div className="ecu-page-header__subtitle">{subtitle}</div>}

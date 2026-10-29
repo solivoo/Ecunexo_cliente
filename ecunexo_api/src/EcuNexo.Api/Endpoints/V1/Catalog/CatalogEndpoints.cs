@@ -195,9 +195,7 @@ public static class CatalogEndpoints
         }
 
         var value = result.Value!;
-        return Results.Created(
-            $"/api/v1/tenants/{tenantId}/catalog/items/{value.ParentItemId}",
-            value);
+        return Results.Created($"/api/v1/tenants/{tenantId}/catalog/items/{value.ParentItemId}", value);
     }
 
     private static async Task<IResult> AddItemVariantAsync(
