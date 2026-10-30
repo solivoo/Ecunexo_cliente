@@ -12,7 +12,7 @@ import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
-import { listCatalogItems } from '@/services/catalogApi'
+import { createCatalogItem, listCatalogItems } from '@/services/catalogApi'
 import { approveInventoryDocument, createInventoryDocument, listWarehouses } from '@/services/inventoryApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
@@ -66,6 +66,15 @@ export function CreateInventoryDocumentPage() {
     { catalogItemId: string; quantity: number; unitCost: number | null }[]
   >([])
 
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false)
+  const [quickBusy, setQuickBusy] = useState(false)
+  const [quickName, setQuickName] = useState('')
+  const [quickSku, setQuickSku] = useState('')
+  const [quickDescription, setQuickDescription] = useState('')
+  const [quickBasePrice, setQuickBasePrice] = useState('')
+  const [quickQuantity, setQuickQuantity] = useState('1')
+  const [quickUnitCost, setQuickUnitCost] = useState('')
+
   const isTransfer = Number(documentType) === InventoryDocumentType.Transfer
   const isAdjustment = Number(documentType) === InventoryDocumentType.Adjustment
   const isReceipt = Number(documentType) === InventoryDocumentType.Receipt
@@ -114,6 +123,112 @@ export function CreateInventoryDocumentPage() {
   const selectedWarehouseName = useMemo(() => {
     return warehouses.find((w) => w.id === warehouseId)?.name || 'Bodega'
   }, [warehouses, warehouseId])
+
+  const openQuickCreateModal = useCallback((prefillText?: string) => {
+    const clean = (prefillText ?? '').trim()
+    const looksLikeSku = clean.length > 0 && !clean.includes(' ') && /^[A-Za-z0-9._-]+$/.test(clean)
+    setQuickName(looksLikeSku ? '' : clean)
+    setQuickSku(looksLikeSku ? clean.toUpperCase() : '')
+    setQuickDescription('')
+    setQuickBasePrice('')
+    setQuickQuantity('1')
+    setQuickUnitCost('')
+    setIsQuickCreateOpen(true)
+  }, [])
+
+  const handleQuickCreateSubmit = useCallback(async () => {
+    if (!tenantId) return
+    const trimmedName = quickName.trim()
+    const trimmedSku = quickSku.trim()
+    if (!trimmedName) {
+      toast.show({
+        title: 'Nombre requerido',
+        message: 'Ingresa el nombre del producto para crearlo en el catálogo.',
+        variant: 'warning',
+      })
+      return
+    }
+    const parsedPrice =
+      quickBasePrice.trim() !== '' ? Number(quickBasePrice.replace(',', '.')) : null
+    if (parsedPrice != null && (Number.isNaN(parsedPrice) || parsedPrice < 0)) {
+      toast.show({
+        title: 'Precio inválido',
+        message: 'El precio base de venta no puede ser negativo.',
+        variant: 'warning',
+      })
+      return
+    }
+
+    setQuickBusy(true)
+    try {
+      const created = await createCatalogItem(tenantId, {
+        kind: CatalogItemKind.Physical,
+        name: trimmedName,
+        sku: trimmedSku || null,
+        description: quickDescription.trim() || null,
+        basePrice: parsedPrice,
+        customAttributesJson: '{}',
+        familyId: null,
+        hierarchyPathJson: null,
+      })
+
+      const newEntry = {
+        id: created.itemId,
+        name: trimmedName,
+        sku: trimmedSku || null,
+      }
+      setItems((prev) => [newEntry, ...prev])
+      setFullCatalog((prev) => [
+        {
+          id: created.itemId,
+          kind: CatalogItemKind.Physical,
+          name: trimmedName,
+          description: quickDescription.trim() || null,
+          sku: trimmedSku || null,
+          basePrice: parsedPrice,
+          status: CatalogItemStatus.Active,
+          createdAt: new Date().toISOString(),
+          isMatrixParent: false,
+        },
+        ...prev,
+      ])
+
+      const qtyStr = String(Math.max(1, Number(quickQuantity) || 1))
+      const costStr = isReceipt ? quickUnitCost.trim() : ''
+
+      setLines((prev) => {
+        if (prev.length === 1 && !prev[0].catalogItemId) {
+          return [{ catalogItemId: created.itemId, quantity: qtyStr, unitCost: costStr }]
+        }
+        return [...prev, { catalogItemId: created.itemId, quantity: qtyStr, unitCost: costStr }]
+      })
+
+      setIsQuickCreateOpen(false)
+      toast.show({
+        title: 'Producto creado y agregado',
+        message: `«${trimmedName}» se guardó en el catálogo y se añadió a la tabla.`,
+        variant: 'success',
+      })
+    } catch (err: unknown) {
+      toast.show({
+        title: 'No se pudo crear el producto',
+        message: readApiError(err, 'Verifica que el SKU no esté duplicado.'),
+        variant: 'error',
+      })
+    } finally {
+      setQuickBusy(false)
+    }
+  }, [
+    isReceipt,
+    quickBasePrice,
+    quickDescription,
+    quickName,
+    quickQuantity,
+    quickSku,
+    quickUnitCost,
+    tenantId,
+    toast,
+  ])
 
   const handleScanSubmit = useCallback(() => {
     const code = scannedBarcode.trim()
@@ -626,7 +741,7 @@ export function CreateInventoryDocumentPage() {
               <div className="ecu-inv-quick-bar__buttons">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="primary"
                   size="sm"
                   disabled={busy}
                   onClick={() => {
@@ -635,7 +750,7 @@ export function CreateInventoryDocumentPage() {
                   }}
                 >
                   <Boxes size={16} strokeWidth={1.75} aria-hidden />
-                  Buscar en Catálogo
+                  Seleccionar productos del catálogo
                 </Button>
                 <Button
                   type="button"
@@ -649,6 +764,16 @@ export function CreateInventoryDocumentPage() {
                 >
                   <Layers size={16} strokeWidth={1.75} aria-hidden />
                   Cargar por Matriz / Modelo
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => openQuickCreateModal(scannedBarcode)}
+                >
+                  <Plus size={16} strokeWidth={1.75} aria-hidden />
+                  Crear producto rápido
                 </Button>
               </div>
             </div>
@@ -694,43 +819,24 @@ export function CreateInventoryDocumentPage() {
                         )}
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <Select
-                              id={`inv-item-${index}`}
-                              aria-label={`Ítem línea ${index + 1}`}
-                              variant="outline"
-                              size="sm"
-                              options={itemOptions}
-                              value={line.catalogItemId}
-                              placeholder="Seleccionar ítem…"
-                              onChange={(value: string) =>
-                                setLines((prev) =>
-                                  prev.map((row, i) =>
-                                    i === index ? { ...row, catalogItemId: value } : row
-                                  )
-                                )
-                              }
-                              disabled={busy}
-                              fullWidth
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            style={{ minWidth: '32px', width: '32px', height: '32px', padding: 0, flexShrink: 0 }}
-                            title="Buscar en catálogo"
-                            aria-label="Buscar en catálogo"
-                            disabled={busy}
-                            onClick={() => {
-                              setSelectModalMode('search')
-                              setIsSelectModalOpen(true)
-                            }}
-                          >
-                            <Boxes size={15} strokeWidth={1.75} aria-hidden />
-                          </Button>
-                        </div>
+                        <Select
+                          id={`inv-item-${index}`}
+                          aria-label={`Ítem línea ${index + 1}`}
+                          variant="outline"
+                          size="sm"
+                          options={itemOptions}
+                          value={line.catalogItemId}
+                          placeholder="Seleccionar ítem de la lista…"
+                          onChange={(value: string) =>
+                            setLines((prev) =>
+                              prev.map((row, i) =>
+                                i === index ? { ...row, catalogItemId: value } : row
+                              )
+                            )
+                          }
+                          disabled={busy}
+                          fullWidth
+                        />
                       </td>
                       <td className="ecu-doc-lines__qty">
                         <NumberBox
@@ -874,7 +980,132 @@ export function CreateInventoryDocumentPage() {
           initialMode={selectModalMode}
           onClose={() => setIsSelectModalOpen(false)}
           onAddLines={handleAddLinesFromModal}
+          onRequestCreateItem={openQuickCreateModal}
         />
+
+        {isQuickCreateOpen ? (
+          <Popup
+            open={isQuickCreateOpen}
+            title="Crear producto rápido en catálogo"
+            onClose={() => !quickBusy && setIsQuickCreateOpen(false)}
+            width="min(92vw, 34rem)"
+            actions={[
+              {
+                id: 'cancel-quick',
+                label: 'Cancelar',
+                variant: 'outline',
+                onClick: () => setIsQuickCreateOpen(false),
+                disabled: quickBusy,
+              },
+              {
+                id: 'save-quick',
+                label: 'Crear y agregar al documento',
+                variant: 'primary',
+                loading: quickBusy,
+                disabled: quickBusy,
+                onClick: () => void handleQuickCreateSubmit(),
+              },
+            ]}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--glb-text-muted, #888)' }}>
+                Crea un producto físico estándar sin salir del documento. Se guardará activo en el catálogo y se agregará automáticamente como línea abajo.
+              </p>
+              <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
+                <div className="ecu-companies-form__field">
+                  <TextBox
+                    id="quick-item-name"
+                    label="Nombre del producto *"
+                    labelPosition="outlined"
+                    variant="outline"
+                    placeholder="Ej. Termo Acero 1L"
+                    value={quickName}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setQuickName(e.target.value)}
+                    disabled={quickBusy}
+                    fullWidth
+                  />
+                </div>
+                <div className="ecu-companies-form__field">
+                  <TextBox
+                    id="quick-item-sku"
+                    label="SKU / Código"
+                    labelPosition="outlined"
+                    variant="outline"
+                    placeholder="Ej. TERMO-1L"
+                    value={quickSku}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setQuickSku(e.target.value)}
+                    disabled={quickBusy}
+                    fullWidth
+                  />
+                </div>
+              </div>
+
+              <div className="ecu-companies-form__field">
+                <TextBox
+                  id="quick-item-desc"
+                  label="Descripción corta (opcional)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  placeholder="Detalle o presentación del artículo"
+                  value={quickDescription}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setQuickDescription(e.target.value)}
+                  disabled={quickBusy}
+                  fullWidth
+                />
+              </div>
+
+              <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+                <div className="ecu-companies-form__field">
+                  <NumberBox
+                    id="quick-item-price"
+                    label="Precio venta base ($)"
+                    labelPosition="outlined"
+                    variant="outline"
+                    min={0}
+                    step={0.01}
+                    placeholder="Opcional"
+                    value={quickBasePrice === '' ? '' : Number(quickBasePrice)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setQuickBasePrice(e.target.value)}
+                    disabled={quickBusy}
+                    fullWidth
+                  />
+                </div>
+                <div className="ecu-companies-form__field">
+                  <NumberBox
+                    id="quick-item-qty"
+                    label="Cant. documento"
+                    labelPosition="outlined"
+                    variant="outline"
+                    min={1}
+                    step={1}
+                    showSpinButtons
+                    value={Number(quickQuantity) || 1}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setQuickQuantity(e.target.value)}
+                    disabled={quickBusy}
+                    fullWidth
+                  />
+                </div>
+                {isReceipt ? (
+                  <div className="ecu-companies-form__field">
+                    <NumberBox
+                      id="quick-item-cost"
+                      label="Costo unit. compra ($)"
+                      labelPosition="outlined"
+                      variant="outline"
+                      min={0}
+                      step={0.01}
+                      placeholder="0.00"
+                      value={quickUnitCost === '' ? '' : Number(quickUnitCost)}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setQuickUnitCost(e.target.value)}
+                      disabled={quickBusy}
+                      fullWidth
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </Popup>
+        ) : null}
 
         {isZeroCostModalOpen ? (
           <Popup

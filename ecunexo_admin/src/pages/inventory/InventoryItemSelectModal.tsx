@@ -23,6 +23,7 @@ export type InventoryItemSelectModalProps = {
   readonly warehouseName?: string
   readonly initialMode?: 'search' | 'matrix'
   readonly onAddLines: (items: { catalogItemId: string; quantity: number }[]) => void
+  readonly onRequestCreateItem?: (prefillText?: string) => void
 }
 
 type ProductVariantRow = {
@@ -50,6 +51,7 @@ export function InventoryItemSelectModal({
   warehouseName,
   initialMode = 'search',
   onAddLines,
+  onRequestCreateItem,
 }: InventoryItemSelectModalProps) {
   const [mode, setMode] = useState<'search' | 'matrix'>(() => initialMode)
   const [loading, setLoading] = useState(false)
@@ -516,28 +518,60 @@ export function InventoryItemSelectModal({
                 </div>
               </div>
 
-              {filteredSearchRows.length > 0 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const allIds = new Set(filteredSearchRows.map((r) => r.id))
-                    setSelectedIds(allIds)
-                  }}
-                >
-                  Seleccionar visibles ({filteredSearchRows.length})
-                </Button>
-              ) : null}
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {filteredSearchRows.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const allIds = new Set(filteredSearchRows.map((r) => r.id))
+                      setSelectedIds(allIds)
+                    }}
+                  >
+                    Seleccionar visibles ({filteredSearchRows.length})
+                  </Button>
+                ) : null}
+                {onRequestCreateItem ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      onClose()
+                      onRequestCreateItem(searchFilter.trim())
+                    }}
+                  >
+                    + Crear producto rápido
+                  </Button>
+                ) : null}
+              </div>
             </div>
 
             {filteredSearchRows.length === 0 ? (
-              <EmptyState
-                className="ecu-empty-state--compact"
-                icon={<Search size={24} strokeWidth={1.75} aria-hidden />}
-                title="No se encontraron ítems físicos"
-                description="Prueba con otros términos de búsqueda o filtros de stock."
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                <EmptyState
+                  className="ecu-empty-state--compact"
+                  icon={<Search size={24} strokeWidth={1.75} aria-hidden />}
+                  title="No se encontraron ítems físicos"
+                  description="Prueba con otros términos de búsqueda o créalo directamente sin salir del documento."
+                />
+                {onRequestCreateItem ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      onClose()
+                      onRequestCreateItem(searchFilter.trim())
+                    }}
+                  >
+                    {searchFilter.trim()
+                      ? `+ Crear «${searchFilter.trim()}» en el catálogo`
+                      : '+ Crear nuevo producto en el catálogo'}
+                  </Button>
+                ) : null}
+              </div>
             ) : (
               <DataGrid<ProductVariantRow>
                 className="ecu-companies-grid"
