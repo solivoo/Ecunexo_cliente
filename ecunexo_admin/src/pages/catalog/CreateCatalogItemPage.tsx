@@ -232,11 +232,14 @@ export function CreateCatalogItemPage() {
     [appliedTemplateLevels, dimensionValuesMap]
   )
 
+  const isStandardProduct = selectedTemplateId === '__none__'
+
   const usesMatrix = Boolean(appliedTemplate) && (templateAllDimensions?.length ?? 0) > 0
 
   const showProductGallery =
-    Boolean(appliedTemplate) &&
-    (photoChoice === 'model' || (!usesMatrix && photoChoice !== 'none'))
+    isStandardProduct ||
+    (Boolean(appliedTemplate) &&
+      (photoChoice === 'model' || (!usesMatrix && photoChoice !== 'none')))
 
   const matrixPhotoScope =
     photoChoice === 'group' ? 'group' : photoChoice === 'variant' ? 'variant' : 'model'
@@ -257,7 +260,7 @@ export function CreateCatalogItemPage() {
     [modelAttributeFields]
   )
 
-  const showManualName = !hasTemplateNameField
+  const showManualName = isStandardProduct || !hasTemplateNameField
 
   const findTemplateAttributeValue = useCallback(
     (candidates: readonly string[]): string => {
@@ -282,7 +285,7 @@ export function CreateCatalogItemPage() {
     () => modelAttributeFields.some((f) => matchesFieldKey(f.key, DESCRIPTION_FIELD_KEYS)),
     [modelAttributeFields]
   )
-  const showManualDescription = !hasTemplateDescriptionField
+  const showManualDescription = isStandardProduct || !hasTemplateDescriptionField
 
   const firstVariantName = useMemo(
     () =>
@@ -372,8 +375,8 @@ export function CreateCatalogItemPage() {
       setError(null)
       setBusy(true)
       try {
-        if (!selectedTemplateId || !appliedTemplate) {
-          throw new Error('Elige una plantilla para registrar el producto.')
+        if (!selectedTemplateId || (!appliedTemplate && !isStandardProduct)) {
+          throw new Error('Elige una plantilla o selecciona «Producto estándar (sin plantilla)».')
         }
         const nameSeed = usesMatrix
           ? name.trim() || firstVariantName || derivedTemplateName
@@ -399,12 +402,14 @@ export function CreateCatalogItemPage() {
         const kindNum = CatalogItemKind.Physical
 
         let targetItemId: string
-        const familyId = selectedTemplateId || null
-        const hierarchyPathJson = buildHierarchyPathJson(
-          appliedTemplateLevels,
-          customAttributes,
-          dimensionValuesMap
-        )
+        const familyId = isStandardProduct ? null : selectedTemplateId || null
+        const hierarchyPathJson = isStandardProduct
+          ? null
+          : buildHierarchyPathJson(
+              appliedTemplateLevels,
+              customAttributes,
+              dimensionValuesMap
+            )
 
         if (usesMatrix && kindNum === CatalogItemKind.Physical) {
           if (!matrixData.isValid || matrixData.variants.length === 0) {
@@ -659,39 +664,37 @@ export function CreateCatalogItemPage() {
         />
 
         <form id="create-catalog-item" onSubmit={(e) => void onSubmit(e)} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <SectionCard title="Plantilla">
+          <SectionCard title="Plantilla / Modo de Creación">
             <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
-              {productTemplates.length === 0 ? (
+              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                <Select
+                  id="ci-template"
+                  label="Tipo de Producto / Plantilla"
+                  labelPosition="outlined"
+                  variant="outline"
+                  options={[
+                    { value: '', label: 'Elige una opción…' },
+                    { value: '__none__', label: '📦 Producto estándar (sin plantilla / ficha rápida)' },
+                    ...productTemplates.map((t) => ({ value: t.id, label: `Plantilla: ${t.name}` })),
+                  ]}
+                  value={selectedTemplateId}
+                  onChange={handleApplyTemplate}
+                  disabled={busy}
+                  fullWidth
+                />
+              </div>
+              {isStandardProduct ? (
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-muted)' }}>
-                    No hay plantillas activas. Crea una en «Plantillas de producto» para registrar
-                    productos.
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-text)' }}>
+                    <strong>Modo estándar (Lite):</strong> Ficha directa con nombre, SKU, descripción y fotos. Ideal para catálogo rápido y venta en tienda online sin atributos técnicos complejos.
                   </p>
                 </div>
-              ) : (
-                <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                  <Select
-                    id="ci-template"
-                    label="Plantilla"
-                    labelPosition="outlined"
-                    variant="outline"
-                    options={[
-                      { value: '', label: 'Elige una plantilla' },
-                      ...productTemplates.map((t) => ({ value: t.id, label: t.name })),
-                    ]}
-                    value={selectedTemplateId}
-                    onChange={handleApplyTemplate}
-                    disabled={busy}
-                    fullWidth
-                  />
-                </div>
-              )}
-              {appliedTemplate && templateSummary ? (
+              ) : appliedTemplate && templateSummary ? (
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--glb-text)' }}>{templateSummary}</p>
                 </div>
               ) : null}
-              {appliedTemplate ? (
+              {appliedTemplate || isStandardProduct ? (
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
                   <p className="ecu-hint" style={{ margin: 0 }}>
                     {(showManualName ? name.trim() : derivedTemplateName)
@@ -706,13 +709,13 @@ export function CreateCatalogItemPage() {
                       : ''}
                   </p>
                 </div>
-              ) : productTemplates.length > 0 ? (
+              ) : (
                 <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
                   <p className="ecu-hint" style={{ margin: 0 }}>
-                    Selecciona una plantilla para cargar el formulario.
+                    Selecciona una plantilla o elige «Producto estándar» para cargar el formulario.
                   </p>
                 </div>
-              ) : null}
+              )}
             </div>
           </SectionCard>
 
@@ -723,9 +726,15 @@ export function CreateCatalogItemPage() {
             </div>
           ) : null}
 
-          {appliedTemplate ? (
+          {appliedTemplate || isStandardProduct ? (
             <SectionCard
-              title={usesMatrix ? 'Matriz Producto (Modelo base)' : 'Datos del producto'}
+              title={
+                usesMatrix
+                  ? 'Matriz Producto (Modelo base)'
+                  : isStandardProduct
+                    ? 'Datos del producto estándar'
+                    : 'Datos del producto'
+              }
               subtitle={
                 usesMatrix
                   ? 'La matriz agrupa las variantes, define el nombre comercial y la descripción general. La matriz no lleva SKU; cada variante física llevará su propio SKU abajo.'
@@ -965,7 +974,7 @@ export function CreateCatalogItemPage() {
               form="create-catalog-item"
               variant="primary"
               loading={busy}
-              disabled={busy || !appliedTemplate}
+              disabled={busy || (!appliedTemplate && !isStandardProduct)}
             >
               <Save size={16} />
               <span>{uploadStatus || (usesMatrix ? 'Guardar matriz producto' : 'Guardar producto')}</span>

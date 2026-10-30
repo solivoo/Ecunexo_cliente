@@ -2,6 +2,7 @@ using System.Text.Json;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Catalog.Queries.GetCatalogItem;
+using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Tenancy;
@@ -23,6 +24,7 @@ public sealed class GetStorefrontProductHandler
     private readonly IPromotionRepository _promotions;
     private readonly IWarehouseRepository _warehouses;
     private readonly IStorefrontProductLikeRepository _likes;
+    private readonly IEcommerceStorefrontSettingsReader? _settings;
 
     public GetStorefrontProductHandler(
         ISender sender,
@@ -32,7 +34,8 @@ public sealed class GetStorefrontProductHandler
         IProductPriceRepository productPrices,
         IPromotionRepository promotions,
         IWarehouseRepository warehouses,
-        IStorefrontProductLikeRepository likes)
+        IStorefrontProductLikeRepository likes,
+        IEcommerceStorefrontSettingsReader? settings = null)
     {
         _sender = sender;
         _stock = stock;
@@ -42,6 +45,7 @@ public sealed class GetStorefrontProductHandler
         _promotions = promotions;
         _warehouses = warehouses;
         _likes = likes;
+        _settings = settings;
     }
 
     public async Task<Result<StorefrontProductDetailDto>> Handle(
@@ -86,6 +90,10 @@ public sealed class GetStorefrontProductHandler
         var dispatchWarehouse = await _warehouses
             .GetMainAsync(query.TenantId, ct)
             .ConfigureAwait(false);
+        var storefrontSettings = _settings is not null
+            ? await _settings.ResolveAsync(query.TenantId, ct).ConfigureAwait(false)
+            : null;
+        var reserveOnOrder = storefrontSettings?.ReserveOnOrder ?? true;
 
         var availability = await _stock
             .SumAvailableByItemIdsAsync(query.TenantId, dispatchWarehouse?.Id, ids, ct)
@@ -145,7 +153,8 @@ public sealed class GetStorefrontProductHandler
                     variantPrice,
                     variantOriginalPrice,
                     variantDiscountPercent,
-                    item.MinOrderQuantity);
+                    item.MinOrderQuantity,
+                    reserveOnOrder);
             })
             .ToList();
 
@@ -163,7 +172,7 @@ public sealed class GetStorefrontProductHandler
             productPrice,
             productOriginalPrice,
             productDiscountPercent,
-            totalAvailable > 0m,
+            !reserveOnOrder || totalAvailable > 0m,
             totalAvailable,
             item.Images.Select(MapImage).ToList(),
             variantDtos,
@@ -225,7 +234,8 @@ public sealed class GetStorefrontProductHandler
         decimal? price,
         decimal? originalPrice,
         int? discountPercent,
-        decimal productMinOrderQuantity)
+        decimal productMinOrderQuantity,
+        bool reserveOnOrder)
     {
         var available = availability.TryGetValue(variant.Id, out var value) ? value : 0m;
         var gallery = variant.Images?.Select(MapImage).ToList();
@@ -243,7 +253,7 @@ public sealed class GetStorefrontProductHandler
             price,
             originalPrice,
             discountPercent,
-            available > 0m,
+            !reserveOnOrder || available > 0m,
             available,
             variant.DimensionValues,
             variant.MainImageThumbUrl,

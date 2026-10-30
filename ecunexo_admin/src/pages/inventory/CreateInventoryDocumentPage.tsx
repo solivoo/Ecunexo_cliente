@@ -668,9 +668,14 @@ export function CreateInventoryDocumentPage() {
                       {isAdjustment ? 'Cantidad contada' : 'Cantidad'}
                     </th>
                     {isReceipt && (
-                      <th scope="col" className="ecu-doc-lines__qty" style={{ minWidth: '150px' }}>
-                        Costo unitario (neto sin IVA)
-                      </th>
+                      <>
+                        <th scope="col" className="ecu-doc-lines__qty" style={{ minWidth: '140px' }}>
+                          Costo unitario (neto sin IVA)
+                        </th>
+                        <th scope="col" className="ecu-doc-lines__qty" style={{ minWidth: '110px', textAlign: 'right' }}>
+                          Subtotal
+                        </th>
+                      </>
                     )}
                     <th scope="col" className="ecu-doc-lines__actions">
                       <span className="visually-hidden">Acciones</span>
@@ -749,27 +754,46 @@ export function CreateInventoryDocumentPage() {
                         />
                       </td>
                       {isReceipt && (
-                        <td className="ecu-doc-lines__qty">
-                          <NumberBox
-                            id={`inv-cost-${index}`}
-                            aria-label={`Costo unitario línea ${index + 1}`}
-                            variant="outline"
-                            size="sm"
-                            min={0}
-                            step={0.01}
-                            value={line.unitCost === '' ? '' : Number(line.unitCost)}
-                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                              setLines((prev) =>
-                                prev.map((row, i) =>
-                                  i === index ? { ...row, unitCost: e.target.value } : row
+                        <>
+                          <td className="ecu-doc-lines__qty">
+                            <NumberBox
+                              id={`inv-cost-${index}`}
+                              aria-label={`Costo unitario línea ${index + 1}`}
+                              variant="outline"
+                              size="sm"
+                              min={0}
+                              step={0.01}
+                              value={line.unitCost === '' ? '' : Number(line.unitCost)}
+                              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                                setLines((prev) =>
+                                  prev.map((row, i) =>
+                                    i === index ? { ...row, unitCost: e.target.value } : row
+                                  )
                                 )
-                              )
-                            }
-                            placeholder="0.00 (sin IVA)"
-                            disabled={busy}
-                            fullWidth
-                          />
-                        </td>
+                              }
+                              placeholder="0.00 (sin IVA)"
+                              disabled={busy}
+                              fullWidth
+                            />
+                          </td>
+                          <td
+                            className="ecu-doc-lines__qty"
+                            style={{
+                              textAlign: 'right',
+                              fontWeight: 600,
+                              verticalAlign: 'middle',
+                              color: 'var(--glb-text)',
+                              paddingRight: '0.75rem',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            $
+                            {(
+                              (Number(line.quantity.replace(',', '.')) || 0) *
+                              (Number(line.unitCost.replace(',', '.')) || 0)
+                            ).toFixed(2)}
+                          </td>
+                        </>
                       )}
                       <td className="ecu-doc-lines__actions">
                         <button
@@ -805,6 +829,12 @@ export function CreateInventoryDocumentPage() {
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '0.8rem', color: 'var(--glb-text-muted, #a1a1aa)' }}>
                     * Costo neto unitario antes de IVA. Si es muestra o regalo, ingresa 0.00.
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--glb-text)' }}>
+                    Total unidades:{' '}
+                    <strong>
+                      {lines.reduce((sum, l) => sum + (Number(l.quantity.replace(',', '.')) || 0), 0)}
+                    </strong>
                   </span>
                   <span style={{ fontSize: '0.85rem', color: 'var(--glb-text)' }}>
                     Total costo: <strong>${receiptCostTotal.toFixed(2)}</strong>

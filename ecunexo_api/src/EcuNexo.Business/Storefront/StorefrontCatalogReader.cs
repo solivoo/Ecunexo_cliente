@@ -1,3 +1,4 @@
+using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Warehousing;
@@ -21,6 +22,7 @@ public sealed class StorefrontCatalogReader
     private readonly IProductPriceRepository _productPrices;
     private readonly IPromotionRepository _promotions;
     private readonly IWarehouseRepository _warehouses;
+    private readonly IEcommerceStorefrontSettingsReader? _settings;
 
     public StorefrontCatalogReader(
         IStorefrontCatalogRepository products,
@@ -29,7 +31,8 @@ public sealed class StorefrontCatalogReader
         IPriceListRepository priceLists,
         IProductPriceRepository productPrices,
         IPromotionRepository promotions,
-        IWarehouseRepository warehouses)
+        IWarehouseRepository warehouses,
+        IEcommerceStorefrontSettingsReader? settings = null)
     {
         _products = products;
         _likes = likes;
@@ -38,6 +41,7 @@ public sealed class StorefrontCatalogReader
         _productPrices = productPrices;
         _promotions = promotions;
         _warehouses = warehouses;
+        _settings = settings;
     }
 
     public async Task<IReadOnlyList<StorefrontCatalogProduct>> LoadAsync(
@@ -64,6 +68,10 @@ public sealed class StorefrontCatalogReader
         // La vitrina muestra el disponible de la bodega de despacho (principal),
         // que es la misma que reserva el checkout público.
         var dispatchWarehouse = await _warehouses.GetMainAsync(tenantId, ct).ConfigureAwait(false);
+        var storefrontSettings = _settings is not null
+            ? await _settings.ResolveAsync(tenantId, ct).ConfigureAwait(false)
+            : null;
+        var reserveOnOrder = storefrontSettings?.ReserveOnOrder ?? true;
 
         var availability = await _stock
             .SumAvailableByItemIdsAsync(tenantId, dispatchWarehouse?.Id, ids, ct)
@@ -118,7 +126,7 @@ public sealed class StorefrontCatalogReader
                     finalPrice,
                     originalPrice,
                     discountPercent,
-                    SumAvailability(item, availability) > 0m,
+                    !reserveOnOrder || SumAvailability(item, availability) > 0m,
                     now - item.CreatedAt <= TimeSpan.FromDays(NewWindowDays),
                     ToReadOnlyAttributes(StorefrontFacetCatalog.ExtractAttributes(item)),
                     likeCounts.TryGetValue(item.Id, out var likeCount) ? likeCount : 0);
