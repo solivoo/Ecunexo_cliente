@@ -18,4 +18,11 @@ public sealed class LicenseValidationOptions
 
     /// <summary>Clave opcional enviada en <c>X-Platform-Validation-Key</c>.</summary>
     public string? PlatformApiKey { get; init; }
+
+    /// <summary>
+    /// En ambiente de desarrollo (localhost), si es true omite la validación online remota periódica
+    /// para permitir la operación offline y evitar bloqueos si el servicio externo de licencias no está levantado.
+    /// Por defecto es true.
+    /// </summary>
+    public bool BypassInDevelopment { get; init; } = true;
 }

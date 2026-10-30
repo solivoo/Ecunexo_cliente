@@ -88,7 +88,7 @@ public class ShippingRateRuleTests
             Guid.NewGuid(), TenantId, "Servientrega", "Galapagos", "Servientrega Galápagos", 13.00m, 1m, 35m).Value!;
 
         var cooperativaProvincia = ShippingRateRule.Create(
-            Guid.NewGuid(), TenantId, "Cooperativa", "Provincia", "Cooperativa a partir de 36u", 6.00m, 36m, null).Value!;
+            Guid.NewGuid(), TenantId, "Cooperativa", "Provincia", "Cooperativa a partir de 36u", 6.00m, 36m, null, taxRate: 15m).Value!;
 
         var rules = new[] { localRule, servientregaProvincia, servientregaGalapagos, cooperativaProvincia };
 

@@ -8,23 +8,58 @@ using Microsoft.Extensions.Options;
 
 namespace EcuNexo.Api.Licensing;
 
-public sealed class LicenseOnlineValidator : ILicenseOnlineValidator
+public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
 {
     private readonly HttpClient _http;
     private readonly LicenseValidationOptions _options;
+    private readonly IHostEnvironment _environment;
+    private readonly ILogger<LicenseOnlineValidator> _logger;
 
-    public LicenseOnlineValidator(HttpClient http, IOptions<LicenseValidationOptions> options)
+    public LicenseOnlineValidator(
+        HttpClient http,
+        IOptions<LicenseValidationOptions> options,
+        IHostEnvironment environment,
+        ILogger<LicenseOnlineValidator> logger)
     {
         _http = http;
         _options = options.Value;
+        _environment = environment;
+        _logger = logger;
     }
 
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(_options.PlatformApiBaseUrl);
+    public bool IsConfigured
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_options.PlatformApiBaseUrl))
+            {
+                return false;
+            }
+
+            if (_environment.IsDevelopment() && _options.BypassInDevelopment)
+            {
+                return false;
+            }
+
+            return true;
+        }
+    }
 
     public async Task<Result<LicenseRemoteStatus>> ValidateGrantAsync(Guid grantId, CancellationToken ct)
     {
         if (!IsConfigured)
         {
+            if (_environment.IsDevelopment() && _options.BypassInDevelopment)
+            {
+                LogBypassInDevelopment(_logger, grantId);
+
+                return Result.Success(new LicenseRemoteStatus(
+                    grantId,
+                    IsAllowed: true,
+                    Status: "Active",
+                    ExpiresAtUtc: DateTimeOffset.UtcNow.AddYears(1)));
+            }
+
             return Result.Failure<LicenseRemoteStatus>(
                 new Error("license.online.not_configured", "Validación online no configurada.", ErrorType.Unexpected));
         }
@@ -68,6 +103,17 @@ public sealed class LicenseOnlineValidator : ILicenseOnlineValidator
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
+            if (_environment.IsDevelopment())
+            {
+                LogDevNetworkFallback(_logger, _options.PlatformApiBaseUrl, ex);
+
+                return Result.Success(new LicenseRemoteStatus(
+                    grantId,
+                    IsAllowed: true,
+                    Status: "Active",
+                    ExpiresAtUtc: DateTimeOffset.UtcNow.AddYears(1)));
+            }
+
             return Result.Failure<LicenseRemoteStatus>(
                 new Error("license.online.network", "No hay conexión con el servicio de licencias.", ErrorType.Unexpected));
         }
@@ -88,8 +134,7 @@ public sealed class LicenseOnlineValidator : ILicenseOnlineValidator
     {
         if (!IsConfigured)
         {
-            return Result.Failure<Unit>(
-                new Error("license.online.not_configured", "Validación online no configurada.", ErrorType.Unexpected));
+            return Unit.Value;
         }
 
         if (tenants.Count == 0)
@@ -214,4 +259,16 @@ public sealed class LicenseOnlineValidator : ILicenseOnlineValidator
         IReadOnlyList<string> EnabledModuleCodes,
         IReadOnlyList<ModuleEntitlement>? ModuleEntitlements,
         int OverrideVersion);
+
+    [LoggerMessage(
+        EventId = 9501,
+        Level = LogLevel.Information,
+        Message = "Validación online de licencias omitida en ambiente Development (BypassInDevelopment=true, GrantId: {GrantId}).")]
+    private static partial void LogBypassInDevelopment(ILogger logger, Guid grantId);
+
+    [LoggerMessage(
+        EventId = 9502,
+        Level = LogLevel.Warning,
+        Message = "Ambiente de desarrollo: no se pudo contactar al servicio de licencias en {Url}. Permitiendo ejecución local para no interrumpir el flujo de desarrollo.")]
+    private static partial void LogDevNetworkFallback(ILogger logger, string? url, Exception exception);
 }
