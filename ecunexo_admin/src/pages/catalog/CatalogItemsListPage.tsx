@@ -244,7 +244,7 @@ export function CatalogItemsListPage() {
                     variant="primary"
                     onClick={() => navigate('/catalogo/items/nuevo')}
                   >
-                    + Nueva Matriz
+                    + Nuevo Producto
                   </Button>
                 ) : undefined
               }
@@ -304,7 +304,7 @@ export function CatalogItemsListPage() {
                       variant="primary"
                       onClick={() => navigate('/catalogo/items/nuevo')}
                     >
-                      + Nueva Matriz
+                      + Nuevo Producto
                     </Button>
                   )}
 

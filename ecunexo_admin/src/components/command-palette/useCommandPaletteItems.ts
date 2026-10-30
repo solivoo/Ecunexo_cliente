@@ -112,8 +112,8 @@ export function useCommandPaletteItems({
     if (hasPerm('catalog.item.create') || hasPerm('catalog.matrix.create')) {
       items.push({
         id: 'action-new-catalog-item',
-        title: 'Crear Matriz Producto o Servicio',
-        subtitle: 'Añadir nueva matriz producto o item al catálogo con códigos y variantes',
+        title: 'Crear Producto o Servicio',
+        subtitle: 'Añadir nuevo producto o ítem al catálogo con códigos y variantes',
         category: 'Acciones Rápidas',
         icon: 'package',
         badge: 'Catálogo',

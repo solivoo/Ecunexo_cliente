@@ -615,7 +615,7 @@ export function CreateCatalogItemPage() {
 
   if (!canCreate) {
     return (
-      <TenantSessionGate title="Nueva matriz producto" lead="Alta en el maestro de catálogo.">
+      <TenantSessionGate title="Nuevo producto" lead="Alta en el maestro de catálogo.">
         <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Acceso Restringido"
@@ -636,13 +636,13 @@ export function CreateCatalogItemPage() {
   }
 
   return (
-    <TenantSessionGate title="Nueva matriz producto" lead="Alta en el maestro de catálogo (sin stock).">
+    <TenantSessionGate title="Nuevo producto" lead="Alta en el maestro de catálogo (sin stock).">
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
-          title={usesMatrix ? 'Nueva matriz producto' : 'Nuevo producto'}
+          title={usesMatrix ? 'Nuevo producto (con variantes)' : 'Nuevo producto'}
           subtitle={
             usesMatrix
-              ? 'Configura la matriz producto y genera sus variantes físicas según la plantilla.'
+              ? 'Configura el producto y genera sus variantes físicas según la plantilla.'
               : 'Elige plantilla o producto simple; el formulario muestra solo lo necesario.'
           }
           badge={
@@ -977,7 +977,7 @@ export function CreateCatalogItemPage() {
               disabled={busy || (!appliedTemplate && !isStandardProduct)}
             >
               <Save size={16} />
-              <span>{uploadStatus || (usesMatrix ? 'Guardar matriz producto' : 'Guardar producto')}</span>
+              <span>{uploadStatus || (usesMatrix ? 'Guardar producto con variantes' : 'Guardar producto')}</span>
             </Button>
             <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
               Cancelar
