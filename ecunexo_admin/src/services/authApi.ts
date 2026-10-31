@@ -108,6 +108,16 @@ export async function fetchSubscriptionSession(auth?: SessionAuth): Promise<Sess
   }
 }
 
+/** Sincroniza la licencia del titular en línea con la plataforma y retorna la sesión actualizada. */
+export async function syncSubscriptionLicense(): Promise<SessionPayload> {
+  const { data } = await api.post<SessionPayload>('/api/v1/subscription/sync')
+  return {
+    ...data,
+    tenant: null,
+    isSubscriptionHolder: true,
+  }
+}
+
 export function subscriptionSessionToPayload(raw: SessionPayload): SessionPayload {
   return {
     ...raw,

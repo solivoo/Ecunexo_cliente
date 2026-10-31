@@ -190,6 +190,7 @@ using EcuNexo.Business.Tenancy.Certificates.Queries.GetSigningCertificateStatus;
 using EcuNexo.Business.Tenancy.Commands;
 using EcuNexo.Business.Tenancy.Commands.ActivateLicense;
 using EcuNexo.Business.Tenancy.Commands.ApplySubscriptionLicenseUpgrade;
+using EcuNexo.Business.Tenancy.Commands.SyncSubscriptionLicense;
 using EcuNexo.Business.Tenancy.Licensing;
 using EcuNexo.Business.Tenancy.Commands.CancelSubscriptionCompany;
 using EcuNexo.Business.Tenancy.Commands.ProvisionSubscriptionCompany;
@@ -227,6 +228,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<OnboardTenantWithActivationCommand, OnboardTenantWithActivationResponse>, OnboardTenantWithActivationHandler>();
         services.AddScoped<ICommandHandler<ActivateLicenseCommand, ActivateLicenseResponse>, ActivateLicenseHandler>();
         services.AddScoped<ICommandHandler<ApplySubscriptionLicenseUpgradeCommand, ApplySubscriptionLicenseUpgradeResponse>, ApplySubscriptionLicenseUpgradeHandler>();
+        services.AddScoped<ICommandHandler<SyncSubscriptionLicenseCommand, SubscriptionSessionResponse>, SyncSubscriptionLicenseHandler>();
         services.AddScoped<ICommandHandler<ProvisionSubscriptionCompanyCommand, ProvisionSubscriptionCompanyResponse>, ProvisionSubscriptionCompanyHandler>();
         services.AddScoped<ICommandHandler<CancelSubscriptionCompanyCommand, CancelSubscriptionCompanyResponse>, CancelSubscriptionCompanyHandler>();
         services.AddScoped<ICommandHandler<UpdateSubscriptionCompanyCommand, UpdateSubscriptionCompanyResponse>, UpdateSubscriptionCompanyHandler>();

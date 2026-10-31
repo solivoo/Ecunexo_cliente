@@ -116,6 +116,54 @@ public sealed class LicenseComplianceServiceTests
         inherited.EnabledModuleCodes.Should().Contain(TenantModuleCodes.Catalog);
     }
 
+    [Fact(DisplayName = "SyncLicenseOnlineAsync migra automáticamente al grant sucesor activo")]
+    public async Task SyncLicenseOnlineAsync_MigratesToSuccessorGrant()
+    {
+        var account = CreateAccount(lastValidationAtUtc: DateTimeOffset.UtcNow);
+        var oldGrantId = account.GrantId;
+        var successorGrantId = Guid.CreateVersion7();
+        var newExpires = DateTimeOffset.UtcNow.AddYears(2);
+
+        _validator.IsConfigured.Returns(true);
+        _tenants.ListBySubscriptionGroupIdForUpdateAsync(account.SubscriptionGroupId, Arg.Any<CancellationToken>())
+            .Returns([]);
+        _validator.ValidateGrantAsync(oldGrantId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new LicenseRemoteStatus(
+                oldGrantId,
+                IsAllowed: true,
+                Status: "Revoked",
+                ExpiresAtUtc: DateTimeOffset.UtcNow.AddMonths(1),
+                SuccessorGrantId: successorGrantId,
+                SuccessorStatus: "Active",
+                SuccessorExpiresAtUtc: newExpires,
+                SuccessorPlanCode: "profesional",
+                SuccessorPlanLabel: "Nex Profesional",
+                SuccessorMaxTenants: 5,
+                SuccessorMaxUsers: 25,
+                SuccessorMaxWarehouses: 5,
+                SuccessorOnlineValidationIntervalDays: 15,
+                SuccessorEnabledModuleCodes: [TenantModuleCodes.Identity, TenantModuleCodes.Catalog, TenantModuleCodes.Warehousing])));
+
+        _validator.GetEntitlementsAsync(successorGrantId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new LicenseRemoteEntitlements(
+                successorGrantId,
+                1,
+                [TenantModuleCodes.Identity, TenantModuleCodes.Catalog, TenantModuleCodes.Warehousing],
+                null,
+                DateTimeOffset.UtcNow)));
+
+        var result = await Sut().SyncLicenseOnlineAsync(account, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        account.GrantId.Should().Be(successorGrantId);
+        account.ServicePlan.Name.Should().Be("Nex Profesional");
+        account.ServicePlan.MaxUsers.Should().Be(25);
+        account.ServicePlan.MaxWarehouses.Should().Be(5);
+        account.SubscriptionMaxTenants.Should().Be(5);
+        account.LicenseExpiresAtUtc.Should().Be(newExpires);
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
     private LicenseComplianceService Sut() =>
         new(_validator, _tenants, _unitOfWork, NullLogger<LicenseComplianceService>.Instance);
 

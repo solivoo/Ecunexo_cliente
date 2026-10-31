@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useToast, type PageActionItem } from 'glubox'
+import { Button, useToast, type PageActionItem } from 'glubox'
+import { RefreshCw } from 'lucide-react'
 import { PageHeader, SectionCard } from '@/components/ui'
 import { EcuPageActions } from '@/components/ui/EcuPageActions'
 import { ApplyLicenseSection } from '@/features/organization/components/ApplyLicenseSection'
@@ -12,7 +13,7 @@ import {
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { readApiError } from '@/lib/readApiError'
-import { fetchSubscriptionSession } from '@/services/authApi'
+import { fetchSubscriptionSession, syncSubscriptionLicense } from '@/services/authApi'
 import { getTenant, listTenantUsers } from '@/services/tenantApi'
 import { selectIsSubscriptionHolder, selectSubscription, selectTenantId, setSessionPayload } from '@/store/authSlice'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
@@ -28,7 +29,26 @@ export function OrganizationPlanPage() {
   const [tenant, setTenant] = useState<GetTenantByIdDto | null>(null)
   const [userCount, setUserCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const handleSync = useCallback(async () => {
+    setSyncing(true)
+    try {
+      const updated = await syncSubscriptionLicense()
+      dispatch(setSessionPayload(updated))
+      toast.show({
+        title: 'Licencia sincronizada',
+        message: 'Tu plan y módulos están actualizados.',
+        variant: 'success',
+      })
+    } catch (err: unknown) {
+      const message = readApiError(err, 'No se pudo sincronizar la licencia.')
+      toast.show({ title: 'Error de sincronización', message, variant: 'error' })
+    } finally {
+      setSyncing(false)
+    }
+  }, [dispatch, toast])
 
   const load = useCallback(async () => {
     if (isSubscriptionHolder && subscription) {
@@ -97,13 +117,24 @@ export function OrganizationPlanPage() {
         }
         actions={
           isSubscriptionHolder ? (
-            <EcuPageActions
-              items={actionItems}
-              variant="outline"
-              triggerLabel="Acciones de plan"
-              renderIcon={renderSidebarIcon}
-              onNavigate={(route: string) => navigate(route)}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Button
+                variant="outline"
+                onClick={() => void handleSync()}
+                loading={syncing}
+                disabled={syncing}
+              >
+                <RefreshCw size={16} aria-hidden />
+                Sincronizar
+              </Button>
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Acciones de plan"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+              />
+            </div>
           ) : undefined
         }
       />
@@ -135,6 +166,8 @@ export function OrganizationPlanPage() {
             onApplied={async () => {
               dispatch(setSessionPayload(await fetchSubscriptionSession()))
             }}
+            onSync={handleSync}
+            syncing={syncing}
           />
 
           <p className="app-shell__muted">

@@ -9,6 +9,7 @@ using EcuNexo.Business.Tenancy.Commands.ApplySubscriptionLicenseUpgrade;
 using EcuNexo.Business.Tenancy.Commands.CancelSubscriptionCompany;
 using EcuNexo.Business.Tenancy.Commands.ProvisionSubscriptionCompany;
 using EcuNexo.Business.Tenancy.Commands.SwitchToCompanySession;
+using EcuNexo.Business.Tenancy.Commands.SyncSubscriptionLicense;
 using EcuNexo.Business.Tenancy.Commands.UpdateSubscriptionCompany;
 using EcuNexo.Business.Tenancy.Queries.GetSubscriptionCompany;
 using EcuNexo.Business.Tenancy.Queries.GetTenantById;
@@ -31,6 +32,8 @@ public static class SubscriptionEndpoints
             .RequireAuthorization();
 
         group.MapGet("/session", GetSubscriptionSessionAsync);
+        group.MapPost("/sync", SyncSubscriptionLicenseAsync)
+            .AddEndpointFilter(PermissionFilters.Require("tenancy.license.apply"));
         group.MapPost("/license", ApplySubscriptionLicenseUpgradeAsync)
             .AddEndpointFilter(PermissionFilters.Require("tenancy.license.apply"));
         group.MapGet("/companies", ListSubscriptionCompaniesAsync)
@@ -62,6 +65,24 @@ public static class SubscriptionEndpoints
         var result = await sender
             .AskAsync<GetSubscriptionSessionQuery, SubscriptionSessionResponse>(
                 new GetSubscriptionSessionQuery(accountId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> SyncSubscriptionLicenseAsync(
+        ICallerContext caller,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (!caller.IsSubscriptionHolder || caller.UserId is not { } accountId)
+        {
+            return Results.Forbid();
+        }
+
+        var result = await sender
+            .SendAsync<SyncSubscriptionLicenseCommand, SubscriptionSessionResponse>(
+                new SyncSubscriptionLicenseCommand(accountId),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

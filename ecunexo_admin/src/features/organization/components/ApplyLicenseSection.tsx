@@ -1,6 +1,6 @@
 import { useCallback, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Button, TextBox, useToast } from 'glubox'
-import { KeyRound } from 'lucide-react'
+import { KeyRound, RefreshCw } from 'lucide-react'
 import { SectionCard, StatusBadge } from '@/components/ui'
 import { LicenseFileField } from '@/features/onboarding/LicenseFileField'
 import { moduleLabel } from '@/lib/moduleLabels'
@@ -11,9 +11,16 @@ import type { ParsedLicenseFile } from '@/utils/licenseFile'
 export type ApplyLicenseSectionProps = {
   readonly disabled?: boolean
   readonly onApplied: () => Promise<void>
+  readonly onSync?: () => Promise<void>
+  readonly syncing?: boolean
 }
 
-export function ApplyLicenseSection({ disabled = false, onApplied }: ApplyLicenseSectionProps) {
+export function ApplyLicenseSection({
+  disabled = false,
+  onApplied,
+  onSync,
+  syncing = false,
+}: ApplyLicenseSectionProps) {
   const toast = useToast()
   const [activationCode, setActivationCode] = useState('')
   const [licenseArtifact, setLicenseArtifact] = useState('')
@@ -65,7 +72,21 @@ export function ApplyLicenseSection({ disabled = false, onApplied }: ApplyLicens
   return (
     <SectionCard
       title="Ampliar o Modificar Licencia"
-      subtitle="Canjea un código emitido por EcuNexo para subir cupos (usuarios, empresas) o habilitar módulos en esta organización."
+      subtitle="Sincroniza renovaciones en línea o canjea un código con archivo .ecunexo-license para activación manual."
+      action={
+        onSync ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void onSync()}
+            loading={syncing}
+            disabled={disabled || syncing}
+          >
+            <RefreshCw size={16} aria-hidden />
+            Sincronizar
+          </Button>
+        ) : undefined
+      }
     >
       {error ? (
         <div className="ecu-form-error-banner" role="alert" style={{ marginBottom: '1.25rem' }}>

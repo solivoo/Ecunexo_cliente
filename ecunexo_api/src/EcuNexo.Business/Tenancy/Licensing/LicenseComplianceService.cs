@@ -31,6 +31,12 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
             new EventId(4, "LicenseTenantsReportFailed"),
             "No se pudieron reportar las empresas del grant {GrantId}: {Reason}");
 
+    private static readonly Action<ILogger, Guid, Guid, Exception?> LogGrantSuccessorMigrated =
+        LoggerMessage.Define<Guid, Guid>(
+            LogLevel.Information,
+            new EventId(5, "LicenseGrantSuccessorMigrated"),
+            "Grant {OldGrantId} migrado al sucesor activo {NewGrantId} tras reemisión/renovación.");
+
     private readonly ILicenseOnlineValidator _onlineValidator;
     private readonly ITenantRepository _tenants;
     private readonly IUnitOfWork _unitOfWork;
@@ -69,7 +75,12 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
             var remote = await _onlineValidator.ValidateGrantAsync(account.GrantId, ct).ConfigureAwait(false);
             if (remote.IsSuccess)
             {
-                if (!remote.Value!.IsAllowed)
+                var status = remote.Value!;
+                if (status.SuccessorGrantId is { } successorId && successorId != Guid.Empty && status.SuccessorExpiresAtUtc is { } successorExpires)
+                {
+                    await ApplySuccessorGrantAsync(account, status, utcNow, ct).ConfigureAwait(false);
+                }
+                else if (!status.IsAllowed)
                 {
                     return Result.Failure<Unit>(
                         new Error(
@@ -100,10 +111,93 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
 
         // Toggles casi en vivo: en cada login se sincronizan entitlements (con throttle propio)
         // sin depender del intervalo de compliance y sin bloquear el login si la plataforma falla.
-        await SyncEntitlementsAsync(account, utcNow, ct).ConfigureAwait(false);
+        await SyncEntitlementsAsync(account, utcNow, force: false, ct).ConfigureAwait(false);
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
         return Unit.Value;
+    }
+
+    public async Task<Result<Unit>> SyncLicenseOnlineAsync(SubscriptionAccount account, CancellationToken ct)
+    {
+        if (!_onlineValidator.IsConfigured)
+        {
+            return Result.Failure<Unit>(
+                new Error("license.online.not_configured", "La validación en línea no está configurada.", ErrorType.Validation));
+        }
+
+        var utcNow = DateTimeOffset.UtcNow;
+        var remote = await _onlineValidator.ValidateGrantAsync(account.GrantId, ct).ConfigureAwait(false);
+        if (remote.IsFailure)
+        {
+            return Result.Failure<Unit>(remote.Error!);
+        }
+
+        var status = remote.Value!;
+        if (status.SuccessorGrantId is { } successorId && successorId != Guid.Empty && status.SuccessorExpiresAtUtc is { } successorExpires)
+        {
+            await ApplySuccessorGrantAsync(account, status, utcNow, ct).ConfigureAwait(false);
+        }
+        else if (!status.IsAllowed)
+        {
+            return Result.Failure<Unit>(
+                new Error("license.revoked", "La licencia fue revocada o ya no está activa en Ecunexo.", ErrorType.Forbidden));
+        }
+
+        account.RecordOnlineValidation(utcNow);
+
+        // Sincronización forzada e inmediata de módulos y cuotas sin throttle
+        await SyncEntitlementsAsync(account, utcNow, force: true, ct).ConfigureAwait(false);
+
+        await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+        return Unit.Value;
+    }
+
+    private async Task ApplySuccessorGrantAsync(
+        SubscriptionAccount account,
+        LicenseRemoteStatus remote,
+        DateTimeOffset utcNow,
+        CancellationToken ct)
+    {
+        var oldGrantId = account.GrantId;
+        var plan = new ServicePlan(
+            remote.SuccessorPlanLabel ?? account.ServicePlan.Name,
+            remote.SuccessorMaxUsers ?? account.ServicePlan.MaxUsers,
+            remote.SuccessorMaxWarehouses ?? account.ServicePlan.MaxWarehouses);
+
+        var replaceResult = account.ReplaceLicenseGrant(
+            remote.SuccessorGrantId!.Value,
+            plan,
+            remote.SuccessorMaxTenants ?? account.SubscriptionMaxTenants,
+            remote.SuccessorEnabledModuleCodes ?? account.EnabledModuleCodes,
+            remote.SuccessorModuleEntitlements ?? account.ModuleEntitlements,
+            remote.SuccessorExpiresAtUtc!.Value,
+            remote.SuccessorOnlineValidationIntervalDays ?? account.OnlineValidationIntervalDays,
+            utcNow);
+
+        if (replaceResult.IsFailure)
+        {
+            LogCompanySyncSkipped(_logger, account.Id, replaceResult.Error!.Code, null);
+            return;
+        }
+
+        var companies = await _tenants
+            .ListBySubscriptionGroupIdForUpdateAsync(account.SubscriptionGroupId, ct)
+            .ConfigureAwait(false);
+
+        foreach (var company in companies)
+        {
+            var companyResult = company.ApplySubscriptionLicense(
+                account.ServicePlan,
+                account.SubscriptionMaxTenants,
+                account.EnabledModuleCodes,
+                account.ModuleEntitlements);
+            if (companyResult.IsFailure)
+            {
+                LogCompanySyncSkipped(_logger, company.Id, companyResult.Error!.Code, null);
+            }
+        }
+
+        LogGrantSuccessorMigrated(_logger, oldGrantId, account.GrantId, null);
     }
 
     /// <summary>
@@ -113,9 +207,10 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
     private async Task SyncEntitlementsAsync(
         SubscriptionAccount account,
         DateTimeOffset utcNow,
+        bool force,
         CancellationToken ct)
     {
-        if (!account.IsEntitlementsSyncDue(utcNow))
+        if (!force && !account.IsEntitlementsSyncDue(utcNow))
         {
             return;
         }
@@ -147,7 +242,7 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
         }
 
         var payload = remote.Value!;
-        if (payload.EntitlementsVersion <= account.LicenseEntitlementsVersion)
+        if (!force && payload.EntitlementsVersion <= account.LicenseEntitlementsVersion)
         {
             return;
         }

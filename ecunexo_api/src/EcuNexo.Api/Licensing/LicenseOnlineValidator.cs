@@ -99,7 +99,22 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
                     new Error("license.online.invalid_response", "Respuesta de licencia inválida.", ErrorType.Unexpected));
             }
 
-            return Result.Success(new LicenseRemoteStatus(body.GrantId, body.IsAllowed, body.Status, body.ExpiresAtUtc));
+            return Result.Success(new LicenseRemoteStatus(
+                body.GrantId,
+                body.IsAllowed,
+                body.Status,
+                body.ExpiresAtUtc,
+                body.SuccessorGrantId,
+                body.SuccessorStatus,
+                body.SuccessorExpiresAtUtc,
+                body.SuccessorPlanCode,
+                body.SuccessorPlanLabel,
+                body.SuccessorMaxTenants,
+                body.SuccessorMaxUsers,
+                body.SuccessorMaxWarehouses,
+                body.SuccessorOnlineValidationIntervalDays,
+                body.SuccessorEnabledModuleCodes,
+                body.SuccessorModuleEntitlements));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -125,7 +140,18 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
         string Status,
         DateTimeOffset ExpiresAtUtc,
         bool IsAllowed,
-        DateTimeOffset? RevokedAtUtc);
+        DateTimeOffset? RevokedAtUtc,
+        Guid? SuccessorGrantId = null,
+        string? SuccessorStatus = null,
+        DateTimeOffset? SuccessorExpiresAtUtc = null,
+        string? SuccessorPlanCode = null,
+        string? SuccessorPlanLabel = null,
+        int? SuccessorMaxTenants = null,
+        int? SuccessorMaxUsers = null,
+        int? SuccessorMaxWarehouses = null,
+        int? SuccessorOnlineValidationIntervalDays = null,
+        IReadOnlyList<string>? SuccessorEnabledModuleCodes = null,
+        IReadOnlyList<ModuleEntitlement>? SuccessorModuleEntitlements = null);
 
     public async Task<Result<Unit>> ReportTenantsAsync(
         Guid grantId,
