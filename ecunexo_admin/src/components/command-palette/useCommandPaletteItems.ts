@@ -123,7 +123,7 @@ export function useCommandPaletteItems({
     }
 
     // Nueva Plantilla de Producto
-    if (hasPerm('catalog.scale.manage') || hasPerm('catalog.item.create')) {
+    if (hasPerm('catalog.scale.manage') || hasPerm('catalog.template.manage') || hasPerm('catalog.item.create')) {
       items.push({
         id: 'action-new-product-template',
         title: 'Crear Plantilla de Producto',

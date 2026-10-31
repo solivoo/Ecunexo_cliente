@@ -19,6 +19,21 @@ internal static class FeatureFlagPermissionCatalog
             ["contabilidad.cuentas.manage"] = (
                 TenantModuleCodes.Accounting,
                 ModuleTierCatalog.LimitEnableCustomSubaccounts),
+            ["catalog.matrix.create"] = (
+                TenantModuleCodes.Catalog,
+                ModuleTierCatalog.LimitMaxProductTemplates),
+            ["catalog.matrix.update"] = (
+                TenantModuleCodes.Catalog,
+                ModuleTierCatalog.LimitMaxProductTemplates),
+            ["catalog.matrix.delete"] = (
+                TenantModuleCodes.Catalog,
+                ModuleTierCatalog.LimitMaxProductTemplates),
+            ["catalog.scale.manage"] = (
+                TenantModuleCodes.Catalog,
+                ModuleTierCatalog.LimitMaxProductTemplates),
+            ["catalog.template.manage"] = (
+                TenantModuleCodes.Catalog,
+                ModuleTierCatalog.LimitMaxProductTemplates),
         };
 
     public static bool TryResolve(

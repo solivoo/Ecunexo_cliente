@@ -42,7 +42,8 @@ export function ProductTemplateBuilderPage() {
 
   const canCreateItems = useHasPermission('catalog.item.create')
   const canManageScales = useHasPermission('catalog.scale.manage')
-  const canManage = canCreateItems || canManageScales
+  const canManageTemplates = useHasPermission('catalog.template.manage')
+  const canManage = canCreateItems || canManageScales || canManageTemplates
   const { maxProductTemplates } = useCatalogLimits()
 
   const [name, setName] = useState('')

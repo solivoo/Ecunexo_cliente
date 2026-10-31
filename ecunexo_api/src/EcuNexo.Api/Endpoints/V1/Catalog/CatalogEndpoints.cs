@@ -98,15 +98,15 @@ public static class CatalogEndpoints
             .RequireAuthorization();
 
         variantTemplates.MapGet("/", ListVariantTemplatesAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.read", "catalog.item.create"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.read", "catalog.matrix.read", "catalog.scale.manage", "catalog.item.create"));
         variantTemplates.MapPost("/", CreateVariantTemplateAsync)
-            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.scale.manage", "catalog.item.create", "catalog.matrix.create"));
         variantTemplates.MapPut("/{templateId:guid}", UpdateVariantTemplateAsync)
-            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.scale.manage", "catalog.item.create", "catalog.item.update", "catalog.matrix.update"));
         variantTemplates.MapDelete("/{templateId:guid}", DeleteVariantTemplateAsync)
-            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.scale.manage", "catalog.item.create", "catalog.item.delete", "catalog.matrix.delete"));
         variantTemplates.MapPost("/{templateId:guid}/adopt", AdoptVariantTemplateAsync)
-            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.scale.manage", "catalog.item.create", "catalog.item.update"));
 
         RouteGroupBuilder catalogMedia = app
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/media")
@@ -126,15 +126,15 @@ public static class CatalogEndpoints
             .RequireAuthorization();
 
         productTemplates.MapGet("/", ListProductTemplatesAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.read", "catalog.item.create"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.read", "catalog.matrix.read", "catalog.scale.manage", "catalog.template.manage", "catalog.item.create"));
         productTemplates.MapGet("/{templateId:guid}", GetProductTemplateByIdAsync)
-            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.read", "catalog.item.create"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.item.read", "catalog.matrix.read", "catalog.scale.manage", "catalog.template.manage", "catalog.item.create"));
         productTemplates.MapPost("/", CreateProductTemplateAsync)
-            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.template.manage", "catalog.scale.manage", "catalog.matrix.create", "catalog.item.create"));
         productTemplates.MapPut("/{templateId:guid}", UpdateProductTemplateAsync)
-            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.template.manage", "catalog.scale.manage", "catalog.matrix.create", "catalog.matrix.update", "catalog.item.create", "catalog.item.update"));
         productTemplates.MapDelete("/{templateId:guid}", DeleteProductTemplateAsync)
-            .AddEndpointFilter(PermissionFilters.Require("catalog.item.create"));
+            .AddEndpointFilter(PermissionFilters.RequireAny("catalog.template.manage", "catalog.scale.manage", "catalog.matrix.delete", "catalog.item.create", "catalog.item.delete"));
 
         return app;
     }

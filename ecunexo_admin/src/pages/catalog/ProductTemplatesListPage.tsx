@@ -57,7 +57,8 @@ export function ProductTemplatesListPage() {
 
   const canCreateItems = useHasPermission('catalog.item.create')
   const canManageScales = useHasPermission('catalog.scale.manage')
-  const canManage = canCreateItems || canManageScales
+  const canManageTemplates = useHasPermission('catalog.template.manage')
+  const canManage = canCreateItems || canManageScales || canManageTemplates
 
   const [rows, setRows] = useState<ProductTemplateDto[]>([])
   const [loading, setLoading] = useState(true)
