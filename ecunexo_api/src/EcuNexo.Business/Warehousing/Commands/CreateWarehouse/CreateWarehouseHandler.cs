@@ -53,6 +53,21 @@ public sealed class CreateWarehouseHandler : ICommandHandler<CreateWarehouseComm
 
         await _defaults.EnsureAsync(command.TenantId, ct).ConfigureAwait(false);
 
+        var maxWarehouses = tenant.ResolveMaxWarehouses();
+        if (maxWarehouses >= 0)
+        {
+            var activeWarehouses = await _warehouses.ListActiveByTenantAsync(command.TenantId, ct).ConfigureAwait(false);
+            var operationalCount = activeWarehouses.Count(w => !w.IsSystem);
+            if (operationalCount >= maxWarehouses)
+            {
+                return Result.Failure<CreateWarehouseResponse>(
+                    new Error(
+                        "warehousing.warehouse.limit_reached",
+                        $"Has alcanzado el límite de bodegas de tu plan ({maxWarehouses}). Actualiza tu plan para crear más ubicaciones.",
+                        ErrorType.Forbidden));
+            }
+        }
+
         if (await _warehouses.NameExistsIgnoreCaseAsync(command.TenantId, command.Name, null, ct)
             .ConfigureAwait(false))
         {

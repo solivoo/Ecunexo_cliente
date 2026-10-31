@@ -1,6 +1,10 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Identity;
+using EcuNexo.Business.Tenancy.Authorization;
 using EcuNexo.Business.Tenancy.Licensing;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Common;
+using EcuNexo.Core.Identity;
 using EcuNexo.Core.Licensing;
 using EcuNexo.Core.Tenancy;
 using FluentValidation;
@@ -15,6 +19,10 @@ public sealed class ApplySubscriptionLicenseUpgradeHandler
     private readonly ILicenseRedemptionRepository _redemptions;
     private readonly ISubscriptionAccountRepository _accounts;
     private readonly ITenantRepository _tenants;
+    private readonly IRoleRepository _roles;
+    private readonly IPermissionRepository _permissions;
+    private readonly IRolePermissionRepository _rolePermissions;
+    private readonly DefaultWarehouseProvisioner _warehouseProvisioner;
     private readonly IUnitOfWork _unitOfWork;
 
     public ApplySubscriptionLicenseUpgradeHandler(
@@ -23,6 +31,10 @@ public sealed class ApplySubscriptionLicenseUpgradeHandler
         ILicenseRedemptionRepository redemptions,
         ISubscriptionAccountRepository accounts,
         ITenantRepository tenants,
+        IRoleRepository roles,
+        IPermissionRepository permissions,
+        IRolePermissionRepository rolePermissions,
+        DefaultWarehouseProvisioner warehouseProvisioner,
         IUnitOfWork unitOfWork)
     {
         _validator = validator;
@@ -30,6 +42,10 @@ public sealed class ApplySubscriptionLicenseUpgradeHandler
         _redemptions = redemptions;
         _accounts = accounts;
         _tenants = tenants;
+        _roles = roles;
+        _permissions = permissions;
+        _rolePermissions = rolePermissions;
+        _warehouseProvisioner = warehouseProvisioner;
         _unitOfWork = unitOfWork;
     }
 
@@ -113,6 +129,10 @@ public sealed class ApplySubscriptionLicenseUpgradeHandler
         var companies = await _tenants
             .ListBySubscriptionGroupIdForUpdateAsync(account.SubscriptionGroupId, ct)
             .ConfigureAwait(false);
+        var activePermissions = await _permissions
+            .ListNonDeletedOrderedByCodeAsync(ct)
+            .ConfigureAwait(false);
+
         foreach (var company in companies)
         {
             var applied = company.ApplySubscriptionLicense(
@@ -124,6 +144,14 @@ public sealed class ApplySubscriptionLicenseUpgradeHandler
             {
                 return Result.Failure<ApplySubscriptionLicenseUpgradeResponse>(applied.Error!);
             }
+
+            await SyncSystemRolesPermissionsAsync(
+                company,
+                activePermissions,
+                payload.EnabledModuleCodes,
+                payload.ModuleEntitlements,
+                ct).ConfigureAwait(false);
+            await _warehouseProvisioner.StageDefaultsForTenantAsync(company, ct).ConfigureAwait(false);
         }
 
         var redemption = LicenseRedemption.Create(payload.GrantId, account.Id, utcNow);
@@ -135,6 +163,43 @@ public sealed class ApplySubscriptionLicenseUpgradeHandler
         await _redemptions.AddAsync(redemption.Value!, ct).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
         return ToResponse(account);
+    }
+
+    private async Task SyncSystemRolesPermissionsAsync(
+        Tenant company,
+        IReadOnlyList<Permission> activePermissions,
+        IReadOnlyList<string>? enabledModules,
+        IReadOnlyList<ModuleEntitlement>? entitlements,
+        CancellationToken ct)
+    {
+        var roles = await _roles.ListActiveByTenantAsync(company.Id, ct).ConfigureAwait(false);
+        foreach (var role in roles.Where(r => r.IsSystem))
+        {
+            var existingIds = await _rolePermissions
+                .ListPermissionIdsByRoleAsync(company.Id, role.Id, ct)
+                .ConfigureAwait(false);
+            var existingSet = new HashSet<Guid>(existingIds);
+
+            foreach (var permission in activePermissions)
+            {
+                if (permission.Status != PermissionStatus.Active || existingSet.Contains(permission.Id))
+                {
+                    continue;
+                }
+
+                if (!ModulePermissionFilter.IsPermittedForModules(permission.Code, enabledModules, entitlements))
+                {
+                    continue;
+                }
+
+                var link = RolePermission.Link(role.Id, permission.Id);
+                if (link.IsSuccess)
+                {
+                    await _rolePermissions.AddAsync(link.Value!, ct).ConfigureAwait(false);
+                    existingSet.Add(permission.Id);
+                }
+            }
+        }
     }
 
     private static bool BelongsToAccount(SubscriptionAccount account, LicenseArtifactPayload payload)

@@ -1,6 +1,8 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Identity;
+using EcuNexo.Business.Tenancy.Authorization;
 using EcuNexo.Business.Tenancy.Licensing;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Identity;
@@ -20,6 +22,11 @@ public sealed class ActivateLicenseHandler : ICommandHandler<ActivateLicenseComm
     private readonly ILicenseArtifactVerifier _artifactVerifier;
     private readonly ILicenseRedemptionRepository _redemptions;
     private readonly ISubscriptionAccountRepository _subscriptionAccounts;
+    private readonly ITenantRepository _tenants;
+    private readonly IRoleRepository _roles;
+    private readonly IPermissionRepository _permissions;
+    private readonly IRolePermissionRepository _rolePermissions;
+    private readonly DefaultWarehouseProvisioner _warehouseProvisioner;
     private readonly IIdGenerator _idGenerator;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
@@ -30,6 +37,11 @@ public sealed class ActivateLicenseHandler : ICommandHandler<ActivateLicenseComm
         ILicenseArtifactVerifier artifactVerifier,
         ILicenseRedemptionRepository redemptions,
         ISubscriptionAccountRepository subscriptionAccounts,
+        ITenantRepository tenants,
+        IRoleRepository roles,
+        IPermissionRepository permissions,
+        IRolePermissionRepository rolePermissions,
+        DefaultWarehouseProvisioner warehouseProvisioner,
         IIdGenerator idGenerator,
         IUnitOfWork unitOfWork,
         IPasswordHasher passwordHasher,
@@ -39,6 +51,11 @@ public sealed class ActivateLicenseHandler : ICommandHandler<ActivateLicenseComm
         _artifactVerifier = artifactVerifier;
         _redemptions = redemptions;
         _subscriptionAccounts = subscriptionAccounts;
+        _tenants = tenants;
+        _roles = roles;
+        _permissions = permissions;
+        _rolePermissions = rolePermissions;
+        _warehouseProvisioner = warehouseProvisioner;
         _idGenerator = idGenerator;
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
@@ -124,6 +141,60 @@ public sealed class ActivateLicenseHandler : ICommandHandler<ActivateLicenseComm
         if (replaced.IsFailure)
         {
             return Result.Failure<ActivateLicenseResponse>(replaced.Error!);
+        }
+
+        var companies = await _tenants
+            .ListBySubscriptionGroupIdForUpdateAsync(account.SubscriptionGroupId, ct)
+            .ConfigureAwait(false);
+        var activePermissions = await _permissions
+            .ListNonDeletedOrderedByCodeAsync(ct)
+            .ConfigureAwait(false);
+
+        foreach (var company in companies)
+        {
+            var applied = company.ApplySubscriptionLicense(
+                plan,
+                payload.MaxTenants,
+                payload.EnabledModuleCodes,
+                payload.ModuleEntitlements);
+            if (applied.IsFailure)
+            {
+                return Result.Failure<ActivateLicenseResponse>(applied.Error!);
+            }
+
+            var roles = await _roles.ListActiveByTenantAsync(company.Id, ct).ConfigureAwait(false);
+            foreach (var role in roles.Where(r => r.IsSystem))
+            {
+                var existingIds = await _rolePermissions
+                    .ListPermissionIdsByRoleAsync(company.Id, role.Id, ct)
+                    .ConfigureAwait(false);
+                var existingSet = new HashSet<Guid>(existingIds);
+
+                foreach (var permission in activePermissions)
+                {
+                    if (permission.Status != PermissionStatus.Active || existingSet.Contains(permission.Id))
+                    {
+                        continue;
+                    }
+
+                    if (!ModulePermissionFilter.IsPermittedForModules(
+                            permission.Code,
+                            payload.EnabledModuleCodes,
+                            payload.ModuleEntitlements))
+                    {
+                        continue;
+                    }
+
+                    var link = RolePermission.Link(role.Id, permission.Id);
+                    if (link.IsSuccess)
+                    {
+                        await _rolePermissions.AddAsync(link.Value!, ct).ConfigureAwait(false);
+                        existingSet.Add(permission.Id);
+                    }
+                }
+            }
+
+            await _warehouseProvisioner.StageDefaultsForTenantAsync(company, ct).ConfigureAwait(false);
         }
 
         var redemption = LicenseRedemption.Create(payload.GrantId, account.Id, utcNow);

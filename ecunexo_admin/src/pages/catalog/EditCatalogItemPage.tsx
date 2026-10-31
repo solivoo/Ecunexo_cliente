@@ -102,6 +102,7 @@ export function EditCatalogItemPage() {
   const [description, setDescription] = useState('')
   const [sku, setSku] = useState('')
   const [barcode, setBarcode] = useState('')
+  const [basePrice, setBasePrice] = useState('')
   const [minOrderQuantity, setMinOrderQuantity] = useState(1)
   const [status, setStatus] = useState(String(CatalogItemStatus.Active))
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
@@ -341,6 +342,7 @@ export function EditCatalogItemPage() {
       setDescription(detail.description ?? '')
       setSku(detail.sku ?? '')
       setBarcode(detail.barcode ?? '')
+      setBasePrice(detail.basePrice != null ? String(detail.basePrice) : '')
       setMinOrderQuantity(detail.minOrderQuantity ?? 1)
       setStatus(String(detail.status))
       setCustomAttributes(deserializeCustomAttributes(detail.customAttributesJson))
@@ -547,6 +549,11 @@ export function EditCatalogItemPage() {
             item.hierarchyPathJson ??
             null
 
+        const parsedBasePrice =
+          basePrice.trim() !== '' && !isNaN(Number(basePrice)) && Number(basePrice) >= 0
+            ? Number(basePrice)
+            : null
+
         await updateCatalogItem(tenantId, itemId, {
           kind: kindNum,
           name: payloadName,
@@ -555,7 +562,7 @@ export function EditCatalogItemPage() {
             : description.trim() || null,
           sku: isMatrixParent ? null : sku.trim() || null,
           barcode: isMatrixParent ? null : barcode.trim() || null,
-          basePrice: null,
+          basePrice: isMatrixParent ? null : parsedBasePrice,
           customAttributesJson: serializeCustomAttributes(customAttributes, tags),
           status: Number(status) as typeof CatalogItemStatus.Active,
           familyId: item.familyId ?? null,
@@ -580,11 +587,13 @@ export function EditCatalogItemPage() {
     },
     [
       barcode,
+      basePrice,
       customAttributes,
       description,
       dimensionValuesMap,
       familyLevels,
       item,
+      isMatrixParent,
       isVariantChild,
       itemId,
       kind,
@@ -973,6 +982,25 @@ export function EditCatalogItemPage() {
                     </div>
                   ) : null}
 
+                  {!isMatrixParent && !isVariantChild && !familyTemplate && (
+                    <div className="ecu-companies-form__field">
+                      <Select
+                        id="ei-kind"
+                        label="Tipo de ítem"
+                        labelPosition="outlined"
+                        variant="outline"
+                        options={[
+                          { value: String(CatalogItemKind.Physical), label: '📦 Físico' },
+                          { value: String(CatalogItemKind.Service), label: '⚙️ Servicio' },
+                        ]}
+                        value={String(kind)}
+                        onChange={(val) => setKind(val)}
+                        disabled={busy}
+                        fullWidth
+                      />
+                    </div>
+                  )}
+
                   {!isVariantChild && showSkuField ? (
                     <div className="ecu-companies-form__field">
                       <TextBox
@@ -1007,6 +1035,29 @@ export function EditCatalogItemPage() {
                         disabled={busy}
                         fullWidth
                       />
+                    </div>
+                  ) : null}
+
+                  {!isMatrixParent ? (
+                    <div className="ecu-companies-form__field">
+                      <NumberBox
+                        id="ei-base-price"
+                        label="Precio base / PVP ($)"
+                        labelPosition="outlined"
+                        variant="outline"
+                        min={0}
+                        step={0.01}
+                        placeholder="0.00"
+                        value={basePrice !== '' ? Number(basePrice) : undefined}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                          setBasePrice(e.target.value)
+                        }
+                        disabled={busy}
+                        fullWidth
+                      />
+                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                        Precio unitario de venta de referencia para facturación y catálogo.
+                      </p>
                     </div>
                   ) : null}
 

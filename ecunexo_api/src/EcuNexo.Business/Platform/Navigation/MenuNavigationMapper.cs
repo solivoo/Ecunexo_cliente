@@ -1,5 +1,6 @@
 using EcuNexo.Business.Platform.Queries.GetSession;
 using EcuNexo.Core.Platform.Navigation;
+using EcuNexo.Core.Tenancy;
 
 namespace EcuNexo.Business.Platform.Navigation;
 
@@ -74,7 +75,7 @@ internal static class MenuNavigationMapper
                 .ToList()
             : [];
 
-        var (disabled, reason, lockKind) = Evaluate(item, permSet, enabledModules);
+        var (disabled, reason, lockKind) = Evaluate(item, permSet, enabledModules, resolvedLimits);
         var isContainer = string.IsNullOrWhiteSpace(item.Route);
 
         // Contenedor de sección (sin ruta): solo visible si tiene hijos accesibles o es placeholder.
@@ -121,9 +122,20 @@ internal static class MenuNavigationMapper
     private static (bool Disabled, string? Reason, NavigationLockKind Kind) Evaluate(
         MenuItem item,
         HashSet<string> permSet,
-        IReadOnlyList<string>? enabledModules)
+        IReadOnlyList<string>? enabledModules,
+        IReadOnlyDictionary<string, int>? resolvedLimits)
     {
         if (!IsModuleEnabled(item.ModuleCode, enabledModules))
+        {
+            return (true, "Módulo no incluido en tu plan.", NavigationLockKind.Module);
+        }
+
+        // En Plan B1 (max_warehouses <= 1), el módulo warehousing sirve como dependencia de Inventario
+        // para la Bodega Principal inicial, pero la gestión multi-bodega se desbloquea en Plan C1.
+        if (string.Equals(item.ModuleCode, TenantModuleCodes.Warehousing, StringComparison.OrdinalIgnoreCase)
+            && resolvedLimits is not null
+            && resolvedLimits.TryGetValue($"{TenantModuleCodes.Warehousing}.{ModuleTierCatalog.LimitMaxWarehouses}", out var maxWarehouses)
+            && maxWarehouses <= 1)
         {
             return (true, "Módulo no incluido en tu plan.", NavigationLockKind.Module);
         }

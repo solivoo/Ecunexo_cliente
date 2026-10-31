@@ -14,26 +14,46 @@ public static class SessionLimitResolver
     public static (
         IReadOnlyList<ModuleEntitlement>? Entitlements,
         IReadOnlyDictionary<string, int>? ResolvedLimits)
-        Resolve(IReadOnlyList<ModuleEntitlement>? entitlements)
+        Resolve(
+            IReadOnlyList<ModuleEntitlement>? entitlements,
+            int? fallbackMaxWarehouses = null,
+            int? fallbackMaxUsers = null)
     {
-        if (entitlements is null || entitlements.Count == 0)
+        if ((entitlements is null || entitlements.Count == 0)
+            && fallbackMaxWarehouses is null
+            && fallbackMaxUsers is null)
         {
             return (null, null);
         }
 
         var limits = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var entitlement in entitlements)
+        if (entitlements is not null)
         {
-            var defaults = ModuleTierCatalog.GetDefaultsForTier(entitlement.ModuleCode, entitlement.Tier);
-
-            // Aplica sobrescritos si los hay
-            foreach (var (key, defaultValue) in defaults)
+            foreach (var entitlement in entitlements)
             {
-                var resolved = entitlement.GetLimit(key) ?? defaultValue;
-                var compositeKey = $"{entitlement.ModuleCode}.{key}";
-                limits[compositeKey] = resolved;
+                var defaults = ModuleTierCatalog.GetDefaultsForTier(entitlement.ModuleCode, entitlement.Tier);
+
+                // Aplica sobrescritos si los hay
+                foreach (var (key, defaultValue) in defaults)
+                {
+                    var resolved = entitlement.GetLimit(key) ?? defaultValue;
+                    var compositeKey = $"{entitlement.ModuleCode}.{key}";
+                    limits[compositeKey] = resolved;
+                }
             }
+        }
+
+        var warehouseKey = $"{TenantModuleCodes.Warehousing}.{ModuleTierCatalog.LimitMaxWarehouses}";
+        if (fallbackMaxWarehouses is { } maxWarehouses && !limits.ContainsKey(warehouseKey))
+        {
+            limits[warehouseKey] = maxWarehouses;
+        }
+
+        var usersKey = $"{TenantModuleCodes.Identity}.{ModuleTierCatalog.LimitMaxUsers}";
+        if (fallbackMaxUsers is { } maxUsers && !limits.ContainsKey(usersKey))
+        {
+            limits[usersKey] = maxUsers;
         }
 
         return (entitlements, limits);

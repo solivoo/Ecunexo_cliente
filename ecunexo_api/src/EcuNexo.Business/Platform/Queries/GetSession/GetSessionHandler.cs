@@ -61,7 +61,10 @@ public sealed class GetSessionHandler : IQueryHandler<GetSessionQuery, SessionRe
             .ConfigureAwait(false);
 
         var enabledModules = ResolveEnabledModules(tenant);
-        var (entitlements, resolvedLimits) = SessionLimitResolver.Resolve(tenant.ModuleEntitlements);
+        var (entitlements, resolvedLimits) = SessionLimitResolver.Resolve(
+            tenant.ModuleEntitlements,
+            tenant.ResolveMaxWarehouses(),
+            tenant.ResolveMaxUsers());
 
         var menu = await _navigation
             .BuildAsync(MenuContextKind.Operational, codes, enabledModules, resolvedLimits, ct)

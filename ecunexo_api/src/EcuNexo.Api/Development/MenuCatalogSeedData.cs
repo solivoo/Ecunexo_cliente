@@ -181,11 +181,6 @@ internal static class MenuCatalogSeedData
         Item("customers-directory", "customers", "Directorio", "users", "clientes", 1, MenuContextKind.Operational, "customers", ["customers.read"]),
         Item("customers-types", "customers", "Tipos de cliente", "tags", "clientes/tipos", 2, MenuContextKind.Operational, "customers", ["customers.read", "customers.manage"]),
 
-        Item("repairs", null, "Reparaciones", "build", null, 56, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
-        Item("repairs-batches", "repairs", "Lotes de Equipos", "layers", "taller/lotes", 1, MenuContextKind.Operational, "repairs", ["repairs.batches.read"]),
-        Item("repairs-dispatches", "repairs", "Actas y Despachos", "truck", "taller/despachos", 2, MenuContextKind.Operational, "repairs", ["repairs.dispatches.create", "repairs.batches.read"]),
-        Item("repairs-portal", "repairs", "Portal Corporativo", "eye", "taller/portal", 3, MenuContextKind.Operational, "repairs", ["repairs.b2b.portal.view"]),
-
         Item("ecommerce", null, "Ecommerce", "shopping-bag", null, 58, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
         Item("ecommerce-orders", "ecommerce", "Pedidos", "shopping-bag", "ecommerce/pedidos", 1, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
         Item("ecommerce-storefront", "ecommerce", "Vitrina y dominios", "globe", "ecommerce/vitrina", 2, MenuContextKind.Operational, "ecommerce", ["ecommerce.storefront.manage"]),
@@ -211,18 +206,6 @@ internal static class MenuCatalogSeedData
         Item("compras-proveedores", "compras", "Proveedores", "truck", "compras/proveedores", 4, MenuContextKind.Operational, "purchases", ["purchases.suppliers.read"]),
         Item("compras-proformas", "compras", "Proformas", "clipboard-list", "compras/proformas", 5, MenuContextKind.Operational, "purchases", ["purchases.proformas.read"]),
         Item("compras-gastos", "compras", "Categorías de Compra", "tags", "compras/gastos", 6, MenuContextKind.Operational, "purchases", ["purchases.expenses.read"]),
-
-        // —— Contabilidad (tenant admin SPA) ——
-        Item("contabilidad", null, "Contabilidad", "calculator", null, 70, MenuContextKind.Operational, "contabilidad", ["contabilidad.read"]),
-        Item("contabilidad-asientos", "contabilidad", "Asientos", null, "contabilidad/asientos", 1, MenuContextKind.Operational, "contabilidad", ["contabilidad.asientos.read"]),
-        Item("contabilidad-ejercicios", "contabilidad", "Ejercicios", null, "contabilidad/ejercicios", 2, MenuContextKind.Operational, "contabilidad", ["contabilidad.ejercicios.read"]),
-        Item("contabilidad-plan-contable", "contabilidad", "Plan contable", null, "contabilidad/plan-contable", 3, MenuContextKind.Operational, "contabilidad", ["contabilidad.plan.contable.read"]),
-        Item("contabilidad-balances", "contabilidad", "Balances", null, "contabilidad/balances", 4, MenuContextKind.Operational, "contabilidad", ["contabilidad.balances.read"]),
-        Item("contabilidad-declaraciones", "contabilidad", "Declaraciones", null, "contabilidad/declaraciones", 5, MenuContextKind.Operational, "contabilidad", ["contabilidad.declaraciones.read"]),
-        Item("contabilidad-cuentas", "contabilidad", "Cuentas", null, "contabilidad/cuentas", 6, MenuContextKind.Operational, "contabilidad", ["contabilidad.cuentas.read"]),
-        Item("contabilidad-reportes", "contabilidad", "Reportes", null, "contabilidad/reportes", 7, MenuContextKind.Operational, "contabilidad", ["contabilidad.reportes.read"]),
-        Item("contabilidad-configuracion", "contabilidad", "Configuración", null, null, 8, MenuContextKind.Operational, "contabilidad", ["contabilidad.configuracion.read"]),
-        Item("contabilidad-configuracion-impuestos", "contabilidad-configuracion", "Impuestos", null, "contabilidad/configuracion/impuestos", 2, MenuContextKind.Operational, "contabilidad", ["contabilidad.configuracion.read"]),
 
         // —— Configuración de Empresa (sidebar operativo; GetSession solo carga Operational) ——
         Item("configuracion", null, "Configuración", "settings", null, 90, MenuContextKind.Operational, "identity", ["tenancy.tenant.read", "facturacion.emisor.read", "contabilidad.configuracion.read", "platform.settings.read"]),
@@ -277,6 +260,20 @@ internal static class MenuCatalogSeedData
         "catalog-soon",
         "catalog-categories",
         "repairs-customers",
+        "repairs",
+        "repairs-batches",
+        "repairs-dispatches",
+        "repairs-portal",
+        "contabilidad",
+        "contabilidad-asientos",
+        "contabilidad-ejercicios",
+        "contabilidad-plan-contable",
+        "contabilidad-balances",
+        "contabilidad-declaraciones",
+        "contabilidad-cuentas",
+        "contabilidad-reportes",
+        "contabilidad-configuracion",
+        "contabilidad-configuracion-impuestos",
     ];
 
     private static MenuItem Item(

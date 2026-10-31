@@ -102,6 +102,17 @@ public sealed class ModuleEntitlementGuard : IModuleEntitlementGuard
     /// <summary>Bloquea permisos cuyo ítem de menú depende de una opción de plan (límite 0/1).</summary>
     private static Result EvaluateFeatureFlag(Tenant tenant, string permissionCode)
     {
+        if ((string.Equals(permissionCode, "warehousing.locations.manage", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(permissionCode, "warehousing.warehouse.manage", StringComparison.OrdinalIgnoreCase))
+            && !tenant.AllowsMultipleWarehouses())
+        {
+            return Result.Failure(
+                new Error(
+                    "module.not_entitled",
+                    "La creación y administración de múltiples bodegas no está incluida en tu plan.",
+                    ErrorType.Forbidden));
+        }
+
         if (!FeatureFlagPermissionCatalog.TryResolve(permissionCode, out var flag))
         {
             return Result.Success();
