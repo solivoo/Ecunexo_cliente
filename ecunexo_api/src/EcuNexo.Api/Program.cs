@@ -281,7 +281,6 @@ if (migrateOnStartup)
     await db.Database.MigrateAsync(CancellationToken.None).ConfigureAwait(false);
 }
 
-await DevelopmentActivationCodeSeeder.EnsureAsync(app, CancellationToken.None).ConfigureAwait(false);
 await MenuCatalogSeeder.EnsureAsync(app, CancellationToken.None).ConfigureAwait(false);
 await PlatformSettingsSeeder.EnsureAsync(app, CancellationToken.None).ConfigureAwait(false);
 
