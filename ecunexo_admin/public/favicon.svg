@@ -1,28 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <defs>
-    <linearGradient id="ecuBg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0b0f19" />
-      <stop offset="100%" stop-color="#161f30" />
-    </linearGradient>
-    <linearGradient id="ecuOrange" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff903f" />
-      <stop offset="100%" stop-color="#f95700" />
-    </linearGradient>
-  </defs>
-  <!-- Squircle de fondo corporativo -->
-  <rect width="64" height="64" rx="15" fill="url(#ecuBg)" />
-  <rect width="62" height="62" x="1" y="1" rx="14" fill="none" stroke="#2a374a" stroke-width="1.5" />
-
-  <!-- Monograma EcuNexo "EX" -->
-  <!-- Letra E (Blanco nítido) -->
-  <path
-    d="M 14 18 H 30 V 24 H 20.5 V 29 H 28 V 35 H 20.5 V 40 H 30 V 46 H 14 Z"
-    fill="#ffffff"
-  />
-
-  <!-- Letra X (Naranja EcuNexo) -->
-  <path
-    d="M 34 18 H 40.5 L 45 26.5 L 49.5 18 H 56 L 48.8 31.8 L 56.5 46 H 50 L 45 37 L 40 46 H 33.5 L 41.2 31.8 Z"
-    fill="url(#ecuOrange)"
-  />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ECX">
+  <rect width="64" height="64" rx="11" fill="#000"/>
+  <text
+    x="32"
+    y="38"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif"
+    font-size="21"
+    font-weight="800"
+    letter-spacing="-0.02em"
+  >
+    <tspan fill="#ffffff">EC</tspan><tspan fill="#ff6b21">X</tspan>
+  </text>
 </svg>
