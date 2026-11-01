@@ -24,7 +24,32 @@ public interface ILicenseOnlineValidator
         CancellationToken ct);
 
     Task<Result<LicenseRemoteEntitlements>> GetEntitlementsAsync(Guid grantId, CancellationToken ct);
+
+    /// <summary>Autentica y obtiene los datos de aprovisionamiento para una suscripción emitida en la plataforma central.</summary>
+    Task<Result<LicenseRemoteCloudBootstrap>> BootstrapCloudSubscriptionAsync(
+        string email,
+        string password,
+        CancellationToken ct);
 }
+
+public sealed record LicenseRemoteCloudBootstrap(
+    Guid GrantId,
+    Guid? SupersedesGrantId,
+    string PlanCode,
+    string PlanLabel,
+    int MaxTenants,
+    int MaxUsers,
+    int MaxWarehouses,
+    IReadOnlyList<string> EnabledModuleCodes,
+    IReadOnlyList<ModuleEntitlement>? ModuleEntitlements,
+    DateTimeOffset ExpiresAtUtc,
+    int OnlineValidationIntervalDays,
+    string DeploymentMode,
+    string OwnerEmail,
+    string OwnerName,
+    string? OwnerDepartment,
+    string? OwnerPhone,
+    string? OwnerJobTitle);
 
 public sealed record LicenseRemoteStatus(
     Guid GrantId,

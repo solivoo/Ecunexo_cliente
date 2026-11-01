@@ -47,6 +47,41 @@
   text-align: center;
 }
 
+.ecu-wordmark {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  user-select: none;
+}
+
+.ecu-wordmark__name {
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+  font-size: 1.55rem;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  color: var(--shell-fg, var(--md-sys-color-on-surface, #f8fafc));
+}
+
+.ecu-wordmark__name strong {
+  font-weight: 700;
+}
+
+.ecu-wordmark__x {
+  color: #ff7f2a;
+}
+
+.ecu-wordmark--collapsed .ecu-wordmark__name {
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.ecu-wordmark--hero .ecu-wordmark__name {
+  font-size: 2.1rem;
+  color: var(--c-text-main, var(--md-sys-color-on-surface, #f8fafc));
+}
+
 .sidebar-brand__logo {
   display: block;
   width: auto;

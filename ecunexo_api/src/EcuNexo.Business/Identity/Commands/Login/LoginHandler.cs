@@ -1,6 +1,7 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Tenancy.Licensing;
+using EcuNexo.Core.Abstractions;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Identity;
 using EcuNexo.Core.Tenancy;
@@ -18,6 +19,9 @@ public sealed class LoginHandler : ICommandHandler<LoginCommand, LoginResponse>
     private readonly IJwtAccessTokenFactory _tokens;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILicenseComplianceService _licenseCompliance;
+    private readonly ILicenseOnlineValidator _onlineValidator;
+    private readonly ILicenseRedemptionRepository _redemptions;
+    private readonly IIdGenerator _idGenerator;
 
     public LoginHandler(
         IValidator<LoginCommand> validator,
@@ -27,7 +31,10 @@ public sealed class LoginHandler : ICommandHandler<LoginCommand, LoginResponse>
         IPasswordHasher passwordHasher,
         IJwtAccessTokenFactory tokens,
         IUnitOfWork unitOfWork,
-        ILicenseComplianceService licenseCompliance)
+        ILicenseComplianceService licenseCompliance,
+        ILicenseOnlineValidator onlineValidator,
+        ILicenseRedemptionRepository redemptions,
+        IIdGenerator idGenerator)
     {
         _validator = validator;
         _tenants = tenants;
@@ -37,6 +44,9 @@ public sealed class LoginHandler : ICommandHandler<LoginCommand, LoginResponse>
         _tokens = tokens;
         _unitOfWork = unitOfWork;
         _licenseCompliance = licenseCompliance;
+        _onlineValidator = onlineValidator;
+        _redemptions = redemptions;
+        _idGenerator = idGenerator;
     }
 
     public async Task<Result<LoginResponse>> Handle(LoginCommand command, CancellationToken ct)
@@ -74,11 +84,88 @@ public sealed class LoginHandler : ICommandHandler<LoginCommand, LoginResponse>
         var user = await _users.GetActiveByEmailForLoginAsync(email, ct).ConfigureAwait(false);
         if (user is null)
         {
+            return await TryBootstrapCloudSubscriptionAsync(email, command.Password, ct).ConfigureAwait(false);
+        }
+
+        return await LoginTenantUserAsync(user.TenantId, email, command.Password, user, ct).ConfigureAwait(false);
+    }
+
+    private async Task<Result<LoginResponse>> TryBootstrapCloudSubscriptionAsync(
+        Email email,
+        string password,
+        CancellationToken ct)
+    {
+        var bootstrap = await _onlineValidator
+            .BootstrapCloudSubscriptionAsync(email.Value, password, ct)
+            .ConfigureAwait(false);
+        if (bootstrap.IsFailure)
+        {
             return Result.Failure<LoginResponse>(
                 new Error("auth.login.failed", "Credenciales inválidas.", ErrorType.Unauthorized));
         }
 
-        return await LoginTenantUserAsync(user.TenantId, email, command.Password, user, ct).ConfigureAwait(false);
+        var remote = bootstrap.Value!;
+        if (await _redemptions.GetByIdAsync(remote.GrantId, ct).ConfigureAwait(false) is not null)
+        {
+            return Result.Failure<LoginResponse>(
+                new Error("auth.login.failed", "Credenciales inválidas.", ErrorType.Unauthorized));
+        }
+
+        ServicePlan plan;
+        try
+        {
+            plan = new ServicePlan(remote.PlanLabel, remote.MaxUsers, remote.MaxWarehouses);
+        }
+        catch (ArgumentException)
+        {
+            return Result.Failure<LoginResponse>(
+                new Error("auth.login.failed", "Credenciales inválidas.", ErrorType.Unauthorized));
+        }
+
+        var accountId = _idGenerator.NewId();
+        var passwordHash = _passwordHasher.Hash(password);
+        var utcNow = DateTimeOffset.UtcNow;
+        var accountCreated = SubscriptionAccount.Create(
+            accountId,
+            remote.GrantId,
+            email,
+            string.IsNullOrWhiteSpace(remote.OwnerName) ? "Titular" : remote.OwnerName,
+            passwordHash,
+            plan,
+            remote.MaxTenants,
+            remote.EnabledModuleCodes,
+            remote.ModuleEntitlements,
+            remote.ExpiresAtUtc,
+            remote.OnlineValidationIntervalDays,
+            utcNow,
+            remote.OwnerDepartment,
+            remote.OwnerPhone,
+            remote.OwnerJobTitle);
+        if (accountCreated.IsFailure)
+        {
+            return Result.Failure<LoginResponse>(accountCreated.Error!);
+        }
+
+        var redemption = LicenseRedemption.Create(remote.GrantId, accountId, utcNow);
+        if (redemption.IsFailure)
+        {
+            return Result.Failure<LoginResponse>(redemption.Error!);
+        }
+
+        var account = accountCreated.Value!;
+        account.TouchLastLogin(utcNow);
+
+        await _subscriptionAccounts.AddAsync(account, ct).ConfigureAwait(false);
+        await _redemptions.AddAsync(redemption.Value!, ct).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        var jwt = _tokens.CreateForSubscriptionAccount(accountId);
+        return Result.Success(new LoginResponse(
+            jwt.Token,
+            jwt.ExpiresAt,
+            accountId,
+            null,
+            true));
     }
 
     private async Task<Result<LoginResponse>> LoginSubscriptionAccountAsync(

@@ -26,7 +26,7 @@ services:
     build:
       context: .
       dockerfile: ecunexo_api/Dockerfile
-    image: ${CLIENTE_API_IMAGE:-ecunexo-cliente-api:1.0.0}
+    image: ${CLIENTE_API_IMAGE:-ecunexo-cliente-api:0.66.0}
     pull_policy: build
     restart: unless-stopped
     depends_on:
@@ -35,6 +35,8 @@ services:
     dns:
       - 1.1.1.1
       - 8.8.8.8
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://+:8080
@@ -54,7 +56,7 @@ services:
       ActivationCodes__Pepper: ${ACTIVATION_PEPPER:-CAMBIA_PEPPER_ACTIVACION_MIN_16}
       LicenseValidation__ValidationPepper: ${VALIDATION_PEPPER:-CAMBIA_ESTO_EN_PRODUCCION_PEPPER_VALIDACION_LICENCIAS_16_CHARS}
       LicenseValidation__SigningPublicKeyPath: ${LICENSE_PUBLIC_KEY_PATH:-license-public.pem}
-      LicenseValidation__PlatformApiBaseUrl: ${PLATFORM_API_BASE_URL:-}
+      LicenseValidation__PlatformApiBaseUrl: ${PLATFORM_API_BASE_URL:-http://host.docker.internal:5090}
       LicenseValidation__PlatformApiKey: ${PLATFORM_API_KEY:-}
       BillingTaxRates__BaseUrl: ${BILLING_TAX_RATES_BASE_URL:-}
       InventoryEgress__ApiKey: ${INVENTORY_EGRESS_API_KEY:-}
@@ -90,7 +92,7 @@ services:
         VITE_BILLING_API_BASE_URL: ${VITE_BILLING_API_BASE_URL:-}
         VITE_LOGNERD_ENABLE_CONSOLE: ${VITE_LOGNERD_ENABLE_CONSOLE:-false}
         VITE_LOGNERD_LEVEL: ${VITE_LOGNERD_LEVEL:-WARN}
-    image: ${CLIENTE_SPA_IMAGE:-ecunexo-cliente-spa:1.0.0}
+    image: ${CLIENTE_SPA_IMAGE:-ecunexo-cliente-spa:0.66.0}
     pull_policy: build
     restart: unless-stopped
     depends_on:

@@ -286,6 +286,77 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
         IReadOnlyList<ModuleEntitlement>? ModuleEntitlements,
         int OverrideVersion);
 
+    public async Task<Result<LicenseRemoteCloudBootstrap>> BootstrapCloudSubscriptionAsync(
+        string email,
+        string password,
+        CancellationToken ct)
+    {
+        var candidateUrls = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_options.PlatformApiBaseUrl))
+        {
+            candidateUrls.Add(_options.PlatformApiBaseUrl.TrimEnd('/'));
+        }
+
+        foreach (var fallback in new[]
+                 {
+                     "http://host.docker.internal:5090",
+                     "http://172.17.0.1:5090",
+                     "http://localhost:5090",
+                 })
+        {
+            if (!candidateUrls.Contains(fallback, StringComparer.OrdinalIgnoreCase))
+            {
+                candidateUrls.Add(fallback);
+            }
+        }
+
+        foreach (var baseUrl in candidateUrls)
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"{baseUrl}/api/v1/platform/licenses/cloud-bootstrap")
+            {
+                Content = JsonContent.Create(new CloudBootstrapRequestDto(email, password)),
+            };
+            if (!string.IsNullOrWhiteSpace(_options.PlatformApiKey))
+            {
+                request.Headers.TryAddWithoutValidation("X-Platform-Validation-Key", _options.PlatformApiKey);
+            }
+
+            try
+            {
+                using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    return Result.Failure<LicenseRemoteCloudBootstrap>(
+                        new Error("auth.login.failed", "Credenciales inválidas.", ErrorType.Unauthorized));
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    continue;
+                }
+
+                var body = await response.Content
+                    .ReadFromJsonAsync<LicenseRemoteCloudBootstrap>(cancellationToken: ct)
+                    .ConfigureAwait(false);
+                if (body is not null)
+                {
+                    return Result.Success(body);
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                // Intentar siguiente URL candidata
+            }
+        }
+
+        return Result.Failure<LicenseRemoteCloudBootstrap>(
+            new Error("auth.login.failed", "Credenciales inválidas.", ErrorType.Unauthorized));
+    }
+
+    private sealed record CloudBootstrapRequestDto(string Email, string Password);
+
     [LoggerMessage(
         EventId = 9501,
         Level = LogLevel.Information,
