@@ -11,6 +11,7 @@ export type UpsertUiPreferencesBody = {
   readonly palette: string
   readonly density: string
   readonly startDarkMode: boolean
+  readonly lockedModulesMode?: string
 }
 
 export async function upsertUiPreferences(
@@ -171,5 +172,3 @@ export async function sendInvoiceAuthorizedEmail(
   )
   return data
 }
-
-

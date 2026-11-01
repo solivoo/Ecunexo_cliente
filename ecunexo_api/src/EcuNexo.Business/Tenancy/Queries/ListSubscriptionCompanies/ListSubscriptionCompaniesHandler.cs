@@ -1,5 +1,6 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Core.Common;
+using EcuNexo.Core.Tenancy;
 
 namespace EcuNexo.Business.Tenancy.Queries.ListSubscriptionCompanies;
 
@@ -28,7 +29,7 @@ public sealed class ListSubscriptionCompaniesHandler(
             .Select(t => new SubscriptionCompanyListItemResponse(
                 t.Id,
                 t.Name,
-                t.Status,
+                t.Status == TenantStatus.Trial ? TenantStatus.Active : t.Status,
                 t.CreatedAt,
                 false))
             .ToList();

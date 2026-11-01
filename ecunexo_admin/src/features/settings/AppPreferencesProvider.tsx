@@ -53,6 +53,7 @@ export function AppPreferencesProvider({ children }: { readonly children: ReactN
         palette: next.gluboxTheme,
         density: next.density,
         startDarkMode: next.startDarkMode,
+        lockedModulesMode: next.lockedModulesMode,
       })
         .then((resolved) => {
           dispatch(setResolvedSettings(resolved))
@@ -98,8 +99,17 @@ export function AppPreferencesProvider({ children }: { readonly children: ReactN
   }, [authed, settings])
 
   const patch = useCallback((next: Partial<AppPreferences>) => {
-    setPrefs(writeAppPreferences(next))
-  }, [])
+    const updated = writeAppPreferences(next)
+    setPrefs(updated)
+    if (next.lockedModulesMode !== undefined) {
+      dispatch(
+        setResolvedSettings({
+          ...settings,
+          'ui.nav.locked_modules_mode': updated.lockedModulesMode,
+        }),
+      )
+    }
+  }, [dispatch, settings])
 
   const value = useMemo(
     (): AppPreferencesContextValue => ({

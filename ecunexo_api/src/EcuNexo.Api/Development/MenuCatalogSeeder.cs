@@ -290,6 +290,12 @@ internal static class MenuCatalogSeeder
 
         foreach (var tenant in tenants)
         {
+            if (tenant.Status is TenantStatus.Trial)
+            {
+                tenant.Activate();
+                changed = true;
+            }
+
             if (tenant.EnabledModuleCodes is null || tenant.EnabledModuleCodes.Count == 0)
             {
                 continue;

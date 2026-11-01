@@ -8,6 +8,7 @@ public sealed class UpsertUserUiPreferencesValidator : AbstractValidator<UpsertU
     private static readonly string[] AllowedPalettes = ["commerce", "default", "modern", "enterprise"];
     private static readonly string[] AllowedDensities = ["sm", "md", "lg"];
     private static readonly string[] AllowedLookbacks = ["1m", "3m", "6m", "1y"];
+    private static readonly string[] AllowedLockedModuleModes = ["hidden", "locked"];
 
     public UpsertUserUiPreferencesValidator()
     {
@@ -24,5 +25,8 @@ public sealed class UpsertUserUiPreferencesValidator : AbstractValidator<UpsertU
         RuleFor(c => c.DefaultLookback)
             .Must(v => AllowedLookbacks.Contains(v))
             .WithMessage("La ventana de listados debe ser 1 mes, 3 meses, 6 meses o 1 año.");
+        RuleFor(c => c.LockedModulesMode)
+            .Must(v => AllowedLockedModuleModes.Contains(v))
+            .WithMessage("El modo de visualización de módulos no contratados debe ser hidden o locked.");
     }
 }

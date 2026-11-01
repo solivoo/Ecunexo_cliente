@@ -7,7 +7,13 @@ import { AppSettingsListsSection } from '@/pages/settings/AppSettingsListsSectio
 import { AppSettingsSystemSection } from '@/pages/settings/AppSettingsSystemSection'
 import { PLATFORM_SETTINGS_READ, PLATFORM_SETTINGS_UPDATE } from '@/services/settingsApi'
 import { useHasPermission } from '@/hooks/useHasPermission'
-import type { GluboxThemeId, MaxRecords, ToastPositionId, UiDensity } from '@/lib/appPreferences'
+import type {
+  GluboxThemeId,
+  LockedModulesMode,
+  MaxRecords,
+  ToastPositionId,
+  UiDensity,
+} from '@/lib/appPreferences'
 import type { GridLookback } from '@/lib/gridLookback'
 
 export function AppSettingsPage() {
@@ -53,11 +59,15 @@ export function AppSettingsPage() {
           density={prefs.density}
           startDarkMode={prefs.startDarkMode}
           toastPosition={prefs.toastPosition}
+          lockedModulesMode={prefs.lockedModulesMode}
           disabled={!canUpdate}
           onThemeChange={(gluboxTheme: GluboxThemeId) => patch({ gluboxTheme })}
           onDensityChange={(density: UiDensity) => patch({ density })}
           onStartDarkModeChange={(startDarkMode: boolean) => patch({ startDarkMode })}
           onToastPositionChange={(toastPosition: ToastPositionId) => patch({ toastPosition })}
+          onLockedModulesModeChange={(lockedModulesMode: LockedModulesMode) =>
+            patch({ lockedModulesMode })
+          }
         />
         <AppSettingsEmailSection disabled={!canUpdateSettings} />
         <AppSettingsEmailTemplatesSection disabled={!canUpdateSettings} />

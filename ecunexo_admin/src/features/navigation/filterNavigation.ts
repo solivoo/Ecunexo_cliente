@@ -1,26 +1,30 @@
+import type { LockedModulesMode } from '@/lib/appPreferences'
 import type { NavigationNode } from '@/types/navigation'
 
 /**
  * Oculta entradas inaccesibles.
  * - Secciones sin ruta: solo si tienen hijos visibles.
  * - Hojas bloqueadas por permiso: se ocultan.
- * - Hojas bloqueadas por módulo no contratado: se muestran (candado visible para vender el plan).
+ * - Hojas bloqueadas por módulo no contratado: según `lockedModulesMode` ('hidden' = se ocultan, 'locked' = se muestran con candado).
  */
-export function filterNavigationTree(nodes?: NavigationNode[] | null): NavigationNode[] {
+export function filterNavigationTree(
+  nodes?: NavigationNode[] | null,
+  lockedModulesMode: LockedModulesMode = 'hidden',
+): NavigationNode[] {
   if (!nodes || !Array.isArray(nodes)) {
     return []
   }
   const result: NavigationNode[] = []
 
   for (const node of nodes) {
-    const children = filterNavigationTree(node.children)
+    const children = filterNavigationTree(node.children, lockedModulesMode)
     const hasRoute = Boolean(node.route?.trim())
     const isSection = !hasRoute
     const isModuleLocked = node.disabled && node.lockKind === 'module'
     const visible = node.placeholder
       ? true
       : isModuleLocked
-        ? true
+        ? lockedModulesMode === 'locked'
         : isSection
           ? children.length > 0
           : !node.disabled || children.length > 0

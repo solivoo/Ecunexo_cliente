@@ -212,8 +212,14 @@ export function selectNavigation(state: AuthRootState): NavigationNode[] {
 }
 
 export const selectVisibleNavigation = createSelector(
-  [(state: AuthRootState) => state.auth.navigation],
-  (navigation) => filterNavigationTree(navigation)
+  [
+    (state: AuthRootState) => state.auth.navigation,
+    (state: AuthRootState) => state.auth.settings['ui.nav.locked_modules_mode'],
+  ],
+  (navigation, rawMode) => {
+    const mode = rawMode === 'locked' ? 'locked' : 'hidden'
+    return filterNavigationTree(navigation, mode)
+  }
 )
 
 export function selectSettings(state: AuthRootState): Record<string, unknown> {

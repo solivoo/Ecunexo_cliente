@@ -30,6 +30,7 @@ internal static class PlatformSettingsSeeder
             (UiPreferenceCodes.MaxRecords, "10"),
             (UiPreferenceCodes.DefaultLookback, "\"1m\""),
             (UiPreferenceCodes.StartDark, "true"),
+            (UiPreferenceCodes.LockedModulesMode, "\"hidden\""),
             (CatalogSettingCodes.AllowedItemKinds, "[\"physical\",\"service\"]"),
             (EmailSettingCodes.SmtpConfig, "{\"isEnabled\":true,\"host\":\"smtp.zoho.com\",\"port\":465,\"useSsl\":true,\"userName\":\"\",\"password\":\"\",\"senderEmail\":\"\",\"senderName\":\"EcuNexo\"}"),
         };

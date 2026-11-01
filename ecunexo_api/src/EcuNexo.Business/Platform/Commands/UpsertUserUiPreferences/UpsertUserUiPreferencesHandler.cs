@@ -58,6 +58,7 @@ public sealed class UpsertUserUiPreferencesHandler
             (UiPreferenceCodes.Density, JsonSerializer.Serialize(command.Density)),
             (UiPreferenceCodes.StartDark, JsonSerializer.Serialize(command.StartDarkMode)),
             (UiPreferenceCodes.DefaultLookback, JsonSerializer.Serialize(command.DefaultLookback)),
+            (UiPreferenceCodes.LockedModulesMode, JsonSerializer.Serialize(command.LockedModulesMode)),
         };
 
         foreach (var (code, json) in rows)

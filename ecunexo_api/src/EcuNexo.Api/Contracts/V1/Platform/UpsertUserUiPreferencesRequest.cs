@@ -7,7 +7,8 @@ public sealed record UpsertUserUiPreferencesRequest(
     string Palette,
     string Density,
     bool StartDarkMode,
-    string DefaultLookback = "1m")
+    string DefaultLookback = "1m",
+    string LockedModulesMode = "hidden")
 {
     public UpsertUserUiPreferencesCommand ToCommand(Guid actorId, Guid? tenantId, bool isHolder) =>
         new(
@@ -18,5 +19,6 @@ public sealed record UpsertUserUiPreferencesRequest(
             Palette.Trim().ToLowerInvariant(),
             Density.Trim().ToLowerInvariant(),
             StartDarkMode,
-            (DefaultLookback ?? "1m").Trim().ToLowerInvariant());
+            (DefaultLookback ?? "1m").Trim().ToLowerInvariant(),
+            (LockedModulesMode ?? "hidden").Trim().ToLowerInvariant());
 }

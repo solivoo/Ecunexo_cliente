@@ -10,7 +10,8 @@ public sealed record UpsertUserUiPreferencesCommand(
     string Palette,
     string Density,
     bool StartDarkMode,
-    string DefaultLookback = "1m") : ICommand<UpsertUserUiPreferencesResponse>;
+    string DefaultLookback = "1m",
+    string LockedModulesMode = "hidden") : ICommand<UpsertUserUiPreferencesResponse>;
 
 public sealed record UpsertUserUiPreferencesResponse(
     IReadOnlyDictionary<string, System.Text.Json.JsonElement> Settings);

@@ -2,8 +2,10 @@ import { CheckButton, Select, useToast } from 'glubox'
 import { SectionCard } from '@/components/ui'
 import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import {
+  LOCKED_MODULES_MODE_OPTIONS,
   TOAST_POSITION_OPTIONS,
   type GluboxThemeId,
+  type LockedModulesMode,
   type ToastPositionId,
   type UiDensity,
 } from '@/lib/appPreferences'
@@ -23,21 +25,25 @@ export function AppSettingsAppearanceSection({
   density,
   startDarkMode,
   toastPosition,
+  lockedModulesMode,
   disabled = false,
   onThemeChange,
   onDensityChange,
   onStartDarkModeChange,
   onToastPositionChange,
+  onLockedModulesModeChange,
 }: {
   readonly gluboxTheme: GluboxThemeId
   readonly density: UiDensity
   readonly startDarkMode: boolean
   readonly toastPosition: ToastPositionId
+  readonly lockedModulesMode: LockedModulesMode
   readonly disabled?: boolean
   readonly onThemeChange: (value: GluboxThemeId) => void
   readonly onDensityChange: (value: UiDensity) => void
   readonly onStartDarkModeChange: (value: boolean) => void
   readonly onToastPositionChange: (value: ToastPositionId) => void
+  readonly onLockedModulesModeChange: (value: LockedModulesMode) => void
 }) {
   const size = useGluComponentSize()
   const toast = useToast()
@@ -60,7 +66,7 @@ export function AppSettingsAppearanceSection({
   return (
     <SectionCard
       title="Aspecto y Experiencia Visual"
-      subtitle="Paleta gluBox (componentes y chrome de la app), tamaño de controles, modo al abrir y ubicación de avisos emergentes."
+      subtitle="Paleta gluBox (componentes y chrome de la app), tamaño de controles, visibilidad de módulos del plan, modo al abrir y ubicación de avisos emergentes."
     >
       <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
         <div className="ecu-companies-form__field">
@@ -100,6 +106,23 @@ export function AppSettingsAppearanceSection({
             options={[...TOAST_POSITION_OPTIONS]}
             value={toastPosition}
             onChange={handleToastPositionChange}
+            disabled={disabled}
+            fullWidth
+            size={size}
+          />
+        </div>
+        <div className="ecu-companies-form__field">
+          <Select
+            id="app-locked-modules-mode"
+            label="Módulos no incluidos en el plan"
+            labelPosition="outlined"
+            variant="outline"
+            options={[...LOCKED_MODULES_MODE_OPTIONS]}
+            value={lockedModulesMode}
+            onChange={(value: string) => {
+              if (!value) return
+              onLockedModulesModeChange(value as LockedModulesMode)
+            }}
             disabled={disabled}
             fullWidth
             size={size}

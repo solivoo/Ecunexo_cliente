@@ -203,7 +203,7 @@ internal static class MenuCatalogSeedData
         Item("compras", null, "Compras", "shopping-cart", null, 65, MenuContextKind.Operational, "purchases", []),
         Item("compras-documentos", "compras", "Documentos", "file-text", "compras/documentos", 1, MenuContextKind.Operational, "purchases", ["purchases.documents.read"]),
         Item("compras-retenciones", "compras", "Retenciones", "receipt", "compras/retenciones", 2, MenuContextKind.Operational, "purchases", ["purchases.withholdings.read"]),
-        Item("compras-liquidaciones", "compras", "Liquidaciones", "file-text", "compras/liquidaciones", 3, MenuContextKind.Operational, "facturacion", ["facturacion.liquidacion.compra.read", "facturacion.read"]),
+        Item("compras-liquidaciones", "compras", "Liquidaciones", "file-text", "compras/liquidaciones", 3, MenuContextKind.Operational, "purchases", ["facturacion.liquidacion.compra.read", "facturacion.read"]),
         Item("compras-proveedores", "compras", "Proveedores", "truck", "compras/proveedores", 4, MenuContextKind.Operational, "purchases", ["purchases.suppliers.read"]),
         Item("compras-proformas", "compras", "Proformas", "clipboard-list", "compras/proformas", 5, MenuContextKind.Operational, "purchases", ["purchases.proformas.read"]),
         Item("compras-gastos", "compras", "Categorías de Compra", "tags", "compras/gastos", 6, MenuContextKind.Operational, "purchases", ["purchases.expenses.read"]),

@@ -40,7 +40,7 @@ internal static class TenantDetailMapper
             tenant.LogoDarkId is { } dark
                 ? $"/api/v1/tenants/{tenant.Id}/brand-logos/{dark}/file"
                 : null,
-            tenant.Status,
+            tenant.Status == TenantStatus.Trial ? TenantStatus.Active : tenant.Status,
             plan.Name,
             plan.MaxUsers,
             plan.MaxWarehouses,

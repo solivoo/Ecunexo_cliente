@@ -8,4 +8,5 @@ public static class UiPreferenceCodes
     public const string Palette = "ui.theme.palette";
     public const string Density = "ui.density";
     public const string StartDark = "ui.start_dark";
+    public const string LockedModulesMode = "ui.nav.locked_modules_mode";
 }

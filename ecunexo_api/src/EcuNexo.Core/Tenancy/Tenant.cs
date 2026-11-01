@@ -354,7 +354,7 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
         {
             Id = id,
             Name = trimmed,
-            Status = TenantStatus.Trial,
+            Status = TenantStatus.Active,
             ServicePlan = servicePlan,
             SubscriptionGroupId = groupId,
             SubscriptionMaxTenants = subscriptionMaxTenants,
@@ -810,6 +810,16 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
 
         var t = value.Trim();
         return t.Length == 0 ? null : t;
+    }
+
+    /// <summary>Promueve una empresa en estado de prueba a activa.</summary>
+    public void Activate()
+    {
+        if (Status is TenantStatus.Trial)
+        {
+            Status = TenantStatus.Active;
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
     }
 
     /// <summary>Borrado lógico: cancelada, deja de contar en el cupo de la licencia.</summary>

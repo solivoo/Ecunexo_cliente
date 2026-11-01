@@ -11,6 +11,14 @@ export type GluboxThemeId = (typeof GLUBOX_THEME_IDS)[number]
 export const UI_DENSITY_IDS = ['sm', 'md', 'lg'] as const
 export type UiDensity = (typeof UI_DENSITY_IDS)[number]
 
+export const LOCKED_MODULES_MODE_IDS = ['hidden', 'locked'] as const
+export type LockedModulesMode = (typeof LOCKED_MODULES_MODE_IDS)[number]
+
+export const LOCKED_MODULES_MODE_OPTIONS: readonly { value: LockedModulesMode; label: string }[] = [
+  { value: 'hidden', label: 'Invisibles (ocultar del menú lateral)' },
+  { value: 'locked', label: 'Bloqueados (mostrar con candado)' },
+] as const
+
 export const TOAST_POSITION_IDS = [
   'bottom-right',
   'bottom-left',
@@ -40,6 +48,7 @@ export type AppPreferences = {
   readonly density: UiDensity
   readonly startDarkMode: boolean
   readonly toastPosition: ToastPositionId
+  readonly lockedModulesMode: LockedModulesMode
 }
 
 export const APP_PREFERENCES_EVENT = 'ecunexo:app-preferences'
@@ -52,6 +61,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   density: 'md',
   startDarkMode: true,
   toastPosition: 'bottom-right',
+  lockedModulesMode: 'hidden',
 }
 
 function isToastPosition(value: unknown): value is ToastPositionId {
@@ -68,6 +78,10 @@ function isDensity(value: unknown): value is UiDensity {
 
 function isMaxRecords(value: unknown): value is MaxRecords {
   return typeof value === 'number' && (MAX_RECORD_OPTIONS as readonly number[]).includes(value)
+}
+
+export function isLockedModulesMode(value: unknown): value is LockedModulesMode {
+  return typeof value === 'string' && (LOCKED_MODULES_MODE_IDS as readonly string[]).includes(value)
 }
 
 export function pageSizeOptionsFor(maxRecords: MaxRecords): number[] {
@@ -99,6 +113,9 @@ export function readAppPreferences(): AppPreferences {
       toastPosition: isToastPosition(row.toastPosition)
         ? row.toastPosition
         : DEFAULT_APP_PREFERENCES.toastPosition,
+      lockedModulesMode: isLockedModulesMode(row.lockedModulesMode)
+        ? row.lockedModulesMode
+        : DEFAULT_APP_PREFERENCES.lockedModulesMode,
     }
   } catch {
     return DEFAULT_APP_PREFERENCES
@@ -113,6 +130,7 @@ export function preferencesEqual(a: AppPreferences, b: AppPreferences): boolean 
     && a.density === b.density
     && a.startDarkMode === b.startDarkMode
     && a.toastPosition === b.toastPosition
+    && a.lockedModulesMode === b.lockedModulesMode
   )
 }
 
@@ -137,6 +155,9 @@ export function preferencesFromResolvedSettings(
     toastPosition: isToastPosition(settings['ui.toast.position'] ?? settings['ui.toast_position'])
       ? ((settings['ui.toast.position'] ?? settings['ui.toast_position']) as ToastPositionId)
       : fallback.toastPosition,
+    lockedModulesMode: isLockedModulesMode(settings['ui.nav.locked_modules_mode'])
+      ? settings['ui.nav.locked_modules_mode']
+      : fallback.lockedModulesMode,
   }
 }
 
