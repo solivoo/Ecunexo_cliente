@@ -103,7 +103,7 @@ export function CreateRolePage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Nuevo Rol"
-          subtitle="Define un nuevo perfil de seguridad."
+          info="Define un nuevo perfil de seguridad para agrupar permisos y asignarlo a colaboradores."
           actions={
             <>
               <Button type="button" variant="outline" onClick={goToList}>
@@ -131,6 +131,7 @@ export function CreateRolePage() {
           <SectionCard
             bodyClassName="ecu-section-card__body--padded"
             title="Datos del Rol"
+            info="Los roles de sistema están protegidos contra eliminación y suelen reservarse para la administración base de la plataforma."
           >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
               <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
@@ -168,9 +169,6 @@ export function CreateRolePage() {
                   />
                   <span>Rol de sistema (protegido contra eliminación)</span>
                 </label>
-                <p className="ecu-companies-form__hint">
-                  Los roles de sistema suelen reservarse para administración base de la plataforma.
-                </p>
               </div>
             </div>
           </SectionCard>

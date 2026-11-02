@@ -66,7 +66,7 @@ export function AppSettingsAppearanceSection({
   return (
     <SectionCard
       title="Aspecto y Experiencia Visual"
-      subtitle="Paleta gluBox (componentes y chrome de la app), tamaño de controles, visibilidad de módulos del plan, modo al abrir y ubicación de avisos emergentes."
+      info="Paleta gluBox (componentes y chrome de la app), tamaño de controles, visibilidad de módulos del plan, modo al abrir y ubicación de avisos emergentes."
     >
       <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
         <div className="ecu-companies-form__field">

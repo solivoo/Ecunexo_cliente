@@ -298,7 +298,7 @@ export function InventoryDocumentsListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Documentos de Inventario"
-          subtitle="Comprobantes logísticos de recepción, egreso y transferencia entre bodegas."
+          info="Comprobantes logísticos de recepción, egreso y transferencia entre bodegas."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de documentos">

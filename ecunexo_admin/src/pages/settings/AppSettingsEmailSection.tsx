@@ -286,7 +286,7 @@ export function AppSettingsEmailSection({
           </StatusBadge>
         </span>
       }
-      subtitle="Elige si deseas enviar tus facturas y notificaciones con el servicio predeterminado o desde tu propia cuenta de correo."
+      info="Elige si deseas enviar tus facturas y notificaciones con el servicio predeterminado o desde tu propia cuenta de correo."
     >
       <div
         style={{

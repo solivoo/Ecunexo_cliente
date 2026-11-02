@@ -169,7 +169,7 @@ export function EditDepartmentPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title={name ? `Editar Área: ${name}` : 'Editar Departamento'}
-          subtitle="Nombre y descripción del departamento."
+          info="Actualiza el nombre y la descripción del departamento. Los usuarios asignados reflejarán el cambio automáticamente."
           actions={
             <>
               <Button

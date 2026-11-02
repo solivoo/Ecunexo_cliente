@@ -90,7 +90,7 @@ export function CreateWarehousePage() {
       <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Nueva Bodega"
-          subtitle="Alta de una ubicación física operativa para el almacenamiento y despacho de productos."
+          info="Alta de una ubicación física operativa para el almacenamiento y despacho de productos."
           badge={
             <StatusBadge tone="primary" withDot>
               Nueva Ubicación
@@ -110,7 +110,7 @@ export function CreateWarehousePage() {
         <form onSubmit={(e) => void onSubmit(e)} noValidate>
           <SectionCard
             title="Datos de la Bodega"
-            subtitle="Especifica el nombre comercial y código interno de control. Las bodegas en tránsito se gestionan automáticamente por el sistema."
+            info="Especifica el nombre comercial y código interno de control. Las bodegas en tránsito se gestionan automáticamente por el sistema."
           >
             {error ? (
               <div className="ecu-form-error-banner" role="alert">

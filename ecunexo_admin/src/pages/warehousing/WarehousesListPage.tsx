@@ -172,7 +172,7 @@ export function WarehousesListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Bodegas y Almacenes"
-          subtitle="Centros logísticos y ubicaciones operativas de almacenamiento."
+          info="Centros logísticos y ubicaciones operativas de almacenamiento."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de bodegas">

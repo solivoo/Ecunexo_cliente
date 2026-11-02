@@ -172,7 +172,7 @@ export function InventoryKardexPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Kárdex de Movimientos"
-          subtitle="Registro cronológico de entradas, salidas y ajustes de existencias."
+          info="Registro cronológico de entradas, salidas y ajustes de existencias."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de kárdex">

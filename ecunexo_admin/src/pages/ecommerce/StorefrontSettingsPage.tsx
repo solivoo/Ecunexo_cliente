@@ -466,7 +466,7 @@ export function StorefrontSettingsPage() {
         <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Configuración de tienda"
-            subtitle="Define los métodos de pago, costos de envío y la retención de stock de la tienda online."
+            info="Define los métodos de pago, costos de envío y la retención de stock de la tienda online."
           />
           <SectionCard title="Cargando…">
             <p className="app-shell__muted">Obteniendo la configuración actual de la tienda…</p>
@@ -484,7 +484,7 @@ export function StorefrontSettingsPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Configuración de tienda"
-          subtitle="Define los métodos de pago, costos de envío y la retención de stock de la tienda online."
+          info="Define los métodos de pago, costos de envío y la retención de stock de la tienda online."
         />
 
         <form className="ecu-companies-form" onSubmit={(e) => void handleSubmit(e)} noValidate>
@@ -497,7 +497,7 @@ export function StorefrontSettingsPage() {
 
           <SectionCard
             title="Métodos de pago"
-            subtitle="Selecciona cómo pueden pagar los clientes en el checkout."
+            info="Selecciona cómo pueden pagar los clientes en el checkout."
           >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
               {PAYMENT_METHOD_OPTIONS.map((option) => (
@@ -545,7 +545,7 @@ export function StorefrontSettingsPage() {
 
           <SectionCard
             title="Métodos de envío"
-            subtitle="Habilita los despachos disponibles y define su costo fijo."
+            info="Habilita los despachos disponibles y define su costo fijo."
           >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
               {shipping.map((draft) => (
@@ -596,7 +596,7 @@ export function StorefrontSettingsPage() {
 
           <SectionCard
             title="Contacto y avisos"
-            subtitle="Datos de contacto de la tienda y correo que recibe los avisos de pedidos."
+            info="Datos de contacto de la tienda y correo que recibe los avisos de pedidos."
           >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
               <div className="ecu-companies-form__field">
@@ -645,7 +645,7 @@ export function StorefrontSettingsPage() {
 
           <SectionCard
             title="Contactos bloqueados"
-            subtitle="Correos y teléfonos que no pueden generar pedidos en la tienda."
+            info="Correos y teléfonos que no pueden generar pedidos en la tienda."
           >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
               <div className="ecu-companies-form__field">
@@ -754,7 +754,7 @@ export function StorefrontSettingsPage() {
 
           <SectionCard
             title="Compra mínima"
-            subtitle="Monto mínimo del pedido para aceptar compras en la tienda online."
+            info="Monto mínimo del pedido para aceptar compras en la tienda online."
           >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
               <div className="ecu-companies-form__field">
@@ -787,7 +787,7 @@ export function StorefrontSettingsPage() {
 
           <SectionCard
             title="Reservas"
-            subtitle="Reserva de stock y tiempo que se retiene un pedido sin pago confirmado."
+            info="Reserva de stock y tiempo que se retiene un pedido sin pago confirmado."
           >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
               <div className="ecu-companies-form__field">
@@ -860,7 +860,7 @@ export function StorefrontSettingsPage() {
 
           <SectionCard
             title="Mantenimiento"
-            subtitle="Mientras esté activo, la tienda muestra una pantalla de mantenimiento y no acepta pedidos."
+            info="Mientras esté activo, la tienda muestra una pantalla de mantenimiento y no acepta pedidos."
           >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
               <div className="ecu-companies-form__field sri-config-field--check-align">

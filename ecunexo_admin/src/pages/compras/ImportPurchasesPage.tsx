@@ -1200,7 +1200,7 @@ export function ImportPurchasesPage() {
           <div>
             <SectionCard
               title="Carga de Comprobantes (Individual o por Lote)"
-              subtitle="Soporta múltiples archivos XML oficiales del SRI, respuestas de autorización y registro de facturas físicas preimpresas."
+              info="Soporta múltiples archivos XML oficiales del SRI, respuestas de autorización y registro de facturas físicas preimpresas."
             >
               <div
                 className="ecu-import-dropzone"
@@ -1350,7 +1350,7 @@ export function ImportPurchasesPage() {
             {/* Grid / Tabla Principal de Facturas Cargadas */}
             <SectionCard
               title={`Facturas Cargadas en el Lote (${queue.length})`}
-              subtitle="Revisa el estado de auditoría del SRI, clasifica entre Bienes (Stock) o Servicios (Gasto) y gestiona el lote."
+              info="Revisa el estado de auditoría del SRI, clasifica entre Bienes (Stock) o Servicios (Gasto) y gestiona el lote."
               action={
                 <CheckButton
                   checked={queue.length > 0 && queue.every((q) => q.selected)}
@@ -1610,7 +1610,7 @@ export function ImportPurchasesPage() {
               <div style={{ marginBottom: '1.25rem' }}>
                 <SectionCard
                   title="Datos del Comprobante y Proveedor"
-                  subtitle="Ajusta o corrige los datos del comprobante, información del proveedor y condiciones comerciales."
+                  info="Ajusta o corrige los datos del comprobante, información del proveedor y condiciones comerciales."
                   action={
                     activeInvoice.isEdited ? (
                       <StatusBadge tone="primary" withDot>

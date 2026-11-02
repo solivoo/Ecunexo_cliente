@@ -36,7 +36,7 @@ export function AppSettingsSystemSection() {
   return (
     <SectionCard
       title="Sistema y Versión"
-      subtitle="Trazabilidad técnica y estado de la versión en ejecución sincronizada con el repositorio."
+      info="Trazabilidad técnica y estado de la versión en ejecución sincronizada con el repositorio."
       action={
         <Button
           type="button"

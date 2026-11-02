@@ -190,7 +190,7 @@ export function CatalogItemsListPage() {
       <div className="ecu-dashboard-layout ecu-section-page ecu-catalog-page">
         <PageHeader
           title="Ítems del Catálogo"
-          subtitle="Productos y servicios."
+          info="Productos y servicios."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de catálogo">

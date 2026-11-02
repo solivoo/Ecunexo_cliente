@@ -126,7 +126,7 @@ export function ComprobantesPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Facturas Electrónicas"
-          subtitle="Facturas de venta electrónicas autorizadas ante el SRI."
+          info="Facturas de venta electrónicas autorizadas ante el SRI."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de comprobantes y ventas">

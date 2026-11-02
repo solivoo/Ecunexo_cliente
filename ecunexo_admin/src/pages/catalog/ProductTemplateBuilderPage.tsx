@@ -195,7 +195,7 @@ export function ProductTemplateBuilderPage() {
       <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title={isEdit ? 'Editar plantilla' : 'Nueva plantilla'}
-          subtitle="Arma los niveles, los datos y las variaciones de este tipo de producto."
+          info="Arma los niveles, los datos y las variaciones de este tipo de producto."
           actions={
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <Button
@@ -222,7 +222,7 @@ export function ProductTemplateBuilderPage() {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem' }}>
           {/* General Information Section */}
-          <SectionCard title="Nombre de la plantilla" subtitle="Así la vas a reconocer al crear un producto.">
+          <SectionCard title="Nombre de la plantilla" info="Así la vas a reconocer al crear un producto.">
             <div
               style={{
                 display: 'grid',
@@ -302,7 +302,7 @@ export function ProductTemplateBuilderPage() {
           {/* Hierarchical Builder Section */}
           <SectionCard
             title="Jerarquía del producto"
-            subtitle="Agrega los peldaños que necesite este tipo de producto. En cada uno, separa los datos de los ejes."
+            info="Agrega los peldaños que necesite este tipo de producto. En cada uno, separa los datos de los ejes."
           >
             <HierarchyTemplateTreeBuilder
               levels={levels}

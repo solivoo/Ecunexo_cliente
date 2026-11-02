@@ -267,7 +267,7 @@ export function CreditNotesListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Notas de Crédito SRI"
-          subtitle="Notas de crédito electrónicas vinculadas a facturas autorizadas."
+          info="Notas de crédito electrónicas vinculadas a facturas autorizadas."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de notas de crédito">

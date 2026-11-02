@@ -32,7 +32,7 @@ export function AppSettingsListsSection({
   return (
     <SectionCard
       title="Configuración de Listados"
-      subtitle="Filas por página en todas las tablas y ventana de fechas al abrir listados masivos (comprobantes, compras, SRI)."
+      info="Filas por página en todas las tablas y ventana de fechas al abrir listados masivos (comprobantes, compras, SRI)."
     >
       <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
         <div className="ecu-companies-form__field">

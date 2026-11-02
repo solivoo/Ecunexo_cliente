@@ -721,7 +721,7 @@ export function CatalogAttributesListPage() {
       <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid ecu-section-page ecu-catalog-page">
         <PageHeader
           title="Atributos"
-          subtitle="Tallas, colores y medidas reutilizables en todo el catálogo."
+          info="Tallas, colores y medidas reutilizables en todo el catálogo."
         />
 
         <div className="ecu-stat-grid">

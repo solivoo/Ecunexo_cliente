@@ -112,7 +112,7 @@ export function RolesListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Roles y Privilegios"
-          subtitle="Perfiles de permisos de esta empresa. Del sistema o a medida."
+          info="Perfiles de permisos de esta empresa. Pueden ser del sistema o creados a medida."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de roles">

@@ -136,8 +136,10 @@ export function ResetUserPasswordPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Restablecer Contraseña"
-          subtitle={
-            user ? `Nueva contraseña de acceso para ${user.name}.` : 'Asignar nueva contraseña.'
+          info={
+            user
+              ? `Nueva contraseña de acceso para ${user.name} (mínimo 8 caracteres).`
+              : 'Asignar nueva contraseña (mínimo 8 caracteres).'
           }
           actions={
             <>

@@ -249,7 +249,7 @@ export function PromotionsListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Promociones"
-          subtitle="Descuentos y precios promocionales con vigencia, prioridad y acumulabilidad. Nunca modifican el precio de lista."
+          info="Descuentos y precios promocionales con vigencia, prioridad y acumulabilidad. Nunca modifican el precio de lista."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de promociones">

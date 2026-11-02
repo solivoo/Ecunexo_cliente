@@ -568,7 +568,7 @@ export function CreateInventoryDocumentPage() {
         <form onSubmit={(e) => void onSubmit(e)} noValidate>
           <SectionCard
             title="Cabecera del Movimiento"
-            subtitle="Define la naturaleza de la transacción, las bodegas involucradas y referencias comerciales"
+            info="Define la naturaleza de la transacción, las bodegas involucradas y referencias comerciales"
           >
             {error ? (
               <div className="ecu-form-error-banner" role="alert">
@@ -705,7 +705,7 @@ export function CreateInventoryDocumentPage() {
 
           <SectionCard
             title="Detalle de Artículos"
-            subtitle="Indica los ítems físicos del catálogo y las cantidades correspondientes"
+            info="Indica los ítems físicos del catálogo y las cantidades correspondientes"
           >
             <div className="ecu-inv-quick-bar">
               <div className="ecu-inv-quick-bar__scanner">

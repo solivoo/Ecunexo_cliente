@@ -180,7 +180,7 @@ export function AppSettingsEmailTemplatesSection({
   return (
     <SectionCard
       title="Plantillas de Correo por Acciones de Negocio"
-      subtitle="Personaliza el asunto y el diseño HTML para facturación SRI, cotizaciones, taller y notificaciones corporativas."
+      info="Personaliza el asunto y el diseño HTML para facturación SRI, cotizaciones, taller y notificaciones corporativas."
       action={
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {isCustom ? (

@@ -145,7 +145,7 @@ export function AssignUserRolePage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Asignar Rol"
-          subtitle={
+          info={
             user ? `Vincular un perfil de seguridad a ${user.name}.` : 'Selecciona un rol.'
           }
           actions={

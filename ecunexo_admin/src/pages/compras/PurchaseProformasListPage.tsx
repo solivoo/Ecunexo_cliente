@@ -318,7 +318,7 @@ export function PurchaseProformasListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Proformas y Cotizaciones de Compra"
-          subtitle="Cotizaciones de proveedores previas a la compra o al ingreso de stock."
+          info="Cotizaciones de proveedores previas a la compra o al ingreso de stock."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de proformas">

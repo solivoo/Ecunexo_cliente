@@ -138,7 +138,7 @@ export function UsersListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Gestión de Usuarios"
-          subtitle="Personas de esta empresa. Perfiles, roles y estado de acceso."
+          info="Personas de esta empresa. Perfiles, roles y estado de acceso."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de usuarios">

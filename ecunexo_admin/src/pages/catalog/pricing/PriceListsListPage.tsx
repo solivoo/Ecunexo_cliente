@@ -309,7 +309,7 @@ const columns = useMemo((): ColumnDef<PriceListRow>[] => {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Listas de Precios"
-          subtitle="Listas comerciales (público, mayorista, distribuidor) con vigencia, prioridad y moneda."
+          info="Listas comerciales (público, mayorista, distribuidor) con vigencia, prioridad y moneda."
           actions={
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Button
@@ -345,7 +345,7 @@ const columns = useMemo((): ColumnDef<PriceListRow>[] => {
 
         <SectionCard
           title="Listado de listas"
-          subtitle="Cada lista tiene sus propios precios y vigencia. La predeterminada resuelve las ventas que no eligen lista."
+          info="Cada lista tiene sus propios precios y vigencia. La predeterminada resuelve las ventas que no eligen lista."
         >
           {error ? (
             <div className="ecu-form-error-banner" role="alert">

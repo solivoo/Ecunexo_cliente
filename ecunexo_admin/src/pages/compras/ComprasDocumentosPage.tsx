@@ -338,7 +338,7 @@ export function ComprasDocumentosPage() {
         {/* PageHeader adhering strictly to Rule 3 (no duplicate buttons in actions) */}
         <PageHeader
           title="Documentos y Facturas de Compra"
-          subtitle="Facturas de proveedores, parsing XML SRI e ingreso a bodega."
+          info="Facturas de proveedores, parsing XML SRI e ingreso a bodega."
           badge={<StatusBadge tone="neutral">Módulo Compras</StatusBadge>}
         />
 

@@ -747,7 +747,7 @@ export default function RepairCustomersListPage() {
       <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Directorio de Clientes"
-          subtitle="Clientes corporativos y personas naturales con validación de RUC."
+          info="Clientes corporativos y personas naturales con validación de RUC."
         />
 
         <div className="ecu-stat-grid" aria-label="Métricas del directorio de clientes">

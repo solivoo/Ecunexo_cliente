@@ -290,7 +290,7 @@ export function ShippingMethodsPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Métodos de Envío"
-          subtitle="Configura los couriers y modalidades de entrega (ej: Servientrega, Cooperativa de Transporte, Entrega Local, Tramaco)."
+          info="Configura los couriers y modalidades de entrega (ej: Servientrega, Cooperativa de Transporte, Entrega Local, Tramaco)."
           actions={
             canManage ? (
               <Button variant="primary" iconLeft={<Plus size={16} />} onClick={openCreateModal}>
@@ -307,7 +307,7 @@ export function ShippingMethodsPage() {
 
         <SectionCard
           title="Transportistas y Couriers registrados"
-          subtitle="Opciones de transporte utilizadas para calcular tarifas y generar guías de remisión."
+          info="Opciones de transporte utilizadas para calcular tarifas y generar guías de remisión."
         >
           {error ? (
             <p className="welcome-onboarding__error" role="alert">

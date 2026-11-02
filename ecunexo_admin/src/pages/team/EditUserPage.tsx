@@ -33,9 +33,8 @@ export function EditUserPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title={page.user ? `Editar a ${page.user.name}` : 'Editar Usuario'}
-          subtitle={
-            page.user ? page.user.email : 'Actualiza los datos de la cuenta en esta empresa.'
-          }
+          subtitle={page.user ? page.user.email : undefined}
+          info="Actualiza los datos del perfil, rol y contraseña de acceso de esta cuenta en la empresa."
           actions={
             <>
               <Button

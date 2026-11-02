@@ -1,6 +1,7 @@
 import type { ChangeEvent, FormEvent } from 'react'
 import { Button, Select, TextBox } from 'glubox'
 import { UserRound } from 'lucide-react'
+import { InfoHint } from '@/components/ui'
 import { EditUserProfileHints } from '@/features/identity/EditUserProfileHints'
 import type { GetTenantUserDto, RoleListItemDto } from '@/types/identityApi'
 
@@ -74,12 +75,18 @@ export function EditUserProfileSection({
       <section className="app-shell__card ecu-companies-form__card">
         <h2 className="app-shell__section-title">
           <UserRound size={18} strokeWidth={1.75} aria-hidden /> Perfil
+          <InfoHint
+            title="Perfil y rol"
+            content={
+              <EditUserProfileHints
+                user={user}
+                canManageRoles={canManageRoles}
+                rolesCount={roles.length}
+                canPickRole={canPickRole}
+              />
+            }
+          />
         </h2>
-        <p className="ecu-companies-form__hint">
-          {emailLocked
-            ? 'El correo del administrador raíz coincide con el titular de la suscripción y no se cambia aquí. Nombre es obligatorio.'
-            : 'Puedes corregir el correo si te equivocaste al crear el usuario. Nombre es obligatorio.'}
-        </p>
         <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
           <div className="ecu-companies-form__field">
             <TextBox
@@ -185,12 +192,6 @@ export function EditUserProfileSection({
             )}
           </div>
         </div>
-        <EditUserProfileHints
-          user={user}
-          canManageRoles={canManageRoles}
-          rolesCount={roles.length}
-          canPickRole={canPickRole}
-        />
       </section>
 
       <div className="ecu-companies-form__actions">

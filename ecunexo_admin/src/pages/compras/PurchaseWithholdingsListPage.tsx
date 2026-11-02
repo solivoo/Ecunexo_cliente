@@ -92,7 +92,7 @@ export function PurchaseWithholdingsListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Comprobantes de Retención SRI"
-          subtitle="Retenciones SRI Tipo 07 de Impuesto a la Renta e IVA sobre facturas de compra."
+          info="Retenciones SRI Tipo 07 de Impuesto a la Renta e IVA sobre facturas de compra."
           actions={
             canIssue ? (
               <Button

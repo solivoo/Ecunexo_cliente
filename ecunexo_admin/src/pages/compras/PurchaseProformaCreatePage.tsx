@@ -332,7 +332,7 @@ export function PurchaseProformaCreatePage() {
       <div className="ecu-dashboard-layout ecu-section-page ecu-section-page" style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <PageHeader
           title="Registrar Proforma / Cotización"
-          subtitle="Documento comercial precontractual para comparar ofertas de proveedores antes de formalizar la compra."
+          info="Documento comercial precontractual para comparar ofertas de proveedores antes de formalizar la compra."
           badge={
             <StatusBadge tone="primary" withDot>
               Módulo Compras
@@ -384,7 +384,7 @@ export function PurchaseProformaCreatePage() {
           {/* SECCIÓN 1: CABECERA COMERCIAL & VIGENCIA */}
           <SectionCard
             title="Datos de la Cotización & Proveedor"
-            subtitle="Selecciona el proveedor registrado y fija la fecha límite de vigencia de los precios ofertados."
+            info="Selecciona el proveedor registrado y fija la fecha límite de vigencia de los precios ofertados."
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
               <div>
@@ -479,7 +479,7 @@ export function PurchaseProformaCreatePage() {
           {/* SECCIÓN 2: SELECTOR DE MODALIDAD DE REGISTRO */}
           <SectionCard
             title="Modalidad de Carga de la Cotización"
-            subtitle="Elige si registras la cotización por documento/enlace externo (sin desglosar ítems) o detallando cada línea."
+            info="Elige si registras la cotización por documento/enlace externo (sin desglosar ítems) o detallando cada línea."
           >
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
               <button
@@ -798,7 +798,7 @@ export function PurchaseProformaCreatePage() {
           {/* SECCIÓN 3: LOGÍSTICA, TÉRMINOS & CONDICIONES */}
           <SectionCard
             title="Términos de Entrega & Observaciones"
-            subtitle="Indica tiempos de entrega, forma de pago acordada o notas internas para la autorización de la compra."
+            info="Indica tiempos de entrega, forma de pago acordada o notas internas para la autorización de la compra."
           >
             <div>
               <TextBox

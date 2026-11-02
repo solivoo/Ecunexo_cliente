@@ -225,7 +225,7 @@ export function InventoryDocumentDetailPage() {
 
             <SectionCard
               title="Información del Comprobante"
-              subtitle="Detalles operativos, referencias documentales y marcas de tiempo"
+              info="Detalles operativos, referencias documentales y marcas de tiempo"
             >
               <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
                 <div className="ecu-companies-form__field">
@@ -283,7 +283,7 @@ export function InventoryDocumentDetailPage() {
 
             <SectionCard
               title="Artículos Movilizados"
-              subtitle="Desglose de productos físicos y cantidades asentadas"
+              info="Desglose de productos físicos y cantidades asentadas"
             >
               <div className="ecu-doc-lines__wrap">
                 <table className="ecu-doc-lines">

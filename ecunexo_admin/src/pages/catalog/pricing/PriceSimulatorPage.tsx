@@ -160,7 +160,7 @@ export function PriceSimulatorPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Simulador de Precios"
-          subtitle="Usa el mismo motor que ventas, ecommerce y facturación: lista, escala, promoción, descuento, impuesto y precio final."
+          info="Usa el mismo motor que ventas, ecommerce y facturación: lista, escala, promoción, descuento, impuesto y precio final."
         />
 
         <form onSubmit={(e) => void onSimulate(e)} noValidate>

@@ -243,7 +243,7 @@ export function EcommerceOrdersListPage() {
         <PageHeader
           title="Pedidos Ecommerce"
           badge={<StatusBadge tone="primary">Ventas Online</StatusBadge>}
-          subtitle="Administración y despacho de pedidos online con reserva automática de stock e integración SRI."
+          info="Administración y despacho de pedidos online con reserva automática de stock e integración SRI."
           actions={
             <Button
               variant="outline"

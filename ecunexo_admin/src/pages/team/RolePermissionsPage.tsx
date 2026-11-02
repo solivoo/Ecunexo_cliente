@@ -60,7 +60,7 @@ export function RolePermissionsPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title={editor.role ? `Permisos: ${editor.role.name}` : 'Permisos del Rol'}
-          subtitle="Capacidades y directivas que heredan los usuarios de este rol."
+          info="Capacidades y directivas que heredan los usuarios con este rol."
           badge={
             <StatusBadge tone={editor.dirty ? 'warning' : 'neutral'} withDot>
               {editor.dirty ? 'Cambios pendientes' : 'Sincronizado'}

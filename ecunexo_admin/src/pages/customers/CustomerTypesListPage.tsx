@@ -369,7 +369,7 @@ export default function CustomerTypesListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Tipos de Cliente"
-          subtitle="Clasificaciones comerciales del directorio de clientes."
+          info="Clasificaciones comerciales del directorio de clientes."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de tipos de cliente">

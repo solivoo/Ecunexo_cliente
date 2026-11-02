@@ -79,7 +79,7 @@ export function PermissionDetailPage() {
           <>
             <PageHeader
               title={perm.displayName ?? perm.code}
-              subtitle="Directiva de autorización del catálogo global."
+              info="Directiva de autorización del catálogo global."
               actions={
                 <>
                   <GridToolbarRefresh

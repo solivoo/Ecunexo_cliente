@@ -536,7 +536,7 @@ export function ProductPricesMatrixPage() {
         <PageHeader
           title="Matriz de precios"
           badge={<StatusBadge tone="primary">Listas × Productos</StatusBadge>}
-          subtitle="Edita el precio vigente de cada producto por lista en línea. Al guardar se cierra la vigencia anterior y queda historial."
+          info="Edita el precio vigente de cada producto por lista en línea. Al guardar se cierra la vigencia anterior y queda historial."
         />
 
         <SectionCard title="Cobertura por lista">

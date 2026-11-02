@@ -240,7 +240,7 @@ export function PurchaseSettlementsListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Liquidaciones de Compra SRI"
-          subtitle="Emisión de liquidaciones SRI Tipo 03 a personas naturales sin RUC."
+          info="Emisión de liquidaciones SRI Tipo 03 a personas naturales sin RUC."
         />
 
         {/* Tarjeta de Conexión Fiscal con Ajustes de Empresa */}

@@ -37,7 +37,7 @@ export function AppSettingsPage() {
     <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
       <PageHeader
         title="Preferencias del Sistema"
-        subtitle="Personaliza la apariencia, densidad, tema de interfaz, notificaciones, motor de correo y comportamiento de listados."
+        info="Personaliza la apariencia, densidad, tema de interfaz, notificaciones, motor de correo y comportamiento de listados."
         badge={<StatusBadge tone="primary">Ajustes</StatusBadge>}
       />
       {persistError ? <p className="ecu-companies-form__hint" role="alert">{persistError}</p> : null}

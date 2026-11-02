@@ -309,7 +309,7 @@ export function StorefrontDomainsPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Vitrina y Dominios"
-          subtitle="Publica el catálogo de la empresa en su propio dominio con verificación DNS."
+          info="Publica el catálogo de la empresa en su propio dominio con verificación DNS."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de dominios">

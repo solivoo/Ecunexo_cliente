@@ -266,7 +266,7 @@ export function RemisionGuideCreatePage() {
       <div className="ecu-dashboard-layout ecu-section-page ecu-section-page">
         <PageHeader
           title="Emitir Guía de Remisión SRI"
-          subtitle={
+          info={
             tenant?.name
               ? `Comprobante Tipo 06 para ${tenant.name} amparando el traslado de mercaderías.`
               : 'Comprobante Tipo 06 para el amparo del transporte de mercaderías dentro del territorio ecuatoriano.'
@@ -358,7 +358,7 @@ export function RemisionGuideCreatePage() {
           {/* 1. Datos de Emisión y Traslado */}
           <SectionCard
             title="1. Datos de Emisión y Logística"
-            subtitle="Numeración del comprobante, vehículo y fechas del traslado"
+            info="Numeración del comprobante, vehículo y fechas del traslado"
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
               <TextBox
@@ -421,7 +421,7 @@ export function RemisionGuideCreatePage() {
           {/* 2. Transportista */}
           <SectionCard
             title="2. Datos del Transportista / Conductor"
-            subtitle="Persona natural o jurídica encargada de transportar la carga"
+            info="Persona natural o jurídica encargada de transportar la carga"
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               <Select
@@ -460,7 +460,7 @@ export function RemisionGuideCreatePage() {
           {/* 3. Destinatario y Ruta */}
           <SectionCard
             title="3. Destinatario y Ruta de Entrega"
-            subtitle="Cliente o receptor de la mercadería y trayecto del vehículo"
+            info="Cliente o receptor de la mercadería y trayecto del vehículo"
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
               <Select
@@ -508,7 +508,7 @@ export function RemisionGuideCreatePage() {
           {/* 4. Comprobante de Sustento */}
           <SectionCard
             title="4. Documento de Sustento Tributario (Opcional)"
-            subtitle="Factura de venta o comprobante que ampara los bienes transportados"
+            info="Factura de venta o comprobante que ampara los bienes transportados"
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               <Select
@@ -535,7 +535,7 @@ export function RemisionGuideCreatePage() {
           {/* 5. Mercadería Transportada */}
           <SectionCard
             title="5. Bienes Transportados (Carga)"
-            subtitle="Detalle de productos, bultos o mercancías trasladas"
+            info="Detalle de productos, bultos o mercancías trasladas"
             action={
               <Button type="button" variant="outline" size="sm" onClick={handleAddItem}>
                 <Plus size={14} style={{ marginRight: 4 }} />

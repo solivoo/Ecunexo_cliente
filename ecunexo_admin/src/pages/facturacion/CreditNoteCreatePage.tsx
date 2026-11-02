@@ -304,7 +304,7 @@ export function CreditNoteCreatePage() {
         <PageHeader
           title="Nueva Nota de Crédito Electrónica"
           badge={<StatusBadge tone="info">SRI 04</StatusBadge>}
-          subtitle="Seleccione la factura autorizada de sustento para realizar la anulación o devolución parcial."
+          info="Seleccione la factura autorizada de sustento para realizar la anulación o devolución parcial."
           actions={
             <Button
               type="button"

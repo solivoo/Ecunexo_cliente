@@ -132,7 +132,7 @@ export function RoleDetailPage() {
             <>
               <PageHeader
                 title={role.name}
-                subtitle={role.description || 'Perfil de seguridad y directivas asignables.'}
+                info={role.description || 'Perfil de seguridad y directivas asignables.'}
                 actions={
                   <>
                     <GridToolbarRefresh

@@ -174,7 +174,7 @@ export function FacturaEmitirPage() {
           <div className="factura-emitir__sections">
             <SectionCard
               title="Datos de Emisión y Cliente"
-              subtitle="Punto de emisión, fecha y datos fiscales del adquirente"
+              info="Punto de emisión, fecha y datos fiscales del adquirente"
             >
               <InvoiceMetaFields
                 header={form.header}
@@ -202,7 +202,7 @@ export function FacturaEmitirPage() {
 
             <SectionCard
               title="Condiciones Comerciales y Observaciones"
-              subtitle="Plazo de pago y observaciones impresas en el RIDE"
+              info="Plazo de pago y observaciones impresas en el RIDE"
             >
               <InvoiceNotesFields
                 header={form.header}

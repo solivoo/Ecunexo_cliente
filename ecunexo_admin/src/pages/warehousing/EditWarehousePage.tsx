@@ -203,7 +203,7 @@ export function EditWarehousePage() {
           <form onSubmit={(e) => void onSubmit(e)} noValidate>
             <SectionCard
               title="Ficha Técnica de la Bodega"
-              subtitle="Corrige los datos de identificación y localización física sin alterar el historial de movimientos de kárdex"
+              info="Corrige los datos de identificación y localización física sin alterar el historial de movimientos de kárdex"
             >
               {error ? (
                 <div className="ecu-form-error-banner" role="alert">

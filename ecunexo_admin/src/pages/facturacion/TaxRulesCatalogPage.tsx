@@ -108,7 +108,7 @@ export function TaxRulesCatalogPage() {
       <div className="ecu-dashboard-layout ecu-section-page tax-rules-catalog">
         <PageHeader
           title="Reglas y Catálogos SRI"
-          subtitle="Vigencias normativas del SRI para la emisión de comprobantes."
+          info="Vigencias normativas del SRI para la emisión de comprobantes."
           actions={<GridToolbarRefresh loading={loading} onRefresh={() => void load()} />}
         />
 

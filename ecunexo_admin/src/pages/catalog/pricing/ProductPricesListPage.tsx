@@ -631,7 +631,7 @@ export function ProductPricesListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Precios de Productos"
-          subtitle="Precios por lista con vigencia y escalas de descuento por cantidad. Puedes seleccionar productos en lote para asignarles una escala de volumen."
+          info="Precios por lista con vigencia y escalas de descuento por cantidad. Puedes seleccionar productos en lote para asignarles una escala de volumen."
           actions={
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Button

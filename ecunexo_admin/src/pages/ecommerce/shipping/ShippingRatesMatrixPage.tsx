@@ -465,7 +465,7 @@ export function ShippingRatesMatrixPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Tarifas de Envío"
-          subtitle="Configura los precios de transporte por courier, zona y volumen. Las tarifas representan el valor base del flete; los impuestos SRI se aplican al facturar."
+          info="Configura los precios de transporte por courier, zona y volumen. Las tarifas representan el valor base del flete; los impuestos SRI se aplican al facturar."
           actions={
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Button
@@ -629,7 +629,7 @@ export function ShippingRatesMatrixPage() {
         {/* Sección: Tabla de tarifas */}
         <SectionCard
           title="Reglas Configuradas en la Matriz"
-          subtitle="Lista completa de tarifas de envío activas y reglas por volumen."
+          info="Lista completa de tarifas de envío activas y reglas por volumen."
         >
           {error ? (
             <p className="welcome-onboarding__error" role="alert">

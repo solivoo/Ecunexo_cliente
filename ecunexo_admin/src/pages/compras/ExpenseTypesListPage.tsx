@@ -385,7 +385,7 @@ export function ExpenseTypesListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Categorías de Compra y Sustentos SRI"
-          subtitle="Conceptos de compra con sustento ATS, retención AIR y afectación de inventario."
+          info="Conceptos de compra con sustento ATS, retención AIR y afectación de inventario."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de categorías de compra">

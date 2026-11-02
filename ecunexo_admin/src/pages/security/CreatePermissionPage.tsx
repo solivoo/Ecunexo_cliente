@@ -108,7 +108,7 @@ export function CreatePermissionPage() {
     <div className="ecu-dashboard-layout ecu-section-page">
       <PageHeader
         title="Nuevo Permiso"
-        subtitle="Registra una directiva reutilizable por todas las entidades de la plataforma."
+        info="Registra una directiva reutilizable por todas las entidades de la plataforma."
         actions={
           <EcuPageActions
             items={actionItems}

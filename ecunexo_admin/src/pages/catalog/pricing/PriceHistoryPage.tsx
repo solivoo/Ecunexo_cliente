@@ -160,7 +160,7 @@ export function PriceHistoryPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Historial de Precios"
-          subtitle="Bitácora inmutable: quién cambió, cuándo, precio anterior, precio nuevo, lista y vigencia."
+          info="Bitácora inmutable: quién cambió, cuándo, precio anterior, precio nuevo, lista y vigencia."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen del historial">

@@ -110,7 +110,7 @@ export function DepartmentsListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Departamentos y Áreas"
-          subtitle="Unidades organizacionales para asignar a los usuarios de la empresa."
+          info="Unidades organizacionales para asignar a los usuarios de la empresa."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de departamentos">

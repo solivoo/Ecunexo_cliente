@@ -1,6 +1,7 @@
 export * from './PageHeader'
 export * from './StatCard'
 export * from './SectionCard'
+export * from './InfoHint'
 export * from './StatusBadge'
 export * from './QuickActionCard'
 export * from './EmptyState'

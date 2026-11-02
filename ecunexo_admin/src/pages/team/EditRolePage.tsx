@@ -174,7 +174,7 @@ export function EditRolePage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title={name ? `Editar Rol: ${name}` : 'Editar Rol'}
-          subtitle="Nombre y descripción del rol."
+          info="Actualiza el nombre y la descripción del rol. El identificador y los permisos vinculados no cambian."
           actions={
             <>
               <Button
@@ -211,7 +211,7 @@ export function EditRolePage() {
             <SectionCard
               bodyClassName="ecu-section-card__body--padded"
               title="Propiedades del Rol"
-              subtitle={
+              info={
                 role?.isSystem
                   ? 'Este es un rol protegido de sistema. Puedes actualizar su descripción para tu organización.'
                   : 'Modifica el nombre y la descripción descriptiva del perfil.'

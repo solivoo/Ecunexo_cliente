@@ -1,6 +1,7 @@
 import type { ChangeEvent, FormEvent } from 'react'
 import { Button, TextBox } from 'glubox'
 import { KeyRound } from 'lucide-react'
+import { InfoHint } from '@/components/ui'
 
 type EditUserPasswordSectionProps = {
   readonly password: string
@@ -37,11 +38,11 @@ export function EditUserPasswordSection({
       <section className="app-shell__card ecu-companies-form__card">
         <h2 className="app-shell__section-title">
           <KeyRound size={18} strokeWidth={1.75} aria-hidden /> Contraseña
+          <InfoHint
+            title="Gestión de contraseña"
+            content="Define una nueva contraseña aquí, o envía un restablecimiento al correo del usuario (contraseña temporal)."
+          />
         </h2>
-        <p className="ecu-companies-form__hint">
-          Define una nueva contraseña aquí, o envía un restablecimiento al correo del usuario
-          (contraseña temporal).
-        </p>
         <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
           <div className="ecu-companies-form__field">
             <TextBox

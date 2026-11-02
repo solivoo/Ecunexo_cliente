@@ -192,7 +192,7 @@ export function EcommerceOrderDetailPage() {
         <div className="ecu-dashboard-layout ecu-section-page">
           <PageHeader
             title="Detalle del Pedido"
-            subtitle="Gestión y trazabilidad de la orden ecommerce."
+            info="Gestión y trazabilidad de la orden ecommerce."
           />
           <SectionCard title="Cargando…">
             <p className="app-shell__muted">Obteniendo el detalle del pedido…</p>
@@ -546,7 +546,7 @@ export function EcommerceOrderDetailPage() {
         {canManageStorefront && (
           <SectionCard
             title="Control de abuso"
-            subtitle="Bloquea contactos o marca el pedido como spam para proteger la tienda pública."
+            info="Bloquea contactos o marca el pedido como spam para proteger la tienda pública."
           >
             <div
               style={{

@@ -289,7 +289,7 @@ export function ShippingZonesPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Zonas de Envío"
-          subtitle="Crea y gestiona las zonas geográficas a donde despacha tu tienda (ej: Local, Provincias Sierra y Costa, Galápagos, Oriente)."
+          info="Crea y gestiona las zonas geográficas a donde despacha tu tienda (ej: Local, Provincias Sierra y Costa, Galápagos, Oriente)."
           actions={
             canManage ? (
               <Button variant="primary" iconLeft={<Plus size={16} />} onClick={openCreateModal}>
@@ -306,7 +306,7 @@ export function ShippingZonesPage() {
 
         <SectionCard
           title="Zonas de destino configuradas"
-          subtitle="Define las regiones que utilizará la matriz de tarifas y la cotización en checkout."
+          info="Define las regiones que utilizará la matriz de tarifas y la cotización en checkout."
         >
           {error ? (
             <p className="welcome-onboarding__error" role="alert">

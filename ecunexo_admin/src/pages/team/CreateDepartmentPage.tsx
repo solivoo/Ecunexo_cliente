@@ -109,7 +109,7 @@ export function CreateDepartmentPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Nuevo Departamento"
-          subtitle="Registra una unidad funcional de la empresa."
+          info="Registra una unidad funcional de la empresa para clasificar a los colaboradores."
           actions={
             <>
               <Button type="button" variant="outline" onClick={goToList}>

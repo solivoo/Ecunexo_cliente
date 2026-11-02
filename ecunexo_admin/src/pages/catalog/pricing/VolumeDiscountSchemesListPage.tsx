@@ -427,7 +427,7 @@ export function VolumeDiscountSchemesListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Escalas de Descuento por Cantidad"
-          subtitle="Define reglas reutilizables por volumen (ej: calcetines 3–5 pares: 10%, 6+: 15%). Asígnalas en lote a productos sin crear mínimos y máximos repetitivos."
+          info="Define reglas reutilizables por volumen (ej: calcetines 3–5 pares: 10%, 6+: 15%). Asígnalas en lote a productos sin crear mínimos y máximos repetitivos."
           badge={<StatusBadge tone="neutral">Volumen Enterprise</StatusBadge>}
           actions={
             canCreate ? (

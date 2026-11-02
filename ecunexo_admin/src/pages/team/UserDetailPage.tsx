@@ -233,6 +233,7 @@ export function UserDetailPage() {
               <PageHeader
                 title={user.name}
                 subtitle={user.email}
+                info="Ficha del colaborador, roles de seguridad asignados y permisos efectivos en la empresa."
                 actions={
                   <>
                     <GridToolbarRefresh

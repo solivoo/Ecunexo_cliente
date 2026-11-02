@@ -320,7 +320,7 @@ export function ProductTemplatesListPage() {
       <div className="ecu-dashboard-layout ecu-dashboard-layout--fluid ecu-section-page ecu-catalog-page">
         <PageHeader
           title="Plantillas de Producto"
-          subtitle="Arquetipos y jerarquías para estructurar familias, modelos y variantes."
+          info="Arquetipos y jerarquías para estructurar familias, modelos y variantes."
         />
 
         {templateLimitReached && (

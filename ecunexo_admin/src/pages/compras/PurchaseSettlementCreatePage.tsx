@@ -584,7 +584,7 @@ export function PurchaseSettlementCreatePage() {
           {/* SECCIÓN 2: LÍNEAS DEL COMPROBANTE */}
           <SectionCard
             title="2. Detalle de Bienes y Prestación de Servicios"
-            subtitle="Desglose de los productos o servicios recibidos del sujeto pasivo"
+            info="Desglose de los productos o servicios recibidos del sujeto pasivo"
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div
@@ -703,7 +703,7 @@ export function PurchaseSettlementCreatePage() {
           {/* SECCIÓN 3: LIQUIDACIÓN ECONÓMICA Y RETENCIONES OBLIGATORIAS */}
           <SectionCard
             title="3. Liquidación Económica & Retención SRI Obligatoria"
-            subtitle="Cálculo de retención del 100% de IVA y porcentaje aplicable de Impuesto a la Renta"
+            info="Cálculo de retención del 100% de IVA y porcentaje aplicable de Impuesto a la Renta"
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
               <div>

@@ -350,7 +350,7 @@ export function RemisionGuidesListPage() {
       <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title="Guías de Remisión SRI"
-          subtitle="Comprobantes de traslado de mercadería (SRI Tipo 06) con transportistas, rutas y entregas."
+          info="Comprobantes de traslado de mercadería (SRI Tipo 06) con transportistas, rutas y entregas."
         />
 
         <div className="ecu-stat-grid" aria-label="Métricas de Guías de Remisión">

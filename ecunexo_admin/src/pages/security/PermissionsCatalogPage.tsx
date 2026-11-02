@@ -91,7 +91,7 @@ export function PermissionsCatalogPage() {
     <div className="ecu-dashboard-layout ecu-section-page">
       <PageHeader
         title="Catálogo de Permisos"
-        subtitle="Directivas de autorización RBAC. Los roles las agrupan; cada directiva puede llevar políticas ABAC."
+        info="Directivas de autorización RBAC. Los roles las agrupan; cada directiva puede llevar políticas ABAC."
       />
 
       <div className="ecu-stat-grid" aria-label="Resumen de permisos">

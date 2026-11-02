@@ -342,7 +342,7 @@ export function StockListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Control de Stock y Existencias"
-          subtitle="Saldos físicos por ítem y bodega con alertas de reposición."
+          info="Saldos físicos por ítem y bodega con alertas de reposición."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de stock">

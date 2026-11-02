@@ -303,7 +303,7 @@ export function InvoiceLinesSection({
           <span>Detalle de productos y servicios</span>
         </span>
       }
-      subtitle="Ítems facturados, inventario, precios e impuestos"
+      info="Ítems facturados, inventario, precios e impuestos"
       action={
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <Button

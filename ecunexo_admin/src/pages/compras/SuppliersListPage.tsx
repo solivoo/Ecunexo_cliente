@@ -368,7 +368,7 @@ export function SuppliersListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Directorio de Proveedores"
-          subtitle="Proveedores registrados con su RUC, régimen SRI y condiciones de crédito."
+          info="Proveedores registrados con su RUC, régimen SRI y condiciones de crédito."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de proveedores">

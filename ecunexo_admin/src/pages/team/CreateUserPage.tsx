@@ -218,7 +218,7 @@ export function CreateUserPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Nuevo Usuario"
-          subtitle="Alta de un colaborador en la empresa."
+          info="Alta de un colaborador en la empresa. El correo y el nombre son obligatorios; la contraseña inicial debe tener al menos 8 caracteres."
           actions={
             <>
               <Button

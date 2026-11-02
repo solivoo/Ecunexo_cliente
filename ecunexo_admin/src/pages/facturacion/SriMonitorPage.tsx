@@ -76,7 +76,7 @@ export function SriMonitorPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Monitoreo SRI"
-          subtitle="Estados de autorización, devolución y procesamiento ante los Web Services del SRI."
+          info="Estados de autorización, devolución y procesamiento ante los Web Services del SRI."
         />
 
         <div className="ecu-stat-grid" aria-label="Estados SRI">
