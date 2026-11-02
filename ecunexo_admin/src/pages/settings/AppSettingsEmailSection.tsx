@@ -9,7 +9,6 @@ import {
   RotateCcw,
   Save,
   Send,
-  Sparkles,
 } from 'lucide-react'
 import { SectionCard, StatusBadge } from '@/components/ui'
 import { useGluComponentSize } from '@/hooks/useGluComponentSize'
@@ -24,7 +23,28 @@ import {
 } from '@/services/settingsApi'
 
 const ZOHO_DEFAULT_HOST = 'smtp.zoho.com'
+const ZOHO_PRO_HOST = 'smtppro.zoho.com'
 const ZOHO_DEFAULT_PORT = 465
+
+type EmailEngineMode = 'system' | 'custom'
+type EmailProviderPreset = 'zoho_personal' | 'zoho_domain' | 'gmail' | 'outlook' | 'other'
+
+function detectProviderPreset(host: string): EmailProviderPreset {
+  const h = host.trim().toLowerCase()
+  if (!h || h === 'smtp.zoho.com' || h === 'smtp.zoho.eu') return 'zoho_personal'
+  if (h === 'smtppro.zoho.com' || h === 'smtppro.zoho.eu') return 'zoho_domain'
+  if (h === 'smtp.gmail.com') return 'gmail'
+  if (h === 'smtp.office365.com' || h === 'smtp-mail.outlook.com') return 'outlook'
+  return 'other'
+}
+
+const PROVIDER_OPTIONS: { value: EmailProviderPreset; label: string }[] = [
+  { value: 'zoho_personal', label: 'Zoho Mail (Predeterminado)' },
+  { value: 'zoho_domain', label: 'Zoho Mail con dominio propio' },
+  { value: 'gmail', label: 'Gmail / Google Workspace' },
+  { value: 'outlook', label: 'Outlook / Microsoft 365' },
+  { value: 'other', label: 'Otro servidor de correo' },
+]
 
 export function AppSettingsEmailSection({
   disabled = false,
@@ -38,41 +58,53 @@ export function AppSettingsEmailSection({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [resetting, setResetting] = useState(false)
+
+  const [engineMode, setEngineMode] = useState<EmailEngineMode>('system')
+  const [providerPreset, setProviderPreset] = useState<EmailProviderPreset>('zoho_personal')
+  const [isCustom, setIsCustom] = useState(false)
 
   const [isEnabled, setIsEnabled] = useState(true)
   const [host, setHost] = useState(ZOHO_DEFAULT_HOST)
   const [port, setPort] = useState<number>(ZOHO_DEFAULT_PORT)
   const [useSsl, setUseSsl] = useState(true)
-  const [encryptionMode, setEncryptionMode] = useState<'Auto' | 'SslTls' | 'StartTls' | 'None'>('Auto')
+  const [encryptionMode, setEncryptionMode] = useState<'Auto' | 'SslTls' | 'StartTls' | 'None'>('SslTls')
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [senderEmail, setSenderEmail] = useState('')
-  const [senderName, setSenderName] = useState('EcuNexo')
+  const [senderName, setSenderName] = useState('')
   const [hasPassword, setHasPassword] = useState(false)
 
   const [targetEmail, setTargetEmail] = useState('')
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
-  const [isCustom, setIsCustom] = useState(false)
-  const [scope, setScope] = useState<'Global' | 'Tenant'>('Global')
-  const [resetting, setResetting] = useState(false)
+
+  const applyDto = useCallback(
+    (data: EmailSettingsDto) => {
+      const custom = Boolean(data.isCustom)
+      setIsCustom(custom)
+      setEngineMode(custom ? 'custom' : 'system')
+      setIsEnabled(data.isEnabled)
+      const resolvedHost = data.host || ZOHO_DEFAULT_HOST
+      setHost(resolvedHost)
+      setPort(data.port || ZOHO_DEFAULT_PORT)
+      setUseSsl(data.useSsl)
+      setEncryptionMode(data.encryptionMode ?? 'SslTls')
+      setProviderPreset(detectProviderPreset(resolvedHost))
+      setUserName(custom ? data.userName || '' : '')
+      setSenderEmail(custom ? data.senderEmail || '' : '')
+      setSenderName(custom ? data.senderName || activeTenantName || '' : activeTenantName || '')
+      setHasPassword(custom ? data.hasPassword : false)
+      setPassword('')
+    },
+    [activeTenantName],
+  )
 
   const loadSettings = useCallback(async () => {
     setLoading(true)
     try {
       const data: EmailSettingsDto = await getEmailSettings()
-      setIsEnabled(data.isEnabled)
-      setHost(data.host || ZOHO_DEFAULT_HOST)
-      setPort(data.port || ZOHO_DEFAULT_PORT)
-      setUseSsl(data.useSsl)
-      setEncryptionMode(data.encryptionMode ?? 'Auto')
-      setUserName(data.userName || '')
-      setSenderEmail(data.senderEmail || '')
-      setSenderName(data.senderName || 'EcuNexo')
-      setHasPassword(data.hasPassword)
-      setIsCustom(Boolean(data.isCustom))
-      setScope(data.scope ?? 'Global')
-      setPassword('')
+      applyDto(data)
     } catch (err: unknown) {
       toast.show({
         title: 'Error al cargar ajustes de correo',
@@ -82,37 +114,51 @@ export function AppSettingsEmailSection({
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [applyDto, toast])
 
   useEffect(() => {
     void loadSettings()
   }, [loadSettings])
 
+  const handleProviderChange = (preset: EmailProviderPreset) => {
+    setProviderPreset(preset)
+    if (preset === 'zoho_personal') {
+      setHost(ZOHO_DEFAULT_HOST)
+      setPort(465)
+      setUseSsl(true)
+      setEncryptionMode('SslTls')
+    } else if (preset === 'zoho_domain') {
+      setHost(ZOHO_PRO_HOST)
+      setPort(465)
+      setUseSsl(true)
+      setEncryptionMode('SslTls')
+    } else if (preset === 'gmail') {
+      setHost('smtp.gmail.com')
+      setPort(465)
+      setUseSsl(true)
+      setEncryptionMode('SslTls')
+    } else if (preset === 'outlook') {
+      setHost('smtp.office365.com')
+      setPort(587)
+      setUseSsl(true)
+      setEncryptionMode('StartTls')
+    }
+  }
+
   const handleResetToUniversal = async () => {
     setResetting(true)
     try {
       const data = await resetEmailSettings()
-      setIsEnabled(data.isEnabled)
-      setHost(data.host || ZOHO_DEFAULT_HOST)
-      setPort(data.port || ZOHO_DEFAULT_PORT)
-      setUseSsl(data.useSsl)
-      setEncryptionMode(data.encryptionMode ?? 'Auto')
-      setUserName(data.userName || '')
-      setSenderEmail(data.senderEmail || '')
-      setSenderName(data.senderName || 'EcuNexo')
-      setHasPassword(data.hasPassword)
-      setIsCustom(false)
-      setScope('Global')
-      setPassword('')
+      applyDto(data)
       toast.show({
-        title: 'Motor predeterminado restablecido',
-        message: 'Esta empresa volvió a utilizar el motor universal de EcuNexo.',
-        variant: 'info',
+        title: 'Correo predeterminado activado',
+        message: 'Tus correos se enviarán automáticamente con el servicio predeterminado del sistema.',
+        variant: 'success',
       })
     } catch (err: unknown) {
       toast.show({
-        title: 'Error al restablecer',
-        message: readApiError(err, 'No se pudo restablecer la configuración de correo.'),
+        title: 'Error al cambiar',
+        message: readApiError(err, 'No se pudo activar el correo predeterminado.'),
         variant: 'error',
       })
     } finally {
@@ -120,41 +166,28 @@ export function AppSettingsEmailSection({
     }
   }
 
-  const handleApplyZohoOrgDefaults = () => {
-    setHost('smtppro.zoho.com')
-    setPort(ZOHO_DEFAULT_PORT)
-    setUseSsl(true)
-    setEncryptionMode('SslTls')
-    if (!senderName) {
-      setSenderName('EcuNexo')
+  const handleSaveCustom = async () => {
+    const cleanUser = userName.trim()
+    if (!cleanUser) {
+      toast.show({
+        title: 'Correo requerido',
+        message: 'Ingresa la dirección de correo desde la que deseas enviar.',
+        variant: 'warning',
+      })
+      return
     }
-    toast.show({
-      title: 'Zoho Mail Corporativo (Dominio) aplicado',
-      message: 'Host configurado a smtppro.zoho.com (puerto 465 SSL/TLS) para correos con dominio propio (@ecunexo.com).',
-      variant: 'info',
-    })
-  }
-
-  const handleApplyZohoPersonalDefaults = () => {
-    setHost('smtp.zoho.com')
-    setPort(ZOHO_DEFAULT_PORT)
-    setUseSsl(true)
-    setEncryptionMode('SslTls')
-    if (!senderName) {
-      setSenderName('EcuNexo')
+    if (!hasPassword && !password.trim()) {
+      toast.show({
+        title: 'Contraseña requerida',
+        message: 'Ingresa la contraseña de tu cuenta de correo.',
+        variant: 'warning',
+      })
+      return
     }
-    toast.show({
-      title: 'Zoho Mail Personal aplicado',
-      message: 'Host configurado a smtp.zoho.com (puerto 465 SSL/TLS) para cuentas de correo gratuitas (@zoho.com).',
-      variant: 'info',
-    })
-  }
-
-  const handleSave = async () => {
     if (!host.trim()) {
       toast.show({
-        title: 'Campo obligatorio',
-        message: 'El servidor SMTP (Host) no puede estar vacío.',
+        title: 'Servidor requerido',
+        message: 'Indica el servidor de correo en las opciones avanzadas.',
         variant: 'warning',
       })
       return
@@ -162,27 +195,25 @@ export function AppSettingsEmailSection({
 
     setSaving(true)
     try {
+      const effectiveSenderEmail = senderEmail.trim() || cleanUser
+      const effectiveSenderName = senderName.trim() || activeTenantName || 'EcuNexo'
       const updated = await updateEmailSettings({
         isEnabled,
         host: host.trim(),
         port: Number(port) || ZOHO_DEFAULT_PORT,
         useSsl,
         encryptionMode,
-        userName: userName.trim(),
+        userName: cleanUser,
         password: password.trim() ? password.trim() : undefined,
-        senderEmail: senderEmail.trim(),
-        senderName: senderName.trim(),
+        senderEmail: effectiveSenderEmail,
+        senderName: effectiveSenderName,
       })
 
-      setHasPassword(updated.hasPassword)
-      setPassword('')
+      applyDto(updated)
 
       toast.show({
-        title: 'Configuración guardada',
-        message:
-          scope === 'Tenant'
-            ? 'Los parámetros del motor de correo se guardaron para esta empresa.'
-            : 'Los parámetros del motor de correo se guardaron como configuración global de plataforma.',
+        title: 'Correo personal guardado',
+        message: 'Tu cuenta de correo quedó configurada para esta empresa.',
         variant: 'success',
       })
     } catch (err: unknown) {
@@ -200,7 +231,7 @@ export function AppSettingsEmailSection({
     if (!targetEmail.trim()) {
       toast.show({
         title: 'Destinatario requerido',
-        message: 'Ingresa un correo electrónico destinatario para enviar el correo de prueba.',
+        message: 'Ingresa un correo electrónico para enviar el mensaje de prueba.',
         variant: 'warning',
       })
       return
@@ -209,29 +240,34 @@ export function AppSettingsEmailSection({
     setTesting(true)
     setTestResult(null)
     try {
-      const res = await testEmailSettings({
-        targetEmail: targetEmail.trim(),
-        host: host.trim(),
-        port: Number(port) || ZOHO_DEFAULT_PORT,
-        useSsl,
-        encryptionMode,
-        userName: userName.trim(),
-        password: password.trim() ? password.trim() : undefined,
-        senderEmail: senderEmail.trim(),
-        senderName: senderName.trim(),
-      })
+      const payload =
+        engineMode === 'system'
+          ? { targetEmail: targetEmail.trim() }
+          : {
+              targetEmail: targetEmail.trim(),
+              host: host.trim(),
+              port: Number(port) || ZOHO_DEFAULT_PORT,
+              useSsl,
+              encryptionMode,
+              userName: userName.trim(),
+              password: password.trim() ? password.trim() : undefined,
+              senderEmail: senderEmail.trim() || userName.trim(),
+              senderName: senderName.trim() || activeTenantName || 'EcuNexo',
+            }
+
+      const res = await testEmailSettings(payload)
 
       setTestResult(res)
       toast.show({
-        title: res.success ? 'Conexión exitosa' : 'Fallo en la prueba',
+        title: res.success ? 'Correo enviado' : 'No se pudo enviar',
         message: res.message,
         variant: res.success ? 'success' : 'error',
       })
     } catch (err: unknown) {
-      const msg = readApiError(err, 'No se pudo completar la prueba de correo.')
+      const msg = readApiError(err, 'No se pudo completar el envío de prueba.')
       setTestResult({ success: false, message: msg })
       toast.show({
-        title: 'Error de prueba',
+        title: 'Error de envío',
         message: msg,
         variant: 'error',
       })
@@ -244,64 +280,92 @@ export function AppSettingsEmailSection({
     <SectionCard
       title={
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <span>Motor de Correo Electrónico (Zoho Mail / SMTP)</span>
+          <span>Servicio de Correo Electrónico</span>
           <StatusBadge tone={isCustom ? 'success' : isEnabled ? 'info' : 'neutral'}>
-            {isCustom ? 'Motor Propio de la Empresa' : isEnabled ? 'Universal EcuNexo (Heredado)' : 'Deshabilitado'}
+            {isCustom ? 'Correo Propio Activo' : isEnabled ? 'Correo Predeterminado Activo' : 'Deshabilitado'}
           </StatusBadge>
         </span>
       }
-      subtitle={
-        scope === 'Tenant'
-          ? 'Personaliza el servidor SMTP exclusivo de esta empresa. Si no configuras uno propio, el sistema utiliza el motor universal de EcuNexo automáticamente.'
-          : 'Configuración global de plataforma que actúa como respaldo universal para todas las empresas sin correo propio.'
-      }
-      action={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {isCustom && scope === 'Tenant' && !disabled ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={resetting || loading}
-              onClick={handleResetToUniversal}
-            >
-              <RotateCcw size={14} aria-hidden />
-              <span>{resetting ? 'Restableciendo…' : 'Restaurar motor EcuNexo'}</span>
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled || loading}
-            onClick={handleApplyZohoOrgDefaults}
-            title="Usar smtppro.zoho.com (para correos corporativos como @ecunexo.com)"
-          >
-            <Sparkles size={14} aria-hidden />
-            <span>Zoho Dominio (@ecunexo.com)</span>
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled || loading}
-            onClick={handleApplyZohoPersonalDefaults}
-            title="Usar smtp.zoho.com (para correos gratuitos @zoho.com)"
-          >
-            <Sparkles size={14} aria-hidden />
-            <span>Zoho Personal (@zoho.com)</span>
-          </Button>
-        </div>
-      }
+      subtitle="Elige si deseas enviar tus facturas y notificaciones con el servicio predeterminado o desde tu propia cuenta de correo."
     >
-      {scope === 'Tenant' ? (
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '0.75rem',
+          marginBottom: '1.25rem',
+        }}
+      >
+        <button
+          type="button"
+          disabled={disabled || loading}
+          onClick={() => setEngineMode('system')}
+          style={{
+            textAlign: 'left',
+            padding: '0.9rem 1rem',
+            borderRadius: '0.625rem',
+            cursor: disabled || loading ? 'not-allowed' : 'pointer',
+            border:
+              engineMode === 'system'
+                ? '2px solid var(--shell-primary, #0284c7)'
+                : '1px solid var(--shell-border, var(--glb-border))',
+            background:
+              engineMode === 'system'
+                ? 'rgba(2, 132, 199, 0.08)'
+                : 'var(--shell-surface-alt, rgba(0,0,0,0.02))',
+            color: 'var(--glb-text)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+            <strong style={{ fontSize: '0.92rem' }}>Correo predeterminado (Zoho)</strong>
+            {!isCustom ? (
+              <StatusBadge tone="info">En uso</StatusBadge>
+            ) : null}
+          </div>
+          <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.8rem', color: 'var(--glb-muted)' }}>
+            Listo para usar sin configuración adicional. Envía comprobantes y avisos automáticamente.
+          </p>
+        </button>
+
+        <button
+          type="button"
+          disabled={disabled || loading}
+          onClick={() => setEngineMode('custom')}
+          style={{
+            textAlign: 'left',
+            padding: '0.9rem 1rem',
+            borderRadius: '0.625rem',
+            cursor: disabled || loading ? 'not-allowed' : 'pointer',
+            border:
+              engineMode === 'custom'
+                ? '2px solid var(--shell-primary, #0284c7)'
+                : '1px solid var(--shell-border, var(--glb-border))',
+            background:
+              engineMode === 'custom'
+                ? 'rgba(2, 132, 199, 0.08)'
+                : 'var(--shell-surface-alt, rgba(0,0,0,0.02))',
+            color: 'var(--glb-text)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+            <strong style={{ fontSize: '0.92rem' }}>Usar mi propio correo</strong>
+            {isCustom ? (
+              <StatusBadge tone="success">En uso</StatusBadge>
+            ) : null}
+          </div>
+          <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.8rem', color: 'var(--glb-muted)' }}>
+            Conecta tu cuenta personal o corporativa para que los correos salgan con tu dirección.
+          </p>
+        </button>
+      </div>
+
+      {engineMode === 'system' ? (
         <div
           style={{
-            marginBottom: '1.25rem',
-            padding: '0.875rem 1rem',
-            borderRadius: '8px',
-            border: isCustom ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(2, 132, 199, 0.3)',
-            background: isCustom ? 'rgba(16, 185, 129, 0.06)' : 'rgba(2, 132, 199, 0.06)',
+            padding: '1rem',
+            borderRadius: '0.5rem',
+            border: '1px solid rgba(2, 132, 199, 0.28)',
+            background: 'rgba(2, 132, 199, 0.06)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -310,257 +374,267 @@ export function AppSettingsEmailSection({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {isCustom ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-            ) : (
-              <AlertCircle className="w-5 h-5 text-sky-600 flex-shrink-0" />
-            )}
+            <CheckCircle2 className="w-5 h-5 text-sky-600 flex-shrink-0" />
             <div>
               <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--glb-text)' }}>
                 {isCustom
-                  ? `Motor de Correo Propio de ${activeTenantName || 'esta Empresa'}`
-                  : `Motor Universal EcuNexo — ${activeTenantName || 'Empresa Activa'}`}
+                  ? 'Actualmente estás usando tu correo personal'
+                  : 'El correo predeterminado está activo y listo para enviar'}
               </p>
-              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--glb-muted)' }}>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.82rem', color: 'var(--glb-muted)' }}>
                 {isCustom
-                  ? `Esta empresa (${activeTenantName || 'activa'}) utiliza sus propias credenciales SMTP exclusivas para emitir facturas y notificaciones. Los cambios no afectan a otras empresas.`
-                  : `Esta empresa (${activeTenantName || 'activa'}) aún no tiene credenciales propias configuradas y usa el motor universal de EcuNexo. Si guardas tu contraseña de aplicación aquí, quedará registrada exclusivamente para esta empresa.`}
+                  ? 'Haz clic en «Activar correo predeterminado» para volver a usar el correo incluido en el sistema.'
+                  : 'Tus comprobantes electrónicos y notificaciones se envían automáticamente sin que tengas que configurar nada.'}
               </p>
             </div>
           </div>
-        </div>
-      ) : null}
-      <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
-        <div className="ecu-companies-form__field">
-          <TextBox
-            id="smtp-host"
-            label="Servidor SMTP (Host)"
-            labelPosition="outlined"
-            variant="outline"
-            value={host}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setHost(e.target.value)}
-            disabled={disabled || loading}
-            placeholder="smtp.zoho.com"
-            fullWidth
-            size={size}
-          />
-        </div>
 
-        <div className="ecu-companies-form__field">
-          <TextBox
-            id="smtp-port"
-            label="Puerto"
-            labelPosition="outlined"
-            variant="outline"
-            type="number"
-            value={String(port)}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setPort(Number(e.target.value))}
-            disabled={disabled || loading}
-            placeholder="465"
-            fullWidth
-            size={size}
-          />
-        </div>
-
-        <div className="ecu-companies-form__field">
-          <TextBox
-            id="smtp-username"
-            label="Usuario / Correo de autenticación"
-            labelPosition="outlined"
-            variant="outline"
-            value={userName}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setUserName(e.target.value)}
-            disabled={disabled || loading}
-            placeholder="notificaciones@tudominio.com"
-            fullWidth
-            size={size}
-          />
-        </div>
-
-        <div className="ecu-companies-form__field">
-          <div style={{ position: 'relative' }}>
-            <TextBox
-              id="smtp-password"
-              label={hasPassword ? 'Contraseña o Clave de Aplicación (Configurada)' : 'Contraseña o Clave de Aplicación'}
-              labelPosition="outlined"
-              variant="outline"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-              disabled={disabled || loading}
-              placeholder={
-                hasPassword
-                  ? '•••••••• (Guardada en servidor. Deja vacío para conservar)'
-                  : 'Clave de aplicación Zoho (16 letras sin espacios)'
-              }
-              fullWidth
-              size={size}
-            />
-            {password ? (
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  color: 'var(--glb-muted, #64748b)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  zIndex: 2,
-                }}
-                title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
-                aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            ) : null}
-          </div>
-          {hasPassword && !password ? (
-            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.8rem', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <CheckCircle2 size={14} style={{ flexShrink: 0 }} />
-              <span>Contraseña protegida y configurada en el servidor. Deja este campo en blanco si deseas conservarla.</span>
-            </p>
+          {isCustom ? (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              loading={resetting}
+              disabled={disabled || loading || resetting}
+              onClick={handleResetToUniversal}
+            >
+              <RotateCcw size={14} aria-hidden />
+              <span>Activar correo predeterminado</span>
+            </Button>
           ) : null}
         </div>
+      ) : (
+        <div>
+          <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
+            <div className="ecu-companies-form__field">
+              <Select
+                id="email-provider-preset"
+                label="Proveedor de correo"
+                labelPosition="outlined"
+                variant="outline"
+                value={providerPreset}
+                onChange={(val: string) => handleProviderChange(val as EmailProviderPreset)}
+                disabled={disabled || loading}
+                options={PROVIDER_OPTIONS}
+                fullWidth
+                size={size}
+              />
+            </div>
 
-        <div className="ecu-companies-form__field">
-          <TextBox
-            id="smtp-sender-email"
-            label="Correo del Remitente (From Address)"
-            labelPosition="outlined"
-            variant="outline"
-            value={senderEmail}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setSenderEmail(e.target.value)}
-            disabled={disabled || loading}
-            placeholder="ej: facturacion@tudominio.com"
-            fullWidth
-            size={size}
-          />
-        </div>
+            <div className="ecu-companies-form__field">
+              <TextBox
+                id="smtp-sender-name"
+                label="Nombre visible al enviar"
+                labelPosition="outlined"
+                variant="outline"
+                value={senderName}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setSenderName(e.target.value)}
+                disabled={disabled || loading}
+                placeholder={activeTenantName || 'Ej: Mi Empresa'}
+                fullWidth
+                size={size}
+              />
+            </div>
 
-        <div className="ecu-companies-form__field">
-          <TextBox
-            id="smtp-sender-name"
-            label="Nombre del Remitente (From Name)"
-            labelPosition="outlined"
-            variant="outline"
-            value={senderName}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setSenderName(e.target.value)}
-            disabled={disabled || loading}
-            placeholder="EcuNexo Notificaciones"
-            fullWidth
-            size={size}
-          />
-        </div>
+            <div className="ecu-companies-form__field">
+              <TextBox
+                id="smtp-username"
+                label="Tu correo electrónico"
+                labelPosition="outlined"
+                variant="outline"
+                value={userName}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                  const next = e.target.value
+                  setUserName(next)
+                  if (!senderEmail || senderEmail === userName) {
+                    setSenderEmail(next)
+                  }
+                }}
+                disabled={disabled || loading}
+                placeholder="facturacion@tuempresa.com"
+                fullWidth
+                size={size}
+              />
+            </div>
 
-        <div className="ecu-companies-form__field">
-          <Select
-            id="smtp-encryption-mode"
-            label="Tipo de Cifrado / Encriptación SMTP"
-            labelPosition="outlined"
-            variant="outline"
-            value={encryptionMode}
-            onChange={(val: string) =>
-              setEncryptionMode(val as 'Auto' | 'SslTls' | 'StartTls' | 'None')
-            }
-            disabled={disabled || loading}
-            options={[
-              { value: 'Auto', label: 'Detección Automática (Auto)' },
-              { value: 'SslTls', label: 'SSL / TLS Implícito (Puerto 465)' },
-              { value: 'StartTls', label: 'STARTTLS Explícito (Puerto 587 / 25)' },
-              { value: 'None', label: 'Ninguno / Plaintext (Sin Cifrado)' },
-            ]}
-            fullWidth
-            size={size}
-          />
-        </div>
+            <div className="ecu-companies-form__field">
+              <div style={{ position: 'relative' }}>
+                <TextBox
+                  id="smtp-password"
+                  label={hasPassword ? 'Contraseña (Guardada)' : 'Contraseña de tu correo'}
+                  labelPosition="outlined"
+                  variant="outline"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                  disabled={disabled || loading}
+                  placeholder={
+                    hasPassword
+                      ? '•••••••• (Deja en blanco para mantener la actual)'
+                      : 'Ingresa tu contraseña o clave de aplicación'
+                  }
+                  fullWidth
+                  size={size}
+                />
+                {password ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      color: 'var(--glb-muted, #64748b)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      zIndex: 2,
+                    }}
+                    title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                ) : null}
+              </div>
+              {hasPassword && !password ? (
+                <p
+                  style={{
+                    margin: '0.35rem 0 0 0',
+                    fontSize: '0.8rem',
+                    color: '#16a34a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                >
+                  <CheckCircle2 size={14} style={{ flexShrink: 0 }} />
+                  <span>Contraseña guardada. Déjala en blanco si no deseas cambiarla.</span>
+                </p>
+              ) : null}
+            </div>
+          </div>
 
-        <div className="ecu-companies-form__field ecu-companies-form__field--check-align">
-          <CheckButton
-            variant="ghost"
-            checked={useSsl}
-            onChange={(checked: boolean) => setUseSsl(checked)}
-            disabled={disabled || loading}
-            size={size}
+          <details
+            open={providerPreset === 'other'}
+            style={{
+              marginTop: '0.75rem',
+              padding: '0.65rem 0.9rem',
+              borderRadius: '0.5rem',
+              border: '1px solid var(--shell-border, var(--glb-border))',
+              background: 'var(--shell-surface-alt, rgba(0,0,0,0.02))',
+            }}
           >
-            Usar conexión segura SSL / TLS (Recomendado para Zoho en puerto 465 o 587)
-          </CheckButton>
+            <summary
+              style={{
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: 'var(--glb-muted)',
+                userSelect: 'none',
+              }}
+            >
+              Opciones avanzadas de conexión
+            </summary>
+
+            <div
+              className="ecu-companies-form__grid ecu-companies-form__grid--2"
+              style={{ marginTop: '0.85rem' }}
+            >
+              <div className="ecu-companies-form__field">
+                <TextBox
+                  id="smtp-host"
+                  label="Servidor de salida"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={host}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                    setHost(e.target.value)
+                    setProviderPreset(detectProviderPreset(e.target.value))
+                  }}
+                  disabled={disabled || loading}
+                  placeholder="smtp.zoho.com"
+                  fullWidth
+                  size={size}
+                />
+              </div>
+
+              <div className="ecu-companies-form__field">
+                <TextBox
+                  id="smtp-port"
+                  label="Puerto"
+                  labelPosition="outlined"
+                  variant="outline"
+                  type="number"
+                  value={String(port)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPort(Number(e.target.value))}
+                  disabled={disabled || loading}
+                  placeholder="465"
+                  fullWidth
+                  size={size}
+                />
+              </div>
+
+              <div className="ecu-companies-form__field">
+                <TextBox
+                  id="smtp-sender-email"
+                  label="Correo remitente (si es distinto al de acceso)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={senderEmail}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setSenderEmail(e.target.value)}
+                  disabled={disabled || loading}
+                  placeholder={userName || 'facturacion@tuempresa.com'}
+                  fullWidth
+                  size={size}
+                />
+              </div>
+
+              <div className="ecu-companies-form__field ecu-companies-form__field--check-align">
+                <CheckButton
+                  variant="ghost"
+                  checked={isEnabled}
+                  onChange={(checked: boolean) => setIsEnabled(checked)}
+                  disabled={disabled || loading}
+                  size={size}
+                >
+                  Habilitar envío de correos
+                </CheckButton>
+              </div>
+            </div>
+          </details>
+
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+            <Button
+              type="button"
+              variant="primary"
+              loading={saving}
+              disabled={disabled || loading}
+              onClick={handleSaveCustom}
+            >
+              <Save size={15} aria-hidden />
+              <span>Guardar mi correo</span>
+            </Button>
+
+            {isCustom ? (
+              <Button
+                type="button"
+                variant="outline"
+                loading={resetting}
+                disabled={disabled || loading || resetting}
+                onClick={handleResetToUniversal}
+              >
+                <RotateCcw size={15} aria-hidden />
+                <span>Volver al correo predeterminado</span>
+              </Button>
+            ) : null}
+          </div>
         </div>
-
-        <div className="ecu-companies-form__field ecu-companies-form__field--check-align">
-          <CheckButton
-            variant="ghost"
-            checked={isEnabled}
-            onChange={(checked: boolean) => setIsEnabled(checked)}
-            disabled={disabled || loading}
-            size={size}
-          >
-            {scope === 'Tenant'
-              ? 'Habilitar motor de correos para esta empresa'
-              : 'Habilitar motor de correos para todas las empresas'}
-          </CheckButton>
-        </div>
-      </div>
-
-      <div
-        style={{
-          marginTop: '0.75rem',
-          padding: '0.75rem 1rem',
-          borderRadius: '6px',
-          background: 'var(--shell-surface-alt, rgba(0,0,0,0.03))',
-          border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
-          fontSize: '0.83rem',
-          lineHeight: '1.5',
-          color: 'var(--glb-text)',
-        }}
-      >
-        <p style={{ margin: '0 0 0.4rem 0', fontWeight: 600 }}>
-          💡 Requisitos clave para conectar Zoho Mail sin error de autenticación:
-        </p>
-        <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
-          <li>
-            <strong>Contraseña de Aplicación (Obligatoria si tienes 2FA):</strong> Si tu cuenta Zoho tiene verificación en dos pasos (2FA/MFA), Zoho <em>rechaza la contraseña normal con error de clave incorrecta</em>. Debes entrar a <strong>accounts.zoho.com</strong> &rarr; <strong>Seguridad</strong> &rarr; <strong>Contraseñas de aplicación</strong> y generar una clave de 16 letras para EcuNexo.
-          </li>
-          <li>
-            <strong>Acceso SMTP activado en Zoho:</strong> En <strong>mail.zoho.com</strong> &rarr; Configuración (rueda dentada) &rarr; <strong>Cuentas de Correo</strong> &rarr; <strong>Acceso POP/IMAP y SMTP</strong>, comprueba que la casilla <em>Acceso SMTP</em> esté habilitada.
-          </li>
-          <li>
-            <strong>Usuario completo:</strong> En <em>Usuario de autenticación</em>, ingresa tu dirección completa (ej: <code>notificaciones@tudominio.com</code>).
-          </li>
-          <li>
-            <strong>Servidor regional:</strong> Si tu cuenta Zoho se creó en Europa, el servidor es <code>smtp.zoho.eu</code> (puerto 465 SSL). Para cuentas internacionales estándar, es <code>smtp.zoho.com</code>.
-          </li>
-        </ul>
-      </div>
-
-      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-        <Button
-          type="button"
-          variant="primary"
-          loading={saving}
-          disabled={disabled || loading}
-          onClick={handleSave}
-        >
-          <Save size={15} aria-hidden />
-          <span>Guardar Configuración</span>
-        </Button>
-
-        <Button
-          type="button"
-          variant="outline"
-          disabled={disabled || loading}
-          onClick={() => void loadSettings()}
-        >
-          <RotateCcw size={15} aria-hidden />
-          <span>Restablecer</span>
-        </Button>
-      </div>
+      )}
 
       <div
         style={{
@@ -571,19 +645,27 @@ export function AppSettingsEmailSection({
           background: 'var(--shell-surface-alt, var(--glb-surface-variant, rgba(0,0,0,0.02)))',
         }}
       >
-        <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <h4
+          style={{
+            margin: '0 0 0.35rem 0',
+            fontSize: '0.95rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
           <Send size={15} color="var(--shell-primary, #0284c7)" aria-hidden />
-          <span>Prueba de Envío y Diagnóstico SMTP</span>
+          <span>Enviar correo de prueba</span>
         </h4>
         <p className="ecu-companies-form__hint" style={{ margin: '0 0 0.75rem 0' }}>
-          Envía un correo de verificación en tiempo real para validar que el servidor, puerto y credenciales de Zoho respondan correctamente.
+          Ingresa un correo electrónico para verificar que los mensajes lleguen correctamente.
         </p>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: '1', minWidth: '240px' }}>
             <TextBox
               id="smtp-test-target"
-              label="Correo de destino para la prueba"
+              label="Correo de destino"
               labelPosition="outlined"
               variant="outline"
               value={targetEmail}
@@ -603,7 +685,7 @@ export function AppSettingsEmailSection({
             onClick={handleTestConnection}
           >
             <Mail size={15} aria-hidden />
-            <span>Enviar Correo de Prueba</span>
+            <span>Enviar prueba</span>
           </Button>
         </div>
 

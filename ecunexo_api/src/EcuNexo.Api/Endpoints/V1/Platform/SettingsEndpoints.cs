@@ -182,20 +182,20 @@ public static class SettingsEndpoints
                 }
             }
 
-            // 2. Si no tiene propio, devuelve el motor universal de EcuNexo como base heredada
+            // 2. Si no tiene propio, indica que usa el motor predeterminado del sistema sin exponer credenciales internas
             var fallback = await smtpSender.GetEffectiveConfigAsync(ct, null).ConfigureAwait(false);
             return Results.Ok(new EmailSettingsResponse(
                 IsEnabled: fallback?.IsEnabled ?? true,
-                Host: fallback?.Host ?? "smtp.zoho.com",
-                Port: fallback?.Port ?? 465,
-                UseSsl: fallback?.UseSsl ?? true,
-                EncryptionMode: (fallback?.EncryptionMode ?? SmtpEncryptionMode.Auto).ToString(),
-                UserName: fallback?.UserName ?? string.Empty,
-                SenderEmail: fallback?.SenderEmail ?? string.Empty,
-                SenderName: fallback?.SenderName ?? "EcuNexo",
-                HasPassword: !string.IsNullOrWhiteSpace(fallback?.Password),
+                Host: "smtp.zoho.com",
+                Port: 465,
+                UseSsl: true,
+                EncryptionMode: SmtpEncryptionMode.SslTls.ToString(),
+                UserName: string.Empty,
+                SenderEmail: string.Empty,
+                SenderName: string.Empty,
+                HasPassword: false,
                 IsCustom: false,
-                Scope: "Global"));
+                Scope: "Tenant"));
         }
 
         // Modo sin tenant (titular global de plataforma)
@@ -249,14 +249,6 @@ public static class SettingsEndpoints
                 catch
                 {
                     /* si falla deserialize, se conserva passwordToSave */
-                }
-            }
-            else if (scope == SettingScope.Tenant)
-            {
-                var fallbackConfig = await smtpSender.GetEffectiveConfigAsync(ct, null).ConfigureAwait(false);
-                if (fallbackConfig is not null && !string.IsNullOrWhiteSpace(fallbackConfig.Password))
-                {
-                    passwordToSave = fallbackConfig.Password;
                 }
             }
         }
@@ -348,16 +340,16 @@ public static class SettingsEndpoints
         var fallback = await smtpSender.GetEffectiveConfigAsync(ct, null).ConfigureAwait(false);
         return Results.Ok(new EmailSettingsResponse(
             IsEnabled: fallback?.IsEnabled ?? true,
-            Host: fallback?.Host ?? "smtp.zoho.com",
-            Port: fallback?.Port ?? 465,
-            UseSsl: fallback?.UseSsl ?? true,
-            EncryptionMode: (fallback?.EncryptionMode ?? SmtpEncryptionMode.Auto).ToString(),
-            UserName: fallback?.UserName ?? string.Empty,
-            SenderEmail: fallback?.SenderEmail ?? string.Empty,
-            SenderName: fallback?.SenderName ?? "EcuNexo",
-            HasPassword: !string.IsNullOrWhiteSpace(fallback?.Password),
+            Host: "smtp.zoho.com",
+            Port: 465,
+            UseSsl: true,
+            EncryptionMode: SmtpEncryptionMode.SslTls.ToString(),
+            UserName: string.Empty,
+            SenderEmail: string.Empty,
+            SenderName: string.Empty,
+            HasPassword: false,
             IsCustom: false,
-            Scope: "Global"));
+            Scope: "Tenant"));
     }
 
     private static async Task<IResult> TestEmailSettingsAsync(
