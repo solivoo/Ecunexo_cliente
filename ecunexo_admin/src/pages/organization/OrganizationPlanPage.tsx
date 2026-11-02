@@ -13,7 +13,11 @@ import {
 import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { readApiError } from '@/lib/readApiError'
-import { fetchSubscriptionSession, syncSubscriptionLicense } from '@/services/authApi'
+import {
+  fetchSubscriptionSession,
+  syncSubscriptionLicense,
+  syncTenantSessionLicense,
+} from '@/services/authApi'
 import { getTenant, listTenantUsers } from '@/services/tenantApi'
 import { selectIsSubscriptionHolder, selectSubscription, selectTenantId, setSessionPayload } from '@/store/authSlice'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
@@ -31,24 +35,6 @@ export function OrganizationPlanPage() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const handleSync = useCallback(async () => {
-    setSyncing(true)
-    try {
-      const updated = await syncSubscriptionLicense()
-      dispatch(setSessionPayload(updated))
-      toast.show({
-        title: 'Licencia sincronizada',
-        message: 'Tu plan y módulos están actualizados.',
-        variant: 'success',
-      })
-    } catch (err: unknown) {
-      const message = readApiError(err, 'No se pudo sincronizar la licencia.')
-      toast.show({ title: 'Error de sincronización', message, variant: 'error' })
-    } finally {
-      setSyncing(false)
-    }
-  }, [dispatch, toast])
 
   const load = useCallback(async () => {
     if (isSubscriptionHolder && subscription) {
@@ -81,6 +67,30 @@ export function OrganizationPlanPage() {
       setLoading(false)
     }
   }, [isSubscriptionHolder, subscription, tenantId, toast])
+
+  const handleSync = useCallback(async () => {
+    setSyncing(true)
+    try {
+      if (isSubscriptionHolder) {
+        const updated = await syncSubscriptionLicense()
+        dispatch(setSessionPayload(updated))
+      } else if (tenantId) {
+        const updated = await syncTenantSessionLicense(tenantId)
+        dispatch(setSessionPayload(updated))
+        await load()
+      }
+      toast.show({
+        title: 'Licencia sincronizada',
+        message: 'Tu plan y módulos están actualizados.',
+        variant: 'success',
+      })
+    } catch (err: unknown) {
+      const message = readApiError(err, 'No se pudo sincronizar la licencia.')
+      toast.show({ title: 'Error de sincronización', message, variant: 'error' })
+    } finally {
+      setSyncing(false)
+    }
+  }, [dispatch, isSubscriptionHolder, load, tenantId, toast])
 
   useEffect(() => {
     void load()
@@ -116,7 +126,7 @@ export function OrganizationPlanPage() {
             : 'Capacidad contratada y consumo de tu empresa.'
         }
         actions={
-          isSubscriptionHolder ? (
+          isSubscriptionHolder || Boolean(tenantId) ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Button
                 variant="outline"
@@ -127,13 +137,15 @@ export function OrganizationPlanPage() {
                 <RefreshCw size={16} aria-hidden />
                 Sincronizar
               </Button>
-              <EcuPageActions
-                items={actionItems}
-                variant="outline"
-                triggerLabel="Acciones de plan"
-                renderIcon={renderSidebarIcon}
-                onNavigate={(route: string) => navigate(route)}
-              />
+              {isSubscriptionHolder ? (
+                <EcuPageActions
+                  items={actionItems}
+                  variant="outline"
+                  triggerLabel="Acciones de plan"
+                  renderIcon={renderSidebarIcon}
+                  onNavigate={(route: string) => navigate(route)}
+                />
+              ) : null}
             </div>
           ) : undefined
         }

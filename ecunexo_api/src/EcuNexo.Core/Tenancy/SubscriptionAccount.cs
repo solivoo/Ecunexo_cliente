@@ -301,9 +301,10 @@ public sealed class SubscriptionAccount : AggregateRoot<Guid>, IAuditable
         IReadOnlyList<string> enabledModuleCodes,
         IReadOnlyList<ModuleEntitlement>? moduleEntitlements,
         int entitlementsVersion,
-        DateTimeOffset utcNow)
+        DateTimeOffset utcNow,
+        bool force = false)
     {
-        if (entitlementsVersion <= LicenseEntitlementsVersion)
+        if (!force && entitlementsVersion <= LicenseEntitlementsVersion)
         {
             return Unit.Value;
         }
@@ -316,7 +317,7 @@ public sealed class SubscriptionAccount : AggregateRoot<Guid>, IAuditable
 
         EnabledModuleCodes = modulesResult.Value;
         ModuleEntitlements = moduleEntitlements;
-        LicenseEntitlementsVersion = entitlementsVersion;
+        LicenseEntitlementsVersion = Math.Max(LicenseEntitlementsVersion, entitlementsVersion);
         UpdatedAt = utcNow;
         return Unit.Value;
     }

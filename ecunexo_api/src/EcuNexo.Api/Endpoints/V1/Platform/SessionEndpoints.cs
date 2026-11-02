@@ -3,6 +3,7 @@ using Asp.Versioning.Builder;
 using EcuNexo.Api.Extensions;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Platform.Queries.GetSession;
+using EcuNexo.Business.Tenancy.Commands.SyncTenantLicense;
 
 namespace EcuNexo.Api.Endpoints.V1.Platform;
 
@@ -22,6 +23,7 @@ public static class SessionEndpoints
             .RequireAuthorization();
 
         group.MapGet("/session", GetSessionAsync);
+        group.MapPost("/session/sync", SyncTenantSessionAsync);
 
         return app;
     }
@@ -44,6 +46,28 @@ public static class SessionEndpoints
 
         var result = await sender
             .AskAsync<GetSessionQuery, SessionResponse>(new GetSessionQuery(tenantId, userId), ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> SyncTenantSessionAsync(
+        Guid tenantId,
+        ICallerContext caller,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (caller.UserId is not { } userId)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (caller.ExplicitTenantId is { } tid && tid != tenantId)
+        {
+            return Results.Forbid();
+        }
+
+        var result = await sender
+            .SendAsync<SyncTenantLicenseCommand, SessionResponse>(new SyncTenantLicenseCommand(tenantId, userId), ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();
     }

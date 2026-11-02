@@ -27,27 +27,36 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
         _logger = logger;
     }
 
-    public bool IsConfigured
+    public bool IsConfigured => GetCandidateBaseUrls().Count > 0;
+
+    private List<string> GetCandidateBaseUrls()
     {
-        get
+        var candidateUrls = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_options.PlatformApiBaseUrl))
         {
-            if (string.IsNullOrWhiteSpace(_options.PlatformApiBaseUrl))
-            {
-                return false;
-            }
-
-            if (_environment.IsDevelopment() && _options.BypassInDevelopment)
-            {
-                return false;
-            }
-
-            return true;
+            candidateUrls.Add(_options.PlatformApiBaseUrl.TrimEnd('/'));
         }
+
+        foreach (var fallback in new[]
+                 {
+                     "http://host.docker.internal:5090",
+                     "http://172.17.0.1:5090",
+                     "http://localhost:5090",
+                 })
+        {
+            if (!candidateUrls.Contains(fallback, StringComparer.OrdinalIgnoreCase))
+            {
+                candidateUrls.Add(fallback);
+            }
+        }
+
+        return candidateUrls;
     }
 
     public async Task<Result<LicenseRemoteStatus>> ValidateGrantAsync(Guid grantId, CancellationToken ct)
     {
-        if (!IsConfigured)
+        var candidateUrls = GetCandidateBaseUrls();
+        if (candidateUrls.Count == 0)
         {
             if (_environment.IsDevelopment() && _options.BypassInDevelopment)
             {
@@ -64,74 +73,79 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
                 new Error("license.online.not_configured", "Validación online no configurada.", ErrorType.Unexpected));
         }
 
-        var baseUrl = _options.PlatformApiBaseUrl!.TrimEnd('/');
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/v1/platform/licenses/{grantId}/status");
-        if (!string.IsNullOrWhiteSpace(_options.PlatformApiKey))
+        Exception? lastNetworkException = null;
+        foreach (var baseUrl in candidateUrls)
         {
-            request.Headers.TryAddWithoutValidation("X-Platform-Validation-Key", _options.PlatformApiKey);
-        }
-
-        try
-        {
-            using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
-            if (response.StatusCode == HttpStatusCode.NotFound)
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/v1/platform/licenses/{grantId}/status");
+            if (!string.IsNullOrWhiteSpace(_options.PlatformApiKey))
             {
-                return Result.Failure<LicenseRemoteStatus>(
-                    new Error(
-                        "license.online.not_found",
-                        "La licencia no está registrada en Ecunexo.",
-                        ErrorType.NotFound));
+                request.Headers.TryAddWithoutValidation("X-Platform-Validation-Key", _options.PlatformApiKey);
             }
 
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                return Result.Failure<LicenseRemoteStatus>(
-                    new Error(
-                        "license.online.unavailable",
-                        "No se pudo consultar el estado de la licencia.",
-                        ErrorType.Unexpected));
-            }
+                using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return Result.Failure<LicenseRemoteStatus>(
+                        new Error(
+                            "license.online.not_found",
+                            "La licencia no está registrada en Ecunexo.",
+                            ErrorType.NotFound));
+                }
 
-            var body = await response.Content.ReadFromJsonAsync<RemoteStatusDto>(cancellationToken: ct).ConfigureAwait(false);
-            if (body is null)
-            {
-                return Result.Failure<LicenseRemoteStatus>(
-                    new Error("license.online.invalid_response", "Respuesta de licencia inválida.", ErrorType.Unexpected));
-            }
+                if (!response.IsSuccessStatusCode)
+                {
+                    return Result.Failure<LicenseRemoteStatus>(
+                        new Error(
+                            "license.online.unavailable",
+                            "No se pudo consultar el estado de la licencia.",
+                            ErrorType.Unexpected));
+                }
 
-            return Result.Success(new LicenseRemoteStatus(
-                body.GrantId,
-                body.IsAllowed,
-                body.Status,
-                body.ExpiresAtUtc,
-                body.SuccessorGrantId,
-                body.SuccessorStatus,
-                body.SuccessorExpiresAtUtc,
-                body.SuccessorPlanCode,
-                body.SuccessorPlanLabel,
-                body.SuccessorMaxTenants,
-                body.SuccessorMaxUsers,
-                body.SuccessorMaxWarehouses,
-                body.SuccessorOnlineValidationIntervalDays,
-                body.SuccessorEnabledModuleCodes,
-                body.SuccessorModuleEntitlements));
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            if (_environment.IsDevelopment())
-            {
-                LogDevNetworkFallback(_logger, _options.PlatformApiBaseUrl, ex);
+                var body = await response.Content.ReadFromJsonAsync<RemoteStatusDto>(cancellationToken: ct).ConfigureAwait(false);
+                if (body is null)
+                {
+                    return Result.Failure<LicenseRemoteStatus>(
+                        new Error("license.online.invalid_response", "Respuesta de licencia inválida.", ErrorType.Unexpected));
+                }
 
                 return Result.Success(new LicenseRemoteStatus(
-                    grantId,
-                    IsAllowed: true,
-                    Status: "Active",
-                    ExpiresAtUtc: DateTimeOffset.UtcNow.AddYears(1)));
+                    body.GrantId,
+                    body.IsAllowed,
+                    body.Status,
+                    body.ExpiresAtUtc,
+                    body.SuccessorGrantId,
+                    body.SuccessorStatus,
+                    body.SuccessorExpiresAtUtc,
+                    body.SuccessorPlanCode,
+                    body.SuccessorPlanLabel,
+                    body.SuccessorMaxTenants,
+                    body.SuccessorMaxUsers,
+                    body.SuccessorMaxWarehouses,
+                    body.SuccessorOnlineValidationIntervalDays,
+                    body.SuccessorEnabledModuleCodes,
+                    body.SuccessorModuleEntitlements));
             }
-
-            return Result.Failure<LicenseRemoteStatus>(
-                new Error("license.online.network", "No hay conexión con el servicio de licencias.", ErrorType.Unexpected));
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                lastNetworkException = ex;
+            }
         }
+
+        if (_environment.IsDevelopment() && lastNetworkException is not null)
+        {
+            LogDevNetworkFallback(_logger, _options.PlatformApiBaseUrl, lastNetworkException);
+
+            return Result.Success(new LicenseRemoteStatus(
+                grantId,
+                IsAllowed: true,
+                Status: "Active",
+                ExpiresAtUtc: DateTimeOffset.UtcNow.AddYears(1)));
+        }
+
+        return Result.Failure<LicenseRemoteStatus>(
+            new Error("license.online.network", "No hay conexión con el servicio de licencias.", ErrorType.Unexpected));
     }
 
     private sealed record RemoteStatusDto(
@@ -158,48 +172,48 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
         IReadOnlyList<LicenseTenantRef> tenants,
         CancellationToken ct)
     {
-        if (!IsConfigured)
+        var candidateUrls = GetCandidateBaseUrls();
+        if (candidateUrls.Count == 0 || tenants.Count == 0)
         {
             return Unit.Value;
         }
 
-        if (tenants.Count == 0)
+        foreach (var baseUrl in candidateUrls)
         {
-            return Unit.Value;
-        }
-
-        var baseUrl = _options.PlatformApiBaseUrl!.TrimEnd('/');
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            $"{baseUrl}/api/v1/platform/licenses/{grantId}/tenants")
-        {
-            Content = JsonContent.Create(new ReportTenantsDto(
-                tenants.Select(t => new ReportTenantDto(t.TenantId, t.Name)).ToList())),
-        };
-        if (!string.IsNullOrWhiteSpace(_options.PlatformApiKey))
-        {
-            request.Headers.TryAddWithoutValidation("X-Platform-Validation-Key", _options.PlatformApiKey);
-        }
-
-        try
-        {
-            using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"{baseUrl}/api/v1/platform/licenses/{grantId}/tenants")
             {
-                return Result.Failure<Unit>(
-                    new Error(
-                        "license.online.tenants_report",
-                        "No se pudieron reportar las empresas a la plataforma de licencias.",
-                        ErrorType.Unexpected));
+                Content = JsonContent.Create(new ReportTenantsDto(
+                    tenants.Select(t => new ReportTenantDto(t.TenantId, t.Name)).ToList())),
+            };
+            if (!string.IsNullOrWhiteSpace(_options.PlatformApiKey))
+            {
+                request.Headers.TryAddWithoutValidation("X-Platform-Validation-Key", _options.PlatformApiKey);
             }
 
-            return Unit.Value;
+            try
+            {
+                using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return Result.Failure<Unit>(
+                        new Error(
+                            "license.online.tenants_report",
+                            "No se pudieron reportar las empresas a la plataforma de licencias.",
+                            ErrorType.Unexpected));
+                }
+
+                return Unit.Value;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                // Intentar siguiente URL candidata
+            }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            return Result.Failure<Unit>(
-                new Error("license.online.network", "No hay conexión con el servicio de licencias.", ErrorType.Unexpected));
-        }
+
+        return Result.Failure<Unit>(
+            new Error("license.online.network", "No hay conexión con el servicio de licencias.", ErrorType.Unexpected));
     }
 
     private sealed record ReportTenantsDto(IReadOnlyList<ReportTenantDto> Tenants);
@@ -210,65 +224,70 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
         Guid grantId,
         CancellationToken ct)
     {
-        if (!IsConfigured)
+        var candidateUrls = GetCandidateBaseUrls();
+        if (candidateUrls.Count == 0)
         {
             return Result.Failure<LicenseRemoteEntitlements>(
                 new Error("license.online.not_configured", "Validación online no configurada.", ErrorType.Unexpected));
         }
 
-        var baseUrl = _options.PlatformApiBaseUrl!.TrimEnd('/');
-        using var request = new HttpRequestMessage(
-            HttpMethod.Get,
-            $"{baseUrl}/api/v1/platform/licenses/{grantId}/entitlements");
-        if (!string.IsNullOrWhiteSpace(_options.PlatformApiKey))
+        foreach (var baseUrl in candidateUrls)
         {
-            request.Headers.TryAddWithoutValidation("X-Platform-Validation-Key", _options.PlatformApiKey);
-        }
-
-        try
-        {
-            using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
-            if (response.StatusCode == HttpStatusCode.NotFound)
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"{baseUrl}/api/v1/platform/licenses/{grantId}/entitlements");
+            if (!string.IsNullOrWhiteSpace(_options.PlatformApiKey))
             {
-                return Result.Failure<LicenseRemoteEntitlements>(
-                    new Error("license.online.not_found", "La licencia no está registrada en Ecunexo.", ErrorType.NotFound));
+                request.Headers.TryAddWithoutValidation("X-Platform-Validation-Key", _options.PlatformApiKey);
             }
 
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                return Result.Failure<LicenseRemoteEntitlements>(
-                    new Error("license.online.unavailable", "No se pudieron consultar los módulos de la licencia.", ErrorType.Unexpected));
-            }
+                using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return Result.Failure<LicenseRemoteEntitlements>(
+                        new Error("license.online.not_found", "La licencia no está registrada en Ecunexo.", ErrorType.NotFound));
+                }
 
-            var body = await response.Content
-                .ReadFromJsonAsync<RemoteEntitlementsDto>(cancellationToken: ct)
-                .ConfigureAwait(false);
-            if (body is null)
+                if (!response.IsSuccessStatusCode)
+                {
+                    return Result.Failure<LicenseRemoteEntitlements>(
+                        new Error("license.online.unavailable", "No se pudieron consultar los módulos de la licencia.", ErrorType.Unexpected));
+                }
+
+                var body = await response.Content
+                    .ReadFromJsonAsync<RemoteEntitlementsDto>(cancellationToken: ct)
+                    .ConfigureAwait(false);
+                if (body is null)
+                {
+                    return Result.Failure<LicenseRemoteEntitlements>(
+                        new Error("license.online.invalid_response", "Respuesta de entitlements inválida.", ErrorType.Unexpected));
+                }
+
+                return Result.Success(new LicenseRemoteEntitlements(
+                    body.GrantId,
+                    body.EntitlementsVersion,
+                    body.EnabledModuleCodes,
+                    body.ModuleEntitlements,
+                    body.UpdatedAtUtc,
+                    body.TenantOverrides?
+                        .Select(o => new LicenseRemoteTenantOverride(
+                            o.TenantId,
+                            o.TenantName,
+                            o.EnabledModuleCodes,
+                            o.ModuleEntitlements,
+                            o.OverrideVersion))
+                        .ToList()));
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
             {
-                return Result.Failure<LicenseRemoteEntitlements>(
-                    new Error("license.online.invalid_response", "Respuesta de entitlements inválida.", ErrorType.Unexpected));
+                // Intentar siguiente URL candidata
             }
+        }
 
-            return Result.Success(new LicenseRemoteEntitlements(
-                body.GrantId,
-                body.EntitlementsVersion,
-                body.EnabledModuleCodes,
-                body.ModuleEntitlements,
-                body.UpdatedAtUtc,
-                body.TenantOverrides?
-                    .Select(o => new LicenseRemoteTenantOverride(
-                        o.TenantId,
-                        o.TenantName,
-                        o.EnabledModuleCodes,
-                        o.ModuleEntitlements,
-                        o.OverrideVersion))
-                    .ToList()));
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
-        {
-            return Result.Failure<LicenseRemoteEntitlements>(
-                new Error("license.online.network", "No hay conexión con el servicio de licencias.", ErrorType.Unexpected));
-        }
+        return Result.Failure<LicenseRemoteEntitlements>(
+            new Error("license.online.network", "No hay conexión con el servicio de licencias.", ErrorType.Unexpected));
     }
 
     private sealed record RemoteEntitlementsDto(
@@ -291,26 +310,7 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
         string password,
         CancellationToken ct)
     {
-        var candidateUrls = new List<string>();
-        if (!string.IsNullOrWhiteSpace(_options.PlatformApiBaseUrl))
-        {
-            candidateUrls.Add(_options.PlatformApiBaseUrl.TrimEnd('/'));
-        }
-
-        foreach (var fallback in new[]
-                 {
-                     "http://host.docker.internal:5090",
-                     "http://172.17.0.1:5090",
-                     "http://localhost:5090",
-                 })
-        {
-            if (!candidateUrls.Contains(fallback, StringComparer.OrdinalIgnoreCase))
-            {
-                candidateUrls.Add(fallback);
-            }
-        }
-
-        foreach (var baseUrl in candidateUrls)
+        foreach (var baseUrl in GetCandidateBaseUrls())
         {
             using var request = new HttpRequestMessage(
                 HttpMethod.Post,

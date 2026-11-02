@@ -118,6 +118,12 @@ export async function syncSubscriptionLicense(): Promise<SessionPayload> {
   }
 }
 
+/** Sincroniza la licencia de la organización desde una sesión de empresa y retorna la sesión actualizada. */
+export async function syncTenantSessionLicense(tenantId: string): Promise<SessionPayload> {
+  const { data } = await api.post<SessionPayload>(`/api/v1/tenants/${tenantId}/session/sync`)
+  return data
+}
+
 export function subscriptionSessionToPayload(raw: SessionPayload): SessionPayload {
   return {
     ...raw,

@@ -1,5 +1,9 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Identity;
+using EcuNexo.Business.Tenancy.Authorization;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Common;
+using EcuNexo.Core.Identity;
 using EcuNexo.Core.Tenancy;
 using Microsoft.Extensions.Logging;
 
@@ -41,17 +45,29 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
     private readonly ITenantRepository _tenants;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<LicenseComplianceService> _logger;
+    private readonly IRoleRepository? _roles;
+    private readonly IPermissionRepository? _permissions;
+    private readonly IRolePermissionRepository? _rolePermissions;
+    private readonly DefaultWarehouseProvisioner? _warehouseProvisioner;
 
     public LicenseComplianceService(
         ILicenseOnlineValidator onlineValidator,
         ITenantRepository tenants,
         IUnitOfWork unitOfWork,
-        ILogger<LicenseComplianceService> logger)
+        ILogger<LicenseComplianceService> logger,
+        IRoleRepository? roles = null,
+        IPermissionRepository? permissions = null,
+        IRolePermissionRepository? rolePermissions = null,
+        DefaultWarehouseProvisioner? warehouseProvisioner = null)
     {
         _onlineValidator = onlineValidator;
         _tenants = tenants;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _roles = roles;
+        _permissions = permissions;
+        _rolePermissions = rolePermissions;
+        _warehouseProvisioner = warehouseProvisioner;
     }
 
     public async Task<Result<Unit>> EnsureCompliantAsync(SubscriptionAccount account, CancellationToken ct)
@@ -146,7 +162,11 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
         account.RecordOnlineValidation(utcNow);
 
         // Sincronización forzada e inmediata de módulos y cuotas sin throttle
-        await SyncEntitlementsAsync(account, utcNow, force: true, ct).ConfigureAwait(false);
+        var entitlementsSync = await SyncEntitlementsAsync(account, utcNow, force: true, ct).ConfigureAwait(false);
+        if (entitlementsSync.IsFailure)
+        {
+            return Result.Failure<Unit>(entitlementsSync.Error!);
+        }
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
         return Unit.Value;
@@ -184,6 +204,10 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
             .ListBySubscriptionGroupIdForUpdateAsync(account.SubscriptionGroupId, ct)
             .ConfigureAwait(false);
 
+        var activePermissions = _permissions is not null && companies.Count > 0
+            ? await _permissions.ListNonDeletedOrderedByCodeAsync(ct).ConfigureAwait(false)
+            : null;
+
         foreach (var company in companies)
         {
             var companyResult = company.ApplySubscriptionLicense(
@@ -194,6 +218,22 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
             if (companyResult.IsFailure)
             {
                 LogCompanySyncSkipped(_logger, company.Id, companyResult.Error!.Code, null);
+                continue;
+            }
+
+            if (activePermissions is not null)
+            {
+                await SyncSystemRolesPermissionsAsync(
+                    company,
+                    activePermissions,
+                    account.EnabledModuleCodes,
+                    account.ModuleEntitlements,
+                    ct).ConfigureAwait(false);
+            }
+
+            if (_warehouseProvisioner is not null)
+            {
+                await _warehouseProvisioner.StageDefaultsForTenantAsync(company, ct).ConfigureAwait(false);
             }
         }
 
@@ -202,9 +242,9 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
 
     /// <summary>
     /// Aplica los entitlements remotos al titular y a sus empresas. Un fallo de sincronización
-    /// no bloquea el login (se conserva la última configuración válida).
+    /// en background (force=false) no bloquea el login; con force=true propaga el error.
     /// </summary>
-    private async Task SyncEntitlementsAsync(
+    private async Task<Result<Unit>> SyncEntitlementsAsync(
         SubscriptionAccount account,
         DateTimeOffset utcNow,
         bool force,
@@ -212,7 +252,7 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
     {
         if (!force && !account.IsEntitlementsSyncDue(utcNow))
         {
-            return;
+            return Unit.Value;
         }
 
         // El throttle se registra aunque la consulta falle para no golpear la plataforma en cada login.
@@ -238,28 +278,33 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
         if (remote.IsFailure)
         {
             LogEntitlementsUnavailable(_logger, account.GrantId, remote.Error!.Code, null);
-            return;
+            return force ? Result.Failure<Unit>(remote.Error!) : Unit.Value;
         }
 
         var payload = remote.Value!;
         if (!force && payload.EntitlementsVersion <= account.LicenseEntitlementsVersion)
         {
-            return;
+            return Unit.Value;
         }
 
         var applied = account.ApplyRemoteEntitlements(
             payload.EnabledModuleCodes,
             payload.ModuleEntitlements,
             payload.EntitlementsVersion,
-            utcNow);
+            utcNow,
+            force);
         if (applied.IsFailure)
         {
             LogEntitlementsUnavailable(_logger, account.GrantId, applied.Error!.Code, null);
-            return;
+            return force ? Result.Failure<Unit>(applied.Error!) : Unit.Value;
         }
 
         var overrides = payload.TenantOverrides is { Count: > 0 }
             ? payload.TenantOverrides.ToDictionary(o => o.TenantId)
+            : null;
+
+        var activePermissions = _permissions is not null && companies.Count > 0
+            ? await _permissions.ListNonDeletedOrderedByCodeAsync(ct).ConfigureAwait(false)
             : null;
 
         foreach (var company in companies)
@@ -280,9 +325,79 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
             if (companyResult.IsFailure)
             {
                 LogCompanySyncSkipped(_logger, company.Id, companyResult.Error!.Code, null);
+                continue;
+            }
+
+            if (activePermissions is not null)
+            {
+                await SyncSystemRolesPermissionsAsync(
+                    company,
+                    activePermissions,
+                    effectiveModules,
+                    effectiveEntitlements,
+                    ct).ConfigureAwait(false);
+            }
+
+            if (_warehouseProvisioner is not null)
+            {
+                await _warehouseProvisioner.StageDefaultsForTenantAsync(company, ct).ConfigureAwait(false);
             }
         }
 
         LogEntitlementsSynced(_logger, account.GrantId, payload.EntitlementsVersion, null);
+        return Unit.Value;
+    }
+
+    private async Task SyncSystemRolesPermissionsAsync(
+        Tenant company,
+        IReadOnlyList<Permission> activePermissions,
+        IReadOnlyList<string>? enabledModules,
+        IReadOnlyList<ModuleEntitlement>? entitlements,
+        CancellationToken ct)
+    {
+        if (_roles is null || _rolePermissions is null)
+        {
+            return;
+        }
+
+        var roles = await _roles.ListActiveByTenantAsync(company.Id, ct).ConfigureAwait(false);
+        var activeById = activePermissions.ToDictionary(p => p.Id);
+
+        foreach (var role in roles.Where(r => r.IsSystem))
+        {
+            var existingIds = await _rolePermissions
+                .ListPermissionIdsByRoleAsync(company.Id, role.Id, ct)
+                .ConfigureAwait(false);
+            var existingSet = new HashSet<Guid>(existingIds);
+
+            foreach (var permission in activePermissions)
+            {
+                var isAllowed = permission.Status == PermissionStatus.Active
+                    && ModulePermissionFilter.IsPermittedForModules(permission.Code, enabledModules, entitlements);
+
+                if (isAllowed && !existingSet.Contains(permission.Id))
+                {
+                    var link = RolePermission.Link(role.Id, permission.Id);
+                    if (link.IsSuccess)
+                    {
+                        await _rolePermissions.AddAsync(link.Value!, ct).ConfigureAwait(false);
+                        existingSet.Add(permission.Id);
+                    }
+                }
+                else if (!isAllowed && existingSet.Contains(permission.Id))
+                {
+                    await _rolePermissions.RemoveAsync(company.Id, role.Id, permission.Id, ct).ConfigureAwait(false);
+                    existingSet.Remove(permission.Id);
+                }
+            }
+
+            foreach (var existingId in existingSet.ToList())
+            {
+                if (!activeById.ContainsKey(existingId))
+                {
+                    await _rolePermissions.RemoveAsync(company.Id, role.Id, existingId, ct).ConfigureAwait(false);
+                }
+            }
+        }
     }
 }

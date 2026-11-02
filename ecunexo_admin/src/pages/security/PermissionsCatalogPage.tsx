@@ -5,9 +5,12 @@ import { PageHeader, StatCard, SectionCard, GridToolbarRefresh } from '@/compone
 import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
+import { isPermissionAllowedForModules } from '@/lib/modulePermissionFilter'
 import { moduleKey, uniqueModuleSelectOptions } from '@/lib/moduleLabels'
 import { PermissionsGrid } from '@/pages/security/PermissionsGrid'
 import { listPermissions } from '@/services/identityApi'
+import { selectEnabledModules, selectModuleEntitlements } from '@/store/authSlice'
+import { useAppSelector } from '@/store/hooks'
 import type { PermissionListItemDto } from '@/types/identityApi'
 import './securitySection.css'
 
@@ -16,6 +19,8 @@ export function PermissionsCatalogPage() {
   const navigate = useNavigate()
   const canManage = useHasPermission('identity.permissions.manage')
   const size = useGluComponentSize()
+  const enabledModules = useAppSelector(selectEnabledModules)
+  const moduleEntitlements = useAppSelector(selectModuleEntitlements)
   const [rows, setRows] = useState<PermissionListItemDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -50,25 +55,36 @@ export function PermissionsCatalogPage() {
     void load({ silent: true })
   }, [load])
 
+  const licensedRows = useMemo(
+    () =>
+      rows.filter((row) =>
+        isPermissionAllowedForModules(row.code, enabledModules, moduleEntitlements)
+      ),
+    [enabledModules, moduleEntitlements, rows]
+  )
+
   const moduleOptions = useMemo(
     () => [
       { value: '', label: 'Todos los módulos' },
-      ...uniqueModuleSelectOptions(rows.map((p) => p.module)),
+      ...uniqueModuleSelectOptions(licensedRows.map((p) => p.module)),
     ],
-    [rows]
+    [licensedRows]
   )
 
   const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
+    return licensedRows.filter((row) => {
       if (moduleFilter && moduleKey(row.module) !== moduleFilter) return false
       return true
     })
-  }, [moduleFilter, rows])
+  }, [licensedRows, moduleFilter])
 
-  const activeCount = useMemo(() => rows.filter((r) => r.status === 0).length, [rows])
+  const activeCount = useMemo(
+    () => licensedRows.filter((r) => r.status === 0).length,
+    [licensedRows]
+  )
   const moduleCount = useMemo(
-    () => new Set(rows.map((r) => moduleKey(r.module)).filter(Boolean)).size,
-    [rows]
+    () => new Set(licensedRows.map((r) => moduleKey(r.module)).filter(Boolean)).size,
+    [licensedRows]
   )
 
   return (
@@ -79,7 +95,7 @@ export function PermissionsCatalogPage() {
       />
 
       <div className="ecu-stat-grid" aria-label="Resumen de permisos">
-        <StatCard label="Permisos" value={rows.length} />
+        <StatCard label="Permisos" value={licensedRows.length} />
         <StatCard label="Activos" value={activeCount} />
         <StatCard label="Módulos" value={moduleCount} />
       </div>

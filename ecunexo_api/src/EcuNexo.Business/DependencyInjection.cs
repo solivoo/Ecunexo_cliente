@@ -191,6 +191,7 @@ using EcuNexo.Business.Tenancy.Commands;
 using EcuNexo.Business.Tenancy.Commands.ActivateLicense;
 using EcuNexo.Business.Tenancy.Commands.ApplySubscriptionLicenseUpgrade;
 using EcuNexo.Business.Tenancy.Commands.SyncSubscriptionLicense;
+using EcuNexo.Business.Tenancy.Commands.SyncTenantLicense;
 using EcuNexo.Business.Tenancy.Licensing;
 using EcuNexo.Business.Tenancy.Commands.CancelSubscriptionCompany;
 using EcuNexo.Business.Tenancy.Commands.ProvisionSubscriptionCompany;
@@ -229,6 +230,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<ActivateLicenseCommand, ActivateLicenseResponse>, ActivateLicenseHandler>();
         services.AddScoped<ICommandHandler<ApplySubscriptionLicenseUpgradeCommand, ApplySubscriptionLicenseUpgradeResponse>, ApplySubscriptionLicenseUpgradeHandler>();
         services.AddScoped<ICommandHandler<SyncSubscriptionLicenseCommand, SubscriptionSessionResponse>, SyncSubscriptionLicenseHandler>();
+        services.AddScoped<ICommandHandler<SyncTenantLicenseCommand, SessionResponse>, SyncTenantLicenseHandler>();
         services.AddScoped<ICommandHandler<ProvisionSubscriptionCompanyCommand, ProvisionSubscriptionCompanyResponse>, ProvisionSubscriptionCompanyHandler>();
         services.AddScoped<ICommandHandler<CancelSubscriptionCompanyCommand, CancelSubscriptionCompanyResponse>, CancelSubscriptionCompanyHandler>();
         services.AddScoped<ICommandHandler<UpdateSubscriptionCompanyCommand, UpdateSubscriptionCompanyResponse>, UpdateSubscriptionCompanyHandler>();

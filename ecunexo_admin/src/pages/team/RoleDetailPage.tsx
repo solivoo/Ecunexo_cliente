@@ -12,13 +12,18 @@ import { PageLoadState } from '@/features/organization/components/PageLoadState'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { formatDateTime } from '@/lib/formatDate'
+import { isPermissionAllowedForModules } from '@/lib/modulePermissionFilter'
 import { readApiError } from '@/lib/readApiError'
 import {
   EffectivePermissionsGrid,
   type EffectivePermissionRow,
 } from '@/pages/team/EffectivePermissionsGrid'
 import { getTenantRole, listPermissions, unassignRolePermission } from '@/services/identityApi'
-import { selectTenantId } from '@/store/authSlice'
+import {
+  selectEnabledModules,
+  selectModuleEntitlements,
+  selectTenantId,
+} from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { GetTenantRoleDto, PermissionListItemDto } from '@/types/identityApi'
 
@@ -27,6 +32,8 @@ export function RoleDetailPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
+  const enabledModules = useAppSelector(selectEnabledModules)
+  const moduleEntitlements = useAppSelector(selectModuleEntitlements)
   const canManage = useHasPermission('identity.roles.manage')
   const [role, setRole] = useState<GetTenantRoleDto | null>(null)
   const [perms, setPerms] = useState<PermissionListItemDto[]>([])
@@ -77,8 +84,9 @@ export function RoleDetailPage() {
           permissionId: p?.id ?? id,
         }
       })
+      .filter((row) => isPermissionAllowedForModules(row.code, enabledModules, moduleEntitlements))
       .sort((a, b) => a.code.localeCompare(b.code, 'es'))
-  }, [perms, role])
+  }, [enabledModules, moduleEntitlements, perms, role])
 
   const actionItems = useMemo<PageActionItem[]>(() => {
     const items: PageActionItem[] = [

@@ -41,15 +41,12 @@ export function useRolePermissionsEditor(tenantId: string | null, roleId: string
       const assignable = active.filter((p) =>
         isPermissionAllowedForModules(p.code, enabledModules, moduleEntitlements)
       )
-      // Mantén en la grilla los ya asignados aunque el módulo saliera de la licencia.
-      const assignedExtra = all.filter(
-        (p) => r.permissionIds.includes(p.id) && !assignable.some((a) => a.id === p.id)
-      )
-      const catalog = [...assignable, ...assignedExtra]
+      const assignableIdSet = new Set(assignable.map((a) => a.id))
+      const licensedRolePermIds = r.permissionIds.filter((id) => assignableIdSet.has(id))
       setRole(r)
-      setPerms(catalog)
-      setBaselineIds([...r.permissionIds])
-      setSelectedIds([...r.permissionIds])
+      setPerms(assignable)
+      setBaselineIds(licensedRolePermIds)
+      setSelectedIds(licensedRolePermIds)
       setError(null)
     } catch (err: unknown) {
       setError(readApiError(err, 'No se pudieron cargar los permisos del rol.'))

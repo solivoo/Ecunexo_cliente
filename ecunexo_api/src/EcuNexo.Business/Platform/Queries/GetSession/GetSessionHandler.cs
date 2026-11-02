@@ -5,6 +5,7 @@ using EcuNexo.Business.Identity;
 using EcuNexo.Business.Platform.Navigation;
 using EcuNexo.Business.Platform.Settings;
 using EcuNexo.Business.Tenancy;
+using EcuNexo.Business.Tenancy.Authorization;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Platform.Navigation;
 using EcuNexo.Core.Tenancy;
@@ -54,8 +55,12 @@ public sealed class GetSessionHandler : IQueryHandler<GetSessionQuery, SessionRe
 
         var roleIds = await _userRoles.ListRoleIdsForUserAsync(query.TenantId, query.UserId, ct)
             .ConfigureAwait(false);
-        var codes = await _permissions.ListEffectivePermissionCodesAsync(query.TenantId, query.UserId, ct)
+        var rawCodes = await _permissions.ListEffectivePermissionCodesAsync(query.TenantId, query.UserId, ct)
             .ConfigureAwait(false);
+        var codes = ModulePermissionFilter.FilterPermissionCodes(
+            rawCodes,
+            tenant.EnabledModuleCodes,
+            tenant.ModuleEntitlements);
 
         var settings = await _settings.ResolveAsync(query.TenantId, query.UserId, tenant.ServicePlan.Name, ct)
             .ConfigureAwait(false);
