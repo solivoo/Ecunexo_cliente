@@ -106,6 +106,7 @@ public sealed class AddCatalogItemVariantHandler
             }
         }
 
+        parent.AddVariantChild(child);
         await _items.AddAsync(child, ct).ConfigureAwait(false);
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);

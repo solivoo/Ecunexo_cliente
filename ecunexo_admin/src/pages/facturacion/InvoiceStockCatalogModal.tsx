@@ -295,44 +295,80 @@ export function InvoiceStockCatalogModal({
         header: 'Ítem / Producto y Detalles',
         sortable: true,
         renderCell: (_v: unknown, row: ProductStockRow) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', padding: '0.2rem 0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {row.item.sku && (
-                <span
-                  style={{
-                    fontFamily: 'ui-monospace, monospace',
-                    fontWeight: 700,
-                    fontSize: '0.78rem',
-                    color: 'var(--shell-primary)',
-                    backgroundColor: 'rgba(var(--shell-primary-rgb), 0.08)',
-                    padding: '0.1rem 0.4rem',
-                    borderRadius: '4px',
-                  }}
-                >
-                  {row.item.sku}
-                </span>
-              )}
-              <strong style={{ color: 'var(--glb-text)', fontSize: '0.88rem' }}>
-                {row.item.name}
-              </strong>
-            </div>
-
-            {row.item.description?.trim() ? (
-              <p
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.2rem 0' }}>
+            {row.item.mainImageThumbUrl ? (
+              <img
+                src={row.item.mainImageThumbUrl}
+                alt=""
+                loading="lazy"
                 style={{
-                  margin: 0,
-                  fontSize: '0.78rem',
-                  color: 'var(--glb-muted)',
-                  lineHeight: 1.35,
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
+                  width: 36,
+                  height: 36,
+                  borderRadius: 6,
+                  objectFit: 'cover',
+                  border: '1px solid var(--glb-border, rgba(148, 163, 184, 0.28))',
+                  flexShrink: 0,
+                  background: 'var(--glb-surface-muted, rgba(148, 163, 184, 0.08))',
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 6,
+                  border: '1px dashed var(--glb-border, rgba(148, 163, 184, 0.35))',
+                  background: 'var(--glb-surface-muted, rgba(148, 163, 184, 0.08))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  color: 'var(--glb-muted, #64748b)',
                 }}
               >
-                {row.item.description.trim()}
-              </p>
-            ) : null}
+                <Package size={16} strokeWidth={1.6} aria-hidden />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {row.item.sku && (
+                  <span
+                    style={{
+                      fontFamily: 'ui-monospace, monospace',
+                      fontWeight: 700,
+                      fontSize: '0.78rem',
+                      color: 'var(--shell-primary)',
+                      backgroundColor: 'rgba(var(--shell-primary-rgb), 0.08)',
+                      padding: '0.1rem 0.4rem',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    {row.item.sku}
+                  </span>
+                )}
+                <strong style={{ color: 'var(--glb-text)', fontSize: '0.88rem' }}>
+                  {row.item.name}
+                </strong>
+              </div>
+
+              {row.item.description?.trim() ? (
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: '0.78rem',
+                    color: 'var(--glb-muted)',
+                    lineHeight: 1.35,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {row.item.description.trim()}
+                </p>
+              ) : null}
+            </div>
           </div>
         ),
       },

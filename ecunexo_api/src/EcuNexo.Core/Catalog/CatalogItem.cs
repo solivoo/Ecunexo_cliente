@@ -73,6 +73,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
     public string CustomAttributesJson { get; private set; }
 
+    /// <summary>URL de miniatura representativa pre-calculada para grillas (400×400 WebP).</summary>
+    public string? ResolvedThumbUrl { get; private set; }
+
+    /// <summary>URL de imagen mediana representativa pre-calculada para vitrina/fichas (800×800 WebP).</summary>
+    public string? ResolvedMediumUrl { get; private set; }
+
     public CatalogItemStatus Status { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
@@ -347,7 +353,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(descResult.Error!);
         }
 
-        return new CatalogItem
+        var child = new CatalogItem
         {
             Id = id,
             TenantId = parent.TenantId,
@@ -368,6 +374,9 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,
         };
+
+        child.RecalculateTreeThumbnails();
+        return child;
     }
 
     public Result AddVariantChild(CatalogItem variant)
@@ -391,6 +400,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             _variants.Add(variant);
         }
 
+        RecalculateTreeThumbnails();
         return Result.Success();
     }
 
@@ -647,6 +657,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         FamilyId = familyId;
         HierarchyPathJson = path.Value;
         CustomAttributesJson = PreserveSystemAttributes(CustomAttributesJson, attrs.Value!);
+        RecalculateTreeThumbnails();
         Touch(updatedBy);
         return Result.Success();
     }
@@ -689,6 +700,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         SortOrder = sortOrder;
+        RecalculateTreeThumbnails();
         Touch(updatedBy);
         return Result.Success();
     }
@@ -786,6 +798,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
         if (changed)
         {
+            RecalculateTreeThumbnails();
             Touch(updatedBy);
         }
 
@@ -855,6 +868,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
         if (changed)
         {
+            RecalculateTreeThumbnails();
             Touch(updatedBy);
         }
 
@@ -1230,6 +1244,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         DeletedAt = utcNow;
         DeletedBy = deletedBy;
         Status = CatalogItemStatus.Inactive;
+        RecalculateTreeThumbnails();
         Touch(deletedBy);
         return Result.Success();
     }
@@ -1343,8 +1358,17 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
         RecordReassignmentAudit(previousParent, targetParent, trimmedReason, updatedBy, utcNow);
 
+        previousParent?._variants.Remove(this);
         ParentId = targetParent?.Id;
+        Parent = targetParent;
+        if (targetParent is not null && !targetParent._variants.Contains(this))
+        {
+            targetParent._variants.Add(this);
+        }
+
         IsMatrixParent = false;
+        previousParent?.RecalculateTreeThumbnails();
+        RecalculateTreeThumbnails();
         Touch(updatedBy);
         return Result.Success();
     }
@@ -1430,11 +1454,16 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
                 ErrorType.Validation));
         }
 
-        var isMain = setAsMain ?? (_images.Count == 0);
+        var normalizedGroup = string.IsNullOrWhiteSpace(groupValue) ? null : groupValue.Trim();
+        var sameGroupImages = _images
+            .Where(i => string.Equals(i.GroupValue, normalizedGroup, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var isMain = setAsMain ?? (sameGroupImages.Count == 0);
 
         if (isMain)
         {
-            foreach (var img in _images)
+            foreach (var img in sameGroupImages)
             {
                 img.DemoteFromMain();
             }
@@ -1456,7 +1485,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             mediumUrl,
             largeUrl,
             createdBy,
-            groupValue);
+            normalizedGroup);
 
         if (imageResult.IsFailure)
         {
@@ -1464,6 +1493,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         _images.Add(imageResult.Value!);
+        RecalculateTreeThumbnails();
         Touch(createdBy);
         return Result.Success(imageResult.Value!);
     }
@@ -1480,11 +1510,16 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         var wasMain = image.IsMain;
+        var removedGroup = image.GroupValue;
         _images.Remove(image);
 
-        if (wasMain && _images.Count > 0)
+        if (wasMain)
         {
-            _images.OrderBy(i => i.DisplayOrder).First().PromoteToMain();
+            var nextInGroup = _images
+                .Where(i => string.Equals(i.GroupValue, removedGroup, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(i => i.DisplayOrder)
+                .FirstOrDefault();
+            nextInGroup?.PromoteToMain();
         }
 
         var order = 1;
@@ -1493,6 +1528,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             img.SetOrder(order++);
         }
 
+        RecalculateTreeThumbnails();
         Touch(updatedBy);
         return Result.Success();
     }
@@ -1513,7 +1549,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Success();
         }
 
-        foreach (var img in _images)
+        var targetGroup = targetImage.GroupValue;
+        foreach (var img in _images.Where(i => string.Equals(i.GroupValue, targetGroup, StringComparison.OrdinalIgnoreCase)))
         {
             if (img.Id == imageId)
             {
@@ -1525,6 +1562,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             }
         }
 
+        RecalculateTreeThumbnails();
         Touch(updatedBy);
         return Result.Success();
     }
@@ -1556,8 +1594,59 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             imageMap[orderedImageIds[i]].SetOrder(i + 1);
         }
 
+        RecalculateTreeThumbnails();
         Touch(updatedBy);
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Recalcula las URLs de miniatura y mediana resueltas (<see cref="ResolvedThumbUrl"/> y <see cref="ResolvedMediumUrl"/>)
+    /// para este ítem y, si pertenece a un árbol de matriz (como padre o como variante con <see cref="Parent"/> cargado),
+    /// sincroniza todo el árbol de forma determinística.
+    /// </summary>
+    public void RecalculateTreeThumbnails()
+    {
+        if (Parent is not null)
+        {
+            Parent.RecalculateTreeThumbnails();
+            if (!Parent.Variants.Contains(this))
+            {
+                var ownResolved = CatalogItemThumbnailResolver.ResolveVariantImage(this, Parent);
+                ResolvedThumbUrl = ownResolved?.ThumbUrl;
+                ResolvedMediumUrl = ownResolved?.MediumUrl;
+
+                if (Parent.ResolvedThumbUrl is null && _images.Count > 0 && DeletedAt is null)
+                {
+                    var parentFallback = CatalogItemThumbnailResolver.ResolveParentOrStandaloneImage(
+                        Parent,
+                        Parent.Variants.Concat([this]));
+                    Parent.ResolvedThumbUrl = parentFallback?.ThumbUrl;
+                    Parent.ResolvedMediumUrl = parentFallback?.MediumUrl;
+                }
+            }
+
+            return;
+        }
+
+        if (IsMatrixParent)
+        {
+            var parentResolved = CatalogItemThumbnailResolver.ResolveParentOrStandaloneImage(this, _variants);
+            ResolvedThumbUrl = parentResolved?.ThumbUrl;
+            ResolvedMediumUrl = parentResolved?.MediumUrl;
+
+            foreach (var variant in _variants.Where(v => v.DeletedAt == null))
+            {
+                var variantResolved = CatalogItemThumbnailResolver.ResolveVariantImage(variant, this);
+                variant.ResolvedThumbUrl = variantResolved?.ThumbUrl;
+                variant.ResolvedMediumUrl = variantResolved?.MediumUrl;
+            }
+
+            return;
+        }
+
+        var standaloneResolved = CatalogItemThumbnailResolver.ResolveVariantImage(this, null);
+        ResolvedThumbUrl = standaloneResolved?.ThumbUrl;
+        ResolvedMediumUrl = standaloneResolved?.MediumUrl;
     }
 
     public Result UpdateImageAltText(Guid imageId, string? altText, Guid? updatedBy = null)

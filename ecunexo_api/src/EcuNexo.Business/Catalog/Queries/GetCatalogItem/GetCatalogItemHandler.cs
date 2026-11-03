@@ -49,7 +49,7 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
 
         var groupImages = item.Images
             .Where(i => i.GroupValue != null)
-            .GroupBy(i => i.GroupValue!, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(i => CatalogItemThumbnailResolver.NormalizeGroupKey(i.GroupValue!), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 g => g.Key,
                 g => g.OrderBy(i => i.DisplayOrder).ToList(),
@@ -83,11 +83,12 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 {
                     foreach (var candidate in ResolveVariantGroupKeyCandidates(v, axes))
                     {
-                        if (groupThumbs.TryGetValue(candidate, out var groupThumb) && groupThumb is not null)
+                        var normalizedCandidate = CatalogItemThumbnailResolver.NormalizeGroupKey(candidate);
+                        if (groupThumbs.TryGetValue(normalizedCandidate, out var groupThumb) && groupThumb is not null)
                         {
                             inheritedThumb = groupThumb;
                             inheritedFrom = "group";
-                            matchedGroupKey = candidate;
+                            matchedGroupKey = normalizedCandidate;
                             break;
                         }
                     }
@@ -355,54 +356,10 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
     /// </summary>
     private static IReadOnlyList<string> ResolveVariantGroupKeyCandidates(
         CatalogItem variant,
-        IReadOnlyList<MatrixAxisDef> axes)
-    {
-        if (axes.Count == 0 || string.IsNullOrWhiteSpace(variant.CustomAttributesJson))
-        {
-            return Array.Empty<string>();
-        }
-
-        try
-        {
-            using var doc = JsonDocument.Parse(variant.CustomAttributesJson);
-            if (doc.RootElement.ValueKind != JsonValueKind.Object)
-            {
-                return Array.Empty<string>();
-            }
-
-            var properties = doc.RootElement.EnumerateObject().ToList();
-
-            string? ValueOf(MatrixAxisDef axis)
-            {
-                var match = properties.FirstOrDefault(p =>
-                    string.Equals(p.Name, axis.Name, StringComparison.OrdinalIgnoreCase)
-                    && p.Value.ValueKind == JsonValueKind.String);
-                return match.Value.ValueKind == JsonValueKind.String ? match.Value.GetString() : null;
-            }
-
-            var groupAxes = axes.Where(a => a.PhotoGroup).ToList();
-            if (groupAxes.Count > 0)
-            {
-                var groupValues = groupAxes.Select(ValueOf).ToList();
-                if (groupValues.All(v => !string.IsNullOrWhiteSpace(v)))
-                {
-                    return new[] { string.Join('|', groupValues.Select(v => v!.Trim())) };
-                }
-
-                return Array.Empty<string>();
-            }
-
-            return axes
-                .Select(ValueOf)
-                .Where(v => !string.IsNullOrWhiteSpace(v))
-                .Select(v => v!.Trim())
-                .ToList();
-        }
-        catch (JsonException)
-        {
-            return Array.Empty<string>();
-        }
-    }
+        IReadOnlyList<MatrixAxisDef> axes) =>
+        CatalogItemThumbnailResolver.ResolveVariantGroupKeyCandidates(
+            variant,
+            axes.Select(a => new CatalogItemThumbnailResolver.MatrixAxisSpec(a.Name, a.Values, a.PhotoGroup, a.Type)).ToList());
 
     private static List<string>? ResolveVariantStringList(CatalogItem variant, string key)
     {

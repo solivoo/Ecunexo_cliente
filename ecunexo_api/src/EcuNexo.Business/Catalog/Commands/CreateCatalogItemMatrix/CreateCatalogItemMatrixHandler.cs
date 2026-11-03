@@ -184,6 +184,7 @@ public sealed class CreateCatalogItemMatrixHandler
             var child = childResult.Value!;
             child.SetSortOrder(sortOrder);
             sortOrder++;
+            parent.AddVariantChild(child);
             await _items.AddAsync(child, ct).ConfigureAwait(false);
             variantIds.Add(childId);
         }

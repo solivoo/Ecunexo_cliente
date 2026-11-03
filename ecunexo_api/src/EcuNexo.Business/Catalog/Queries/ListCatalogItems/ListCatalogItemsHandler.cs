@@ -1,4 +1,5 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
 
 namespace EcuNexo.Business.Catalog.Queries.ListCatalogItems;
@@ -22,6 +23,16 @@ public sealed class ListCatalogItemsHandler
         CancellationToken ct)
     {
         var list = await _items.ListActiveByTenantAsync(query.TenantId, query.Kind, query.Status, ct).ConfigureAwait(false);
+        var itemsById = list.ToDictionary(i => i.Id);
+        var variantsByParentId = list
+            .Where(i => i.ParentId != null)
+            .GroupBy(i => i.ParentId!.Value)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<CatalogItem>)g
+                    .OrderBy(v => v.SortOrder)
+                    .ThenBy(v => v.CreatedAt)
+                    .ToList());
         var parentNames = list
             .Where(i => i.ParentId == null)
             .ToDictionary(i => i.Id, i => i.Name);
@@ -46,7 +57,31 @@ public sealed class ListCatalogItemsHandler
         IReadOnlyList<CatalogItemListItemResponse> items = list
             .Select(i =>
             {
-                var mainImg = i.Images.FirstOrDefault(img => img.IsMain) ?? i.Images.FirstOrDefault();
+                var thumbUrl = i.ResolvedThumbUrl;
+                var mediumUrl = i.ResolvedMediumUrl;
+
+                if (thumbUrl is null)
+                {
+                    CatalogItemImage? fallback = null;
+                    if (i.IsMatrixParent)
+                    {
+                        fallback = CatalogItemThumbnailResolver.ResolveParentOrStandaloneImage(
+                            i,
+                            variantsByParentId.GetValueOrDefault(i.Id));
+                    }
+                    else if (i.ParentId is { } parentId && itemsById.TryGetValue(parentId, out var parentItem))
+                    {
+                        fallback = CatalogItemThumbnailResolver.ResolveVariantImage(i, parentItem);
+                    }
+                    else
+                    {
+                        fallback = CatalogItemThumbnailResolver.ResolveParentOrStandaloneImage(i);
+                    }
+
+                    thumbUrl = fallback?.ThumbUrl;
+                    mediumUrl = fallback?.MediumUrl;
+                }
+
                 return new CatalogItemListItemResponse(
                     i.Id,
                     i.Kind,
@@ -56,8 +91,8 @@ public sealed class ListCatalogItemsHandler
                     i.BasePrice,
                     i.Status,
                     i.CreatedAt,
-                    mainImg?.ThumbUrl,
-                    mainImg?.MediumUrl,
+                    thumbUrl,
+                    mediumUrl,
                     i.IsMatrixParent,
                     i.ParentId,
                     i.Variants.Count,

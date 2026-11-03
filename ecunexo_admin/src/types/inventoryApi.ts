@@ -91,6 +91,7 @@ export type StockListItemDto = {
   averageCost?: number
   lastCost?: number | null
   stockValue?: number
+  mainImageThumbUrl?: string | null
 }
 
 export type InventoryDocumentListItemDto = {

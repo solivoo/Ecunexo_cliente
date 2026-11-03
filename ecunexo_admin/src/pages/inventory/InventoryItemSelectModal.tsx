@@ -699,7 +699,21 @@ export function InventoryItemSelectModal({
                               <code className="ecu-code">{child.sku || '—'}</code>
                             </td>
                             <td>
-                              <span style={{ fontWeight: 600 }}>{displayName}</span>
+                              <div className="ecu-inv-modal__item-cell">
+                                {child.mainImageThumbUrl || selectedParent.mainImageThumbUrl ? (
+                                  <img
+                                    src={(child.mainImageThumbUrl || selectedParent.mainImageThumbUrl)!}
+                                    alt=""
+                                    className="ecu-inv-modal__item-thumb"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="ecu-inv-modal__item-thumb">
+                                    <Package size={16} strokeWidth={1.5} aria-hidden />
+                                  </div>
+                                )}
+                                <span style={{ fontWeight: 600 }}>{displayName}</span>
+                              </div>
                             </td>
                             <td style={{ textAlign: 'center' }}>
                               <span

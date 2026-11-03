@@ -8,12 +8,11 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { Info } from 'lucide-react'
 
 export interface InfoHintProps {
   /** Contenido informativo (texto, lista de notas o JSX) */
   content: ReactNode
-  /** Título opcional dentro del popover */
+  /** Título opcional dentro del popover (sin título por defecto para lectura directa) */
   title?: string
   /** Etiqueta accesible para el botón disparador */
   ariaLabel?: string
@@ -28,7 +27,7 @@ interface PopoverCoords {
 
 export function InfoHint({
   content,
-  title = 'Información',
+  title,
   ariaLabel = 'Ver información de ayuda',
   className = '',
 }: InfoHintProps) {
@@ -147,7 +146,9 @@ export function InfoHint({
         }}
         onBlur={scheduleClose}
       >
-        <Info size={14} strokeWidth={2.25} aria-hidden="true" />
+        <span className="ecu-info-hint__i" aria-hidden="true">
+          i
+        </span>
       </button>
 
       {isOpen && typeof document !== 'undefined'
@@ -166,7 +167,6 @@ export function InfoHint({
             >
               {title ? (
                 <div className="ecu-info-hint__header">
-                  <Info size={13} strokeWidth={2.25} aria-hidden="true" />
                   <span>{title}</span>
                 </div>
               ) : null}

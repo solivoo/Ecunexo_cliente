@@ -178,7 +178,11 @@ public sealed class ListStorefrontProductsHandler
     private static StorefrontProductListItemDto MapItem(StorefrontCatalogProduct product)
     {
         var item = product.Item;
-        var image = ResolveMainImage(item);
+        var fallbackImage = item.ResolvedThumbUrl is null
+            ? CatalogItemThumbnailResolver.ResolveParentOrStandaloneImage(item)
+            : null;
+        var thumbUrl = item.ResolvedThumbUrl ?? fallbackImage?.ThumbUrl;
+        var mediumUrl = item.ResolvedMediumUrl ?? fallbackImage?.MediumUrl;
 
         return new StorefrontProductListItemDto(
             item.Id,
@@ -188,8 +192,8 @@ public sealed class ListStorefrontProductsHandler
             product.Price,
             product.OriginalPrice,
             product.DiscountPercent,
-            image?.ThumbUrl,
-            image?.MediumUrl,
+            thumbUrl,
+            mediumUrl,
             product.InStock,
             item.Variants.Count > 0,
             item.Variants.Count,
@@ -198,19 +202,6 @@ public sealed class ListStorefrontProductsHandler
             product.Colors,
             product.IsNew,
             product.LikeCount);
-    }
-
-    private static CatalogItemImage? ResolveMainImage(CatalogItem item)
-    {
-        var modelImages = item.Images
-            .Where(i => i.GroupValue is null)
-            .OrderBy(i => i.DisplayOrder)
-            .ToList();
-
-        return modelImages.FirstOrDefault(i => i.IsMain)
-            ?? modelImages.FirstOrDefault()
-            ?? item.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault(i => i.IsMain)
-            ?? item.Images.OrderBy(i => i.DisplayOrder).FirstOrDefault();
     }
 
     private static CatalogItemImage? ResolveSecondImage(CatalogItem item) =>

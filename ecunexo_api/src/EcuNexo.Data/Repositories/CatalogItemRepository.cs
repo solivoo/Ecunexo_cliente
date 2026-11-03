@@ -135,6 +135,14 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
             }
         }
 
+        if (renamed.Count > 0)
+        {
+            foreach (var root in items.Where(i => i.ParentId == null))
+            {
+                root.RecalculateTreeThumbnails();
+            }
+        }
+
         return renamed;
     }
 
@@ -169,6 +177,14 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
             }
         }
 
+        if (renamed.Count > 0)
+        {
+            foreach (var root in items.Where(i => i.ParentId == null))
+            {
+                root.RecalculateTreeThumbnails();
+            }
+        }
+
         return renamed;
     }
 
@@ -177,6 +193,8 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
             .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
             .Include(i => i.Variants.Where(v => v.DeletedAt == null))
                 .ThenInclude(v => v.Images.OrderBy(img => img.DisplayOrder))
+            .Include(i => i.Parent)
+                .ThenInclude(p => p!.Images.OrderBy(img => img.DisplayOrder))
             .FirstOrDefaultAsync(
                 i => i.TenantId == tenantId && i.Id == itemId && i.DeletedAt == null,
                 ct);
@@ -186,6 +204,11 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
             .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
             .Include(i => i.Variants.Where(v => v.DeletedAt == null))
                 .ThenInclude(v => v.Images.OrderBy(img => img.DisplayOrder))
+            .Include(i => i.Parent)
+                .ThenInclude(p => p!.Images.OrderBy(img => img.DisplayOrder))
+            .Include(i => i.Parent)
+                .ThenInclude(p => p!.Variants.Where(v => v.DeletedAt == null))
+                    .ThenInclude(v => v.Images.OrderBy(img => img.DisplayOrder))
             .FirstOrDefaultAsync(
                 i => i.TenantId == tenantId && i.Id == itemId && i.DeletedAt == null,
                 ct);

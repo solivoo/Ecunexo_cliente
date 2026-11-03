@@ -23,4 +23,5 @@ public sealed record StockListItemResponse(
     string? CustomAttributesJson = null,
     decimal AverageCost = 0,
     decimal? LastCost = null,
-    decimal StockValue = 0);
+    decimal StockValue = 0,
+    string? MainImageThumbUrl = null);

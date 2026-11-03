@@ -89,6 +89,12 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
             .HasColumnType("jsonb")
             .IsRequired();
 
+        builder.Property(i => i.ResolvedThumbUrl)
+            .HasMaxLength(1000);
+
+        builder.Property(i => i.ResolvedMediumUrl)
+            .HasMaxLength(1000);
+
         builder.Property(i => i.Status)
             .HasConversion<int>()
             .IsRequired();

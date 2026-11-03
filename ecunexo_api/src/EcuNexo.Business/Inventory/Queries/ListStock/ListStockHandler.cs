@@ -49,22 +49,42 @@ public sealed class ListStockHandler : IQueryHandler<ListStockQuery, IReadOnlyLi
         }
 
         IReadOnlyList<StockListItemResponse> rows = filtered
-            .Select(s => new StockListItemResponse(
-                s.Id,
-                s.CatalogItemId,
-                items.TryGetValue(s.CatalogItemId, out var item) ? item.Name : "—",
-                items.TryGetValue(s.CatalogItemId, out var itemDesc) ? itemDesc.Description : null,
-                items.TryGetValue(s.CatalogItemId, out var item2) ? item2.Sku : null,
-                s.WarehouseId,
-                warehouses.TryGetValue(s.WarehouseId, out var wh) ? wh.Name : "—",
-                s.Quantity,
-                s.MinimumQuantity,
-                s.IsBelowMinimum,
-                s.UpdatedAt ?? s.CreatedAt,
-                items.TryGetValue(s.CatalogItemId, out var itemAttr) ? itemAttr.CustomAttributesJson : null,
-                s.AverageCost,
-                s.LastCost,
-                s.StockValue))
+            .Select(s =>
+            {
+                items.TryGetValue(s.CatalogItemId, out var item);
+                string? thumbUrl = item?.ResolvedThumbUrl;
+                if (thumbUrl is null && item is not null)
+                {
+                    CatalogItem? parentItem = null;
+                    if (item.ParentId is { } pid)
+                    {
+                        items.TryGetValue(pid, out parentItem);
+                    }
+
+                    var fallback = item.IsMatrixParent
+                        ? CatalogItemThumbnailResolver.ResolveParentOrStandaloneImage(item)
+                        : CatalogItemThumbnailResolver.ResolveVariantImage(item, parentItem);
+                    thumbUrl = fallback?.ThumbUrl;
+                }
+
+                return new StockListItemResponse(
+                    s.Id,
+                    s.CatalogItemId,
+                    item?.Name ?? "—",
+                    item?.Description,
+                    item?.Sku,
+                    s.WarehouseId,
+                    warehouses.TryGetValue(s.WarehouseId, out var wh) ? wh.Name : "—",
+                    s.Quantity,
+                    s.MinimumQuantity,
+                    s.IsBelowMinimum,
+                    s.UpdatedAt ?? s.CreatedAt,
+                    item?.CustomAttributesJson,
+                    s.AverageCost,
+                    s.LastCost,
+                    s.StockValue,
+                    thumbUrl);
+            })
             .OrderByDescending(r => r.IsBelowMinimum)
             .ThenBy(r => r.WarehouseName)
             .ThenBy(r => r.CatalogItemName)

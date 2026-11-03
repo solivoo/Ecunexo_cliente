@@ -366,6 +366,16 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("parent_id");
 
+                    b.Property<string>("ResolvedMediumUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("resolved_medium_url");
+
+                    b.Property<string>("ResolvedThumbUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("resolved_thumb_url");
+
                     b.Property<string>("Sku")
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")

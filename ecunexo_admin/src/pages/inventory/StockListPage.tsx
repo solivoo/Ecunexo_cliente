@@ -10,7 +10,7 @@ import {
   EmptyState,
   GridToolbarRefresh,
 } from '@/components/ui'
-import { Eye, Settings2 } from 'lucide-react'
+import { Eye, Package, Settings2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
@@ -155,22 +155,57 @@ export function StockListPage() {
       {
         key: 'catalogItemName',
         header: 'Ítem',
-        width: 240,
+        width: 280,
         sortable: true,
         renderCell: (_v: Row['catalogItemName'], row: Row) => (
-          <div>
-            <strong>
-              {row.sku ? `${row.sku} · ` : ''}
-              {row.catalogItemDescription?.trim() || row.catalogItemName}
-            </strong>
-            {row.isBelowMinimum ? (
-              <div style={{ marginTop: 2 }}>
-                <span className="ecu-status ecu-status--danger">
-                  <span className="ecu-status__dot" aria-hidden />
-                  Bajo mínimo
-                </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {row.mainImageThumbUrl ? (
+              <img
+                src={row.mainImageThumbUrl}
+                alt=""
+                loading="lazy"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 6,
+                  objectFit: 'cover',
+                  border: '1px solid var(--glb-border, rgba(148, 163, 184, 0.28))',
+                  flexShrink: 0,
+                  background: 'var(--glb-surface-muted, rgba(148, 163, 184, 0.08))',
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 6,
+                  border: '1px dashed var(--glb-border, rgba(148, 163, 184, 0.35))',
+                  background: 'var(--glb-surface-muted, rgba(148, 163, 184, 0.08))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  color: 'var(--glb-muted, #64748b)',
+                }}
+              >
+                <Package size={16} strokeWidth={1.6} aria-hidden />
               </div>
-            ) : null}
+            )}
+            <div style={{ minWidth: 0 }}>
+              <strong>
+                {row.sku ? `${row.sku} · ` : ''}
+                {row.catalogItemDescription?.trim() || row.catalogItemName}
+              </strong>
+              {row.isBelowMinimum ? (
+                <div style={{ marginTop: 2 }}>
+                  <span className="ecu-status ecu-status--danger">
+                    <span className="ecu-status__dot" aria-hidden />
+                    Bajo mínimo
+                  </span>
+                </div>
+              ) : null}
+            </div>
           </div>
         ),
       },
