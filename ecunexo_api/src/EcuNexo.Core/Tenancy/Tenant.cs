@@ -128,6 +128,11 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
     {
         if (ModuleEntitlements is null || ModuleEntitlements.Count == 0)
         {
+            if (EnabledModuleCodes is not null && EnabledModuleCodes.Count > 0)
+            {
+                return EnabledModuleCodes.Any(c => string.Equals(c, moduleCode, StringComparison.OrdinalIgnoreCase));
+            }
+
             // Sin entitlements explícitos → todos los módulos conocidos (compatibilidad legacy)
             return TenantModuleCodes.IsKnown(moduleCode);
         }
@@ -189,6 +194,11 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
     /// </summary>
     public int ResolveMaxWarehouses()
     {
+        if (!HasModuleWithMinTier(TenantModuleCodes.Warehousing))
+        {
+            return 0;
+        }
+
         var entitlement = ModuleEntitlements?
             .FirstOrDefault(e => string.Equals(e.ModuleCode, TenantModuleCodes.Warehousing, StringComparison.OrdinalIgnoreCase));
 
@@ -364,7 +374,7 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
             Id = id,
             Name = trimmed,
             Status = TenantStatus.Active,
-            ServicePlan = servicePlan,
+            ServicePlan = new ServicePlan(servicePlan.Name, servicePlan.MaxUsers, servicePlan.MaxWarehouses),
             SubscriptionGroupId = groupId,
             SubscriptionMaxTenants = subscriptionMaxTenants,
             EnabledModuleCodes = modules,
@@ -498,7 +508,7 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
 
         }
 
-        ServicePlan = newPlan;
+        ServicePlan = new ServicePlan(newPlan.Name, newPlan.MaxUsers, newPlan.MaxWarehouses);
         UpdatedAt = DateTimeOffset.UtcNow;
         return Result.Success(this);
     }
@@ -555,10 +565,14 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
             }
         }
 
-        ServicePlan = servicePlan;
+        var hasWarehousing = modules is null
+            || modules.Contains(TenantModuleCodes.Warehousing, StringComparer.OrdinalIgnoreCase);
+        var effectiveMaxWarehouses = hasWarehousing ? servicePlan.MaxWarehouses : 0;
+
+        ServicePlan = new ServicePlan(servicePlan.Name, servicePlan.MaxUsers, effectiveMaxWarehouses);
         SubscriptionMaxTenants = subscriptionMaxTenants;
         EnabledModuleCodes = modules;
-        ModuleEntitlements = moduleEntitlements;
+        ModuleEntitlements = moduleEntitlements?.ToList();
         UpdatedAt = DateTimeOffset.UtcNow;
         return Result.Success();
     }

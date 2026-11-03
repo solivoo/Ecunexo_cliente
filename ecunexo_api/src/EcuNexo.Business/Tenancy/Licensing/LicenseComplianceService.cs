@@ -86,6 +86,7 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
             return Unit.Value;
         }
 
+        var migratedSuccessor = false;
         if (account.IsOnlineValidationDue(utcNow))
         {
             var remote = await _onlineValidator.ValidateGrantAsync(account.GrantId, ct).ConfigureAwait(false);
@@ -94,7 +95,7 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
                 var status = remote.Value!;
                 if (status.SuccessorGrantId is { } successorId && successorId != Guid.Empty && status.SuccessorExpiresAtUtc is { } successorExpires)
                 {
-                    await ApplySuccessorGrantAsync(account, status, utcNow, ct).ConfigureAwait(false);
+                    migratedSuccessor = ReplaceAccountGrantFromSuccessor(account, status, utcNow);
                 }
                 else if (!status.IsAllowed)
                 {
@@ -127,7 +128,14 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
 
         // Toggles casi en vivo: en cada login se sincronizan entitlements (con throttle propio)
         // sin depender del intervalo de compliance y sin bloquear el login si la plataforma falla.
-        await SyncEntitlementsAsync(account, utcNow, force: false, ct).ConfigureAwait(false);
+        var entitlementsSync = await SyncEntitlementsAsync(
+                account,
+                utcNow,
+                force: migratedSuccessor,
+                applyFallbackOnRemoteFailure: migratedSuccessor,
+                ct)
+            .ConfigureAwait(false);
+        _ = entitlementsSync;
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
         return Unit.Value;
@@ -149,9 +157,10 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
         }
 
         var status = remote.Value!;
+        var migratedSuccessor = false;
         if (status.SuccessorGrantId is { } successorId && successorId != Guid.Empty && status.SuccessorExpiresAtUtc is { } successorExpires)
         {
-            await ApplySuccessorGrantAsync(account, status, utcNow, ct).ConfigureAwait(false);
+            migratedSuccessor = ReplaceAccountGrantFromSuccessor(account, status, utcNow);
         }
         else if (!status.IsAllowed)
         {
@@ -161,8 +170,14 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
 
         account.RecordOnlineValidation(utcNow);
 
-        // Sincronización forzada e inmediata de módulos y cuotas sin throttle
-        var entitlementsSync = await SyncEntitlementsAsync(account, utcNow, force: true, ct).ConfigureAwait(false);
+        // Sincronización forzada e inmediata de módulos y cuotas sin throttle (una sola pasada sobre empresas)
+        var entitlementsSync = await SyncEntitlementsAsync(
+                account,
+                utcNow,
+                force: true,
+                applyFallbackOnRemoteFailure: migratedSuccessor,
+                ct)
+            .ConfigureAwait(false);
         if (entitlementsSync.IsFailure)
         {
             return Result.Failure<Unit>(entitlementsSync.Error!);
@@ -172,17 +187,22 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
         return Unit.Value;
     }
 
-    private async Task ApplySuccessorGrantAsync(
+    private bool ReplaceAccountGrantFromSuccessor(
         SubscriptionAccount account,
         LicenseRemoteStatus remote,
-        DateTimeOffset utcNow,
-        CancellationToken ct)
+        DateTimeOffset utcNow)
     {
         var oldGrantId = account.GrantId;
+        var hasWarehousing = remote.SuccessorEnabledModuleCodes is null
+            || remote.SuccessorEnabledModuleCodes.Contains(TenantModuleCodes.Warehousing, StringComparer.OrdinalIgnoreCase);
+        var resolvedMaxWarehouses = hasWarehousing
+            ? (remote.SuccessorMaxWarehouses ?? account.ServicePlan.MaxWarehouses)
+            : 0;
+
         var plan = new ServicePlan(
             remote.SuccessorPlanLabel ?? account.ServicePlan.Name,
             remote.SuccessorMaxUsers ?? account.ServicePlan.MaxUsers,
-            remote.SuccessorMaxWarehouses ?? account.ServicePlan.MaxWarehouses);
+            resolvedMaxWarehouses);
 
         var replaceResult = account.ReplaceLicenseGrant(
             remote.SuccessorGrantId!.Value,
@@ -197,47 +217,11 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
         if (replaceResult.IsFailure)
         {
             LogCompanySyncSkipped(_logger, account.Id, replaceResult.Error!.Code, null);
-            return;
-        }
-
-        var companies = await _tenants
-            .ListBySubscriptionGroupIdForUpdateAsync(account.SubscriptionGroupId, ct)
-            .ConfigureAwait(false);
-
-        var activePermissions = _permissions is not null && companies.Count > 0
-            ? await _permissions.ListNonDeletedOrderedByCodeAsync(ct).ConfigureAwait(false)
-            : null;
-
-        foreach (var company in companies)
-        {
-            var companyResult = company.ApplySubscriptionLicense(
-                account.ServicePlan,
-                account.SubscriptionMaxTenants,
-                account.EnabledModuleCodes,
-                account.ModuleEntitlements);
-            if (companyResult.IsFailure)
-            {
-                LogCompanySyncSkipped(_logger, company.Id, companyResult.Error!.Code, null);
-                continue;
-            }
-
-            if (activePermissions is not null)
-            {
-                await SyncSystemRolesPermissionsAsync(
-                    company,
-                    activePermissions,
-                    account.EnabledModuleCodes,
-                    account.ModuleEntitlements,
-                    ct).ConfigureAwait(false);
-            }
-
-            if (_warehouseProvisioner is not null)
-            {
-                await _warehouseProvisioner.StageDefaultsForTenantAsync(company, ct).ConfigureAwait(false);
-            }
+            return false;
         }
 
         LogGrantSuccessorMigrated(_logger, oldGrantId, account.GrantId, null);
+        return true;
     }
 
     /// <summary>
@@ -248,6 +232,7 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
         SubscriptionAccount account,
         DateTimeOffset utcNow,
         bool force,
+        bool applyFallbackOnRemoteFailure,
         CancellationToken ct)
     {
         if (!force && !account.IsEntitlementsSyncDue(utcNow))
@@ -278,6 +263,12 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
         if (remote.IsFailure)
         {
             LogEntitlementsUnavailable(_logger, account.GrantId, remote.Error!.Code, null);
+            if (applyFallbackOnRemoteFailure)
+            {
+                await ApplyLicenseToCompaniesAsync(account, companies, overrides: null, ct).ConfigureAwait(false);
+                return Unit.Value;
+            }
+
             return force ? Result.Failure<Unit>(remote.Error!) : Unit.Value;
         }
 
@@ -303,14 +294,26 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
             ? payload.TenantOverrides.ToDictionary(o => o.TenantId)
             : null;
 
+        await ApplyLicenseToCompaniesAsync(account, companies, overrides, ct).ConfigureAwait(false);
+
+        LogEntitlementsSynced(_logger, account.GrantId, payload.EntitlementsVersion, null);
+        return Unit.Value;
+    }
+
+    private async Task ApplyLicenseToCompaniesAsync(
+        SubscriptionAccount account,
+        IReadOnlyList<Tenant> companies,
+        Dictionary<Guid, LicenseRemoteTenantOverride>? overrides,
+        CancellationToken ct)
+    {
         var activePermissions = _permissions is not null && companies.Count > 0
             ? await _permissions.ListNonDeletedOrderedByCodeAsync(ct).ConfigureAwait(false)
             : null;
 
         foreach (var company in companies)
         {
-            var effectiveModules = payload.EnabledModuleCodes;
-            var effectiveEntitlements = payload.ModuleEntitlements;
+            IReadOnlyList<string>? effectiveModules = account.EnabledModuleCodes;
+            var effectiveEntitlements = account.ModuleEntitlements;
             if (overrides is not null && overrides.TryGetValue(company.Id, out var tenantOverride))
             {
                 effectiveModules = tenantOverride.EnabledModuleCodes;
@@ -343,9 +346,6 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
                 await _warehouseProvisioner.StageDefaultsForTenantAsync(company, ct).ConfigureAwait(false);
             }
         }
-
-        LogEntitlementsSynced(_logger, account.GrantId, payload.EntitlementsVersion, null);
-        return Unit.Value;
     }
 
     private async Task SyncSystemRolesPermissionsAsync(

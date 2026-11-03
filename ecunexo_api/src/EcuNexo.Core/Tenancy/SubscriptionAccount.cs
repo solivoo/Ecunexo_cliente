@@ -231,7 +231,7 @@ public sealed class SubscriptionAccount : AggregateRoot<Guid>, IAuditable
             Phone = NormalizeOptional(phone, PhoneMaxLength),
             JobTitle = NormalizeOptional(jobTitle, JobTitleMaxLength),
             PasswordHash = passwordHash,
-            ServicePlan = servicePlan,
+            ServicePlan = new ServicePlan(servicePlan.Name, servicePlan.MaxUsers, servicePlan.MaxWarehouses),
             SubscriptionMaxTenants = subscriptionMaxTenants,
             EnabledModuleCodes = modules,
             ModuleEntitlements = entitlements,
@@ -273,8 +273,18 @@ public sealed class SubscriptionAccount : AggregateRoot<Guid>, IAuditable
                 new Error("subscription.license.expired", "La licencia ya expiró.", ErrorType.Validation));
         }
 
+        var modulesResult = NormalizeModules(enabledModuleCodes);
+        if (modulesResult.IsFailure)
+        {
+            return Result.Failure<Unit>(modulesResult.Error!);
+        }
+
+        var hasWarehousing = modulesResult.Value is null
+            || modulesResult.Value.Contains(TenantModuleCodes.Warehousing, StringComparer.OrdinalIgnoreCase);
+        var effectiveMaxWarehouses = hasWarehousing ? servicePlan.MaxWarehouses : 0;
+
         GrantId = newGrantId;
-        ServicePlan = servicePlan;
+        ServicePlan = new ServicePlan(servicePlan.Name, servicePlan.MaxUsers, effectiveMaxWarehouses);
         SubscriptionMaxTenants = subscriptionMaxTenants;
         OnlineValidationIntervalDays = LicenseValidationPolicy.NormalizeIntervalDays(onlineValidationIntervalDays);
         LicenseExpiresAtUtc = licenseExpiresAtUtc;
@@ -282,14 +292,8 @@ public sealed class SubscriptionAccount : AggregateRoot<Guid>, IAuditable
         LicenseEntitlementsVersion = 1;
         UpdatedAt = utcNow;
 
-        var modulesResult = NormalizeModules(enabledModuleCodes);
-        if (modulesResult.IsFailure)
-        {
-            return Result.Failure<Unit>(modulesResult.Error!);
-        }
-
         EnabledModuleCodes = modulesResult.Value;
-        ModuleEntitlements = moduleEntitlements;
+        ModuleEntitlements = moduleEntitlements?.ToList();
         return Unit.Value;
     }
 
@@ -316,7 +320,38 @@ public sealed class SubscriptionAccount : AggregateRoot<Guid>, IAuditable
         }
 
         EnabledModuleCodes = modulesResult.Value;
-        ModuleEntitlements = moduleEntitlements;
+        ModuleEntitlements = moduleEntitlements?.ToList();
+
+        var hasWarehousing = EnabledModuleCodes is null
+            || EnabledModuleCodes.Contains(TenantModuleCodes.Warehousing, StringComparer.OrdinalIgnoreCase);
+        var resolvedMaxUsers = ServicePlan.MaxUsers;
+        var identityEnt = ModuleEntitlements?
+            .FirstOrDefault(e => string.Equals(e.ModuleCode, TenantModuleCodes.Identity, StringComparison.OrdinalIgnoreCase));
+        if (identityEnt?.Limits is not null
+            && identityEnt.Limits.TryGetValue(ModuleTierCatalog.LimitMaxUsers, out var explicitUsers)
+            && explicitUsers >= 0)
+        {
+            resolvedMaxUsers = explicitUsers;
+        }
+
+        var resolvedMaxWarehouses = hasWarehousing ? ServicePlan.MaxWarehouses : 0;
+        if (hasWarehousing)
+        {
+            var warehousingEnt = ModuleEntitlements?
+                .FirstOrDefault(e => string.Equals(e.ModuleCode, TenantModuleCodes.Warehousing, StringComparison.OrdinalIgnoreCase));
+            if (warehousingEnt?.Limits is not null
+                && warehousingEnt.Limits.TryGetValue(ModuleTierCatalog.LimitMaxWarehouses, out var explicitWarehouses)
+                && explicitWarehouses >= 0)
+            {
+                resolvedMaxWarehouses = explicitWarehouses;
+            }
+        }
+
+        if (resolvedMaxUsers != ServicePlan.MaxUsers || resolvedMaxWarehouses != ServicePlan.MaxWarehouses)
+        {
+            ServicePlan = new ServicePlan(ServicePlan.Name, resolvedMaxUsers, resolvedMaxWarehouses);
+        }
+
         LicenseEntitlementsVersion = Math.Max(LicenseEntitlementsVersion, entitlementsVersion);
         UpdatedAt = utcNow;
         return Unit.Value;

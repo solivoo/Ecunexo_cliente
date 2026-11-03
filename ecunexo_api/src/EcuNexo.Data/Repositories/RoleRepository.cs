@@ -21,6 +21,7 @@ public sealed class RoleRepository : IRoleRepository
 
     public async Task<IReadOnlyList<Role>> ListActiveByTenantAsync(Guid tenantId, CancellationToken ct) =>
         await _db.Roles.AsNoTracking()
+            .IgnoreQueryFilters()
             .Where(r => r.TenantId == tenantId && r.DeletedAt == null)
             .OrderBy(r => r.Name)
             .ToListAsync(ct)

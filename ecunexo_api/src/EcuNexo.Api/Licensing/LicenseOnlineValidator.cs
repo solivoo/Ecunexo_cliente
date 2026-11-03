@@ -127,7 +127,7 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
                     body.SuccessorEnabledModuleCodes,
                     body.SuccessorModuleEntitlements));
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
             {
                 lastNetworkException = ex;
             }

@@ -15,6 +15,19 @@ public sealed class RolePermissionRepository : IRolePermissionRepository
 
     public Task AddAsync(RolePermission link, CancellationToken ct)
     {
+        var tracked = _db.RolePermissions.Local.FirstOrDefault(
+            rp => rp.RoleId == link.RoleId && rp.PermissionId == link.PermissionId);
+        if (tracked is not null)
+        {
+            var entry = _db.Entry(tracked);
+            if (entry.State == EntityState.Deleted)
+            {
+                entry.State = EntityState.Unchanged;
+            }
+
+            return Task.CompletedTask;
+        }
+
         _db.RolePermissions.Add(link);
         return Task.CompletedTask;
     }
@@ -24,6 +37,7 @@ public sealed class RolePermissionRepository : IRolePermissionRepository
         Guid roleId,
         CancellationToken ct) =>
         await _db.RolePermissions.AsNoTracking()
+            .IgnoreQueryFilters()
             .Where(rp => rp.RoleId == roleId && rp.Role.TenantId == tenantId && rp.Role.DeletedAt == null)
             .Select(rp => rp.PermissionId)
             .Distinct()
@@ -38,7 +52,28 @@ public sealed class RolePermissionRepository : IRolePermissionRepository
 
     public async Task<bool> RemoveAsync(Guid tenantId, Guid roleId, Guid permissionId, CancellationToken ct)
     {
+        var tracked = _db.RolePermissions.Local.FirstOrDefault(
+            rp => rp.RoleId == roleId && rp.PermissionId == permissionId);
+        if (tracked is not null)
+        {
+            var entry = _db.Entry(tracked);
+            if (entry.State == EntityState.Added)
+            {
+                entry.State = EntityState.Detached;
+                return true;
+            }
+
+            if (entry.State == EntityState.Deleted)
+            {
+                return false;
+            }
+
+            _db.RolePermissions.Remove(tracked);
+            return true;
+        }
+
         var link = await _db.RolePermissions
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(
                 rp => rp.RoleId == roleId
                     && rp.PermissionId == permissionId
