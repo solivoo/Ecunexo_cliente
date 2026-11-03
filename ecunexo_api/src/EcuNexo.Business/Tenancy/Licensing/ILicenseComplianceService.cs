@@ -66,7 +66,16 @@ public sealed record LicenseRemoteStatus(
     int? SuccessorMaxWarehouses = null,
     int? SuccessorOnlineValidationIntervalDays = null,
     IReadOnlyList<string>? SuccessorEnabledModuleCodes = null,
-    IReadOnlyList<ModuleEntitlement>? SuccessorModuleEntitlements = null);
+    IReadOnlyList<ModuleEntitlement>? SuccessorModuleEntitlements = null,
+    int? EntitlementsVersion = null,
+    IReadOnlyList<string>? EnabledModuleCodes = null,
+    IReadOnlyList<ModuleEntitlement>? ModuleEntitlements = null,
+    int? MaxTenants = null,
+    int? MaxUsers = null,
+    int? MaxWarehouses = null,
+    string? PlanCode = null,
+    string? PlanLabel = null,
+    int? OnlineValidationIntervalDays = null);
 
 /// <summary>Empresa del titular reportada a la plataforma de licencias.</summary>
 public sealed record LicenseTenantRef(Guid TenantId, string Name);

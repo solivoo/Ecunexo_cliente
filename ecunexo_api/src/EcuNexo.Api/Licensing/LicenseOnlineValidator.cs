@@ -27,10 +27,31 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
         _logger = logger;
     }
 
-    public bool IsConfigured => GetCandidateBaseUrls().Count > 0;
-
-    private List<string> GetCandidateBaseUrls()
+    public bool IsConfigured
     {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_options.PlatformApiBaseUrl))
+            {
+                return false;
+            }
+
+            if (_environment.IsDevelopment() && _options.BypassInDevelopment)
+            {
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+    private List<string> GetCandidateBaseUrls(bool includeFallbacksWhenUnconfigured = false)
+    {
+        if (!includeFallbacksWhenUnconfigured && string.IsNullOrWhiteSpace(_options.PlatformApiBaseUrl))
+        {
+            return [];
+        }
+
         var candidateUrls = new List<string>();
         if (!string.IsNullOrWhiteSpace(_options.PlatformApiBaseUrl))
         {
@@ -55,8 +76,7 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
 
     public async Task<Result<LicenseRemoteStatus>> ValidateGrantAsync(Guid grantId, CancellationToken ct)
     {
-        var candidateUrls = GetCandidateBaseUrls();
-        if (candidateUrls.Count == 0)
+        if (!IsConfigured)
         {
             if (_environment.IsDevelopment() && _options.BypassInDevelopment)
             {
@@ -73,7 +93,10 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
                 new Error("license.online.not_configured", "Validación online no configurada.", ErrorType.Unexpected));
         }
 
+        var candidateUrls = GetCandidateBaseUrls();
+
         Exception? lastNetworkException = null;
+        var sawNonSuccessResponse = false;
         foreach (var baseUrl in candidateUrls)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/api/v1/platform/licenses/{grantId}/status");
@@ -96,18 +119,15 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    return Result.Failure<LicenseRemoteStatus>(
-                        new Error(
-                            "license.online.unavailable",
-                            "No se pudo consultar el estado de la licencia.",
-                            ErrorType.Unexpected));
+                    sawNonSuccessResponse = true;
+                    continue;
                 }
 
                 var body = await response.Content.ReadFromJsonAsync<RemoteStatusDto>(cancellationToken: ct).ConfigureAwait(false);
                 if (body is null)
                 {
-                    return Result.Failure<LicenseRemoteStatus>(
-                        new Error("license.online.invalid_response", "Respuesta de licencia inválida.", ErrorType.Unexpected));
+                    sawNonSuccessResponse = true;
+                    continue;
                 }
 
                 return Result.Success(new LicenseRemoteStatus(
@@ -125,12 +145,30 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
                     body.SuccessorMaxWarehouses,
                     body.SuccessorOnlineValidationIntervalDays,
                     body.SuccessorEnabledModuleCodes,
-                    body.SuccessorModuleEntitlements));
+                    body.SuccessorModuleEntitlements,
+                    body.EntitlementsVersion,
+                    body.EnabledModuleCodes,
+                    body.ModuleEntitlements,
+                    body.MaxTenants,
+                    body.MaxUsers,
+                    body.MaxWarehouses,
+                    body.PlanCode,
+                    body.PlanLabel,
+                    body.OnlineValidationIntervalDays));
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
             {
                 lastNetworkException = ex;
             }
+        }
+
+        if (sawNonSuccessResponse)
+        {
+            return Result.Failure<LicenseRemoteStatus>(
+                new Error(
+                    "license.online.unavailable",
+                    "No se pudo consultar el estado de la licencia.",
+                    ErrorType.Unexpected));
         }
 
         if (_environment.IsDevelopment() && lastNetworkException is not null)
@@ -155,6 +193,15 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
         DateTimeOffset ExpiresAtUtc,
         bool IsAllowed,
         DateTimeOffset? RevokedAtUtc,
+        int? EntitlementsVersion = null,
+        IReadOnlyList<string>? EnabledModuleCodes = null,
+        IReadOnlyList<ModuleEntitlement>? ModuleEntitlements = null,
+        int? MaxTenants = null,
+        int? MaxUsers = null,
+        int? MaxWarehouses = null,
+        string? PlanCode = null,
+        string? PlanLabel = null,
+        int? OnlineValidationIntervalDays = null,
         Guid? SuccessorGrantId = null,
         string? SuccessorStatus = null,
         DateTimeOffset? SuccessorExpiresAtUtc = null,
@@ -178,6 +225,7 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
             return Unit.Value;
         }
 
+        var sawNonSuccessResponse = false;
         foreach (var baseUrl in candidateUrls)
         {
             using var request = new HttpRequestMessage(
@@ -197,11 +245,8 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
                 using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                 {
-                    return Result.Failure<Unit>(
-                        new Error(
-                            "license.online.tenants_report",
-                            "No se pudieron reportar las empresas a la plataforma de licencias.",
-                            ErrorType.Unexpected));
+                    sawNonSuccessResponse = true;
+                    continue;
                 }
 
                 return Unit.Value;
@@ -210,6 +255,15 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
             {
                 // Intentar siguiente URL candidata
             }
+        }
+
+        if (sawNonSuccessResponse)
+        {
+            return Result.Failure<Unit>(
+                new Error(
+                    "license.online.tenants_report",
+                    "No se pudieron reportar las empresas a la plataforma de licencias.",
+                    ErrorType.Unexpected));
         }
 
         return Result.Failure<Unit>(
@@ -231,6 +285,7 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
                 new Error("license.online.not_configured", "Validación online no configurada.", ErrorType.Unexpected));
         }
 
+        var sawNonSuccessResponse = false;
         foreach (var baseUrl in candidateUrls)
         {
             using var request = new HttpRequestMessage(
@@ -252,8 +307,8 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    return Result.Failure<LicenseRemoteEntitlements>(
-                        new Error("license.online.unavailable", "No se pudieron consultar los módulos de la licencia.", ErrorType.Unexpected));
+                    sawNonSuccessResponse = true;
+                    continue;
                 }
 
                 var body = await response.Content
@@ -261,8 +316,8 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
                     .ConfigureAwait(false);
                 if (body is null)
                 {
-                    return Result.Failure<LicenseRemoteEntitlements>(
-                        new Error("license.online.invalid_response", "Respuesta de entitlements inválida.", ErrorType.Unexpected));
+                    sawNonSuccessResponse = true;
+                    continue;
                 }
 
                 return Result.Success(new LicenseRemoteEntitlements(
@@ -284,6 +339,12 @@ public sealed partial class LicenseOnlineValidator : ILicenseOnlineValidator
             {
                 // Intentar siguiente URL candidata
             }
+        }
+
+        if (sawNonSuccessResponse)
+        {
+            return Result.Failure<LicenseRemoteEntitlements>(
+                new Error("license.online.unavailable", "No se pudieron consultar los módulos de la licencia.", ErrorType.Unexpected));
         }
 
         return Result.Failure<LicenseRemoteEntitlements>(

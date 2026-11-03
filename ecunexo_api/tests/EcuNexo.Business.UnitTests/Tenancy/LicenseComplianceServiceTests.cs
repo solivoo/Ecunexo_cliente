@@ -220,6 +220,51 @@ public sealed class LicenseComplianceServiceTests
             Arg.Any<CancellationToken>());
     }
 
+    [Fact(DisplayName = "SyncLicenseOnlineAsync aplica metadatos de /status a empresas incluso si /entitlements falla")]
+    public async Task SyncLicenseOnlineAsync_WhenEntitlementsEndpointFails_FallsBackToStatusMetadataAndSyncsCompanies()
+    {
+        var account = CreateAccount(lastValidationAtUtc: DateTimeOffset.UtcNow);
+        var company = Tenant.Create(
+            Guid.CreateVersion7(),
+            "Empresa Emprendedor",
+            new ServicePlan("Nex Emprendedor", 5, 1),
+            enabledModuleCodes: [TenantModuleCodes.Identity, TenantModuleCodes.Catalog, TenantModuleCodes.Warehousing, TenantModuleCodes.Invoicing]).Value!;
+
+        _validator.IsConfigured.Returns(true);
+        _tenants.ListBySubscriptionGroupIdForUpdateAsync(account.SubscriptionGroupId, Arg.Any<CancellationToken>())
+            .Returns([company]);
+        _validator.ValidateGrantAsync(account.GrantId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new LicenseRemoteStatus(
+                account.GrantId,
+                IsAllowed: true,
+                Status: "Exhausted",
+                ExpiresAtUtc: DateTimeOffset.UtcNow.AddYears(1),
+                EntitlementsVersion: 2,
+                EnabledModuleCodes: [TenantModuleCodes.Identity, TenantModuleCodes.Catalog, TenantModuleCodes.Invoicing],
+                MaxTenants: 1,
+                MaxUsers: 3,
+                MaxWarehouses: 0,
+                PlanCode: "nex-basico",
+                PlanLabel: "Nex Básico",
+                OnlineValidationIntervalDays: 30)));
+
+        _validator.GetEntitlementsAsync(account.GrantId, Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<LicenseRemoteEntitlements>(
+                new Error("license.online.unavailable", "No se pudieron consultar los módulos de la licencia.", ErrorType.Unexpected)));
+
+        var result = await Sut().SyncLicenseOnlineAsync(account, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        account.ServicePlan.Name.Should().Be("Nex Básico");
+        account.ServicePlan.MaxWarehouses.Should().Be(0);
+        account.LicenseEntitlementsVersion.Should().Be(2);
+        company.ServicePlan.Name.Should().Be("Nex Básico");
+        company.ServicePlan.MaxWarehouses.Should().Be(0);
+        company.EnabledModuleCodes.Should().NotContain(TenantModuleCodes.Warehousing);
+        ReferenceEquals(account.ServicePlan, company.ServicePlan).Should().BeFalse();
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
     private LicenseComplianceService Sut() =>
         new(_validator, _tenants, _unitOfWork, NullLogger<LicenseComplianceService>.Instance);
 

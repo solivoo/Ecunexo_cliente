@@ -259,7 +259,8 @@ public sealed class SubscriptionAccount : AggregateRoot<Guid>, IAuditable
         IReadOnlyList<ModuleEntitlement>? moduleEntitlements,
         DateTimeOffset licenseExpiresAtUtc,
         int onlineValidationIntervalDays,
-        DateTimeOffset utcNow)
+        DateTimeOffset utcNow,
+        int? entitlementsVersion = null)
     {
         if (newGrantId == Guid.Empty)
         {
@@ -289,7 +290,7 @@ public sealed class SubscriptionAccount : AggregateRoot<Guid>, IAuditable
         OnlineValidationIntervalDays = LicenseValidationPolicy.NormalizeIntervalDays(onlineValidationIntervalDays);
         LicenseExpiresAtUtc = licenseExpiresAtUtc;
         LastOnlineLicenseValidationAtUtc = utcNow;
-        LicenseEntitlementsVersion = 1;
+        LicenseEntitlementsVersion = Math.Max(1, entitlementsVersion ?? 1);
         UpdatedAt = utcNow;
 
         EnabledModuleCodes = modulesResult.Value;

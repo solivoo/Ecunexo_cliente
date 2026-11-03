@@ -67,6 +67,7 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer<BearerSecu
 builder.Services.AddEcuNexoJwt(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddProblemDetails();
 builder.Services.AddScoped<ICallerContext, HttpCallerContext>();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IDomainOwnershipVerifier, DnsTxtDomainVerifier>();
@@ -219,6 +220,7 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 app.UseCors("EcuNexoSpa");
+app.UseExceptionHandler();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

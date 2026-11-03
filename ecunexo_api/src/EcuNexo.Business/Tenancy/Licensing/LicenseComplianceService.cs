@@ -105,6 +105,10 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
                             "La licencia fue revocada o ya no está activa en Ecunexo.",
                             ErrorType.Forbidden));
                 }
+                else
+                {
+                    migratedSuccessor = ApplyCurrentGrantStatus(account, status, utcNow);
+                }
 
                 account.RecordOnlineValidation(utcNow);
             }
@@ -157,15 +161,18 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
         }
 
         var status = remote.Value!;
-        var migratedSuccessor = false;
         if (status.SuccessorGrantId is { } successorId && successorId != Guid.Empty && status.SuccessorExpiresAtUtc is { } successorExpires)
         {
-            migratedSuccessor = ReplaceAccountGrantFromSuccessor(account, status, utcNow);
+            _ = ReplaceAccountGrantFromSuccessor(account, status, utcNow);
         }
         else if (!status.IsAllowed)
         {
             return Result.Failure<Unit>(
                 new Error("license.revoked", "La licencia fue revocada o ya no está activa en Ecunexo.", ErrorType.Forbidden));
+        }
+        else
+        {
+            _ = ApplyCurrentGrantStatus(account, status, utcNow);
         }
 
         account.RecordOnlineValidation(utcNow);
@@ -175,7 +182,7 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
                 account,
                 utcNow,
                 force: true,
-                applyFallbackOnRemoteFailure: migratedSuccessor,
+                applyFallbackOnRemoteFailure: true,
                 ct)
             .ConfigureAwait(false);
         if (entitlementsSync.IsFailure)
@@ -185,6 +192,53 @@ public sealed class LicenseComplianceService : ILicenseComplianceService
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
         return Unit.Value;
+    }
+
+    private bool ApplyCurrentGrantStatus(
+        SubscriptionAccount account,
+        LicenseRemoteStatus remote,
+        DateTimeOffset utcNow)
+    {
+        if (remote.EnabledModuleCodes is null
+            && remote.ModuleEntitlements is null
+            && remote.PlanLabel is null
+            && remote.MaxTenants is null
+            && remote.MaxUsers is null
+            && remote.MaxWarehouses is null)
+        {
+            return false;
+        }
+
+        var effectiveModules = remote.EnabledModuleCodes ?? account.EnabledModuleCodes;
+        var hasWarehousing = effectiveModules is null
+            || effectiveModules.Contains(TenantModuleCodes.Warehousing, StringComparer.OrdinalIgnoreCase);
+        var resolvedMaxWarehouses = hasWarehousing
+            ? (remote.MaxWarehouses ?? account.ServicePlan.MaxWarehouses)
+            : 0;
+
+        var plan = new ServicePlan(
+            remote.PlanLabel ?? account.ServicePlan.Name,
+            remote.MaxUsers ?? account.ServicePlan.MaxUsers,
+            resolvedMaxWarehouses);
+
+        var updateResult = account.ReplaceLicenseGrant(
+            account.GrantId,
+            plan,
+            remote.MaxTenants ?? account.SubscriptionMaxTenants,
+            effectiveModules,
+            remote.ModuleEntitlements ?? account.ModuleEntitlements,
+            remote.ExpiresAtUtc,
+            remote.OnlineValidationIntervalDays ?? account.OnlineValidationIntervalDays,
+            utcNow,
+            remote.EntitlementsVersion ?? account.LicenseEntitlementsVersion);
+
+        if (updateResult.IsFailure)
+        {
+            LogCompanySyncSkipped(_logger, account.Id, updateResult.Error!.Code, null);
+            return false;
+        }
+
+        return true;
     }
 
     private bool ReplaceAccountGrantFromSuccessor(
