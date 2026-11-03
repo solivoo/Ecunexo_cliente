@@ -26,6 +26,7 @@ export type RideTotals = {
   readonly subtotal5: number
   readonly subtotal0: number
   readonly subtotalNoObjeto: number
+  readonly subtotalExento: number
   readonly iva15: number
   readonly iva5: number
 }

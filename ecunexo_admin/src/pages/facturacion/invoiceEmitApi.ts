@@ -624,12 +624,27 @@ export async function voidInvoiceAndWait(
             ? 'Nota de crédito en curso; aún sin resultado definitivo.'
             : 'No se obtuvo un resultado definitivo del SRI a tiempo.'
 
+  let emailStatus: ResendInvoiceResult['emailStatus']
+  if (polled.state === 'Authorized') {
+    try {
+      await sendAuthorizedInvoiceEmail({
+        emitterId,
+        invoiceId: created.creditNoteId,
+        tenantId,
+      })
+      emailStatus = 'sent'
+    } catch {
+      emailStatus = 'failed'
+    }
+  }
+
   return {
     invoiceId: created.creditNoteId,
     sequentialHint: created.sequential,
     state: polled.state,
     sriTransmissionState: polled.sriTransmissionState,
     outcome,
+    emailStatus,
     message: [resultLead, `NC ${created.sequential}.`, `Estado ${polled.state}.`, msgSummary]
       .filter(Boolean)
       .join(' '),

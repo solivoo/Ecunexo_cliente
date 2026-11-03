@@ -37,9 +37,13 @@ export function RideFacturaHeader({
     invoice.emitter.tradeName,
     invoice.emitter.businessName
   )
+  const legalBusinessName = rideText(invoice.emitter.businessName)
+  const showSeparateRazonSocial =
+    Boolean(legalBusinessName) &&
+    legalBusinessName.toLowerCase() !== companyName.trim().toLowerCase()
   const companyRuc = rideIssuerRuc(legal?.taxId, invoice.emitter.ruc)
   const matriz =
-    rideText(legal?.matrizAddress) || rideText(invoice.emitter.mainAddress)
+    rideText(invoice.emitter.mainAddress) || rideText(legal?.matrizAddress)
   const authWhen = formatAuthDateTime(authorizationDateTime)
 
   const isPreview =
@@ -73,7 +77,10 @@ export function RideFacturaHeader({
             <Text style={styles.companyRuc}>RUC {rideValue(companyRuc)}</Text>
           </View>
         </View>
-        <Meta label="Matriz" value={matriz} />
+        {showSeparateRazonSocial ? (
+          <Meta label="Razón social" value={legalBusinessName} />
+        ) : null}
+        <Meta label="Dirección Matriz" value={matriz} />
         <Meta label="Correo" value={legal?.contactEmail ?? ''} />
         <Meta label="Teléfono" value={legal?.contactPhone ?? ''} />
         <Meta

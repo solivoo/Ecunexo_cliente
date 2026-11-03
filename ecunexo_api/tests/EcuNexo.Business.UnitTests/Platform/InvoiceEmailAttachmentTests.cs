@@ -95,4 +95,54 @@ public class InvoiceEmailAttachmentTests
         Assert.False(ok);
         Assert.Contains("Máximo 4", error);
     }
+
+    [Fact(DisplayName = "Adjuntos: acepta contenedor SRI <autorizacion> con CDATA y valida par RIDE+XML")]
+    public void Verify_Accepts_Sri_Autorizacion_Xml_And_Pair()
+    {
+        const string autorizacionXml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <autorizacion>
+              <estado>AUTORIZADO</estado>
+              <numeroAutorizacion>0211202601179001691900110010010000001231234567813</numeroAutorizacion>
+              <fechaAutorizacion class="fechaAutorizacion">02/11/2026 21:30:00</fechaAutorizacion>
+              <ambiente>PRUEBAS</ambiente>
+              <comprobante><![CDATA[<?xml version="1.0" encoding="UTF-8"?><factura id="comprobante" version="1.1.0"/>]]></comprobante>
+              <mensajes/>
+            </autorizacion>
+            """;
+
+        var requested = new List<InvoiceAuthorizedEmailAttachment>
+        {
+            new("factura-001-001-000000123-ride.pdf", "application/pdf", Base64("%PDF-1.7 ride")),
+            new("factura-001-001-000000123.xml", "application/xml", Base64(autorizacionXml)),
+        };
+
+        var ok = InvoiceEmailEndpoints.TryBuildAttachments(requested, out var attachments, out var error);
+        Assert.True(ok);
+        Assert.Null(error);
+
+        var pairOk = InvoiceEmailEndpoints.HasRequiredSriAttachmentPair(attachments, out var pairError);
+        Assert.True(pairOk);
+        Assert.Null(pairError);
+    }
+
+    [Fact(DisplayName = "Adjuntos: rechaza XML con raíz no reconocida por el SRI o PDF sin cabecera %PDF")]
+    public void Verify_Rejects_Invalid_Xml_Root_Or_Invalid_Pdf_Header()
+    {
+        var invalidXmlReq = new List<InvoiceAuthorizedEmailAttachment>
+        {
+            new("factura.xml", "application/xml", Base64("<otroDocumento/>")),
+        };
+
+        Assert.False(InvoiceEmailEndpoints.TryBuildAttachments(invalidXmlReq, out _, out var xmlError));
+        Assert.Contains("nodo raíz SRI", xmlError);
+
+        var invalidPdfReq = new List<InvoiceAuthorizedEmailAttachment>
+        {
+            new("factura-ride.pdf", "application/pdf", Base64("NO_ES_UN_PDF")),
+        };
+
+        Assert.False(InvoiceEmailEndpoints.TryBuildAttachments(invalidPdfReq, out _, out var pdfError));
+        Assert.Contains("%PDF", pdfError);
+    }
 }

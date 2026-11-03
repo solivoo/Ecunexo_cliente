@@ -50,8 +50,8 @@ function buildAccessKeyBarcode(accessKey: string): string | null {
   }
 }
 
-async function loadRideLegalExtras(): Promise<RideLegalExtras | null> {
-  const tenantId = selectTenantId(store.getState())
+async function loadRideLegalExtras(tenantIdOverride?: string | null): Promise<RideLegalExtras | null> {
+  const tenantId = tenantIdOverride?.trim() || selectTenantId(store.getState())
   if (!tenantId) return null
   try {
     const tenant = await getTenant(tenantId)
@@ -82,17 +82,33 @@ async function loadRideLegalExtras(): Promise<RideLegalExtras | null> {
 }
 
 /** Genera el PDF RIDE desde un detalle ya resuelto (emisión o previsualización). */
-export async function buildRidePdfFromDetail(detail: InvoiceDetail): Promise<RidePdfResult> {
-  const legal = await loadRideLegalExtras()
+export async function buildRidePdfFromDetail(
+  detail: InvoiceDetail,
+  tenantIdOverride?: string | null
+): Promise<RidePdfResult> {
+  const legal = await loadRideLegalExtras(tenantIdOverride)
   const barcodeDataUrl = detail.accessKey ? buildAccessKeyBarcode(detail.accessKey) : null
-  const doc = createElement(RideFacturaDocument, {
-    invoice: detail,
-    legal,
-    barcodeDataUrl,
-    authorizationDateTime: detail.authorizationDate ?? null,
-  })
+  const renderWithLegal = async (legalExtras: RideLegalExtras | null): Promise<Blob> => {
+    const doc = createElement(RideFacturaDocument, {
+      invoice: detail,
+      legal: legalExtras,
+      barcodeDataUrl,
+      authorizationDateTime: detail.authorizationDate ?? null,
+    })
+    return pdf(doc as Parameters<typeof pdf>[0]).toBlob()
+  }
 
-  const blob = await pdf(doc as Parameters<typeof pdf>[0]).toBlob()
+  let blob: Blob
+  try {
+    blob = await renderWithLegal(legal)
+  } catch (err) {
+    if (legal?.logoUrl) {
+      blob = await renderWithLegal({ ...legal, logoUrl: null })
+    } else {
+      throw err
+    }
+  }
+
   return { blob, filename: `${docFileBase(detail)}-ride.pdf` }
 }
 
@@ -110,7 +126,11 @@ export async function downloadInvoiceXml(
   invoiceId: string
 ): Promise<{ filename: string; source: string }> {
   const data = await getInvoiceXml(emitterId, invoiceId)
-  const name = `factura-${invoiceId.slice(0, 8)}-${data.source}.xml`
+  const isCleanSource = data.source === 'authorized' || data.source === 'signed'
+  const name =
+    data.accessKey && isCleanSource
+      ? `comprobante-${data.accessKey}.xml`
+      : `factura-${invoiceId.slice(0, 8)}-${data.source}.xml`
   downloadBlob(new Blob([data.xml], { type: 'application/xml;charset=utf-8' }), name)
   return { filename: name, source: data.source }
 }

@@ -34,6 +34,23 @@ export function RideFacturaBuyer({ invoice }: { readonly invoice: InvoiceDetail 
         <Field label="Ciudad" value={buyer.city ?? ''} />
         <Field label="Fecha de emisión" value={formatIssueDate(invoice.issueDate)} />
         <Field label="Correo" value={buyer.email ?? ''} />
+        {invoice.documentType === '04' ? (
+          <>
+            <Field
+              label="Comprobante que se modifica"
+              value={`FACTURA ${invoice.modifiedDocumentNumber ?? ''}`.trim()}
+            />
+            <Field
+              label="Fecha emisión (doc. sustento)"
+              value={formatIssueDate(invoice.modifiedIssueDate ?? '')}
+            />
+            <Field
+              label="Razón de modificación"
+              value={invoice.motivo ?? ''}
+              full
+            />
+          </>
+        ) : null}
       </View>
     </View>
   )

@@ -77,6 +77,7 @@ export function RideFacturaFooter({
           <TotalRow label="Subtotal 5%" value={totals.subtotal5} />
           <TotalRow label="Subtotal 0%" value={totals.subtotal0} />
           <TotalRow label="Subtotal no objeto IVA" value={totals.subtotalNoObjeto} />
+          <TotalRow label="Subtotal exento IVA" value={totals.subtotalExento} />
           <TotalRow label="Descuentos" value={totals.discountTotal} />
           <TotalRow label="ICE" value={0} />
           <TotalRow label="IVA 15%" value={totals.iva15} />

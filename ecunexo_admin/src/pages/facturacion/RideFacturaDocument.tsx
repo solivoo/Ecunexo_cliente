@@ -28,6 +28,7 @@ function computeTotals(invoice: RideFacturaDocumentProps['invoice']): RideTotals
     subtotal5: sumByRate(invoice, '5', 'taxableBase'),
     subtotal0: sumByRate(invoice, '0', 'taxableBase'),
     subtotalNoObjeto: sumByRate(invoice, '6', 'taxableBase'),
+    subtotalExento: sumByRate(invoice, '7', 'taxableBase'),
     iva15: sumByRate(invoice, '4', 'value'),
     iva5: sumByRate(invoice, '5', 'value'),
   }

@@ -189,8 +189,7 @@ export function FacturasGrid({
             canOperateInvoice &&
               emitterId &&
               row.state === 'Authorized' &&
-              !row.isVoided &&
-              row.documentType !== '04'
+              !row.isVoided
           )
           const isDraft = row.state === 'Draft'
           const resendTitle = !canOperateInvoice

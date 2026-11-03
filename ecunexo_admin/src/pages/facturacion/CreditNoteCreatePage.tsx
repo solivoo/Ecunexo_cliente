@@ -5,6 +5,7 @@ import { EmptyState, PageHeader, SectionCard, StatusBadge } from '@/components/u
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
+import { sendAuthorizedInvoiceEmail } from '@/pages/facturacion/invoiceEmail'
 import { formatMoney } from '@/pages/facturacion/invoiceFormTypes'
 import { useBillingInvoices } from '@/pages/facturacion/useBillingInvoices'
 import {
@@ -253,9 +254,24 @@ export function CreditNoteCreatePage() {
       const sriRes = await pollInvoiceAuthorization(emitterId, created.creditNoteId)
 
       if (sriRes.state === 'Authorized') {
+        let emailNotice = ''
+        if (invoiceDetail?.counterparty.email?.trim()) {
+          try {
+            const sent = await sendAuthorizedInvoiceEmail({
+              emitterId,
+              invoiceId: created.creditNoteId,
+              tenantId,
+            })
+            if (sent.sent) {
+              emailNotice = ` Correo enviado a ${sent.to} con RIDE y XML.`
+            }
+          } catch {
+            // No bloquear la navegación si falla el envío automático de correo
+          }
+        }
         toast.show({
           title: 'Éxito',
-          message: `¡Nota de Crédito ${created.sequential} autorizada por el SRI!`,
+          message: `¡Nota de Crédito ${created.sequential} autorizada por el SRI!${emailNotice}`,
           variant: 'success',
         })
       } else {

@@ -1,5 +1,8 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
+using System.Xml;
+using System.Xml.Linq;
 using Asp.Versioning;
 using Asp.Versioning.Builder;
 using EcuNexo.Api.Email;
@@ -64,15 +67,17 @@ public static class InvoiceEmailEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
-        // Validar API key interna de billing si existe
+        // Permitir tanto llamada autenticada por JWT desde el admin/POS como API key interna de billing
         var expectedKey = configuration["InvoiceEmail:ApiKey"];
-        if (!string.IsNullOrWhiteSpace(expectedKey))
+        var hasBillingKeyHeader = httpContext.Request.Headers.TryGetValue(BillingKeyHeader, out var receivedKey);
+        var hasValidBillingKey = !string.IsNullOrWhiteSpace(expectedKey)
+            && hasBillingKeyHeader
+            && receivedKey.FirstOrDefault() == expectedKey;
+        var isAuthenticatedUser = httpContext.User.Identity?.IsAuthenticated == true;
+
+        if (!string.IsNullOrWhiteSpace(expectedKey) && !hasValidBillingKey && !isAuthenticatedUser)
         {
-            if (!httpContext.Request.Headers.TryGetValue(BillingKeyHeader, out var receivedKey)
-                || receivedKey.FirstOrDefault() != expectedKey)
-            {
-                return Results.Unauthorized();
-            }
+            return Results.Unauthorized();
         }
 
         if (string.IsNullOrWhiteSpace(request.CounterpartyEmail))
@@ -140,6 +145,29 @@ public static class InvoiceEmailEndpoints
         if (!TryBuildAttachments(request.Attachments, out var attachments, out var attachmentError))
         {
             return Results.BadRequest(new { error = attachmentError });
+        }
+
+        if (attachments is not { Count: > 0 })
+        {
+            if (hasBillingKeyHeader)
+            {
+                return Results.Ok(new
+                {
+                    sent = false,
+                    skipped = true,
+                    reason = "Notificación interna sin adjuntos omitida; el correo al cliente requiere XML y RIDE PDF."
+                });
+            }
+
+            return Results.BadRequest(new
+            {
+                error = "El correo al cliente debe incluir obligatoriamente el archivo XML y el RIDE (PDF)."
+            });
+        }
+
+        if (!HasRequiredSriAttachmentPair(attachments, out var pairError))
+        {
+            return Results.BadRequest(new { error = pairError });
         }
 
         try
@@ -249,11 +277,105 @@ public static class InvoiceEmailEndpoints
                 return false;
             }
 
+            if (string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!IsValidPdfPayload(content))
+                {
+                    error = $"El adjunto «{safeName}» no tiene una cabecera PDF válida (%PDF).";
+                    return false;
+                }
+            }
+            else if (!IsValidSriXmlPayload(content, safeName, out var xmlError))
+            {
+                error = xmlError;
+                return false;
+            }
+
             decoded.Add(new EmailAttachment(safeName, contentType, content));
         }
 
         attachments = decoded;
         return true;
+    }
+
+    internal static bool HasRequiredSriAttachmentPair(
+        IReadOnlyList<EmailAttachment>? attachments,
+        out string? error)
+    {
+        error = null;
+        if (attachments is not { Count: >= 2 })
+        {
+            error = "El correo al cliente debe adjuntar tanto el XML autorizado como el RIDE en PDF.";
+            return false;
+        }
+
+        var hasPdf = attachments.Any(a =>
+            string.Equals(a.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase));
+        var hasXml = attachments.Any(a =>
+            string.Equals(a.ContentType, "application/xml", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.ContentType, "text/xml", StringComparison.OrdinalIgnoreCase));
+
+        if (!hasPdf || !hasXml)
+        {
+            error = "El correo al cliente requiere al menos un archivo RIDE (application/pdf) y un archivo XML (application/xml).";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsValidPdfPayload(ReadOnlySpan<byte> content) =>
+        content.Length >= 4
+        && content[0] == (byte)'%'
+        && content[1] == (byte)'P'
+        && content[2] == (byte)'D'
+        && content[3] == (byte)'F';
+
+    private static readonly HashSet<string> AllowedSriXmlRoots = new(StringComparer.Ordinal)
+    {
+        "autorizacion",
+        "factura",
+        "notaCredito",
+        "liquidacionCompra",
+        "comprobanteRetencion",
+        "guiaRemision",
+    };
+
+    private static bool IsValidSriXmlPayload(byte[] content, string fileName, out string? error)
+    {
+        error = null;
+        try
+        {
+            var xmlText = Encoding.UTF8.GetString(content).TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
+            var doc = XDocument.Parse(xmlText, LoadOptions.PreserveWhitespace);
+            var root = doc.Root;
+            if (root is null || !AllowedSriXmlRoots.Contains(root.Name.LocalName))
+            {
+                error = $"El XML «{fileName}» no tiene un nodo raíz SRI válido (<autorizacion>, <factura> o <notaCredito>).";
+                return false;
+            }
+
+            if (string.Equals(root.Name.LocalName, "autorizacion", StringComparison.Ordinal))
+            {
+                var estado = root.Element("estado")?.Value?.Trim();
+                var numeroAutorizacion = root.Element("numeroAutorizacion")?.Value?.Trim();
+                var comprobante = root.Element("comprobante")?.Value?.Trim();
+                if (string.IsNullOrWhiteSpace(estado)
+                    || string.IsNullOrWhiteSpace(numeroAutorizacion)
+                    || string.IsNullOrWhiteSpace(comprobante))
+                {
+                    error = $"El XML «{fileName}» con raíz <autorizacion> debe contener <estado>, <numeroAutorizacion> y <comprobante>.";
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (XmlException)
+        {
+            error = $"El adjunto «{fileName}» no contiene un documento XML bien formado.";
+            return false;
+        }
     }
 }
 

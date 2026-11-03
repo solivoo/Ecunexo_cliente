@@ -52,15 +52,16 @@ function documentFileBase(detail: InvoiceDetail): string {
 export async function buildInvoiceEmailAttachments(
   emitterId: string,
   invoiceId: string,
-  detail?: InvoiceDetail
+  detail?: InvoiceDetail,
+  tenantId?: string | null
 ): Promise<{ readonly detail: InvoiceDetail; readonly attachments: InvoiceEmailAttachmentPayload[] }> {
   const resolved = detail ?? (await getInvoiceDetail(emitterId, invoiceId))
   const [ride, xml] = await Promise.all([
-    buildRidePdfFromDetail(resolved),
+    buildRidePdfFromDetail(resolved, tenantId),
     getInvoiceXml(emitterId, invoiceId),
   ])
   const base = documentFileBase(resolved)
-  const xmlSuffix = xml.source === 'signed' ? '' : `-${xml.source}`
+  const xmlSuffix = xml.source === 'authorized' || xml.source === 'signed' ? '' : `-${xml.source}`
 
   return {
     detail: resolved,
@@ -89,20 +90,21 @@ export async function sendAuthorizedInvoiceEmail(args: {
   readonly tenantId?: string | null
   readonly detail?: InvoiceDetail
 }): Promise<InvoiceEmailSendResult> {
+  const tenantId = args.tenantId?.trim() || selectTenantId(store.getState())
+  if (!tenantId) {
+    throw new Error('No hay empresa activa para enviar el correo.')
+  }
+
   const { detail, attachments } = await buildInvoiceEmailAttachments(
     args.emitterId,
     args.invoiceId,
-    args.detail
+    args.detail,
+    tenantId
   )
 
   const to = detail.counterparty.email?.trim() ?? ''
   if (!to) {
     throw new Error('El cliente no tiene correo registrado en la factura.')
-  }
-
-  const tenantId = args.tenantId?.trim() || selectTenantId(store.getState())
-  if (!tenantId) {
-    throw new Error('No hay empresa activa para enviar el correo.')
   }
 
   const response = await sendInvoiceAuthorizedEmail(tenantId, {
