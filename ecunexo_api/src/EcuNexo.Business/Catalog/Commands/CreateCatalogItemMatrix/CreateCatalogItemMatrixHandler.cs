@@ -135,7 +135,8 @@ public sealed class CreateCatalogItemMatrixHandler
             command.CustomAttributesJson,
             schemaJson,
             familyId: command.FamilyId,
-            hierarchyPathJson: command.HierarchyPathJson);
+            hierarchyPathJson: command.HierarchyPathJson,
+            costPrice: command.CostPrice);
 
         if (parentResult.IsFailure)
         {
@@ -174,7 +175,8 @@ public sealed class CreateCatalogItemMatrixHandler
                 v.BasePrice,
                 v.CustomAttributesJson,
                 schemaJson,
-                barcode: v.Barcode);
+                barcode: v.Barcode,
+                costPrice: v.CostPrice);
 
             if (childResult.IsFailure)
             {

@@ -40,6 +40,7 @@ import {
   type MatrixVariantPayloadWithImage,
   type VariantImageItem,
 } from '@/pages/catalog/VariantMatrixBuilder'
+import { CatalogPricingMarginBar, parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
 import {
   buildDimensionValuesMap,
   buildHierarchyPathJson,
@@ -111,6 +112,7 @@ export function CreateCatalogItemPage() {
   const [kind, setKind] = useState<CatalogItemKind>(CatalogItemKind.Physical)
   const [manualSku, setManualSku] = useState('')
   const [barcode, setBarcode] = useState('')
+  const [costPrice, setCostPrice] = useState('')
   const [basePrice, setBasePrice] = useState('')
   const [brand, setBrand] = useState('')
   const [unitOfMeasure, setUnitOfMeasure] = useState('UND')
@@ -523,10 +525,10 @@ export function CreateCatalogItemPage() {
           if (cleanSku && existingSkus.has(cleanSku)) {
             throw new Error(`El SKU «${cleanSku}» ya existe en el catálogo. Usa un SKU único.`)
           }
-          const parsedBasePrice =
-            basePrice.trim() !== '' && !isNaN(Number(basePrice)) && Number(basePrice) >= 0
-              ? Number(basePrice)
-              : null
+          const rawCostPrice = parsePriceInput(costPrice)
+          const parsedCostPrice = rawCostPrice != null && rawCostPrice >= 0 ? rawCostPrice : null
+          const rawBasePrice = parsePriceInput(basePrice)
+          const parsedBasePrice = rawBasePrice != null && rawBasePrice >= 0 ? rawBasePrice : null
 
           const attrsToSerialize: CustomAttributeRow[] = [...customAttributes]
           if (isStandardProduct) {
@@ -552,6 +554,7 @@ export function CreateCatalogItemPage() {
             description: finalDescription || null,
             sku: finalSku || null,
             barcode: barcode.trim() || null,
+            costPrice: parsedCostPrice,
             basePrice: parsedBasePrice,
             customAttributesJson:
               attrsToSerialize.length > 0 ? serializeCustomAttributes(attrsToSerialize, []) : null,
@@ -616,6 +619,7 @@ export function CreateCatalogItemPage() {
       appliedTemplate,
       appliedTemplateLevels,
       barcode,
+      costPrice,
       basePrice,
       brand,
       customAttributes,
@@ -888,24 +892,49 @@ export function CreateCatalogItemPage() {
                 )}
 
                 {!usesMatrix && (
-                  <div className="ecu-companies-form__field">
-                    <NumberBox
-                      id="ci-base-price"
-                      label="Precio base / PVP ($)"
-                      labelPosition="outlined"
-                      variant="outline"
-                      min={0}
-                      step={0.01}
-                      placeholder="0.00"
-                      value={basePrice !== '' ? Number(basePrice) : undefined}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
-                      disabled={busy}
-                      fullWidth
-                    />
-                    <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                      Precio unitario de referencia para facturación y ventas.
-                    </p>
-                  </div>
+                  <>
+                    <div className="ecu-companies-form__field">
+                      <NumberBox
+                        id="ci-cost-price"
+                        label="Precio base / Costo ($)"
+                        labelPosition="outlined"
+                        variant="outline"
+                        min={0}
+                        step={0.01}
+                        placeholder="0.00"
+                        value={costPrice !== '' ? Number(costPrice) : undefined}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setCostPrice(e.target.value)}
+                        disabled={busy}
+                        fullWidth
+                      />
+                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                        Costo por artículo para calcular tu ganancia (los clientes no verán esto).
+                      </p>
+                    </div>
+
+                    <div className="ecu-companies-form__field">
+                      <NumberBox
+                        id="ci-base-price"
+                        label="PVP / Precio de venta ($)"
+                        labelPosition="outlined"
+                        variant="outline"
+                        min={0}
+                        step={0.01}
+                        placeholder="0.00"
+                        value={basePrice !== '' ? Number(basePrice) : undefined}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
+                        disabled={busy}
+                        fullWidth
+                      />
+                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                        Precio unitario de venta al público para facturación y ventas.
+                      </p>
+                    </div>
+
+                    <div className="ecu-companies-form__field">
+                      <CatalogPricingMarginBar costPrice={costPrice} basePrice={basePrice} />
+                    </div>
+                  </>
                 )}
 
                 {!usesMatrix ? (

@@ -68,6 +68,9 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
     public decimal? BasePrice { get; private set; }
 
+    /// <summary>Precio base / costo unitario referencial del ítem (usado en planes sin inventario o como fallback de costo).</summary>
+    public decimal? CostPrice { get; private set; }
+
     /// <summary>Cantidad mínima de compra por ítem vendible (SKU). Por defecto 1.</summary>
     public decimal MinOrderQuantity { get; private set; } = 1m;
 
@@ -106,7 +109,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Guid? familyId = null,
         string? hierarchyPathJson = null,
         string? barcode = null,
-        decimal? minOrderQuantity = null)
+        decimal? minOrderQuantity = null,
+        decimal? costPrice = null)
     {
         if (tenantId == Guid.Empty)
         {
@@ -142,6 +146,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         if (priceResult.IsFailure)
         {
             return Result.Failure<CatalogItem>(priceResult.Error!);
+        }
+
+        var costResult = NormalizeCostPrice(costPrice);
+        if (costResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(costResult.Error!);
         }
 
         var attrs = CatalogAttributeSchema.NormalizeAttributes(customAttributesJson);
@@ -180,6 +190,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             Sku = skuResult.Value,
             Barcode = barcodeResult.Value,
             BasePrice = priceResult.Value,
+            CostPrice = costResult.Value,
             MinOrderQuantity = minOrderResult.Value,
             CustomAttributesJson = attrs.Value!,
             Status = CatalogItemStatus.Active,
@@ -200,7 +211,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string categorySchemaJson,
         Guid? createdBy = null,
         Guid? familyId = null,
-        string? hierarchyPathJson = null)
+        string? hierarchyPathJson = null,
+        decimal? costPrice = null)
     {
         if (tenantId == Guid.Empty)
         {
@@ -244,6 +256,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(priceResult.Error!);
         }
 
+        var costResult = NormalizeCostPrice(costPrice);
+        if (costResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(costResult.Error!);
+        }
+
         var attrs = CatalogAttributeSchema.NormalizeAttributes(customAttributesJson);
         if (attrs.IsFailure)
         {
@@ -267,6 +285,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             Description = descResult.Value,
             Sku = skuResult.Value,
             BasePrice = priceResult.Value,
+            CostPrice = costResult.Value,
             CustomAttributesJson = attrs.Value!,
             IsMatrixParent = true,
             VariantDimensionsJson = dimsResult.Value!,
@@ -285,7 +304,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string? customAttributesJson,
         string categorySchemaJson,
         Guid? createdBy = null,
-        string? barcode = null)
+        string? barcode = null,
+        decimal? costPrice = null)
     {
         ArgumentNullException.ThrowIfNull(parent);
 
@@ -317,6 +337,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         if (priceResult.IsFailure)
         {
             return Result.Failure<CatalogItem>(priceResult.Error!);
+        }
+
+        var costResult = NormalizeCostPrice(costPrice ?? parent.CostPrice);
+        if (costResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(costResult.Error!);
         }
 
         var barcodeResult = NormalizeBarcode(barcode);
@@ -368,6 +394,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             Sku = skuResult.Value,
             Barcode = barcodeResult.Value,
             BasePrice = priceResult.Value,
+            CostPrice = costResult.Value,
             MinOrderQuantity = parent.MinOrderQuantity,
             CustomAttributesJson = attrs.Value!,
             Status = CatalogItemStatus.Active,
@@ -601,7 +628,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Guid? updatedBy,
         Guid? familyId = null,
         string? hierarchyPathJson = null,
-        decimal? minOrderQuantity = null)
+        decimal? minOrderQuantity = null,
+        decimal? costPrice = null)
     {
         var nameResult = NormalizeName(name);
         if (nameResult.IsFailure)
@@ -625,6 +653,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         if (priceResult.IsFailure)
         {
             return Result.Failure(priceResult.Error!);
+        }
+
+        var costResult = NormalizeCostPrice(costPrice);
+        if (costResult.IsFailure)
+        {
+            return Result.Failure(costResult.Error!);
         }
 
         var attrs = CatalogAttributeSchema.NormalizeAttributes(customAttributesJson);
@@ -654,6 +688,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Description = descResult.Value;
         Sku = skuResult.Value;
         BasePrice = priceResult.Value;
+        CostPrice = costResult.Value;
         FamilyId = familyId;
         HierarchyPathJson = path.Value;
         CustomAttributesJson = PreserveSystemAttributes(CustomAttributesJson, attrs.Value!);
@@ -1827,6 +1862,25 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         return Result.Success<decimal?>(decimal.Round(basePrice.Value, 4, MidpointRounding.AwayFromZero));
+    }
+
+    private static Result<decimal?> NormalizeCostPrice(decimal? costPrice)
+    {
+        if (costPrice is null)
+        {
+            return Result.Success<decimal?>(null);
+        }
+
+        if (costPrice.Value < 0)
+        {
+            return Result.Failure<decimal?>(
+                new Error(
+                    "catalog.item.cost_price.range",
+                    "El costo (precio base) no puede ser negativo.",
+                    ErrorType.Validation));
+        }
+
+        return Result.Success<decimal?>(decimal.Round(costPrice.Value, 4, MidpointRounding.AwayFromZero));
     }
 
     /// <summary>

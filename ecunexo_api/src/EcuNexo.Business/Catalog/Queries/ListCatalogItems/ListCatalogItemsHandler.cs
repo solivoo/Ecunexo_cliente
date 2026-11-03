@@ -103,7 +103,8 @@ public sealed class ListCatalogItemsHandler
                     i.CustomAttributesJson,
                     i.IsHiddenFromStorefront,
                     i.ParentId is { } pid && parentNames.TryGetValue(pid, out var parentName) ? parentName : null,
-                    i.MinOrderQuantity);
+                    i.MinOrderQuantity,
+                    i.CostPrice);
             })
             .ToList();
         return Result.Success(items);

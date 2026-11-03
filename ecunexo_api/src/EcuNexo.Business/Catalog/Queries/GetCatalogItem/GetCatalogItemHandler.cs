@@ -135,7 +135,8 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                     ResolveVariantStringList(v, "colores_secundarios"),
                     v.Barcode,
                     v.SortOrder,
-                    v.MinOrderQuantity);
+                    v.MinOrderQuantity,
+                    v.CostPrice);
             })
             .ToList();
 
@@ -184,7 +185,8 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 item.IsHiddenFromStorefront,
                 item.Barcode,
                 item.MinOrderQuantity,
-                parentDescription));
+                parentDescription,
+                item.CostPrice));
     }
 
     private static IReadOnlyList<MatrixAxisDef> ParseMatrixAxes(string? variantDimensionsJson)

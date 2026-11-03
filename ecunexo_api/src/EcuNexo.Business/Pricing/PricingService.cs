@@ -142,21 +142,26 @@ public sealed class PricingService : IPricingService
                 averageCost = totalQty > 0
                     ? Math.Round(positiveStock.Sum(s => s.Quantity * s.AverageCost) / totalQty, 4)
                     : Math.Round(itemStocks.Average(s => s.AverageCost), 4);
+            }
+        }
 
-                if (averageCost > 0m)
-                {
-                    var unitNetExcludingTax = request.Quantity > 0m ? calc.TaxableBase / request.Quantity : calc.TaxableBase;
-                    if (unitNetExcludingTax > 0m)
-                    {
-                        marginPercent = Math.Round(((unitNetExcludingTax - averageCost.Value) / unitNetExcludingTax) * 100m, 2);
-                    }
+        if ((averageCost is null || averageCost <= 0m) && item.CostPrice is > 0m)
+        {
+            averageCost = Math.Round(item.CostPrice.Value, 4);
+        }
 
-                    if (unitNetExcludingTax < averageCost.Value)
-                    {
-                        isBelowCost = true;
-                        rules.Add("MARGIN_WARNING_BELOW_COST");
-                    }
-                }
+        if (averageCost > 0m)
+        {
+            var unitNetExcludingTax = request.Quantity > 0m ? calc.TaxableBase / request.Quantity : calc.TaxableBase;
+            if (unitNetExcludingTax > 0m)
+            {
+                marginPercent = Math.Round(((unitNetExcludingTax - averageCost.Value) / unitNetExcludingTax) * 100m, 2);
+            }
+
+            if (unitNetExcludingTax < averageCost.Value)
+            {
+                isBelowCost = true;
+                rules.Add("MARGIN_WARNING_BELOW_COST");
             }
         }
 

@@ -189,8 +189,8 @@ public sealed class MenuNavigationMapperTests
         modules!.Should().BeEquivalentTo([TenantModuleCodes.Identity, TenantModuleCodes.Catalog]);
     }
 
-    [Fact(DisplayName = "Plan B1 (max_warehouses = 1) bloquea el menú de Ubicaciones de Bodegas como módulo")]
-    public void BuildTree_SingleWarehouseLimit_LocksWarehousingNodeAsModule()
+    [Fact(DisplayName = "Plan básico (max_warehouses <= 1) oculta por completo el menú de Bodegas")]
+    public void BuildTree_SingleWarehouseLimit_HidesWarehousingNodeCompletely()
     {
         var items = new[]
         {
@@ -208,10 +208,7 @@ public sealed class MenuNavigationMapperTests
             [TenantModuleCodes.Warehousing, TenantModuleCodes.Inventory],
             limits);
 
-        var section = tree.Should().ContainSingle().Subject;
-        var leaf = section.Children.Should().ContainSingle().Subject;
-        leaf.Disabled.Should().BeTrue();
-        leaf.LockKind.Should().Be("module");
+        tree.Should().BeEmpty();
     }
 
     private static MenuItem Item(

@@ -14,14 +14,16 @@ public sealed record CreateCatalogItemMatrixCommand(
     IReadOnlyList<CreateVariantChildDto> Variants,
     string? CustomAttributesJson = null,
     Guid? FamilyId = null,
-    string? HierarchyPathJson = null) : ICommand<CreateCatalogItemMatrixResponse>;
+    string? HierarchyPathJson = null,
+    decimal? CostPrice = null) : ICommand<CreateCatalogItemMatrixResponse>;
 
 public sealed record CreateVariantChildDto(
     string VariantTitle,
     string Sku,
     string? Barcode = null,
     decimal? BasePrice = null,
-    string? CustomAttributesJson = null);
+    string? CustomAttributesJson = null,
+    decimal? CostPrice = null);
 
 public sealed record CreateCatalogItemMatrixResponse(
     Guid ParentItemId,

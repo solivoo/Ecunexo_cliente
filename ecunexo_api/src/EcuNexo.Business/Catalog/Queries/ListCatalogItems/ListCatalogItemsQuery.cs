@@ -32,4 +32,5 @@ public sealed record CatalogItemListItemResponse(
     string? CustomAttributesJson = null,
     bool IsHiddenFromStorefront = false,
     string? ParentName = null,
-    decimal MinOrderQuantity = 1);
+    decimal MinOrderQuantity = 1,
+    decimal? CostPrice = null);

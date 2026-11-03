@@ -80,13 +80,31 @@ function applySession(state: AuthState, session: SessionPayload): void {
     state.tenant = tenantFromSession(session.tenant)
     state.enabledModules = session.tenant.enabledModules ?? null
     state.moduleEntitlements = session.tenant.moduleEntitlements ?? null
-    state.resolvedLimits = session.tenant.resolvedLimits ?? null
+    const baseLimits = session.tenant.resolvedLimits ? { ...session.tenant.resolvedLimits } : {}
+    if (
+      typeof session.tenant.maxWarehouses === 'number' &&
+      session.tenant.maxWarehouses > 0 &&
+      baseLimits['warehousing.max_warehouses'] === undefined
+    ) {
+      baseLimits['warehousing.max_warehouses'] = session.tenant.maxWarehouses
+    }
+    state.resolvedLimits = Object.keys(baseLimits).length > 0 ? baseLimits : null
   } else {
     state.tenantId = null
     state.tenant = defaultTenantBranding
     state.enabledModules = session.subscription?.enabledModules ?? null
     state.moduleEntitlements = session.subscription?.moduleEntitlements ?? null
-    state.resolvedLimits = session.subscription?.resolvedLimits ?? null
+    const baseLimits = session.subscription?.resolvedLimits
+      ? { ...session.subscription.resolvedLimits }
+      : {}
+    if (
+      typeof session.subscription?.maxWarehouses === 'number' &&
+      session.subscription.maxWarehouses > 0 &&
+      baseLimits['warehousing.max_warehouses'] === undefined
+    ) {
+      baseLimits['warehousing.max_warehouses'] = session.subscription.maxWarehouses
+    }
+    state.resolvedLimits = Object.keys(baseLimits).length > 0 ? baseLimits : null
   }
 }
 
@@ -215,10 +233,11 @@ export const selectVisibleNavigation = createSelector(
   [
     (state: AuthRootState) => state.auth.navigation,
     (state: AuthRootState) => state.auth.settings['ui.nav.locked_modules_mode'],
+    (state: AuthRootState) => state.auth.resolvedLimits,
   ],
-  (navigation, rawMode) => {
+  (navigation, rawMode, resolvedLimits) => {
     const mode = rawMode === 'locked' ? 'locked' : 'hidden'
-    return filterNavigationTree(navigation, mode)
+    return filterNavigationTree(navigation, mode, resolvedLimits)
   }
 )
 
@@ -244,6 +263,18 @@ export function selectModuleEntitlements(state: { auth: AuthState }): ModuleEnti
 
 export function selectResolvedLimits(state: { auth: AuthState }): Record<string, number> | null {
   return state.auth.resolvedLimits
+}
+
+export function selectMaxWarehouses(state: { auth: AuthState }): number | null {
+  const fromLimits = state.auth.resolvedLimits?.['warehousing.max_warehouses']
+  if (typeof fromLimits === 'number') {
+    return fromLimits
+  }
+  const fromSub = state.auth.subscription?.maxWarehouses
+  if (typeof fromSub === 'number') {
+    return fromSub
+  }
+  return null
 }
 
 export function selectHasPermission(state: { auth: AuthState }, code: string): boolean {

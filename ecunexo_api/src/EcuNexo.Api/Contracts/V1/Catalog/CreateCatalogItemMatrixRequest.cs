@@ -10,11 +10,13 @@ public sealed record CreateCatalogItemMatrixRequest(
     IReadOnlyList<CreateVariantChildRequest> Variants,
     string? CustomAttributesJson = null,
     Guid? FamilyId = null,
-    string? HierarchyPathJson = null);
+    string? HierarchyPathJson = null,
+    decimal? CostPrice = null);
 
 public sealed record CreateVariantChildRequest(
     string VariantTitle,
     string Sku,
     string? Barcode = null,
     decimal? BasePrice = null,
-    string? CustomAttributesJson = null);
+    string? CustomAttributesJson = null,
+    decimal? CostPrice = null);

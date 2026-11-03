@@ -80,6 +80,9 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
         builder.Property(i => i.BasePrice)
             .HasColumnType("numeric(18,4)");
 
+        builder.Property(i => i.CostPrice)
+            .HasColumnType("numeric(18,4)");
+
         builder.Property(i => i.MinOrderQuantity)
             .HasColumnType("numeric(18,4)")
             .HasDefaultValue(1m)

@@ -170,7 +170,8 @@ public static class CatalogEndpoints
             v.Sku,
             v.Barcode,
             v.BasePrice,
-            v.CustomAttributesJson)).ToList();
+            v.CustomAttributesJson,
+            v.CostPrice)).ToList();
 
         var command = new CreateCatalogItemMatrixCommand(
             tenantId,
@@ -183,7 +184,8 @@ public static class CatalogEndpoints
             variants,
             body.CustomAttributesJson,
             body.FamilyId,
-            body.HierarchyPathJson);
+            body.HierarchyPathJson,
+            body.CostPrice);
 
         var result = await sender
             .SendAsync<CreateCatalogItemMatrixCommand, CreateCatalogItemMatrixResponse>(command, ct)
@@ -212,7 +214,8 @@ public static class CatalogEndpoints
             body.Sku,
             body.BasePrice,
             body.CustomAttributesJson,
-            body.Barcode);
+            body.Barcode,
+            body.CostPrice);
 
         var result = await sender
             .SendAsync<AddCatalogItemVariantCommand, AddCatalogItemVariantResponse>(command, ct)

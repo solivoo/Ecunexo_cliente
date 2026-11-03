@@ -130,7 +130,8 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
             updatedBy: null,
             familyId: command.FamilyId,
             hierarchyPathJson: command.HierarchyPathJson,
-            minOrderQuantity: command.MinOrderQuantity);
+            minOrderQuantity: command.MinOrderQuantity,
+            costPrice: command.CostPrice);
         if (updated.IsFailure)
         {
             return Result.Failure<UpdateCatalogItemResponse>(updated.Error!);

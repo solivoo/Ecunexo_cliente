@@ -29,6 +29,7 @@ import {
   type DimensionLookup,
 } from '@/lib/catalogArchetype'
 import { VariantPhysicalFields } from '@/pages/catalog/VariantPhysicalFields'
+import { computeProfitAndMargin, parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 import { VariantAdminSummaryBlock } from '@/pages/catalog/VariantAdminSummaryBlock'
 import type { CatalogMatrixAxisDto } from '@/types/catalogApi'
@@ -206,6 +207,8 @@ export function EditCatalogItemVariantsSection({
   const [editModalVariant, setEditModalVariant] = useState<VariantRow | null>(null)
   const [editModalSku, setEditModalSku] = useState('')
   const [editModalBarcode, setEditModalBarcode] = useState('')
+  const [editModalCostPrice, setEditModalCostPrice] = useState('')
+  const [editModalBasePrice, setEditModalBasePrice] = useState('')
   const [editModalDimValues, setEditModalDimValues] = useState<Record<string, string>>({})
   const [editModalAttributeValues, setEditModalAttributeValues] = useState<CustomAttributeRow[]>([])
   const [savingEditModal, setSavingEditModal] = useState(false)
@@ -340,6 +343,7 @@ export function EditCatalogItemVariantsSection({
         kind: parentItem.kind,
         name: colorsModalVariant.name,
         sku: colorsModalVariant.sku,
+        costPrice: colorsModalVariant.costPrice ?? null,
         basePrice: colorsModalVariant.basePrice,
         customAttributesJson: JSON.stringify(attrs),
         familyId: parentItem.familyId ?? null,
@@ -385,6 +389,8 @@ export function EditCatalogItemVariantsSection({
       setEditModalVariant(row)
       setEditModalSku(row.sku ?? '')
       setEditModalBarcode(row.barcode ?? '')
+      setEditModalCostPrice(row.costPrice != null ? String(row.costPrice) : '')
+      setEditModalBasePrice(row.basePrice != null ? String(row.basePrice) : '')
 
       const attrs = parseAttributes(row.customAttributesJson)
       const dims: Record<string, string> = {}
@@ -455,13 +461,19 @@ export function EditCatalogItemVariantsSection({
         }
       }
 
+      const rawCost = parsePriceInput(editModalCostPrice)
+      const parsedCostPrice = rawCost != null && rawCost >= 0 ? rawCost : null
+      const rawBase = parsePriceInput(editModalBasePrice)
+      const parsedBasePrice = rawBase != null && rawBase >= 0 ? rawBase : null
+
       await updateCatalogItem(tenantId, editModalVariant.id, {
         kind: parentItem.kind,
         name: resolvedName,
         description: resolvedDescription,
         sku: editModalSku.trim() || null,
         barcode: editModalBarcode.trim() || null,
-        basePrice: editModalVariant.basePrice,
+        costPrice: parsedCostPrice,
+        basePrice: parsedBasePrice,
         customAttributesJson: JSON.stringify(merged),
         familyId: parentItem.familyId ?? null,
         hierarchyPathJson: parentItem.hierarchyPathJson ?? null,
@@ -487,6 +499,8 @@ export function EditCatalogItemVariantsSection({
   }, [
     editModalAttributeValues,
     editModalBarcode,
+    editModalCostPrice,
+    editModalBasePrice,
     editModalDimValues,
     editModalSku,
     editModalVariant,
@@ -587,11 +601,12 @@ export function EditCatalogItemVariantsSection({
       },
       {
         key: 'basePrice',
-        header: 'Precio (lista)',
-        width: 150,
+        header: 'PVP / Margen',
+        width: 175,
         renderCell: (_value: unknown, row: VariantRow) => {
-          const price = listPrices.get(row.id)
-          if (price == null) {
+          const listPrice = listPrices.get(row.id)
+          const effectivePrice = listPrice ?? row.basePrice ?? null
+          if (effectivePrice == null) {
             return (
               <button
                 type="button"
@@ -607,16 +622,43 @@ export function EditCatalogItemVariantsSection({
                   color: 'var(--glb-muted, #64748b)',
                   fontSize: '0.8rem',
                 }}
-                title="Asignar precio en Gestión de precios"
+                title="Asignar precio en Gestión de precios o editar PVP de la variante"
               >
                 Sin precio
               </button>
             )
           }
+
+          const { profit, marginPct } = computeProfitAndMargin(row.costPrice, effectivePrice)
           return (
-            <span style={{ fontWeight: 700, color: 'var(--shell-primary, #4f46e5)' }}>
-              ${price.toFixed(2)}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+              <span
+                style={{
+                  fontWeight: 700,
+                  color: 'var(--shell-primary, #4f46e5)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                ${effectivePrice.toFixed(2)}
+              </span>
+              {row.costPrice != null && profit != null && marginPct != null ? (
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    color:
+                      profit > 0
+                        ? 'var(--glb-success-text, #15803d)'
+                        : profit < 0
+                          ? 'var(--glb-danger-text, #b91c1c)'
+                          : 'var(--glb-text-secondary)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                  title={`Costo: $${row.costPrice.toFixed(2)} · Ganancia: $${profit.toFixed(2)}`}
+                >
+                  Costo ${row.costPrice.toFixed(2)} · {marginPct.toFixed(1)}%
+                </span>
+              ) : null}
+            </div>
           )
         },
       },
@@ -1040,6 +1082,10 @@ export function EditCatalogItemVariantsSection({
               onSkuChange={setEditModalSku}
               barcode={editModalBarcode}
               onBarcodeChange={setEditModalBarcode}
+              costPrice={editModalCostPrice}
+              onCostPriceChange={setEditModalCostPrice}
+              basePrice={editModalBasePrice}
+              onBasePriceChange={setEditModalBasePrice}
               dimensions={dimensions}
               dimensionValues={editModalDimValues}
               onDimensionChange={(dimName, value) =>

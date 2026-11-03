@@ -55,6 +55,7 @@ export type CatalogItemListItemDto = {
   description: string | null
   sku: string | null
   basePrice: number | null
+  costPrice?: number | null
   status: CatalogItemStatus
   createdAt: string
   mainImageThumbUrl?: string | null
@@ -78,6 +79,7 @@ export type CatalogItemVariantSummaryDto = {
   sku: string | null
   barcode?: string | null
   basePrice: number | null
+  costPrice?: number | null
   customAttributesJson: string
   status: CatalogItemStatus
   mainImageThumbUrl?: string | null
@@ -113,6 +115,7 @@ export type CatalogItemDetailDto = {
   sku: string | null
   barcode?: string | null
   basePrice: number | null
+  costPrice?: number | null
   customAttributesJson: string
   status: CatalogItemStatus
   createdAt: string
@@ -138,6 +141,7 @@ export type CreateCatalogItemBody = {
   sku?: string | null
   barcode?: string | null
   basePrice?: number | null
+  costPrice?: number | null
   customAttributesJson?: string | null
   familyId?: string | null
   hierarchyPathJson?: string | null
@@ -170,6 +174,7 @@ export type CreateVariantChildPayload = {
   sku: string
   barcode?: string | null
   basePrice?: number | null
+  costPrice?: number | null
   customAttributesJson?: string | null
   initialStock?: number | null
   initialStockWarehouseId?: string | null
@@ -181,6 +186,7 @@ export type CreateCatalogItemMatrixPayload = {
   description?: string | null
   modelCode?: string | null
   basePrice?: number | null
+  costPrice?: number | null
   variantDimensionsJson: string
   variants: CreateVariantChildPayload[]
   customAttributesJson?: string | null
@@ -198,6 +204,7 @@ export type AddCatalogItemVariantBody = {
   variantTitle: string
   sku: string
   basePrice?: number | null
+  costPrice?: number | null
   barcode?: string | null
   customAttributesJson?: string | null
   initialStock?: number | null

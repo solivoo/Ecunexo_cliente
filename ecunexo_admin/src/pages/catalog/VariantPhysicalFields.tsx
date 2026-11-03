@@ -8,6 +8,7 @@ import {
   type DimensionLookup,
 } from '@/lib/catalogArchetype'
 import type { TenantMediaAssetDto } from '@/types/catalogApi'
+import { CatalogPricingMarginBar } from '@/pages/catalog/CatalogPricingMarginBar'
 import './variantMatrixBuilder.css'
 
 export type VariantDimensionOption = {
@@ -21,6 +22,10 @@ export type VariantPhysicalFieldsProps = {
   readonly onSkuChange: (value: string) => void
   readonly barcode: string
   readonly onBarcodeChange: (value: string) => void
+  readonly costPrice?: string
+  readonly onCostPriceChange?: (value: string) => void
+  readonly basePrice?: string
+  readonly onBasePriceChange?: (value: string) => void
   readonly dimensions: readonly VariantDimensionOption[]
   /** Valores de dimensión; clave = nombre de dimensión en minúsculas. */
   readonly dimensionValues: Record<string, string>
@@ -61,6 +66,10 @@ export function VariantPhysicalFields({
   onSkuChange,
   barcode,
   onBarcodeChange,
+  costPrice = '',
+  onCostPriceChange,
+  basePrice = '',
+  onBasePriceChange,
   dimensions,
   dimensionValues,
   onDimensionChange,
@@ -203,6 +212,47 @@ export function VariantPhysicalFields({
           fullWidth
         />
       </div>
+
+      {onCostPriceChange && (
+        <div className="ecu-variant-sub-item-field">
+          <label className="ecu-variant-sub-item-label">Precio base / Costo ($)</label>
+          <NumberBox
+            size="sm"
+            variant="outline"
+            min={0}
+            step={0.01}
+            value={costPrice !== '' ? Number(costPrice) : undefined}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => onCostPriceChange(e.target.value)}
+            placeholder="0.00"
+            disabled={disabled}
+            fullWidth
+          />
+        </div>
+      )}
+
+      {onBasePriceChange && (
+        <div className="ecu-variant-sub-item-field">
+          <label className="ecu-variant-sub-item-label">PVP ($)</label>
+          <NumberBox
+            size="sm"
+            variant="outline"
+            min={0}
+            step={0.01}
+            value={basePrice !== '' ? Number(basePrice) : undefined}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => onBasePriceChange(e.target.value)}
+            placeholder="0.00"
+            disabled={disabled}
+            fullWidth
+          />
+        </div>
+      )}
+
+      {(onCostPriceChange || onBasePriceChange) && (
+        <div className="ecu-variant-sub-item-field">
+          <label className="ecu-variant-sub-item-label">Ganancia / Margen</label>
+          <CatalogPricingMarginBar costPrice={costPrice} basePrice={basePrice} compact />
+        </div>
+      )}
 
       {fieldsAfterSku.map((field) => {
         const lookup = dimensionValuesMap.get(field.key.trim().toLowerCase())

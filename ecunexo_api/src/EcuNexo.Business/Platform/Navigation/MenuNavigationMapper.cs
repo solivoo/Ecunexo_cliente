@@ -67,6 +67,13 @@ internal static class MenuNavigationMapper
             return null;
         }
 
+        // En planes con 1 sola bodega (max_warehouses <= 1), la bodega Principal es obligatoria por defecto
+        // para inventariar, por lo que el menú de Bodegas no debe mostrarse en la navegación.
+        if (IsSingleWarehouseHidden(item, resolvedLimits))
+        {
+            return null;
+        }
+
         var children = childMap.TryGetValue(item.Id, out var childItems)
             ? childItems
                 .Select(child => MapNode(child, childMap, permSet, enabledModules, resolvedLimits))
@@ -75,7 +82,7 @@ internal static class MenuNavigationMapper
                 .ToList()
             : [];
 
-        var (disabled, reason, lockKind) = Evaluate(item, permSet, enabledModules, resolvedLimits);
+        var (disabled, reason, lockKind) = Evaluate(item, permSet, enabledModules);
         var isContainer = string.IsNullOrWhiteSpace(item.Route);
 
         // Contenedor de sección (sin ruta): solo visible si tiene hijos accesibles o es placeholder.
@@ -122,20 +129,9 @@ internal static class MenuNavigationMapper
     private static (bool Disabled, string? Reason, NavigationLockKind Kind) Evaluate(
         MenuItem item,
         HashSet<string> permSet,
-        IReadOnlyList<string>? enabledModules,
-        IReadOnlyDictionary<string, int>? resolvedLimits)
+        IReadOnlyList<string>? enabledModules)
     {
         if (!IsModuleEnabled(item.ModuleCode, enabledModules))
-        {
-            return (true, "Módulo no incluido en tu plan.", NavigationLockKind.Module);
-        }
-
-        // En Plan B1 (max_warehouses <= 1), el módulo warehousing sirve como dependencia de Inventario
-        // para la Bodega Principal inicial, pero la gestión multi-bodega se desbloquea en Plan C1.
-        if (string.Equals(item.ModuleCode, TenantModuleCodes.Warehousing, StringComparison.OrdinalIgnoreCase)
-            && resolvedLimits is not null
-            && resolvedLimits.TryGetValue($"{TenantModuleCodes.Warehousing}.{ModuleTierCatalog.LimitMaxWarehouses}", out var maxWarehouses)
-            && maxWarehouses <= 1)
         {
             return (true, "Módulo no incluido en tu plan.", NavigationLockKind.Module);
         }
@@ -152,6 +148,24 @@ internal static class MenuNavigationMapper
         }
 
         return (false, null, NavigationLockKind.None);
+    }
+
+    private static bool IsSingleWarehouseHidden(
+        MenuItem item,
+        IReadOnlyDictionary<string, int>? resolvedLimits)
+    {
+        if (resolvedLimits is null
+            || !resolvedLimits.TryGetValue(
+                $"{TenantModuleCodes.Warehousing}.{ModuleTierCatalog.LimitMaxWarehouses}",
+                out var maxWarehouses)
+            || maxWarehouses > 1)
+        {
+            return false;
+        }
+
+        return string.Equals(item.ModuleCode, TenantModuleCodes.Warehousing, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(item.Id, "warehousing", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(item.Id, "warehousing-list", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? ToLockKind(NavigationLockKind kind) => kind switch

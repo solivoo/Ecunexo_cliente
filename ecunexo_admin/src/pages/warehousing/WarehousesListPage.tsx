@@ -18,7 +18,7 @@ import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { listWarehouses } from '@/services/inventoryApi'
-import { selectTenantId } from '@/store/authSlice'
+import { selectMaxWarehouses, selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { WarehouseListItemDto } from '@/types/inventoryApi'
 
@@ -30,6 +30,7 @@ export function WarehousesListPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
+  const maxWarehouses = useAppSelector(selectMaxWarehouses)
   const canReadWarehousing = useHasPermission('warehousing.read')
   const canManageLocations = useHasPermission('warehousing.locations.manage')
   const canManageWarehouse = useHasPermission('warehousing.warehouse.manage')
@@ -163,6 +164,17 @@ export function WarehousesListPage() {
   const mainCount = rows.filter((r) => r.isMain).length
   const transitCount = rows.filter((r) => r.systemRole === 1).length
   const operationalCount = rows.filter((r) => !r.isSystem).length
+  const isSingleWarehousePlan = maxWarehouses !== null && maxWarehouses <= 1
+  const isLimitReached =
+    maxWarehouses !== null && maxWarehouses > 0 && operationalCount >= maxWarehouses
+  const isCreateBlocked = !canManage || isSingleWarehousePlan || isLimitReached
+  const createDisabledReason = isSingleWarehousePlan
+    ? 'Tu plan actual incluye una única bodega principal por defecto.'
+    : isLimitReached
+      ? `Has alcanzado el límite de ${maxWarehouses} bodegas de tu plan.`
+      : !canManage
+        ? 'No tienes permiso para registrar nuevas bodegas.'
+        : undefined
 
   return (
     <TenantSessionGate
@@ -196,15 +208,17 @@ export function WarehousesListPage() {
               title="Aún no hay bodegas registradas"
               description="Crea tu primera bodega operativa para comenzar a registrar entradas, salidas y movimientos de inventario."
               action={
-                canManage ? (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => navigate('/bodegas/nueva')}
-                  >
-                    + Nueva Bodega
-                  </Button>
-                ) : undefined
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={isCreateBlocked}
+                  title={createDisabledReason}
+                  onClick={() => {
+                    if (!isCreateBlocked) navigate('/bodegas/nueva')
+                  }}
+                >
+                  + Nueva Bodega
+                </Button>
               }
             />
           ) : (
@@ -222,15 +236,17 @@ export function WarehousesListPage() {
               toolbarRight={
                 <div className="ecu-grid-toolbar-actions">
                   <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
-                  {canManage && (
-                    <Button
-                      type="button"
-                      variant="primary"
-                      onClick={() => navigate('/bodegas/nueva')}
-                    >
-                      + Nueva Bodega
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={isCreateBlocked}
+                    title={createDisabledReason}
+                    onClick={() => {
+                      if (!isCreateBlocked) navigate('/bodegas/nueva')
+                    }}
+                  >
+                    + Nueva Bodega
+                  </Button>
                 </div>
               }
               paging={paging}

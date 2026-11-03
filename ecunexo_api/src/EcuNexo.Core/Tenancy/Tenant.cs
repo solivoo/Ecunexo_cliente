@@ -166,34 +166,43 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
     }
 
     /// <summary>
-    /// Obtiene el límite de usuarios desde el entitlement de identity.
-    /// Caída a <see cref="ServicePlan.MaxUsers"/> si no hay entitlements definidos.
+    /// Obtiene el límite de usuarios desde un sobrescrito explícito de identity;
+    /// cae a <see cref="ServicePlan.MaxUsers"/> si no hay sobrescrito explícito.
     /// </summary>
-    public int ResolveMaxUsers() =>
-        GetModuleLimit(TenantModuleCodes.Identity, ModuleTierCatalog.LimitMaxUsers)
-        ?? ServicePlan.MaxUsers;
-
-    /// <summary>
-    /// Cupo de bodegas operativas: el mayor entre el cupo comercial del plan y el entitlement
-    /// de warehousing. El tier Small del catálogo no puede recortar un plan con 2+ bodegas.
-    /// </summary>
-    public int ResolveMaxWarehouses()
+    public int ResolveMaxUsers()
     {
-        var fromPlan = ServicePlan.MaxWarehouses;
-        var fromEntitlement = GetModuleLimit(
-            TenantModuleCodes.Warehousing,
-            ModuleTierCatalog.LimitMaxWarehouses);
-        if (fromEntitlement is null)
+        var entitlement = ModuleEntitlements?
+            .FirstOrDefault(e => string.Equals(e.ModuleCode, TenantModuleCodes.Identity, StringComparison.OrdinalIgnoreCase));
+
+        if (entitlement?.Limits is not null
+            && entitlement.Limits.TryGetValue(ModuleTierCatalog.LimitMaxUsers, out var explicitLimit))
         {
-            return fromPlan;
+            return explicitLimit;
         }
 
-        return Math.Max(fromPlan, fromEntitlement.Value);
+        return ServicePlan.MaxUsers;
     }
 
     /// <summary>
-    /// Principal y En tránsito solo se provisionan si el cupo admite más de una bodega operativa.
-    /// Con 0 o 1 no hay red de sucursales: el usuario crea (o no) su única ubicación.
+    /// Cupo de bodegas operativas: toma el límite explícito de warehousing si existe en <c>Limits</c>,
+    /// o cae al cupo comercial del plan (<see cref="ServicePlan.MaxWarehouses"/>) sin inflarlo con defaults de tier.
+    /// </summary>
+    public int ResolveMaxWarehouses()
+    {
+        var entitlement = ModuleEntitlements?
+            .FirstOrDefault(e => string.Equals(e.ModuleCode, TenantModuleCodes.Warehousing, StringComparison.OrdinalIgnoreCase));
+
+        if (entitlement?.Limits is not null
+            && entitlement.Limits.TryGetValue(ModuleTierCatalog.LimitMaxWarehouses, out var explicitLimit))
+        {
+            return explicitLimit;
+        }
+
+        return ServicePlan.MaxWarehouses;
+    }
+
+    /// <summary>
+    /// Principal se provisiona por defecto desde 1 bodega; En tránsito y gestión multi-bodega solo si el cupo admite más de una.
     /// </summary>
     public bool AllowsMultipleWarehouses() => ResolveMaxWarehouses() > 1;
 

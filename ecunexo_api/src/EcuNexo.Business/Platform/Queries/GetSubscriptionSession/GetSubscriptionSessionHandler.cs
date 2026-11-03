@@ -46,7 +46,10 @@ public sealed class GetSubscriptionSessionHandler : IQueryHandler<GetSubscriptio
             .ResolveAsync(Guid.Empty, account.Id, account.ServicePlan.Name, ct)
             .ConfigureAwait(false);
 
-        var (entitlements, resolvedLimits) = GetSession.SessionLimitResolver.Resolve(account.ModuleEntitlements);
+        var (entitlements, resolvedLimits) = GetSession.SessionLimitResolver.Resolve(
+            account.ModuleEntitlements,
+            account.ServicePlan.MaxWarehouses,
+            account.ServicePlan.MaxUsers);
 
         var menu = await _navigation
             .BuildAsync(MenuContextKind.Subscription, codes, enabledModules, resolvedLimits, ct)

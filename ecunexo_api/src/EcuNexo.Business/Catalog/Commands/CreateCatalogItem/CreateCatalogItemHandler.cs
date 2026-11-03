@@ -103,7 +103,8 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
             command.FamilyId,
             command.HierarchyPathJson,
             command.Barcode,
-            command.MinOrderQuantity);
+            command.MinOrderQuantity,
+            command.CostPrice);
         if (created.IsFailure)
         {
             return Result.Failure<CreateCatalogItemResponse>(created.Error!);

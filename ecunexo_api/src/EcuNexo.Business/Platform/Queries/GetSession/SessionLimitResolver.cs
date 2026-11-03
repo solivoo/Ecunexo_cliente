@@ -45,13 +45,13 @@ public static class SessionLimitResolver
         }
 
         var warehouseKey = $"{TenantModuleCodes.Warehousing}.{ModuleTierCatalog.LimitMaxWarehouses}";
-        if (fallbackMaxWarehouses is { } maxWarehouses && !limits.ContainsKey(warehouseKey))
+        if (fallbackMaxWarehouses is { } maxWarehouses)
         {
             limits[warehouseKey] = maxWarehouses;
         }
 
         var usersKey = $"{TenantModuleCodes.Identity}.{ModuleTierCatalog.LimitMaxUsers}";
-        if (fallbackMaxUsers is { } maxUsers && !limits.ContainsKey(usersKey))
+        if (fallbackMaxUsers is { } maxUsers)
         {
             limits[usersKey] = maxUsers;
         }

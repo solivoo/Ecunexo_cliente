@@ -13,7 +13,8 @@ public sealed record CreateCatalogItemRequest(
     Guid? FamilyId = null,
     string? HierarchyPathJson = null,
     string? Barcode = null,
-    decimal? MinOrderQuantity = null)
+    decimal? MinOrderQuantity = null,
+    decimal? CostPrice = null)
 {
     public CreateCatalogItemCommand ToCommand(Guid tenantId) =>
         new(
@@ -27,5 +28,6 @@ public sealed record CreateCatalogItemRequest(
             FamilyId,
             HierarchyPathJson,
             Barcode,
-            MinOrderQuantity);
+            MinOrderQuantity,
+            CostPrice);
 }

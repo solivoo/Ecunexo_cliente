@@ -300,6 +300,10 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("base_price");
 
+                    b.Property<decimal?>("CostPrice")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("cost_price");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamptz")
                         .HasColumnName("created_at");

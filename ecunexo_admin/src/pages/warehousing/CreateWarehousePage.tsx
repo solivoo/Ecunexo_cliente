@@ -12,13 +12,15 @@ import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { readApiError } from '@/lib/readApiError'
 import { createWarehouse } from '@/services/inventoryApi'
-import { selectTenantId } from '@/store/authSlice'
+import { selectMaxWarehouses, selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 
 export function CreateWarehousePage() {
   const toast = useToast()
   const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
+  const maxWarehouses = useAppSelector(selectMaxWarehouses)
+  const isSingleWarehousePlan = maxWarehouses !== null && maxWarehouses <= 1
   const canManageLocations = useHasPermission('warehousing.locations.manage')
   const canManageWarehouse = useHasPermission('warehousing.warehouse.manage')
   const canManage = canManageLocations || canManageWarehouse
@@ -39,7 +41,7 @@ export function CreateWarehousePage() {
   const onSubmit = useCallback(
     async (e?: FormEvent) => {
       e?.preventDefault()
-      if (!tenantId) return
+      if (!tenantId || isSingleWarehousePlan) return
       setError(null)
       setBusy(true)
       try {
@@ -60,7 +62,7 @@ export function CreateWarehousePage() {
         setBusy(false)
       }
     },
-    [code, name, navigate, tenantId, toast]
+    [code, isSingleWarehousePlan, name, navigate, tenantId, toast]
   )
 
   if (!canManage) {
@@ -112,6 +114,14 @@ export function CreateWarehousePage() {
             title="Datos de la Bodega"
             info="Especifica el nombre comercial y código interno de control. Las bodegas en tránsito se gestionan automáticamente por el sistema."
           >
+            {isSingleWarehousePlan ? (
+              <div className="ecu-form-error-banner" role="alert">
+                <span className="material-symbols-outlined">lock</span>
+                <span>
+                  Tu plan actual opera con una única bodega principal obligatoria por defecto. Para registrar bodegas adicionales, actualiza tu plan.
+                </span>
+              </div>
+            ) : null}
             {error ? (
               <div className="ecu-form-error-banner" role="alert">
                 <span className="material-symbols-outlined">error</span>
@@ -130,7 +140,7 @@ export function CreateWarehousePage() {
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                   placeholder="Ej. Bodega Central, Depósito Norte"
                   required
-                  disabled={busy}
+                  disabled={busy || isSingleWarehousePlan}
                   fullWidth
                 />
               </div>
@@ -143,7 +153,7 @@ export function CreateWarehousePage() {
                   value={code}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setCode(e.target.value.toUpperCase())}
                   placeholder="BOD-01"
-                  disabled={busy}
+                  disabled={busy || isSingleWarehousePlan}
                   fullWidth
                 />
               </div>
@@ -157,7 +167,12 @@ export function CreateWarehousePage() {
                 borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
               }}
             >
-              <Button type="submit" variant="primary" loading={busy} disabled={busy}>
+              <Button
+                type="submit"
+                variant="primary"
+                loading={busy}
+                disabled={busy || isSingleWarehousePlan}
+              >
                 Guardar Bodega
               </Button>
               <Button type="button" variant="outline" disabled={busy} onClick={goToList}>

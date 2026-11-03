@@ -30,6 +30,7 @@ import {
   readPhotoChoice,
 } from '@/lib/catalogArchetype'
 import { VariantPhysicalFields } from '@/pages/catalog/VariantPhysicalFields'
+import { parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 import '@/pages/catalog/variantMatrixBuilder.css'
 
@@ -59,6 +60,8 @@ export function CreateCatalogVariantPage() {
   const [dimValues, setDimValues] = useState<Record<string, string>>({})
   const [sku, setSku] = useState('')
   const [barcode, setBarcode] = useState('')
+  const [costPrice, setCostPrice] = useState('')
+  const [basePrice, setBasePrice] = useState('')
   const [attributeValues, setAttributeValues] = useState<CustomAttributeRow[]>([])
   const [variantImage, setVariantImage] = useState<File | null>(null)
   const [variantImagePreview, setVariantImagePreview] = useState<string | null>(null)
@@ -340,13 +343,19 @@ export function CreateCatalogVariantPage() {
         }
       }
 
+      const rawCostPrice = parsePriceInput(costPrice)
+      const parsedCostPrice = rawCostPrice != null && rawCostPrice >= 0 ? rawCostPrice : null
+      const rawBasePrice = parsePriceInput(basePrice)
+      const parsedBasePrice = rawBasePrice != null && rawBasePrice >= 0 ? rawBasePrice : null
+
       setSubmitting(true)
       try {
         const createdVariant = await addCatalogItemVariant(tenantId, parentItem.id, {
           variantTitle: finalTitle,
           sku: skuClean,
           barcode: barcode.trim() || null,
-          basePrice: null,
+          costPrice: parsedCostPrice,
+          basePrice: parsedBasePrice,
           customAttributesJson: JSON.stringify(attributes),
         })
 
@@ -384,6 +393,8 @@ export function CreateCatalogVariantPage() {
     [
       attributeValues,
       barcode,
+      costPrice,
+      basePrice,
       canEdit,
       dimValues,
       dimensions,
@@ -554,6 +565,10 @@ export function CreateCatalogVariantPage() {
               onSkuChange={setSku}
               barcode={barcode}
               onBarcodeChange={setBarcode}
+              costPrice={costPrice}
+              onCostPriceChange={setCostPrice}
+              basePrice={basePrice}
+              onBasePriceChange={setBasePrice}
               dimensions={dimensions}
               dimensionValues={dimValues}
               onDimensionChange={handleDimChange}

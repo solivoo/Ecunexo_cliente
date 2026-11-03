@@ -570,11 +570,13 @@ export function useInvoiceEmitForm({
         })
         .catch(() => {
           applyLine({})
-          toast.show({
-            title: 'Precio no encontrado',
-            message: `«${item.name}» no tiene precio vigente en la lista predeterminada; se usó el precio base (${item.basePrice ?? 0}). Configúralo en Catálogo → Gestión de precios.`,
-            variant: 'warning',
-          })
+          if (!(item.basePrice != null && item.basePrice > 0)) {
+            toast.show({
+              title: 'Precio no encontrado',
+              message: `«${item.name}» no tiene precio vigente en la lista predeterminada ni PVP configurado en el catálogo.`,
+              variant: 'warning',
+            })
+          }
         })
     },
     [ensureTrailingEmptyLine, tenantId, toast, priceListId]

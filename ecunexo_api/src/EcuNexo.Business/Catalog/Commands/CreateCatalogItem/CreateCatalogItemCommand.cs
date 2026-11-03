@@ -14,6 +14,7 @@ public sealed record CreateCatalogItemCommand(
     Guid? FamilyId = null,
     string? HierarchyPathJson = null,
     string? Barcode = null,
-    decimal? MinOrderQuantity = null) : ICommand<CreateCatalogItemResponse>;
+    decimal? MinOrderQuantity = null,
+    decimal? CostPrice = null) : ICommand<CreateCatalogItemResponse>;
 
 public sealed record CreateCatalogItemResponse(Guid ItemId, Guid TenantId);

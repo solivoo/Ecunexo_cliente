@@ -9,7 +9,8 @@ public sealed record AddCatalogItemVariantCommand(
     string Sku,
     decimal? BasePrice = null,
     string? CustomAttributesJson = null,
-    string? Barcode = null) : ICommand<AddCatalogItemVariantResponse>;
+    string? Barcode = null,
+    decimal? CostPrice = null) : ICommand<AddCatalogItemVariantResponse>;
 
 public sealed record AddCatalogItemVariantResponse(
     Guid VariantItemId,

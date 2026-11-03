@@ -4,6 +4,7 @@ import { useAppToast } from '@/components/toast'
 import { buildSupportDiagnostics } from '@/config/appVersion'
 import { applyEcuTheme, readCurrentTheme } from '@/lib/ecuTheme'
 import {
+  selectMaxWarehouses,
   selectPermissions,
   selectTenantId,
   selectUserEmail,
@@ -36,6 +37,7 @@ export function useCommandPaletteItems({
   const toast = useAppToast()
   const navigation = useAppSelector(selectVisibleNavigation)
   const permissions = useAppSelector(selectPermissions)
+  const maxWarehouses = useAppSelector(selectMaxWarehouses)
   const tenantId = useAppSelector(selectTenantId)
   const userId = useAppSelector(selectUserId)
   const userEmail = useAppSelector(selectUserEmail)
@@ -136,8 +138,15 @@ export function useCommandPaletteItems({
       })
     }
 
-    // Nueva Bodega
-    if (hasPerm('warehouses.manage') || hasPerm('inventory.stock.manage') || hasPerm('warehouses.create')) {
+    // Nueva Bodega (solo planes multi-bodega)
+    if (
+      (maxWarehouses === null || maxWarehouses > 1) &&
+      (hasPerm('warehouses.manage') ||
+        hasPerm('warehousing.locations.manage') ||
+        hasPerm('warehousing.warehouse.manage') ||
+        hasPerm('inventory.stock.manage') ||
+        hasPerm('warehouses.create'))
+    ) {
       items.push({
         id: 'action-new-warehouse',
         title: 'Registrar Nueva Bodega',
@@ -398,6 +407,7 @@ export function useCommandPaletteItems({
   }, [
     navigation,
     permissions,
+    maxWarehouses,
     tenantId,
     userId,
     userEmail,

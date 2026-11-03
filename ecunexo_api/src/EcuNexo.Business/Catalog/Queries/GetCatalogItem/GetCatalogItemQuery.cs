@@ -29,7 +29,8 @@ public sealed record CatalogItemDetailResponse(
     bool IsHiddenFromStorefront = false,
     string? Barcode = null,
     decimal MinOrderQuantity = 1,
-    string? ParentDescription = null);
+    string? ParentDescription = null,
+    decimal? CostPrice = null);
 
 public sealed record CatalogItemVariantDto(
     Guid Id,
@@ -47,7 +48,8 @@ public sealed record CatalogItemVariantDto(
     IReadOnlyList<string>? ExtraColors = null,
     string? Barcode = null,
     int SortOrder = 0,
-    decimal MinOrderQuantity = 1);
+    decimal MinOrderQuantity = 1,
+    decimal? CostPrice = null);
 
 /// <summary>
 /// Contrato de lectura de la matriz: profundidad, ejes tipados y valores usados en fotos por grupo.

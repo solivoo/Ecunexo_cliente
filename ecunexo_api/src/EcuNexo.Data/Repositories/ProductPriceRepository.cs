@@ -196,6 +196,7 @@ public sealed class ProductPriceRepository : IProductPriceRepository
                 r.Price.VolumeDiscountSchemeId,
                 r.SchemeName,
                 r.List.PricesIncludeTax,
+                ItemCostPrice = r.Item.CostPrice,
             })
             .ToListAsync(ct)
             .ConfigureAwait(false);
@@ -245,7 +246,9 @@ public sealed class ProductPriceRepository : IProductPriceRepository
             r.IsActive,
             r.VolumeDiscountSchemeId,
             r.SchemeName,
-            costsByItem.TryGetValue(r.CatalogItemId, out var avgCost) ? avgCost : null,
+            costsByItem.TryGetValue(r.CatalogItemId, out var avgCost) && avgCost.HasValue
+                ? avgCost
+                : (r.ItemCostPrice is > 0m ? Math.Round(r.ItemCostPrice.Value, 4) : null),
             r.PricesIncludeTax)).ToList();
     }
 }

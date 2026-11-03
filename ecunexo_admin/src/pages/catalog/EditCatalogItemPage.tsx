@@ -33,6 +33,7 @@ import {
 } from '@/pages/catalog/ItemCustomAttributesEditor'
 import { CatalogItemImageGallery } from '@/pages/catalog/CatalogItemImageGallery'
 import { EditCatalogItemVariantsSection } from '@/pages/catalog/EditCatalogItemVariantsSection'
+import { CatalogPricingMarginBar, parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
 import { ArrowLeftRight, Layers } from 'lucide-react'
 import { readApiError } from '@/lib/readApiError'
 import {
@@ -102,6 +103,7 @@ export function EditCatalogItemPage() {
   const [description, setDescription] = useState('')
   const [sku, setSku] = useState('')
   const [barcode, setBarcode] = useState('')
+  const [costPrice, setCostPrice] = useState('')
   const [basePrice, setBasePrice] = useState('')
   const [minOrderQuantity, setMinOrderQuantity] = useState(1)
   const [status, setStatus] = useState(String(CatalogItemStatus.Active))
@@ -342,6 +344,7 @@ export function EditCatalogItemPage() {
       setDescription(detail.description ?? '')
       setSku(detail.sku ?? '')
       setBarcode(detail.barcode ?? '')
+      setCostPrice(detail.costPrice != null ? String(detail.costPrice) : '')
       setBasePrice(detail.basePrice != null ? String(detail.basePrice) : '')
       setMinOrderQuantity(detail.minOrderQuantity ?? 1)
       setStatus(String(detail.status))
@@ -549,10 +552,10 @@ export function EditCatalogItemPage() {
             item.hierarchyPathJson ??
             null
 
-        const parsedBasePrice =
-          basePrice.trim() !== '' && !isNaN(Number(basePrice)) && Number(basePrice) >= 0
-            ? Number(basePrice)
-            : null
+        const rawCostPrice = parsePriceInput(costPrice)
+        const parsedCostPrice = rawCostPrice != null && rawCostPrice >= 0 ? rawCostPrice : null
+        const rawBasePrice = parsePriceInput(basePrice)
+        const parsedBasePrice = rawBasePrice != null && rawBasePrice >= 0 ? rawBasePrice : null
 
         await updateCatalogItem(tenantId, itemId, {
           kind: kindNum,
@@ -562,6 +565,7 @@ export function EditCatalogItemPage() {
             : description.trim() || null,
           sku: isMatrixParent ? null : sku.trim() || null,
           barcode: isMatrixParent ? null : barcode.trim() || null,
+          costPrice: isMatrixParent ? null : parsedCostPrice,
           basePrice: isMatrixParent ? null : parsedBasePrice,
           customAttributesJson: serializeCustomAttributes(customAttributes, tags),
           status: Number(status) as typeof CatalogItemStatus.Active,
@@ -587,6 +591,7 @@ export function EditCatalogItemPage() {
     },
     [
       barcode,
+      costPrice,
       basePrice,
       customAttributes,
       description,
@@ -1039,26 +1044,53 @@ export function EditCatalogItemPage() {
                   ) : null}
 
                   {!isMatrixParent ? (
-                    <div className="ecu-companies-form__field">
-                      <NumberBox
-                        id="ei-base-price"
-                        label="Precio base / PVP ($)"
-                        labelPosition="outlined"
-                        variant="outline"
-                        min={0}
-                        step={0.01}
-                        placeholder="0.00"
-                        value={basePrice !== '' ? Number(basePrice) : undefined}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          setBasePrice(e.target.value)
-                        }
-                        disabled={busy}
-                        fullWidth
-                      />
-                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                        Precio unitario de venta de referencia para facturación y catálogo.
-                      </p>
-                    </div>
+                    <>
+                      <div className="ecu-companies-form__field">
+                        <NumberBox
+                          id="ei-cost-price"
+                          label="Precio base / Costo ($)"
+                          labelPosition="outlined"
+                          variant="outline"
+                          min={0}
+                          step={0.01}
+                          placeholder="0.00"
+                          value={costPrice !== '' ? Number(costPrice) : undefined}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            setCostPrice(e.target.value)
+                          }
+                          disabled={busy}
+                          fullWidth
+                        />
+                        <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                          Costo por artículo para calcular tu ganancia (los clientes no verán esto).
+                        </p>
+                      </div>
+
+                      <div className="ecu-companies-form__field">
+                        <NumberBox
+                          id="ei-base-price"
+                          label="PVP / Precio de venta ($)"
+                          labelPosition="outlined"
+                          variant="outline"
+                          min={0}
+                          step={0.01}
+                          placeholder="0.00"
+                          value={basePrice !== '' ? Number(basePrice) : undefined}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            setBasePrice(e.target.value)
+                          }
+                          disabled={busy}
+                          fullWidth
+                        />
+                        <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                          Precio unitario de venta al público para facturación y catálogo.
+                        </p>
+                      </div>
+
+                      <div className="ecu-companies-form__field">
+                        <CatalogPricingMarginBar costPrice={costPrice} basePrice={basePrice} />
+                      </div>
+                    </>
                   ) : null}
 
                   {showBarcodeField && !isVariantChild ? (

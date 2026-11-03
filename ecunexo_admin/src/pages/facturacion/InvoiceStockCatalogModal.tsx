@@ -8,6 +8,8 @@ import { flattenAttributeEntries } from '@/lib/catalogAttributes'
 import { listCatalogItems } from '@/services/catalogApi'
 import { listProductPrices } from '@/services/pricingApi'
 import { listStock } from '@/services/inventoryApi'
+import { selectEnabledModules } from '@/store/authSlice'
+import { useAppSelector } from '@/store/hooks'
 import { CatalogItemKind, CatalogItemStatus, type CatalogItemListItemDto } from '@/types/catalogApi'
 import type { StockListItemDto } from '@/types/inventoryApi'
 import type { ProductPriceListItemDto } from '@/types/pricingApi'
@@ -85,6 +87,12 @@ export function InvoiceStockCatalogModal({
   targetLineId,
   onSelectProduct,
 }: InvoiceStockCatalogModalProps) {
+  const enabledModules = useAppSelector(selectEnabledModules)
+  const hasInventory = useMemo(
+    () => enabledModules === null || enabledModules.some((m) => m.toLowerCase() === 'inventory'),
+    [enabledModules],
+  )
+
   const [catalogItems, setCatalogItems] = useState<CatalogItemListItemDto[]>([])
   const [stockItems, setStockItems] = useState<StockListItemDto[]>([])
   const [priceItems, setPriceItems] = useState<ProductPriceListItemDto[]>([])
@@ -111,7 +119,7 @@ export function InvoiceStockCatalogModal({
       try {
         const [items, stocks, prices] = await Promise.all([
           listCatalogItems(tenantId).catch(() => []),
-          listStock(tenantId).catch(() => []),
+          hasInventory ? listStock(tenantId).catch(() => []) : Promise.resolve([]),
           listProductPrices(tenantId, { onlyVigent: true }).catch(() => []),
         ])
         if (!cancelled) {
@@ -131,7 +139,7 @@ export function InvoiceStockCatalogModal({
     return () => {
       cancelled = true
     }
-  }, [open, tenantId])
+  }, [hasInventory, open, tenantId])
 
   const productsWithStock = useMemo<ProductStockRow[]>(() => {
     const stockByItem = new Map<string, StockListItemDto[]>()
@@ -181,8 +189,10 @@ export function InvoiceStockCatalogModal({
       }
 
       const matching = stockByItem.get(item.id) ?? []
-      const totalStock = matching.reduce((acc, curr) => acc + curr.quantity, 0)
-      const isBelowMinimum = matching.some((m) => m.isBelowMinimum)
+      const totalStock = hasInventory
+        ? matching.reduce((acc, curr) => acc + curr.quantity, 0)
+        : null
+      const isBelowMinimum = hasInventory && matching.some((m) => m.isBelowMinimum)
       const warehouses = matching.map((m) => ({
         name: m.warehouseName,
         qty: m.quantity,
@@ -192,7 +202,7 @@ export function InvoiceStockCatalogModal({
         id: item.id,
         name: item.name,
         kind: 'physical',
-        stock: totalStock,
+        stock: totalStock ?? 0,
         price: activePrice,
         qty: 1,
         item,
@@ -203,7 +213,7 @@ export function InvoiceStockCatalogModal({
         searchKey: `${item.sku ?? ''} ${item.name} ${item.description ?? ''} ${attrSearchStr}`.toLowerCase(),
       }
     })
-  }, [catalogItems, stockItems, priceItems])
+  }, [catalogItems, hasInventory, stockItems, priceItems])
 
   const filteredProducts = useMemo(() => {
     return productsWithStock.filter((p) => {
@@ -227,7 +237,7 @@ export function InvoiceStockCatalogModal({
     }))
     // Al modificar cantidad, seleccionar automáticamente si no estaba marcado y tiene stock
     const targetRow = productsWithStock.find((p) => p.id === itemId)
-    const isNoStock = targetRow?.kind === 'physical' && (targetRow?.totalStock ?? 0) <= 0
+    const isNoStock = hasInventory && targetRow?.kind === 'physical' && (targetRow?.totalStock ?? 0) <= 0
     if (!isNoStock && !selectedIds.has(itemId)) {
       setSelectedIds((prev) => new Set(prev).add(itemId))
     }
@@ -261,7 +271,7 @@ export function InvoiceStockCatalogModal({
         width: 48,
         align: 'center',
         renderCell: (_v: unknown, row: ProductStockRow) => {
-          const isNoStock = row.kind === 'physical' && (row.totalStock ?? 0) <= 0
+          const isNoStock = hasInventory && row.kind === 'physical' && (row.totalStock ?? 0) <= 0
           const isSelected = selectedIds.has(row.id)
           return (
             <input
@@ -395,6 +405,13 @@ export function InvoiceStockCatalogModal({
               </span>
             )
           }
+          if (!hasInventory) {
+            return (
+              <span style={{ fontSize: '0.8rem', color: 'var(--glb-muted)' }}>
+                Sin control de stock
+              </span>
+            )
+          }
           const stock = row.totalStock ?? 0
           if (stock <= 0) {
             return (
@@ -464,7 +481,7 @@ export function InvoiceStockCatalogModal({
         width: 90,
         align: 'center',
         renderCell: (_v: unknown, row: ProductStockRow) => {
-          const isNoStock = row.kind === 'physical' && (row.totalStock ?? 0) <= 0
+          const isNoStock = hasInventory && row.kind === 'physical' && (row.totalStock ?? 0) <= 0
           return (
             <div style={{ width: '64px', margin: '0 auto', opacity: isNoStock ? 0.4 : 1 }}>
               <NumberBox
@@ -482,7 +499,7 @@ export function InvoiceStockCatalogModal({
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [quantities, selectedIds]
+    [hasInventory, quantities, selectedIds]
   )
 
   const toolbarRight = (
@@ -495,14 +512,16 @@ export function InvoiceStockCatalogModal({
       >
         Todos
       </Button>
-      <Button
-        type="button"
-        variant={filterMode === 'with_stock' ? 'primary' : 'outline'}
-        size="sm"
-        onClick={() => setFilterMode('with_stock')}
-      >
-        Con stock disponible
-      </Button>
+      {hasInventory && (
+        <Button
+          type="button"
+          variant={filterMode === 'with_stock' ? 'primary' : 'outline'}
+          size="sm"
+          onClick={() => setFilterMode('with_stock')}
+        >
+          Con stock disponible
+        </Button>
+      )}
       <Button
         type="button"
         variant={filterMode === 'physical' ? 'primary' : 'outline'}

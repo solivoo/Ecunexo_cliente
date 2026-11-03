@@ -190,13 +190,19 @@ export function ProductPriceFormPage() {
   }, [itemId, tenantId])
 
   const selectedItem = items.find((i) => i.id === itemId) ?? null
+  const effectiveCostInfo =
+    costInfo && costInfo.averageCost > 0
+      ? costInfo
+      : selectedItem?.costPrice != null && selectedItem.costPrice > 0
+        ? { averageCost: selectedItem.costPrice }
+        : null
   const selectedList = lists.find((l) => l.id === listId) ?? null
   const currentVigent = itemId ? pricesByItem.get(itemId) ?? null : null
   const renewing = !isEdit && currentVigent != null
   const numericEnteredPrice = Number(price)
   const marginPercent =
-    costInfo && costInfo.averageCost > 0 && Number.isFinite(numericEnteredPrice) && numericEnteredPrice > 0
-      ? ((numericEnteredPrice - costInfo.averageCost) / numericEnteredPrice) * 100
+    effectiveCostInfo && effectiveCostInfo.averageCost > 0 && Number.isFinite(numericEnteredPrice) && numericEnteredPrice > 0
+      ? ((numericEnteredPrice - effectiveCostInfo.averageCost) / numericEnteredPrice) * 100
       : null
 
   // Precarga del precio: vigente de la lista, o sugerido por margen sobre el costo promedio.
@@ -210,7 +216,7 @@ export function ProductPriceFormPage() {
         if (prev.trim()) return prev
         const vigent = pricesByItem.get(itemId)
         if (vigent) return String(vigent.price)
-        const cost = costInfo?.averageCost ?? 0
+        const cost = effectiveCostInfo?.averageCost ?? 0
         const margin = selectedList?.suggestedMarginPercent
         if (cost > 0 && margin && margin > 0) {
           return (cost * (1 + margin / 100)).toFixed(2)
@@ -221,7 +227,7 @@ export function ProductPriceFormPage() {
     return () => {
       cancelled = true
     }
-  }, [costInfo, isEdit, itemId, listId, pricesByItem, selectedList])
+  }, [effectiveCostInfo, isEdit, itemId, listId, pricesByItem, selectedList])
 
 
   const handleSelectionChange = useCallback(
@@ -536,8 +542,8 @@ export function ProductPriceFormPage() {
                 <strong style={{ fontSize: '1rem', color: 'var(--glb-text, inherit)' }}>
                   {itemLabel || selectedItem?.name || '—'}
                 </strong>
-                {costInfo ? (
-                  <span className="ecu-chip">Costo prom. ${costInfo.averageCost.toFixed(4)}</span>
+                {effectiveCostInfo ? (
+                  <span className="ecu-chip">Costo ref. ${effectiveCostInfo.averageCost.toFixed(4)}</span>
                 ) : null}
               </div>
             ) : selectedItemIds.length > 0 ? (
@@ -611,8 +617,8 @@ export function ProductPriceFormPage() {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {costInfo ? (
-                      <span className="ecu-chip">Costo promedio: ${costInfo.averageCost.toFixed(4)}</span>
+                    {effectiveCostInfo ? (
+                      <span className="ecu-chip">Costo referencia: ${effectiveCostInfo.averageCost.toFixed(4)}</span>
                     ) : null}
                     {currentVigent ? (
                       <span className="ecu-chip">

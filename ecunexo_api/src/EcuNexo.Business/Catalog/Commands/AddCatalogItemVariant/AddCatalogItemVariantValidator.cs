@@ -34,5 +34,12 @@ public sealed class AddCatalogItemVariantValidator : AbstractValidator<AddCatalo
                 .GreaterThanOrEqualTo(0)
                 .WithMessage("El precio base de la variante no puede ser negativo.");
         });
+
+        When(c => c.CostPrice.HasValue, () =>
+        {
+            RuleFor(c => c.CostPrice!.Value)
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("El costo de la variante no puede ser negativo.");
+        });
     }
 }

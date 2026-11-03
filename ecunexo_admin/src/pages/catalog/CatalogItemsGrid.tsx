@@ -13,6 +13,7 @@ import {
   CatalogItemStatus,
   type CatalogItemListItemDto,
 } from '@/types/catalogApi'
+import { computeProfitAndMargin } from '@/pages/catalog/CatalogPricingMarginBar'
 import './catalogGrid.css'
 
 export type CatalogItemGridRow = CatalogItemListItemDto & Record<string, unknown>
@@ -228,6 +229,49 @@ export function CatalogItemsGrid({
         renderCell: (_value: CatalogItemGridRow['kind'], row: CatalogItemGridRow) => (
           <CatalogKindMark kind={row.kind} />
         ),
+      },
+      {
+        key: 'basePrice',
+        header: 'PVP / MARGEN',
+        align: 'right',
+        width: 145,
+        renderCell: (_value: CatalogItemGridRow['basePrice'], row: CatalogItemGridRow) => {
+          if (row.isMatrixParent) {
+            return (
+              <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+                Por variante
+              </span>
+            )
+          }
+          if (row.basePrice == null) {
+            return <span style={{ fontSize: '0.78rem', color: 'var(--glb-muted)' }}>—</span>
+          }
+          const { profit, marginPct } = computeProfitAndMargin(row.costPrice, row.basePrice)
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1px' }}>
+              <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                ${row.basePrice.toFixed(2)}
+              </strong>
+              {row.costPrice != null && profit != null && marginPct != null ? (
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    color:
+                      profit > 0
+                        ? 'var(--glb-success-text, #15803d)'
+                        : profit < 0
+                          ? 'var(--glb-danger-text, #b91c1c)'
+                          : 'var(--glb-muted)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                  title={`Costo: $${row.costPrice.toFixed(2)} · Ganancia: $${profit.toFixed(2)}`}
+                >
+                  Costo ${row.costPrice.toFixed(2)} · {marginPct.toFixed(1)}%
+                </span>
+              ) : null}
+            </div>
+          )
+        },
       },
       {
         key: 'status',

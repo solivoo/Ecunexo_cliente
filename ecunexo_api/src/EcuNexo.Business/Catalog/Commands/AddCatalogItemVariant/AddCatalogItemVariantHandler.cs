@@ -86,7 +86,8 @@ public sealed class AddCatalogItemVariantHandler
             command.BasePrice,
             command.CustomAttributesJson,
             CatalogAttributeSchema.EmptyArrayJson,
-            barcode: command.Barcode);
+            barcode: command.Barcode,
+            costPrice: command.CostPrice);
 
         if (childResult.IsFailure)
         {

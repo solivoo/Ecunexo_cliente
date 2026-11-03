@@ -10,6 +10,7 @@ import {
   type DimensionLookup,
 } from '@/lib/catalogArchetype'
 import type { CreateVariantChildPayload, TenantMediaAssetDto } from '@/types/catalogApi'
+import { CatalogPricingMarginBar, parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
 import './variantMatrixBuilder.css'
 
 export type DimensionState = {
@@ -72,6 +73,7 @@ export type VariantRowState = {
   sku: string
   isManualSku?: boolean
   barcode: string
+  costPrice: string
   basePrice: string
   isManualPrice?: boolean
   stagedImage?: File | null
@@ -359,6 +361,7 @@ export function VariantMatrixBuilder({
           sku: '',
           isManualSku: false,
           barcode: '',
+          costPrice: '',
           basePrice: defaultPrice,
           isManualPrice: false,
           stagedImage: null,
@@ -954,6 +957,7 @@ export function VariantMatrixBuilder({
         sku: '',
         isManualSku: false,
         barcode: '',
+        costPrice: '',
         basePrice: defaultPrice,
         isManualPrice: false,
         stagedImages: groupImages,
@@ -1221,7 +1225,8 @@ export function VariantMatrixBuilder({
     const dimensionNames = dimensions.map((d) => d.name.trim())
 
     const payloadVariants: MatrixVariantPayloadWithImage[] = rows.map((r) => {
-      const parsedPrice = r.basePrice.trim() ? Number(r.basePrice.replace(',', '.')) : null
+      const parsedCostPrice = parsePriceInput(r.costPrice)
+      const parsedPrice = parsePriceInput(r.basePrice)
 
       const customAttrs: Record<string, unknown> = {}
       if (r.dimensionValues) {
@@ -1296,7 +1301,8 @@ export function VariantMatrixBuilder({
         variantTitle: finalTitle,
         sku: r.sku.trim(),
         barcode: r.barcode.trim() || null,
-        basePrice: parsedPrice != null && !Number.isNaN(parsedPrice) ? parsedPrice : null,
+        costPrice: parsedCostPrice != null && parsedCostPrice >= 0 ? parsedCostPrice : null,
+        basePrice: parsedPrice != null && parsedPrice >= 0 ? parsedPrice : null,
         customAttributesJson: Object.keys(customAttrs).length > 0 ? JSON.stringify(customAttrs) : null,
         stagedImage: r.stagedImages?.[0]?.file ?? r.stagedImage ?? null,
         stagedImages: r.stagedImages && r.stagedImages.length > 0
@@ -1724,6 +1730,50 @@ export function VariantMatrixBuilder({
                           placeholder="EAN / UPC (opc.)"
                           disabled={disabled}
                           fullWidth
+                        />
+                      </div>
+
+                      {/* Precio base (Costo) + PVP + Margen */}
+                      <div className="ecu-variant-sub-item-field">
+                        <label className="ecu-variant-sub-item-label">Precio base / Costo ($)</label>
+                        <NumberBox
+                          size="sm"
+                          variant="outline"
+                          min={0}
+                          step={0.01}
+                          value={row.costPrice !== '' ? Number(row.costPrice) : undefined}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            updateRow(row.id, 'costPrice', e.target.value)
+                          }
+                          placeholder="0.00"
+                          disabled={disabled}
+                          fullWidth
+                        />
+                      </div>
+
+                      <div className="ecu-variant-sub-item-field">
+                        <label className="ecu-variant-sub-item-label">PVP ($)</label>
+                        <NumberBox
+                          size="sm"
+                          variant="outline"
+                          min={0}
+                          step={0.01}
+                          value={row.basePrice !== '' ? Number(row.basePrice) : undefined}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            updateRow(row.id, 'basePrice', e.target.value)
+                          }
+                          placeholder="0.00"
+                          disabled={disabled}
+                          fullWidth
+                        />
+                      </div>
+
+                      <div className="ecu-variant-sub-item-field">
+                        <label className="ecu-variant-sub-item-label">Ganancia / Margen</label>
+                        <CatalogPricingMarginBar
+                          costPrice={row.costPrice}
+                          basePrice={row.basePrice}
+                          compact
                         />
                       </div>
 
