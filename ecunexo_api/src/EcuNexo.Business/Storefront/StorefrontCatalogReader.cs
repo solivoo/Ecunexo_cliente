@@ -1,8 +1,10 @@
 using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Pricing;
+using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Catalog;
+using EcuNexo.Core.Tenancy;
 
 namespace EcuNexo.Business.Storefront;
 
@@ -23,6 +25,7 @@ public sealed class StorefrontCatalogReader
     private readonly IPromotionRepository _promotions;
     private readonly IWarehouseRepository _warehouses;
     private readonly IEcommerceStorefrontSettingsReader? _settings;
+    private readonly ITenantRepository? _tenants;
 
     public StorefrontCatalogReader(
         IStorefrontCatalogRepository products,
@@ -32,7 +35,8 @@ public sealed class StorefrontCatalogReader
         IProductPriceRepository productPrices,
         IPromotionRepository promotions,
         IWarehouseRepository warehouses,
-        IEcommerceStorefrontSettingsReader? settings = null)
+        IEcommerceStorefrontSettingsReader? settings = null,
+        ITenantRepository? tenants = null)
     {
         _products = products;
         _likes = likes;
@@ -42,6 +46,7 @@ public sealed class StorefrontCatalogReader
         _promotions = promotions;
         _warehouses = warehouses;
         _settings = settings;
+        _tenants = tenants;
     }
 
     public async Task<IReadOnlyList<StorefrontCatalogProduct>> LoadAsync(
@@ -65,17 +70,26 @@ public sealed class StorefrontCatalogReader
                 ct)
             .ConfigureAwait(false);
 
+        var tenant = _tenants is not null
+            ? await _tenants.GetByIdAsync(tenantId, ct).ConfigureAwait(false)
+            : null;
+        var hasInventory = tenant?.HasModuleWithMinTier(TenantModuleCodes.Inventory) ?? true;
+
         // La vitrina muestra el disponible de la bodega de despacho (principal),
-        // que es la misma que reserva el checkout público.
-        var dispatchWarehouse = await _warehouses.GetMainAsync(tenantId, ct).ConfigureAwait(false);
+        // que es la misma que reserva el checkout público; en modo solo catálogo no se exige stock.
+        var dispatchWarehouse = hasInventory
+            ? await _warehouses.GetMainAsync(tenantId, ct).ConfigureAwait(false)
+            : null;
         var storefrontSettings = _settings is not null
             ? await _settings.ResolveAsync(tenantId, ct).ConfigureAwait(false)
             : null;
-        var reserveOnOrder = storefrontSettings?.ReserveOnOrder ?? true;
+        var reserveOnOrder = hasInventory && (storefrontSettings?.ReserveOnOrder ?? true);
 
-        var availability = await _stock
-            .SumAvailableByItemIdsAsync(tenantId, dispatchWarehouse?.Id, ids, ct)
-            .ConfigureAwait(false);
+        var availability = hasInventory
+            ? await _stock
+                .SumAvailableByItemIdsAsync(tenantId, dispatchWarehouse?.Id, ids, ct)
+                .ConfigureAwait(false)
+            : new Dictionary<Guid, decimal>();
 
         var defaultList = await _priceLists
             .GetDefaultAsync(tenantId, ct)

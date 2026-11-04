@@ -543,6 +543,48 @@ public sealed class CreateStorefrontOrderHandlerTests
         captured!.ReserveStock.Should().BeFalse();
     }
 
+    [Fact(DisplayName = "Plan sin módulo de inventario crea el pedido en modo catálogo sin exigir bodega principal")]
+    public async Task Handle_WithoutInventoryModule_CreatesCatalogOnlyOrderWithoutWarehouse()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var orderId = Guid.CreateVersion7();
+        var plan = new ServicePlan("NexCatalogoTienda", maxUsers: 2, maxWarehouses: 0);
+        _tenants
+            .GetByIdAsync(tenantId, Arg.Any<CancellationToken>())
+            .Returns(Tenant.Create(
+                tenantId,
+                "Tienda Catálogo",
+                plan,
+                enabledModuleCodes: [TenantModuleCodes.Identity, TenantModuleCodes.Catalog, TenantModuleCodes.Orders, TenantModuleCodes.Ecommerce]).Value!);
+        SetupSettings(tenantId);
+        _orders
+            .FindByClientRequestIdAsync(tenantId, "req-cat-1", Arg.Any<CancellationToken>())
+            .Returns((EcommerceOrder?)null);
+
+        CreateEcommerceOrderCommand? captured = null;
+        _sender
+            .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(
+                Arg.Do<CreateEcommerceOrderCommand>(command => captured = command),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new CreateEcommerceOrderResponse(
+                orderId,
+                "ECO-202611-0001",
+                EcommerceOrderStatus.Placed,
+                100m,
+                15m,
+                3.5m,
+                118.5m,
+                EcommercePaymentMethod.BankTransfer)));
+
+        var result = await _sut.Handle(CreateCommand(tenantId, "req-cat-1"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        captured.Should().NotBeNull();
+        captured!.WarehouseId.Should().BeNull();
+        captured.ReserveStock.Should().BeFalse();
+        await _warehouses.DidNotReceiveWithAnyArgs().GetMainAsync(default, default);
+    }
+
     [Theory(DisplayName = "El email se enmascara en los logs")]
     [InlineData("maria.lopez@example.com", "m***z@example.com")]
     [InlineData("ab@example.com", "***@example.com")]

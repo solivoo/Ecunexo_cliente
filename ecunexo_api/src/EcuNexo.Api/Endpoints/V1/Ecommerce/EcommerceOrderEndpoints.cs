@@ -152,9 +152,14 @@ public static class EcommerceOrderEndpoints
         [FromServices] ICallerContext caller,
         CancellationToken ct)
     {
+        var effectiveWarehouseId = request.WarehouseId is { } wid && wid != Guid.Empty
+            ? wid
+            : (Guid?)null;
+        var reserveStock = request.ReserveStock ?? effectiveWarehouseId.HasValue;
+
         var command = new CreateEcommerceOrderCommand(
             TenantId: tenantId,
-            WarehouseId: request.WarehouseId,
+            WarehouseId: effectiveWarehouseId,
             PaymentMethod: request.PaymentMethod,
             ShippingMethod: request.ShippingMethod,
             Customer: request.Customer,
@@ -164,7 +169,8 @@ public static class EcommerceOrderEndpoints
             InternalNotes: request.InternalNotes,
             CustomerNotes: request.CustomerNotes,
             CreatedBy: caller.UserId,
-            CreatedByName: caller.UserId?.ToString());
+            CreatedByName: caller.UserId?.ToString(),
+            ReserveStock: reserveStock);
 
         var result = await sender
             .SendAsync<CreateEcommerceOrderCommand, CreateEcommerceOrderResponse>(command, ct)

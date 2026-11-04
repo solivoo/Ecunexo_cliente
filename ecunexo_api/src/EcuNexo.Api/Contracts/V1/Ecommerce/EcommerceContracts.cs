@@ -12,7 +12,7 @@ public sealed record CreateEcommerceOrderItemRequest(
 }
 
 public sealed record CreateEcommerceOrderRequest(
-    Guid WarehouseId,
+    Guid? WarehouseId,
     EcommercePaymentMethod PaymentMethod,
     EcommerceShippingMethod ShippingMethod,
     EcommerceCustomerInfo Customer,
@@ -20,7 +20,8 @@ public sealed record CreateEcommerceOrderRequest(
     IReadOnlyList<CreateEcommerceOrderItemRequest> Items,
     decimal ShippingCost = 0m,
     string? InternalNotes = null,
-    string? CustomerNotes = null);
+    string? CustomerNotes = null,
+    bool? ReserveStock = null);
 
 public sealed record ConfirmEcommercePaymentRequest(string? PaymentReference = null);
 

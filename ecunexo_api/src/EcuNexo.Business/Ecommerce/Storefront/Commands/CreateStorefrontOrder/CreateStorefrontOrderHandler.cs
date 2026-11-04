@@ -9,6 +9,7 @@ using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Ecommerce;
+using EcuNexo.Core.Tenancy;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 
@@ -221,8 +222,14 @@ public sealed class CreateStorefrontOrderHandler
                 command.UserAgent ?? "unknown");
         }
 
-        var warehouse = await _warehouses.GetMainAsync(command.TenantId, ct).ConfigureAwait(false);
-        if (warehouse is null)
+        var tenant = await _tenants.GetByIdAsync(command.TenantId, ct).ConfigureAwait(false);
+        var hasInventory = tenant?.HasModuleWithMinTier(TenantModuleCodes.Inventory) ?? true;
+        var reserveStock = hasInventory && settings.ReserveOnOrder;
+
+        var warehouse = hasInventory
+            ? await _warehouses.GetMainAsync(command.TenantId, ct).ConfigureAwait(false)
+            : null;
+        if (hasInventory && warehouse is null)
         {
             return Result.Failure<StorefrontOrderCreatedDto>(WarehouseMissing);
         }
@@ -244,7 +251,7 @@ public sealed class CreateStorefrontOrderHandler
 
         var createCommand = new CreateEcommerceOrderCommand(
             TenantId: command.TenantId,
-            WarehouseId: warehouse.Id,
+            WarehouseId: warehouse?.Id,
             PaymentMethod: paymentMethod,
             ShippingMethod: shippingMethod,
             Customer: BuildCustomer(command.Customer, command.Shipping.Address),
@@ -258,7 +265,7 @@ public sealed class CreateStorefrontOrderHandler
             CreatedBy: null,
             CreatedByName: SystemCustomerName,
             ClientRequestId: requestId,
-            ReserveStock: settings.ReserveOnOrder,
+            ReserveStock: reserveStock,
             AcceptPrivacyPolicy: command.AcceptPrivacyPolicy,
             MinOrderAmount: settings.MinOrderAmount);
 

@@ -117,13 +117,6 @@ public static class StorefrontEndpoints
 
     private static async Task<IResult> ListProductsAsync(
         Guid tenantId,
-        string[]? talla,
-        string[]? color,
-        string[]? actividad,
-        string[]? cana,
-        string[]? material,
-        string[]? marca,
-        string[]? coleccion,
         decimal? priceMin,
         decimal? priceMax,
         bool? inStock,
@@ -132,6 +125,7 @@ public static class StorefrontEndpoints
         string? sort,
         int? page,
         int? pageSize,
+        HttpContext http,
         ISender sender,
         CancellationToken ct)
     {
@@ -143,7 +137,7 @@ public static class StorefrontEndpoints
                     sort,
                     page ?? 1,
                     pageSize ?? 24,
-                    BuildFacetFilters(talla, color, actividad, cana, material, marca, coleccion),
+                    BuildFacetFilters(http.Request.Query),
                     priceMin,
                     priceMax,
                     inStock ?? false,
@@ -272,45 +266,28 @@ public static class StorefrontEndpoints
         return result.ToHttpResult();
     }
 
-    private static Dictionary<string, IReadOnlyList<string>>? BuildFacetFilters(
-        string[]? talla,
-        string[]? color,
-        string[]? actividad,
-        string[]? cana,
-        string[]? material,
-        string[]? marca,
-        string[]? coleccion)
+    private static Dictionary<string, IReadOnlyList<string>>? BuildFacetFilters(IQueryCollection query)
     {
         var filters = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
 
-        AddFilter(filters, "talla", talla);
-        AddFilter(filters, "color", color);
-        AddFilter(filters, "actividad", actividad);
-        AddFilter(filters, "cana", cana);
-        AddFilter(filters, "material", material);
-        AddFilter(filters, "marca", marca);
-        AddFilter(filters, "coleccion", coleccion);
-
-        return filters.Count == 0 ? null : filters;
-
-        static void AddFilter(
-            Dictionary<string, IReadOnlyList<string>> target,
-            string key,
-            string[]? values)
+        foreach (var definition in StorefrontFacetCatalog.Facets)
         {
-            if (values is not { Length: > 0 })
+            if (!query.TryGetValue(definition.Key, out var values) || values.Count == 0)
             {
-                return;
+                continue;
             }
 
             var cleaned = values
                 .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!)
                 .ToList();
 
             if (cleaned.Count > 0)
             {
-                target[key] = cleaned;
+                filters[definition.Key] = cleaned;
             }
         }
+
+        return filters.Count == 0 ? null : filters;
     }
 }

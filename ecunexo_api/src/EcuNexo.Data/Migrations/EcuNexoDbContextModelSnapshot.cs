@@ -1508,7 +1508,7 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("updated_by");
 
-                    b.Property<Guid>("WarehouseId")
+                    b.Property<Guid?>("WarehouseId")
                         .HasColumnType("uuid")
                         .HasColumnName("warehouse_id");
 
@@ -5958,7 +5958,6 @@ namespace EcuNexo.Data.Migrations
                         .WithMany()
                         .HasForeignKey("WarehouseId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_orders_warehouses_warehouse_id");
 
                     b.Navigation("Tenant");

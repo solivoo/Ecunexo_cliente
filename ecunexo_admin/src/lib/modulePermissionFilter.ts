@@ -10,12 +10,16 @@ const KNOWN_PRODUCT_MODULES = new Set([
   'support',
   'repairs',
   'customers',
+  'orders',
   'ecommerce',
   'purchases',
 ])
 
 export function productModuleFromPermissionCode(code: string): string | null {
   const trimmed = code.trim().toLowerCase()
+  if (trimmed === 'ecommerce.orders' || trimmed.startsWith('ecommerce.orders.')) {
+    return 'orders'
+  }
   const dot = trimmed.indexOf('.')
   if (dot <= 0) return null
   let prefix = trimmed.slice(0, dot)
@@ -41,6 +45,7 @@ export function isPermissionAllowedForModules(
     const key = raw.trim().toLowerCase()
     const canonical =
       key === 'invoicing' ? 'facturacion' : key === 'accounting' ? 'contabilidad' : key
+    if (product === 'orders' && canonical === 'ecommerce') return true
     return canonical === product
   }
 

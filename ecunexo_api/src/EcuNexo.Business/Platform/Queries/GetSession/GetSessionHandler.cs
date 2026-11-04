@@ -144,7 +144,24 @@ public sealed class GetSessionHandler : IQueryHandler<GetSessionQuery, SessionRe
                 }
             }
 
+            if (codes.Contains(TenantModuleCodes.Ecommerce))
+            {
+                codes.Add(TenantModuleCodes.Orders);
+            }
+
             return codes.ToList();
+        }
+
+        if (tenant.EnabledModuleCodes is { Count: > 0 } legacyCodes)
+        {
+            if (legacyCodes.Contains(TenantModuleCodes.Ecommerce, StringComparer.OrdinalIgnoreCase)
+                && !legacyCodes.Contains(TenantModuleCodes.Orders, StringComparer.OrdinalIgnoreCase))
+            {
+                var expanded = new List<string>(legacyCodes) { TenantModuleCodes.Orders };
+                return expanded.AsReadOnly();
+            }
+
+            return legacyCodes.AsReadOnly();
         }
 
         return tenant.EnabledModuleCodes?.AsReadOnly();

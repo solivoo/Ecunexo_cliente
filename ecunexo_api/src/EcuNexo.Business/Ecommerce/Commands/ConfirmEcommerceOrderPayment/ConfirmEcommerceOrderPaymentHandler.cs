@@ -43,12 +43,12 @@ public sealed class ConfirmEcommerceOrderPaymentHandler
                 new Error("ecommerce.order.not_found", "La orden especificada no existe.", ErrorType.NotFound));
         }
 
-        if (!order.HasStockReserved)
+        if (!order.HasStockReserved && order.WarehouseId is { } warehouseId)
         {
             foreach (var item in order.Items)
             {
                 var stock = await _stocks
-                    .GetTrackedAsync(command.TenantId, item.CatalogItemId, order.WarehouseId, ct)
+                    .GetTrackedAsync(command.TenantId, item.CatalogItemId, warehouseId, ct)
                     .ConfigureAwait(false);
                 if (stock is null)
                 {

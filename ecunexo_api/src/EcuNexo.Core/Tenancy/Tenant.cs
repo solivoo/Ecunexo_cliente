@@ -123,14 +123,19 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
 
     /// <summary>
     /// Determina si el tenant tiene contratado un módulo y cumple el tier mínimo requerido.
+    /// El módulo <c>orders</c> también se considera habilitado cuando el tenant posee <c>ecommerce</c> (compatibilidad hacia atrás).
     /// </summary>
     public bool HasModuleWithMinTier(string moduleCode, ModuleTier? minTier = null)
     {
+        var isOrdersQuery = string.Equals(moduleCode, TenantModuleCodes.Orders, StringComparison.OrdinalIgnoreCase);
+
         if (ModuleEntitlements is null || ModuleEntitlements.Count == 0)
         {
             if (EnabledModuleCodes is not null && EnabledModuleCodes.Count > 0)
             {
-                return EnabledModuleCodes.Any(c => string.Equals(c, moduleCode, StringComparison.OrdinalIgnoreCase));
+                return EnabledModuleCodes.Any(c =>
+                    string.Equals(c, moduleCode, StringComparison.OrdinalIgnoreCase)
+                    || (isOrdersQuery && string.Equals(c, TenantModuleCodes.Ecommerce, StringComparison.OrdinalIgnoreCase)));
             }
 
             // Sin entitlements explícitos → todos los módulos conocidos (compatibilidad legacy)
@@ -138,11 +143,16 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
         }
 
         var entitlement = ModuleEntitlements
-            .FirstOrDefault(e => string.Equals(e.ModuleCode, moduleCode, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(e => string.Equals(e.ModuleCode, moduleCode, StringComparison.OrdinalIgnoreCase))
+            ?? (isOrdersQuery
+                ? ModuleEntitlements.FirstOrDefault(e => string.Equals(e.ModuleCode, TenantModuleCodes.Ecommerce, StringComparison.OrdinalIgnoreCase))
+                : null);
 
         if (entitlement is null)
         {
-            if (EnabledModuleCodes is not null && EnabledModuleCodes.Any(c => string.Equals(c, moduleCode, StringComparison.OrdinalIgnoreCase)))
+            if (EnabledModuleCodes is not null && EnabledModuleCodes.Any(c =>
+                    string.Equals(c, moduleCode, StringComparison.OrdinalIgnoreCase)
+                    || (isOrdersQuery && string.Equals(c, TenantModuleCodes.Ecommerce, StringComparison.OrdinalIgnoreCase))))
             {
                 return true;
             }
@@ -164,8 +174,16 @@ public sealed class Tenant : AggregateRoot<Guid>, IAuditable
             return null;
         }
 
+        var isOrdersOrEcommerce = string.Equals(moduleCode, TenantModuleCodes.Orders, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(moduleCode, TenantModuleCodes.Ecommerce, StringComparison.OrdinalIgnoreCase);
+
         var entitlement = ModuleEntitlements
-            .FirstOrDefault(e => string.Equals(e.ModuleCode, moduleCode, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(e => string.Equals(e.ModuleCode, moduleCode, StringComparison.OrdinalIgnoreCase))
+            ?? (isOrdersOrEcommerce
+                ? ModuleEntitlements.FirstOrDefault(e =>
+                    string.Equals(e.ModuleCode, TenantModuleCodes.Orders, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(e.ModuleCode, TenantModuleCodes.Ecommerce, StringComparison.OrdinalIgnoreCase))
+                : null);
 
         return entitlement?.GetLimit(limitKey);
     }

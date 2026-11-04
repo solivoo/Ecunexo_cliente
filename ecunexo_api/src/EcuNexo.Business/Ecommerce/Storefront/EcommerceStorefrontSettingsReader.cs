@@ -4,6 +4,7 @@ using EcuNexo.Business.Platform.Settings;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Ecommerce;
 using EcuNexo.Core.Platform;
+using EcuNexo.Core.Tenancy;
 
 namespace EcuNexo.Business.Ecommerce.Storefront;
 
@@ -44,10 +45,12 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
     public async Task<EcommerceStorefrontSettings> ResolveAsync(Guid tenantId, CancellationToken ct)
     {
         var planName = string.Empty;
+        var hasInventory = true;
         if (tenantId != Guid.Empty)
         {
             var tenant = await _tenants.GetByIdAsync(tenantId, ct).ConfigureAwait(false);
             planName = tenant?.ServicePlan?.Name ?? string.Empty;
+            hasInventory = tenant?.HasModuleWithMinTier(TenantModuleCodes.Inventory) ?? true;
         }
 
         var values = await _settings
@@ -59,7 +62,7 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
             ReadShippingMethods(values),
             ReadBankTransferInstructions(values),
             ReadPaymentHoldHours(values),
-            ReadReserveOnOrder(values),
+            hasInventory && ReadReserveOnOrder(values),
             ReadContactWhatsapp(values),
             ReadOrdersNotificationEmail(values),
             ReadMaxPendingOrders(values),

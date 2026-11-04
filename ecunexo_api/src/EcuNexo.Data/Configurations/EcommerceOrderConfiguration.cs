@@ -27,7 +27,7 @@ public sealed class EcommerceOrderConfiguration : IEntityTypeConfiguration<Ecomm
 
         builder.Property(o => o.WarehouseId)
             .HasColumnType("uuid")
-            .IsRequired();
+            .IsRequired(false);
 
         builder.HasOne(o => o.Warehouse)
             .WithMany()

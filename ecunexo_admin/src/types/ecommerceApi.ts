@@ -39,10 +39,13 @@ export const EcommerceShippingMethod = {
 
 export type EcommerceShippingMethod = (typeof EcommerceShippingMethod)[keyof typeof EcommerceShippingMethod]
 
-export function ecommerceOrderStatusLabel(status: EcommerceOrderStatus | number): string {
+export function ecommerceOrderStatusLabel(
+  status: EcommerceOrderStatus | number,
+  hasWarehouse = true
+): string {
   switch (status) {
     case EcommerceOrderStatus.Placed:
-      return 'Recibido (Stock Reservado)'
+      return hasWarehouse ? 'Recibido (Stock Reservado)' : 'Recibido'
     case EcommerceOrderStatus.Confirmed:
       return 'Confirmado'
     case EcommerceOrderStatus.Processing:
@@ -200,7 +203,7 @@ export interface EcommerceOrderTimelineDto {
 export interface EcommerceOrderSummaryDto {
   id: string
   orderNumber: string
-  warehouseId: string
+  warehouseId?: string | null
   warehouseName?: string | null
   orderDate: string
   status: EcommerceOrderStatus
@@ -222,7 +225,7 @@ export interface EcommerceOrderDetailDto {
   id: string
   tenantId: string
   orderNumber: string
-  warehouseId: string
+  warehouseId?: string | null
   warehouseName?: string | null
   orderDate: string
   status: EcommerceOrderStatus
@@ -301,7 +304,7 @@ export interface CreateEcommerceOrderItemBody {
 }
 
 export interface CreateEcommerceOrderBody {
-  warehouseId: string
+  warehouseId?: string | null
   paymentMethod: EcommercePaymentMethod
   shippingMethod: EcommerceShippingMethod
   customer: EcommerceCustomerDto
@@ -310,6 +313,7 @@ export interface CreateEcommerceOrderBody {
   shippingCost?: number
   internalNotes?: string | null
   customerNotes?: string | null
+  reserveStock?: boolean
 }
 
 export interface ShipEcommerceOrderBody {

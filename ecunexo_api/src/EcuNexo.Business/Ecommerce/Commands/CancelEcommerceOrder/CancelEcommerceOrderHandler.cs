@@ -52,11 +52,11 @@ public sealed class CancelEcommerceOrderHandler
         }
 
         // Liberar la reserva de stock solo si la orden la tenía aplicada
-        if (order.HasStockReserved)
+        if (order.HasStockReserved && order.WarehouseId is { } warehouseId)
         {
             foreach (var item in order.Items)
             {
-                var stock = await _stocks.GetTrackedAsync(command.TenantId, item.CatalogItemId, order.WarehouseId, ct).ConfigureAwait(false);
+                var stock = await _stocks.GetTrackedAsync(command.TenantId, item.CatalogItemId, warehouseId, ct).ConfigureAwait(false);
                 if (stock is not null)
                 {
                     var releaseResult = stock.ReleaseReservation(item.Quantity, command.UserId);

@@ -267,7 +267,7 @@ export function EcommerceOrderDetailPage() {
           title={`Pedido ${order.orderNumber}`}
           badge={
             <StatusBadge tone={ecommerceOrderStatusBadgeTone(order.status)}>
-              {ecommerceOrderStatusLabel(order.status)}
+              {ecommerceOrderStatusLabel(order.status, Boolean(order.warehouseId))}
             </StatusBadge>
           }
           subtitle={`Registrado el ${formatDate(order.orderDate)} • Método de entrega: ${ecommerceShippingMethodLabel(order.shippingMethod)}`}
@@ -336,7 +336,7 @@ export function EcommerceOrderDetailPage() {
                 </Button>
               )}
 
-              {canManage && !canCreateInvoice && !order.billingInvoiceId && !isCancelled && (
+              {canManage && !order.billingInvoiceId && !isCancelled && (
                 <Button
                   variant="outline"
                   iconLeft={<FileText size={16} />}
@@ -457,12 +457,18 @@ export function EcommerceOrderDetailPage() {
           <div className="ecommerce-info-list">
             <div className="ecommerce-info-row">
               <span className="ecommerce-info-label">Bodega Origen:</span>
-              <span className="ecommerce-info-value">{order.warehouseName || 'Bodega Central'}</span>
+              <span className="ecommerce-info-value">
+                {order.warehouseId
+                  ? order.warehouseName || 'Bodega Central'
+                  : 'Modo Catálogo (sin bodega)'}
+              </span>
             </div>
             <div className="ecommerce-info-row">
               <span className="ecommerce-info-label">Estado Reserva:</span>
               <span className="ecommerce-info-value">
-                {isCancelled ? (
+                {!order.warehouseId ? (
+                  <StatusBadge tone="info">Modo Catálogo (sin reserva de stock)</StatusBadge>
+                ) : isCancelled ? (
                   <StatusBadge tone="danger">Reserva Liberada</StatusBadge>
                 ) : isShipped || isDelivered ? (
                   <StatusBadge tone="success">Stock Egresado de Kárdex</StatusBadge>

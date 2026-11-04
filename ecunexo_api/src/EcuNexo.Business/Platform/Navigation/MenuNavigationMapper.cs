@@ -188,7 +188,11 @@ internal static class MenuNavigationMapper
             return true;
         }
 
-        return enabledModules.Any(m => string.Equals(m, moduleCode, StringComparison.OrdinalIgnoreCase));
+        var isOrdersModule = string.Equals(moduleCode, TenantModuleCodes.Orders, StringComparison.OrdinalIgnoreCase);
+
+        return enabledModules.Any(m =>
+            string.Equals(m, moduleCode, StringComparison.OrdinalIgnoreCase)
+            || (isOrdersModule && string.Equals(m, TenantModuleCodes.Ecommerce, StringComparison.OrdinalIgnoreCase)));
     }
 
     private enum NavigationLockKind

@@ -73,12 +73,26 @@ public sealed class CreateEcommerceOrderHandler
             }
         }
 
-        var warehouse = await _warehouses.GetActiveByIdAsync(command.TenantId, command.WarehouseId, ct).ConfigureAwait(false);
-        if (warehouse is null)
+        Guid? effectiveWarehouseId = command.WarehouseId is { } wid && wid != Guid.Empty
+            ? wid
+            : null;
+
+        if (effectiveWarehouseId is { } warehouseId)
+        {
+            var warehouse = await _warehouses.GetActiveByIdAsync(command.TenantId, warehouseId, ct).ConfigureAwait(false);
+            if (warehouse is null)
+            {
+                return Result.Failure<CreateEcommerceOrderResponse>(
+                    new Error("ecommerce.order.warehouse_not_found", "La bodega de despacho no existe o no está activa.", ErrorType.NotFound));
+            }
+        }
+        else if (command.ReserveStock)
         {
             return Result.Failure<CreateEcommerceOrderResponse>(
-                new Error("ecommerce.order.warehouse_not_found", "La bodega de despacho no existe o no está activa.", ErrorType.NotFound));
+                new Error("ecommerce.order.warehouse_required", "La bodega de despacho es obligatoria cuando se reserva stock.", ErrorType.Validation));
         }
+
+        var effectiveReserveStock = command.ReserveStock && effectiveWarehouseId.HasValue;
 
         var orderId = _idGenerator.NewId();
         var orderNumber = await _orders.GenerateNextOrderNumberAsync(command.TenantId, ct).ConfigureAwait(false);
@@ -87,7 +101,7 @@ public sealed class CreateEcommerceOrderHandler
             orderId,
             command.TenantId,
             orderNumber,
-            command.WarehouseId,
+            effectiveWarehouseId,
             command.PaymentMethod,
             command.ShippingMethod,
             command.Customer,
@@ -98,7 +112,7 @@ public sealed class CreateEcommerceOrderHandler
             command.CreatedBy,
             command.CreatedByName,
             clientRequestId,
-            command.ReserveStock,
+            effectiveReserveStock,
             command.AcceptPrivacyPolicy);
 
         if (orderResult.IsFailure)
@@ -117,6 +131,12 @@ public sealed class CreateEcommerceOrderHandler
                     new Error("ecommerce.order.item_not_found", $"El producto {itemInput.CatalogItemId} no existe o fue eliminado.", ErrorType.NotFound));
             }
 
+            if (catalogItem.IsMatrixParent)
+            {
+                return Result.Failure<CreateEcommerceOrderResponse>(
+                    new Error("ecommerce.order.matrix_parent_not_purchasable", $"El producto matriz '{catalogItem.Name}' requiere seleccionar una variante específica.", ErrorType.Validation));
+            }
+
             if (catalogItem.IsHiddenFromStorefront)
             {
                 return Result.Failure<CreateEcommerceOrderResponse>(
@@ -133,9 +153,9 @@ public sealed class CreateEcommerceOrderHandler
                 }
             }
 
-            if (command.ReserveStock)
+            if (effectiveReserveStock && effectiveWarehouseId is { } reserveWarehouseId)
             {
-                var stock = await _stocks.GetTrackedAsync(command.TenantId, itemInput.CatalogItemId, command.WarehouseId, ct).ConfigureAwait(false);
+                var stock = await _stocks.GetTrackedAsync(command.TenantId, itemInput.CatalogItemId, reserveWarehouseId, ct).ConfigureAwait(false);
                 if (stock is null)
                 {
                     return Result.Failure<CreateEcommerceOrderResponse>(

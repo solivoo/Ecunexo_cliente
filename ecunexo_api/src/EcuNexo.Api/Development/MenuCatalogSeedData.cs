@@ -112,9 +112,9 @@ internal static class MenuCatalogSeedData
         ("customers.read", "Clientes — consultar", "Listar y consultar clientes del directorio", "customers", 130),
         ("customers.manage", "Clientes — administrar", "Crear, editar clientes y gestionar tipos de clasificación", "customers", 131),
 
-        ("ecommerce.orders.read", "Pedidos Ecommerce — consultar", "Listar y ver detalle de pedidos de la tienda online", "ecommerce", 140),
-        ("ecommerce.orders.create", "Pedidos Ecommerce — crear", "Registrar pedidos recibidos", "ecommerce", 141),
-        ("ecommerce.orders.manage", "Pedidos Ecommerce — gestionar", "Cambiar estados, despachar y cancelar pedidos", "ecommerce", 142),
+        ("ecommerce.orders.read", "Pedidos — consultar", "Listar y ver detalle de pedidos y órdenes de venta", "orders", 140),
+        ("ecommerce.orders.create", "Pedidos — crear", "Registrar pedidos y órdenes de venta", "orders", 141),
+        ("ecommerce.orders.manage", "Pedidos — gestionar", "Cambiar estados, despachar y cancelar pedidos", "orders", 142),
         ("ecommerce.storefront.manage", "Tienda online — dominios", "Administrar dominios, verificación y publicación de la vitrina", "ecommerce", 143),
 
         ("purchases.documents.read", "Facturas de compra — consultar", "Listar y ver detalle de comprobantes de compra", "purchases", 150),
@@ -142,6 +142,7 @@ internal static class MenuCatalogSeedData
         ("contabilidad", "Contabilidad"),
         ("repairs", "Reparaciones"),
         ("customers", "Clientes"),
+        ("orders", "Pedidos y Órdenes de Venta"),
         ("ecommerce", "Comercio Electrónico"),
         ("purchases", "Compras"),
     ];
@@ -182,14 +183,14 @@ internal static class MenuCatalogSeedData
         Item("customers-directory", "customers", "Directorio", "users", "clientes", 1, MenuContextKind.Operational, "customers", ["customers.read"]),
         Item("customers-types", "customers", "Tipos de cliente", "tags", "clientes/tipos", 2, MenuContextKind.Operational, "customers", ["customers.read", "customers.manage"]),
 
-        Item("ecommerce", null, "Ecommerce", "shopping-bag", null, 58, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
-        Item("ecommerce-orders", "ecommerce", "Pedidos", "shopping-bag", "ecommerce/pedidos", 1, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
+        Item("ecommerce", null, "Ecommerce", "shopping-bag", null, 58, MenuContextKind.Operational, "orders", ["ecommerce.orders.read", "ecommerce.storefront.manage"]),
+        Item("ecommerce-orders", "ecommerce", "Pedidos", "shopping-bag", "ecommerce/pedidos", 1, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
         Item("ecommerce-storefront", "ecommerce", "Vitrina y dominios", "globe", "ecommerce/vitrina", 2, MenuContextKind.Operational, "ecommerce", ["ecommerce.storefront.manage"]),
         Item("ecommerce-configuracion", "ecommerce", "Configuración de tienda", "settings", "ecommerce/configuracion", 3, MenuContextKind.Operational, "ecommerce", ["ecommerce.storefront.manage"]),
-        Item("ecommerce-shipping-group", "ecommerce", "Envíos", "truck", null, 4, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
-        Item("ecommerce-shipping-methods", "ecommerce-shipping-group", "Métodos de envío", "truck", "ecommerce/envios/metodos", 1, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
-        Item("ecommerce-shipping-zones", "ecommerce-shipping-group", "Zonas", "map-pin", "ecommerce/envios/zonas", 2, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
-        Item("ecommerce-shipping-rates", "ecommerce-shipping-group", "Tarifas", "calculator", "ecommerce/envios/tarifas", 3, MenuContextKind.Operational, "ecommerce", ["ecommerce.orders.read"]),
+        Item("ecommerce-shipping-group", "ecommerce", "Envíos", "truck", null, 4, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
+        Item("ecommerce-shipping-methods", "ecommerce-shipping-group", "Métodos de envío", "truck", "ecommerce/envios/metodos", 1, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
+        Item("ecommerce-shipping-zones", "ecommerce-shipping-group", "Zonas", "map-pin", "ecommerce/envios/zonas", 2, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
+        Item("ecommerce-shipping-rates", "ecommerce-shipping-group", "Tarifas", "calculator", "ecommerce/envios/tarifas", 3, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Facturas", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),

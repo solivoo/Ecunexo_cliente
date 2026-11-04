@@ -11,7 +11,7 @@ import {
   StatCard,
   StatusBadge,
 } from '@/components/ui'
-import { Eye, Package, ShoppingBag, Truck, XCircle } from 'lucide-react'
+import { Eye, FileText, Package, ShoppingBag, Truck, XCircle } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useGridDateRange } from '@/hooks/useGridDateRange'
@@ -47,6 +47,7 @@ export function EcommerceOrdersListPage() {
   const tenantId = useAppSelector(selectTenantId)
 
   const canManage = useHasPermission('ecommerce.orders.manage')
+  const canCreateInvoice = useHasPermission('facturacion.facturas.create')
 
   const [rows, setRows] = useState<EcommerceOrderSummaryDto[]>([])
   const [metrics, setMetrics] = useState<EcommerceOrderMetricsDto | null>(null)
@@ -184,7 +185,7 @@ export function EcommerceOrdersListPage() {
         width: 170,
         renderCell: (_val, row: Row) => (
           <StatusBadge tone={ecommerceOrderStatusBadgeTone(row.status)}>
-            {ecommerceOrderStatusLabel(row.status)}
+            {ecommerceOrderStatusLabel(row.status, Boolean(row.warehouseId))}
           </StatusBadge>
         ),
       },
@@ -203,7 +204,7 @@ export function EcommerceOrdersListPage() {
         key: 'id',
         header: 'Acciones',
         sticky: 'right',
-        width: 120,
+        width: 150,
         align: 'center',
         renderCell: (_val: unknown, row: Row) => (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}>
@@ -212,6 +213,18 @@ export function EcommerceOrdersListPage() {
               icon={Eye}
               onClick={() => navigate(`/ecommerce/pedidos/${row.id}`)}
             />
+            {canCreateInvoice &&
+              !row.billingInvoiceId &&
+              row.status !== EcommerceOrderStatus.Cancelled &&
+              row.status !== EcommerceOrderStatus.Refunded && (
+                <GridIconButton
+                  label="Facturar pedido (SRI)"
+                  icon={FileText}
+                  onClick={() =>
+                    navigate(`/facturacion/facturas/emitir?pedido=${encodeURIComponent(row.id)}`)
+                  }
+                />
+              )}
             {canManage && (row.status === EcommerceOrderStatus.Processing || row.status === EcommerceOrderStatus.Confirmed) && (
               <GridIconButton
                 label="Despachar pedido"
@@ -232,7 +245,7 @@ export function EcommerceOrdersListPage() {
         ),
       },
     ]
-  }, [canManage, navigate])
+  }, [canCreateInvoice, canManage, navigate])
 
   return (
     <TenantSessionGate

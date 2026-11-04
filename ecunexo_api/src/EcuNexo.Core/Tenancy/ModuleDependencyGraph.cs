@@ -29,7 +29,8 @@ public static class ModuleDependencyGraph
             [TenantModuleCodes.Invoicing] = [TenantModuleCodes.Catalog, TenantModuleCodes.Identity],
             [TenantModuleCodes.Repairs] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.Customers] = [TenantModuleCodes.Identity],
-            [TenantModuleCodes.Ecommerce] = [TenantModuleCodes.Catalog, TenantModuleCodes.Warehousing, TenantModuleCodes.Inventory],
+            [TenantModuleCodes.Orders] = [TenantModuleCodes.Catalog],
+            [TenantModuleCodes.Ecommerce] = [TenantModuleCodes.Catalog],
             [TenantModuleCodes.Purchases] = [TenantModuleCodes.Identity],
             [TenantModuleCodes.Accounting] = [TenantModuleCodes.Identity],
         };
@@ -160,6 +161,7 @@ public static class ModuleDependencyGraph
         TenantModuleCodes.Support => "Soporte",
         TenantModuleCodes.Repairs => "Taller y Reparaciones B2B",
         TenantModuleCodes.Customers => "Clientes y Directorio Comercial",
+        TenantModuleCodes.Orders => "Pedidos y Órdenes de Venta",
         TenantModuleCodes.Ecommerce => "E-commerce",
         TenantModuleCodes.Purchases => "Compras",
         TenantModuleCodes.RemisionGuides or "billing.remision_guides" or "remision_guides" => "Guías de Remisión Electrónicas SRI (Tipo 06) & Logística",

@@ -793,6 +793,113 @@ public sealed class EcommerceOrderHandlersTests
         await uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    [Fact(DisplayName = "CreateEcommerceOrderHandler permite crear pedido en modo catálogo sin bodega ni stock")]
+    public async Task Handle_CreateOrder_CatalogModeWithoutWarehouse_Succeeds()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+
+        var catalogItem = CatalogItem.Create(
+            itemId,
+            tenantId,
+            CatalogItemKind.Physical,
+            "Camiseta Básica Algodón",
+            description: null,
+            sku: "CAM-ALG-01",
+            basePrice: 25m,
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var validator = new CreateEcommerceOrderValidator();
+        var idGen = Substitute.For<IIdGenerator>();
+        idGen.NewId().Returns(Guid.CreateVersion7());
+
+        var warehouses = Substitute.For<IWarehouseRepository>();
+        var items = Substitute.For<ICatalogItemRepository>();
+        items.GetActiveByIdAsync(tenantId, itemId, Arg.Any<CancellationToken>()).Returns(catalogItem);
+
+        var stocks = Substitute.For<IStockRepository>();
+        var orders = Substitute.For<IEcommerceOrderRepository>();
+        orders.GenerateNextOrderNumberAsync(tenantId, Arg.Any<CancellationToken>()).Returns("ECO-202611-0001");
+
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var sut = new CreateEcommerceOrderHandler(validator, idGen, warehouses, items, stocks, orders, StubPricing(25m), uow);
+
+        var (customer, shipping) = CreateSampleInfo();
+        var command = new CreateEcommerceOrderCommand(
+            TenantId: tenantId,
+            WarehouseId: null,
+            PaymentMethod: EcommercePaymentMethod.BankTransfer,
+            ShippingMethod: EcommerceShippingMethod.Courier,
+            Customer: customer,
+            Shipping: shipping,
+            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 2m)],
+            ReserveStock: false);
+
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.OrderNumber.Should().Be("ECO-202611-0001");
+        await warehouses.DidNotReceiveWithAnyArgs().GetActiveByIdAsync(default, default, default);
+        await stocks.DidNotReceiveWithAnyArgs().GetTrackedAsync(default, default, default, default);
+        await orders.Received(1).AddAsync(
+            Arg.Is<EcommerceOrder>(o => o.WarehouseId == null && !o.StockReserved),
+            Arg.Any<CancellationToken>());
+        await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact(DisplayName = "CreateEcommerceOrderHandler rechaza pedir un producto matriz padre directamente")]
+    public async Task Handle_CreateOrder_WhenItemIsMatrixParent_Fails()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+
+        var matrixParent = CatalogItem.CreateMatrixParent(
+            itemId,
+            tenantId,
+            CatalogItemKind.Physical,
+            "Zapatilla Deportiva (Matriz)",
+            description: null,
+            modelCode: "ZAP-MAT-01",
+            basePrice: 60m,
+            variantDimensionsJson: "[{\"name\":\"Talla\",\"values\":[\"40\",\"41\"]}]",
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var validator = new CreateEcommerceOrderValidator();
+        var idGen = Substitute.For<IIdGenerator>();
+        idGen.NewId().Returns(Guid.CreateVersion7());
+
+        var warehouses = Substitute.For<IWarehouseRepository>();
+        var items = Substitute.For<ICatalogItemRepository>();
+        items.GetActiveByIdAsync(tenantId, itemId, Arg.Any<CancellationToken>()).Returns(matrixParent);
+
+        var stocks = Substitute.For<IStockRepository>();
+        var orders = Substitute.For<IEcommerceOrderRepository>();
+        orders.GenerateNextOrderNumberAsync(tenantId, Arg.Any<CancellationToken>()).Returns("ECO-202611-0002");
+        var uow = Substitute.For<IUnitOfWork>();
+
+        var sut = new CreateEcommerceOrderHandler(validator, idGen, warehouses, items, stocks, orders, StubPricing(60m), uow);
+
+        var (customer, shipping) = CreateSampleInfo();
+        var command = new CreateEcommerceOrderCommand(
+            TenantId: tenantId,
+            WarehouseId: null,
+            PaymentMethod: EcommercePaymentMethod.BankTransfer,
+            ShippingMethod: EcommerceShippingMethod.Courier,
+            Customer: customer,
+            Shipping: shipping,
+            Items: [new CreateEcommerceOrderItemInput(itemId, Quantity: 1m)],
+            ReserveStock: false);
+
+        var result = await sut.Handle(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("ecommerce.order.matrix_parent_not_purchasable");
+        await orders.DidNotReceive().AddAsync(Arg.Any<EcommerceOrder>(), Arg.Any<CancellationToken>());
+    }
+
     private static EcommerceOrderEmailNotifier CreateNotifier(IEmailSender? emailSender = null) =>
         new(
             emailSender ?? Substitute.For<IEmailSender>(),

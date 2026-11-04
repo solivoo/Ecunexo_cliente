@@ -47,7 +47,7 @@ public sealed record EcommerceOrderTimelineDto(
 public sealed record EcommerceOrderSummaryDto(
     Guid Id,
     string OrderNumber,
-    Guid WarehouseId,
+    Guid? WarehouseId,
     string? WarehouseName,
     DateTimeOffset OrderDate,
     EcommerceOrderStatus Status,
@@ -68,7 +68,7 @@ public sealed record EcommerceOrderDetailDto(
     Guid Id,
     Guid TenantId,
     string OrderNumber,
-    Guid WarehouseId,
+    Guid? WarehouseId,
     string? WarehouseName,
     DateTimeOffset OrderDate,
     EcommerceOrderStatus Status,

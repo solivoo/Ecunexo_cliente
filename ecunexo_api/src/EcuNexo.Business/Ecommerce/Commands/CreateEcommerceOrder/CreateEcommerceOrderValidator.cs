@@ -8,7 +8,10 @@ public sealed class CreateEcommerceOrderValidator : AbstractValidator<CreateEcom
     public CreateEcommerceOrderValidator()
     {
         RuleFor(x => x.TenantId).NotEmpty().WithMessage("El tenant es obligatorio.");
-        RuleFor(x => x.WarehouseId).NotEmpty().WithMessage("La bodega de despacho es obligatoria.");
+        RuleFor(x => x.WarehouseId)
+            .NotEmpty()
+            .When(x => x.ReserveStock)
+            .WithMessage("La bodega de despacho es obligatoria cuando se reserva stock.");
         RuleFor(x => x.Customer).NotNull().WithMessage("Los datos del cliente son obligatorios.");
         RuleFor(x => x.Customer.CustomerName).NotEmpty().WithMessage("El nombre o razón social del cliente es obligatorio.");
         RuleFor(x => x.Customer.TaxId).NotEmpty().WithMessage("La identificación tributaria del cliente es obligatoria.");

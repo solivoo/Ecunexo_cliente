@@ -27,7 +27,11 @@ public static class ModulePermissionFilter
             return true;
         }
 
-        return enabledModuleCodes.Any(m => string.Equals(m, productModule, StringComparison.OrdinalIgnoreCase));
+        var isOrdersModule = string.Equals(productModule, TenantModuleCodes.Orders, StringComparison.OrdinalIgnoreCase);
+
+        return enabledModuleCodes.Any(m =>
+            string.Equals(m, productModule, StringComparison.OrdinalIgnoreCase)
+            || (isOrdersModule && string.Equals(m, TenantModuleCodes.Ecommerce, StringComparison.OrdinalIgnoreCase)));
     }
 
     /// <summary>
@@ -57,15 +61,21 @@ public static class ModulePermissionFilter
         IReadOnlyList<string>? enabledModuleCodes,
         IReadOnlyList<ModuleEntitlement>? entitlements)
     {
+        var isOrdersModule = string.Equals(moduleCode, TenantModuleCodes.Orders, StringComparison.OrdinalIgnoreCase);
+
         if (entitlements is { Count: > 0 }
-            && entitlements.Any(e => string.Equals(e.ModuleCode, moduleCode, StringComparison.OrdinalIgnoreCase)))
+            && entitlements.Any(e =>
+                string.Equals(e.ModuleCode, moduleCode, StringComparison.OrdinalIgnoreCase)
+                || (isOrdersModule && string.Equals(e.ModuleCode, TenantModuleCodes.Ecommerce, StringComparison.OrdinalIgnoreCase))))
         {
             return true;
         }
 
         if (enabledModuleCodes is { Count: > 0 })
         {
-            return enabledModuleCodes.Any(m => string.Equals(m, moduleCode, StringComparison.OrdinalIgnoreCase));
+            return enabledModuleCodes.Any(m =>
+                string.Equals(m, moduleCode, StringComparison.OrdinalIgnoreCase)
+                || (isOrdersModule && string.Equals(m, TenantModuleCodes.Ecommerce, StringComparison.OrdinalIgnoreCase)));
         }
 
         if (entitlements is null or { Count: 0 })

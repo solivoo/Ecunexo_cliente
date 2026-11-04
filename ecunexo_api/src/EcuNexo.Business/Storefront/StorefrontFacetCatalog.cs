@@ -13,16 +13,24 @@ namespace EcuNexo.Business.Storefront;
 /// </summary>
 public static class StorefrontFacetCatalog
 {
+    private static readonly string[] CategoriaAliases = ["categoria", "categoría", "categorias", "categorías", "category", "linea", "línea", "departamento", "familia"];
+    private static readonly string[] SubcategoriaAliases = ["subcategoria", "subcategoría", "subcategory", "subfamilia", "tipo", "tipo de producto"];
+    private static readonly string[] MarcaAliases = ["marca", "brand", "fabricante"];
     private static readonly string[] TallaAliases = ["talla", "tallas", "tallas calcetin", "size"];
     private static readonly string[] ColorAliases = ["color", "colores"];
+    private static readonly string[] GeneroAliases = ["genero", "género", "sexo", "gender"];
     private static readonly string[] ActividadAliases = ["actividad / uso", "actividad", "uso"];
     private static readonly string[] CanaAliases = ["tipo de cana", "tipo_cana", "cana", "caña"];
-    private static readonly string[] MaterialAliases = ["material", "materiales"];
-    private static readonly string[] MarcaAliases = ["marca"];
-    private static readonly string[] ColeccionAliases = ["coleccion", "colección", "colecciones"];
+    private static readonly string[] MaterialAliases = ["material", "materiales", "composicion", "composición"];
+    private static readonly string[] PresentacionAliases = ["presentacion", "presentación", "formato", "empaque", "envase", "unidad"];
+    private static readonly string[] CapacidadAliases = ["capacidad", "peso", "volumen", "contenido", "medida", "dimension", "dimensión", "gramaje"];
+    private static readonly string[] ModeloAliases = ["modelo", "estilo", "style", "referencia", "version", "versión"];
+    private static readonly string[] ColeccionAliases = ["coleccion", "colección", "colecciones", "temporada"];
 
     private static readonly StorefrontFacetDefinition[] Definitions =
     [
+        new("categoria", "Categoría", CategoriaAliases),
+        new("subcategoria", "Subcategoría", SubcategoriaAliases),
         new("talla", "Talla", TallaAliases),
         new("color", "Color", ColorAliases),
         new("actividad", "Actividad / Uso", ActividadAliases),
@@ -30,6 +38,10 @@ public static class StorefrontFacetCatalog
         new("material", "Material", MaterialAliases),
         new("marca", "Marca", MarcaAliases),
         new("coleccion", "Colección", ColeccionAliases),
+        new("genero", "Género", GeneroAliases),
+        new("presentacion", "Presentación", PresentacionAliases),
+        new("capacidad", "Capacidad / Peso", CapacidadAliases),
+        new("modelo", "Modelo", ModeloAliases),
     ];
 
     private static readonly HashSet<string> ExcludedKeys = new(StringComparer.OrdinalIgnoreCase)

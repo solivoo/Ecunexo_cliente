@@ -20,6 +20,12 @@ public static class PermissionModuleMapper
             return TenantModuleCodes.Invoicing;
         }
 
+        if (normalized.StartsWith("ecommerce.orders.", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("orders.", StringComparison.OrdinalIgnoreCase))
+        {
+            return TenantModuleCodes.Orders;
+        }
+
         var dot = permissionCode.IndexOf('.');
         if (dot <= 0)
         {

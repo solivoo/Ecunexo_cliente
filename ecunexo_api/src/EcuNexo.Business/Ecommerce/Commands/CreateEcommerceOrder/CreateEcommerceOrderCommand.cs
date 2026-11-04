@@ -9,7 +9,7 @@ public sealed record CreateEcommerceOrderItemInput(
 
 public sealed record CreateEcommerceOrderCommand(
     Guid TenantId,
-    Guid WarehouseId,
+    Guid? WarehouseId,
     EcommercePaymentMethod PaymentMethod,
     EcommerceShippingMethod ShippingMethod,
     EcommerceCustomerInfo Customer,

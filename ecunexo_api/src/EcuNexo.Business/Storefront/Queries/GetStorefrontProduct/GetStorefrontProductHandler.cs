@@ -10,6 +10,7 @@ using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Pricing;
+using EcuNexo.Core.Tenancy;
 
 namespace EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 
@@ -86,18 +87,25 @@ public sealed class GetStorefrontProductHandler
             ids.Add(variant.Id);
         }
 
-        // Mismo criterio que el listado: disponible de la bodega de despacho (principal).
-        var dispatchWarehouse = await _warehouses
-            .GetMainAsync(query.TenantId, ct)
-            .ConfigureAwait(false);
+        // Mismo criterio que el listado: disponible de la bodega de despacho (principal)
+        // o disponibilidad inmediata cuando el tenant opera en modo solo catálogo.
+        var tenant = await _tenants.GetByIdAsync(query.TenantId, ct).ConfigureAwait(false);
+        var hasInventory = tenant?.HasModuleWithMinTier(TenantModuleCodes.Inventory) ?? true;
+        var dispatchWarehouse = hasInventory
+            ? await _warehouses
+                .GetMainAsync(query.TenantId, ct)
+                .ConfigureAwait(false)
+            : null;
         var storefrontSettings = _settings is not null
             ? await _settings.ResolveAsync(query.TenantId, ct).ConfigureAwait(false)
             : null;
-        var reserveOnOrder = storefrontSettings?.ReserveOnOrder ?? true;
+        var reserveOnOrder = hasInventory && (storefrontSettings?.ReserveOnOrder ?? true);
 
-        var availability = await _stock
-            .SumAvailableByItemIdsAsync(query.TenantId, dispatchWarehouse?.Id, ids, ct)
-            .ConfigureAwait(false);
+        var availability = hasInventory
+            ? await _stock
+                .SumAvailableByItemIdsAsync(query.TenantId, dispatchWarehouse?.Id, ids, ct)
+                .ConfigureAwait(false)
+            : new Dictionary<Guid, decimal>();
 
         var totalAvailable = SumAvailability(item.Id, variants, availability);
 

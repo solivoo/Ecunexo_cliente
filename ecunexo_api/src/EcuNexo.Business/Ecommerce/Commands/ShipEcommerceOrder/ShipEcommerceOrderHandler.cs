@@ -55,40 +55,43 @@ public sealed class ShipEcommerceOrderHandler
             return Result.Failure<ShipEcommerceOrderResponse>(shipResult.Error!);
         }
 
-        // Si la orden no reservó stock al crearse (modo reservar al confirmar pago), reservarlo antes de liquidarlo.
-        if (!order.HasStockReserved)
+        if (order.WarehouseId is { } warehouseId)
         {
-            foreach (var item in order.Items)
+            // Si la orden no reservó stock al crearse (modo reservar al confirmar pago), reservarlo antes de liquidarlo.
+            if (!order.HasStockReserved)
             {
-                var stock = await _stocks.GetTrackedAsync(command.TenantId, item.CatalogItemId, order.WarehouseId, ct).ConfigureAwait(false);
-                if (stock is null)
+                foreach (var item in order.Items)
                 {
-                    return Result.Failure<ShipEcommerceOrderResponse>(
-                        new Error(
-                            "ecommerce.order.stock_missing",
-                            $"No existe registro de stock para el producto '{item.Sku}' en la bodega de la orden.",
-                            ErrorType.Conflict));
+                    var stock = await _stocks.GetTrackedAsync(command.TenantId, item.CatalogItemId, warehouseId, ct).ConfigureAwait(false);
+                    if (stock is null)
+                    {
+                        return Result.Failure<ShipEcommerceOrderResponse>(
+                            new Error(
+                                "ecommerce.order.stock_missing",
+                                $"No existe registro de stock para el producto '{item.Sku}' en la bodega de la orden.",
+                                ErrorType.Conflict));
+                    }
+
+                    var reserveResult = stock.Reserve(item.Quantity, command.UserId);
+                    if (reserveResult.IsFailure)
+                    {
+                        return Result.Failure<ShipEcommerceOrderResponse>(reserveResult.Error!);
+                    }
                 }
 
-                var reserveResult = stock.Reserve(item.Quantity, command.UserId);
-                if (reserveResult.IsFailure)
-                {
-                    return Result.Failure<ShipEcommerceOrderResponse>(reserveResult.Error!);
-                }
+                order.MarkStockReserved();
             }
 
-            order.MarkStockReserved();
-        }
-
-        foreach (var item in order.Items)
-        {
-            var stock = await _stocks.GetTrackedAsync(command.TenantId, item.CatalogItemId, order.WarehouseId, ct).ConfigureAwait(false);
-            if (stock is not null)
+            foreach (var item in order.Items)
             {
-                var commitResult = stock.CommitReservation(item.Quantity, command.UserId);
-                if (commitResult.IsFailure)
+                var stock = await _stocks.GetTrackedAsync(command.TenantId, item.CatalogItemId, warehouseId, ct).ConfigureAwait(false);
+                if (stock is not null)
                 {
-                    return Result.Failure<ShipEcommerceOrderResponse>(commitResult.Error!);
+                    var commitResult = stock.CommitReservation(item.Quantity, command.UserId);
+                    if (commitResult.IsFailure)
+                    {
+                        return Result.Failure<ShipEcommerceOrderResponse>(commitResult.Error!);
+                    }
                 }
             }
         }

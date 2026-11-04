@@ -27,6 +27,8 @@ public static class TenantModuleCodes
 
     public const string Customers = "customers";
 
+    public const string Orders = "orders";
+
     public const string Ecommerce = "ecommerce";
 
     public const string Purchases = "purchases";
@@ -38,7 +40,7 @@ public static class TenantModuleCodes
     public const string CatalogMatrix = "catalog.matrix";
 
     public static readonly IReadOnlyList<string> All =
-        [Identity, Catalog, Warehousing, Inventory, Invoicing, Accounting, Training, Support, Repairs, Customers, Ecommerce, Purchases];
+        [Identity, Catalog, Warehousing, Inventory, Invoicing, Accounting, Training, Support, Repairs, Customers, Orders, Ecommerce, Purchases];
 
     public static bool IsKnown(string code)
     {
@@ -73,6 +75,7 @@ public static class TenantModuleCodes
             "invoicing" or "billing" or "remision_guides" or "guias_remision" or "guias-remision" or "billing.remision_guides" or "credit_notes" or "notas_credito" or "notas-credito" or "billing.credit_notes" => Invoicing,
             "accounting" => Accounting,
             "catalog.matrix" or "catalog_matrix" or "matrix" or "catalog-matrix" => Catalog,
+            "pedidos" or "ordenes" or "sales_orders" or "sales-orders" => Orders,
             _ => normalized,
         };
     }

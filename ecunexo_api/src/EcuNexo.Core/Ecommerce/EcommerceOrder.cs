@@ -37,7 +37,8 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
     /// <summary>Identificador idempotente enviado por el cliente de la tienda pública (checkout invitado).</summary>
     public string? ClientRequestId { get; private set; }
 
-    public Guid WarehouseId { get; private set; }
+    /// <summary>Bodega de despacho (opcional cuando el tenant opera en modalidad solo catálogo sin inventario).</summary>
+    public Guid? WarehouseId { get; private set; }
 
     public Warehouse? Warehouse { get; private set; }
 
@@ -161,7 +162,7 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
         Guid id,
         Guid tenantId,
         string orderNumber,
-        Guid warehouseId,
+        Guid? warehouseId,
         EcommercePaymentMethod paymentMethod,
         EcommerceShippingMethod shippingMethod,
         EcommerceCustomerInfo customer,
@@ -187,7 +188,13 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
                 new Error("ecommerce.order.tenant_empty", "El tenant es obligatorio.", ErrorType.Validation));
         }
 
-        if (warehouseId == Guid.Empty)
+        if (warehouseId.HasValue && warehouseId.Value == Guid.Empty)
+        {
+            return Result.Failure<EcommerceOrder>(
+                new Error("ecommerce.order.warehouse_required", "La bodega de origen indicada no es válida.", ErrorType.Validation));
+        }
+
+        if (stockReserved && !warehouseId.HasValue)
         {
             return Result.Failure<EcommerceOrder>(
                 new Error("ecommerce.order.warehouse_required", "La bodega de origen para reserva de stock es obligatoria.", ErrorType.Validation));
@@ -260,7 +267,9 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
             newStatus: EcommerceOrderStatus.Placed,
             notes: stockReserved
                 ? "Orden recibida en plataforma ecommerce. Stock reservado en bodega."
-                : "Orden recibida en plataforma ecommerce. Stock se reservará al confirmar el pago.",
+                : warehouseId.HasValue
+                    ? "Orden recibida en plataforma ecommerce. Stock se reservará al confirmar el pago."
+                    : "Orden recibida bajo modalidad catálogo (sin reserva de stock en bodega).",
             userId: createdBy,
             userName: createdByName ?? "Sistema");
 
