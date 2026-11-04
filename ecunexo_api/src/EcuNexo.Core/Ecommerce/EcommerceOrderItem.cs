@@ -110,7 +110,7 @@ public sealed class EcommerceOrderItem : Entity<Guid>
             TaxRate = decimal.Round(taxRate, 4, MidpointRounding.AwayFromZero),
             TaxAmount = taxAmount,
             TotalAmount = totalAmount,
-            PriceListId = pricing?.PriceListId,
+            PriceListId = pricing?.PriceListId is { } listId && listId != Guid.Empty ? listId : null,
             ListPrice = pricing?.ListPrice,
             AppliedRulesJson = pricing?.AppliedRulesJson,
         };

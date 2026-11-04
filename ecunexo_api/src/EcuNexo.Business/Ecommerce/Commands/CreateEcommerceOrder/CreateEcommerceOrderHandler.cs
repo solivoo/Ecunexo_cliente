@@ -238,7 +238,7 @@ public sealed class CreateEcommerceOrderHandler
 
         var resolved = pricing.Value!;
         var snapshot = new EcommerceItemPricingSnapshot(
-            resolved.PriceListId,
+            resolved.PriceListId == Guid.Empty ? null : resolved.PriceListId,
             resolved.ListPrice,
             resolved.TaxAmount,
             resolved.FinalPrice,

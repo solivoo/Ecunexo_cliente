@@ -10,6 +10,7 @@ internal static class FeatureFlagCatalog
 {
     private static readonly Dictionary<string, string> ItemFlags = new(StringComparer.OrdinalIgnoreCase)
     {
+        ["catalog-pricing"] = $"{TenantModuleCodes.Catalog}.{ModuleTierCatalog.LimitEnableAdvancedPricing}",
         ["contabilidad-balances"] = $"{TenantModuleCodes.Accounting}.allow_financial_statements_export",
         ["contabilidad-cuentas"] = $"{TenantModuleCodes.Accounting}.enable_custom_subaccounts",
     };

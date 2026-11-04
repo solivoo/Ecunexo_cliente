@@ -140,6 +140,28 @@ public sealed class MenuNavigationMapperTests
         tree.Should().ContainSingle().Which.Children.Should().ContainSingle();
     }
 
+    [Fact(DisplayName = "Desactivar enable_advanced_pricing en catálogo oculta Gestión de precios y sus hijos")]
+    public void BuildTree_CatalogAdvancedPricingOff_HidesPricingGroup()
+    {
+        var items = new[]
+        {
+            Item("catalog", null, "Catálogo", route: null, TenantModuleCodes.Catalog),
+            Item("catalog-items", "catalog", "Ítems", "catalogo/items", TenantModuleCodes.Catalog),
+            Item("catalog-pricing", "catalog", "Gestión de precios", route: null, TenantModuleCodes.Catalog),
+            Item("catalog-pricing-lists", "catalog-pricing", "Listas de precios", "catalogo/precios/listas", TenantModuleCodes.Catalog),
+        };
+        var limits = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            [$"{TenantModuleCodes.Catalog}.{ModuleTierCatalog.LimitEnableAdvancedPricing}"] = 0,
+        };
+
+        var tree = MenuNavigationMapper.BuildTree(items, [], [TenantModuleCodes.Catalog], limits);
+
+        var section = tree.Should().ContainSingle().Subject;
+        section.Id.Should().Be("catalog");
+        section.Children.Should().ContainSingle().Which.Id.Should().Be("catalog-items");
+    }
+
     [Fact(DisplayName = "Los entitlements mandan sobre la lista legacy de módulos")]
     public void ResolveEnabledModules_EntitlementsWinOverLegacy()
     {

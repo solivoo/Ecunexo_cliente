@@ -117,9 +117,7 @@ public sealed class StorefrontCatalogReader
         return items
             .Select(item =>
             {
-                decimal? listPrice = resolvedPrices.TryGetValue(item.Id, out var resolved)
-                    ? resolved
-                    : item.BasePrice;
+                decimal? listPrice = ResolveRootPrice(item, resolvedPrices);
                 decimal? finalPrice = listPrice;
                 decimal? originalPrice = null;
                 int? discountPercent = null;
@@ -184,6 +182,35 @@ public sealed class StorefrontCatalogReader
         }
 
         return total;
+    }
+
+    private static decimal? ResolveRootPrice(
+        CatalogItem item,
+        IReadOnlyDictionary<Guid, decimal> resolvedPrices)
+    {
+        if (resolvedPrices.TryGetValue(item.Id, out var resolved))
+        {
+            return resolved;
+        }
+
+        if (item.BasePrice is > 0m)
+        {
+            return item.BasePrice;
+        }
+
+        decimal? minVariantPrice = null;
+        foreach (var variant in item.Variants)
+        {
+            var candidate = resolvedPrices.TryGetValue(variant.Id, out var variantResolved)
+                ? variantResolved
+                : variant.BasePrice is > 0m ? variant.BasePrice : null;
+            if (candidate is > 0m && (minVariantPrice is null || candidate.Value < minVariantPrice.Value))
+            {
+                minVariantPrice = candidate;
+            }
+        }
+
+        return minVariantPrice;
     }
 }
 

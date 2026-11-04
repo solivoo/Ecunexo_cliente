@@ -52,30 +52,36 @@ public sealed class PricingService : IPricingService
                 new Error("catalog.pricing.item.not_found", "El producto no existe o no está disponible.", ErrorType.NotFound));
         }
 
-        var list = await ResolvePriceListAsync(tenantId, request, ct).ConfigureAwait(false);
-        if (list.IsFailure)
+        var listResult = await ResolvePriceListAsync(tenantId, request, ct).ConfigureAwait(false);
+        if (listResult.IsFailure && request.PriceListId is not null)
         {
-            return Result.Failure<PricingResult>(list.Error!);
+            return Result.Failure<PricingResult>(listResult.Error!);
         }
 
-        var priceList = list.Value!;
-        var productPrice = await _productPrices
-            .GetVigentAsync(tenantId, priceList.Id, item.Id, request.Date, ct)
-            .ConfigureAwait(false);
-
+        var priceList = listResult.IsSuccess ? listResult.Value : null;
+        ProductPrice? productPrice = null;
         var inheritedFromParent = false;
-        if (productPrice is null && item.ParentId is { } parentId)
+
+        if (priceList is not null)
         {
             productPrice = await _productPrices
-                .GetVigentAsync(tenantId, priceList.Id, parentId, request.Date, ct)
+                .GetVigentAsync(tenantId, priceList.Id, item.Id, request.Date, ct)
                 .ConfigureAwait(false);
-            inheritedFromParent = productPrice is not null;
+
+            if (productPrice is null && item.ParentId is { } parentId)
+            {
+                productPrice = await _productPrices
+                    .GetVigentAsync(tenantId, priceList.Id, parentId, request.Date, ct)
+                    .ConfigureAwait(false);
+                inheritedFromParent = productPrice is not null;
+            }
         }
 
-        var rules = new List<string> { $"LISTA_{priceList.Code}" };
-        if (inheritedFromParent)
+        EcuNexo.Core.Catalog.CatalogItem? parentItem = null;
+        var rules = new List<string>();
+        if (priceList is not null)
         {
-            rules.Add("PRECIO_HEREDADO_PADRE");
+            rules.Add($"LISTA_{priceList.Code}");
         }
 
         decimal basePrice;
@@ -84,13 +90,42 @@ public sealed class PricingService : IPricingService
 
         if (productPrice is not null)
         {
+            if (inheritedFromParent)
+            {
+                rules.Add("PRECIO_HEREDADO_PADRE");
+            }
+
             basePrice = productPrice.Price;
             tiers = productPrice.Tiers;
             volumeScheme = productPrice.VolumeDiscountScheme;
         }
-        else if (priceList.IsDefault && item.BasePrice is > 0m)
+        else if (priceList is null || priceList.IsDefault)
         {
-            basePrice = item.BasePrice.Value;
+            decimal? catalogBasePrice = item.BasePrice is > 0m ? item.BasePrice.Value : null;
+            if (catalogBasePrice is null && item.ParentId is { } parentIdForBase)
+            {
+                parentItem = await _items.GetActiveByIdAsync(tenantId, parentIdForBase, ct).ConfigureAwait(false);
+                if (parentItem?.BasePrice is > 0m)
+                {
+                    catalogBasePrice = parentItem.BasePrice.Value;
+                    inheritedFromParent = true;
+                }
+            }
+
+            if (catalogBasePrice is not > 0m)
+            {
+                return Result.Failure<PricingResult>(
+                    listResult.IsFailure
+                        ? listResult.Error!
+                        : new Error("catalog.pricing.price.not_found", "El producto no tiene precio vigente en la lista indicada.", ErrorType.NotFound));
+            }
+
+            if (inheritedFromParent)
+            {
+                rules.Add("PRECIO_HEREDADO_PADRE");
+            }
+
+            basePrice = catalogBasePrice.Value;
             tiers = Array.Empty<QuantityTier>();
             volumeScheme = null;
             rules.Add("PRECIO_BASE_CATALOGO");
@@ -111,13 +146,14 @@ public sealed class PricingService : IPricingService
             .GetRateAsync(tenantId, item.Id, request.Date, ct)
             .ConfigureAwait(false);
 
+        var pricesIncludeTax = priceList?.PricesIncludeTax ?? false;
         var calculation = PriceCalculator.Calculate(
             basePrice,
             request.Quantity,
             tiers,
             activePromotions,
             taxRate,
-            priceList.PricesIncludeTax,
+            pricesIncludeTax,
             volumeScheme);
         if (calculation.IsFailure)
         {
@@ -145,9 +181,20 @@ public sealed class PricingService : IPricingService
             }
         }
 
-        if ((averageCost is null || averageCost <= 0m) && item.CostPrice is > 0m)
+        if (averageCost is null or <= 0m)
         {
-            averageCost = Math.Round(item.CostPrice.Value, 4);
+            if (item.CostPrice is > 0m)
+            {
+                averageCost = Math.Round(item.CostPrice.Value, 4);
+            }
+            else if (item.ParentId is { } parentIdForCost)
+            {
+                parentItem ??= await _items.GetActiveByIdAsync(tenantId, parentIdForCost, ct).ConfigureAwait(false);
+                if (parentItem?.CostPrice is > 0m)
+                {
+                    averageCost = Math.Round(parentItem.CostPrice.Value, 4);
+                }
+            }
         }
 
         if (averageCost > 0m)
@@ -167,8 +214,8 @@ public sealed class PricingService : IPricingService
 
         var result = new PricingResult(
             item.Id,
-            priceList.Id,
-            priceList.Code,
+            priceList?.Id ?? Guid.Empty,
+            priceList?.Code ?? "BASE",
             calc.ListPrice,
             calc.UnitPrice,
             calc.TierLabel is null ? null : calc.UnitPrice,
@@ -181,7 +228,7 @@ public sealed class PricingService : IPricingService
             calc.FinalPrice,
             calc.TaxRate,
             calc.PricesIncludeTax,
-            priceList.Currency,
+            priceList?.Currency ?? PriceList.DefaultCurrency,
             rules,
             averageCost,
             marginPercent,

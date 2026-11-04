@@ -269,6 +269,79 @@ public sealed class PricingServiceTests
         result.Value.AppliedRules.Should().Contain("PRECIO_BASE_CATALOGO");
     }
 
+    [Fact(DisplayName = "Sin ninguna lista de precios creada, resuelve con BasePrice del catálogo y aplica promociones")]
+    public async Task ResolveAsync_WithoutAnyPriceList_FallsBackToCatalogBasePrice()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var item = CatalogItem.Create(
+            Guid.CreateVersion7(),
+            tenantId,
+            CatalogItemKind.Physical,
+            "Zapatilla Urbana",
+            description: null,
+            sku: "ZAP-001",
+            basePrice: 40.00m,
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var lists = new InMemoryPriceListRepository();
+        var prices = new InMemoryProductPriceRepository();
+        var promotions = new InMemoryPromotionRepository();
+        promotions.Seed(Promo(tenantId, "PROMO10", PromotionType.Percentage, 10m, item.Id));
+
+        var service = Service(lists, prices, item, promotions);
+
+        var result = await service.ResolveAsync(tenantId, new PricingRequest(item.Id, 1m, Today), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var value = result.Value!;
+        value.PriceListId.Should().Be(Guid.Empty);
+        value.PriceListCode.Should().Be("BASE");
+        value.ListPrice.Should().Be(40.00m);
+        value.DiscountAmount.Should().Be(4.00m);
+        value.NetPrice.Should().Be(36.00m);
+        value.AppliedRules.Should().Contain("PRECIO_BASE_CATALOGO");
+        value.AppliedRules.Should().Contain("PROMO_PROMO10");
+    }
+
+    [Fact(DisplayName = "Variante sin BasePrice hereda el BasePrice del producto matriz padre aun sin lista de precios")]
+    public async Task ResolveAsync_VariantWithoutOwnBasePrice_InheritsParentBasePriceWithoutPriceList()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var parent = MatrixParent(tenantId);
+        var variant = Variant(parent);
+        var updatedParent = CatalogItem.CreateMatrixParent(
+            parent.Id,
+            tenantId,
+            CatalogItemKind.Physical,
+            "Camiseta Básica",
+            description: null,
+            modelCode: "CAM-BAS",
+            basePrice: 25.00m,
+            variantDimensionsJson: "[{\"name\":\"Talla\",\"values\":[\"S\",\"M\"]}]",
+            customAttributesJson: null,
+            categorySchemaJson: CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var items = Substitute.For<ICatalogItemRepository>();
+        items.GetActiveByIdAsync(tenantId, variant.Id, Arg.Any<CancellationToken>()).Returns(variant);
+        items.GetActiveByIdAsync(tenantId, parent.Id, Arg.Any<CancellationToken>()).Returns(updatedParent);
+
+        var service = new PricingService(
+            new InMemoryPriceListRepository(),
+            new InMemoryProductPriceRepository(),
+            new InMemoryPromotionRepository(),
+            items,
+            new EcuadorTaxRateProvider());
+
+        var result = await service.ResolveAsync(tenantId, new PricingRequest(variant.Id, 2m, Today), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.UnitPrice.Should().Be(25.00m);
+        result.Value.Subtotal.Should().Be(50.00m);
+        result.Value.AppliedRules.Should().Contain("PRECIO_HEREDADO_PADRE");
+        result.Value.AppliedRules.Should().Contain("PRECIO_BASE_CATALOGO");
+    }
+
     [Fact(DisplayName = "Calcula margen y alerta bajo costo contra costo promedio de inventario")]
     public async Task ResolveAsync_WithStockCost_CalculatesMarginAndWarnsBelowCost()
     {

@@ -5,7 +5,7 @@ namespace EcuNexo.Core.Ecommerce;
 /// lista, impuesto, total y reglas aplicadas para que el histórico nunca se recalcule.
 /// </summary>
 public sealed record EcommerceItemPricingSnapshot(
-    Guid PriceListId,
+    Guid? PriceListId,
     decimal ListPrice,
     decimal TaxAmount,
     decimal TotalAmount,

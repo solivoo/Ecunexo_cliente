@@ -135,7 +135,13 @@ public sealed class GetStorefrontProductHandler
         var parentPrice = item.ParentId is { } parentId
             ? ResolvePrice(resolvedPrices, parentId)
             : null;
-        var listProductPrice = ResolvePrice(resolvedPrices, item.Id) ?? parentPrice ?? item.BasePrice;
+        var listProductPrice = ResolvePrice(resolvedPrices, item.Id)
+            ?? parentPrice
+            ?? (item.BasePrice is > 0m ? item.BasePrice : null)
+            ?? variants
+                .Select(v => ResolvePrice(resolvedPrices, v.Id) ?? (v.BasePrice is > 0m ? v.BasePrice : null))
+                .Where(p => p is > 0m)
+                .Min();
 
         var now = DateTimeOffset.UtcNow;
         var activePromotions = await _promotions
@@ -151,7 +157,9 @@ public sealed class GetStorefrontProductHandler
         var variantDtos = variants
             .Select(variant =>
             {
-                var listVariantPrice = ResolvePrice(resolvedPrices, variant.Id) ?? listProductPrice;
+                var listVariantPrice = ResolvePrice(resolvedPrices, variant.Id)
+                    ?? (variant.BasePrice is > 0m ? variant.BasePrice : null)
+                    ?? listProductPrice;
                 var (variantPrice, variantOriginalPrice, variantDiscountPercent) =
                     ApplyPromotions(listVariantPrice, variant.Id, item.Id, vigentPromotions);
 
