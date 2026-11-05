@@ -162,6 +162,32 @@ public sealed class MenuNavigationMapperTests
         section.Children.Should().ContainSingle().Which.Id.Should().Be("catalog-items");
     }
 
+    [Fact(DisplayName = "Con solo el módulo orders activo se muestra el menú Pedidos habilitado incluso si la fila en BD tenía ecommerce")]
+    public void BuildTree_OrdersModuleOnly_ShowsPedidosMenuUnlocked()
+    {
+        var items = new[]
+        {
+            Item("ecommerce", null, "Ecommerce", route: null, TenantModuleCodes.Ecommerce),
+            Item("ecommerce-orders", "ecommerce", "Pedidos", "ecommerce/pedidos", TenantModuleCodes.Ecommerce),
+            Item("ecommerce-storefront", "ecommerce", "Vitrina y dominios", "ecommerce/vitrina", TenantModuleCodes.Ecommerce),
+        };
+
+        var tree = MenuNavigationMapper.BuildTree(items, [], [TenantModuleCodes.Orders]);
+
+        var section = tree.Should().ContainSingle().Subject;
+        section.Id.Should().Be("ecommerce");
+        section.Label.Should().Be("Pedidos");
+        section.Disabled.Should().BeFalse();
+
+        var ordersLeaf = section.Children.Single(c => c.Id == "ecommerce-orders");
+        ordersLeaf.Disabled.Should().BeFalse();
+        ordersLeaf.LockKind.Should().BeNull();
+
+        var storefrontLeaf = section.Children.Single(c => c.Id == "ecommerce-storefront");
+        storefrontLeaf.Disabled.Should().BeTrue();
+        storefrontLeaf.LockKind.Should().Be("module");
+    }
+
     [Fact(DisplayName = "Los entitlements mandan sobre la lista legacy de módulos")]
     public void ResolveEnabledModules_EntitlementsWinOverLegacy()
     {

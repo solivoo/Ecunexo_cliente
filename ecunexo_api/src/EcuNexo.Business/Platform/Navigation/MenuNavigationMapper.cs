@@ -113,9 +113,12 @@ internal static class MenuNavigationMapper
             lockKind = NavigationLockKind.None;
         }
 
+        var effectiveModuleCode = ResolveEffectiveModuleCode(item);
+        var effectiveLabel = ResolveEffectiveLabel(item, enabledModules);
+
         return new NavigationNodeDto(
             item.Id,
-            item.Label,
+            effectiveLabel,
             item.Route,
             item.Icon,
             disabled,
@@ -123,7 +126,7 @@ internal static class MenuNavigationMapper
             item.IsPlaceholder,
             children,
             ToLockKind(lockKind),
-            string.IsNullOrWhiteSpace(item.ModuleCode) ? null : item.ModuleCode);
+            string.IsNullOrWhiteSpace(effectiveModuleCode) ? null : effectiveModuleCode);
     }
 
     private static (bool Disabled, string? Reason, NavigationLockKind Kind) Evaluate(
@@ -131,7 +134,8 @@ internal static class MenuNavigationMapper
         HashSet<string> permSet,
         IReadOnlyList<string>? enabledModules)
     {
-        if (!IsModuleEnabled(item.ModuleCode, enabledModules))
+        var effectiveModuleCode = ResolveEffectiveModuleCode(item);
+        if (!IsModuleEnabled(effectiveModuleCode, enabledModules))
         {
             return (true, "Módulo no incluido en tu plan.", NavigationLockKind.Module);
         }
@@ -175,6 +179,39 @@ internal static class MenuNavigationMapper
         NavigationLockKind.Placeholder => "placeholder",
         _ => null,
     };
+
+    private static readonly HashSet<string> OrdersMenuItemIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ecommerce",
+        "ecommerce-orders",
+        "ecommerce-shipping-group",
+        "ecommerce-shipping-methods",
+        "ecommerce-shipping-zones",
+        "ecommerce-shipping-rates",
+    };
+
+    private static string ResolveEffectiveModuleCode(MenuItem item)
+    {
+        if (OrdersMenuItemIds.Contains(item.Id))
+        {
+            return TenantModuleCodes.Orders;
+        }
+
+        return item.ModuleCode;
+    }
+
+    private static string ResolveEffectiveLabel(MenuItem item, IReadOnlyList<string>? enabledModules)
+    {
+        if (string.Equals(item.Id, "ecommerce", StringComparison.OrdinalIgnoreCase)
+            && enabledModules is { Count: > 0 }
+            && !enabledModules.Contains(TenantModuleCodes.Ecommerce, StringComparer.OrdinalIgnoreCase)
+            && enabledModules.Contains(TenantModuleCodes.Orders, StringComparer.OrdinalIgnoreCase))
+        {
+            return "Pedidos";
+        }
+
+        return item.Label;
+    }
 
     private static bool IsModuleEnabled(string moduleCode, IReadOnlyList<string>? enabledModules)
     {

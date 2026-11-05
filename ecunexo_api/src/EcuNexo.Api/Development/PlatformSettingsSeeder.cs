@@ -11,7 +11,7 @@ internal static class PlatformSettingsSeeder
     {
         var seedCatalog = app.Configuration.GetValue(
             "Database:SeedCatalogOnStartup",
-            defaultValue: app.Environment.IsDevelopment());
+            defaultValue: true);
         if (!seedCatalog)
         {
             return;

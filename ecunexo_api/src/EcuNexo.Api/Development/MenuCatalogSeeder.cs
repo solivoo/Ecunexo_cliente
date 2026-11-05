@@ -15,7 +15,7 @@ internal static class MenuCatalogSeeder
     {
         var seedCatalog = app.Configuration.GetValue(
             "Database:SeedCatalogOnStartup",
-            defaultValue: app.Environment.IsDevelopment());
+            defaultValue: true);
         if (!seedCatalog)
         {
             return;
@@ -34,7 +34,10 @@ internal static class MenuCatalogSeeder
         await EnsureSystemRolesHaveAllActivePermissionsAsync(sender, db, cancellationToken)
             .ConfigureAwait(false);
 
-        await EnsureTenantEntitlementsAsync(db, cancellationToken).ConfigureAwait(false);
+        if (app.Environment.IsDevelopment())
+        {
+            await EnsureTenantEntitlementsAsync(db, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private static async Task<bool> EnsurePermissionsAsync(
