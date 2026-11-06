@@ -9,7 +9,7 @@ import {
   type ArchetypeAttributeField,
   type DimensionLookup,
 } from '@/lib/catalogArchetype'
-import { isSystemBaseItemFieldKey } from '@/lib/catalogBaseAttributes'
+import { isVariantBuiltInColumnKey } from '@/lib/catalogBaseAttributes'
 import type { CreateVariantChildPayload, TenantMediaAssetDto } from '@/types/catalogApi'
 import { CatalogPricingMarginBar, parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
 import './variantMatrixBuilder.css'
@@ -307,34 +307,15 @@ export function VariantMatrixBuilder({
   // Generated Variant Rows
   const [rows, setRows] = useState<VariantRowState[]>([])
 
-  // Clave del atributo base que representa el "Nombre" de la variante
+  // Clave del atributo que representa el "Nombre" de la variante (si la plantilla lo declaró)
   const variantNameFieldKey = useMemo(
     () =>
       variantAttributeFields.find((f) => {
         const lower = f.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        return lower === 'nombre' || lower === 'name'
-      })?.key ?? 'Nombre',
+        return lower === 'nombre' || lower === 'nombre del producto' || lower === 'name'
+      })?.key ?? null,
     [variantAttributeFields]
   )
-
-  // Propaga el costo y PVP base de la matriz a las variantes que no hayan sido editadas manualmente
-  useEffect(() => {
-    const defaultPrice = basePrice.trim()
-    const defaultCost = costPrice.trim()
-    setRows((prev) => {
-      let changed = false
-      const next = prev.map((r) => {
-        const nextPrice = !r.isManualPrice ? defaultPrice : r.basePrice
-        const nextCost = !r.isManualCost ? defaultCost : r.costPrice
-        if (nextPrice !== r.basePrice || nextCost !== r.costPrice) {
-          changed = true
-          return { ...r, basePrice: nextPrice, costPrice: nextCost }
-        }
-        return r
-      })
-      return changed ? next : prev
-    })
-  }, [basePrice, costPrice])
 
   // Add custom option to an existing dimension
   const handleAddCustomOptionToDimension = useCallback((dimId: string, newVal: string) => {
@@ -546,28 +527,27 @@ export function VariantMatrixBuilder({
       .map((entry) => entry.field)
   }, [dimensionValuesMap, variantAttributeFields])
 
-  const variantNameField = useMemo<ArchetypeAttributeField>(
+  const variantNameField = useMemo(
     () =>
       orderedVariantAttributeFields.find((field) => {
         const cleanLower = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        return cleanLower === 'nombre' || cleanLower === 'name'
-      }) ?? { key: variantNameFieldKey, levelName: 'Variante', levelIndex: 1 },
-    [orderedVariantAttributeFields, variantNameFieldKey]
+        return cleanLower === 'nombre' || cleanLower === 'nombre del producto' || cleanLower === 'name'
+      }) ?? null,
+    [orderedVariantAttributeFields]
   )
 
-  const variantFieldsAfterSku = useMemo(() => {
-    const customFields = orderedVariantAttributeFields.filter((field) => {
-      const cleanLower = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      if (cleanLower === 'nombre' || cleanLower === 'name') return false
-      if (cleanLower === 'descripcion' || cleanLower === 'description') return false
-      if (isSystemBaseItemFieldKey(field.key)) return false
-      return true
-    })
-    return [
-      ...customFields,
-      { key: 'Descripción', levelName: 'Variante', levelIndex: 1 },
-    ]
-  }, [orderedVariantAttributeFields])
+  const variantFieldsAfterSku = useMemo(
+    () =>
+      orderedVariantAttributeFields.filter((field) => {
+        const cleanLower = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        if (cleanLower === 'nombre' || cleanLower === 'nombre del producto' || cleanLower === 'name') {
+          return false
+        }
+        if (isVariantBuiltInColumnKey(field.key)) return false
+        return true
+      }),
+    [orderedVariantAttributeFields]
+  )
 
   // El bloque «Colores» solo aplica cuando hay un eje de color (base + adicionales por SKU);
   // si Color es un atributo de variante (lista/múltiple), se captura como cualquier otro dato.

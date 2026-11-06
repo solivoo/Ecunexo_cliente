@@ -10,11 +10,7 @@ import {
   writePhotoChoice,
   type TemplatePhotoChoice,
 } from '@/lib/catalogArchetype'
-import {
-  SYSTEM_BASE_ATTRIBUTES,
-  findConflictingSystemBaseItemAttribute,
-  isSystemBaseItemFieldKey,
-} from '@/lib/catalogBaseAttributes'
+import { findSystemBaseAttribute } from '@/lib/catalogBaseAttributes'
 
 export interface HierarchyTemplateTreeBuilderProps {
   levels: ProductTemplateLevel[]
@@ -32,7 +28,15 @@ function usedNames(levels: readonly ProductTemplateLevel[]): Set<string> {
   for (const lvl of levels) {
     for (const name of [...lvl.attributes, ...(lvl.axes ?? [])]) {
       const clean = name.trim().toLowerCase()
-      if (clean) names.add(clean)
+      if (!clean) continue
+      names.add(clean)
+      const sys = findSystemBaseAttribute(clean)
+      if (sys) {
+        names.add(sys.name.trim().toLowerCase())
+        for (const alias of sys.aliases) {
+          names.add(alias.trim().toLowerCase())
+        }
+      }
     }
   }
   return names
@@ -111,16 +115,6 @@ export function HierarchyTemplateTreeBuilder({
     const name = rawName.trim()
     if (!name) return
 
-    const baseConflict = findConflictingSystemBaseItemAttribute(name)
-    if (baseConflict) {
-      toast.show({
-        title: 'Atributo base del ítem',
-        message: `«${baseConflict.name}» ya está incluido como atributo base en todos los ítems y matrices. No necesitas agregarlo en la plantilla.`,
-        variant: 'warning',
-      })
-      return
-    }
-
     const key = name.toLowerCase()
     if (usedNames(levels).has(key)) return
 
@@ -161,56 +155,17 @@ export function HierarchyTemplateTreeBuilder({
   const dictionaryOptions = () => {
     const taken = usedNames(levels)
     return availableAttributes
-      .filter(
-        (attr) =>
-          !taken.has(attr.name.trim().toLowerCase()) && !isSystemBaseItemFieldKey(attr.name)
-      )
+      .filter((attr) => !taken.has(attr.name.trim().toLowerCase()))
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name, 'es'))
       .map((attr) => ({
         value: attr.name,
-        label: attr.name,
+        label: attr.isSystemBase ? `${attr.name} (Base)` : attr.name,
       }))
   }
 
-  const baseItemFieldLabels = useMemo(
-    () =>
-      SYSTEM_BASE_ATTRIBUTES.filter((a) => a.systemRole === 'item-field').map((a) => a.name),
-    []
-  )
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div
-        style={{
-          borderRadius: '12px',
-          border: '1px solid color-mix(in srgb, var(--shell-primary, #2563eb) 22%, transparent)',
-          background: 'color-mix(in srgb, var(--shell-primary, #2563eb) 5%, var(--glb-surface, #fff))',
-          padding: '0.85rem 1.1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.5rem',
-        }}
-      >
-        <div style={{ fontWeight: 700, fontSize: '0.84rem', color: 'var(--glb-text)' }}>
-          Atributos base incluidos automáticamente en todo ítem y matriz
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-          {baseItemFieldLabels.map((label) => (
-            <span
-              key={label}
-              className="ecu-token"
-              style={{ fontSize: '0.74rem', fontWeight: 600 }}
-            >
-              {label}
-            </span>
-          ))}
-        </div>
-        <div style={{ fontSize: '0.78rem', color: 'var(--glb-muted, #64748b)' }}>
-          No necesitas volver a crearlos aquí. En los niveles de abajo solo agrega atributos adicionales de clasificación (ej. Material, Género, Temporada) y los ejes que multiplican variantes (ej. Color, Talla).
-        </div>
-      </div>
-
       {levels.map((lvl, index) => (
         <div
           key={lvl.id}

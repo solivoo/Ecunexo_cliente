@@ -285,19 +285,49 @@ export function isSystemBaseItemFieldKey(rawKey: string): boolean {
 }
 
 /**
+ * Indica si una clave corresponde a una columna física fija ya incluida en cada fila
+ * de la tabla de variantes (SKU, Código de barras, Costo, PVP).
+ */
+const VARIANT_BUILTIN_COLUMN_IDS = new Set([
+  'sys-base-sku',
+  'sys-base-barcode',
+  'sys-base-cost',
+  'sys-base-price',
+])
+
+export function isVariantBuiltInColumnKey(rawKey: string): boolean {
+  const sys = findConflictingSystemBaseItemAttribute(rawKey)
+  return Boolean(sys && VARIANT_BUILTIN_COLUMN_IDS.has(sys.id))
+}
+
+/**
  * Construye las filas de atributos base del sistema para mostrarlas en `Catálogo → Atributos`
- * junto con los atributos personalizados del tenant, evitando duplicar `Color` si ya existe en BD.
+ * y en el diccionario de plantillas junto con los atributos personalizados del tenant,
+ * evitando duplicar si el tenant ya tiene una fila equivalente en BD (ej. `Marca`, `Color`).
  */
 export function mergeWithSystemBaseAttributes(
   tenantRows: readonly VariantDimensionTemplateDto[],
   tenantId: string
 ): VariantDimensionTemplateDto[] {
-  const existingNames = new Set(tenantRows.map((r) => normalizeAttrToken(r.name)))
-  const systemDtos: VariantDimensionTemplateDto[] = []
+  const matchedSystemIds = new Set<string>()
 
+  const enrichedTenantRows = tenantRows.map((row) => {
+    const matchedSys = findSystemBaseAttribute(row.name)
+    if (!matchedSys) return row
+    matchedSystemIds.add(matchedSys.id)
+    return {
+      ...row,
+      isSystemBase: true,
+      systemRole: matchedSys.systemRole,
+      systemDescription: matchedSys.description,
+      dataType: row.dataType || matchedSys.dataType,
+      unit: row.unit ?? matchedSys.unit,
+    }
+  })
+
+  const systemDtos: VariantDimensionTemplateDto[] = []
   for (const sys of SYSTEM_BASE_ATTRIBUTES) {
-    // Si el tenant ya tiene una fila en BD para Color (o algún nombre igual), marcamos la existente o agregamos la del sistema
-    if (existingNames.has(normalizeAttrToken(sys.name))) {
+    if (matchedSystemIds.has(sys.id)) {
       continue
     }
     systemDtos.push({
@@ -317,53 +347,19 @@ export function mergeWithSystemBaseAttributes(
     })
   }
 
-  const enrichedTenantRows = tenantRows.map((row) => {
-    const matchedSys = findSystemBaseAttribute(row.name)
-    if (!matchedSys) return row
-    return {
-      ...row,
-      isSystemBase: true,
-      systemRole: matchedSys.systemRole,
-      systemDescription: matchedSys.description,
-    }
-  })
-
   return [...systemDtos, ...enrichedTenantRows]
 }
 
 /**
- * Asegura que los ejes del sistema (como `Color`) estén disponibles en el diccionario
- * del constructor de plantillas aunque no estén creados como fila manual en BD,
- * excluyendo los atributos base de ficha de ítem (que ya vienen en todo producto).
+ * Devuelve todos los atributos disponibles para el constructor de plantillas
+ * (atributos base del sistema + personalizados del tenant) para que el usuario
+ * pueda acomodarlos libremente en el nivel o variante que corresponda a su producto.
  */
 export function getTemplateDictionaryAttributes(
   tenantAttributes: readonly VariantDimensionTemplateDto[],
   tenantId = ''
 ): VariantDimensionTemplateDto[] {
-  const filtered = tenantAttributes.filter((attr) => !isSystemBaseItemFieldKey(attr.name))
-  const hasColor = filtered.some((attr) => normalizeAttrToken(attr.name) === 'color')
-  if (!hasColor) {
-    const colorSys = SYSTEM_BASE_ATTRIBUTES.find((a) => a.id === 'system-colors')!
-    return [
-      {
-        id: colorSys.id,
-        tenantId,
-        name: colorSys.name,
-        dimensionType: colorSys.dimensionType,
-        predefinedValuesJson: '[]',
-        isInUse: true,
-        isSystemDefault: true,
-        isSystemBase: true,
-        systemRole: colorSys.systemRole,
-        systemDescription: colorSys.description,
-        dataType: colorSys.dataType,
-        isVariantAxis: true,
-        unit: null,
-      },
-      ...filtered,
-    ]
-  }
-  return filtered
+  return mergeWithSystemBaseAttributes(tenantAttributes, tenantId)
 }
 
 const BRAND_KEYS = new Set(['marca', 'fabricante', 'marca / fabricante', 'marca/fabricante', 'brand'])
@@ -375,10 +371,30 @@ const UNIT_KEYS = new Set([
   'uom',
   'unit of measure',
 ])
+const MIN_ORDER_KEYS = new Set([
+  'compra minima',
+  'compra minima (cantidad)',
+  'cantidad minima',
+  'pedido minimo',
+  'minorderquantity',
+])
 
 export function isCommercialBaseAttributeKey(rawKey: string): boolean {
   const norm = normalizeAttrToken(rawKey)
   return BRAND_KEYS.has(norm) || UNIT_KEYS.has(norm)
+}
+
+export function readMinOrderQuantityFromCustomAttributes(
+  rows: readonly { key: string; value: string }[],
+  fallback = 1
+): number {
+  for (const row of rows) {
+    if (MIN_ORDER_KEYS.has(normalizeAttrToken(row.key)) && row.value.trim()) {
+      const parsed = Math.floor(Number(row.value.trim()))
+      if (Number.isFinite(parsed) && parsed >= 1) return parsed
+    }
+  }
+  return fallback
 }
 
 export function readBrandFromCustomAttributes(
