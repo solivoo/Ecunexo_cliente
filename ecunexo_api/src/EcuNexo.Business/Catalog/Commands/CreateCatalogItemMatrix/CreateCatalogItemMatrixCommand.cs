@@ -15,7 +15,8 @@ public sealed record CreateCatalogItemMatrixCommand(
     string? CustomAttributesJson = null,
     Guid? FamilyId = null,
     string? HierarchyPathJson = null,
-    decimal? CostPrice = null) : ICommand<CreateCatalogItemMatrixResponse>;
+    decimal? CostPrice = null,
+    decimal? MinOrderQuantity = null) : ICommand<CreateCatalogItemMatrixResponse>;
 
 public sealed record CreateVariantChildDto(
     string VariantTitle,

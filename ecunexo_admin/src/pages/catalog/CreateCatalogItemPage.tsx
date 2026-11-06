@@ -50,6 +50,11 @@ import {
   readPhotoChoice,
   resolveTemplateDimensions,
 } from '@/lib/catalogArchetype'
+import {
+  UNIT_OF_MEASURE_OPTIONS,
+  isSystemBaseItemFieldKey,
+  upsertBaseCommercialAttributes,
+} from '@/lib/catalogBaseAttributes'
 import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
 
 const NAME_FIELD_KEYS = ['nombre', 'nombre del producto', 'nombre producto', 'name', 'producto', 'titulo', 'título']
@@ -191,12 +196,18 @@ export function CreateCatalogItemPage() {
   )
 
   const modelAttributeFields = useMemo(
-    () => getModelAttributeFields(appliedTemplateLevels, dimensionValuesMap),
+    () =>
+      getModelAttributeFields(appliedTemplateLevels, dimensionValuesMap).filter(
+        (field) => !isSystemBaseItemFieldKey(field.key)
+      ),
     [appliedTemplateLevels, dimensionValuesMap]
   )
 
   const variantAttributeFields = useMemo(
-    () => getVariantAttributeFields(appliedTemplateLevels, dimensionValuesMap),
+    () =>
+      getVariantAttributeFields(appliedTemplateLevels, dimensionValuesMap).filter(
+        (field) => !isSystemBaseItemFieldKey(field.key)
+      ),
     [appliedTemplateLevels, dimensionValuesMap]
   )
 
@@ -406,7 +417,18 @@ export function CreateCatalogItemPage() {
             ? description.trim()
             : derivedTemplateDescription
 
-        const kindNum = isStandardProduct ? kind : CatalogItemKind.Physical
+        const kindNum = usesMatrix ? CatalogItemKind.Physical : kind
+
+        const rawCostPrice = parsePriceInput(costPrice)
+        const parsedCostPrice = rawCostPrice != null && rawCostPrice >= 0 ? rawCostPrice : null
+        const rawBasePrice = parsePriceInput(basePrice)
+        const parsedBasePrice = rawBasePrice != null && rawBasePrice >= 0 ? rawBasePrice : null
+
+        const attrsToSerialize = upsertBaseCommercialAttributes(
+          customAttributes,
+          brand,
+          unitOfMeasure
+        )
 
         let targetItemId: string
         const familyId = isStandardProduct ? null : selectedTemplateId || null
@@ -414,7 +436,7 @@ export function CreateCatalogItemPage() {
           ? null
           : buildHierarchyPathJson(
               appliedTemplateLevels,
-              customAttributes,
+              attrsToSerialize,
               dimensionValuesMap
             )
 
@@ -438,11 +460,13 @@ export function CreateCatalogItemPage() {
             name: finalName,
             description: finalDescription || null,
             modelCode: matrixCodeClean || null,
-            basePrice: null,
+            basePrice: parsedBasePrice,
+            costPrice: parsedCostPrice,
+            minOrderQuantity,
             variantDimensionsJson: matrixData.variantDimensionsJson,
             variants: matrixData.variants,
             customAttributesJson:
-              customAttributes.length > 0 ? serializeCustomAttributes(customAttributes, []) : null,
+              attrsToSerialize.length > 0 ? serializeCustomAttributes(attrsToSerialize, []) : null,
             familyId,
             hierarchyPathJson,
           })
@@ -524,28 +548,6 @@ export function CreateCatalogItemPage() {
           const cleanSku = finalSku?.trim().toUpperCase()
           if (cleanSku && existingSkus.has(cleanSku)) {
             throw new Error(`El SKU «${cleanSku}» ya existe en el catálogo. Usa un SKU único.`)
-          }
-          const rawCostPrice = parsePriceInput(costPrice)
-          const parsedCostPrice = rawCostPrice != null && rawCostPrice >= 0 ? rawCostPrice : null
-          const rawBasePrice = parsePriceInput(basePrice)
-          const parsedBasePrice = rawBasePrice != null && rawBasePrice >= 0 ? rawBasePrice : null
-
-          const attrsToSerialize: CustomAttributeRow[] = [...customAttributes]
-          if (isStandardProduct) {
-            if (brand.trim()) {
-              attrsToSerialize.push({
-                id: 'attr-brand',
-                key: 'marca',
-                value: brand.trim(),
-              })
-            }
-            if (unitOfMeasure.trim()) {
-              attrsToSerialize.push({
-                id: 'attr-unit',
-                key: 'unidad_medida',
-                value: unitOfMeasure.trim(),
-              })
-            }
           }
 
           const created = await createCatalogItem(tenantId, {
@@ -769,47 +771,39 @@ export function CreateCatalogItemPage() {
             <SectionCard
               title={
                 usesMatrix
-                  ? 'Matriz Producto (Modelo base)'
-                  : isStandardProduct
-                    ? 'Datos del producto estándar'
-                    : 'Datos del producto'
+                  ? 'Atributos base de la matriz (Modelo base)'
+                  : 'Atributos base del ítem'
               }
               subtitle={
                 usesMatrix
-                  ? 'La matriz agrupa las variantes, define el nombre comercial y la descripción general. La matriz no lleva SKU; cada variante física llevará su propio SKU abajo.'
-                  : isStandardProduct
-                    ? 'Ficha comercial para venta, facturación, control de inventario y tienda online.'
-                    : undefined
+                  ? 'Atributos base compartidos por todo ítem. El costo, PVP, marca, unidad de medida y compra mínima se heredan por defecto en las variantes físicas.'
+                  : 'Atributos base del sistema incluidos en todos los ítems para venta, facturación, inventario y tienda online.'
               }
             >
               <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
-                {isStandardProduct && (
-                  <div className="ecu-companies-form__field">
-                    <Select
-                      id="ci-kind"
-                      label="Tipo de ítem"
-                      labelPosition="outlined"
-                      variant="outline"
-                      options={[
-                        { value: String(CatalogItemKind.Physical), label: '📦 Físico (con inventario)' },
-                        { value: String(CatalogItemKind.Service), label: '⚙️ Servicio (sin stock)' },
-                      ]}
-                      value={String(kind)}
-                      onChange={(val) => setKind(Number(val) as CatalogItemKind)}
-                      disabled={busy}
-                      fullWidth
-                    />
-                  </div>
-                )}
+                <div className="ecu-companies-form__field">
+                  <Select
+                    id="ci-kind"
+                    label="Tipo de ítem"
+                    labelPosition="outlined"
+                    variant="outline"
+                    options={[
+                      { value: String(CatalogItemKind.Physical), label: '📦 Físico (con inventario)' },
+                      { value: String(CatalogItemKind.Service), label: '⚙️ Servicio (sin stock)' },
+                    ]}
+                    value={String(usesMatrix ? CatalogItemKind.Physical : kind)}
+                    onChange={(val) => setKind(Number(val) as CatalogItemKind)}
+                    disabled={busy || usesMatrix}
+                    fullWidth
+                  />
+                </div>
 
                 {showManualName ? (
                   <div
                     className={`ecu-companies-form__field ${
-                      isStandardProduct
-                        ? 'ecu-companies-form__field--span-3'
-                        : usesMatrix
-                          ? 'ecu-companies-form__field--span-3'
-                          : 'ecu-companies-form__field--span-2'
+                      usesMatrix
+                        ? 'ecu-companies-form__field--span-2'
+                        : 'ecu-companies-form__field--span-3'
                     }`}
                   >
                     <TextBox
@@ -891,120 +885,103 @@ export function CreateCatalogItemPage() {
                   </div>
                 )}
 
-                {!usesMatrix && (
-                  <>
-                    <div className="ecu-companies-form__field">
-                      <NumberBox
-                        id="ci-cost-price"
-                        label="Precio base / Costo ($)"
-                        labelPosition="outlined"
-                        variant="outline"
-                        min={0}
-                        step={0.01}
-                        placeholder="0.00"
-                        value={costPrice !== '' ? Number(costPrice) : undefined}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setCostPrice(e.target.value)}
-                        disabled={busy}
-                        fullWidth
-                      />
-                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                        Costo por artículo para calcular tu ganancia (los clientes no verán esto).
-                      </p>
-                    </div>
+                <div className="ecu-companies-form__field">
+                  <NumberBox
+                    id="ci-cost-price"
+                    label="Precio base / Costo ($)"
+                    labelPosition="outlined"
+                    variant="outline"
+                    min={0}
+                    step={0.01}
+                    placeholder="0.00"
+                    value={costPrice !== '' ? Number(costPrice) : undefined}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setCostPrice(e.target.value)}
+                    disabled={busy}
+                    fullWidth
+                  />
+                  <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                    {usesMatrix
+                      ? 'Costo base por defecto para las variantes (puedes ajustarlo por variante abajo).'
+                      : 'Costo por artículo para calcular tu ganancia (los clientes no verán esto).'}
+                  </p>
+                </div>
 
-                    <div className="ecu-companies-form__field">
-                      <NumberBox
-                        id="ci-base-price"
-                        label="PVP / Precio de venta ($)"
-                        labelPosition="outlined"
-                        variant="outline"
-                        min={0}
-                        step={0.01}
-                        placeholder="0.00"
-                        value={basePrice !== '' ? Number(basePrice) : undefined}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
-                        disabled={busy}
-                        fullWidth
-                      />
-                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                        Precio unitario de venta al público para facturación y ventas.
-                      </p>
-                    </div>
+                <div className="ecu-companies-form__field">
+                  <NumberBox
+                    id="ci-base-price"
+                    label="PVP / Precio de venta ($)"
+                    labelPosition="outlined"
+                    variant="outline"
+                    min={0}
+                    step={0.01}
+                    placeholder="0.00"
+                    value={basePrice !== '' ? Number(basePrice) : undefined}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
+                    disabled={busy}
+                    fullWidth
+                  />
+                  <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                    {usesMatrix
+                      ? 'PVP base heredado por todas las variantes salvo que indiques otro en la fila.'
+                      : 'Precio unitario de venta al público para facturación y ventas.'}
+                  </p>
+                </div>
 
-                    <div className="ecu-companies-form__field">
-                      <CatalogPricingMarginBar costPrice={costPrice} basePrice={basePrice} />
-                    </div>
-                  </>
-                )}
+                <div className="ecu-companies-form__field">
+                  <CatalogPricingMarginBar costPrice={costPrice} basePrice={basePrice} />
+                </div>
 
-                {!usesMatrix ? (
-                  <div className="ecu-companies-form__field">
-                    <NumberBox
-                      id="ci-min-order-qty"
-                      label="Compra mínima (cantidad)"
-                      labelPosition="outlined"
-                      variant="outline"
-                      min={1}
-                      step={1}
-                      showSpinButtons
-                      value={minOrderQuantity}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                        setMinOrderQuantity(
-                          Math.max(1, Math.floor(Number(e.target.value) || 1))
-                        )
-                      }
-                      disabled={busy}
-                      fullWidth
-                    />
-                    <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                      Cantidad mínima que debe comprar el cliente de este producto en la
-                      tienda online.
-                    </p>
-                  </div>
-                ) : null}
+                <div className="ecu-companies-form__field">
+                  <NumberBox
+                    id="ci-min-order-qty"
+                    label="Compra mínima (cantidad)"
+                    labelPosition="outlined"
+                    variant="outline"
+                    min={1}
+                    step={1}
+                    showSpinButtons
+                    value={minOrderQuantity}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setMinOrderQuantity(
+                        Math.max(1, Math.floor(Number(e.target.value) || 1))
+                      )
+                    }
+                    disabled={busy}
+                    fullWidth
+                  />
+                  <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                    Cantidad mínima que debe comprar el cliente de este producto en la
+                    tienda online.
+                  </p>
+                </div>
 
-                {isStandardProduct && (
-                  <>
-                    <div className="ecu-companies-form__field">
-                      <TextBox
-                        id="ci-brand"
-                        label="Marca / Fabricante"
-                        labelPosition="outlined"
-                        variant="outline"
-                        value={brand}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setBrand(e.target.value)}
-                        placeholder="Ej. Nike, Samsung, Genérica..."
-                        disabled={busy}
-                        fullWidth
-                      />
-                    </div>
+                <div className="ecu-companies-form__field">
+                  <TextBox
+                    id="ci-brand"
+                    label="Marca / Fabricante"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={brand}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setBrand(e.target.value)}
+                    placeholder="Ej. Nike, Samsung, Genérica..."
+                    disabled={busy}
+                    fullWidth
+                  />
+                </div>
 
-                    <div className="ecu-companies-form__field">
-                      <Select
-                        id="ci-unit"
-                        label="Unidad de medida"
-                        labelPosition="outlined"
-                        variant="outline"
-                        options={[
-                          { value: 'UND', label: 'Unidad (UND)' },
-                          { value: 'CJ', label: 'Caja (CJ)' },
-                          { value: 'PQT', label: 'Paquete (PQT)' },
-                          { value: 'DOC', label: 'Docena (DOC)' },
-                          { value: 'KG', label: 'Kilogramo (KG)' },
-                          { value: 'G', label: 'Gramo (G)' },
-                          { value: 'LT', label: 'Litro (LT)' },
-                          { value: 'ML', label: 'Mililitro (ML)' },
-                          { value: 'M', label: 'Metro (M)' },
-                          { value: 'SERV', label: 'Servicio / Hora (SERV)' },
-                        ]}
-                        value={unitOfMeasure}
-                        onChange={(val) => setUnitOfMeasure(val)}
-                        disabled={busy}
-                        fullWidth
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="ecu-companies-form__field">
+                  <Select
+                    id="ci-unit"
+                    label="Unidad de medida"
+                    labelPosition="outlined"
+                    variant="outline"
+                    options={[...UNIT_OF_MEASURE_OPTIONS]}
+                    value={unitOfMeasure}
+                    onChange={(val) => setUnitOfMeasure(val)}
+                    disabled={busy}
+                    fullWidth
+                  />
+                </div>
 
                 {showManualDescription ? (
                   <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
@@ -1028,8 +1005,8 @@ export function CreateCatalogItemPage() {
               </div>
               <span className="ecu-hint">
                 {usesMatrix
-                  ? 'El nombre y la descripción identifican al modelo matriz. Cada combinación física abajo tendrá su propio SKU y existencias.'
-                  : 'El nombre identifica el producto; el primer nivel de la plantilla y la descripción lo complementan en listados y búsquedas.'}
+                  ? 'Los atributos base identifican a la matriz y se heredan en sus variantes físicas. Cada combinación abajo tendrá su propio SKU y existencias.'
+                  : 'Estos atributos base pertenecen a todo ítem del catálogo; si elegiste una plantilla, abajo solo completarás los atributos adicionales de su jerarquía.'}
               </span>
             </SectionCard>
           ) : null}
@@ -1118,7 +1095,8 @@ export function CreateCatalogItemPage() {
                     appliedTemplate?.name ||
                     ''
                   }
-                  basePrice=""
+                  basePrice={basePrice}
+                  costPrice={costPrice}
                   matrixCode={matrixCode}
                   existingSkus={existingSkus}
                   disabled={busy}
@@ -1148,7 +1126,7 @@ export function CreateCatalogItemPage() {
               disabled={busy || (!appliedTemplate && !isStandardProduct)}
             >
               <Save size={16} />
-              <span>{uploadStatus || (usesMatrix ? 'Guardar producto con variantes' : 'Guardar producto')}</span>
+              <span>{uploadStatus || (usesMatrix ? 'Guardar variante' : 'Guardar')}</span>
             </Button>
             <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
               Cancelar

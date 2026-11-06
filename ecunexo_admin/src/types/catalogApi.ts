@@ -164,6 +164,10 @@ export type VariantDimensionTemplateDto = {
   dimensionType: string
   predefinedValuesJson: string
   isInUse?: boolean
+  isSystemDefault?: boolean
+  isSystemBase?: boolean
+  systemRole?: 'item-field' | 'template-axis'
+  systemDescription?: string
   dataType?: string
   isVariantAxis?: boolean
   unit?: string | null
@@ -187,6 +191,7 @@ export type CreateCatalogItemMatrixPayload = {
   modelCode?: string | null
   basePrice?: number | null
   costPrice?: number | null
+  minOrderQuantity?: number | null
   variantDimensionsJson: string
   variants: CreateVariantChildPayload[]
   customAttributesJson?: string | null

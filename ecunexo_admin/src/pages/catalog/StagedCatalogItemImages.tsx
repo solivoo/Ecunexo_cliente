@@ -181,7 +181,7 @@ export function StagedCatalogItemImages({
               onClick={handleTriggerCamera}
               title="Abrir cámara del dispositivo para capturar foto"
             >
-              <Camera size={14} className="mr-1.5" aria-hidden />
+              <Camera size={14} className="pr-1.5" aria-hidden />
               Tomar Foto
             </Button>
           </div>

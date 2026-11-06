@@ -136,7 +136,8 @@ public sealed class CreateCatalogItemMatrixHandler
             schemaJson,
             familyId: command.FamilyId,
             hierarchyPathJson: command.HierarchyPathJson,
-            costPrice: command.CostPrice);
+            costPrice: command.CostPrice,
+            minOrderQuantity: command.MinOrderQuantity);
 
         if (parentResult.IsFailure)
         {

@@ -21,6 +21,10 @@ import type {
   VariantDimensionTemplateDto,
 } from '@/types/catalogApi'
 import { buildDimensionValuesMap, normalizeTemplateLevels } from '@/lib/catalogArchetype'
+import {
+  getTemplateDictionaryAttributes,
+  isSystemBaseItemFieldKey,
+} from '@/lib/catalogBaseAttributes'
 import { HierarchyTemplateTreeBuilder } from './HierarchyTemplateTreeBuilder'
 
 const EMPTY_LEVEL: ProductTemplateLevel = {
@@ -59,7 +63,8 @@ export function ProductTemplateBuilderPage() {
     if (!tenantId) return
     setLoading(true)
     try {
-      const attrs = await listVariantDimensionTemplates(tenantId)
+      const rawAttrs = await listVariantDimensionTemplates(tenantId)
+      const attrs = getTemplateDictionaryAttributes(rawAttrs, tenantId)
       setAvailableAttributes(attrs)
 
       if (isEdit && templateId) {
@@ -71,7 +76,15 @@ export function ProductTemplateBuilderPage() {
         try {
           const parsed = JSON.parse(tpl.hierarchyTreeJson)
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setLevels(normalizeTemplateLevels(parsed, buildDimensionValuesMap(attrs)))
+            const normalized = normalizeTemplateLevels(parsed, buildDimensionValuesMap(attrs)).map(
+              (lvl) => ({
+                ...lvl,
+                attributes: (lvl.attributes ?? []).filter(
+                  (attr) => !isSystemBaseItemFieldKey(attr)
+                ),
+              })
+            )
+            setLevels(normalized)
           }
         } catch {
           // Keep defaults if parse error
@@ -145,17 +158,11 @@ export function ProductTemplateBuilderPage() {
 
     setSaving(true)
     try {
-      const withVariantDefaults = levels.map((level) => {
-        if ((level.axes?.length ?? 0) === 0) return level
-        // Nombre y Descripción van al inicio del nivel con ejes: en la matriz el UI
-        // coloca Nombre justo después del SKU.
-        const identityKeys = ['nombre', 'descripcion', 'descripción']
-        const rest = level.attributes.filter(
-          (current) => !identityKeys.includes(current.trim().toLowerCase())
-        )
-        return { ...level, attributes: ['Nombre', 'Descripción', ...rest] }
-      })
-      const hierarchyTreeJson = JSON.stringify(withVariantDefaults)
+      const cleanedLevels = levels.map((level) => ({
+        ...level,
+        attributes: level.attributes.filter((current) => !isSystemBaseItemFieldKey(current)),
+      }))
+      const hierarchyTreeJson = JSON.stringify(cleanedLevels)
       const payload = {
         name: trimmedName,
         description: description.trim() || null,

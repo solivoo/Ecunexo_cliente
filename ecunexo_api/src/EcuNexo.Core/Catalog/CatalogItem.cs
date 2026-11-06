@@ -212,7 +212,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Guid? createdBy = null,
         Guid? familyId = null,
         string? hierarchyPathJson = null,
-        decimal? costPrice = null)
+        decimal? costPrice = null,
+        decimal? minOrderQuantity = null)
     {
         if (tenantId == Guid.Empty)
         {
@@ -274,6 +275,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(path.Error!);
         }
 
+        var minOrderResult = NormalizeMinOrderQuantity(minOrderQuantity);
+        if (minOrderResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(minOrderResult.Error!);
+        }
+
         return new CatalogItem
         {
             Id = id,
@@ -286,6 +293,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             Sku = skuResult.Value,
             BasePrice = priceResult.Value,
             CostPrice = costResult.Value,
+            MinOrderQuantity = minOrderResult.Value,
             CustomAttributesJson = attrs.Value!,
             IsMatrixParent = true,
             VariantDimensionsJson = dimsResult.Value!,

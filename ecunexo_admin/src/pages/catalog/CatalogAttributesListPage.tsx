@@ -40,6 +40,10 @@ import {
   listVariantDimensionTemplates,
   updateVariantDimensionTemplate,
 } from '@/services/catalogApi'
+import {
+  findConflictingSystemBaseItemAttribute,
+  mergeWithSystemBaseAttributes,
+} from '@/lib/catalogBaseAttributes'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { VariantDimensionTemplateDto } from '@/types/catalogApi'
@@ -428,6 +432,16 @@ export function CatalogAttributesListPage() {
       return
     }
 
+    const baseConflict = findConflictingSystemBaseItemAttribute(name)
+    if (baseConflict) {
+      toast.show({
+        title: 'Atributo base existente',
+        message: `«${baseConflict.name}» ya existe como atributo base del sistema en todos los ítems. No es necesario crearlo de nuevo.`,
+        variant: 'warning',
+      })
+      return
+    }
+
     const kindConfig = ATTRIBUTE_KINDS.find((k) => k.value === formKind) ?? ATTRIBUTE_KINDS[0]
     if (kindConfig.requiresPredefinedValues && formValues.length === 0) {
       toast.show({
@@ -525,14 +539,19 @@ export function CatalogAttributesListPage() {
     }
   }, [confirmDelete, loadData, tenantId, toast])
 
+  const allRows = useMemo(
+    () => mergeWithSystemBaseAttributes(rows, tenantId ?? ''),
+    [rows, tenantId]
+  )
+
   const stats = useMemo(() => {
     let totalValues = 0
     let inUseCount = 0
-    let availableCount = 0
+    let systemBaseCount = 0
 
-    for (const r of rows) {
+    for (const r of allRows) {
+      if (r.isSystemBase) systemBaseCount++
       if (r.isInUse) inUseCount++
-      else availableCount++
       try {
         const parsed = JSON.parse(r.predefinedValuesJson)
         if (Array.isArray(parsed)) totalValues += parsed.length
@@ -541,25 +560,31 @@ export function CatalogAttributesListPage() {
       }
     }
     return {
-      total: rows.length,
+      total: allRows.length,
+      systemBase: systemBaseCount,
+      custom: rows.length,
       inUse: inUseCount,
-      available: availableCount,
       values: totalValues,
     }
-  }, [rows])
+  }, [allRows, rows.length])
 
   const filteredRows = useMemo<TemplateGridRow[]>(() => {
     const q = searchQuery.trim().toLowerCase()
-    return rows
+    return allRows
       .filter((r) => {
-        if (filterType !== 'all') {
+        if (filterType === 'system-base') {
+          if (!r.isSystemBase) return false
+        } else if (filterType === 'custom-only') {
+          if (r.isSystemBase) return false
+        } else if (filterType !== 'all') {
           const kind = resolveAttributeKind(r)
           if (kind !== filterType) return false
         }
         if (!q) return true
         const inName = r.name.toLowerCase().includes(q)
         const inValues = r.predefinedValuesJson.toLowerCase().includes(q)
-        return inName || inValues
+        const inDesc = (r.systemDescription ?? '').toLowerCase().includes(q)
+        return inName || inValues || inDesc
       })
       .map((r) => {
         let parsed: string[] = []
@@ -574,25 +599,52 @@ export function CatalogAttributesListPage() {
           parsedValues: parsed,
         }
       })
-  }, [filterType, rows, searchQuery])
+  }, [allRows, filterType, searchQuery])
 
   const columns = useMemo((): ColumnDef<TemplateGridRow>[] => {
     return [
       {
         key: 'name',
         header: 'Atributo',
-        width: 240,
+        width: 280,
         sortable: true,
         renderCell: (_val: unknown, row: TemplateGridRow) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-            {row.isInUse ? (
-              <span title="Asociado a productos del catálogo">
-                <Lock size={13} style={{ color: 'var(--idt-warn, #b45309)', flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+              {row.isSystemBase || row.isInUse ? (
+                <span
+                  title={
+                    row.isSystemBase
+                      ? 'Atributo base del sistema incluido en todos los ítems'
+                      : 'Asociado a productos del catálogo'
+                  }
+                >
+                  <Lock size={13} style={{ color: 'var(--idt-warn, #b45309)', flexShrink: 0 }} />
+                </span>
+              ) : (
+                <Tag size={13} style={{ color: 'var(--idt-muted, #64748b)', flexShrink: 0 }} />
+              )}
+              <strong>{row.name}</strong>
+              {row.isSystemBase && (
+                <span
+                  className="ecu-chip"
+                  style={{
+                    fontSize: '0.7rem',
+                    padding: '0.1rem 0.45rem',
+                    background: 'color-mix(in srgb, var(--shell-primary, #2563eb) 14%, transparent)',
+                    color: 'var(--shell-primary, #2563eb)',
+                    fontWeight: 600,
+                  }}
+                >
+                  Base del sistema
+                </span>
+              )}
+            </div>
+            {row.systemDescription && (
+              <span className="ecu-hint" style={{ fontSize: '0.74rem' }}>
+                {row.systemDescription}
               </span>
-            ) : (
-              <Tag size={13} style={{ color: 'var(--idt-muted, #64748b)', flexShrink: 0 }} />
             )}
-            <strong>{row.name}</strong>
           </div>
         ),
       },
@@ -619,7 +671,13 @@ export function CatalogAttributesListPage() {
         renderCell: (_val: unknown, row: TemplateGridRow) => (
           <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
             {row.parsedValues.length === 0 ? (
-              <span className="ecu-hint">Texto libre</span>
+              <span className="ecu-hint">
+                {row.dataType === 'number'
+                  ? 'Valor numérico'
+                  : row.dataType === 'color'
+                    ? 'Selector hexadecimal (#HEX)'
+                    : 'Texto libre'}
+              </span>
             ) : (
               row.parsedValues.slice(0, 7).map((val) => (
                 <span key={val} className="ecu-token">
@@ -636,11 +694,16 @@ export function CatalogAttributesListPage() {
       {
         key: 'isInUse',
         header: 'Estado',
-        width: 140,
+        width: 165,
         sortable: true,
         renderCell: (_val: unknown, row: TemplateGridRow) => (
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            {row.isInUse ? (
+            {row.isSystemBase ? (
+              <span className="ecu-status ecu-status--active">
+                <span className="ecu-status__dot" aria-hidden />
+                {row.systemRole === 'item-field' ? 'Base en todo ítem' : 'Eje del sistema'}
+              </span>
+            ) : row.isInUse ? (
               <span className="ecu-status ecu-status--warning">
                 <span className="ecu-status__dot" aria-hidden />
                 En uso
@@ -661,30 +724,41 @@ export function CatalogAttributesListPage() {
         width: 110,
         align: 'center',
         renderCell: (_val: unknown, row: TemplateGridRow) => {
+          const isBuiltIn = Boolean(row.isSystemDefault)
           return (
             <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
               <GridIconButton
                 icon={Pencil}
-                label={`Editar «${row.name}»`}
+                label={
+                  isBuiltIn
+                    ? `«${row.name}» es un atributo base del sistema`
+                    : `Editar «${row.name}»`
+                }
                 onClick={() => openEditModal(row)}
-                disabled={!canManage}
+                disabled={!canManage || isBuiltIn}
               />
               <GridIconButton
                 icon={Copy}
-                label={`Duplicar «${row.name}» (útil para cambiar el tipo)`}
+                label={
+                  isBuiltIn
+                    ? `«${row.name}» ya está incluido en todos los ítems`
+                    : `Duplicar «${row.name}» (útil para cambiar el tipo)`
+                }
                 onClick={() => openDuplicateModal(row)}
-                disabled={!canManage}
+                disabled={!canManage || isBuiltIn}
               />
               <GridIconButton
                 icon={Trash2}
                 label={
-                  row.isInUse
-                    ? `Inmutable: «${row.name}» tiene productos asociados`
-                    : `Eliminar «${row.name}»`
+                  isBuiltIn
+                    ? `Inmutable: «${row.name}» es atributo base del sistema`
+                    : row.isInUse
+                      ? `Inmutable: «${row.name}» tiene productos asociados`
+                      : `Eliminar «${row.name}»`
                 }
                 danger
                 onClick={() => setConfirmDelete(row)}
-                disabled={!canManage || Boolean(row.isInUse)}
+                disabled={!canManage || isBuiltIn || Boolean(row.isInUse)}
               />
             </div>
           )
@@ -725,9 +799,9 @@ export function CatalogAttributesListPage() {
         />
 
         <div className="ecu-stat-grid">
-          <StatCard label="Atributos" value={stats.total} />
-          <StatCard label="En uso" value={stats.inUse} />
-          <StatCard label="Disponibles" value={stats.available} />
+          <StatCard label="Atributos totales" value={stats.total} />
+          <StatCard label="Base del sistema" value={stats.systemBase} />
+          <StatCard label="Personalizados" value={stats.custom} />
           <StatCard label="Valores" value={stats.values} />
         </div>
 
@@ -746,7 +820,9 @@ export function CatalogAttributesListPage() {
               <Select
                 id="filter-type"
                 options={[
-                  { value: 'all', label: 'Todos los tipos' },
+                  { value: 'all', label: 'Todos los atributos' },
+                  { value: 'system-base', label: 'Base del sistema (incluidos en todo ítem)' },
+                  { value: 'custom-only', label: 'Personalizados de la empresa' },
                   { value: 'text', label: 'Texto libre' },
                   { value: 'options', label: 'Lista de opciones' },
                   { value: 'tagset', label: 'Conjunto de texto libre' },

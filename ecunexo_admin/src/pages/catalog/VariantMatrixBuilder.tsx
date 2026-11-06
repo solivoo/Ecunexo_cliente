@@ -9,6 +9,7 @@ import {
   type ArchetypeAttributeField,
   type DimensionLookup,
 } from '@/lib/catalogArchetype'
+import { isSystemBaseItemFieldKey } from '@/lib/catalogBaseAttributes'
 import type { CreateVariantChildPayload, TenantMediaAssetDto } from '@/types/catalogApi'
 import { CatalogPricingMarginBar, parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
 import './variantMatrixBuilder.css'
@@ -74,6 +75,7 @@ export type VariantRowState = {
   isManualSku?: boolean
   barcode: string
   costPrice: string
+  isManualCost?: boolean
   basePrice: string
   isManualPrice?: boolean
   stagedImage?: File | null
@@ -102,6 +104,7 @@ export type VariantMatrixBuilderProps = {
   tenantId: string | null
   baseName: string
   basePrice: string
+  costPrice?: string
   matrixCode?: string
   existingSkus?: ReadonlySet<string>
   parentTags?: readonly string[]
@@ -215,6 +218,7 @@ export function VariantMatrixBuilder({
   tenantId: _tenantId,
   baseName,
   basePrice,
+  costPrice = '',
   matrixCode = '',
   existingSkus,
   parentTags = NO_PARENT_TAGS,
@@ -303,15 +307,34 @@ export function VariantMatrixBuilder({
   // Generated Variant Rows
   const [rows, setRows] = useState<VariantRowState[]>([])
 
-  // Clave del atributo que representa el "Nombre" de la variante (si la plantilla nivel terminal lo define)
+  // Clave del atributo base que representa el "Nombre" de la variante
   const variantNameFieldKey = useMemo(
     () =>
       variantAttributeFields.find((f) => {
         const lower = f.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         return lower === 'nombre' || lower === 'name'
-      })?.key,
+      })?.key ?? 'Nombre',
     [variantAttributeFields]
   )
+
+  // Propaga el costo y PVP base de la matriz a las variantes que no hayan sido editadas manualmente
+  useEffect(() => {
+    const defaultPrice = basePrice.trim()
+    const defaultCost = costPrice.trim()
+    setRows((prev) => {
+      let changed = false
+      const next = prev.map((r) => {
+        const nextPrice = !r.isManualPrice ? defaultPrice : r.basePrice
+        const nextCost = !r.isManualCost ? defaultCost : r.costPrice
+        if (nextPrice !== r.basePrice || nextCost !== r.costPrice) {
+          changed = true
+          return { ...r, basePrice: nextPrice, costPrice: nextCost }
+        }
+        return r
+      })
+      return changed ? next : prev
+    })
+  }, [basePrice, costPrice])
 
   // Add custom option to an existing dimension
   const handleAddCustomOptionToDimension = useCallback((dimId: string, newVal: string) => {
@@ -338,6 +361,7 @@ export function VariantMatrixBuilder({
     if (activeDims.length > 0 && rows.length === 0 && !needsColorFirst) {
       hasInitializedRows.current = true
       const defaultPrice = basePrice.trim() ? basePrice.trim() : ''
+      const defaultCost = costPrice.trim() ? costPrice.trim() : ''
 
       const dimensionValues: Record<string, string> = {}
       activeDims.forEach((d) => {
@@ -361,7 +385,8 @@ export function VariantMatrixBuilder({
           sku: '',
           isManualSku: false,
           barcode: '',
-          costPrice: '',
+          costPrice: defaultCost,
+          isManualCost: false,
           basePrice: defaultPrice,
           isManualPrice: false,
           stagedImage: null,
@@ -373,7 +398,7 @@ export function VariantMatrixBuilder({
         },
       ])
     }
-  }, [dimensions, basePrice, rows.length, variantNameFieldKey])
+  }, [dimensions, basePrice, costPrice, rows.length, variantNameFieldKey])
 
   // Duplicar una fila de variante
   const handleDuplicateVariantRow = useCallback(
@@ -426,6 +451,8 @@ export function VariantMatrixBuilder({
           updated.isManualTitle = true
         } else if (field === 'basePrice') {
           updated.isManualPrice = true
+        } else if (field === 'costPrice') {
+          updated.isManualCost = true
         } else if (field === 'sku') {
           updated.isManualSku = true
         }
@@ -519,23 +546,28 @@ export function VariantMatrixBuilder({
       .map((entry) => entry.field)
   }, [dimensionValuesMap, variantAttributeFields])
 
-  const variantNameField = useMemo(
+  const variantNameField = useMemo<ArchetypeAttributeField>(
     () =>
       orderedVariantAttributeFields.find((field) => {
         const cleanLower = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         return cleanLower === 'nombre' || cleanLower === 'name'
-      }) ?? null,
-    [orderedVariantAttributeFields]
+      }) ?? { key: variantNameFieldKey, levelName: 'Variante', levelIndex: 1 },
+    [orderedVariantAttributeFields, variantNameFieldKey]
   )
 
-  const variantFieldsAfterSku = useMemo(
-    () =>
-      orderedVariantAttributeFields.filter((field) => {
-        const cleanLower = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        return cleanLower !== 'nombre' && cleanLower !== 'name'
-      }),
-    [orderedVariantAttributeFields]
-  )
+  const variantFieldsAfterSku = useMemo(() => {
+    const customFields = orderedVariantAttributeFields.filter((field) => {
+      const cleanLower = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      if (cleanLower === 'nombre' || cleanLower === 'name') return false
+      if (cleanLower === 'descripcion' || cleanLower === 'description') return false
+      if (isSystemBaseItemFieldKey(field.key)) return false
+      return true
+    })
+    return [
+      ...customFields,
+      { key: 'Descripción', levelName: 'Variante', levelIndex: 1 },
+    ]
+  }, [orderedVariantAttributeFields])
 
   // El bloque «Colores» solo aplica cuando hay un eje de color (base + adicionales por SKU);
   // si Color es un atributo de variante (lista/múltiple), se captura como cualquier otro dato.
@@ -916,6 +948,7 @@ export function VariantMatrixBuilder({
   const handleAddSubVariantToGroup = useCallback(
     (groupVal: string) => {
       const defaultPrice = basePrice.trim() ? basePrice.trim() : ''
+      const defaultCost = costPrice.trim() ? costPrice.trim() : ''
 
       const firstChildDim = childDims[0]
       const existingChildVals = new Set(
@@ -957,7 +990,8 @@ export function VariantMatrixBuilder({
         sku: '',
         isManualSku: false,
         barcode: '',
-        costPrice: '',
+        costPrice: defaultCost,
+        isManualCost: false,
         basePrice: defaultPrice,
         isManualPrice: false,
         stagedImages: groupImages,
@@ -969,7 +1003,7 @@ export function VariantMatrixBuilder({
 
       setRows((prev) => [...prev, newRow])
     },
-    [basePrice, childDims, groupValueOf, photoScope, primaryDim, rows, variantNameFieldKey]
+    [basePrice, costPrice, childDims, groupValueOf, photoScope, primaryDim, rows, variantNameFieldKey]
   )
 
   // Add new group (e.g. Color)
