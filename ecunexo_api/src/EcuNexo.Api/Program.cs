@@ -237,6 +237,7 @@ app.UseAuthorization();
 app.UseMiddleware<TenantResolutionMiddleware>();
 
 app.MapOpenApi();
+app.MapOpenApi("/api/openapi/{documentName}.json");
 app.MapScalarApiReference(options =>
 {
     options

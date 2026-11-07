@@ -179,6 +179,16 @@ public sealed class GetStorefrontProductHandler
             .CountForItemAsync(query.TenantId, item.ParentId ?? item.Id, ct)
             .ConfigureAwait(false);
 
+        var productImages = item.Images.Count > 0
+            ? item.Images.Select(MapImage).ToList()
+            : variants
+                .Where(v => v.Images is { Count: > 0 })
+                .SelectMany(v => v.Images!)
+                .GroupBy(img => img.Id)
+                .Select(g => g.First())
+                .Select(MapImage)
+                .ToList();
+
         var dto = new StorefrontProductDetailDto(
             item.Id,
             item.Kind,
@@ -190,7 +200,7 @@ public sealed class GetStorefrontProductHandler
             productDiscountPercent,
             !reserveOnOrder || totalAvailable > 0m,
             totalAvailable,
-            item.Images.Select(MapImage).ToList(),
+            productImages,
             variantDtos,
             MapMatrix(item.MatrixDescriptor),
             ParseAttributes(item.HierarchyPathJson, item.CustomAttributesJson),

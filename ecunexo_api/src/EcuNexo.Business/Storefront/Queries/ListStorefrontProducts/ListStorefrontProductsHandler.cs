@@ -133,7 +133,9 @@ public sealed class ListStorefrontProductsHandler
                 .Select(StorefrontFacetCatalog.NormalizeForMatch)
                 .ToHashSet(StringComparer.Ordinal);
 
-            if (!selected.Any(value => available.Contains(StorefrontFacetCatalog.NormalizeForMatch(value))))
+            if (!selected.Any(value => available.Contains(
+                StorefrontFacetCatalog.NormalizeForMatch(
+                    key == "color" ? StorefrontFacetCatalog.CanonicalizeColor(value) : value))))
             {
                 return false;
             }
@@ -179,7 +181,7 @@ public sealed class ListStorefrontProductsHandler
     {
         var item = product.Item;
         var fallbackImage = item.ResolvedThumbUrl is null
-            ? CatalogItemThumbnailResolver.ResolveParentOrStandaloneImage(item)
+            ? CatalogItemThumbnailResolver.ResolveParentOrStandaloneImage(item, item.Variants)
             : null;
         var thumbUrl = item.ResolvedThumbUrl ?? fallbackImage?.ThumbUrl;
         var mediumUrl = item.ResolvedMediumUrl ?? fallbackImage?.MediumUrl;
@@ -198,16 +200,39 @@ public sealed class ListStorefrontProductsHandler
             item.Variants.Count > 0,
             item.Variants.Count,
             item.CreatedAt,
-            ResolveSecondImage(item)?.MediumUrl,
+            ResolveSecondMediumUrl(item, mediumUrl),
             product.Colors,
             product.IsNew,
             product.LikeCount);
     }
 
-    private static CatalogItemImage? ResolveSecondImage(CatalogItem item) =>
-        item.Images
+    private static string? ResolveSecondMediumUrl(CatalogItem item, string? mainMediumUrl)
+    {
+        var modelSecond = item.Images
             .Where(i => i.GroupValue is null)
             .OrderBy(i => i.DisplayOrder)
             .Skip(1)
             .FirstOrDefault();
+        if (modelSecond?.MediumUrl is not null && modelSecond.MediumUrl != mainMediumUrl)
+        {
+            return modelSecond.MediumUrl;
+        }
+
+        var otherParentImage = item.Images
+            .OrderBy(i => i.DisplayOrder)
+            .FirstOrDefault(i => i.MediumUrl != mainMediumUrl);
+        if (otherParentImage?.MediumUrl is not null)
+        {
+            return otherParentImage.MediumUrl;
+        }
+
+        var variantImage = item.Variants
+            .Where(v => v.DeletedAt == null)
+            .OrderBy(v => v.SortOrder)
+            .ThenBy(v => v.CreatedAt)
+            .SelectMany(v => v.Images.OrderBy(img => img.DisplayOrder))
+            .FirstOrDefault(img => img.MediumUrl != mainMediumUrl);
+
+        return variantImage?.MediumUrl;
+    }
 }

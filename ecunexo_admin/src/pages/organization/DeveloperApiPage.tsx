@@ -510,41 +510,33 @@ export function DeveloperApiPage() {
           badge={<StatusBadge tone="primary" withDot>Developer API v1</StatusBadge>}
           actions={
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <a
-                href="/developers"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="sf-button sf-button--primary sf-button--sm"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  color: 'var(--c-on-primary, #ffffff)',
-                }}
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                onClick={() => window.open('/developers', '_blank', 'noopener,noreferrer')}
               >
                 <ExternalLink size={15} />
                 Portal de Documentación (/developers)
-              </a>
-              <a
-                href="/scalar/external-v1"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="sf-button sf-button--outline sf-button--sm"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => window.open('/scalar/external-v1', '_blank', 'noopener,noreferrer')}
               >
                 <Terminal size={15} />
                 Consola Scalar
-              </a>
-              <a
-                href="/openapi/external-v1.json"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="sf-button sf-button--outline sf-button--sm"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => window.open('/openapi/external-v1.json', '_blank', 'noopener,noreferrer')}
               >
                 <Download size={15} />
                 OpenAPI 3.1 JSON
-              </a>
+              </Button>
             </div>
           }
         />

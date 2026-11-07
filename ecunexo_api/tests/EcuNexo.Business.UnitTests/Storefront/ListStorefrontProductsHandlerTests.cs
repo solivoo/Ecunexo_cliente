@@ -204,6 +204,71 @@ public sealed class ListStorefrontProductsHandlerTests
         result.Value!.Items.Single().ThumbUrl.Should().Be("https://cdn/model-thumb.webp");
     }
 
+    [Fact(DisplayName = "La imagen principal y segunda imagen de producto matriz resuelven desde variantes cuando el padre no tiene imágenes directas")]
+    public async Task Handle_MatrixParentWithoutDirectImages_ResolvesFromVariant()
+    {
+        var tenantId = Guid.CreateVersion7();
+        SetupTenant(tenantId);
+
+        var parentId = Guid.CreateVersion7();
+        var parent = CatalogItem.CreateMatrixParent(
+            parentId,
+            tenantId,
+            CatalogItemKind.Physical,
+            "Calcetín Adidas clásico",
+            null,
+            null,
+            null,
+            "[{\"name\":\"Talla\",\"values\":[\"10-12\"]}]",
+            null,
+            CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        var variant = CatalogItem.CreateVariantChild(
+            Guid.CreateVersion7(),
+            parent,
+            "10-12",
+            "ADID-01",
+            null,
+            null,
+            CatalogAttributeSchema.EmptyArrayJson).Value!;
+
+        variant.AddImage(
+            Guid.CreateVersion7(),
+            "k1",
+            "adidas_main.webp",
+            null,
+            ImageDimensions.Create(1200, 1200).Value!,
+            1024,
+            "https://cdn/adidas_thumb.webp",
+            "https://cdn/adidas_medium.webp",
+            "https://cdn/adidas_large.webp",
+            setAsMain: true);
+
+        variant.AddImage(
+            Guid.CreateVersion7(),
+            "k2",
+            "adidas_second.webp",
+            null,
+            ImageDimensions.Create(1200, 1200).Value!,
+            1024,
+            "https://cdn/adidas_thumb2.webp",
+            "https://cdn/adidas_medium2.webp",
+            "https://cdn/adidas_large2.webp",
+            setAsMain: false);
+
+        parent.AddVariantChild(variant);
+
+        SetupProducts(parent);
+
+        var result = await _sut.Handle(new ListStorefrontProductsQuery(tenantId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var itemDto = result.Value!.Items.Single();
+        itemDto.ThumbUrl.Should().Be("https://cdn/adidas_thumb.webp");
+        itemDto.MediumUrl.Should().Be("https://cdn/adidas_medium.webp");
+        itemDto.SecondMediumUrl.Should().Be("https://cdn/adidas_medium2.webp");
+    }
+
     [Fact(DisplayName = "Expone segunda imagen, colores y novedad")]
     public async Task Handle_MapsSecondImageColorsAndNewFlag()
     {

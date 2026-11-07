@@ -329,7 +329,7 @@ public static class StorefrontFacetCatalog
             return;
         }
 
-        display = Prettify(display);
+        display = key == "color" ? CanonicalizeColor(display) : Prettify(display);
 
         if (!seen.TryGetValue(key, out var keys))
         {
@@ -381,6 +381,211 @@ public static class StorefrontFacetCatalog
         var first = char.ToUpperInvariant(value[0]);
         var rest = hasLower ? value[1..] : value[1..].ToLowerInvariant();
         return string.Concat(first, rest);
+    }
+
+    private static readonly Dictionary<string, string> ColorNameMap = new(StringComparer.Ordinal)
+    {
+        ["negro"] = "Negro",
+        ["black"] = "Negro",
+        ["azabache"] = "Negro",
+
+        ["blanco"] = "Blanco",
+        ["white"] = "Blanco",
+        ["marfil"] = "Blanco",
+        ["crema"] = "Blanco",
+        ["ivory"] = "Blanco",
+
+        ["gris"] = "Gris",
+        ["gray"] = "Gris",
+        ["grey"] = "Gris",
+        ["plata"] = "Gris",
+        ["plateado"] = "Gris",
+        ["silver"] = "Gris",
+
+        ["azul"] = "Azul",
+        ["blue"] = "Azul",
+        ["marino"] = "Azul",
+        ["navy"] = "Azul",
+        ["royal"] = "Azul",
+        ["indigo"] = "Azul",
+        ["cobalto"] = "Azul",
+
+        ["celeste"] = "Celeste",
+        ["cyan"] = "Celeste",
+        ["turquesa"] = "Celeste",
+        ["aqua"] = "Celeste",
+        ["light blue"] = "Celeste",
+        ["sky"] = "Celeste",
+
+        ["rojo"] = "Rojo",
+        ["red"] = "Rojo",
+        ["vino"] = "Rojo",
+        ["granate"] = "Rojo",
+        ["bordeaux"] = "Rojo",
+        ["carmesi"] = "Rojo",
+        ["burgundy"] = "Rojo",
+
+        ["rosa"] = "Rosa",
+        ["rosado"] = "Rosa",
+        ["pink"] = "Rosa",
+        ["fucsia"] = "Rosa",
+        ["fuchsia"] = "Rosa",
+        ["magenta"] = "Rosa",
+        ["coral"] = "Rosa",
+        ["salmon"] = "Rosa",
+
+        ["verde"] = "Verde",
+        ["green"] = "Verde",
+        ["oliva"] = "Verde",
+        ["olive"] = "Verde",
+        ["militar"] = "Verde",
+        ["menta"] = "Verde",
+        ["mint"] = "Verde",
+        ["esmeralda"] = "Verde",
+
+        ["amarillo"] = "Amarillo",
+        ["yellow"] = "Amarillo",
+        ["oro"] = "Amarillo",
+        ["dorado"] = "Amarillo",
+        ["gold"] = "Amarillo",
+        ["mostaza"] = "Amarillo",
+
+        ["naranja"] = "Naranja",
+        ["orange"] = "Naranja",
+        ["ambar"] = "Naranja",
+        ["durazno"] = "Naranja",
+
+        ["morado"] = "Morado",
+        ["purple"] = "Morado",
+        ["violeta"] = "Morado",
+        ["lila"] = "Morado",
+        ["purpura"] = "Morado",
+
+        ["cafe"] = "Café",
+        ["marron"] = "Café",
+        ["brown"] = "Café",
+        ["chocolate"] = "Café",
+        ["caramelo"] = "Café",
+
+        ["beige"] = "Beige",
+        ["kaki"] = "Beige",
+        ["khaki"] = "Beige",
+        ["arena"] = "Beige",
+        ["nude"] = "Beige",
+        ["camel"] = "Beige",
+    };
+
+    /// <summary>
+    /// Agrupa códigos hex (#080808, #000000, etc.) o nombres libres en familias de color
+    /// canónicas de vitrina para evitar filtros infinitos de swatches casi idénticos.
+    /// </summary>
+    public static string CanonicalizeColor(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = raw.Trim();
+        var normalized = NormalizeForMatch(trimmed);
+
+        if (ColorNameMap.TryGetValue(normalized, out var canonical))
+        {
+            return canonical;
+        }
+
+        var hex = trimmed.StartsWith('#') ? trimmed[1..] : trimmed;
+        if (TryParseHexRgb(hex, out var r, out var g, out var b))
+        {
+            return ClassifyRgbToColorFamily(r, g, b);
+        }
+
+        return Prettify(trimmed);
+    }
+
+    private static bool TryParseHexRgb(string hex, out byte r, out byte g, out byte b)
+    {
+        r = 0;
+        g = 0;
+        b = 0;
+
+        if (hex.Length == 3)
+        {
+            return byte.TryParse($"{hex[0]}{hex[0]}", NumberStyles.HexNumber, CultureInfo.InvariantCulture, out r)
+                && byte.TryParse($"{hex[1]}{hex[1]}", NumberStyles.HexNumber, CultureInfo.InvariantCulture, out g)
+                && byte.TryParse($"{hex[2]}{hex[2]}", NumberStyles.HexNumber, CultureInfo.InvariantCulture, out b);
+        }
+
+        if (hex.Length == 6)
+        {
+            return byte.TryParse(hex[0..2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out r)
+                && byte.TryParse(hex[2..4], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out g)
+                && byte.TryParse(hex[4..6], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out b);
+        }
+
+        return false;
+    }
+
+    private static string ClassifyRgbToColorFamily(byte rByte, byte gByte, byte bByte)
+    {
+        var r = rByte / 255f;
+        var g = gByte / 255f;
+        var b = bByte / 255f;
+
+        var max = Math.Max(r, Math.Max(g, b));
+        var min = Math.Min(r, Math.Min(g, b));
+        var delta = max - min;
+        var l = (max + min) / 2f;
+
+        // Muy oscuros -> Negro (#000000, #080808, #111111, #1a1a1a)
+        if (l <= 0.18f)
+        {
+            return "Negro";
+        }
+
+        // Muy claros con poca saturación -> Blanco (#ffffff, #f9fafb, #f3f4f6)
+        var s = delta <= 0.0001f ? 0f : delta / (1f - Math.Abs((2f * l) - 1f));
+        if (l >= 0.88f && s <= 0.25f)
+        {
+            return "Blanco";
+        }
+
+        // Saturación muy baja -> Gris neutro
+        if (s <= 0.12f)
+        {
+            return "Gris";
+        }
+
+        float h;
+        if (Math.Abs(max - r) < 0.0001f)
+        {
+            h = 60f * (((g - b) / delta) % 6f);
+        }
+        else if (Math.Abs(max - g) < 0.0001f)
+        {
+            h = 60f * (((b - r) / delta) + 2f);
+        }
+        else
+        {
+            h = 60f * (((r - g) / delta) + 4f);
+        }
+
+        if (h < 0f)
+        {
+            h += 360f;
+        }
+
+        return h switch
+        {
+            < 12f or >= 345f => l >= 0.65f ? "Rosa" : "Rojo",
+            >= 12f and < 42f => (l < 0.45f && s < 0.70f) ? "Café" : (l > 0.72f && s < 0.45f ? "Beige" : "Naranja"),
+            >= 42f and < 68f => (l > 0.72f && s < 0.45f) ? "Beige" : "Amarillo",
+            >= 68f and < 165f => "Verde",
+            >= 165f and < 205f => "Celeste",
+            >= 205f and < 260f => l >= 0.65f ? "Celeste" : "Azul",
+            >= 260f and < 310f => "Morado",
+            _ => "Rosa",
+        };
     }
 }
 

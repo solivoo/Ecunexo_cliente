@@ -20,6 +20,7 @@ public sealed class StorefrontCatalogRepository : IStorefrontCatalogRepository
         return await _db.CatalogItems.AsNoTracking()
             .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
             .Include(i => i.Variants.Where(v => v.DeletedAt == null))
+                .ThenInclude(v => v.Images.OrderBy(img => img.DisplayOrder))
             .Where(i => i.TenantId == tenantId
                 && i.DeletedAt == null
                 && i.Status == CatalogItemStatus.Active
@@ -35,6 +36,9 @@ public sealed class StorefrontCatalogRepository : IStorefrontCatalogRepository
         Guid catalogItemId,
         CancellationToken ct) =>
         _db.CatalogItems.AsNoTracking()
+            .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
+            .Include(i => i.Variants.Where(v => v.DeletedAt == null))
+                .ThenInclude(v => v.Images.OrderBy(img => img.DisplayOrder))
             .FirstOrDefaultAsync(
                 i => i.TenantId == tenantId
                     && i.Id == catalogItemId
