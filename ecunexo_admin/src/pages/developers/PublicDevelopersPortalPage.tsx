@@ -18,6 +18,7 @@ import { StatusBadge } from '@/components/ui'
 import { ThemeToggleButton } from '@/components/ui/ThemeToggleButton'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
+import './publicDevelopersPortal.css'
 
 type PortalTab = 'quickstart' | 'scopes' | 'recipes' | 'errors' | 'reference'
 type CodeLang = 'curl' | 'typescript' | 'csharp' | 'python'
@@ -347,31 +348,9 @@ export function PublicDevelopersPortalPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: 'var(--glb-background, #f8fafc)',
-        color: 'var(--glb-text, #0f172a)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <div className="ecu-dev-portal">
       {/* Header Público */}
-      <header
-        style={{
-          borderBottom: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
-          backgroundColor: 'var(--glb-surface, #ffffff)',
-          padding: '0.85rem 1.5rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          position: 'sticky',
-          top: 0,
-          zIndex: 20,
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-        }}
-      >
+      <header className="ecu-dev-portal__header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <Button
             variant="outline"
@@ -411,28 +390,9 @@ export function PublicDevelopersPortalPage() {
       </header>
 
       {/* Contenedor Principal */}
-      <main
-        style={{
-          maxWidth: '1160px',
-          width: '100%',
-          margin: '1.75rem auto',
-          padding: '0 1.25rem 3rem',
-          flex: 1,
-          display: 'grid',
-          gap: '1.5rem',
-        }}
-      >
+      <main className="ecu-dev-portal__main">
         {/* Hero */}
-        <section
-          style={{
-            backgroundColor: 'var(--glb-surface, #ffffff)',
-            borderRadius: '0.85rem',
-            border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
-            padding: '1.75rem 2rem',
-            display: 'grid',
-            gap: '1rem',
-          }}
-        >
+        <section className="ecu-dev-portal__section ecu-dev-portal__section--hero">
           <div
             style={{
               display: 'flex',
@@ -447,14 +407,14 @@ export function PublicDevelopersPortalPage() {
                 <StatusBadge tone="success" withDot>
                   API v1 Estable
                 </StatusBadge>
-                <span style={{ fontSize: '0.82rem', color: 'var(--glb-muted, #64748b)' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--c-text-muted, #64748b)' }}>
                   Arquitectura Multi-Tenant · Machine-to-Machine (M2M)
                 </span>
               </div>
               <h1 style={{ margin: '0 0 0.5rem', fontSize: '1.65rem', fontWeight: 700 }}>
                 Construye la infraestructura de tu empresa sobre EcuNexo
               </h1>
-              <p style={{ margin: 0, fontSize: '0.92rem', color: 'var(--glb-muted, #64748b)', lineHeight: 1.55 }}>
+              <p style={{ margin: 0, fontSize: '0.92rem', color: 'var(--c-text-muted, #64748b)', lineHeight: 1.55 }}>
                 Conecta tu propio e-commerce headless, ERP, aplicación móvil o sistema de BI
                 consumiendo directamente el catálogo, precios, inventario, bodegas, clientes y
                 pedidos de tu organización con aislamiento criptográfico por <code>TenantId</code> y{' '}
@@ -467,11 +427,11 @@ export function PublicDevelopersPortalPage() {
                 style={{
                   padding: '0.75rem 1rem',
                   borderRadius: '0.6rem',
-                  border: '1px solid var(--shell-border, rgba(0,0,0,0.12))',
+                  border: '1px solid var(--c-border, rgba(0,0,0,0.12))',
                   fontSize: '0.82rem',
                 }}
               >
-                <div style={{ color: 'var(--glb-muted, #64748b)', marginBottom: '0.2rem' }}>
+                <div style={{ color: 'var(--c-text-muted, #64748b)', marginBottom: '0.2rem' }}>
                   Tu <code>tenantId</code> activo en sesión:
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -493,7 +453,7 @@ export function PublicDevelopersPortalPage() {
             style={{
               display: 'flex',
               gap: '0.5rem',
-              borderTop: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+              borderTop: '1px solid var(--c-border, rgba(0,0,0,0.12))',
               paddingTop: '1rem',
               flexWrap: 'wrap',
             }}
@@ -549,9 +509,9 @@ export function PublicDevelopersPortalPage() {
             >
               <div
                 style={{
-                  backgroundColor: 'var(--glb-surface, #ffffff)',
+                  backgroundColor: 'var(--c-surface, #ffffff)',
                   borderRadius: '0.75rem',
-                  border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+                  border: '1px solid var(--c-border, rgba(0,0,0,0.12))',
                   padding: '1.25rem',
                 }}
               >
@@ -559,7 +519,7 @@ export function PublicDevelopersPortalPage() {
                   <CheckCircle2 size={18} />
                   <strong>Paso 1: Genera tu API Key</strong>
                 </div>
-                <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--glb-muted, #64748b)', lineHeight: 1.5 }}>
+                <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--c-text-muted, #64748b)', lineHeight: 1.5 }}>
                   Ingresa a <strong>Configuración → API y Desarrolladores</strong> (
                   <code>/organizacion/api</code>) y crea una credencial con los <em>scopes</em> que
                   necesita tu sistema. Copia la llave <code>ecx_live_...</code> (solo se muestra al
@@ -569,9 +529,9 @@ export function PublicDevelopersPortalPage() {
 
               <div
                 style={{
-                  backgroundColor: 'var(--glb-surface, #ffffff)',
+                  backgroundColor: 'var(--c-surface, #ffffff)',
                   borderRadius: '0.75rem',
-                  border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+                  border: '1px solid var(--c-border, rgba(0,0,0,0.12))',
                   padding: '1.25rem',
                 }}
               >
@@ -579,7 +539,7 @@ export function PublicDevelopersPortalPage() {
                   <CheckCircle2 size={18} />
                   <strong>Paso 2: Envía el Header X-Api-Key</strong>
                 </div>
-                <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--glb-muted, #64748b)', lineHeight: 1.5 }}>
+                <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--c-text-muted, #64748b)', lineHeight: 1.5 }}>
                   Incluye la cabecera <code>X-Api-Key: ecx_live_...</code> en tus peticiones HTTPS
                   hacia <code>/api/v1/tenants/&#123;tenantId&#125;/...</code>. Nunca expongas una API Key
                   privada en código navegador público; úsala desde tu backend.
@@ -588,9 +548,9 @@ export function PublicDevelopersPortalPage() {
 
               <div
                 style={{
-                  backgroundColor: 'var(--glb-surface, #ffffff)',
+                  backgroundColor: 'var(--c-surface, #ffffff)',
                   borderRadius: '0.75rem',
-                  border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+                  border: '1px solid var(--c-border, rgba(0,0,0,0.12))',
                   padding: '1.25rem',
                 }}
               >
@@ -598,7 +558,7 @@ export function PublicDevelopersPortalPage() {
                   <CheckCircle2 size={18} />
                   <strong>Paso 3: Triple Validación Automática</strong>
                 </div>
-                <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--glb-muted, #64748b)', lineHeight: 1.5 }}>
+                <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--c-text-muted, #64748b)', lineHeight: 1.5 }}>
                   En cada request, EcuNexo verifica en tiempo constante el hash SHA-256, comprueba
                   que el <code>tenantId</code> coincida con la llave, valida que el módulo esté en tu
                   licencia y confirma el <em>scope</em> requerido.
@@ -609,9 +569,9 @@ export function PublicDevelopersPortalPage() {
             {/* Explorador de Ejemplos de Código */}
             <section
               style={{
-                backgroundColor: 'var(--glb-surface, #ffffff)',
+                backgroundColor: 'var(--c-surface, #ffffff)',
                 borderRadius: '0.85rem',
-                border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+                border: '1px solid var(--c-border, rgba(0,0,0,0.12))',
                 padding: '1.5rem',
                 display: 'grid',
                 gap: '1rem',
@@ -630,7 +590,7 @@ export function PublicDevelopersPortalPage() {
                   <h2 style={{ margin: 0, fontSize: '1.15rem' }}>
                     Ejemplos de Integración por Lenguaje y Módulo
                   </h2>
-                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.84rem', color: 'var(--glb-muted, #64748b)' }}>
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.84rem', color: 'var(--c-text-muted, #64748b)' }}>
                     Selecciona el módulo que deseas consumir y el lenguaje de tu infraestructura:
                   </p>
                 </div>
@@ -688,7 +648,7 @@ export function PublicDevelopersPortalPage() {
                   gap: '0.5rem',
                   padding: '0.6rem 0.85rem',
                   borderRadius: '0.5rem',
-                  backgroundColor: 'var(--glb-background, #f8fafc)',
+                  backgroundColor: 'var(--c-surface-subtle, #f1f5f9)',
                   fontSize: '0.83rem',
                 }}
               >
@@ -730,9 +690,9 @@ export function PublicDevelopersPortalPage() {
         {activeTab === 'scopes' ? (
           <section
             style={{
-              backgroundColor: 'var(--glb-surface, #ffffff)',
+              backgroundColor: 'var(--c-surface, #ffffff)',
               borderRadius: '0.85rem',
-              border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+              border: '1px solid var(--c-border, rgba(0,0,0,0.12))',
               padding: '1.5rem',
               display: 'grid',
               gap: '1rem',
@@ -742,7 +702,7 @@ export function PublicDevelopersPortalPage() {
               <h2 style={{ margin: 0, fontSize: '1.2rem' }}>
                 Catálogo de Scopes Permitidos para Integraciones Externas
               </h2>
-              <p style={{ margin: '0.35rem 0 0', fontSize: '0.86rem', color: 'var(--glb-muted, #64748b)' }}>
+              <p style={{ margin: '0.35rem 0 0', fontSize: '0.86rem', color: 'var(--c-text-muted, #64748b)' }}>
                 Por seguridad, las API Keys externas siguen el principio de mínimo privilegio: solo
                 pueden recibir permisos operativos de negocio y nunca permisos internos de
                 administración de usuarios, roles o licencias.
@@ -760,7 +720,7 @@ export function PublicDevelopersPortalPage() {
                 <thead>
                   <tr
                     style={{
-                      borderBottom: '2px solid var(--shell-border, rgba(0,0,0,0.1))',
+                      borderBottom: '2px solid var(--c-border, rgba(0,0,0,0.12))',
                       textAlign: 'left',
                     }}
                   >
@@ -775,7 +735,7 @@ export function PublicDevelopersPortalPage() {
                     <tr
                       key={row.code}
                       style={{
-                        borderBottom: '1px solid var(--shell-border, rgba(0,0,0,0.06))',
+                        borderBottom: '1px solid var(--c-border, rgba(0,0,0,0.08))',
                       }}
                     >
                       <td style={{ padding: '0.65rem' }}>
@@ -790,7 +750,7 @@ export function PublicDevelopersPortalPage() {
                           {row.access}
                         </StatusBadge>
                       </td>
-                      <td style={{ padding: '0.65rem', color: 'var(--glb-muted, #64748b)' }}>
+                      <td style={{ padding: '0.65rem', color: 'var(--c-text-muted, #64748b)' }}>
                         {row.description}
                       </td>
                     </tr>
@@ -806,9 +766,9 @@ export function PublicDevelopersPortalPage() {
           <div style={{ display: 'grid', gap: '1.25rem' }}>
             <section
               style={{
-                backgroundColor: 'var(--glb-surface, #ffffff)',
+                backgroundColor: 'var(--c-surface, #ffffff)',
                 borderRadius: '0.85rem',
-                border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+                border: '1px solid var(--c-border, rgba(0,0,0,0.12))',
                 padding: '1.5rem',
                 display: 'grid',
                 gap: '0.75rem',
@@ -817,7 +777,7 @@ export function PublicDevelopersPortalPage() {
               <h2 style={{ margin: 0, fontSize: '1.15rem' }}>
                 Receta 1: Tienda E-commerce Propia (Headless Storefront)
               </h2>
-              <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--glb-muted, #64748b)', lineHeight: 1.55 }}>
+              <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--c-text-muted, #64748b)', lineHeight: 1.55 }}>
                 Si tu empresa desea construir su propio sitio web en Next.js, Astro, Remix o una App
                 Móvil en Flutter/React Native:
               </p>
@@ -843,9 +803,9 @@ export function PublicDevelopersPortalPage() {
 
             <section
               style={{
-                backgroundColor: 'var(--glb-surface, #ffffff)',
+                backgroundColor: 'var(--c-surface, #ffffff)',
                 borderRadius: '0.85rem',
-                border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+                border: '1px solid var(--c-border, rgba(0,0,0,0.12))',
                 padding: '1.5rem',
                 display: 'grid',
                 gap: '0.75rem',
@@ -854,7 +814,7 @@ export function PublicDevelopersPortalPage() {
               <h2 style={{ margin: 0, fontSize: '1.15rem' }}>
                 Receta 2: Integración con ERP, POS o Sistema Externo
               </h2>
-              <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--glb-muted, #64748b)', lineHeight: 1.55 }}>
+              <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--c-text-muted, #64748b)', lineHeight: 1.55 }}>
                 Para mantener sincronizado el maestro de productos, precios, clientes y existencias
                 entre el sistema interno de tu empresa y EcuNexo:
               </p>
@@ -886,9 +846,9 @@ export function PublicDevelopersPortalPage() {
         {activeTab === 'errors' ? (
           <section
             style={{
-              backgroundColor: 'var(--glb-surface, #ffffff)',
+              backgroundColor: 'var(--c-surface, #ffffff)',
               borderRadius: '0.85rem',
-              border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+              border: '1px solid var(--c-border, rgba(0,0,0,0.12))',
               padding: '1.5rem',
               display: 'grid',
               gap: '1rem',
@@ -898,7 +858,7 @@ export function PublicDevelopersPortalPage() {
               <h2 style={{ margin: 0, fontSize: '1.2rem' }}>
                 Manejo de Errores y Códigos de Diagnóstico
               </h2>
-              <p style={{ margin: '0.35rem 0 0', fontSize: '0.86rem', color: 'var(--glb-muted, #64748b)' }}>
+              <p style={{ margin: '0.35rem 0 0', fontSize: '0.86rem', color: 'var(--c-text-muted, #64748b)' }}>
                 Todos los endpoints devuelven respuestas de error estructuradas (RFC 9457{' '}
                 <code>ProblemDetails</code>) con un código de dominio estable para que tu
                 infraestructura pueda reaccionar programáticamente:
@@ -916,7 +876,7 @@ export function PublicDevelopersPortalPage() {
                 <thead>
                   <tr
                     style={{
-                      borderBottom: '2px solid var(--shell-border, rgba(0,0,0,0.1))',
+                      borderBottom: '2px solid var(--c-border, rgba(0,0,0,0.12))',
                       textAlign: 'left',
                     }}
                   >
@@ -931,7 +891,7 @@ export function PublicDevelopersPortalPage() {
                     <tr
                       key={err.code}
                       style={{
-                        borderBottom: '1px solid var(--shell-border, rgba(0,0,0,0.06))',
+                        borderBottom: '1px solid var(--c-border, rgba(0,0,0,0.08))',
                       }}
                     >
                       <td style={{ padding: '0.65rem', fontWeight: 600 }}>{err.http}</td>
@@ -939,7 +899,7 @@ export function PublicDevelopersPortalPage() {
                         <code className="ecu-code">{err.code}</code>
                       </td>
                       <td style={{ padding: '0.65rem' }}>{err.cause}</td>
-                      <td style={{ padding: '0.65rem', color: 'var(--glb-muted, #64748b)' }}>
+                      <td style={{ padding: '0.65rem', color: 'var(--c-text-muted, #64748b)' }}>
                         {err.solution}
                       </td>
                     </tr>
@@ -954,9 +914,9 @@ export function PublicDevelopersPortalPage() {
         {activeTab === 'reference' ? (
           <section
             style={{
-              backgroundColor: 'var(--glb-surface, #ffffff)',
+              backgroundColor: 'var(--c-surface, #ffffff)',
               borderRadius: '0.85rem',
-              border: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+              border: '1px solid var(--c-border, rgba(0,0,0,0.12))',
               overflow: 'hidden',
               display: 'grid',
             }}
@@ -964,7 +924,7 @@ export function PublicDevelopersPortalPage() {
             <div
               style={{
                 padding: '1rem 1.25rem',
-                borderBottom: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
+                borderBottom: '1px solid var(--c-border, rgba(0,0,0,0.12))',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -974,7 +934,7 @@ export function PublicDevelopersPortalPage() {
             >
               <div>
                 <strong>Explorador Interactivo OpenAPI v1 (Scalar)</strong>
-                <div style={{ fontSize: '0.8rem', color: 'var(--glb-muted, #64748b)' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--c-text-muted, #64748b)' }}>
                   Prueba endpoints en vivo ingresando tu <code>X-Api-Key</code> en la sección
                   Authentication.
                 </div>
@@ -994,12 +954,7 @@ export function PublicDevelopersPortalPage() {
             <iframe
               src="/scalar/external-v1"
               title="EcuNexo Developer API Reference (Scalar)"
-              style={{
-                width: '100%',
-                height: '78vh',
-                border: 'none',
-                backgroundColor: '#ffffff',
-              }}
+              className="ecu-dev-portal__iframe"
             />
           </section>
         ) : null}

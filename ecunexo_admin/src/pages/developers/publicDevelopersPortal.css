@@ -1,0 +1,150 @@
+/* ==========================================================================
+   EcuNexo — Portal Público de Desarrolladores y Documentación de APIs
+   Soporte nativo para Light/Dark Mode (tokens --c-*), scroll fluído y M3
+   ========================================================================== */
+
+.ecu-dev-portal {
+  box-sizing: border-box;
+  height: 100svh;
+  height: 100dvh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background-color: var(--c-background, #fafafa);
+  color: var(--c-text-main, #0f172a);
+  font-family: var(--glb-font-family, inherit);
+}
+
+html.sf-dark-mode .ecu-dev-portal,
+html[data-mode="dark"] .ecu-dev-portal {
+  background-color: var(--c-background, #121212);
+  color: var(--c-text-main, #ffffff);
+}
+
+.ecu-dev-portal__header {
+  border-bottom: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  background-color: var(--c-surface, #ffffff);
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+html.sf-dark-mode .ecu-dev-portal__header,
+html[data-mode="dark"] .ecu-dev-portal__header {
+  background-color: var(--c-surface, #1e1e1e);
+  border-bottom-color: var(--c-border, rgba(255, 255, 255, 0.12));
+}
+
+.ecu-dev-portal__main {
+  max-width: 1160px;
+  width: 100%;
+  margin: 1.75rem auto;
+  padding: 0 1.25rem 3rem;
+  flex: 1;
+  display: grid;
+  gap: 1.5rem;
+  box-sizing: border-box;
+}
+
+.ecu-dev-portal__section {
+  background-color: var(--c-surface, #ffffff);
+  border-radius: 0.85rem;
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.ecu-dev-portal__section--hero {
+  padding: 1.75rem 2rem;
+}
+
+html.sf-dark-mode .ecu-dev-portal__section,
+html[data-mode="dark"] .ecu-dev-portal__section {
+  background-color: var(--c-surface, #1e1e1e);
+  border-color: var(--c-border, rgba(255, 255, 255, 0.12));
+}
+
+.ecu-dev-portal__card {
+  background-color: var(--c-surface, #ffffff);
+  border-radius: 0.75rem;
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  padding: 1.25rem;
+}
+
+html.sf-dark-mode .ecu-dev-portal__card,
+html[data-mode="dark"] .ecu-dev-portal__card {
+  background-color: var(--c-surface, #1e1e1e);
+  border-color: var(--c-border, rgba(255, 255, 255, 0.12));
+}
+
+.ecu-dev-portal__muted {
+  color: var(--c-text-muted, #64748b);
+}
+
+html.sf-dark-mode .ecu-dev-portal__muted,
+html[data-mode="dark"] .ecu-dev-portal__muted {
+  color: var(--c-text-muted, rgba(255, 255, 255, 0.7));
+}
+
+.ecu-dev-portal__subtle-box {
+  background-color: var(--c-surface-subtle, #f1f5f9);
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  border-radius: 0.5rem;
+}
+
+html.sf-dark-mode .ecu-dev-portal__subtle-box,
+html[data-mode="dark"] .ecu-dev-portal__subtle-box {
+  background-color: var(--c-surface-subtle, #252525);
+  border-color: var(--c-border, rgba(255, 255, 255, 0.12));
+}
+
+.ecu-dev-portal__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.ecu-dev-portal__table th {
+  padding: 0.65rem;
+  border-bottom: 2px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  text-align: left;
+}
+
+.ecu-dev-portal__table td {
+  padding: 0.65rem;
+  border-bottom: 1px solid var(--c-border, rgba(0, 0, 0, 0.08));
+}
+
+html.sf-dark-mode .ecu-dev-portal__table th,
+html[data-mode="dark"] .ecu-dev-portal__table th {
+  border-bottom-color: var(--c-border, rgba(255, 255, 255, 0.16));
+}
+
+html.sf-dark-mode .ecu-dev-portal__table td,
+html[data-mode="dark"] .ecu-dev-portal__table td {
+  border-bottom-color: var(--c-border, rgba(255, 255, 255, 0.08));
+}
+
+.ecu-dev-portal__iframe {
+  width: 100%;
+  height: 78vh;
+  border: none;
+  background-color: var(--c-surface, #ffffff);
+}
+
+html.sf-dark-mode .ecu-dev-portal__iframe,
+html[data-mode="dark"] .ecu-dev-portal__iframe {
+  background-color: var(--c-surface, #1e1e1e);
+}
