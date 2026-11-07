@@ -1,18 +1,19 @@
 import { expect, test } from '@playwright/test'
 
-test.describe('Portal de Desarrolladores y Documentación de APIs (/developers)', () => {
-  test('Portal Público: renderiza sin autenticación, permite scroll y alterna modo oscuro', async ({
+test.describe('Portal Empresarial de Desarrolladores y Documentación de APIs (/developers)', () => {
+  test('Portal Público: renderiza layout con sidebar, permite scroll, alterna modo oscuro y navega todas las secciones', async ({
     page,
   }) => {
     await page.goto('/developers')
 
-    // 1. Título y encabezado público
+    // 1. Título, encabezado público y sidebar de navegación
     await expect(page.locator('strong:has-text("EcuNexo Developers")')).toBeVisible({
       timeout: 15_000,
     })
     await expect(
       page.getByRole('heading', { name: /Construye la infraestructura de tu empresa/i })
     ).toBeVisible()
+    await expect(page.getByLabel('Navegación de documentación')).toBeVisible()
 
     // 2. Acceso a enlaces de especificación Scalar y OpenAPI JSON
     const scalarLink = page.getByRole('link', { name: /Playground Scalar/i })
@@ -28,7 +29,6 @@ test.describe('Portal de Desarrolladores y Documentación de APIs (/developers)'
     const isScrollable = await portalContainer.evaluate((el) => el.scrollHeight > el.clientHeight)
     expect(isScrollable).toBe(true)
 
-    // Scroll vertical efectivo
     await portalContainer.evaluate((el) => el.scrollTo({ top: 350 }))
     const scrollTop = await portalContainer.evaluate((el) => el.scrollTop)
     expect(scrollTop).toBeGreaterThan(0)
@@ -36,27 +36,48 @@ test.describe('Portal de Desarrolladores y Documentación de APIs (/developers)'
     // 4. Verificación de modo oscuro (Dark Mode)
     const themeBtn = page.locator('.ecu-theme-toggle')
     await expect(themeBtn).toBeVisible()
-    await themeBtn.click()
-
-    // Comprobar que se aplica la clase sf-dark-mode en el elemento raíz
-    const isDark = await page.evaluate(() =>
+    const initialDark = await page.evaluate(() =>
       document.documentElement.classList.contains('sf-dark-mode')
     )
-    expect(isDark).toBe(true)
+    await themeBtn.click()
+    const toggledDark = await page.evaluate(() =>
+      document.documentElement.classList.contains('sf-dark-mode')
+    )
+    expect(toggledDark).toBe(!initialDark)
 
-    // 5. Navegación por pestañas de la documentación
-    // Pestaña 2: Scopes y Módulos
+    // 5. Generador de SDKs multi-lenguaje en pestaña inicial
+    await expect(
+      page.getByRole('heading', { name: /Generador de Cliente SDK y Ejemplos de Integración/i })
+    ).toBeVisible()
+    await page.getByRole('button', { name: /C# \/ \.NET 10/i }).click()
+    await expect(page.locator('code:has-text("HttpClient")').first()).toBeVisible()
+
+    // 6. Catálogo de Endpoints por Dominio
+    await page.getByRole('button', { name: /Catálogo de Endpoints/i }).click()
+    await expect(
+      page.getByRole('heading', { name: /Catálogo de Endpoints Empresariales por Dominio/i })
+    ).toBeVisible()
+    await expect(page.locator('code:has-text("/catalog/items")').first()).toBeVisible()
+
+    // 7. Scopes y Módulos
     await page.getByRole('button', { name: /2\. Scopes y Módulos/i }).click()
     await expect(page.getByRole('heading', { name: /Catálogo de Scopes Permitidos/i })).toBeVisible()
     await expect(page.locator('code:has-text("catalog.item.read")').first()).toBeVisible()
     await expect(page.locator('code:has-text("inventory.stock.read")').first()).toBeVisible()
 
-    // Pestaña 3: Arquitecturas y Recetas
+    // 8. Arquitecturas y Recetas
     await page.getByRole('button', { name: /3\. Arquitecturas y Recetas/i }).click()
     await expect(page.getByRole('heading', { name: /Headless Storefront/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: /Integración con ERP/i })).toBeVisible()
 
-    // Pestaña 4: Códigos de Error
+    // 9. Simulador HTTP en Vivo
+    await page.getByRole('button', { name: /Simulador HTTP en Vivo/i }).click()
+    await expect(
+      page.getByRole('heading', { name: /Simulador HTTP M2M en Vivo/i })
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: /Ejecutar Petición Real/i })).toBeVisible()
+
+    // 10. Códigos de Error
     await page.getByRole('button', { name: /4\. Códigos de Error/i }).click()
     await expect(
       page.getByRole('heading', { name: /Manejo de Errores y Códigos de Diagnóstico/i })
@@ -64,7 +85,7 @@ test.describe('Portal de Desarrolladores y Documentación de APIs (/developers)'
     await expect(page.locator('text=401 Unauthorized').first()).toBeVisible()
     await expect(page.locator('code:has-text("auth.tenant.mismatch")').first()).toBeVisible()
 
-    // Pestaña 5: Referencia OpenAPI Interactiva
+    // 11. Referencia OpenAPI Interactiva
     await page.getByRole('button', { name: /5\. Referencia OpenAPI Interactiva/i }).click()
     await expect(page.locator('iframe[title*="Scalar"]')).toBeVisible()
   })

@@ -1,6 +1,7 @@
 /* ==========================================================================
-   EcuNexo — Portal Público de Desarrolladores y Documentación de APIs
-   Soporte nativo para Light/Dark Mode (tokens --c-*), scroll fluído y M3
+   EcuNexo — Portal Empresarial de Desarrolladores (/developers)
+   Arquitectura de Documentación Técnica (Sidebar + Main + Live API Sandbox)
+   Soporte nativo Light/Dark Mode (tokens --c-*), 4 columnas friendMobile
    ========================================================================== */
 
 .ecu-dev-portal {
@@ -15,46 +16,144 @@
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  background-color: var(--c-background, #fafafa);
+  background-color: var(--c-background, #f8fafc);
   color: var(--c-text-main, #0f172a);
-  font-family: var(--glb-font-family, inherit);
+  font-family: var(--glb-font-family, Inter, system-ui, sans-serif);
 }
 
 html.sf-dark-mode .ecu-dev-portal,
 html[data-mode="dark"] .ecu-dev-portal {
-  background-color: var(--c-background, #121212);
-  color: var(--c-text-main, #ffffff);
+  background-color: var(--glb-app-bg, #0b0f17);
+  background-image:
+    radial-gradient(at 50% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 60%),
+    radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.06) 0px, transparent 50%);
+  color: var(--c-text-main, #f8fafc);
 }
 
 .ecu-dev-portal__header {
   border-bottom: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
-  background-color: var(--c-surface, #ffffff);
-  padding: 0.85rem 1.5rem;
+  background-color: color-mix(in srgb, var(--c-surface, #ffffff) 90%, transparent);
+  backdrop-filter: blur(12px);
+  padding: 0.75rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 30;
   flex-wrap: wrap;
   gap: 0.75rem;
 }
 
 html.sf-dark-mode .ecu-dev-portal__header,
 html[data-mode="dark"] .ecu-dev-portal__header {
-  background-color: var(--c-surface, #1e1e1e);
-  border-bottom-color: var(--c-border, rgba(255, 255, 255, 0.12));
+  background-color: color-mix(in srgb, var(--c-surface, #161b26) 88%, transparent);
+  border-bottom-color: var(--c-border, rgba(255, 255, 255, 0.1));
+}
+
+.ecu-dev-portal__workspace {
+  max-width: 1380px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3.5rem;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  box-sizing: border-box;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .ecu-dev-portal__workspace {
+    grid-template-columns: 265px minmax(0, 1fr);
+  }
+}
+
+.ecu-dev-portal__sidebar {
+  background-color: var(--c-surface, #ffffff);
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  border-radius: 0.85rem;
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .ecu-dev-portal__sidebar {
+    position: sticky;
+    top: 4.75rem;
+  }
+}
+
+html.sf-dark-mode .ecu-dev-portal__sidebar,
+html[data-mode="dark"] .ecu-dev-portal__sidebar {
+  background-color: var(--c-surface, #161b26);
+  border-color: var(--c-border, rgba(255, 255, 255, 0.1));
+}
+
+.ecu-dev-portal__nav-group-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-text-muted, #64748b);
+  padding: 0 0.6rem;
+  margin-bottom: 0.35rem;
+}
+
+.ecu-dev-portal__nav-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.55rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--c-text-main, #0f172a);
+  font-size: 0.83rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ecu-dev-portal__nav-btn:hover {
+  background-color: var(--c-surface-subtle, rgba(148, 163, 184, 0.12));
+}
+
+.ecu-dev-portal__nav-btn--active {
+  background-color: color-mix(in srgb, var(--c-primary, #1976d2) 14%, transparent);
+  color: var(--c-primary, #38bdf8);
+  border-color: color-mix(in srgb, var(--c-primary, #1976d2) 30%, transparent);
+  font-weight: 700;
 }
 
 .ecu-dev-portal__main {
-  max-width: 1160px;
-  width: 100%;
-  margin: 1.75rem auto;
-  padding: 0 1.25rem 3rem;
-  flex: 1;
   display: grid;
   gap: 1.5rem;
-  box-sizing: border-box;
+  min-width: 0;
+}
+
+.ecu-dev-portal__grid--4 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+}
+
+@media (min-width: 640px) {
+  .ecu-dev-portal__grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 960px) {
+  .ecu-dev-portal__grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .ecu-dev-portal__section {
@@ -63,30 +162,49 @@ html[data-mode="dark"] .ecu-dev-portal__header {
   border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
   padding: 1.5rem;
   display: grid;
-  gap: 1rem;
+  gap: 1.15rem;
 }
 
 .ecu-dev-portal__section--hero {
   padding: 1.75rem 2rem;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--c-primary, #1976d2) 8%, var(--c-surface, #ffffff)) 0%,
+      var(--c-surface, #ffffff) 65%
+    );
 }
 
 html.sf-dark-mode .ecu-dev-portal__section,
 html[data-mode="dark"] .ecu-dev-portal__section {
-  background-color: var(--c-surface, #1e1e1e);
-  border-color: var(--c-border, rgba(255, 255, 255, 0.12));
+  background-color: var(--c-surface, #161b26);
+  border-color: var(--c-border, rgba(255, 255, 255, 0.1));
+}
+
+html.sf-dark-mode .ecu-dev-portal__section--hero,
+html[data-mode="dark"] .ecu-dev-portal__section--hero {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(56, 189, 248, 0.1) 0%,
+      var(--c-surface, #161b26) 65%
+    );
 }
 
 .ecu-dev-portal__card {
   background-color: var(--c-surface, #ffffff);
   border-radius: 0.75rem;
   border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
-  padding: 1.25rem;
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
 html.sf-dark-mode .ecu-dev-portal__card,
 html[data-mode="dark"] .ecu-dev-portal__card {
-  background-color: var(--c-surface, #1e1e1e);
-  border-color: var(--c-border, rgba(255, 255, 255, 0.12));
+  background-color: var(--c-surface, #161b26);
+  border-color: var(--c-border, rgba(255, 255, 255, 0.1));
 }
 
 .ecu-dev-portal__muted {
@@ -101,13 +219,92 @@ html[data-mode="dark"] .ecu-dev-portal__muted {
 .ecu-dev-portal__subtle-box {
   background-color: var(--c-surface-subtle, #f1f5f9);
   border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
-  border-radius: 0.5rem;
+  border-radius: 0.6rem;
 }
 
 html.sf-dark-mode .ecu-dev-portal__subtle-box,
 html[data-mode="dark"] .ecu-dev-portal__subtle-box {
-  background-color: var(--c-surface-subtle, #252525);
-  border-color: var(--c-border, rgba(255, 255, 255, 0.12));
+  background-color: var(--c-surface-subtle, #1e2534);
+  border-color: var(--c-border, rgba(255, 255, 255, 0.1));
+}
+
+.ecu-dev-portal__method-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.4rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.ecu-dev-portal__method-badge--get {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.ecu-dev-portal__method-badge--post {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.ecu-dev-portal__method-badge--put {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.ecu-dev-portal__method-badge--delete {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.ecu-dev-portal__endpoint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  padding: 0.75rem 0.95rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.1));
+  background: var(--c-surface, #ffffff);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+html.sf-dark-mode .ecu-dev-portal__endpoint-row,
+html[data-mode="dark"] .ecu-dev-portal__endpoint-row {
+  background: var(--c-surface, #161b26);
+  border-color: var(--c-border, rgba(255, 255, 255, 0.1));
+}
+
+.ecu-dev-portal__endpoint-row:hover {
+  border-color: var(--c-primary, #38bdf8);
+}
+
+.ecu-dev-portal__endpoint-row--selected {
+  border-color: var(--c-primary, #38bdf8);
+  box-shadow: 0 0 0 1px var(--c-primary, #38bdf8);
+}
+
+.ecu-dev-portal__code-pre {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border-radius: 0.65rem;
+  background-color: #0b0f19;
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-x: auto;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .ecu-dev-portal__table {
@@ -146,5 +343,5 @@ html[data-mode="dark"] .ecu-dev-portal__table td {
 
 html.sf-dark-mode .ecu-dev-portal__iframe,
 html[data-mode="dark"] .ecu-dev-portal__iframe {
-  background-color: var(--c-surface, #1e1e1e);
+  background-color: var(--c-surface, #161b26);
 }
