@@ -11,6 +11,7 @@ import { CreateCompanyPage } from '@/pages/organization/CreateCompanyPage'
 import { EditCompanyPage } from '@/pages/organization/EditCompanyPage'
 import { OrganizationProfilePage } from '@/pages/organization/OrganizationProfilePage'
 import { OrganizationSettingsPage } from '@/pages/organization/OrganizationSettingsPage'
+import { DeveloperApiPage } from '@/pages/organization/DeveloperApiPage'
 import { AppSettingsPage } from '@/pages/settings/AppSettingsPage'
 import { PermissionDetailPage } from '@/pages/security/PermissionDetailPage'
 import { PermissionsCatalogPage } from '@/pages/security/PermissionsCatalogPage'
@@ -94,6 +95,7 @@ import { EcommerceOrderDetailPage } from '@/pages/ecommerce/EcommerceOrderDetail
 import { StorefrontDomainsPage } from '@/pages/ecommerce/StorefrontDomainsPage'
 import { StorefrontSettingsPage } from '@/pages/ecommerce/StorefrontSettingsPage'
 import { LegalPublicPage } from '@/pages/legal/LegalPublicPage'
+import { PublicDevelopersPortalPage } from '@/pages/developers/PublicDevelopersPortalPage'
 import { ChartOfAccountsPage } from '@/pages/accounting/ChartOfAccountsPage'
 import JournalEntriesListPage from '@/pages/accounting/JournalEntriesListPage'
 import JournalEntryCreatePage from '@/pages/accounting/JournalEntryCreatePage'
@@ -111,6 +113,7 @@ export const routes: RouteObject[] = [
   { path: '/', element: <LoginLayout /> },
   { path: '/terminos', element: <LegalPublicPage /> },
   { path: '/privacidad', element: <LegalPublicPage /> },
+  { path: '/developers', element: <PublicDevelopersPortalPage /> },
   { path: '/verificar/despacho/:verificationHash', element: <PublicDispatchVerificationPage /> },
   {
     path: '/bienvenida',
@@ -136,6 +139,7 @@ export const routes: RouteObject[] = [
           { path: 'organizacion/empresas/:companyId/editar', element: <EditCompanyPage /> },
           { path: 'organizacion/plan', element: <OrganizationPlanPage /> },
           { path: 'organizacion/configuracion', element: <OrganizationSettingsPage /> },
+          { path: 'organizacion/api', element: <DeveloperApiPage /> },
           { path: 'organizacion/correo', element: <Navigate to="/app/configuracion" replace /> },
           { path: 'app/configuracion', element: <AppSettingsPage /> },
           { path: 'equipo/usuarios', element: <UsersListPage /> },

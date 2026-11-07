@@ -54,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<IPermissionRepository, PermissionRepository>();
         services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
         services.AddScoped<IPolicyRepository, PolicyRepository>();
+        services.AddScoped<ITenantApiKeyRepository, TenantApiKeyRepository>();
         services.AddScoped<IUserPermissionQuery, UserPermissionQuery>();
         services.AddScoped<ISysSettingRepository, SysSettingRepository>();
         services.AddScoped<IMenuItemRepository, MenuItemRepository>();

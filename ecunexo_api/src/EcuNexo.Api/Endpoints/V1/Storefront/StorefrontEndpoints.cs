@@ -33,6 +33,7 @@ public static class StorefrontEndpoints
             .MapGroup("/api/v{version:apiVersion}/public/tenants/{tenantId:guid}/storefront")
             .WithApiVersionSet(versionSet)
             .WithTags("Storefront")
+            .IncludeInExternalDeveloperApi()
             .AllowAnonymous();
 
         storefront.MapGet("/facets", ListFacetsAsync)

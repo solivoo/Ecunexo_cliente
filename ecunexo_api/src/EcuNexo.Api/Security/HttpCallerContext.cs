@@ -68,6 +68,61 @@ public sealed class HttpCallerContext(IHttpContextAccessor httpContextAccessor, 
         }
     }
 
+    public bool IsApiKeyCaller
+    {
+        get
+        {
+            var http = httpContextAccessor.HttpContext;
+            if (http?.User.Identity?.IsAuthenticated == true)
+            {
+                return string.Equals(
+                    http.User.FindFirstValue(JwtClaimTypes.PrincipalKind),
+                    JwtClaimTypes.ApiKeyPrincipal,
+                    StringComparison.Ordinal);
+            }
+
+            return false;
+        }
+    }
+
+    public Guid? ApiKeyId
+    {
+        get
+        {
+            var http = httpContextAccessor.HttpContext;
+            if (http?.User.Identity?.IsAuthenticated == true)
+            {
+                var akid = http.User.FindFirstValue(JwtClaimTypes.ApiKeyId);
+                if (akid is not null && Guid.TryParse(akid, out var id))
+                {
+                    return id;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    public IReadOnlySet<string>? ApiKeyScopes
+    {
+        get
+        {
+            var http = httpContextAccessor.HttpContext;
+            if (http?.User.Identity?.IsAuthenticated != true || !IsApiKeyCaller)
+            {
+                return null;
+            }
+
+            var scopes = http.User
+                .FindAll(JwtClaimTypes.ApiKeyScope)
+                .Select(static c => c.Value)
+                .Where(static s => !string.IsNullOrWhiteSpace(s))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            return scopes;
+        }
+    }
+
     private static Guid? ParseGuid(HttpRequest? request, string headerName)
     {
         if (request?.Headers.TryGetValue(headerName, out var values) == true &&

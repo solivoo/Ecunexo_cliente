@@ -15,4 +15,13 @@ public interface ICallerContext
 
     /// <summary>Titular de licencia sin tenant operativo (claim <c>pk=subscription</c>).</summary>
     bool IsSubscriptionHolder { get; }
+
+    /// <summary>Indica si el llamante autenticado es una credencial M2M (<c>TenantApiKey</c>).</summary>
+    bool IsApiKeyCaller => false;
+
+    /// <summary>Identificador de la <c>TenantApiKey</c> cuando <see cref="IsApiKeyCaller"/> es <c>true</c>.</summary>
+    Guid? ApiKeyId => null;
+
+    /// <summary>Permisos (scopes) concedidos a la <c>TenantApiKey</c> autenticada.</summary>
+    IReadOnlySet<string>? ApiKeyScopes => null;
 }

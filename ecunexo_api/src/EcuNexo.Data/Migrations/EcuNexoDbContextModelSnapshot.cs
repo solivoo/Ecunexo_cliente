@@ -2096,6 +2096,98 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("role_permissions", "identity");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Identity.TenantApiKey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("KeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("key_hash");
+
+                    b.Property<string>("KeyPrefix")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("key_prefix");
+
+                    b.Property<DateTimeOffset?>("LastUsedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("last_used_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<Guid?>("RevokedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("revoked_by");
+
+                    b.PrimitiveCollection<string>("Scopes")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("scopes");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tenant_api_keys");
+
+                    b.HasIndex("KeyPrefix")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tenant_api_keys_key_prefix");
+
+                    b.HasIndex("TenantId", "CreatedAt")
+                        .HasDatabaseName("ix_tenant_api_keys_tenant_created");
+
+                    b.ToTable("tenant_api_keys", "identity");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Identity.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6076,6 +6168,18 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Permission");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Identity.TenantApiKey", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tenant_api_keys_tenants_tenant_id");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Identity.User", b =>

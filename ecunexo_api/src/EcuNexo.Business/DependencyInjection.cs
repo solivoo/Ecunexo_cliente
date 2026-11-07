@@ -1,4 +1,9 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Identity.ApiKeys;
+using EcuNexo.Business.Identity.ApiKeys.Commands.CreateTenantApiKey;
+using EcuNexo.Business.Identity.ApiKeys.Commands.RevokeTenantApiKey;
+using EcuNexo.Business.Identity.ApiKeys.Queries.ListDeveloperApiScopes;
+using EcuNexo.Business.Identity.ApiKeys.Queries.ListTenantApiKeys;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Pricing.Commands.BulkCreateProductPrices;
 using EcuNexo.Business.Pricing.Commands.CreatePriceList;
@@ -490,6 +495,12 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<DeleteShippingRateRuleCommand, bool>, DeleteShippingRateRuleHandler>();
         services.AddScoped<IQueryHandler<ListShippingRateRulesQuery, IReadOnlyList<ShippingRateRuleDto>>, ListShippingRateRulesHandler>();
         services.AddScoped<IQueryHandler<ResolveShippingRatesQuery, IReadOnlyList<ResolvedShippingOptionDto>>, ResolveShippingRatesHandler>();
+
+        // Developer API Keys (M2M por Tenant)
+        services.AddScoped<ICommandHandler<CreateTenantApiKeyCommand, CreatedTenantApiKeyDto>, CreateTenantApiKeyHandler>();
+        services.AddScoped<ICommandHandler<RevokeTenantApiKeyCommand, bool>, RevokeTenantApiKeyHandler>();
+        services.AddScoped<IQueryHandler<ListTenantApiKeysQuery, IReadOnlyList<TenantApiKeyItemDto>>, ListTenantApiKeysHandler>();
+        services.AddScoped<IQueryHandler<ListDeveloperApiScopesQuery, IReadOnlyList<DeveloperApiScopeItemDto>>, ListDeveloperApiScopesHandler>();
 
         return services;
     }

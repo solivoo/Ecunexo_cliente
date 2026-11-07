@@ -54,12 +54,20 @@ export function OrganizationProfilePage() {
         title="Perfil y Branding"
         subtitle="Identidad y datos de tu organización activa."
         actions={
-          <Link
-            to="/organizacion/facturacion-electronica"
-            className="sf-button sf-button--outline sf-button--sm"
-          >
-            Facturación electrónica
-          </Link>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <Link
+              to="/organizacion/api"
+              className="sf-button sf-button--outline sf-button--sm"
+            >
+              API y Desarrolladores
+            </Link>
+            <Link
+              to="/organizacion/facturacion-electronica"
+              className="sf-button sf-button--outline sf-button--sm"
+            >
+              Facturación electrónica
+            </Link>
+          </div>
         }
       />
 

@@ -1,4 +1,5 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Identity.ApiKeys;
 using EcuNexo.Business.Identity.PolicyEvaluation;
 using EcuNexo.Business.Tenancy.Authorization;
 using EcuNexo.Core.Common;
@@ -54,7 +55,57 @@ public sealed class PermissionAccessGuard : IPermissionAccessGuard
                     ErrorType.Validation));
         }
 
-        if (_caller.UserId is not { } userId)
+        var normalizedCode = permissionCode.Trim().ToLowerInvariant();
+
+        if (_caller.IsApiKeyCaller)
+        {
+            if (_caller.ExplicitTenantId is not { } apiKeyTenantId)
+            {
+                return Result.Failure(
+                    new Error(
+                        "auth.tenant.required",
+                        "La API Key no tiene una organización asociada.",
+                        ErrorType.Unauthorized));
+            }
+
+            if (_tenant.CurrentTenantId is { } routeTenantId && routeTenantId != apiKeyTenantId)
+            {
+                return Result.Failure(
+                    new Error(
+                        "auth.tenant.mismatch",
+                        "La API Key pertenece a otra organización y no puede operar sobre este tenant.",
+                        ErrorType.Forbidden));
+            }
+
+            if (!DeveloperApiScopes.IsAllowed(normalizedCode))
+            {
+                return Result.Failure(
+                    new Error(
+                        "auth.api_key.permission_not_allowed",
+                        $"El permiso «{normalizedCode}» no está habilitado para consumo mediante API Key externa.",
+                        ErrorType.Forbidden));
+            }
+
+            var apiKeyModuleCheck = await _modules.RequireModuleForPermissionAsync(apiKeyTenantId, normalizedCode, ct)
+                .ConfigureAwait(false);
+            if (apiKeyModuleCheck.IsFailure)
+            {
+                return apiKeyModuleCheck;
+            }
+
+            if (_caller.ApiKeyScopes is null || !_caller.ApiKeyScopes.Contains(normalizedCode))
+            {
+                return Result.Failure(
+                    new Error(
+                        "auth.api_key.scope_denied",
+                        $"La API Key no posee el permiso (scope) requerido «{normalizedCode}».",
+                        ErrorType.Forbidden));
+            }
+
+            return Result.Success();
+        }
+
+        if (_caller. UserId is not { } userId)
         {
             return Result.Failure(
                 new Error(
@@ -62,8 +113,6 @@ public sealed class PermissionAccessGuard : IPermissionAccessGuard
                     "Falta identidad de usuario (p. ej. cabecera X-EcuNexo-User-Id en desarrollo).",
                     ErrorType.Unauthorized));
         }
-
-        var normalizedCode = permissionCode.Trim().ToLowerInvariant();
 
         if (_caller.IsSubscriptionHolder)
         {

@@ -24,6 +24,7 @@ public static class CustomerEndpoints
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/customers")
             .WithApiVersionSet(versionSet)
             .WithTags("Customers")
+            .IncludeInExternalDeveloperApi()
             .RequireAuthorization();
 
         group.MapGet("/", ListCustomersAsync)

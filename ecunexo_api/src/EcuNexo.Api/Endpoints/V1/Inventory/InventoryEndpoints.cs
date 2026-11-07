@@ -29,6 +29,7 @@ public static class InventoryEndpoints
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/inventory/stock")
             .WithApiVersionSet(versionSet)
             .WithTags("Inventory")
+            .IncludeInExternalDeveloperApi()
             .RequireAuthorization();
 
         stock.MapGet("/", ListStockAsync)
@@ -41,6 +42,7 @@ public static class InventoryEndpoints
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/inventory/movements")
             .WithApiVersionSet(versionSet)
             .WithTags("Inventory")
+            .IncludeInExternalDeveloperApi()
             .RequireAuthorization();
 
         movements.MapGet("/", ListMovementsAsync)
@@ -51,6 +53,7 @@ public static class InventoryEndpoints
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/inventory/documents")
             .WithApiVersionSet(versionSet)
             .WithTags("Inventory")
+            .IncludeInExternalDeveloperApi()
             .RequireAuthorization();
 
         documents.MapPost("/", CreateDocumentAsync)

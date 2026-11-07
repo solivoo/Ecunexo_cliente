@@ -44,6 +44,7 @@ public static class PricingEndpoints
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/pricing/price-lists")
             .WithApiVersionSet(versionSet)
             .WithTags("Pricing")
+            .IncludeInExternalDeveloperApi()
             .RequireAuthorization();
 
         priceLists.MapGet("/", ListPriceListsAsync)
@@ -59,6 +60,7 @@ public static class PricingEndpoints
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/pricing/prices")
             .WithApiVersionSet(versionSet)
             .WithTags("Pricing")
+            .IncludeInExternalDeveloperApi()
             .RequireAuthorization();
 
         prices.MapGet("/", ListProductPricesAsync)
@@ -80,6 +82,7 @@ public static class PricingEndpoints
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/pricing/promotions")
             .WithApiVersionSet(versionSet)
             .WithTags("Pricing")
+            .IncludeInExternalDeveloperApi()
             .RequireAuthorization();
 
         promotions.MapGet("/", ListPromotionsAsync)

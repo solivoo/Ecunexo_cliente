@@ -49,6 +49,7 @@ public static class CatalogEndpoints
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/items")
             .WithApiVersionSet(versionSet)
             .WithTags("Catalog")
+            .IncludeInExternalDeveloperApi()
             .RequireAuthorization();
 
         items.MapPost("/", CreateItemAsync)

@@ -22,9 +22,31 @@ public static class JwtServiceCollectionExtensions
 
         services.AddAuthentication(options =>
             {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultAuthenticateScheme = TenantApiKeyAuthenticationDefaults.CompositeScheme;
+                options.DefaultChallengeScheme = TenantApiKeyAuthenticationDefaults.CompositeScheme;
             })
+            .AddPolicyScheme(TenantApiKeyAuthenticationDefaults.CompositeScheme, "JWT or Tenant API Key", options =>
+            {
+                options.ForwardDefaultSelector = static context =>
+                {
+                    if (context.Request.Headers.ContainsKey(TenantApiKeyAuthenticationDefaults.HeaderName))
+                    {
+                        return TenantApiKeyAuthenticationDefaults.AuthenticationScheme;
+                    }
+
+                    if (context.Request.Headers.TryGetValue("Authorization", out var auth)
+                        && auth.FirstOrDefault() is { } raw
+                        && raw.StartsWith("Bearer ecx_live_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return TenantApiKeyAuthenticationDefaults.AuthenticationScheme;
+                    }
+
+                    return JwtBearerDefaults.AuthenticationScheme;
+                };
+            })
+            .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TenantApiKeyAuthenticationHandler>(
+                TenantApiKeyAuthenticationDefaults.AuthenticationScheme,
+                static _ => { })
             .AddJwtBearer(options =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters

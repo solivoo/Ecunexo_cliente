@@ -24,6 +24,7 @@ public static class WarehouseEndpoints
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/warehouses")
             .WithApiVersionSet(versionSet)
             .WithTags("Warehousing")
+            .IncludeInExternalDeveloperApi()
             .RequireAuthorization();
 
         group.MapPost("/", CreateAsync)

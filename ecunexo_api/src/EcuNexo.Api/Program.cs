@@ -63,6 +63,15 @@ builder.Services.AddApiVersioning(options =>
     });
 
 builder.Services.AddOpenApi(options => options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
+builder.Services.AddOpenApi(
+    ExternalDeveloperApiEndpointExtensions.DocumentName,
+    options =>
+    {
+        options.ShouldInclude = static description =>
+            description.ActionDescriptor.EndpointMetadata.OfType<ExternalDeveloperApiAttribute>().Any();
+        options.AddDocumentTransformer<ExternalDeveloperApiOpenApiTransformer>();
+        options.AddOperationTransformer<ExternalDeveloperApiOperationTransformer>();
+    });
 
 builder.Services.AddEcuNexoJwt(builder.Configuration);
 
@@ -228,7 +237,12 @@ app.UseAuthorization();
 app.UseMiddleware<TenantResolutionMiddleware>();
 
 app.MapOpenApi();
-app.MapScalarApiReference();
+app.MapScalarApiReference(options =>
+{
+    options
+        .WithTitle("EcuNexo Developer & API Reference")
+        .WithDefaultHttpClient(ScalarTarget.Shell, ScalarClient.Curl);
+});
 
 app.MapGet("/", () => Results.Ok(new { service = "EcuNexo", status = "ok" }));
 
@@ -248,6 +262,7 @@ app.MapUserEndpointsV1();
 app.MapRoleEndpointsV1();
 app.MapDepartmentEndpointsV1();
 app.MapPermissionEndpointsV1();
+app.MapTenantApiKeyEndpointsV1();
 app.MapCatalogEndpointsV1();
 app.MapPricingEndpointsV1();
 app.MapWarehouseEndpointsV1();

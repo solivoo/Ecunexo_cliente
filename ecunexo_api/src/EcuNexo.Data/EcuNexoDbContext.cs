@@ -51,6 +51,8 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<Policy> Policies => Set<Policy>();
 
+    public DbSet<TenantApiKey> TenantApiKeys => Set<TenantApiKey>();
+
     public DbSet<SysSetting> SysSettings => Set<SysSetting>();
 
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
@@ -201,5 +203,9 @@ public sealed class EcuNexoDbContext : DbContext
                   || rp.Role.TenantId == _tenantContext.CurrentTenantId);
 
         modelBuilder.Entity<Policy>().HasQueryFilter(p => p.Permission.DeletedAt == null);
+
+        modelBuilder.Entity<TenantApiKey>().HasQueryFilter(
+            k => (!_tenantContext.CurrentTenantId.HasValue || k.TenantId == _tenantContext.CurrentTenantId)
+                 && k.DeletedAt == null);
     }
 }

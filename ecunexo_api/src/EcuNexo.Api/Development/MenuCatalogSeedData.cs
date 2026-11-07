@@ -214,6 +214,7 @@ internal static class MenuCatalogSeedData
         Item("configuracion-empresa", "configuracion", "Empresa", "domain", "organizacion/perfil", 1, MenuContextKind.Operational, "identity", ["tenancy.tenant.read"]),
         Item("configuracion-facturacion-electronica", "configuracion", "Facturación electrónica", "receipt", "organizacion/facturacion-electronica", 2, MenuContextKind.Operational, "facturacion", ["facturacion.emisor.read", "tenancy.tenant.read", "contabilidad.configuracion.read"]),
         Item("configuracion-sistema", "configuracion", "Preferencias y Sistema", "sliders-horizontal", "app/configuracion", 3, MenuContextKind.Operational, "identity", ["tenancy.tenant.read", "platform.settings.read"]),
+        Item("configuracion-api", "configuracion", "API y Desarrolladores", "code", "organizacion/api", 4, MenuContextKind.Operational, "identity", ["tenancy.tenant.read", "platform.settings.read"]),
 
         // —— Suscripción (titular de licencia, sin tenant operativo) ——
         Item("sub-home", null, "Inicio", "dashboard", "inicio", 10, MenuContextKind.Subscription, "identity", []),

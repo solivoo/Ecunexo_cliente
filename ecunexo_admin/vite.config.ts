@@ -63,6 +63,14 @@ export default defineConfig({
         target: 'http://localhost:5088',
         changeOrigin: true,
       },
+      '/scalar': {
+        target: 'http://localhost:5088',
+        changeOrigin: true,
+      },
+      '/openapi': {
+        target: 'http://localhost:5088',
+        changeOrigin: true,
+      },
     },
     watch: {
       usePolling: process.env.VITE_USE_POLLING === 'true',

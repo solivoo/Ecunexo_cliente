@@ -35,6 +35,7 @@ public static class EcommerceOrderEndpoints
             .MapGroup("/api/v{version:apiVersion}/tenants/{tenantId:guid}/ecommerce/orders")
             .WithApiVersionSet(versionSet)
             .WithTags("Ecommerce")
+            .IncludeInExternalDeveloperApi()
             .RequireAuthorization();
 
         group.MapGet("/", ListOrdersAsync)

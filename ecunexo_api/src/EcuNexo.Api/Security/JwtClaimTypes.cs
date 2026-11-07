@@ -10,4 +10,10 @@ public static class JwtClaimTypes
     public const string PrincipalKind = "pk";
 
     public const string SubscriptionPrincipal = "subscription";
+
+    public const string ApiKeyPrincipal = "api_key";
+
+    public const string ApiKeyId = "akid";
+
+    public const string ApiKeyScope = "scope";
 }
