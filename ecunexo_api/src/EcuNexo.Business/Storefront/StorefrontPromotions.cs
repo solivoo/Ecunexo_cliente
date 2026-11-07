@@ -22,6 +22,7 @@ public static class StorefrontPromotions
         var parentReference = parentItemId?.ToString();
 
         return activePromotions
+            .Where(promotion => !promotion.RequiresCode && promotion.HasAvailableUses())
             .Where(promotion => promotion.Targets.Any(target =>
                 target.TargetType == PromotionTargetType.AllItems
                 || ((target.TargetType == PromotionTargetType.Product

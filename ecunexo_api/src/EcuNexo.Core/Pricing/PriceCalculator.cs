@@ -141,25 +141,21 @@ public static class PriceCalculator
         IReadOnlyList<Promotion> promotions,
         List<string> appliedRules)
     {
-        var ordered = promotions
-            .Where(p => p.IsActive)
+        var active = promotions.Where(p => p.IsActive).ToList();
+        var automatic = active
+            .Where(p => !p.RequiresCode)
             .OrderByDescending(p => p.Priority)
             .ThenBy(p => p.Code, StringComparer.Ordinal)
             .ToList();
 
-        var discount = 0m;
+        var autoDiscount = 0m;
+        var autoRules = new List<string>();
         var effectiveUnitPrice = quantity > 0m ? subtotal / quantity : unitPrice;
 
-        foreach (var promotion in ordered)
+        foreach (var promotion in automatic)
         {
-            discount += promotion.Type switch
-            {
-                PromotionType.Percentage => subtotal * promotion.Value / 100m,
-                PromotionType.FixedAmount => promotion.Value * quantity,
-                PromotionType.FixedPrice => Math.Max(0m, effectiveUnitPrice - promotion.Value) * quantity,
-                _ => 0m,
-            };
-            appliedRules.Add($"PROMO_{promotion.Code}");
+            autoDiscount += ComputeSinglePromotionDiscount(promotion, subtotal, effectiveUnitPrice, quantity);
+            autoRules.Add($"PROMO_{promotion.Code}");
 
             // Una promoción no acumulable corta las de menor prioridad.
             if (!promotion.IsStackable)
@@ -168,8 +164,56 @@ public static class PriceCalculator
             }
         }
 
-        return discount;
+        var coupons = active
+            .Where(p => p.RequiresCode)
+            .OrderByDescending(p => p.Priority)
+            .ThenBy(p => p.Code, StringComparer.Ordinal)
+            .ToList();
+
+        if (coupons.Count == 0)
+        {
+            appliedRules.AddRange(autoRules);
+            return autoDiscount;
+        }
+
+        var coupon = coupons[0];
+        if (coupon.IsStackable || autoDiscount <= 0m)
+        {
+            appliedRules.AddRange(autoRules);
+            var remainingSubtotal = Math.Max(0m, subtotal - autoDiscount);
+            var remainingUnit = quantity > 0m ? remainingSubtotal / quantity : 0m;
+            var couponDiscount = ComputeSinglePromotionDiscount(coupon, remainingSubtotal, remainingUnit, quantity);
+            if (couponDiscount > 0m)
+            {
+                appliedRules.Add($"CUPON_{coupon.Code}");
+            }
+
+            return autoDiscount + couponDiscount;
+        }
+
+        var standaloneCouponDiscount = ComputeSinglePromotionDiscount(coupon, subtotal, effectiveUnitPrice, quantity);
+        if (standaloneCouponDiscount > autoDiscount)
+        {
+            appliedRules.Add($"CUPON_{coupon.Code}");
+            return standaloneCouponDiscount;
+        }
+
+        appliedRules.AddRange(autoRules);
+        return autoDiscount;
     }
+
+    private static decimal ComputeSinglePromotionDiscount(
+        Promotion promotion,
+        decimal subtotal,
+        decimal effectiveUnitPrice,
+        decimal quantity) =>
+        promotion.Type switch
+        {
+            PromotionType.Percentage => subtotal * promotion.Value / 100m,
+            PromotionType.FixedAmount => promotion.Value * quantity,
+            PromotionType.FixedPrice => Math.Max(0m, effectiveUnitPrice - promotion.Value) * quantity,
+            _ => 0m,
+        };
 
     private static decimal RoundMoney(decimal value) =>
         decimal.Round(value, 2, MidpointRounding.AwayFromZero);

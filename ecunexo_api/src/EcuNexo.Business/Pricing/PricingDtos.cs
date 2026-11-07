@@ -147,4 +147,8 @@ public sealed record PromotionResponse(
     int Priority,
     bool IsStackable,
     bool IsActive,
-    IReadOnlyList<PromotionTargetResponse> Targets);
+    IReadOnlyList<PromotionTargetResponse> Targets,
+    bool RequiresCode = false,
+    decimal? MinOrderAmount = null,
+    int? UsageLimit = null,
+    int TimesUsed = 0);

@@ -13,7 +13,8 @@ public sealed record CreateStorefrontOrderRequest(
     string? ContactFax = null,
     int? FormElapsedMs = null,
     string? TurnstileToken = null,
-    bool AcceptPrivacyPolicy = false)
+    bool AcceptPrivacyPolicy = false,
+    string? CouponCode = null)
 {
     public CreateStorefrontOrderCommand ToCommand(
         Guid tenantId,
@@ -33,5 +34,6 @@ public sealed record CreateStorefrontOrderRequest(
             clientIp,
             userAgent,
             TurnstileToken,
-            AcceptPrivacyPolicy);
+            AcceptPrivacyPolicy,
+            CouponCode);
 }

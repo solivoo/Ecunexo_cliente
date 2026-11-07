@@ -199,6 +199,12 @@ internal sealed class InMemoryPromotionRepository : IPromotionRepository
     public Task<Promotion?> GetTrackedByIdAsync(Guid tenantId, Guid promotionId, CancellationToken ct) =>
         Task.FromResult(_items.FirstOrDefault(p => p.TenantId == tenantId && p.Id == promotionId));
 
+    public Task<Promotion?> GetTrackedByCodeAsync(Guid tenantId, string code, CancellationToken ct)
+    {
+        var normalized = code.Trim().ToUpperInvariant();
+        return Task.FromResult(_items.FirstOrDefault(p => p.TenantId == tenantId && p.Code == normalized));
+    }
+
     public Task<IReadOnlyList<Promotion>> ListAsync(Guid tenantId, bool onlyActive, CancellationToken ct)
     {
         IReadOnlyList<Promotion> result = _items
@@ -222,12 +228,15 @@ internal sealed class InMemoryPromotionRepository : IPromotionRepository
         IReadOnlyList<Promotion> result = _items
             .Where(p => p.TenantId == tenantId
                 && p.IsActive
+                && !p.RequiresCode
                 && p.StartsAt <= moment
                 && (p.EndsAt is null || p.EndsAt >= moment)
+                && p.HasAvailableUses()
                 && p.Targets.Any(t =>
-                    (t.TargetType == PromotionTargetType.Product || t.TargetType == PromotionTargetType.Variant)
+                    t.TargetType == PromotionTargetType.AllItems
+                    || ((t.TargetType == PromotionTargetType.Product || t.TargetType == PromotionTargetType.Variant)
                         && (t.TargetReference == itemReference
-                            || (parentReference is not null && t.TargetReference == parentReference))))
+                            || (parentReference is not null && t.TargetReference == parentReference)))))
             .OrderByDescending(p => p.Priority)
             .ThenBy(p => p.Code)
             .ToList();

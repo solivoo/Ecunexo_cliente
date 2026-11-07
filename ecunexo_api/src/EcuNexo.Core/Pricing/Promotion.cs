@@ -47,6 +47,18 @@ public sealed class Promotion : AggregateRoot<Guid>, ITenantEntity, IAuditable
     /// <summary>True cuando puede combinarse con otras promociones acumulables.</summary>
     public bool IsStackable { get; private set; }
 
+    /// <summary>True cuando la promoción es un cupón y requiere que el comprador ingrese el código en el checkout.</summary>
+    public bool RequiresCode { get; private set; }
+
+    /// <summary>Monto mínimo de compra (subtotal de productos) para aplicar la promoción o cupón.</summary>
+    public decimal? MinOrderAmount { get; private set; }
+
+    /// <summary>Límite máximo de usos del código promocional (null = ilimitado).</summary>
+    public int? UsageLimit { get; private set; }
+
+    /// <summary>Cantidad de veces que se ha utilizado la promoción o cupón.</summary>
+    public int TimesUsed { get; private set; }
+
     public bool IsActive { get; private set; }
 
     public IReadOnlyList<PromotionTarget> Targets => _targets.AsReadOnly();
@@ -71,7 +83,10 @@ public sealed class Promotion : AggregateRoot<Guid>, ITenantEntity, IAuditable
         DateTimeOffset? endsAt,
         int priority,
         bool isStackable,
-        Guid? createdBy = null)
+        Guid? createdBy = null,
+        bool requiresCode = false,
+        decimal? minOrderAmount = null,
+        int? usageLimit = null)
     {
         if (id == Guid.Empty || tenantId == Guid.Empty)
         {
@@ -97,7 +112,7 @@ public sealed class Promotion : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<Promotion>(descriptionResult.Error!);
         }
 
-        var validation = Validate(type, value, startsAt, endsAt);
+        var validation = Validate(type, value, startsAt, endsAt, minOrderAmount, usageLimit);
         if (validation.IsFailure)
         {
             return Result.Failure<Promotion>(validation.Error!);
@@ -116,6 +131,10 @@ public sealed class Promotion : AggregateRoot<Guid>, ITenantEntity, IAuditable
             EndsAt = endsAt,
             Priority = priority,
             IsStackable = isStackable,
+            RequiresCode = requiresCode,
+            MinOrderAmount = minOrderAmount is > 0m ? decimal.Round(minOrderAmount.Value, 2, MidpointRounding.AwayFromZero) : null,
+            UsageLimit = usageLimit is > 0 ? usageLimit : null,
+            TimesUsed = 0,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,
@@ -131,7 +150,10 @@ public sealed class Promotion : AggregateRoot<Guid>, ITenantEntity, IAuditable
         DateTimeOffset? endsAt,
         int priority,
         bool isStackable,
-        Guid? updatedBy = null)
+        Guid? updatedBy = null,
+        bool requiresCode = false,
+        decimal? minOrderAmount = null,
+        int? usageLimit = null)
     {
         var nameResult = NormalizeName(name);
         if (nameResult.IsFailure)
@@ -145,7 +167,7 @@ public sealed class Promotion : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure(descriptionResult.Error!);
         }
 
-        var validation = Validate(type, value, startsAt, endsAt);
+        var validation = Validate(type, value, startsAt, endsAt, minOrderAmount, usageLimit);
         if (validation.IsFailure)
         {
             return validation;
@@ -159,6 +181,9 @@ public sealed class Promotion : AggregateRoot<Guid>, ITenantEntity, IAuditable
         EndsAt = endsAt;
         Priority = priority;
         IsStackable = isStackable;
+        RequiresCode = requiresCode;
+        MinOrderAmount = minOrderAmount is > 0m ? decimal.Round(minOrderAmount.Value, 2, MidpointRounding.AwayFromZero) : null;
+        UsageLimit = usageLimit is > 0 ? usageLimit : null;
         Touch(updatedBy);
         return Result.Success();
     }
@@ -213,11 +238,38 @@ public sealed class Promotion : AggregateRoot<Guid>, ITenantEntity, IAuditable
         return Result.Success();
     }
 
-    /// <summary>True cuando la promoción está activa y su ventana de vigencia contiene el momento indicado.</summary>
+    /// <summary>True cuando la promoción está activa, vigente y aún tiene usos disponibles.</summary>
     public bool IsApplicableOn(DateTimeOffset moment) =>
         IsActive
         && StartsAt <= moment
-        && (EndsAt is null || EndsAt >= moment);
+        && (EndsAt is null || EndsAt >= moment)
+        && HasAvailableUses();
+
+    public bool HasAvailableUses() =>
+        UsageLimit is null || TimesUsed < UsageLimit.Value;
+
+    public void RegisterUse(Guid? updatedBy = null)
+    {
+        TimesUsed++;
+        Touch(updatedBy);
+    }
+
+    public bool MatchesItem(Guid itemId, Guid? parentItemId)
+    {
+        if (_targets.Count == 0)
+        {
+            return RequiresCode;
+        }
+
+        var itemRef = itemId.ToString();
+        var parentRef = parentItemId?.ToString();
+
+        return _targets.Any(t =>
+            t.TargetType == PromotionTargetType.AllItems
+            || ((t.TargetType == PromotionTargetType.Product || t.TargetType == PromotionTargetType.Variant)
+                && (string.Equals(t.TargetReference, itemRef, StringComparison.OrdinalIgnoreCase)
+                    || (parentRef is not null && string.Equals(t.TargetReference, parentRef, StringComparison.OrdinalIgnoreCase)))));
+    }
 
     private void Touch(Guid? updatedBy)
     {
@@ -225,7 +277,13 @@ public sealed class Promotion : AggregateRoot<Guid>, ITenantEntity, IAuditable
         UpdatedBy = updatedBy;
     }
 
-    private static Result Validate(PromotionType type, decimal value, DateTimeOffset startsAt, DateTimeOffset? endsAt)
+    private static Result Validate(
+        PromotionType type,
+        decimal value,
+        DateTimeOffset startsAt,
+        DateTimeOffset? endsAt,
+        decimal? minOrderAmount = null,
+        int? usageLimit = null)
     {
         if (!Enum.IsDefined(type))
         {
@@ -249,6 +307,18 @@ public sealed class Promotion : AggregateRoot<Guid>, ITenantEntity, IAuditable
         {
             return Result.Failure(
                 new Error("catalog.pricing.promotion.schedule", "La fecha final no puede ser anterior a la inicial.", ErrorType.Validation));
+        }
+
+        if (minOrderAmount is < 0m)
+        {
+            return Result.Failure(
+                new Error("catalog.pricing.promotion.min_order.range", "El monto mínimo de compra no puede ser negativo.", ErrorType.Validation));
+        }
+
+        if (usageLimit is < 0)
+        {
+            return Result.Failure(
+                new Error("catalog.pricing.promotion.usage_limit.range", "El límite de usos no puede ser negativo.", ErrorType.Validation));
         }
 
         return Result.Success();

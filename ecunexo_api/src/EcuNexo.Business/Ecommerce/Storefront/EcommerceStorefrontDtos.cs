@@ -26,7 +26,9 @@ public sealed record EcommerceCheckoutOptionsDto(
     IReadOnlyList<EcommerceCheckoutShippingMethodDto> ShippingMethods,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? WhatsappPhone,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TurnstileSiteKey = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] decimal? MinOrderAmount = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] decimal? MinOrderAmount = null,
+    decimal TaxRate = 0.15m,
+    bool PricesIncludeTax = true);
 
 public sealed record EcommerceCheckoutPaymentMethodDto(
     string Code,
@@ -55,7 +57,38 @@ public sealed record StorefrontOrderCreatedDto(
     decimal TotalAmount,
     string PaymentMethod,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PaymentInstructions,
-    string PaymentProofToken = "");
+    string PaymentProofToken = "",
+    decimal DiscountAmount = 0m);
+
+/// <summary>Desglose cotizado por línea de carrito en el checkout público.</summary>
+public sealed record StorefrontCheckoutQuoteLineDto(
+    Guid CatalogItemId,
+    int Quantity,
+    decimal ListUnitPrice,
+    decimal EffectiveUnitPrice,
+    decimal LineGross,
+    decimal LineDiscount,
+    decimal LineSubtotalExTax,
+    decimal LineTaxAmount,
+    decimal LineTotal,
+    int? DiscountPercent);
+
+/// <summary>Cotización oficial del carrito con promociones automáticas, cupón e IVA desglosado.</summary>
+public sealed record StorefrontCheckoutQuoteDto(
+    IReadOnlyList<StorefrontCheckoutQuoteLineDto> Items,
+    decimal GrossSubtotal,
+    decimal PromotionDiscountAmount,
+    decimal CouponDiscountAmount,
+    decimal DiscountAmount,
+    decimal Subtotal,
+    decimal TaxRate,
+    decimal TaxAmount,
+    bool PricesIncludeTax,
+    decimal ShippingCost,
+    decimal TotalAmount,
+    string? CouponCode = null,
+    bool CouponApplied = false,
+    string? CouponMessage = null);
 
 /// <summary>Resultado de subir el comprobante de pago de un pedido público.</summary>
 public sealed record StorefrontPaymentProofUploadedDto(

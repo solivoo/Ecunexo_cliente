@@ -23,7 +23,9 @@ public sealed record CreateEcommerceOrderCommand(
     string? ClientRequestId = null,
     bool ReserveStock = true,
     bool AcceptPrivacyPolicy = false,
-    decimal MinOrderAmount = 0m) : ICommand<CreateEcommerceOrderResponse>;
+    decimal MinOrderAmount = 0m,
+    string? CouponCode = null,
+    bool? PricesIncludeTaxOverride = null) : ICommand<CreateEcommerceOrderResponse>;
 
 public sealed record CreateEcommerceOrderResponse(
     Guid OrderId,
@@ -34,4 +36,5 @@ public sealed record CreateEcommerceOrderResponse(
     decimal ShippingCost,
     decimal TotalAmount,
     EcommercePaymentMethod PaymentMethod,
-    string PaymentProofToken = "");
+    string PaymentProofToken = "",
+    decimal DiscountAmount = 0m);

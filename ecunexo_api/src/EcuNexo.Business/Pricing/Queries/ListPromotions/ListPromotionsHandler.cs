@@ -33,7 +33,11 @@ public sealed class ListPromotionsHandler
                 p.IsActive,
                 p.Targets
                     .Select(t => new PromotionTargetResponse(t.TargetType, t.TargetReference))
-                    .ToList()))
+                    .ToList(),
+                p.RequiresCode,
+                p.MinOrderAmount,
+                p.UsageLimit,
+                p.TimesUsed))
             .ToList();
 
         return Result.Success(response);

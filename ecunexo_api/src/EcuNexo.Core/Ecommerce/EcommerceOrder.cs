@@ -299,7 +299,7 @@ public sealed class EcommerceOrder : AggregateRoot<Guid>, ITenantEntity, IAudita
 
     public void RecalculateTotals()
     {
-        Subtotal = decimal.Round(_items.Sum(i => Math.Max(0m, (i.Quantity * i.UnitPrice) - i.DiscountAmount)), 2, MidpointRounding.AwayFromZero);
+        Subtotal = decimal.Round(_items.Sum(i => Math.Max(0m, i.TotalAmount - i.TaxAmount)), 2, MidpointRounding.AwayFromZero);
         DiscountAmount = decimal.Round(_items.Sum(i => i.DiscountAmount), 2, MidpointRounding.AwayFromZero);
         TaxAmount = decimal.Round(_items.Sum(i => i.TaxAmount), 2, MidpointRounding.AwayFromZero);
         TotalAmount = decimal.Round(Subtotal + TaxAmount + ShippingCost, 2, MidpointRounding.AwayFromZero);

@@ -8,6 +8,8 @@ public interface IPromotionRepository
 
     Task<Promotion?> GetTrackedByIdAsync(Guid tenantId, Guid promotionId, CancellationToken ct);
 
+    Task<Promotion?> GetTrackedByCodeAsync(Guid tenantId, string code, CancellationToken ct);
+
     Task<IReadOnlyList<Promotion>> ListAsync(Guid tenantId, bool onlyActive, CancellationToken ct);
 
     Task<IReadOnlyList<Promotion>> ListApplicableAsync(

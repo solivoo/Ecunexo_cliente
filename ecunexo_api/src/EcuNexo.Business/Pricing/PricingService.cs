@@ -142,11 +142,25 @@ public sealed class PricingService : IPricingService
             .ConfigureAwait(false);
         var activePromotions = applicable.Where(p => p.IsApplicableOn(moment)).ToList();
 
+        if (!string.IsNullOrWhiteSpace(request.CouponCode))
+        {
+            var coupon = await _promotions
+                .GetTrackedByCodeAsync(tenantId, request.CouponCode, ct)
+                .ConfigureAwait(false);
+            if (coupon is not null
+                && coupon.IsApplicableOn(moment)
+                && coupon.MatchesItem(item.Id, item.ParentId)
+                && activePromotions.All(p => p.Id != coupon.Id))
+            {
+                activePromotions.Add(coupon);
+            }
+        }
+
         var taxRate = await _taxRates
             .GetRateAsync(tenantId, item.Id, request.Date, ct)
             .ConfigureAwait(false);
 
-        var pricesIncludeTax = priceList?.PricesIncludeTax ?? false;
+        var pricesIncludeTax = request.PricesIncludeTaxOverride ?? priceList?.PricesIncludeTax ?? false;
         var calculation = PriceCalculator.Calculate(
             basePrice,
             request.Quantity,

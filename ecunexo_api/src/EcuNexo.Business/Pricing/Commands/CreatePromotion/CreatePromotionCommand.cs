@@ -16,7 +16,10 @@ public sealed record CreatePromotionCommand(
     DateTimeOffset? EndsAt,
     int Priority,
     bool IsStackable,
-    IReadOnlyList<PromotionTargetInput>? Targets = null) : ICommand<CreatePromotionResponse>;
+    IReadOnlyList<PromotionTargetInput>? Targets = null,
+    bool RequiresCode = false,
+    decimal? MinOrderAmount = null,
+    int? UsageLimit = null) : ICommand<CreatePromotionResponse>;
 
 public sealed record CreatePromotionResponse(Guid PromotionId, Guid TenantId);
 
@@ -62,7 +65,10 @@ public sealed class CreatePromotionHandler : ICommandHandler<CreatePromotionComm
             command.EndsAt,
             command.Priority,
             command.IsStackable,
-            _caller.UserId);
+            _caller.UserId,
+            command.RequiresCode,
+            command.MinOrderAmount,
+            command.UsageLimit);
         if (created.IsFailure)
         {
             return Result.Failure<CreatePromotionResponse>(created.Error!);

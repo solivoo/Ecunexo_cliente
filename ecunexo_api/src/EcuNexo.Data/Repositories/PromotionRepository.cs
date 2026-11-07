@@ -24,6 +24,14 @@ public sealed class PromotionRepository : IPromotionRepository
             .Include(p => p.Targets)
             .FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == promotionId, ct);
 
+    public Task<Promotion?> GetTrackedByCodeAsync(Guid tenantId, string code, CancellationToken ct)
+    {
+        var normalized = code.Trim().ToUpperInvariant();
+        return _db.Promotions
+            .Include(p => p.Targets)
+            .FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Code == normalized, ct);
+    }
+
     public async Task<IReadOnlyList<Promotion>> ListAsync(Guid tenantId, bool onlyActive, CancellationToken ct)
     {
         var query = _db.Promotions.AsNoTracking()
@@ -55,8 +63,10 @@ public sealed class PromotionRepository : IPromotionRepository
             .Include(p => p.Targets)
             .Where(p => p.TenantId == tenantId
                 && p.IsActive
+                && !p.RequiresCode
                 && p.StartsAt <= moment
                 && (p.EndsAt == null || p.EndsAt >= moment)
+                && (p.UsageLimit == null || p.TimesUsed < p.UsageLimit)
                 && p.Targets.Any(t =>
                     t.TargetType == PromotionTargetType.AllItems
                     || ((t.TargetType == PromotionTargetType.Product || t.TargetType == PromotionTargetType.Variant)

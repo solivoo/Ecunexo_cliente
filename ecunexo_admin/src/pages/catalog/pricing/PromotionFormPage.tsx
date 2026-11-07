@@ -83,6 +83,9 @@ export function PromotionFormPage() {
   const [endsAt, setEndsAt] = useState('')
   const [priority, setPriority] = useState(0)
   const [isStackable, setIsStackable] = useState(false)
+  const [requiresCode, setRequiresCode] = useState(false)
+  const [minOrderAmount, setMinOrderAmount] = useState(0)
+  const [usageLimit, setUsageLimit] = useState(0)
   const [isActive, setIsActive] = useState(true)
   const [targets, setTargets] = useState<TargetDraft[]>([])
   const [targetItemId, setTargetItemId] = useState('')
@@ -190,6 +193,9 @@ export function PromotionFormPage() {
           setEndsAt(promotion.endsAt ? promotion.endsAt.slice(0, 10) : '')
           setPriority(promotion.priority)
           setIsStackable(promotion.isStackable)
+          setRequiresCode(Boolean(promotion.requiresCode))
+          setMinOrderAmount(promotion.minOrderAmount ?? 0)
+          setUsageLimit(promotion.usageLimit ?? 0)
           setIsActive(promotion.isActive)
           setTargets(
             promotion.targets.map((target) => ({
@@ -303,6 +309,9 @@ export function PromotionFormPage() {
           endsAt: endsAt ? endOfDayIso(endsAt) : null,
           priority,
           isStackable,
+          requiresCode,
+          minOrderAmount: minOrderAmount > 0 ? minOrderAmount : null,
+          usageLimit: usageLimit > 0 ? Math.trunc(usageLimit) : null,
           targets: targets.map((target) => ({
             targetType: target.targetType,
             targetReference: target.targetReference,
@@ -334,15 +343,18 @@ export function PromotionFormPage() {
       isActive,
       isEdit,
       isStackable,
+      minOrderAmount,
       name,
       navigate,
       priority,
       promotionId,
+      requiresCode,
       startsAt,
       targets,
       tenantId,
       toast,
       type,
+      usageLimit,
       value,
     ]
   )
@@ -480,12 +492,59 @@ export function PromotionFormPage() {
               <div className="ecu-companies-form__field sri-config-field--check-align">
                 <CheckButton
                   variant="ghost"
+                  checked={requiresCode}
+                  onChange={(checked) => {
+                    setRequiresCode(checked)
+                    if (checked) setIsStackable(true)
+                  }}
+                  disabled={busy || loading}
+                >
+                  Requiere código promocional (Cupón en checkout)
+                </CheckButton>
+              </div>
+              <div className="ecu-companies-form__field sri-config-field--check-align">
+                <CheckButton
+                  variant="ghost"
                   checked={isStackable}
                   onChange={setIsStackable}
                   disabled={busy || loading}
                 >
                   Acumulable con otras promociones
                 </CheckButton>
+              </div>
+              <div className="ecu-companies-form__field">
+                <NumberBox
+                  id="pr-min-order"
+                  label="Compra mínima ($)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={minOrderAmount}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setMinOrderAmount(Math.max(0, Number(e.target.value) || 0))
+                  }
+                  min={0}
+                  step={0.5}
+                  showSpinButtons
+                  disabled={busy || loading}
+                  fullWidth
+                />
+              </div>
+              <div className="ecu-companies-form__field">
+                <NumberBox
+                  id="pr-usage-limit"
+                  label="Límite de usos (0 = ilimitado)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={usageLimit}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setUsageLimit(Math.max(0, Math.trunc(Number(e.target.value) || 0)))
+                  }
+                  min={0}
+                  step={1}
+                  showSpinButtons
+                  disabled={busy || loading}
+                  fullWidth
+                />
               </div>
               {isEdit ? (
                 <div className="ecu-companies-form__field sri-config-field--check-align">

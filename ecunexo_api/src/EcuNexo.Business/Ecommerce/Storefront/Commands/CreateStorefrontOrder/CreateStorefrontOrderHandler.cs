@@ -267,7 +267,9 @@ public sealed class CreateStorefrontOrderHandler
             ClientRequestId: requestId,
             ReserveStock: reserveStock,
             AcceptPrivacyPolicy: command.AcceptPrivacyPolicy,
-            MinOrderAmount: settings.MinOrderAmount);
+            MinOrderAmount: settings.MinOrderAmount,
+            CouponCode: string.IsNullOrWhiteSpace(command.CouponCode) ? null : command.CouponCode.Trim(),
+            PricesIncludeTaxOverride: true);
 
         try
         {
@@ -294,7 +296,8 @@ public sealed class CreateStorefrontOrderHandler
                 created.TotalAmount,
                 created.PaymentMethod.ToString(),
                 paymentMethod == EcommercePaymentMethod.BankTransfer ? settings.BankTransferInstructions : null,
-                created.PaymentProofToken));
+                created.PaymentProofToken,
+                created.DiscountAmount));
         }
         catch (ConcurrencyConflictException)
         {
@@ -428,7 +431,8 @@ public sealed class CreateStorefrontOrderHandler
             order.TotalAmount,
             order.PaymentMethod.ToString(),
             order.PaymentMethod == EcommercePaymentMethod.BankTransfer ? settings.BankTransferInstructions : null,
-            order.PaymentProofToken);
+            order.PaymentProofToken,
+            order.DiscountAmount);
 
     private static Error MapError(Error error) =>
         error.Code is "inventory.stock.insufficient_available" or "inventory.stock.reserved_conflict"

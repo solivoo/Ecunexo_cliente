@@ -34,7 +34,7 @@ export function PriceListFormPage() {
   const [priority, setPriority] = useState(0)
   const [validFrom, setValidFrom] = useState(todayIso())
   const [validTo, setValidTo] = useState('')
-  const [pricesIncludeTax, setPricesIncludeTax] = useState(false)
+  const [pricesIncludeTax, setPricesIncludeTax] = useState(true)
   const [isDefault, setIsDefault] = useState(false)
   const [suggestedMargin, setSuggestedMargin] = useState('')
 

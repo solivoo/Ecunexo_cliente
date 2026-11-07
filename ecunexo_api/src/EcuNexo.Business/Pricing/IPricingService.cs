@@ -11,7 +11,9 @@ public sealed record PricingRequest(
     Guid? CustomerId = null,
     Guid? BranchId = null,
     Guid? WarehouseId = null,
-    string? Channel = null);
+    string? Channel = null,
+    string? CouponCode = null,
+    bool? PricesIncludeTaxOverride = null);
 
 /// <summary>Desglose completo del precio resuelto; los consumidores solo lo persisten o pintan.</summary>
 public sealed record PricingResult(

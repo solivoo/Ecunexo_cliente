@@ -122,10 +122,19 @@ export function PromotionsListPage() {
     const cols: ColumnDef<PromotionRow>[] = [
       {
         key: 'code',
-        header: 'Código',
-        width: 140,
+        header: 'Código / Modo',
+        width: 190,
         sortable: true,
-        renderCell: (_value, row) => <code className="ecu-code">{row.code}</code>,
+        renderCell: (_value, row) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <code className="ecu-code">{row.code}</code>
+            <span className="ecu-chip">
+              {row.requiresCode
+                ? `Cupón${row.usageLimit ? ` (${row.timesUsed ?? 0}/${row.usageLimit})` : ''}`
+                : 'Automática'}
+            </span>
+          </div>
+        ),
       },
       {
         key: 'name',

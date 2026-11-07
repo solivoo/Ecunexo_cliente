@@ -225,6 +225,10 @@ export type PromotionDto = {
   isStackable: boolean
   isActive: boolean
   targets: PromotionTargetDto[]
+  requiresCode?: boolean
+  minOrderAmount?: number | null
+  usageLimit?: number | null
+  timesUsed?: number
 }
 
 export type CreatePromotionBody = {
@@ -238,6 +242,9 @@ export type CreatePromotionBody = {
   priority: number
   isStackable: boolean
   targets: PromotionTargetDto[]
+  requiresCode?: boolean
+  minOrderAmount?: number | null
+  usageLimit?: number | null
 }
 
 export type UpdatePromotionBody = Omit<CreatePromotionBody, 'code'> & {

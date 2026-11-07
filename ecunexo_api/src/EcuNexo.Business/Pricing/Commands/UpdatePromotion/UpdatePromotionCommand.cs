@@ -17,7 +17,10 @@ public sealed record UpdatePromotionCommand(
     int Priority,
     bool IsStackable,
     IReadOnlyList<PromotionTargetInput>? Targets = null,
-    bool? IsActive = null) : ICommand<UpdatePromotionResponse>;
+    bool? IsActive = null,
+    bool RequiresCode = false,
+    decimal? MinOrderAmount = null,
+    int? UsageLimit = null) : ICommand<UpdatePromotionResponse>;
 
 public sealed record UpdatePromotionResponse(Guid PromotionId, Guid TenantId);
 
@@ -61,7 +64,10 @@ public sealed class UpdatePromotionHandler : ICommandHandler<UpdatePromotionComm
             command.EndsAt,
             command.Priority,
             command.IsStackable,
-            _caller.UserId);
+            _caller.UserId,
+            command.RequiresCode,
+            command.MinOrderAmount,
+            command.UsageLimit);
         if (updated.IsFailure)
         {
             return Result.Failure<UpdatePromotionResponse>(updated.Error!);

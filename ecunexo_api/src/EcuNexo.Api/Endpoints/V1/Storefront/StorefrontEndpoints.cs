@@ -7,6 +7,7 @@ using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateStorefrontOrder;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.UploadStorefrontPaymentProof;
+using EcuNexo.Business.Ecommerce.Storefront.Queries.CalculateStorefrontQuote;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceCheckoutOptions;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Storefront.Commands.LikeStorefrontProduct;
@@ -47,6 +48,8 @@ public static class StorefrontEndpoints
         storefront.MapDelete("/products/{productId:guid}/like", UnlikeProductAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Likes);
         storefront.MapGet("/checkout-options", GetCheckoutOptionsAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
+        storefront.MapPost("/checkout-quote", CalculateCheckoutQuoteAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
         storefront.MapGet("/status", GetStatusAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
@@ -204,6 +207,26 @@ public static class StorefrontEndpoints
         var result = await sender
             .AskAsync<GetEcommerceCheckoutOptionsQuery, EcommerceCheckoutOptionsDto>(
                 new GetEcommerceCheckoutOptionsQuery(tenantId),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> CalculateCheckoutQuoteAsync(
+        Guid tenantId,
+        CalculateStorefrontQuoteRequest? body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        if (body is null)
+        {
+            return Results.BadRequest(new { error = "El cuerpo de la solicitud es obligatorio." });
+        }
+
+        var result = await sender
+            .AskAsync<CalculateStorefrontQuoteQuery, StorefrontCheckoutQuoteDto>(
+                body.ToQuery(tenantId),
                 ct)
             .ConfigureAwait(false);
 

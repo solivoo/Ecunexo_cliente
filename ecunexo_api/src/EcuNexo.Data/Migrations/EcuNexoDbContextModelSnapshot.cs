@@ -3366,6 +3366,10 @@ namespace EcuNexo.Data.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_stackable");
 
+                    b.Property<decimal?>("MinOrderAmount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("min_order_amount");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -3378,6 +3382,12 @@ namespace EcuNexo.Data.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("priority");
 
+                    b.Property<bool>("RequiresCode")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("requires_code");
+
                     b.Property<DateTimeOffset>("StartsAt")
                         .HasColumnType("timestamptz")
                         .HasColumnName("starts_at");
@@ -3385,6 +3395,12 @@ namespace EcuNexo.Data.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
+
+                    b.Property<int>("TimesUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("times_used");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer")
@@ -3397,6 +3413,10 @@ namespace EcuNexo.Data.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("updated_by");
+
+                    b.Property<int?>("UsageLimit")
+                        .HasColumnType("integer")
+                        .HasColumnName("usage_limit");
 
                     b.Property<decimal>("Value")
                         .HasColumnType("numeric(18,6)")

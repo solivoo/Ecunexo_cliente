@@ -17,7 +17,10 @@ public sealed record CreatePromotionRequest(
     DateTimeOffset? EndsAt,
     int Priority,
     bool IsStackable,
-    IReadOnlyList<PromotionTargetRequest>? Targets)
+    IReadOnlyList<PromotionTargetRequest>? Targets,
+    bool RequiresCode = false,
+    decimal? MinOrderAmount = null,
+    int? UsageLimit = null)
 {
     public CreatePromotionCommand ToCommand(Guid tenantId) =>
         new(
@@ -31,7 +34,10 @@ public sealed record CreatePromotionRequest(
             EndsAt,
             Priority,
             IsStackable,
-            Targets?.Select(t => new PromotionTargetInput(t.TargetType, t.TargetReference)).ToList());
+            Targets?.Select(t => new PromotionTargetInput(t.TargetType, t.TargetReference)).ToList(),
+            RequiresCode,
+            MinOrderAmount,
+            UsageLimit);
 }
 
 public sealed record SetPromotionActiveRequest(bool IsActive);
@@ -46,7 +52,10 @@ public sealed record UpdatePromotionRequest(
     int Priority,
     bool IsStackable,
     IReadOnlyList<PromotionTargetRequest>? Targets,
-    bool? IsActive = null)
+    bool? IsActive = null,
+    bool RequiresCode = false,
+    decimal? MinOrderAmount = null,
+    int? UsageLimit = null)
 {
     public UpdatePromotionCommand ToCommand(Guid tenantId, Guid promotionId) =>
         new(
@@ -61,5 +70,8 @@ public sealed record UpdatePromotionRequest(
             Priority,
             IsStackable,
             Targets?.Select(t => new PromotionTargetInput(t.TargetType, t.TargetReference)).ToList(),
-            IsActive);
+            IsActive,
+            RequiresCode,
+            MinOrderAmount,
+            UsageLimit);
 }

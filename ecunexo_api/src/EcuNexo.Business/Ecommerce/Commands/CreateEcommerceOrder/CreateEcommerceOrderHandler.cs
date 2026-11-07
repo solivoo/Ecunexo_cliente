@@ -25,6 +25,7 @@ public sealed class CreateEcommerceOrderHandler
     private readonly IEcommerceOrderRepository _orders;
     private readonly IPricingService _pricing;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPromotionRepository? _promotions;
 
     public CreateEcommerceOrderHandler(
         IValidator<CreateEcommerceOrderCommand> validator,
@@ -34,7 +35,8 @@ public sealed class CreateEcommerceOrderHandler
         IStockRepository stocks,
         IEcommerceOrderRepository orders,
         IPricingService pricing,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IPromotionRepository? promotions = null)
     {
         _validator = validator;
         _idGenerator = idGenerator;
@@ -44,6 +46,7 @@ public sealed class CreateEcommerceOrderHandler
         _orders = orders;
         _pricing = pricing;
         _unitOfWork = unitOfWork;
+        _promotions = promotions;
     }
 
     public async Task<Result<CreateEcommerceOrderResponse>> Handle(
@@ -178,7 +181,38 @@ public sealed class CreateEcommerceOrderHandler
             order.AddItem(itemResult.Value!);
         }
 
-        if (command.MinOrderAmount > 0m && order.Subtotal < command.MinOrderAmount)
+        if (!string.IsNullOrWhiteSpace(command.CouponCode) && _promotions is not null)
+        {
+            var coupon = await _promotions
+                .GetTrackedByCodeAsync(command.TenantId, command.CouponCode, ct)
+                .ConfigureAwait(false);
+            var now = DateTimeOffset.UtcNow;
+            if (coupon is null || !coupon.IsApplicableOn(now))
+            {
+                return Result.Failure<CreateEcommerceOrderResponse>(
+                    new Error(
+                        "ecommerce.order.coupon_invalid",
+                        "El código promocional no es válido o ha expirado.",
+                        ErrorType.Validation));
+            }
+
+            var grossOrderSubtotal = order.Items.Sum(i => i.Quantity * i.UnitPrice);
+            if (coupon.MinOrderAmount is > 0m && grossOrderSubtotal < coupon.MinOrderAmount.Value)
+            {
+                return Result.Failure<CreateEcommerceOrderResponse>(
+                    new Error(
+                        "ecommerce.order.coupon_min_amount",
+                        $"El código promocional requiere una compra mínima de ${FormatCurrency(coupon.MinOrderAmount.Value)}.",
+                        ErrorType.Validation));
+            }
+
+            coupon.RegisterUse(command.CreatedBy);
+        }
+
+        var effectiveOrderAmount = command.PricesIncludeTaxOverride == true
+            ? order.Subtotal + order.TaxAmount
+            : order.Subtotal;
+        if (command.MinOrderAmount > 0m && effectiveOrderAmount < command.MinOrderAmount)
         {
             return Result.Failure<CreateEcommerceOrderResponse>(
                 new Error(
@@ -206,7 +240,8 @@ public sealed class CreateEcommerceOrderHandler
             order.ShippingCost,
             order.TotalAmount,
             order.PaymentMethod,
-            order.PaymentProofToken);
+            order.PaymentProofToken,
+            order.DiscountAmount);
 
     private async Task<Result<EcommerceOrderItem>> BuildItem(
         CreateEcommerceOrderCommand command,
@@ -220,7 +255,9 @@ public sealed class CreateEcommerceOrderHandler
             new PricingRequest(
                 catalogItem.Id,
                 itemInput.Quantity,
-                DateOnly.FromDateTime(DateTime.UtcNow)),
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                CouponCode: string.IsNullOrWhiteSpace(command.CouponCode) ? null : command.CouponCode.Trim(),
+                PricesIncludeTaxOverride: command.PricesIncludeTaxOverride),
             ct).ConfigureAwait(false);
 
         if (pricing.IsFailure)

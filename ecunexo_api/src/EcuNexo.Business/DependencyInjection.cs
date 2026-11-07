@@ -34,6 +34,7 @@ using EcuNexo.Business.Logistics.Commands.UpdateShippingRateRule;
 using EcuNexo.Business.Logistics.Queries.ListShippingRateRules;
 using EcuNexo.Business.Logistics.Queries.ResolveShippingRates;
 using EcuNexo.Business.Pricing.Queries.ResolvePrice;
+using EcuNexo.Business.Ecommerce.Storefront.Queries.CalculateStorefrontQuote;
 using EcuNexo.Business.Accounting;
 using EcuNexo.Business.CreditNotes.Commands.CreateCreditNote;
 using EcuNexo.Business.CreditNotes.Queries.GetCreditNoteById;
@@ -380,6 +381,7 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<GetEcommerceStorefrontSettingsQuery, EcommerceStorefrontSettingsDto>, GetEcommerceStorefrontSettingsHandler>();
         services.AddScoped<ICommandHandler<UpdateEcommerceStorefrontSettingsCommand, EcommerceStorefrontSettingsDto>, UpdateEcommerceStorefrontSettingsHandler>();
         services.AddScoped<IQueryHandler<GetEcommerceCheckoutOptionsQuery, EcommerceCheckoutOptionsDto>, GetEcommerceCheckoutOptionsHandler>();
+        services.AddScoped<IQueryHandler<CalculateStorefrontQuoteQuery, StorefrontCheckoutQuoteDto>, CalculateStorefrontQuoteHandler>();
         services.AddScoped<ICommandHandler<CreateStorefrontOrderCommand, StorefrontOrderCreatedDto>, CreateStorefrontOrderHandler>();
         services.AddScoped<ICommandHandler<UploadStorefrontPaymentProofCommand, StorefrontPaymentProofUploadedDto>, UploadStorefrontPaymentProofHandler>();
 

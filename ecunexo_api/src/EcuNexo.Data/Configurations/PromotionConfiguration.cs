@@ -59,6 +59,19 @@ public sealed class PromotionConfiguration : IEntityTypeConfiguration<Promotion>
             .IsRequired()
             .HasDefaultValue(false);
 
+        builder.Property(p => p.RequiresCode)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(p => p.MinOrderAmount)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(p => p.UsageLimit);
+
+        builder.Property(p => p.TimesUsed)
+            .IsRequired()
+            .HasDefaultValue(0);
+
         builder.Property(p => p.IsActive)
             .IsRequired()
             .HasDefaultValue(true);
