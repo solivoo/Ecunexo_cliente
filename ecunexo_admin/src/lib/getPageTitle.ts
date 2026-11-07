@@ -27,6 +27,8 @@ function inventoryNewTitle(search: string): string {
 
 function staticTitle(pathname: string, search: string): string | null {
   if (pathname === '/organizacion/empresas/nueva') return 'Crear empresa'
+  if (pathname === '/organizacion/api') return 'API y Desarrolladores'
+  if (pathname === '/organizacion/api/nueva') return 'Emitir API Key'
   if (/^\/organizacion\/empresas\/[^/]+\/editar$/.test(pathname)) return 'Editar empresa'
   if (/^\/equipo\/departamentos\/[^/]+\/editar$/.test(pathname)) return 'Editar departamento'
   if (pathname === '/app/configuracion') return 'Configuración'

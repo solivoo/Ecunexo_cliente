@@ -12,6 +12,7 @@ import { EditCompanyPage } from '@/pages/organization/EditCompanyPage'
 import { OrganizationProfilePage } from '@/pages/organization/OrganizationProfilePage'
 import { OrganizationSettingsPage } from '@/pages/organization/OrganizationSettingsPage'
 import { DeveloperApiPage } from '@/pages/organization/DeveloperApiPage'
+import { CreateDeveloperApiKeyPage } from '@/pages/organization/CreateDeveloperApiKeyPage'
 import { AppSettingsPage } from '@/pages/settings/AppSettingsPage'
 import { PermissionDetailPage } from '@/pages/security/PermissionDetailPage'
 import { PermissionsCatalogPage } from '@/pages/security/PermissionsCatalogPage'
@@ -140,6 +141,7 @@ export const routes: RouteObject[] = [
           { path: 'organizacion/plan', element: <OrganizationPlanPage /> },
           { path: 'organizacion/configuracion', element: <OrganizationSettingsPage /> },
           { path: 'organizacion/api', element: <DeveloperApiPage /> },
+          { path: 'organizacion/api/nueva', element: <CreateDeveloperApiKeyPage /> },
           { path: 'organizacion/correo', element: <Navigate to="/app/configuracion" replace /> },
           { path: 'app/configuracion', element: <AppSettingsPage /> },
           { path: 'equipo/usuarios', element: <UsersListPage /> },

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Button,
   DataGrid,
@@ -10,19 +11,16 @@ import {
 } from 'glubox'
 import {
   Activity,
-  CheckCircle2,
   Copy,
   Download,
   ExternalLink,
   Eye,
   KeyRound,
   Layers,
-  Lock,
   Play,
   Plus,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
   Terminal,
   Trash2,
 } from 'lucide-react'
@@ -42,11 +40,9 @@ import { formatDate, formatDateTime } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import {
-  createTenantApiKey,
   listDeveloperApiScopes,
   listTenantApiKeys,
   revokeTenantApiKey,
-  type CreatedTenantApiKeyDto,
   type DeveloperApiScopeItemDto,
   type TenantApiKeyItemDto,
 } from '@/services/developerApiKeysApi'
@@ -57,70 +53,7 @@ import './developerApiPage.css'
 
 type Row = TenantApiKeyItemDto & Record<string, unknown>
 
-type IntegrationPresetId = 'ecommerce' | 'erp' | 'readonly' | 'full' | 'custom'
-
-interface IntegrationPreset {
-  readonly id: IntegrationPresetId
-  readonly title: string
-  readonly badge: string
-  readonly description: string
-  readonly matchScope: (scope: DeveloperApiScopeItemDto) => boolean
-}
-
-const INTEGRATION_PRESETS: readonly IntegrationPreset[] = [
-  {
-    id: 'ecommerce',
-    title: 'E-commerce Headless',
-    badge: 'Tienda / App',
-    description: 'Catálogo, precios, stock, registro de clientes y creación de pedidos.',
-    matchScope: (s) =>
-      [
-        'catalog.item.read',
-        'catalog.pricing.read',
-        'inventory.stock.read',
-        'customers.read',
-        'customers.manage',
-        'ecommerce.orders.read',
-        'ecommerce.orders.create',
-      ].includes(s.code),
-  },
-  {
-    id: 'erp',
-    title: 'Sincronización ERP / POS',
-    badge: 'Backoffice',
-    description: 'Sincronización bidireccional de maestro de ítems, precios, stock y clientes.',
-    matchScope: (s) =>
-      s.code.startsWith('catalog.') ||
-      s.code.startsWith('inventory.') ||
-      s.code === 'warehousing.read' ||
-      s.code.startsWith('customers.') ||
-      s.code === 'ecommerce.orders.read',
-  },
-  {
-    id: 'readonly',
-    title: 'BI & Analítica (Lectura)',
-    badge: 'Mínimo privilegio',
-    description: 'Acceso exclusivo de consulta (.read) en todos los módulos contratados.',
-    matchScope: (s) => s.code.endsWith('.read'),
-  },
-  {
-    id: 'full',
-    title: 'Acceso Total Operativo',
-    badge: 'Full M2M',
-    description: 'Habilita todos los scopes de lectura y escritura de tu licencia activa.',
-    matchScope: () => true,
-  },
-]
-
 const messages = createSpanishDataGridMessages('credencial API', 'credenciales API')
-
-const EXPIRATION_OPTIONS = [
-  { value: 'never', label: 'Sin fecha de expiración (Permanente)' },
-  { value: '30', label: '30 días (Rotación mensual)' },
-  { value: '90', label: '90 días (Recomendado trimestral)' },
-  { value: '180', label: '180 días (Semestral)' },
-  { value: '365', label: '1 año (365 días)' },
-]
 
 const STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'Todos los estados' },
@@ -170,6 +103,7 @@ const LIVE_PROBE_ENDPOINTS: readonly LiveProbeEndpoint[] = [
 ]
 
 export function DeveloperApiPage() {
+  const navigate = useNavigate()
   const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
 
@@ -202,17 +136,7 @@ export function DeveloperApiPage() {
     body: string
   } | null>(null)
 
-  // Modal de creación empresarial
-  const [createOpen, setCreateOpen] = useState(false)
-  const [keyName, setKeyName] = useState('')
-  const [expirationDays, setExpirationDays] = useState('90')
-  const [activePreset, setActivePreset] = useState<IntegrationPresetId>('readonly')
-  const [selectedScopes, setSelectedScopes] = useState<string[]>([])
-  const [scopeSearch, setScopeSearch] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-
-  // Modales de revelación, inspección y revocación
-  const [createdSecret, setCreatedSecret] = useState<CreatedTenantApiKeyDto | null>(null)
+  // Modales de inspección y revocación
   const [inspectTarget, setInspectTarget] = useState<TenantApiKeyItemDto | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<TenantApiKeyItemDto | null>(null)
   const [revoking, setRevoking] = useState(false)
@@ -322,135 +246,6 @@ export function DeveloperApiPage() {
     [tenantId]
   )
 
-  const scopesByModule = useMemo(() => {
-    const normalizedQuery = scopeSearch.trim().toLowerCase()
-    const groups = new Map<string, DeveloperApiScopeItemDto[]>()
-    for (const item of scopesCatalog) {
-      if (
-        normalizedQuery &&
-        !item.code.toLowerCase().includes(normalizedQuery) &&
-        !item.title.toLowerCase().includes(normalizedQuery) &&
-        !item.description.toLowerCase().includes(normalizedQuery) &&
-        !item.moduleLabel.toLowerCase().includes(normalizedQuery)
-      ) {
-        continue
-      }
-      const list = groups.get(item.moduleLabel) ?? []
-      list.push(item)
-      groups.set(item.moduleLabel, list)
-    }
-    return Array.from(groups.entries())
-  }, [scopeSearch, scopesCatalog])
-
-  const applyPreset = useCallback(
-    (presetId: IntegrationPresetId) => {
-      setActivePreset(presetId)
-      const preset = INTEGRATION_PRESETS.find((p) => p.id === presetId)
-      if (!preset) return
-      const nextScopes = scopesCatalog
-        .filter((s) => s.isModuleEntitled && preset.matchScope(s))
-        .map((s) => s.code)
-      setSelectedScopes(nextScopes)
-    },
-    [scopesCatalog]
-  )
-
-  const toggleScope = useCallback((code: string) => {
-    setActivePreset('custom')
-    setSelectedScopes((prev) =>
-      prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code]
-    )
-  }, [])
-
-  const setModuleScopesMode = useCallback(
-    (moduleScopes: DeveloperApiScopeItemDto[], mode: 'all' | 'read' | 'none') => {
-      setActivePreset('custom')
-      const entitledModuleCodes = moduleScopes
-        .filter((s) => s.isModuleEntitled)
-        .map((s) => s.code)
-      const readModuleCodes = moduleScopes
-        .filter((s) => s.isModuleEntitled && s.code.endsWith('.read'))
-        .map((s) => s.code)
-
-      setSelectedScopes((prev) => {
-        const withoutModule = prev.filter((code) => !entitledModuleCodes.includes(code))
-        if (mode === 'none') return withoutModule
-        if (mode === 'read') return [...withoutModule, ...readModuleCodes]
-        return [...withoutModule, ...entitledModuleCodes]
-      })
-    },
-    []
-  )
-
-  const handleOpenCreate = useCallback(() => {
-    setKeyName('')
-    setExpirationDays('90')
-    setScopeSearch('')
-    setActivePreset('readonly')
-    const defaultReadScopes = scopesCatalog
-      .filter((s) => s.isModuleEntitled && s.code.endsWith('.read'))
-      .map((s) => s.code)
-    setSelectedScopes(defaultReadScopes)
-    setCreateOpen(true)
-  }, [scopesCatalog])
-
-  const handleCreateSubmit = useCallback(async () => {
-    if (!tenantId) return
-    if (!keyName.trim()) {
-      toast.show({
-        title: 'Validación',
-        message: 'Ingresa un nombre descriptivo para identificar la integración.',
-        variant: 'warning',
-      })
-      return
-    }
-    if (selectedScopes.length === 0) {
-      toast.show({
-        title: 'Validación',
-        message: 'Selecciona al menos un permiso (scope) para emitir la API Key.',
-        variant: 'warning',
-      })
-      return
-    }
-
-    setSubmitting(true)
-    try {
-      let expiresAt: string | null = null
-      if (expirationDays !== 'never') {
-        const days = Number(expirationDays)
-        if (Number.isFinite(days) && days > 0) {
-          const d = new Date()
-          d.setDate(d.getDate() + days)
-          expiresAt = d.toISOString()
-        }
-      }
-
-      const created = await createTenantApiKey(tenantId, {
-        name: keyName.trim(),
-        scopes: selectedScopes,
-        expiresAt,
-      })
-
-      setCreateOpen(false)
-      setCreatedSecret(created)
-      setProbeApiKey(created.plainTextKey)
-      await load({ silent: true })
-      toast.show({
-        title: 'API Key emitida',
-        message: 'Guarda la llave secreta ahora; solo se muestra por única vez.',
-        variant: 'success',
-      })
-    } catch (err: unknown) {
-      toast.show({
-        title: 'Error al emitir API Key',
-        message: readApiError(err, 'No se pudo generar la credencial.'),
-        variant: 'error',
-      })
-    } finally {
-      setSubmitting(false)
-    }
-  }, [expirationDays, keyName, load, selectedScopes, tenantId, toast])
-
   const handleConfirmRevoke = useCallback(async () => {
     if (!tenantId || !revokeTarget) return
     setRevoking(true)
@@ -534,18 +329,6 @@ export function DeveloperApiPage() {
     if (statusFilter === 'all') return rows
     return rows.filter((r) => r.status === statusFilter)
   }, [rows, statusFilter])
-
-  const selectedReadCount = useMemo(
-    () => selectedScopes.filter((code) => code.endsWith('.read')).length,
-    [selectedScopes]
-  )
-  const selectedWriteCount = selectedScopes.length - selectedReadCount
-  const selectedModulesCount = useMemo(() => {
-    const mods = new Set(
-      scopesCatalog.filter((s) => selectedScopes.includes(s.code)).map((s) => s.moduleCode)
-    )
-    return mods.size
-  }, [scopesCatalog, selectedScopes])
 
   const columns = useMemo(
     (): ColumnDef<Row>[] => [
@@ -1033,13 +816,13 @@ export function DeveloperApiPage() {
             <EmptyState
               icon="key"
               title="Aún no has emitido credenciales API Key"
-              description="Genera tu primera API Key utilizando nuestras plantillas preconfiguradas para E-commerce Headless, ERP o BI."
+              description="Accede a la vista de emisión para configurar la vigencia y seleccionar en la matriz las directivas de autorización."
               action={
                 <Button
                   type="button"
                   variant="primary"
                   disabled={!canManage}
-                  onClick={handleOpenCreate}
+                  onClick={() => navigate('/organizacion/api/nueva')}
                 >
                   <Plus size={16} style={{ marginRight: '0.35rem' }} />
                   Emitir Primera API Key
@@ -1074,7 +857,7 @@ export function DeveloperApiPage() {
                     type="button"
                     variant="primary"
                     disabled={!canManage}
-                    onClick={handleOpenCreate}
+                    onClick={() => navigate('/organizacion/api/nueva')}
                   >
                     + Emitir Nueva API Key
                   </Button>
@@ -1091,412 +874,6 @@ export function DeveloperApiPage() {
             />
           )}
         </SectionCard>
-
-        {/* Modal Empresarial: Emitir Nueva API Key */}
-        <Popup
-          open={createOpen}
-          onClose={() => {
-            if (!submitting) setCreateOpen(false)
-          }}
-          title="Emitir Credencial API Key (Machine-to-Machine)"
-          width={840}
-        >
-          <div style={{ display: 'grid', gap: '1.15rem', padding: '0.25rem 0' }}>
-            {/* Paso 1: Identificación y Vigencia */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                gap: '0.85rem',
-              }}
-            >
-              <TextBox
-                label="Nombre descriptivo de la integración"
-                labelPosition="outlined"
-                placeholder="Ej. E-commerce Next.js, SAP Sync, App Vendedores"
-                value={keyName}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setKeyName(e.target.value)}
-              />
-              <Select
-                label="Política de vigencia / expiración"
-                labelPosition="outlined"
-                options={EXPIRATION_OPTIONS}
-                value={expirationDays}
-                onChange={(val) => setExpirationDays(String(val ?? '90'))}
-              />
-            </div>
-
-            {/* Paso 2: Plantillas de Integración Rápida */}
-            <div>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                <span style={{ fontWeight: 700, fontSize: '0.86rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Sparkles size={15} /> Plantillas de Integración (Selección Rápida)
-                </span>
-                <span style={{ fontSize: '0.78rem', color: 'var(--c-text-muted, #64748b)' }}>
-                  Preselecciona los permisos recomendados según tu arquitectura
-                </span>
-              </div>
-
-              <div className="ecu-apikey-grid--4">
-                {INTEGRATION_PRESETS.map((preset) => {
-                  const isSelected = activePreset === preset.id
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      className={`ecu-apikey-preset-card ${
-                        isSelected ? 'ecu-apikey-preset-card--active' : ''
-                      }`}
-                      onClick={() => applyPreset(preset.id)}
-                    >
-                      <div className="ecu-apikey-preset-card__title">
-                        <span>{preset.title}</span>
-                      </div>
-                      <div className="ecu-apikey-preset-card__desc">{preset.description}</div>
-                      <div>
-                        <StatusBadge tone={isSelected ? 'primary' : 'neutral'}>
-                          {preset.badge}
-                        </StatusBadge>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Paso 3: Matriz de Permisos por Módulo */}
-            <div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                  marginBottom: '0.6rem',
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>
-                  Matriz Granular de Scopes por Módulo
-                </div>
-                <div style={{ width: '250px' }}>
-                  <TextBox
-                    placeholder="Filtrar scopes por código o módulo…"
-                    value={scopeSearch}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setScopeSearch(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div
-                style={{
-                  maxHeight: '280px',
-                  overflowY: 'auto',
-                  display: 'grid',
-                  gap: '0.75rem',
-                  paddingRight: '0.25rem',
-                }}
-              >
-                {scopesByModule.map(([moduleLabel, moduleScopes]) => {
-                  const isEntitled = Boolean(moduleScopes[0]?.isModuleEntitled)
-                  const selectedInModule = moduleScopes.filter((s) =>
-                    selectedScopes.includes(s.code)
-                  ).length
-
-                  return (
-                    <div key={moduleLabel} className="ecu-apikey-module-box">
-                      <div className="ecu-apikey-module-box__header">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <strong style={{ fontSize: '0.86rem' }}>{moduleLabel}</strong>
-                          <StatusBadge tone={selectedInModule > 0 ? 'primary' : 'neutral'}>
-                            {selectedInModule} / {moduleScopes.length}
-                          </StatusBadge>
-                        </div>
-
-                        {!isEntitled ? (
-                          <span
-                            className="ecu-chip ecu-chip--muted"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                          >
-                            <Lock size={12} />
-                            Módulo no incluido en tu plan
-                          </span>
-                        ) : (
-                          <div style={{ display: 'flex', gap: '0.35rem' }}>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setModuleScopesMode(moduleScopes, 'read')}
-                            >
-                              Solo lectura
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setModuleScopesMode(moduleScopes, 'all')}
-                            >
-                              Todos
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setModuleScopesMode(moduleScopes, 'none')}
-                            >
-                              Limpiar
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="ecu-apikey-module-box__body">
-                        {moduleScopes.map((scope) => {
-                          const checked = selectedScopes.includes(scope.code)
-                          const isRead = scope.code.endsWith('.read')
-                          return (
-                            <label
-                              key={scope.code}
-                              className={`ecu-apikey-scope-item ${
-                                checked ? 'ecu-apikey-scope-item--checked' : ''
-                              } ${!scope.isModuleEntitled ? 'ecu-apikey-scope-item--disabled' : ''}`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                disabled={!scope.isModuleEntitled}
-                                onChange={() => toggleScope(scope.code)}
-                                style={{ marginTop: '0.2rem' }}
-                              />
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: '0.35rem',
-                                    flexWrap: 'wrap',
-                                  }}
-                                >
-                                  <strong style={{ fontSize: '0.82rem' }}>{scope.title}</strong>
-                                  <StatusBadge tone={isRead ? 'info' : 'warning'}>
-                                    {isRead ? 'Lectura' : 'Escritura'}
-                                  </StatusBadge>
-                                </div>
-                                <div style={{ marginTop: '0.15rem' }}>
-                                  <code className="ecu-code" style={{ fontSize: '0.75rem' }}>
-                                    {scope.code}
-                                  </code>
-                                </div>
-                                <div
-                                  style={{
-                                    fontSize: '0.76rem',
-                                    color: 'var(--c-text-muted, #64748b)',
-                                    marginTop: '0.2rem',
-                                    lineHeight: 1.35,
-                                  }}
-                                >
-                                  {scope.description}
-                                </div>
-                              </div>
-                            </label>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Paso 4: Resumen para emitir (4 columnas friendMobile) */}
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '0.84rem', marginBottom: '0.45rem' }}>
-                Resumen para Emitir Credencial
-              </div>
-              <div className="ecu-apikey-grid--4">
-                <div className="ecu-apikey-summary-tile">
-                  <span className="ecu-apikey-summary-tile__label">Integración</span>
-                  <span className="ecu-apikey-summary-tile__value">
-                    {keyName.trim() || 'Sin nombre aún'}
-                  </span>
-                </div>
-                <div className="ecu-apikey-summary-tile">
-                  <span className="ecu-apikey-summary-tile__label">Vigencia</span>
-                  <span className="ecu-apikey-summary-tile__value">
-                    {expirationDays === 'never' ? 'Permanente' : `${expirationDays} días`}
-                  </span>
-                </div>
-                <div className="ecu-apikey-summary-tile">
-                  <span className="ecu-apikey-summary-tile__label">Módulos Alcanzados</span>
-                  <span className="ecu-apikey-summary-tile__value">
-                    {selectedModulesCount} {selectedModulesCount === 1 ? 'módulo' : 'módulos'}
-                  </span>
-                </div>
-                <div className="ecu-apikey-summary-tile">
-                  <span className="ecu-apikey-summary-tile__label">Scopes Autorizados</span>
-                  <span className="ecu-apikey-summary-tile__value">
-                    {selectedScopes.length} ({selectedReadCount} L / {selectedWriteCount} E)
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={submitting}
-                onClick={() => setCreateOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                disabled={submitting}
-                onClick={() => void handleCreateSubmit()}
-              >
-                {submitting ? 'Emitiendo credencial…' : 'Emitir API Key'}
-              </Button>
-            </div>
-          </div>
-        </Popup>
-
-        {/* Modal Revelación Única del Secreto */}
-        <Popup
-          open={Boolean(createdSecret)}
-          onClose={() => setCreatedSecret(null)}
-          title="Credencial Emitida — Revelación Única de Secreto"
-          width={660}
-        >
-          {createdSecret ? (
-            <div style={{ display: 'grid', gap: '1rem' }}>
-              <div
-                style={{
-                  padding: '0.85rem 1rem',
-                  borderRadius: '0.6rem',
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  border: '1px solid rgba(245, 158, 11, 0.35)',
-                  fontSize: '0.85rem',
-                  lineHeight: 1.5,
-                }}
-              >
-                <strong>Aviso de Seguridad Criptográfica:</strong> EcuNexo únicamente persiste el
-                hash <code>SHA-256</code> de esta llave en base de datos.{' '}
-                <strong>Copia o descarga el secreto ahora</strong>; nunca volverá a mostrarse en el
-                panel.
-              </div>
-
-              <div className="ecu-apikey-grid--4">
-                <div className="ecu-apikey-summary-tile">
-                  <span className="ecu-apikey-summary-tile__label">Integración</span>
-                  <span className="ecu-apikey-summary-tile__value">{createdSecret.name}</span>
-                </div>
-                <div className="ecu-apikey-summary-tile">
-                  <span className="ecu-apikey-summary-tile__label">Prefijo</span>
-                  <span className="ecu-apikey-summary-tile__value">
-                    <code className="ecu-code">{createdSecret.keyPrefix}</code>
-                  </span>
-                </div>
-                <div className="ecu-apikey-summary-tile">
-                  <span className="ecu-apikey-summary-tile__label">Scopes</span>
-                  <span className="ecu-apikey-summary-tile__value">
-                    {createdSecret.scopes.length} permisos
-                  </span>
-                </div>
-                <div className="ecu-apikey-summary-tile">
-                  <span className="ecu-apikey-summary-tile__label">Vigencia</span>
-                  <span className="ecu-apikey-summary-tile__value">
-                    {createdSecret.expiresAt ? formatDate(createdSecret.expiresAt) : 'Permanente'}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: '0.82rem', marginBottom: '0.35rem', fontWeight: 600 }}>
-                  Llave Secreta M2M (<code>X-Api-Key</code>):
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.75rem 0.9rem',
-                    borderRadius: '0.6rem',
-                    border: '1px solid var(--c-border, rgba(128,128,128,0.3))',
-                    background: 'var(--c-surface-subtle, #f8fafc)',
-                  }}
-                >
-                  <KeyRound size={18} />
-                  <code
-                    className="ecu-code"
-                    style={{ flex: 1, wordBreak: 'break-all', fontSize: '0.88rem' }}
-                  >
-                    {createdSecret.plainTextKey}
-                  </code>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() =>
-                      void copyToClipboard(createdSecret.plainTextKey, 'API Key secreta')
-                    }
-                  >
-                    <Copy size={15} style={{ marginRight: '0.35rem' }} />
-                    Copiar Llave
-                  </Button>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                }}
-              >
-                <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      downloadEnvFile(createdSecret.plainTextKey, createdSecret.name)
-                    }
-                  >
-                    <Download size={14} /> Descargar .env.ecunexo
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setProbeApiKey(createdSecret.plainTextKey)
-                      setActiveCenterTab('sandbox')
-                      setCreatedSecret(null)
-                    }}
-                  >
-                    <Play size={14} /> Probar llave en el Simulador
-                  </Button>
-                </div>
-
-                <Button type="button" variant="secondary" onClick={() => setCreatedSecret(null)}>
-                  <CheckCircle2 size={15} /> Ya guardé mi API Key
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </Popup>
 
         {/* Modal Inspeccionar Credencial */}
         <Popup
