@@ -813,7 +813,7 @@ export function CreateCatalogItemPage() {
                       isStandardProduct
                         ? 'ecu-companies-form__field--span-3'
                         : usesMatrix
-                          ? 'ecu-companies-form__field--span-3'
+                          ? ''
                           : 'ecu-companies-form__field--span-2'
                     }`}
                   >

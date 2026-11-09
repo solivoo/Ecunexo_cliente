@@ -999,7 +999,7 @@ export function EditCatalogItemPage() {
                     <div
                       className={`ecu-companies-form__field ${
                         isMatrixParent
-                          ? 'ecu-companies-form__field--span-3'
+                          ? ''
                           : 'ecu-companies-form__field--span-2'
                       }`}
                     >
