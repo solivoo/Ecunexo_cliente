@@ -594,8 +594,16 @@ export function EditCatalogItemPage() {
             : description.trim() || null,
           sku: sku.trim() || null,
           barcode: isMatrixParent ? null : barcode.trim() || null,
-          costPrice: isMatrixParent ? null : parsedCostPrice,
-          basePrice: isMatrixParent ? null : parsedBasePrice,
+          costPrice: isMatrixParent
+            ? null
+            : isStandardSingleItem
+              ? parsedCostPrice
+              : item.costPrice ?? null,
+          basePrice: isMatrixParent
+            ? null
+            : isStandardSingleItem
+              ? parsedBasePrice
+              : item.basePrice ?? null,
           customAttributesJson: serializeCustomAttributes(attrsWithBase, tags),
           status: Number(status) as typeof CatalogItemStatus.Active,
           familyId: item.familyId ?? null,
@@ -809,8 +817,8 @@ export function EditCatalogItemPage() {
                   size="sm"
                   onClick={() => void handleOpenReassignModal()}
                 >
-                  <ArrowLeftRight size={14} style={{ marginRight: '0.375rem' }} />
-                  Vincular a Producto Matriz
+                  <ArrowLeftRight size={14} />
+                  Vincular matriz
                 </Button>
               </div>
             )}
@@ -1067,7 +1075,7 @@ export function EditCatalogItemPage() {
                     </div>
                   ) : null}
 
-                  {!isMatrixParent ? (
+                  {!isMatrixParent && !isVariantChild && !familyTemplate ? (
                     <>
                       <div className="ecu-companies-form__field">
                         <NumberBox

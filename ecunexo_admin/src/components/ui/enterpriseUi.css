@@ -642,6 +642,15 @@ html.sf-dark-mode .ecu-action-card:hover {
 /* ==========================================================================
    Iconos consistentes dentro de botones glubox y botones de acción
    ========================================================================== */
+
+/* Gap icono↔texto cuando el SVG va como hijo (no iconLeft/iconRight) */
+.glb-btn__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .glb-btn svg,
 button svg.lucide,
 .glb-btn svg.lucide {

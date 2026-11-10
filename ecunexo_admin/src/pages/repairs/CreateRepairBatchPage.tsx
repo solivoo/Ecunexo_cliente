@@ -597,10 +597,11 @@ export function CreateRepairBatchPage() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      title="Ir al directorio de clientes"
                       onClick={() => navigate('/clientes')}
                       style={{ padding: 0, height: 'auto', color: 'var(--shell-primary)' }}
                     >
-                      Ir al Directorio de Clientes &rarr;
+                      Ver clientes →
                     </Button>
                   </div>
                 </div>
@@ -688,11 +689,12 @@ export function CreateRepairBatchPage() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    title="Descargar plantilla oficial de importación"
                     onClick={handleDownloadTemplate}
                     disabled={downloadingTemplate}
                   >
                     <Download size={15} strokeWidth={2} aria-hidden />
-                    {downloadingTemplate ? 'Generando...' : 'Descargar Plantilla Oficial'}
+                    {downloadingTemplate ? 'Generando…' : 'Descargar plantilla'}
                   </Button>
 
                   <Button
@@ -907,7 +909,11 @@ export function CreateRepairBatchPage() {
                   <Button
                     type="submit"
                     variant="primary"
-                    title={missingRequirements.length > 0 ? `Pendiente: ${missingRequirements.join(', ')}` : undefined}
+                    title={
+                      missingRequirements.length > 0
+                        ? `Pendiente: ${missingRequirements.join(', ')}`
+                        : 'Confirmar e importar lote de equipos'
+                    }
                     disabled={
                       busy ||
                       !file ||
@@ -920,12 +926,12 @@ export function CreateRepairBatchPage() {
                   >
                     <CheckCircle2 size={16} strokeWidth={2} aria-hidden />
                     {busy
-                      ? 'Procesando e Importando...'
+                      ? 'Procesando…'
                       : validatingFile
-                      ? 'Validando...'
-                      : selectedCounts.total < previewResult.totalRows
-                      ? `Confirmar e Importar Lote (${selectedCounts.total} de ${previewResult.totalRows} Equipos)`
-                      : `Confirmar e Importar Lote (${previewResult.totalRows} Equipos)`}
+                        ? 'Validando…'
+                        : selectedCounts.total < previewResult.totalRows
+                          ? `Importar (${selectedCounts.total}/${previewResult.totalRows})`
+                          : `Importar lote (${previewResult.totalRows})`}
                   </Button>
                 ) : (
                   <Button
@@ -1097,7 +1103,7 @@ export function CreateRepairBatchPage() {
           actions={[
             {
               id: 'download',
-              label: 'Descargar Plantilla Oficial',
+              label: 'Descargar plantilla',
               variant: 'outline',
               onClick: () => void handleDownloadTemplate(),
               disabled: downloadingTemplate,

@@ -670,9 +670,10 @@ export function PublicDevelopersPortalPage() {
             variant="outline"
             size="sm"
             onClick={() => navigate(sessionTenantId ? '/organizacion/api' : '/')}
+            title={sessionTenantId ? 'Volver al listado de API Keys' : 'Ir al panel de administración'}
           >
             <ArrowLeft size={14} />{' '}
-            {sessionTenantId ? 'Volver a mis API Keys' : 'Ir al Panel Admin'}
+            {sessionTenantId ? 'Mis API Keys' : 'Panel Admin'}
           </Button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <img src="/favicon.svg" alt="EcuNexo" width={24} height={24} />
@@ -687,9 +688,10 @@ export function PublicDevelopersPortalPage() {
           <Button
             variant={activeTab === 'sandbox' ? 'primary' : 'outline'}
             size="sm"
+            title="Consola API en vivo"
             onClick={() => setActiveTab('sandbox')}
           >
-            <Play size={13} /> Consola API en Vivo
+            <Play size={13} /> API en vivo
           </Button>
           <a
             href="/scalar/external-v1"
@@ -785,13 +787,14 @@ export function PublicDevelopersPortalPage() {
             <div className="ecu-dev-portal__nav-group-title">Herramientas en Vivo</div>
             <button
               type="button"
+              title="Simulador HTTP en vivo"
               className={`ecu-dev-portal__nav-btn ${
                 activeTab === 'sandbox' ? 'ecu-dev-portal__nav-btn--active' : ''
               }`}
               onClick={() => setActiveTab('sandbox')}
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
-                <Activity size={15} /> Simulador HTTP en Vivo
+                <Activity size={15} /> Simulador en vivo
               </span>
               <StatusBadge tone="success">Live</StatusBadge>
             </button>

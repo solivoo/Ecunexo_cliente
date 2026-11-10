@@ -466,7 +466,7 @@ export function VolumeDiscountSchemesListPage() {
               action={
                 canCreate ? (
                   <Button type="button" variant="primary" onClick={openCreateModal}>
-                    + Crear Primera Escala
+                    + Primera escala
                   </Button>
                 ) : undefined
               }

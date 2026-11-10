@@ -361,10 +361,11 @@ export function ComprasDocumentosPage() {
                 canManage ? (
                   <Button
                     variant="primary"
+                    title="Importar Facturas SRI (Lote / XML)"
                     onClick={() => navigate('/compras/documentos/importar')}
                   >
                     <UploadCloud size={16} />
-                    Importar Facturas SRI (Lote / XML)
+                    Importar XML SRI
                   </Button>
                 ) : undefined
               }
@@ -403,10 +404,11 @@ export function ComprasDocumentosPage() {
                   {canManage && (
                     <Button
                       variant="primary"
+                      title="Importar Facturas SRI (Lote / XML)"
                       onClick={() => navigate('/compras/documentos/importar')}
                     >
                       <UploadCloud size={16} />
-                      Importar Facturas SRI (Lote / XML)
+                      Importar XML SRI
                     </Button>
                   )}
                 </div>

@@ -324,7 +324,7 @@ export function InvoiceLinesSection({
             onClick={() => handleOpenStockModal(null)}
           >
             <Boxes size={15} strokeWidth={1.75} aria-hidden />
-            Ver catálogo y stock
+            Catálogo y stock
           </Button>
         </div>
       }

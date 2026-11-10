@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, NumberBox, Popup, Select, TextArea, TextBox, useToast } from 'glubox'
 import {
@@ -7,7 +7,7 @@ import {
   SectionCard,
   StatusBadge,
 } from '@/components/ui'
-import { AlertTriangle, Boxes, Layers, Plus, ScanBarcode, Trash2 } from 'lucide-react'
+import { AlertTriangle, Boxes, Download, FileSpreadsheet, Layers, Plus, ScanBarcode, Trash2 } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -23,6 +23,11 @@ import {
   type WarehouseListItemDto,
 } from '@/types/inventoryApi'
 import { InventoryItemSelectModal } from './InventoryItemSelectModal'
+import {
+  buildInventoryLinesTemplateBlob,
+  downloadBlob,
+  parseInventoryLinesWorkbook,
+} from './inventoryDocumentExcel'
 import './inventoryItemSelectModal.css'
 
 const PURCHASE_INVOICE = /^\d{3}-\d{3}-\d{9}$/
@@ -65,6 +70,9 @@ export function CreateInventoryDocumentPage() {
   const [zeroCostLines, setZeroCostLines] = useState<
     { catalogItemId: string; quantity: number; unitCost: number | null }[]
   >([])
+  const pendingApproveAfterCreateRef = useRef(false)
+  const excelFileInputRef = useRef<HTMLInputElement>(null)
+  const [excelBusy, setExcelBusy] = useState(false)
 
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false)
   const [quickBusy, setQuickBusy] = useState(false)
@@ -230,26 +238,37 @@ export function CreateInventoryDocumentPage() {
     toast,
   ])
 
+  const resolveCatalogItemByCode = useCallback(
+    (code: string) => {
+      const normalized = code.trim().toLowerCase()
+      if (!normalized) return null
+      return (
+        fullCatalog.find((c) => {
+          if (c.isMatrixParent || c.kind !== CatalogItemKind.Physical) return false
+          if (c.sku && c.sku.toLowerCase() === normalized) return true
+          if (c.customAttributesJson) {
+            try {
+              const attrs = JSON.parse(c.customAttributesJson) as Record<string, unknown>
+              if (attrs && typeof attrs === 'object') {
+                const barcode = attrs.barcode || attrs.codigo_barras || attrs.ean
+                if (barcode && String(barcode).toLowerCase() === normalized) return true
+              }
+            } catch {
+              // ignore
+            }
+          }
+          return false
+        }) ?? null
+      )
+    },
+    [fullCatalog]
+  )
+
   const handleScanSubmit = useCallback(() => {
     const code = scannedBarcode.trim()
     if (!code) return
 
-    const matched = fullCatalog.find((c) => {
-      if (c.isMatrixParent || c.kind !== CatalogItemKind.Physical) return false
-      if (c.sku && c.sku.toLowerCase() === code.toLowerCase()) return true
-      if (c.customAttributesJson) {
-        try {
-          const attrs = JSON.parse(c.customAttributesJson) as Record<string, unknown>
-          if (attrs && typeof attrs === 'object') {
-            const barcode = attrs.barcode || attrs.codigo_barras || attrs.ean
-            if (barcode && String(barcode).toLowerCase() === code.toLowerCase()) return true
-          }
-        } catch {
-          // ignore
-        }
-      }
-      return false
-    })
+    const matched = resolveCatalogItemByCode(code)
 
     if (!matched) {
       toast.show({
@@ -281,7 +300,121 @@ export function CreateInventoryDocumentPage() {
       variant: 'success',
     })
     setScannedBarcode('')
-  }, [scannedBarcode, fullCatalog, toast])
+  }, [scannedBarcode, resolveCatalogItemByCode, toast])
+
+  const handleDownloadExcelTemplate = useCallback(async () => {
+    try {
+      setExcelBusy(true)
+      const blob = await buildInventoryLinesTemplateBlob()
+      downloadBlob(blob, 'Plantilla_Lineas_Inventario.xlsx')
+    } catch (err: unknown) {
+      toast.show({
+        title: 'No se pudo generar la plantilla',
+        message: err instanceof Error ? err.message : 'Error al crear el Excel.',
+        variant: 'error',
+      })
+    } finally {
+      setExcelBusy(false)
+    }
+  }, [toast])
+
+  const handleExcelFileSelected = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      e.target.value = ''
+      if (!file) return
+      if (!file.name.toLowerCase().endsWith('.xlsx')) {
+        toast.show({
+          title: 'Archivo inválido',
+          message: 'Usa un libro Excel (.xlsx).',
+          variant: 'error',
+        })
+        return
+      }
+
+      setExcelBusy(true)
+      try {
+        const result = await parseInventoryLinesWorkbook(
+          file,
+          (code) => {
+            const item = resolveCatalogItemByCode(code)
+            return item ? { id: item.id } : null
+          },
+          {
+            allowZeroQuantity: isAdjustment,
+            applyUnitCost: isReceipt,
+          }
+        )
+
+        if (result.lines.length === 0) {
+          const detail = [
+            ...result.unmatchedCodes.slice(0, 5).map((c) => `SKU «${c}» no encontrado`),
+            ...result.invalidRows.slice(0, 5),
+          ].join(' · ')
+          toast.show({
+            title: 'Sin líneas válidas',
+            message: detail || 'Ninguna fila pudo resolverse contra el catálogo.',
+            variant: 'error',
+          })
+          return
+        }
+
+        setLines((prev) => {
+          let updated = [...prev]
+          if (updated.length === 1 && !updated[0].catalogItemId) {
+            updated = []
+          }
+          for (const item of result.lines) {
+            const existingIdx = updated.findIndex((l) => l.catalogItemId === item.catalogItemId)
+            if (existingIdx >= 0) {
+              const cur = Number(updated[existingIdx].quantity) || 0
+              const add = Number(item.quantity) || 0
+              updated[existingIdx] = {
+                ...updated[existingIdx],
+                quantity: String(cur + add),
+                unitCost:
+                  isReceipt && item.unitCost
+                    ? item.unitCost
+                    : updated[existingIdx].unitCost,
+              }
+            } else {
+              updated.push({
+                catalogItemId: item.catalogItemId,
+                quantity: item.quantity,
+                unitCost: isReceipt ? item.unitCost : '',
+              })
+            }
+          }
+          return updated.length > 0 ? updated : [{ catalogItemId: '', quantity: '1', unitCost: '' }]
+        })
+
+        const parts = [`${result.matchedCount} ítem(s) cargado(s)`]
+        if (result.unmatchedCodes.length) {
+          const sample = result.unmatchedCodes.slice(0, 4).join(', ')
+          parts.push(
+            `${result.unmatchedCodes.length} no encontrado(s)${sample ? `: ${sample}` : ''}`
+          )
+        }
+        if (result.invalidRows.length) {
+          parts.push(`${result.invalidRows.length} fila(s) inválida(s)`)
+        }
+        toast.show({
+          title: 'Excel importado',
+          message: parts.join(' · '),
+          variant: result.unmatchedCodes.length || result.invalidRows.length ? 'warning' : 'success',
+        })
+      } catch (err: unknown) {
+        toast.show({
+          title: 'No se pudo importar',
+          message: err instanceof Error ? err.message : 'Error al leer el Excel.',
+          variant: 'error',
+        })
+      } finally {
+        setExcelBusy(false)
+      }
+    },
+    [isAdjustment, isReceipt, resolveCatalogItemByCode, toast]
+  )
 
   const handleAddLinesFromModal = useCallback(
     (newItems: { catalogItemId: string; quantity: number }[]) => {
@@ -367,9 +500,14 @@ export function CreateInventoryDocumentPage() {
   )
 
   const onSubmit = useCallback(
-    async (e?: FormEvent, allowZeroCost = false) => {
+    async (
+      e?: FormEvent,
+      opts?: { allowZeroCost?: boolean; approveAfterCreate?: boolean }
+    ) => {
       e?.preventDefault()
       if (!tenantId) return
+      const allowZeroCost = opts?.allowZeroCost ?? false
+      const approveAfterCreate = opts?.approveAfterCreate ?? false
       setError(null)
       setBusy(true)
       try {
@@ -430,6 +568,7 @@ export function CreateInventoryDocumentPage() {
         if (isReceipt && !allowZeroCost) {
           const zeroLines = parsed.filter((l) => l.unitCost === 0)
           if (zeroLines.length > 0) {
+            pendingApproveAfterCreateRef.current = approveAfterCreate
             setZeroCostLines(zeroLines)
             setIsZeroCostModalOpen(true)
             setBusy(false)
@@ -450,7 +589,7 @@ export function CreateInventoryDocumentPage() {
           lines: parsed,
         })
 
-        if (canApprove) {
+        if (approveAfterCreate && canApprove) {
           await approveInventoryDocument(tenantId, created.documentId)
           toast.show({
             title: isTransfer ? 'Transferencia despachada' : 'Documento aprobado',
@@ -465,14 +604,23 @@ export function CreateInventoryDocumentPage() {
             void navigate('/inventario/documentos?cola=recibir', { replace: true })
             return
           }
-        } else {
-          toast.show({
-            title: 'Borrador guardado',
-            message: 'Quien tenga permiso de aprobar lo pasará a stock.',
-            variant: 'success',
-          })
+          void navigate('/inventario/documentos', { replace: true })
+          return
         }
-        void navigate('/inventario/documentos', { replace: true })
+
+        toast.show({
+          title: canApprove ? 'Ingresado' : 'Borrador guardado',
+          message: canApprove
+            ? 'Quedó en la cola Por aprobar. Puedes aprobarlo desde Documentos.'
+            : 'Quien tenga permiso de aprobar lo pasará a stock.',
+          variant: 'success',
+        })
+        void navigate(
+          canApprove
+            ? '/inventario/documentos?cola=aprobar'
+            : '/inventario/documentos?cola=borradores',
+          { replace: true }
+        )
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : readApiError(err, 'No se pudo guardar el documento.')
@@ -565,7 +713,10 @@ export function CreateInventoryDocumentPage() {
           }
         />
 
-        <form onSubmit={(e) => void onSubmit(e)} noValidate>
+        <form
+          onSubmit={(e) => void onSubmit(e, { approveAfterCreate: false })}
+          noValidate
+        >
           <SectionCard
             title="Cabecera del Movimiento"
             info="Define la naturaleza de la transacción, las bodegas involucradas y referencias comerciales"
@@ -625,13 +776,7 @@ export function CreateInventoryDocumentPage() {
                 </div>
               ) : null}
               {isReceipt ? (
-                <div
-                  className={
-                    isPurchaseReceipt
-                      ? 'ecu-companies-form__field'
-                      : 'ecu-companies-form__field ecu-companies-form__field--span-2'
-                  }
-                >
+                <div className="ecu-companies-form__field">
                   <Select
                     id="inv-origin"
                     label="Origen de la recepción"
@@ -670,17 +815,6 @@ export function CreateInventoryDocumentPage() {
               ) : null}
             </div>
 
-            {isReceipt && !isPurchaseReceipt ? (
-              <div className="ecu-info-banner" role="status" style={{ marginTop: '0.75rem' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '1.25rem', color: 'var(--shell-primary)' }}>
-                  info
-                </span>
-                <div>
-                  <strong>Movimiento interno de bodega (sin factura SRI):</strong> Este ingreso registra un movimiento físico directo (inventario inicial, devolución o ajuste). No genera crédito tributario ni sustituye a un comprobante fiscal autorizado. La empresa y el usuario operador asumen la responsabilidad exclusiva del sustento legal y documental de las existencias.
-                </div>
-              </div>
-            ) : null}
-
             <div className="ecu-companies-form__field" style={{ marginTop: '1rem' }}>
               <TextArea
                 id="inv-notes"
@@ -711,7 +845,7 @@ export function CreateInventoryDocumentPage() {
               <div className="ecu-inv-quick-bar__scanner">
                 <TextBox
                   id="inv-quick-scan"
-                  placeholder="Escanear código de barras o escribir SKU y presionar Enter…"
+                  placeholder="Escanear"
                   variant="outline"
                   size="sm"
                   value={scannedBarcode}
@@ -732,8 +866,8 @@ export function CreateInventoryDocumentPage() {
                   onClick={handleScanSubmit}
                   disabled={busy || !scannedBarcode.trim()}
                   title="Escanear o agregar SKU"
+                  iconLeft={<ScanBarcode size={16} strokeWidth={1.75} aria-hidden />}
                 >
-                  <ScanBarcode size={16} strokeWidth={1.75} aria-hidden />
                   Escanear
                 </Button>
               </div>
@@ -748,9 +882,10 @@ export function CreateInventoryDocumentPage() {
                     setSelectModalMode('search')
                     setIsSelectModalOpen(true)
                   }}
+                  iconLeft={<Boxes size={16} strokeWidth={1.75} aria-hidden />}
+                  title="Seleccionar productos del catálogo"
                 >
-                  <Boxes size={16} strokeWidth={1.75} aria-hidden />
-                  Seleccionar productos del catálogo
+                  Del catálogo
                 </Button>
                 <Button
                   type="button"
@@ -761,9 +896,10 @@ export function CreateInventoryDocumentPage() {
                     setSelectModalMode('matrix')
                     setIsSelectModalOpen(true)
                   }}
+                  iconLeft={<Layers size={16} strokeWidth={1.75} aria-hidden />}
+                  title="Cargar por Matriz / Modelo"
                 >
-                  <Layers size={16} strokeWidth={1.75} aria-hidden />
-                  Cargar por Matriz / Modelo
+                  Por matriz
                 </Button>
                 <Button
                   type="button"
@@ -771,10 +907,41 @@ export function CreateInventoryDocumentPage() {
                   size="sm"
                   disabled={busy}
                   onClick={() => openQuickCreateModal(scannedBarcode)}
+                  iconLeft={<Plus size={16} strokeWidth={1.75} aria-hidden />}
+                  title="Crear producto rápido"
                 >
-                  <Plus size={16} strokeWidth={1.75} aria-hidden />
-                  Crear producto rápido
+                  Crear producto
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={busy || excelBusy}
+                  onClick={() => void handleDownloadExcelTemplate()}
+                  iconLeft={<Download size={16} strokeWidth={1.75} aria-hidden />}
+                  title="Descargar plantilla Excel de líneas"
+                >
+                  Plantilla
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={busy || excelBusy}
+                  loading={excelBusy}
+                  onClick={() => excelFileInputRef.current?.click()}
+                  iconLeft={<FileSpreadsheet size={16} strokeWidth={1.75} aria-hidden />}
+                  title="Importar líneas desde Excel (.xlsx)"
+                >
+                  Importar Excel
+                </Button>
+                <input
+                  ref={excelFileInputRef}
+                  type="file"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  hidden
+                  onChange={(e) => void handleExcelFileSelected(e)}
+                />
               </div>
             </div>
 
@@ -957,13 +1124,32 @@ export function CreateInventoryDocumentPage() {
                 borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
               }}
             >
-              <Button type="submit" variant="primary" loading={busy} disabled={busy}>
-                {canApprove
-                  ? isTransfer
-                    ? 'Guardar y Despachar'
-                    : 'Guardar y Aprobar'
-                  : 'Guardar como Borrador'}
-              </Button>
+              {canApprove ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    loading={busy}
+                    disabled={busy}
+                    onClick={() => void onSubmit(undefined, { approveAfterCreate: false })}
+                  >
+                    Guardar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    loading={busy}
+                    disabled={busy}
+                    onClick={() => void onSubmit(undefined, { approveAfterCreate: true })}
+                  >
+                    {isTransfer ? 'Despachar' : 'Aprobar'}
+                  </Button>
+                </>
+              ) : (
+                <Button type="submit" variant="primary" loading={busy} disabled={busy}>
+                  Guardar
+                </Button>
+              )}
               <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
                 Cancelar
               </Button>
@@ -1129,7 +1315,10 @@ export function CreateInventoryDocumentPage() {
                 disabled: busy,
                 onClick: () => {
                   setIsZeroCostModalOpen(false)
-                  void onSubmit(undefined, true)
+                  void onSubmit(undefined, {
+                    allowZeroCost: true,
+                    approveAfterCreate: pendingApproveAfterCreateRef.current,
+                  })
                 },
               },
             ]}

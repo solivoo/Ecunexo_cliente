@@ -619,11 +619,12 @@ export function CreditNoteCreatePage() {
               <Button
                 type="button"
                 variant="primary"
+                title="Emitir nota de crédito electrónica al SRI"
                 loading={submitting}
                 disabled={submitting || totals.selectedCount === 0 || totals.grandTotal <= 0}
                 onClick={handleEmitCreditNote}
               >
-                {submitting ? 'Emitiendo...' : 'Emitir Nota de Crédito al SRI'}
+                {submitting ? 'Emitiendo…' : 'Emitir al SRI'}
               </Button>
             </div>
           </>

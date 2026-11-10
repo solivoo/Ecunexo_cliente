@@ -1026,10 +1026,11 @@ export function ProductPriceFormPage() {
                       type="button"
                       variant="outline"
                       size="sm"
+                      title="Añadir tramo manual de escala"
                       disabled={busy || loading}
                       onClick={() => setTiers((current) => [...current, emptyTier()])}
                     >
-                      + Añadir tramo manual
+                      + Tramo manual
                     </Button>
                   </div>
                 </div>

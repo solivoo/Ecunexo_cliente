@@ -357,9 +357,13 @@ export function PurchaseSettlementsListPage() {
               description="Emite una liquidación de compra (Tipo 03) cuando adquieras productos o contrates servicios a personas naturales que por disposición legal no poseen RUC ni emiten facturas."
               action={
                 canIssue ? (
-                  <Button variant="primary" onClick={() => navigate('/compras/liquidaciones/nueva')}>
+                  <Button
+                    variant="primary"
+                    title="Emitir primera liquidación de compra"
+                    onClick={() => navigate('/compras/liquidaciones/nueva')}
+                  >
                     <FilePlus size={16} />
-                    Emitir Primera Liquidación
+                    Primera liquidación
                   </Button>
                 ) : undefined
               }

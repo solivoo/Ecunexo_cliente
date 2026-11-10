@@ -1053,6 +1053,11 @@ export function CreateRepairDispatchPage() {
           <Button
             type="button"
             variant="primary"
+            title={
+              exitType === DispatchExitType.Repaired
+                ? `Emitir acta con ${selectedIds.length} equipos · $${estimatedUsd.toFixed(2)}`
+                : `Registrar salida (${dispatchExitTypeLabel(exitType)}) · ${selectedIds.length} equipos`
+            }
             onClick={() => void handleSubmit()}
             disabled={
               saving ||
@@ -1067,8 +1072,8 @@ export function CreateRepairDispatchPage() {
               : exitType === DispatchExitType.Repaired && missingPricingEquipments.length > 0
                 ? `Falta definir precio (${missingPricingEquipments.length} eq.)`
                 : exitType === DispatchExitType.Repaired
-                  ? `Emitir acta (${selectedIds.length} equipos · $${estimatedUsd.toFixed(2)})`
-                  : `Registrar salida (${selectedIds.length} equipos — ${dispatchExitTypeLabel(exitType)})`}
+                  ? `Emitir acta (${selectedIds.length})`
+                  : `Registrar salida (${selectedIds.length})`}
           </Button>
         </div>
       </div>

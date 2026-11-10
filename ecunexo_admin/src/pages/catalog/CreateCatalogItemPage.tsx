@@ -421,9 +421,9 @@ export function CreateCatalogItemPage() {
 
         const kindNum = isStandardProduct ? kind : CatalogItemKind.Physical
 
-        const rawCostPrice = parsePriceInput(costPrice)
+        const rawCostPrice = isStandardProduct ? parsePriceInput(costPrice) : null
         const parsedCostPrice = rawCostPrice != null && rawCostPrice >= 0 ? rawCostPrice : null
-        const rawBasePrice = parsePriceInput(basePrice)
+        const rawBasePrice = isStandardProduct ? parsePriceInput(basePrice) : null
         const parsedBasePrice = rawBasePrice != null && rawBasePrice >= 0 ? rawBasePrice : null
 
         const attrsToSerialize = isStandardProduct
@@ -896,7 +896,7 @@ export function CreateCatalogItemPage() {
                   </div>
                 )}
 
-                {!usesMatrix && (
+                {isStandardProduct && (
                   <>
                     <div className="ecu-companies-form__field">
                       <NumberBox
@@ -1139,11 +1139,15 @@ export function CreateCatalogItemPage() {
               width={400}
               form="create-catalog-item"
               variant="primary"
+              title={usesMatrix ? 'Guardar producto matriz con variantes' : undefined}
               loading={busy}
               disabled={busy || (!appliedTemplate && !isStandardProduct)}
             >
               <Save size={16} />
-              <span>{uploadStatus || (usesMatrix ? 'Guardar producto con variantes' : 'Guardar producto')}</span>
+              <span>
+                {uploadStatus ||
+                  (usesMatrix ? 'Guardar con variantes' : 'Guardar producto')}
+              </span>
             </Button>
             <Button type="button" variant="outline" disabled={busy} onClick={goToList}>
               Cancelar

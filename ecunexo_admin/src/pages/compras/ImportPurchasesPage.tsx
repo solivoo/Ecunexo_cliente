@@ -1233,25 +1233,27 @@ export function ImportPurchasesPage() {
                     disabled={isProcessingFiles || savingBatch}
                   >
                     <UploadCloud size={16} />
-                    Seleccionar archivos XML
+                    Archivos XML
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
+                    title="Pegar contenido XML en texto"
                     onClick={() => setPasteModalOpen(true)}
                     disabled={isProcessingFiles || savingBatch}
                   >
                     <FileCode size={16} />
-                    Pegar XML en texto
+                    Pegar XML
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
+                    title="Agregar factura física preimpresa"
                     onClick={() => setManualPhysicalOpen(true)}
                     disabled={isProcessingFiles || savingBatch}
                   >
                     <FileText size={16} />
-                    Agregar Factura Física Preimpresa
+                    Factura física
                   </Button>
                 </div>
               </div>
@@ -1532,6 +1534,7 @@ export function ImportPurchasesPage() {
                   <Button
                     variant="primary"
                     size="md"
+                    title="Registrar facturas seleccionadas en el sistema"
                     disabled={savingBatch || isProcessingFiles || stats.selectedCount === 0}
                     loading={savingBatch}
                     onClick={() => void handleRegisterInvoices(false)}
@@ -1539,7 +1542,7 @@ export function ImportPurchasesPage() {
                     <CheckCircle2 size={16} />
                     {savingBatch
                       ? saveProgress || 'Registrando...'
-                      : `Registrar Facturas Seleccionadas (${stats.selectedCount})`}
+                      : `Registrar (${stats.selectedCount})`}
                   </Button>
                 </div>
               </div>
@@ -2145,7 +2148,7 @@ export function ImportPurchasesPage() {
                       onClick={() => void handleRegisterInvoices(true)}
                     >
                       <CheckCircle2 size={16} />
-                      Registrar Factura en el Sistema
+                      Registrar factura
                     </Button>
                   </div>
                 </div>

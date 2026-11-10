@@ -30,7 +30,6 @@ import {
   readPhotoChoice,
 } from '@/lib/catalogArchetype'
 import { VariantPhysicalFields } from '@/pages/catalog/VariantPhysicalFields'
-import { parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 import '@/pages/catalog/variantMatrixBuilder.css'
 
@@ -60,8 +59,6 @@ export function CreateCatalogVariantPage() {
   const [dimValues, setDimValues] = useState<Record<string, string>>({})
   const [sku, setSku] = useState('')
   const [barcode, setBarcode] = useState('')
-  const [costPrice, setCostPrice] = useState('')
-  const [basePrice, setBasePrice] = useState('')
   const [attributeValues, setAttributeValues] = useState<CustomAttributeRow[]>([])
   const [variantImage, setVariantImage] = useState<File | null>(null)
   const [variantImagePreview, setVariantImagePreview] = useState<string | null>(null)
@@ -343,19 +340,14 @@ export function CreateCatalogVariantPage() {
         }
       }
 
-      const rawCostPrice = parsePriceInput(costPrice)
-      const parsedCostPrice = rawCostPrice != null && rawCostPrice >= 0 ? rawCostPrice : null
-      const rawBasePrice = parsePriceInput(basePrice)
-      const parsedBasePrice = rawBasePrice != null && rawBasePrice >= 0 ? rawBasePrice : null
-
       setSubmitting(true)
       try {
         const createdVariant = await addCatalogItemVariant(tenantId, parentItem.id, {
           variantTitle: finalTitle,
           sku: skuClean,
           barcode: barcode.trim() || null,
-          costPrice: parsedCostPrice,
-          basePrice: parsedBasePrice,
+          costPrice: null,
+          basePrice: null,
           customAttributesJson: JSON.stringify(attributes),
         })
 
@@ -393,8 +385,6 @@ export function CreateCatalogVariantPage() {
     [
       attributeValues,
       barcode,
-      costPrice,
-      basePrice,
       canEdit,
       dimValues,
       dimensions,
@@ -431,9 +421,13 @@ export function CreateCatalogVariantPage() {
             <p style={{ color: 'var(--glb-text-muted, #64748b)', marginBottom: '1rem' }}>
               El producto matriz solicitado no existe o no se pudo cargar.
             </p>
-            <Button variant="outline" onClick={() => navigate('/catalogo/items')}>
-              <ArrowLeft size={16} style={{ marginRight: '0.4rem' }} />
-              Volver al catálogo
+            <Button
+              variant="outline"
+              title="Volver al catálogo"
+              onClick={() => navigate('/catalogo/items')}
+            >
+              <ArrowLeft size={16} />
+              Al catálogo
             </Button>
           </SectionCard>
         </div>
@@ -450,7 +444,7 @@ export function CreateCatalogVariantPage() {
               El ítem «{parentItem.name}» es un producto simple o una variante física existente, no un producto matriz.
             </p>
             <Button variant="outline" onClick={() => navigate(`/catalogo/items/${parentItem.id}`)}>
-              <ArrowLeft size={16} style={{ marginRight: '0.4rem' }} />
+              <ArrowLeft size={16} />
               Ver ítem
             </Button>
           </SectionCard>
@@ -565,10 +559,6 @@ export function CreateCatalogVariantPage() {
               onSkuChange={setSku}
               barcode={barcode}
               onBarcodeChange={setBarcode}
-              costPrice={costPrice}
-              onCostPriceChange={setCostPrice}
-              basePrice={basePrice}
-              onBasePriceChange={setBasePrice}
               dimensions={dimensions}
               dimensionValues={dimValues}
               onDimensionChange={handleDimChange}
@@ -643,8 +633,8 @@ export function CreateCatalogVariantPage() {
               loading={submitting}
               disabled={submitting || remainingVariants === 0 || skuAlreadyExists}
             >
-              <Save size={16} style={{ marginRight: '0.4rem' }} />
-              {submitting ? 'Guardando variante…' : 'Guardar Variante'}
+              <Save size={16} />
+              {submitting ? 'Guardando…' : 'Guardar variante'}
             </Button>
 
             <Button

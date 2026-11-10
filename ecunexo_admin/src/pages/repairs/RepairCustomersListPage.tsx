@@ -710,7 +710,8 @@ export default function RepairCustomersListPage() {
             )}
             {canImportBatches && (
               <GridIconButton
-                label="Importar Lote para este Cliente"
+                label="Importar lote"
+                title="Importar lote de reparación para este cliente"
                 icon={FilePlus}
                 onClick={() => navigate(`/taller/lotes/nuevo?clienteId=${row.id}`)}
               />

@@ -427,8 +427,12 @@ export function CreateDeveloperApiKeyPage() {
               </StatusBadge>
             }
             actions={
-              <Button variant="outline" onClick={() => navigate('/organizacion/api')}>
-                <ArrowLeft size={15} /> Volver al listado de API Keys
+              <Button
+                variant="outline"
+                title="Volver al listado de API Keys"
+                onClick={() => navigate('/organizacion/api')}
+              >
+                <ArrowLeft size={15} /> Volver al listado
               </Button>
             }
           />
@@ -497,11 +501,12 @@ export function CreateDeveloperApiKeyPage() {
                 <Button
                   type="button"
                   variant="outline"
+                  title="Descargar archivo .env.ecunexo"
                   onClick={() =>
                     downloadEnvFile(createdSecret.plainTextKey, createdSecret.name)
                   }
                 >
-                  <Download size={15} /> Descargar .env.ecunexo
+                  <Download size={15} /> Descargar .env
                 </Button>
               </div>
 
@@ -522,9 +527,10 @@ export function CreateDeveloperApiKeyPage() {
                 <Button
                   type="button"
                   variant="primary"
+                  title="He guardado la credencial de forma segura"
                   onClick={() => navigate('/organizacion/api')}
                 >
-                  <CheckCircle2 size={16} /> He guardado la credencial · Ir al listado
+                  <CheckCircle2 size={16} /> Ir al listado
                 </Button>
               </div>
             </div>

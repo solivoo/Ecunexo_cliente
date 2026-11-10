@@ -29,7 +29,7 @@ import {
   type DimensionLookup,
 } from '@/lib/catalogArchetype'
 import { VariantPhysicalFields } from '@/pages/catalog/VariantPhysicalFields'
-import { computeProfitAndMargin, parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
+import { computeProfitAndMargin } from '@/pages/catalog/CatalogPricingMarginBar'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 import { VariantAdminSummaryBlock } from '@/pages/catalog/VariantAdminSummaryBlock'
 import type { CatalogMatrixAxisDto } from '@/types/catalogApi'
@@ -207,8 +207,6 @@ export function EditCatalogItemVariantsSection({
   const [editModalVariant, setEditModalVariant] = useState<VariantRow | null>(null)
   const [editModalSku, setEditModalSku] = useState('')
   const [editModalBarcode, setEditModalBarcode] = useState('')
-  const [editModalCostPrice, setEditModalCostPrice] = useState('')
-  const [editModalBasePrice, setEditModalBasePrice] = useState('')
   const [editModalDimValues, setEditModalDimValues] = useState<Record<string, string>>({})
   const [editModalAttributeValues, setEditModalAttributeValues] = useState<CustomAttributeRow[]>([])
   const [savingEditModal, setSavingEditModal] = useState(false)
@@ -389,8 +387,6 @@ export function EditCatalogItemVariantsSection({
       setEditModalVariant(row)
       setEditModalSku(row.sku ?? '')
       setEditModalBarcode(row.barcode ?? '')
-      setEditModalCostPrice(row.costPrice != null ? String(row.costPrice) : '')
-      setEditModalBasePrice(row.basePrice != null ? String(row.basePrice) : '')
 
       const attrs = parseAttributes(row.customAttributesJson)
       const dims: Record<string, string> = {}
@@ -461,19 +457,14 @@ export function EditCatalogItemVariantsSection({
         }
       }
 
-      const rawCost = parsePriceInput(editModalCostPrice)
-      const parsedCostPrice = rawCost != null && rawCost >= 0 ? rawCost : null
-      const rawBase = parsePriceInput(editModalBasePrice)
-      const parsedBasePrice = rawBase != null && rawBase >= 0 ? rawBase : null
-
       await updateCatalogItem(tenantId, editModalVariant.id, {
         kind: parentItem.kind,
         name: resolvedName,
         description: resolvedDescription,
         sku: editModalSku.trim() || null,
         barcode: editModalBarcode.trim() || null,
-        costPrice: parsedCostPrice,
-        basePrice: parsedBasePrice,
+        costPrice: editModalVariant.costPrice ?? null,
+        basePrice: editModalVariant.basePrice ?? null,
         customAttributesJson: JSON.stringify(merged),
         familyId: parentItem.familyId ?? null,
         hierarchyPathJson: parentItem.hierarchyPathJson ?? null,
@@ -499,8 +490,6 @@ export function EditCatalogItemVariantsSection({
   }, [
     editModalAttributeValues,
     editModalBarcode,
-    editModalCostPrice,
-    editModalBasePrice,
     editModalDimValues,
     editModalSku,
     editModalVariant,
@@ -778,8 +767,8 @@ export function EditCatalogItemVariantsSection({
                     : undefined
                 }
               >
-                <Plus size={15} style={{ marginRight: '0.35rem' }} />
-                Añadir Variante
+                <Plus size={15} />
+                Añadir variante
               </Button>
             </div>
           ) : undefined
@@ -1082,10 +1071,6 @@ export function EditCatalogItemVariantsSection({
               onSkuChange={setEditModalSku}
               barcode={editModalBarcode}
               onBarcodeChange={setEditModalBarcode}
-              costPrice={editModalCostPrice}
-              onCostPriceChange={setEditModalCostPrice}
-              basePrice={editModalBasePrice}
-              onBasePriceChange={setEditModalBasePrice}
               dimensions={dimensions}
               dimensionValues={editModalDimValues}
               onDimensionChange={(dimName, value) =>

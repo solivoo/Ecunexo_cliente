@@ -11,7 +11,7 @@ import {
 } from '@/lib/catalogArchetype'
 import { isVariantBuiltInColumnKey } from '@/lib/catalogBaseAttributes'
 import type { CreateVariantChildPayload, TenantMediaAssetDto } from '@/types/catalogApi'
-import { CatalogPricingMarginBar, parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
+import { parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
 import './variantMatrixBuilder.css'
 
 export type DimensionState = {
@@ -1746,51 +1746,6 @@ export function VariantMatrixBuilder({
                           fullWidth
                         />
                       </div>
-
-                      {/* Precio base (Costo) + PVP + Margen */}
-                      <div className="ecu-variant-sub-item-field">
-                        <label className="ecu-variant-sub-item-label">Precio base / Costo ($)</label>
-                        <NumberBox
-                          size="sm"
-                          variant="outline"
-                          min={0}
-                          step={0.01}
-                          value={row.costPrice !== '' ? Number(row.costPrice) : undefined}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            updateRow(row.id, 'costPrice', e.target.value)
-                          }
-                          placeholder="0.00"
-                          disabled={disabled}
-                          fullWidth
-                        />
-                      </div>
-
-                      <div className="ecu-variant-sub-item-field">
-                        <label className="ecu-variant-sub-item-label">PVP ($)</label>
-                        <NumberBox
-                          size="sm"
-                          variant="outline"
-                          min={0}
-                          step={0.01}
-                          value={row.basePrice !== '' ? Number(row.basePrice) : undefined}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            updateRow(row.id, 'basePrice', e.target.value)
-                          }
-                          placeholder="0.00"
-                          disabled={disabled}
-                          fullWidth
-                        />
-                      </div>
-
-                      <div className="ecu-variant-sub-item-field">
-                        <label className="ecu-variant-sub-item-label">Ganancia / Margen</label>
-                        <CatalogPricingMarginBar
-                          costPrice={row.costPrice}
-                          basePrice={row.basePrice}
-                          compact
-                        />
-                      </div>
-
 
                       {/* Atributos del nivel terminal: se capturan por variante (Nombre ya va junto al SKU) */}
                       {variantFieldsAfterSku.map((field) => {

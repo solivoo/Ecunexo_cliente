@@ -372,8 +372,8 @@ export function RemisionGuidesListPage() {
                     size="md"
                     onClick={() => navigate('/facturacion/guias-remision/nueva')}
                   >
-                    <Plus size={16} style={{ marginRight: 4 }} />
-                    Emitir Primera Guía
+                    <Plus size={16} />
+                    Primera guía
                   </Button>
                 ) : undefined
               }
@@ -422,8 +422,8 @@ export function RemisionGuidesListPage() {
                       size="sm"
                       onClick={() => navigate('/facturacion/guias-remision/nueva')}
                     >
-                      <Plus size={16} style={{ marginRight: 4 }} />
-                      + Nueva Guía de Remisión
+                      <Plus size={16} />
+                      + Nueva guía
                     </Button>
                   )}
                 </div>

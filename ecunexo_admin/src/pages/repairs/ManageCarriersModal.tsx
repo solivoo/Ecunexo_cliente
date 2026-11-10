@@ -215,7 +215,7 @@ export function ManageCarriersModal({
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button type="button" variant="primary" size="sm" onClick={handleStartCreate}>
               <Plus size={15} strokeWidth={2} aria-hidden />
-              + Registrar nuevo operador
+              + Nuevo operador
             </Button>
           </div>
         )}

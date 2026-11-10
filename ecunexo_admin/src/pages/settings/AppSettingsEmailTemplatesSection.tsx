@@ -274,7 +274,7 @@ export function AppSettingsEmailTemplatesSection({
             onClick={() => void handleGeneratePreview()}
             disabled={previewing}
           >
-            <Eye size={14} /> Vista Previa con Datos Reales
+            <Eye size={14} /> Vista previa
           </Button>
         </div>
 
@@ -370,7 +370,7 @@ export function AppSettingsEmailTemplatesSection({
               onClick={() => void handleReset()}
               disabled={disabled || resetting || saving}
             >
-              <RotateCcw size={14} /> Restablecer a Predeterminada
+              <RotateCcw size={14} /> Restablecer
             </Button>
           )}
 

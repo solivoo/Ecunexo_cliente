@@ -287,11 +287,12 @@ export function ItemCustomAttributesEditor({
             type="button"
             variant="outline"
             size="sm"
+            title="Añadir primer atributo personalizado"
             onClick={() => handleAddRow()}
             disabled={disabled}
           >
-            <Plus size={14} aria-hidden style={{ marginRight: '0.35rem' }} />
-            + Añadir primer atributo
+            <Plus size={14} aria-hidden />
+            + Atributo
           </Button>
         </div>
       ) : (
@@ -458,8 +459,8 @@ export function ItemCustomAttributesEditor({
               onClick={() => handleAddRow()}
               disabled={disabled}
             >
-              <Plus size={14} aria-hidden style={{ marginRight: '0.35rem' }} />
-              Añadir otro atributo
+              <Plus size={14} aria-hidden />
+              + Otro atributo
             </Button>
           </div>
         </div>

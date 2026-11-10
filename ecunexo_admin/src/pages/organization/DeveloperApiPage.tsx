@@ -514,10 +514,11 @@ export function DeveloperApiPage() {
                 type="button"
                 size="sm"
                 variant="primary"
+                title="Portal de documentación para desarrolladores (/developers)"
                 onClick={() => window.open('/developers', '_blank', 'noopener,noreferrer')}
               >
                 <ExternalLink size={15} />
-                Portal de Documentación (/developers)
+                Docs /developers
               </Button>
               <Button
                 type="button"
@@ -585,15 +586,16 @@ export function DeveloperApiPage() {
                 variant={activeCenterTab === 'env' ? 'primary' : 'outline'}
                 onClick={() => setActiveCenterTab('env')}
               >
-                <Terminal size={14} /> Variables .env y cURL
+                <Terminal size={14} /> .env y cURL
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant={activeCenterTab === 'sandbox' ? 'primary' : 'outline'}
                 onClick={() => setActiveCenterTab('sandbox')}
+                title="Probador M2M en Vivo"
               >
-                <Activity size={14} /> Probador M2M en Vivo
+                <Activity size={14} /> Probar M2M
               </Button>
             </div>
           }
@@ -738,11 +740,12 @@ export function DeveloperApiPage() {
                   <Button
                     type="button"
                     variant="primary"
+                    title="Probar conexión M2M en vivo"
                     disabled={probing}
                     onClick={() => void handleRunLiveProbe()}
                   >
                     <Play size={15} />
-                    {probing ? 'Ejecutando prueba…' : 'Probar Conexión M2M'}
+                    {probing ? 'Ejecutando…' : 'Probar M2M'}
                   </Button>
                 </div>
               </div>
@@ -813,11 +816,12 @@ export function DeveloperApiPage() {
                 <Button
                   type="button"
                   variant="primary"
+                  title="Emitir primera API Key"
                   disabled={!canManage}
                   onClick={() => navigate('/organizacion/api/nueva')}
                 >
-                  <Plus size={16} style={{ marginRight: '0.35rem' }} />
-                  Emitir Primera API Key
+                  <Plus size={16} />
+                  Primera API Key
                 </Button>
               }
             />
@@ -848,10 +852,11 @@ export function DeveloperApiPage() {
                   <Button
                     type="button"
                     variant="primary"
+                    title="Emitir nueva API Key"
                     disabled={!canManage}
                     onClick={() => navigate('/organizacion/api/nueva')}
                   >
-                    + Emitir Nueva API Key
+                    + Nueva API Key
                   </Button>
                 </div>
               }
@@ -992,7 +997,7 @@ export function DeveloperApiPage() {
                   disabled={revoking}
                   onClick={() => void handleConfirmRevoke()}
                 >
-                  {revoking ? 'Revocando…' : 'Sí, revocar credencial'}
+                  {revoking ? 'Revocando…' : 'Sí, revocar'}
                 </Button>
               </div>
             </div>

@@ -164,9 +164,10 @@ export function FacturaEmitirPage() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  title="Ver diagnóstico de emisión y estructura XML"
                   onClick={() => form.setTraceOpen(true)}
                 >
-                  Ver Diagnóstico y XML
+                  Diagnóstico XML
                 </Button>
               </div>
             )}

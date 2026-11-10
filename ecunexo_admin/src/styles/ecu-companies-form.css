@@ -283,13 +283,16 @@ html.sf-dark-mode .ecu-invoice-status--danger {
 }
 
 .ecu-companies-form__actions > * {
-  flex: 0 0 11rem;
+  flex: 0 0 auto;
   min-width: 11rem;
-  width: 11rem;
+  width: auto;
 }
 
 .ecu-companies-form__actions .glb-btn {
-  width: 100%;
+  width: auto;
+  min-width: 11rem;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
   justify-content: center;
 }
 

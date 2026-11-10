@@ -293,7 +293,7 @@ export function CreditNotesListPage() {
                     variant="primary"
                     onClick={() => navigate('/facturacion/notas-credito/nueva')}
                   >
-                    Crear la primera Nota de Crédito
+                    Primera nota de crédito
                   </Button>
                 ) : undefined
               }
@@ -335,7 +335,7 @@ export function CreditNotesListPage() {
                       variant="primary"
                       onClick={() => navigate('/facturacion/notas-credito/nueva')}
                     >
-                      + Nueva Nota de Crédito
+                      + Nueva nota
                     </Button>
                   )}
                 </div>

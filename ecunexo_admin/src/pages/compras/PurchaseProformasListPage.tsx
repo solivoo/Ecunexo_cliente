@@ -338,7 +338,7 @@ export function PurchaseProformasListPage() {
                 canManage ? (
                   <Button variant="primary" onClick={openCreate}>
                     <Plus size={16} />
-                    Registrar Primera Proforma
+                    Primera proforma
                   </Button>
                 ) : undefined
               }

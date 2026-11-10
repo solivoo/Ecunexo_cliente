@@ -295,7 +295,7 @@ export function AboutAppModal({ open, onClose }: AboutAppModalProps) {
             className="ecu-about-modal__copy-btn"
           >
             {copied ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
-            <span>{copied ? '¡Copiado!' : 'Copiar diagnóstico de soporte'}</span>
+            <span title="Copiar diagnóstico de soporte">{copied ? '¡Copiado!' : 'Copiar diagnóstico'}</span>
           </Button>
         </div>
       </div>

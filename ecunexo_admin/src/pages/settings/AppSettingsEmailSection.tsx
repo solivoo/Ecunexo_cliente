@@ -624,12 +624,13 @@ export function AppSettingsEmailSection({
               <Button
                 type="button"
                 variant="outline"
+                title="Volver al correo predeterminado del sistema"
                 loading={resetting}
                 disabled={disabled || loading || resetting}
                 onClick={handleResetToUniversal}
               >
                 <RotateCcw size={15} aria-hidden />
-                <span>Volver al correo predeterminado</span>
+                <span>Correo predeterminado</span>
               </Button>
             ) : null}
           </div>

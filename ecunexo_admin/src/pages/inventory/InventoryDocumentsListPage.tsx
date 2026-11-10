@@ -12,7 +12,7 @@ import {
 } from '@/components/ui'
 import { GridDateRangeBox } from '@/components/ui/GridDateRangeBox'
 import { GridIconButton } from '@/components/ui/GridIconButton'
-import { Eye, PackageCheck } from 'lucide-react'
+import { CheckCircle2, Eye, PackageCheck, Truck } from 'lucide-react'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { renderSidebarIcon } from '@/config/sidebarIcons'
 import { useGluComponentSize } from '@/hooks/useGluComponentSize'
@@ -24,7 +24,11 @@ import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { isoInstantInRange } from '@/lib/gridLookback'
 import { inventoryDocumentStatusLabel, inventoryDocumentTypeLabel } from '@/lib/inventoryLabels'
 import { readApiError } from '@/lib/readApiError'
-import { listInventoryDocuments, receiveInventoryTransfer } from '@/services/inventoryApi'
+import {
+  approveInventoryDocument,
+  listInventoryDocuments,
+  receiveInventoryTransfer,
+} from '@/services/inventoryApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import {
@@ -34,13 +38,17 @@ import {
 } from '@/types/inventoryApi'
 
 type Row = InventoryDocumentListItemDto & Record<string, unknown>
-type DocumentQueue = 'todas' | 'recibir' | 'borradores'
+type DocumentQueue = 'todas' | 'recibir' | 'borradores' | 'aprobar'
 
 const messages = createSpanishDataGridMessages('documento', 'documentos')
 
 function queueFromSearch(raw: string | null): DocumentQueue {
-  if (raw === 'recibir' || raw === 'borradores') return raw
+  if (raw === 'recibir' || raw === 'borradores' || raw === 'aprobar') return raw
   return 'todas'
+}
+
+function isDraftPending(row: InventoryDocumentListItemDto): boolean {
+  return row.status === InventoryDocumentStatus.Draft
 }
 
 function isPendingReceipt(row: InventoryDocumentListItemDto): boolean {
@@ -74,8 +82,14 @@ export function InventoryDocumentsListPage() {
     useHasPermission('inventory.documents.approve') ||
     useHasPermission('inventory.stock.read')
   const canCreate = useHasPermission('inventory.documents.create')
-  const canReceive = useHasPermission('inventory.documents.approve')
-  const queue = queueFromSearch(params.get('cola'))
+  const canApprove = useHasPermission('inventory.documents.approve')
+  const rawQueue = queueFromSearch(params.get('cola'))
+  const queue: DocumentQueue =
+    canApprove && rawQueue === 'borradores'
+      ? 'aprobar'
+      : !canApprove && rawQueue === 'aprobar'
+        ? 'borradores'
+        : rawQueue
   const [rows, setRows] = useState<InventoryDocumentListItemDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -109,6 +123,20 @@ export function InventoryDocumentsListPage() {
     if (canRead) void load({ silent: true })
   }, [canRead, load])
 
+  // Normaliza alias de URL: borradores ↔ aprobar según permiso
+  useEffect(() => {
+    const cola = params.get('cola')
+    if (canApprove && cola === 'borradores') {
+      const nextParams = new URLSearchParams(params)
+      nextParams.set('cola', 'aprobar')
+      setParams(nextParams, { replace: true })
+    } else if (!canApprove && cola === 'aprobar') {
+      const nextParams = new URLSearchParams(params)
+      nextParams.set('cola', 'borradores')
+      setParams(nextParams, { replace: true })
+    }
+  }, [canApprove, params, setParams])
+
   const setQueue = useCallback(
     (next: string) => {
       const cola = queueFromSearch(next)
@@ -121,13 +149,10 @@ export function InventoryDocumentsListPage() {
   )
 
   const pendingReceipts = useMemo(() => rows.filter(isPendingReceipt), [rows])
-  const drafts = useMemo(
-    () => rows.filter((r) => r.status === InventoryDocumentStatus.Draft),
-    [rows]
-  )
+  const drafts = useMemo(() => rows.filter(isDraftPending), [rows])
   const queuedRows = useMemo(() => {
     if (queue === 'recibir') return pendingReceipts
-    if (queue === 'borradores') return drafts
+    if (queue === 'borradores' || queue === 'aprobar') return drafts
     return rows
   }, [drafts, pendingReceipts, queue, rows])
   const visibleRows = useMemo(
@@ -151,6 +176,34 @@ export function InventoryDocumentsListPage() {
         toast.show({
           title: 'Error',
           message: readApiError(err, 'No se pudo confirmar la recepción.'),
+          variant: 'error',
+        })
+      } finally {
+        setBusyId(null)
+      }
+    },
+    [load, tenantId, toast]
+  )
+
+  const approveOne = useCallback(
+    async (row: InventoryDocumentListItemDto) => {
+      if (!tenantId) return
+      setBusyId(row.id)
+      try {
+        await approveInventoryDocument(tenantId, row.id)
+        const isTransfer = row.documentType === InventoryDocumentType.Transfer
+        toast.show({
+          title: isTransfer ? 'Despachado' : 'Aprobado',
+          message: isTransfer
+            ? 'Stock en tránsito. Confirma la recepción cuando llegue a destino.'
+            : 'Kárdex y stock actualizados.',
+          variant: 'success',
+        })
+        await load({ silent: true })
+      } catch (err: unknown) {
+        toast.show({
+          title: 'Error',
+          message: readApiError(err, 'No se pudo aprobar el documento.'),
           variant: 'error',
         })
       } finally {
@@ -248,12 +301,25 @@ export function InventoryDocumentsListPage() {
         key: 'id',
         header: 'Acciones',
         sticky: 'right',
-        width: canReceive ? 104 : 72,
+        width: canApprove ? 136 : 72,
         align: 'center',
         sortable: false,
         renderCell: (_v: Row['id'], row: Row) => (
           <div className="ecu-companies-grid__actions">
-            {canReceive && isPendingReceipt(row) ? (
+            {canApprove && isDraftPending(row) ? (
+              <GridIconButton
+                label={
+                  row.documentType === InventoryDocumentType.Transfer
+                    ? 'Despachar a tránsito'
+                    : 'Aprobar documento'
+                }
+                icon={row.documentType === InventoryDocumentType.Transfer ? Truck : CheckCircle2}
+                disabled={busyId === row.id}
+                loading={busyId === row.id}
+                onClick={() => void approveOne(row)}
+              />
+            ) : null}
+            {canApprove && isPendingReceipt(row) ? (
               <GridIconButton
                 label="Confirmar recepción"
                 icon={PackageCheck}
@@ -271,7 +337,7 @@ export function InventoryDocumentsListPage() {
         ),
       },
     ],
-    [busyId, canReceive, navigate, receiveOne]
+    [approveOne, busyId, canApprove, navigate, receiveOne]
   )
 
   if (!canRead) {
@@ -305,7 +371,10 @@ export function InventoryDocumentsListPage() {
           <StatCard label="Documentos" value={rows.length} />
           <StatCard label="Por recibir" value={pendingReceipts.length} />
           <StatCard label="Recepciones" value={receipts} />
-          <StatCard label="Borradores" value={drafts.length} />
+          <StatCard
+            label={canApprove ? 'Por aprobar' : 'Borradores'}
+            value={drafts.length}
+          />
         </div>
 
         <SectionCard
@@ -320,10 +389,15 @@ export function InventoryDocumentsListPage() {
                   value: 'recibir',
                   label: `Por recibir${pendingReceipts.length ? ` (${pendingReceipts.length})` : ''}`,
                 },
-                {
-                  value: 'borradores',
-                  label: `Borradores${drafts.length ? ` (${drafts.length})` : ''}`,
-                },
+                canApprove
+                  ? {
+                      value: 'aprobar',
+                      label: `Por aprobar${drafts.length ? ` (${drafts.length})` : ''}`,
+                    }
+                  : {
+                      value: 'borradores',
+                      label: `Borradores${drafts.length ? ` (${drafts.length})` : ''}`,
+                    },
               ]}
               value={queue}
               onChange={setQueue}
@@ -346,14 +420,20 @@ export function InventoryDocumentsListPage() {
               title={
                 queue === 'recibir'
                   ? 'Sin transferencias por recibir'
-                  : queue === 'borradores'
-                    ? 'Sin documentos en borrador'
-                    : 'Aún no hay documentos registrados'
+                  : queue === 'aprobar'
+                    ? 'Nada por aprobar'
+                    : queue === 'borradores'
+                      ? 'Sin documentos en borrador'
+                      : 'Aún no hay documentos registrados'
               }
               description={
                 queue === 'recibir'
                   ? 'Cuando despaches una transferencia entre bodegas, aparecerá aquí para confirmar su llegada en destino.'
-                  : 'Crea un documento de recepción para ingresar stock inicial o registrar compras a proveedores.'
+                  : queue === 'aprobar'
+                    ? 'Los documentos guardados sin aprobar aparecerán aquí para pasarlos a stock.'
+                    : queue === 'borradores'
+                      ? 'Los documentos que guardes quedarán aquí hasta que alguien con permiso los apruebe.'
+                      : 'Crea un documento de recepción para ingresar stock inicial o registrar compras a proveedores.'
               }
               action={
                 canCreate && queue !== 'recibir' ? (

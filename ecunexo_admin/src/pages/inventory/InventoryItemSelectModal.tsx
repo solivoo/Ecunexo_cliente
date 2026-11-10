@@ -524,12 +524,13 @@ export function InventoryItemSelectModal({
                     type="button"
                     variant="ghost"
                     size="sm"
+                    title="Seleccionar todos los productos visibles en la búsqueda"
                     onClick={() => {
                       const allIds = new Set(filteredSearchRows.map((r) => r.id))
                       setSelectedIds(allIds)
                     }}
                   >
-                    Seleccionar visibles ({filteredSearchRows.length})
+                    Sel. visibles ({filteredSearchRows.length})
                   </Button>
                 ) : null}
                 {onRequestCreateItem ? (
@@ -542,7 +543,7 @@ export function InventoryItemSelectModal({
                       onRequestCreateItem(searchFilter.trim())
                     }}
                   >
-                    + Crear producto rápido
+                    + Crear producto
                   </Button>
                 ) : null}
               </div>
@@ -561,14 +562,19 @@ export function InventoryItemSelectModal({
                     type="button"
                     variant="primary"
                     size="sm"
+                    title={
+                      searchFilter.trim()
+                        ? `Crear «${searchFilter.trim()}» en el catálogo`
+                        : 'Crear nuevo producto en el catálogo'
+                    }
                     onClick={() => {
                       onClose()
                       onRequestCreateItem(searchFilter.trim())
                     }}
                   >
                     {searchFilter.trim()
-                      ? `+ Crear «${searchFilter.trim()}» en el catálogo`
-                      : '+ Crear nuevo producto en el catálogo'}
+                      ? `+ Crear «${searchFilter.trim()}»`
+                      : '+ Crear producto'}
                   </Button>
                 ) : null}
               </div>

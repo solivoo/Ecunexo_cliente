@@ -406,11 +406,12 @@ export function ChartOfAccountsPage() {
                 canManage ? (
                   <Button
                     variant="primary"
+                    title="Sembrar catálogo estándar SCVS Ecuador"
                     onClick={() => void handleSeed()}
                     disabled={saving}
                   >
                     <Sparkles size={16} />
-                    Sembrar Catálogo Estándar SCVS Ecuador
+                    Sembrar plan SCVS
                   </Button>
                 ) : undefined
               }

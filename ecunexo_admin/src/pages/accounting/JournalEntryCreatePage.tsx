@@ -240,11 +240,12 @@ export default function JournalEntryCreatePage() {
           actions={
             <Button
               variant="outline"
+              title="Volver al libro diario"
               onClick={() => navigate('/contabilidad/asientos')}
               disabled={submitting}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Volver al Libro Diario
+              Al libro diario
             </Button>
           }
         />
