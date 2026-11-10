@@ -973,8 +973,8 @@ export function EditCatalogItemPage() {
                         labelPosition="outlined"
                         variant="outline"
                         options={[
-                          { value: String(CatalogItemKind.Physical), label: '📦 Físico (con inventario)' },
-                          { value: String(CatalogItemKind.Service), label: '⚙️ Servicio (sin stock)' },
+                          { value: String(CatalogItemKind.Physical), label: 'Físico' },
+                          { value: String(CatalogItemKind.Service), label: 'Servicio' },
                         ]}
                         value={String(kind)}
                         onChange={(val) => setKind(val)}
@@ -1119,7 +1119,7 @@ export function EditCatalogItemPage() {
                         </p>
                       </div>
 
-                      <div className="ecu-companies-form__field">
+                      <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                         <CatalogPricingMarginBar costPrice={costPrice} basePrice={basePrice} />
                       </div>
                     </>

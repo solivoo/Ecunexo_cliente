@@ -718,7 +718,7 @@ export function CreateCatalogItemPage() {
                   variant="outline"
                   options={[
                     { value: '', label: 'Elige una opción…' },
-                    { value: '__none__', label: '📦 Producto estándar (sin plantilla / ficha rápida)' },
+                    { value: '__none__', label: 'Producto estándar' },
                     ...productTemplates.map((t) => ({ value: t.id, label: `Plantilla: ${t.name}` })),
                   ]}
                   value={selectedTemplateId}
@@ -796,8 +796,8 @@ export function CreateCatalogItemPage() {
                       labelPosition="outlined"
                       variant="outline"
                       options={[
-                        { value: String(CatalogItemKind.Physical), label: '📦 Físico (con inventario)' },
-                        { value: String(CatalogItemKind.Service), label: '⚙️ Servicio (sin stock)' },
+                        { value: String(CatalogItemKind.Physical), label: 'Físico' },
+                        { value: String(CatalogItemKind.Service), label: 'Servicio' },
                       ]}
                       value={String(kind)}
                       onChange={(val) => setKind(Number(val) as CatalogItemKind)}
@@ -824,7 +824,7 @@ export function CreateCatalogItemPage() {
                       variant="outline"
                       value={name}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                      placeholder={usesMatrix ? 'Ej. Calcetín Nike blanca logo negro' : 'Ej. Calcetín Hello Kitty'}
+                      placeholder={usesMatrix ? 'Ingrese una descripción de la matriz' : 'Ingrese una descripción del producto'}
                       required
                       disabled={busy}
                       fullWidth
@@ -912,9 +912,6 @@ export function CreateCatalogItemPage() {
                         disabled={busy}
                         fullWidth
                       />
-                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                        Costo por artículo para calcular tu ganancia (los clientes no verán esto).
-                      </p>
                     </div>
 
                     <div className="ecu-companies-form__field">
@@ -931,12 +928,9 @@ export function CreateCatalogItemPage() {
                         disabled={busy}
                         fullWidth
                       />
-                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                        Precio unitario de venta al público para facturación y ventas.
-                      </p>
                     </div>
 
-                    <div className="ecu-companies-form__field">
+                    <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                       <CatalogPricingMarginBar costPrice={costPrice} basePrice={basePrice} />
                     </div>
                   </>
@@ -962,10 +956,7 @@ export function CreateCatalogItemPage() {
                         disabled={busy}
                         fullWidth
                       />
-                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                        Cantidad mínima que debe comprar el cliente de este producto en la
-                        tienda online.
-                      </p>
+
                     </div>
 
                     <div className="ecu-companies-form__field">
@@ -1018,13 +1009,6 @@ export function CreateCatalogItemPage() {
                   </div>
                 ) : null}
               </div>
-              <span className="ecu-hint">
-                {usesMatrix
-                  ? 'El nombre y el código identifican al modelo matriz. Cada variante física abajo tendrá su propio SKU, precios y atributos según tu plantilla.'
-                  : isStandardProduct
-                    ? 'El nombre y código identifican al producto en listados, ventas y comprobantes.'
-                    : 'El nombre identifica el producto; los niveles de la plantilla lo complementan en listados y búsquedas.'}
-              </span>
             </SectionCard>
           ) : null}
 
