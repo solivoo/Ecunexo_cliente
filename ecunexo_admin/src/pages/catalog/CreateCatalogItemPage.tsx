@@ -716,8 +716,8 @@ export function CreateCatalogItemPage() {
                   label="Tipo de Producto / Plantilla"
                   labelPosition="outlined"
                   variant="outline"
+                  placeholder="Elige una opción…"
                   options={[
-                    { value: '', label: 'Elige una opción…' },
                     { value: '__none__', label: 'Producto estándar' },
                     ...productTemplates.map((t) => ({ value: t.id, label: `Plantilla: ${t.name}` })),
                   ]}
@@ -788,6 +788,7 @@ export function CreateCatalogItemPage() {
               }
             >
               <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
+                {/* Identidad */}
                 {isStandardProduct && (
                   <div className="ecu-companies-form__field">
                     <Select
@@ -811,7 +812,7 @@ export function CreateCatalogItemPage() {
                   <div
                     className={`ecu-companies-form__field ${
                       isStandardProduct
-                        ? 'ecu-companies-form__field--span-3'
+                        ? 'ecu-companies-form__field--span-2'
                         : usesMatrix
                           ? ''
                           : 'ecu-companies-form__field--span-2'
@@ -824,13 +825,31 @@ export function CreateCatalogItemPage() {
                       variant="outline"
                       value={name}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                      placeholder={usesMatrix ? 'Ingrese una descripción de la matriz' : 'Ingrese una descripción del producto'}
+                      placeholder="Escriba aquí..."
                       required
                       disabled={busy}
                       fullWidth
                     />
                   </div>
                 ) : null}
+
+                {isStandardProduct ? (
+                  <div className="ecu-companies-form__field">
+                    <TextBox
+                      id="ci-brand"
+                      label="Marca / Fabricante"
+                      labelPosition="outlined"
+                      variant="outline"
+                      value={brand}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setBrand(e.target.value)}
+                      placeholder="Escriba aquí..."
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                ) : null}
+
+                {/* Códigos / identificación logística */}
                 {usesMatrix ? (
                   <div className="ecu-companies-form__field">
                     <TextBox
@@ -842,7 +861,7 @@ export function CreateCatalogItemPage() {
                       onChange={(e: ChangeEvent<HTMLInputElement>) =>
                         setMatrixCode(e.target.value.toUpperCase())
                       }
-                      placeholder="Ej. MAT-DEP-001"
+                      placeholder="Escriba aquí..."
                       error={matrixCode.trim() ? existingSkus.has(matrixCode.trim().toUpperCase()) : false}
                       errorMessage={
                         matrixCode.trim() && existingSkus.has(matrixCode.trim().toUpperCase())
@@ -864,7 +883,7 @@ export function CreateCatalogItemPage() {
                       onChange={(e: ChangeEvent<HTMLInputElement>) =>
                         setManualSku(e.target.value.toUpperCase())
                       }
-                      placeholder="Ej. CALC-001"
+                      placeholder="Escriba aquí..."
                       error={manualSku.trim() ? existingSkus.has(manualSku.trim().toUpperCase()) : false}
                       errorMessage={
                         manualSku.trim() && existingSkus.has(manualSku.trim().toUpperCase())
@@ -889,13 +908,52 @@ export function CreateCatalogItemPage() {
                       onChange={(e: ChangeEvent<HTMLInputElement>) =>
                         setBarcode(e.target.value.toUpperCase())
                       }
-                      placeholder="Ej. 7861000123456"
+                      placeholder="Escriba aquí..."
                       disabled={busy}
                       fullWidth
                     />
                   </div>
                 )}
 
+                {isStandardProduct && (
+                  <>
+                    <div className="ecu-companies-form__field">
+                      <Select
+                        id="ci-unit"
+                        label="Unidad de medida"
+                        labelPosition="outlined"
+                        variant="outline"
+                        options={[...UNIT_OF_MEASURE_OPTIONS]}
+                        value={unitOfMeasure}
+                        onChange={(val) => setUnitOfMeasure(val)}
+                        disabled={busy}
+                        fullWidth
+                      />
+                    </div>
+
+                    <div className="ecu-companies-form__field">
+                      <NumberBox
+                        id="ci-min-order-qty"
+                        label="Compra mínima (cantidad)"
+                        labelPosition="outlined"
+                        variant="outline"
+                        min={1}
+                        step={1}
+                        showSpinButtons
+                        value={minOrderQuantity}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                          setMinOrderQuantity(
+                            Math.max(1, Math.floor(Number(e.target.value) || 1))
+                          )
+                        }
+                        disabled={busy}
+                        fullWidth
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Precios */}
                 {isStandardProduct && (
                   <>
                     <div className="ecu-companies-form__field">
@@ -936,59 +994,6 @@ export function CreateCatalogItemPage() {
                   </>
                 )}
 
-                {isStandardProduct && (
-                  <>
-                    <div className="ecu-companies-form__field">
-                      <NumberBox
-                        id="ci-min-order-qty"
-                        label="Compra mínima (cantidad)"
-                        labelPosition="outlined"
-                        variant="outline"
-                        min={1}
-                        step={1}
-                        showSpinButtons
-                        value={minOrderQuantity}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          setMinOrderQuantity(
-                            Math.max(1, Math.floor(Number(e.target.value) || 1))
-                          )
-                        }
-                        disabled={busy}
-                        fullWidth
-                      />
-
-                    </div>
-
-                    <div className="ecu-companies-form__field">
-                      <TextBox
-                        id="ci-brand"
-                        label="Marca / Fabricante"
-                        labelPosition="outlined"
-                        variant="outline"
-                        value={brand}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setBrand(e.target.value)}
-                        placeholder="Ej. Nike, Samsung, Genérica..."
-                        disabled={busy}
-                        fullWidth
-                      />
-                    </div>
-
-                    <div className="ecu-companies-form__field">
-                      <Select
-                        id="ci-unit"
-                        label="Unidad de medida"
-                        labelPosition="outlined"
-                        variant="outline"
-                        options={[...UNIT_OF_MEASURE_OPTIONS]}
-                        value={unitOfMeasure}
-                        onChange={(val) => setUnitOfMeasure(val)}
-                        disabled={busy}
-                        fullWidth
-                      />
-                    </div>
-                  </>
-                )}
-
                 {showManualDescription ? (
                   <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
                     <TextArea
@@ -998,11 +1003,7 @@ export function CreateCatalogItemPage() {
                       variant="outline"
                       value={description}
                       onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
-                      placeholder={
-                        usesMatrix
-                          ? 'Ej. Calcetín blanco deportivo de algodón con tecnología absorbente'
-                          : 'Ej. Calcetín deportivo de algodón'
-                      }
+                      placeholder="Escriba aquí..."
                       disabled={busy}
                       fullWidth
                     />
