@@ -300,6 +300,10 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("base_price");
 
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
                     b.Property<decimal?>("CostPrice")
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("cost_price");
@@ -419,6 +423,9 @@ namespace EcuNexo.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_items");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_items_category_id");
 
                     b.HasIndex("CustomAttributesJson")
                         .HasDatabaseName("ix_items_custom_attributes_json");
@@ -572,6 +579,78 @@ namespace EcuNexo.Data.Migrations
                         .HasDatabaseName("ix_item_images_catalog_item_id_group_value");
 
                     b.ToTable("item_images", "catalog");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Catalog.Category", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_categories");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_categories_parent_id");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_categories_tenant_id_name")
+                        .HasFilter("\"deleted_at\" IS NULL");
+
+                    b.HasIndex("TenantId", "ParentId")
+                        .HasDatabaseName("ix_categories_tenant_id_parent_id");
+
+                    b.ToTable("categories", "catalog");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Catalog.ProductTemplate", b =>
@@ -5965,6 +6044,12 @@ namespace EcuNexo.Data.Migrations
 
             modelBuilder.Entity("EcuNexo.Core.Catalog.CatalogItem", b =>
                 {
+                    b.HasOne("EcuNexo.Core.Catalog.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_items_categories_category_id");
+
                     b.HasOne("EcuNexo.Core.Catalog.ProductTemplate", null)
                         .WithMany()
                         .HasForeignKey("FamilyId")
@@ -5984,6 +6069,8 @@ namespace EcuNexo.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_items_tenants_tenant_id");
 
+                    b.Navigation("Category");
+
                     b.Navigation("Parent");
 
                     b.Navigation("Tenant");
@@ -5999,6 +6086,26 @@ namespace EcuNexo.Data.Migrations
                         .HasConstraintName("fk_item_images_items_catalog_item_id");
 
                     b.Navigation("CatalogItem");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Catalog.Category", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Catalog.Category", "Parent")
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_categories_categories_parent_id");
+
+                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_categories_tenants_tenant_id");
+
+                    b.Navigation("Parent");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Catalog.ProductTemplate", b =>

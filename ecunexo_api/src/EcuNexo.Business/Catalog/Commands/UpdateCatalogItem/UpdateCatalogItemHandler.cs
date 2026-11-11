@@ -18,6 +18,7 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
     private readonly IStockRepository _stocks;
     private readonly IInventoryMovementRepository _movements;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICategoryRepository? _categories;
 
     public UpdateCatalogItemHandler(
         IValidator<UpdateCatalogItemCommand> validator,
@@ -27,7 +28,8 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
         ITenantRepository tenants,
         IStockRepository stocks,
         IInventoryMovementRepository movements,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICategoryRepository? categories = null)
     {
         _validator = validator;
         _items = items;
@@ -37,6 +39,7 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
         _stocks = stocks;
         _movements = movements;
         _unitOfWork = unitOfWork;
+        _categories = categories;
     }
 
     public async Task<Result<UpdateCatalogItemResponse>> Handle(
@@ -59,6 +62,27 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
         }
 
         var schemaJson = CatalogAttributeSchema.EmptyArrayJson;
+        string? categoryName = null;
+        if (command.CategoryId is { } categoryId)
+        {
+            if (_categories is null)
+            {
+                return Result.Failure<UpdateCatalogItemResponse>(
+                    new Error("catalog.item.category.not_found", "La categoría no existe.", ErrorType.NotFound));
+            }
+
+            var category = await _categories
+                .GetActiveByIdAsync(command.TenantId, categoryId, ct)
+                .ConfigureAwait(false);
+            if (category is null)
+            {
+                return Result.Failure<UpdateCatalogItemResponse>(
+                    new Error("catalog.item.category.not_found", "La categoría no existe.", ErrorType.NotFound));
+            }
+
+            categoryName = category.Name;
+        }
+
         if (command.FamilyId is { } familyId)
         {
             var family = await _templates.GetByIdAsync(familyId, command.TenantId, ct).ConfigureAwait(false);
@@ -120,6 +144,10 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
                 new Error("catalog.item.barcode.duplicate", "Ya existe un ítem con el mismo código de barras.", ErrorType.Conflict));
         }
 
+        var syncedHierarchyPathJson = CatalogItem.SyncCategoryInHierarchyPath(
+            command.HierarchyPathJson,
+            categoryName);
+
         var updated = item.Update(
             command.Name,
             command.Description,
@@ -129,9 +157,10 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
             schemaJson,
             updatedBy: null,
             familyId: command.FamilyId,
-            hierarchyPathJson: command.HierarchyPathJson,
+            hierarchyPathJson: syncedHierarchyPathJson,
             minOrderQuantity: command.MinOrderQuantity,
-            costPrice: command.CostPrice);
+            costPrice: command.CostPrice,
+            categoryId: command.CategoryId);
         if (updated.IsFailure)
         {
             return Result.Failure<UpdateCatalogItemResponse>(updated.Error!);

@@ -37,6 +37,7 @@ import { CatalogItemsListPage } from '@/pages/catalog/CatalogItemsListPage'
 import { EditCatalogItemPage } from '@/pages/catalog/EditCatalogItemPage'
 import { CreateCatalogVariantPage } from '@/pages/catalog/CreateCatalogVariantPage'
 import { CatalogAttributesListPage } from '@/pages/catalog/CatalogAttributesListPage'
+import { CategoriesListPage } from '@/pages/catalog/CategoriesListPage'
 import { ProductTemplatesListPage } from '@/pages/catalog/ProductTemplatesListPage'
 import { ProductTemplateBuilderPage } from '@/pages/catalog/ProductTemplateBuilderPage'
 import { PriceListsListPage } from '@/pages/catalog/pricing/PriceListsListPage'
@@ -167,6 +168,7 @@ export const routes: RouteObject[] = [
           { path: 'catalogo/items/nuevo', element: <CreateCatalogItemPage /> },
           { path: 'catalogo/items/:itemId', element: <EditCatalogItemPage /> },
           { path: 'catalogo/items/:itemId/variantes/nueva', element: <CreateCatalogVariantPage /> },
+          { path: 'catalogo/categorias', element: <CategoriesListPage /> },
           { path: 'catalogo/atributos', element: <CatalogAttributesListPage /> },
           { path: 'catalogo/plantillas', element: <ProductTemplatesListPage /> },
           { path: 'catalogo/plantillas/nueva', element: <ProductTemplateBuilderPage /> },

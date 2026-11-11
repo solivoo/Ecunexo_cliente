@@ -33,4 +33,6 @@ public sealed record CatalogItemListItemResponse(
     bool IsHiddenFromStorefront = false,
     string? ParentName = null,
     decimal MinOrderQuantity = 1,
-    decimal? CostPrice = null);
+    decimal? CostPrice = null,
+    Guid? CategoryId = null,
+    string? CategoryName = null);

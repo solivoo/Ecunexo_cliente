@@ -71,6 +71,8 @@ export type CatalogItemListItemDto = {
   isHiddenFromStorefront?: boolean
   parentName?: string | null
   minOrderQuantity?: number
+  categoryId?: string | null
+  categoryName?: string | null
 }
 
 export type CatalogItemVariantSummaryDto = {
@@ -132,6 +134,8 @@ export type CatalogItemDetailDto = {
   hierarchyPathJson?: string | null
   matrixDescriptor?: CatalogMatrixDescriptorDto | null
   minOrderQuantity?: number
+  categoryId?: string | null
+  categoryName?: string | null
 }
 
 export type CreateCatalogItemBody = {
@@ -146,6 +150,7 @@ export type CreateCatalogItemBody = {
   familyId?: string | null
   hierarchyPathJson?: string | null
   minOrderQuantity?: number | null
+  categoryId?: string | null
 }
 
 export type CreateCatalogItemResponseDto = {
@@ -173,6 +178,29 @@ export type VariantDimensionTemplateDto = {
   unit?: string | null
 }
 
+export type SystemBaseAttributeDto = {
+  id: string
+  name: string
+  dimensionType: 'custom' | 'color' | string
+  dataType: 'text' | 'number' | 'color' | string
+  predefinedValues: string[]
+  unit: string | null
+  isVariantAxis: boolean
+  systemRole: 'item-field' | 'template-axis' | string
+  description: string
+  aliases: string[]
+}
+
+export type UnitOfMeasureOptionDto = {
+  value: string
+  label: string
+}
+
+export type ListSystemBaseAttributesDto = {
+  attributes: SystemBaseAttributeDto[]
+  unitOfMeasureOptions: UnitOfMeasureOptionDto[]
+}
+
 export type CreateVariantChildPayload = {
   variantTitle: string
   sku: string
@@ -197,6 +225,7 @@ export type CreateCatalogItemMatrixPayload = {
   customAttributesJson?: string | null
   familyId?: string | null
   hierarchyPathJson?: string | null
+  categoryId?: string | null
 }
 
 export type CreateCatalogItemMatrixResponseDto = {
@@ -290,5 +319,27 @@ export type ReassignmentAuditRecord = {
   target_parent_id?: string | null
   target_parent_name?: string | null
   target_parent_sku?: string | null
+}
+
+export type CategoryListItemDto = {
+  id: string
+  name: string
+  description: string | null
+  parentId: string | null
+  createdAt: string
+  updatedAt?: string | null
+}
+
+export type CreateCategoryBody = {
+  name: string
+  description?: string | null
+  parentId?: string | null
+}
+
+export type UpdateCategoryBody = CreateCategoryBody
+
+export type CreateCategoryResponseDto = {
+  categoryId: string
+  tenantId: string
 }
 

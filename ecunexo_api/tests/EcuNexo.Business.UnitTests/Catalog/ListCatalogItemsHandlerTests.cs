@@ -43,4 +43,39 @@ public sealed class ListCatalogItemsHandlerTests
         first.Name.Should().Be("Calcetín Runner");
         first.CustomAttributesJson.Should().Be(customAttrsJson);
     }
+
+    [Fact(DisplayName = "ListCatalogItemsHandler incluye CategoryId y CategoryName cuando tiene categoría")]
+    public async Task Handle_IncludesCategoryIdAndCategoryName()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+        var categoryId = Guid.CreateVersion7();
+        var category = Category.Create(categoryId, tenantId, "Calcetines").Value!;
+
+        var item = CatalogItem.Create(
+            itemId,
+            tenantId,
+            CatalogItemKind.Physical,
+            "Calcetín Runner",
+            "Descripción",
+            "SKU-RUN-02",
+            3.5m,
+            null,
+            CatalogAttributeSchema.EmptyArrayJson,
+            categoryId: categoryId).Value!;
+
+        var categoriesRepo = Substitute.For<ICategoryRepository>();
+        categoriesRepo.ListActiveByTenantAsync(tenantId, Arg.Any<CancellationToken>())
+            .Returns(new List<Category> { category });
+
+        _items.ListActiveByTenantAsync(tenantId, null, null, Arg.Any<CancellationToken>())
+            .Returns(new List<CatalogItem> { item });
+
+        var sut = new ListCatalogItemsHandler(_items, _templates, categoriesRepo);
+        var result = await sut.Handle(new ListCatalogItemsQuery(tenantId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value![0].CategoryId.Should().Be(categoryId);
+        result.Value[0].CategoryName.Should().Be("Calcetines");
+    }
 }

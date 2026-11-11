@@ -12,7 +12,8 @@ public sealed record CreateCatalogItemMatrixRequest(
     Guid? FamilyId = null,
     string? HierarchyPathJson = null,
     decimal? CostPrice = null,
-    decimal? MinOrderQuantity = null);
+    decimal? MinOrderQuantity = null,
+    Guid? CategoryId = null);
 
 public sealed record CreateVariantChildRequest(
     string VariantTitle,

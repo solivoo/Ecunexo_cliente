@@ -204,6 +204,11 @@ export function CatalogItemsGrid({
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <strong>{row.name}</strong>
+              {row.categoryName ? (
+                <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted)' }}>
+                  Categoría: {row.categoryName}
+                </span>
+              ) : null}
               {row.description ? (
                 <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
                   {row.description}
@@ -480,7 +485,7 @@ export function CatalogItemsGrid({
       searchPosition="left"
       searchWidth={280}
       searchPlaceholder="Buscar nombre o SKU…"
-      searchKeys={['name', 'sku', 'description']}
+      searchKeys={['name', 'sku', 'description', 'categoryName']}
       toolbarRight={toolbarRight}
       paging={paging}
       onPageChange={onPageChange}

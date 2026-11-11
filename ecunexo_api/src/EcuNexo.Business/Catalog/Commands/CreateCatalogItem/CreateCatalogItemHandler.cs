@@ -17,6 +17,7 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
     private readonly ISysSettingRepository _settings;
     private readonly IProductTemplateRepository _templates;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICategoryRepository? _categories;
 
     public CreateCatalogItemHandler(
         IValidator<CreateCatalogItemCommand> validator,
@@ -25,7 +26,8 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
         ICatalogItemRepository items,
         ISysSettingRepository settings,
         IProductTemplateRepository templates,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICategoryRepository? categories = null)
     {
         _validator = validator;
         _idGenerator = idGenerator;
@@ -34,6 +36,7 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
         _settings = settings;
         _templates = templates;
         _unitOfWork = unitOfWork;
+        _categories = categories;
     }
 
     public async Task<Result<CreateCatalogItemResponse>> Handle(
@@ -63,6 +66,27 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
         }
 
         var schemaJson = CatalogAttributeSchema.EmptyArrayJson;
+        string? categoryName = null;
+        if (command.CategoryId is { } categoryId)
+        {
+            if (_categories is null)
+            {
+                return Result.Failure<CreateCatalogItemResponse>(
+                    new Error("catalog.item.category.not_found", "La categoría no existe.", ErrorType.NotFound));
+            }
+
+            var category = await _categories
+                .GetActiveByIdAsync(command.TenantId, categoryId, ct)
+                .ConfigureAwait(false);
+            if (category is null)
+            {
+                return Result.Failure<CreateCatalogItemResponse>(
+                    new Error("catalog.item.category.not_found", "La categoría no existe.", ErrorType.NotFound));
+            }
+
+            categoryName = category.Name;
+        }
+
         if (command.FamilyId is { } familyId)
         {
             var family = await _templates.GetByIdAsync(familyId, command.TenantId, ct).ConfigureAwait(false);
@@ -89,6 +113,10 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
                 new Error("catalog.item.barcode.duplicate", "Ya existe un ítem con el mismo código de barras.", ErrorType.Conflict));
         }
 
+        var syncedHierarchyPathJson = CatalogItem.SyncCategoryInHierarchyPath(
+            command.HierarchyPathJson,
+            categoryName);
+
         var id = _idGenerator.NewId();
         var created = CatalogItem.Create(
             id,
@@ -101,10 +129,11 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
             command.CustomAttributesJson,
             schemaJson,
             command.FamilyId,
-            command.HierarchyPathJson,
+            syncedHierarchyPathJson,
             command.Barcode,
             command.MinOrderQuantity,
-            command.CostPrice);
+            command.CostPrice,
+            command.CategoryId);
         if (created.IsFailure)
         {
             return Result.Failure<CreateCatalogItemResponse>(created.Error!);

@@ -36,7 +36,7 @@
     "@reduxjs/toolkit": "^2.11.2",
     "axios": "^1.16.0",
     "exceljs": "^4.4.0",
-    "glubox": "^0.2.1",
+    "glubox": "^0.2.4",
     "jsbarcode": "^3.12.3",
     "lognerd": "^1.1.0",
     "lucide-react": "^1.17.0",

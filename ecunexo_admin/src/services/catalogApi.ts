@@ -16,6 +16,10 @@ import type {
   CreateProductTemplateResponseDto,
   ReassignCatalogItemVariantParentBody,
   ReassignCatalogItemVariantParentResponseDto,
+  CategoryListItemDto,
+  CreateCategoryBody,
+  UpdateCategoryBody,
+  CreateCategoryResponseDto,
 } from '@/types/catalogApi'
 
 export async function listCatalogItems(
@@ -198,6 +202,15 @@ export async function listVariantDimensionTemplates(
   return data
 }
 
+export async function listSystemBaseAttributes(
+  tenantId: string
+): Promise<import('@/types/catalogApi').ListSystemBaseAttributesDto> {
+  const { data } = await api.get<import('@/types/catalogApi').ListSystemBaseAttributesDto>(
+    `/api/v1/tenants/${tenantId}/catalog/system-base-attributes`
+  )
+  return data
+}
+
 export async function createVariantDimensionTemplate(
   tenantId: string,
   payload: {
@@ -349,6 +362,36 @@ export async function reassignCatalogItemVariantParent(
     body
   )
   return data
+}
+
+export async function listCategories(tenantId: string): Promise<CategoryListItemDto[]> {
+  const { data } = await api.get<CategoryListItemDto[]>(
+    `/api/v1/tenants/${tenantId}/catalog/categories`
+  )
+  return data
+}
+
+export async function createCategory(
+  tenantId: string,
+  body: CreateCategoryBody
+): Promise<CreateCategoryResponseDto> {
+  const { data } = await api.post<CreateCategoryResponseDto>(
+    `/api/v1/tenants/${tenantId}/catalog/categories`,
+    body
+  )
+  return data
+}
+
+export async function updateCategory(
+  tenantId: string,
+  categoryId: string,
+  body: UpdateCategoryBody
+): Promise<void> {
+  await api.put(`/api/v1/tenants/${tenantId}/catalog/categories/${categoryId}`, body)
+}
+
+export async function deleteCategory(tenantId: string, categoryId: string): Promise<void> {
+  await api.delete(`/api/v1/tenants/${tenantId}/catalog/categories/${categoryId}`)
 }
 
 

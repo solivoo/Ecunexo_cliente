@@ -361,4 +361,34 @@ public sealed class CatalogItemTests
         item.FamilyId.Should().BeNull();
         item.HierarchyPathJson.Should().BeNull();
     }
+
+    [Fact(DisplayName = "SyncCategoryInHierarchyPath agrega Categoría y preserva otras entradas")]
+    public void SyncCategoryInHierarchyPath_WithCategory_AddsOrReplacesEntryPreservingOthers()
+    {
+        const string existing = """[{"level":"Colección","name":"Material","value":"Algodón"},{"level":"Clasificación","name":"Categoría","value":"Antigua"}]""";
+
+        var synced = CatalogItem.SyncCategoryInHierarchyPath(existing, "Ropa Deportiva");
+
+        synced.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(synced!);
+        doc.RootElement.GetArrayLength().Should().Be(2);
+        doc.RootElement[0].GetProperty("level").GetString().Should().Be("Clasificación");
+        doc.RootElement[0].GetProperty("name").GetString().Should().Be("Categoría");
+        doc.RootElement[0].GetProperty("value").GetString().Should().Be("Ropa Deportiva");
+        doc.RootElement[1].GetProperty("name").GetString().Should().Be("Material");
+        doc.RootElement[1].GetProperty("value").GetString().Should().Be("Algodón");
+    }
+
+    [Fact(DisplayName = "SyncCategoryInHierarchyPath elimina entradas Categoría (case-insensitive) cuando se limpia")]
+    public void SyncCategoryInHierarchyPath_WithoutCategory_RemovesCategoryEntriesPreservingOthers()
+    {
+        const string existing = """[{"level":"Clasificación","name":"categoría","value":"Ropa"},{"level":"Modelo","name":"Caña","value":"Corta"}]""";
+
+        var synced = CatalogItem.SyncCategoryInHierarchyPath(existing, null);
+
+        synced.Should().NotBeNull();
+        using var doc = JsonDocument.Parse(synced!);
+        doc.RootElement.GetArrayLength().Should().Be(1);
+        doc.RootElement[0].GetProperty("name").GetString().Should().Be("Caña");
+    }
 }

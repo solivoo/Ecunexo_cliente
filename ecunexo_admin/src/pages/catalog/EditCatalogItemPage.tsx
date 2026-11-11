@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Button, ColorPicker, NumberBox, Popup, Select, TextArea, TextBox, useToast, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
@@ -22,7 +22,8 @@ import {
   isHexColorToken,
 } from '@/lib/catalogArchetype'
 import {
-  UNIT_OF_MEASURE_OPTIONS,
+  ensureSystemBaseAttributesLoaded,
+  getUnitOfMeasureOptions,
   isCommercialBaseAttributeKey,
   mergeWithSystemBaseAttributes,
   readBrandFromCustomAttributes,
@@ -43,11 +44,14 @@ import {
 import { CatalogItemImageGallery } from '@/pages/catalog/CatalogItemImageGallery'
 import { EditCatalogItemVariantsSection } from '@/pages/catalog/EditCatalogItemVariantsSection'
 import { CatalogPricingMarginBar, parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
-import { ArrowLeftRight, Layers } from 'lucide-react'
+import { ArrowLeftRight, ArrowUpRight, Layers, Plus } from 'lucide-react'
+import { buildCategorySelectOptions } from '@/lib/catalogCategoryLabels'
 import { readApiError } from '@/lib/readApiError'
 import {
+  createCategory,
   getCatalogItem,
   listCatalogItems,
+  listCategories,
   listProductTemplates,
   listVariantDimensionTemplates,
   reassignCatalogItemVariantParent,
@@ -62,6 +66,7 @@ import {
   CatalogItemStatus,
   type CatalogItemDetailDto,
   type CatalogItemListItemDto,
+  type CategoryListItemDto,
   type ProductTemplateDto,
   type ProductTemplateLevel,
   type ReassignmentAuditRecord,
@@ -93,6 +98,10 @@ export function EditCatalogItemPage() {
   const tenantId = useAppSelector(selectTenantId)
   const canEdit = useHasPermission('catalog.item.update')
   const canDelete = useHasPermission('catalog.item.delete')
+  const canManageCategories = useHasPermission('catalog.category.manage')
+  const hasCategoryRead = useHasPermission('catalog.category.read')
+  const hasItemRead = useHasPermission('catalog.item.read')
+  const canReadCategories = hasCategoryRead || hasItemRead || canManageCategories || canEdit
 
   const [busy, setBusy] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -102,6 +111,13 @@ export function EditCatalogItemPage() {
   const [item, setItem] = useState<CatalogItemDetailDto | null>(null)
   const [productTemplates, setProductTemplates] = useState<ProductTemplateDto[]>([])
   const [dimensionTemplates, setDimensionTemplates] = useState<VariantDimensionTemplateDto[]>([])
+  const [systemBaseEpoch, setSystemBaseEpoch] = useState(0)
+  const [categories, setCategories] = useState<CategoryListItemDto[]>([])
+  const [categoryId, setCategoryId] = useState('')
+  const [quickCatOpen, setQuickCatOpen] = useState(false)
+  const [quickCatName, setQuickCatName] = useState('')
+  const [quickCatParentId, setQuickCatParentId] = useState('')
+  const [quickCatSaving, setQuickCatSaving] = useState(false)
   const [usedVariants, setUsedVariants] = useState(0)
 
   const { maxVariants } = useCatalogLimits()
@@ -120,6 +136,16 @@ export function EditCatalogItemPage() {
   const [status, setStatus] = useState(String(CatalogItemStatus.Active))
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
   const [tags, setTags] = useState<string[]>([])
+
+  const categorySelectOptions = useMemo(
+    () => buildCategorySelectOptions(categories, { emptyLabel: 'Sin categoría' }),
+    [categories]
+  )
+
+  const categoryParentOptions = useMemo(
+    () => buildCategorySelectOptions(categories, { emptyLabel: 'Sin categoría padre' }),
+    [categories]
+  )
 
   const familyTemplate = useMemo(
     () => productTemplates.find((t) => t.id === item?.familyId),
@@ -181,7 +207,12 @@ export function EditCatalogItemPage() {
 
   const allDimensionTemplates = useMemo(
     () => mergeWithSystemBaseAttributes(dimensionTemplates, tenantId ?? ''),
-    [dimensionTemplates, tenantId]
+    [dimensionTemplates, tenantId, systemBaseEpoch]
+  )
+
+  const unitOfMeasureOptions = useMemo(
+    () => [...getUnitOfMeasureOptions()],
+    [systemBaseEpoch]
   )
 
   const dimensionValuesMap = useMemo(
@@ -347,15 +378,20 @@ export function EditCatalogItemPage() {
     if (!tenantId || !itemId) return
     setLoading(true)
     try {
-      const [detail, templates, dims, items] = await Promise.all([
+      const [, detail, templates, dims, items, cats] = await Promise.all([
+        ensureSystemBaseAttributesLoaded(tenantId).catch(() => undefined),
         getCatalogItem(tenantId, itemId),
         listProductTemplates(tenantId).catch(() => [] as ProductTemplateDto[]),
         listVariantDimensionTemplates(tenantId).catch(() => [] as VariantDimensionTemplateDto[]),
         listCatalogItems(tenantId, { onlyRoots: true }).catch(() => []),
+        canReadCategories ? listCategories(tenantId).catch(() => [] as CategoryListItemDto[]) : Promise.resolve([] as CategoryListItemDto[]),
       ])
+      setSystemBaseEpoch((n) => n + 1)
       setItem(detail)
       setProductTemplates(templates)
       setDimensionTemplates(dims)
+      setCategories(cats)
+      setCategoryId(detail.categoryId ?? '')
       setUsedVariants(items.reduce((sum, i) => sum + (i.variantCount ?? 0), 0))
       setKind(String(detail.kind))
       setName(detail.name)
@@ -377,7 +413,46 @@ export function EditCatalogItemPage() {
     } finally {
       setLoading(false)
     }
-  }, [itemId, tenantId])
+  }, [canReadCategories, itemId, tenantId])
+
+  const handleQuickCreateCategory = useCallback(async () => {
+    if (!tenantId) return
+    const trimmed = quickCatName.trim()
+    if (!trimmed) {
+      toast.show({
+        title: 'Nombre requerido',
+        message: 'Ingresa un nombre para la categoría.',
+        variant: 'warning',
+      })
+      return
+    }
+    setQuickCatSaving(true)
+    try {
+      const created = await createCategory(tenantId, {
+        name: trimmed,
+        parentId: quickCatParentId || null,
+      })
+      const fresh = await listCategories(tenantId).catch(() => [] as CategoryListItemDto[])
+      setCategories(fresh)
+      setCategoryId(created.categoryId)
+      setQuickCatOpen(false)
+      setQuickCatName('')
+      setQuickCatParentId('')
+      toast.show({
+        title: 'Categoría creada',
+        message: `«${trimmed}» se agregó al catálogo.`,
+        variant: 'success',
+      })
+    } catch (err: unknown) {
+      toast.show({
+        title: 'Error',
+        message: readApiError(err, 'No se pudo crear la categoría.'),
+        variant: 'error',
+      })
+    } finally {
+      setQuickCatSaving(false)
+    }
+  }, [quickCatName, quickCatParentId, tenantId, toast])
 
   useEffect(() => {
     if (!canEdit) return
@@ -486,39 +561,16 @@ export function EditCatalogItemPage() {
         route: '/catalogo/items',
         disabled: false,
       },
-      {
-        id: 'attributes',
-        label: 'Atributos',
-        icon: 'tag',
-        route: '/catalogo/atributos',
-        disabled: false,
-      },
-      {
-        id: 'templates',
-        label: 'Plantillas',
-        icon: 'layers',
-        route: '/catalogo/plantillas',
-        disabled: false,
-      },
     ]
 
-    if (item?.parentId) {
+    if (item?.parentId && canEdit) {
       items.push({
-        id: 'view-parent',
-        label: 'Ver Ítem Principal',
-        icon: 'arrow-left',
-        route: `/catalogo/items/${item.parentId}`,
+        id: 'reassign-variant',
+        label: 'Reasignar variante',
+        icon: 'arrow-left-right',
+        route: null,
         disabled: false,
       })
-      if (canEdit) {
-        items.push({
-          id: 'reassign-variant',
-          label: 'Mover / Reasignar Variante',
-          icon: 'arrow-left-right',
-          route: null,
-          disabled: false,
-        })
-      }
     }
 
     return items
@@ -609,6 +661,7 @@ export function EditCatalogItemPage() {
           familyId: item.familyId ?? null,
           hierarchyPathJson,
           minOrderQuantity: isMatrixParent ? null : resolvedMinOrderQty,
+          categoryId: isStandardSingleItem ? categoryId || null : item.categoryId ?? null,
         })
 
         toast.show({
@@ -629,6 +682,7 @@ export function EditCatalogItemPage() {
     [
       barcode,
       brand,
+      categoryId,
       costPrice,
       basePrice,
       customAttributes,
@@ -759,7 +813,19 @@ export function EditCatalogItemPage() {
             ) : undefined
           }
           actions={
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {item?.parentId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  iconLeft={<Layers size={16} />}
+                  iconRight={<ArrowUpRight size={14} />}
+                  onClick={() => navigate(`/catalogo/items/${item.parentId}`)}
+                  style={{ minWidth: 'auto', width: 'auto' }}
+                >
+                  Ver modelo matriz
+                </Button>
+              ) : null}
               <Select
                 id="ei-status"
                 options={[
@@ -771,14 +837,14 @@ export function EditCatalogItemPage() {
                 size="sm"
                 disabled={busy}
               />
-            <EcuPageActions
-              items={actionItems}
-              variant="outline"
-              triggerLabel="Acciones de ítem"
-              renderIcon={renderSidebarIcon}
-              onNavigate={(route: string) => navigate(route)}
-              onActionSelect={handlePageActionSelect}
-            />
+              <EcuPageActions
+                items={actionItems}
+                variant="outline"
+                triggerLabel="Más acciones"
+                renderIcon={renderSidebarIcon}
+                onNavigate={(route: string) => navigate(route)}
+                onActionSelect={handlePageActionSelect}
+              />
             </div>
           }
         />
@@ -862,7 +928,7 @@ export function EditCatalogItemPage() {
             )}
 
 
-            <form id="edit-catalog-item" onSubmit={(e) => void onSubmit(e)} noValidate>
+            <form id="edit-catalog-item" className="ecu-companies-form" onSubmit={(e) => void onSubmit(e)} noValidate>
               {error ? (
                 <div className="ecu-form-error-banner" role="alert" style={{ marginBottom: '1rem' }}>
                   <span className="material-symbols-outlined">error</span>
@@ -887,84 +953,7 @@ export function EditCatalogItemPage() {
                 }
               >
                 {/* Referencia a la matriz cuando editamos una variante física */}
-                {isVariantChild && item?.parentId ? (
-                  <div
-                    style={{
-                      marginBottom: '1.25rem',
-                      padding: '0.85rem 1rem',
-                      backgroundColor: 'var(--glb-surface-secondary, rgba(0, 0, 0, 0.03))',
-                      borderRadius: '8px',
-                      border: '1px solid var(--glb-border, #e5e7eb)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.4rem',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: '0.5rem',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span
-                          style={{
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            color: 'var(--glb-text-secondary, #6b7280)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.04em',
-                          }}
-                        >
-                          Producto Matriz:
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '0.95rem',
-                            fontWeight: 600,
-                            color: 'var(--glb-primary, #2563eb)',
-                          }}
-                        >
-                          {item.parentName || 'Modelo base'}
-                        </span>
-                      </div>
-                      <Link
-                        to={`/catalogo/items/${item.parentId}`}
-                        style={{
-                          fontSize: '0.8rem',
-                          fontWeight: 500,
-                          color: 'var(--glb-primary, #2563eb)',
-                          textDecoration: 'none',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                        }}
-                      >
-                        <span>Ver modelo matriz</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>
-                          arrow_forward
-                        </span>
-                      </Link>
-                    </div>
-                    {item.parentDescription ? (
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: '0.83rem',
-                          color: 'var(--glb-text-secondary, #4b5563)',
-                          fontStyle: 'italic',
-                        }}
-                      >
-                        «{item.parentDescription}»
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                <div className="ecu-companies-form__grid ecu-companies-form__grid--4">
+                <div className="ecu-companies-form__grid ecu-companies-form__grid--dynamic">
                   {!isMatrixParent && !isVariantChild && !familyTemplate && (
                     <div className="ecu-companies-form__field">
                       <Select
@@ -1004,13 +993,7 @@ export function EditCatalogItemPage() {
                   ) : null}
 
                   {showNameField ? (
-                    <div
-                      className={`ecu-companies-form__field ${
-                        isMatrixParent
-                          ? ''
-                          : 'ecu-companies-form__field--span-2'
-                      }`}
-                    >
+                    <div className="ecu-companies-form__field">
                       <TextBox
                         id="ei-name"
                         label={
@@ -1154,6 +1137,50 @@ export function EditCatalogItemPage() {
                   {!isMatrixParent && !isVariantChild && !familyTemplate ? (
                     <>
                       <div className="ecu-companies-form__field">
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <Select
+                              id="ei-category"
+                              label="Categoría"
+                              labelPosition="outlined"
+                              variant="outline"
+                              placeholder="Seleccione..."
+                              options={categorySelectOptions}
+                              value={categoryId}
+                              onChange={setCategoryId}
+                              disabled={busy}
+                              fullWidth
+                            />
+                          </div>
+                          {canManageCategories && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              title="Nueva categoría"
+                              aria-label="Nueva categoría"
+                              onClick={() => {
+                                setQuickCatName('')
+                                setQuickCatParentId('')
+                                setQuickCatOpen(true)
+                              }}
+                              disabled={busy}
+                              style={{
+                                width: 36,
+                                height: 36,
+                                minWidth: 36,
+                                padding: 0,
+                                borderRadius: '999px',
+                                flexShrink: 0,
+                                marginTop: '0.35rem',
+                              }}
+                            >
+                              <Plus size={16} strokeWidth={2} aria-hidden />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="ecu-companies-form__field">
                         <TextBox
                           id="ei-brand"
                           label="Marca / Fabricante"
@@ -1161,7 +1188,7 @@ export function EditCatalogItemPage() {
                           variant="outline"
                           value={brand}
                           onChange={(e: ChangeEvent<HTMLInputElement>) => setBrand(e.target.value)}
-                          placeholder="Ej. Nike, Samsung, Genérica..."
+                          placeholder="Escriba aquí..."
                           disabled={busy}
                           fullWidth
                         />
@@ -1173,7 +1200,7 @@ export function EditCatalogItemPage() {
                           label="Unidad de medida"
                           labelPosition="outlined"
                           variant="outline"
-                          options={[...UNIT_OF_MEASURE_OPTIONS]}
+                          options={unitOfMeasureOptions}
                           value={unitOfMeasure}
                           onChange={(val) => setUnitOfMeasure(val)}
                           disabled={busy}
@@ -1184,7 +1211,7 @@ export function EditCatalogItemPage() {
                   ) : null}
 
                   {showDescriptionField ? (
-                    <div className="ecu-companies-form__field ecu-companies-form__field--span-4">
+                    <div className="ecu-companies-form__field ecu-companies-form__field--wide">
                       <TextArea
                         id="ei-desc"
                         label={
@@ -1228,7 +1255,7 @@ export function EditCatalogItemPage() {
                   title="Dimensiones de la variante"
                   subtitle={`Valores de la combinación física (${variantAxisEntries.map((e) => e.name).join(' × ')})`}
                 >
-                  <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+                  <div className="ecu-companies-form__grid ecu-companies-form__grid--dynamic">
                     {variantAxisEntries.map((entry) => {
                       const lookup = dimensionValuesMap?.get(entry.name.trim().toLowerCase())
                       const axisFromDescriptor = item?.matrixDescriptor?.axes?.find(
@@ -1391,8 +1418,8 @@ export function EditCatalogItemPage() {
                   >
                     Etiquetas de búsqueda y atributos libres
                   </summary>
-                  <div style={{ marginTop: '1rem' }}>
-                    <div style={{ marginBottom: '1.25rem' }}>
+                  <div className="ecu-companies-form__grid ecu-companies-form__grid--dynamic" style={{ marginTop: '1rem' }}>
+                    <div className="ecu-companies-form__field ecu-companies-form__field--wide" style={{ marginBottom: '0.25rem' }}>
                       <EcuTagInput
                         tags={tags}
                         onChange={setTags}
@@ -1410,11 +1437,11 @@ export function EditCatalogItemPage() {
 
                     {familyTemplate && freeAttributeRows.length > 0 ? (
                       <div
+                        className="ecu-companies-form__field ecu-companies-form__field--wide"
                         style={{
                           display: 'flex',
                           gap: '0.35rem',
                           flexWrap: 'wrap',
-                          marginBottom: '1rem',
                         }}
                       >
                         {freeAttributeRows.map((row) => (
@@ -1426,12 +1453,14 @@ export function EditCatalogItemPage() {
                     ) : null}
 
                     {!familyTemplate ? (
-                      <ItemCustomAttributesEditor
-                        attributes={freeAttributeRows}
-                        onChange={handleFreeAttributesChange}
-                        excludeKeys={reservedAttributeKeys}
-                        disabled={busy}
-                      />
+                      <div className="ecu-companies-form__field ecu-companies-form__field--wide">
+                        <ItemCustomAttributesEditor
+                          attributes={freeAttributeRows}
+                          onChange={handleFreeAttributesChange}
+                          excludeKeys={reservedAttributeKeys}
+                          disabled={busy}
+                        />
+                      </div>
                     ) : null}
                   </div>
                 </details>
@@ -1715,6 +1744,68 @@ export function EditCatalogItemPage() {
             disabled={reassigning}
             fullWidth
           />
+        </div>
+      </Popup>
+
+      <Popup
+        open={quickCatOpen}
+        onClose={() => !quickCatSaving && setQuickCatOpen(false)}
+        title="Nueva Categoría"
+        width={440}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.25rem 0' }}>
+          <TextBox
+            id="ei-quick-cat-name"
+            label="Nombre"
+            labelPosition="outlined"
+            variant="outline"
+            placeholder="Escriba aquí..."
+            value={quickCatName}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setQuickCatName(e.target.value)}
+            disabled={quickCatSaving}
+            required
+            fullWidth
+          />
+          <Select
+            id="ei-quick-cat-parent"
+            label="Categoría padre"
+            labelPosition="outlined"
+            variant="outline"
+            placeholder="Seleccione..."
+            options={categoryParentOptions}
+            value={quickCatParentId}
+            onChange={setQuickCatParentId}
+            disabled={quickCatSaving}
+            fullWidth
+          />
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '0.5rem',
+              marginTop: '0.5rem',
+              paddingTop: '0.75rem',
+              borderTop: '1px solid var(--glb-surface-border, rgba(0, 0, 0, 0.08))',
+            }}
+          >
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setQuickCatOpen(false)}
+              disabled={quickCatSaving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => void handleQuickCreateCategory()}
+              loading={quickCatSaving}
+              disabled={quickCatSaving}
+            >
+              Registrar
+            </Button>
+          </div>
         </div>
       </Popup>
     </TenantSessionGate>

@@ -30,7 +30,9 @@ public sealed record CatalogItemDetailResponse(
     string? Barcode = null,
     decimal MinOrderQuantity = 1,
     string? ParentDescription = null,
-    decimal? CostPrice = null);
+    decimal? CostPrice = null,
+    Guid? CategoryId = null,
+    string? CategoryName = null);
 
 public sealed record CatalogItemVariantDto(
     Guid Id,

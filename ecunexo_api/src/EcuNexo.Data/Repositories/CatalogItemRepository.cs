@@ -280,6 +280,11 @@ public sealed class CatalogItemRepository : ICatalogItemRepository
         return await query.AnyAsync(i => EF.Functions.ILike(i.Barcode!, trimmed), ct).ConfigureAwait(false);
     }
 
+    public Task<bool> ExistsForCategoryAsync(Guid tenantId, Guid categoryId, CancellationToken ct) =>
+        _db.CatalogItems.AsNoTracking().AnyAsync(
+            i => i.TenantId == tenantId && i.CategoryId == categoryId && i.DeletedAt == null,
+            ct);
+
     public Task<int> CountVariantsAsync(Guid tenantId, bool onlyActive, CancellationToken ct)
     {
         var query = _db.CatalogItems.AsNoTracking()

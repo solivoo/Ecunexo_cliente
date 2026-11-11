@@ -67,6 +67,8 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<TenantSigningCertificate> TenantSigningCertificates => Set<TenantSigningCertificate>();
 
+    public DbSet<Category> Categories => Set<Category>();
+
     public DbSet<CatalogItem> CatalogItems => Set<CatalogItem>();
 
     public DbSet<VariantDimensionTemplate> VariantDimensionTemplates => Set<VariantDimensionTemplate>();

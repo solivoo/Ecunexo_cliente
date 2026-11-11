@@ -433,7 +433,7 @@ export function PurchaseSettlementCreatePage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <form className="ecu-companies-form" onSubmit={handleSubmit}>
           {/* SECCIÓN 1: SUJETO PASIVO / PROVEEDOR */}
           <SectionCard
             title="1. Sujeto Pasivo / Proveedor (Art. 48 RCVR)"

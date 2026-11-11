@@ -143,10 +143,15 @@ html.sf-dark-mode .ecu-invoice-status--danger {
 .ecu-companies-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.75rem;
   width: 100%;
   max-width: none;
   min-width: 0;
+}
+
+/* Evita sumar gap del form + margin de SectionCard */
+.ecu-companies-form > .ecu-section-card {
+  margin-bottom: 0;
 }
 
 .ecu-companies-form__card.app-shell__card {
@@ -154,20 +159,20 @@ html.sf-dark-mode .ecu-invoice-status--danger {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.65rem;
 }
 
 .ecu-companies-form__section {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.65rem;
   min-width: 0;
 }
 
 .ecu-companies-form__grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .ecu-companies-form__field {
@@ -181,6 +186,46 @@ html.sf-dark-mode .ecu-invoice-status--danger {
 .ecu-companies-form__field .glb-colorpicker,
 .ecu-companies-form__field .glb-optiongroup {
   width: 100%;
+}
+
+/*
+ * Grid dinámico (plantillas/matrices): columnas compactas por tipo de control.
+ * auto-fill crea pistas hasta llenar el ancho; los campos compactos se empaquetan
+ * a la izquierda sin huecos entre sí. Los --wide/--span-4 ocupan toda la fila.
+ */
+.ecu-companies-form__grid--dynamic {
+  display: grid;
+  /* Columna 1fr al final: absorbe el sobrante para que --wide ocupe todo el ancho
+     (con solo auto-fill + max 16rem, 1/-1 solo cubría la suma de pistas). */
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 16rem)) minmax(0, 1fr);
+  justify-content: start;
+  align-items: start;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.ecu-companies-form__grid--dynamic > .ecu-companies-form__field--span-2 {
+  grid-column: span 2;
+  max-width: 33rem;
+}
+
+.ecu-companies-form__grid--dynamic > .ecu-companies-form__field--span-4,
+.ecu-companies-form__grid--dynamic > .ecu-companies-form__field--wide,
+.ecu-companies-form__grid--dynamic > .ecu-companies-form__field:has(.glb-textarea) {
+  grid-column: 1 / -1;
+  max-width: none;
+  width: 100%;
+}
+
+@media (max-width: 639px) {
+  .ecu-companies-form__grid--dynamic {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ecu-companies-form__grid--dynamic > .ecu-companies-form__field--span-2 {
+    grid-column: auto;
+    max-width: none;
+  }
 }
 
 /* Campos bloqueados: el gris de gluBox en oscuro deja el texto ilegible. */

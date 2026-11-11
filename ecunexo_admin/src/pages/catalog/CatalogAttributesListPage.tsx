@@ -41,6 +41,7 @@ import {
   updateVariantDimensionTemplate,
 } from '@/services/catalogApi'
 import {
+  ensureSystemBaseAttributesLoaded,
   findConflictingSystemBaseItemAttribute,
   mergeWithSystemBaseAttributes,
 } from '@/lib/catalogBaseAttributes'
@@ -263,6 +264,7 @@ export function CatalogAttributesListPage() {
       if (!tenantId) return
       setLoading(true)
       try {
+        await ensureSystemBaseAttributesLoaded(tenantId)
         const list = await listVariantDimensionTemplates(tenantId)
         setRows(list)
         if (!opts?.silent) {

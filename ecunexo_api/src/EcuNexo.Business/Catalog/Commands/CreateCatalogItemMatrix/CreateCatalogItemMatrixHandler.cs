@@ -18,6 +18,7 @@ public sealed class CreateCatalogItemMatrixHandler
     private readonly ISysSettingRepository _settings;
     private readonly IProductTemplateRepository _templates;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICategoryRepository? _categories;
 
     public CreateCatalogItemMatrixHandler(
         IValidator<CreateCatalogItemMatrixCommand> validator,
@@ -26,7 +27,8 @@ public sealed class CreateCatalogItemMatrixHandler
         ICatalogItemRepository items,
         ISysSettingRepository settings,
         IProductTemplateRepository templates,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICategoryRepository? categories = null)
     {
         _validator = validator;
         _idGenerator = idGenerator;
@@ -35,6 +37,7 @@ public sealed class CreateCatalogItemMatrixHandler
         _settings = settings;
         _templates = templates;
         _unitOfWork = unitOfWork;
+        _categories = categories;
     }
 
     public async Task<Result<CreateCatalogItemMatrixResponse>> Handle(
@@ -64,6 +67,27 @@ public sealed class CreateCatalogItemMatrixHandler
         }
 
         var schemaJson = CatalogAttributeSchema.EmptyArrayJson;
+        string? categoryName = null;
+        if (command.CategoryId is { } categoryId)
+        {
+            if (_categories is null)
+            {
+                return Result.Failure<CreateCatalogItemMatrixResponse>(
+                    new Error("catalog.matrix.category.not_found", "La categoría no existe.", ErrorType.NotFound));
+            }
+
+            var category = await _categories
+                .GetActiveByIdAsync(command.TenantId, categoryId, ct)
+                .ConfigureAwait(false);
+            if (category is null)
+            {
+                return Result.Failure<CreateCatalogItemMatrixResponse>(
+                    new Error("catalog.matrix.category.not_found", "La categoría no existe.", ErrorType.NotFound));
+            }
+
+            categoryName = category.Name;
+        }
+
         if (command.FamilyId is { } familyId)
         {
             var family = await _templates.GetByIdAsync(familyId, command.TenantId, ct).ConfigureAwait(false);
@@ -122,6 +146,10 @@ public sealed class CreateCatalogItemMatrixHandler
                 new Error("catalog.matrix.model_code.duplicate", $"El código de modelo '{command.ModelCode}' ya existe como SKU en el catálogo.", ErrorType.Conflict));
         }
 
+        var syncedHierarchyPathJson = CatalogItem.SyncCategoryInHierarchyPath(
+            command.HierarchyPathJson,
+            categoryName);
+
         var parentId = _idGenerator.NewId();
         var parentResult = CatalogItem.CreateMatrixParent(
             parentId,
@@ -135,9 +163,10 @@ public sealed class CreateCatalogItemMatrixHandler
             command.CustomAttributesJson,
             schemaJson,
             familyId: command.FamilyId,
-            hierarchyPathJson: command.HierarchyPathJson,
+            hierarchyPathJson: syncedHierarchyPathJson,
             costPrice: command.CostPrice,
-            minOrderQuantity: command.MinOrderQuantity);
+            minOrderQuantity: command.MinOrderQuantity,
+            categoryId: command.CategoryId);
 
         if (parentResult.IsFailure)
         {

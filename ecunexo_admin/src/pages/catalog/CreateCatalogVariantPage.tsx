@@ -471,14 +471,9 @@ export function CreateCatalogVariantPage() {
         />
 
         <form
+          className="ecu-companies-form"
           onSubmit={handleSubmit}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.25rem',
-            marginTop: '1.25rem',
-            paddingBottom: '3rem',
-          }}
+          style={{ marginTop: '0.75rem', paddingBottom: '3rem' }}
         >
           {/* Tarjeta de Referencia del Producto Matriz */}
           <SectionCard

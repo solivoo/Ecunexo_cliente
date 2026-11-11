@@ -250,7 +250,7 @@ export default function JournalEntryCreatePage() {
           }
         />
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="ecu-companies-form">
           {/* Cabecera del Asiento */}
           <SectionCard title="Datos Generales del Comprobante">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

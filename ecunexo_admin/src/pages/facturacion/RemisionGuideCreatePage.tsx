@@ -349,7 +349,7 @@ export function RemisionGuideCreatePage() {
         )}
 
         <form
-          style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+          className="ecu-companies-form"
           onSubmit={(e) => {
             e.preventDefault()
             void handleSave(true)

@@ -25,6 +25,14 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
             .HasForeignKey(i => i.TenantId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.Property(i => i.CategoryId)
+            .HasColumnType("uuid");
+
+        builder.HasOne(i => i.Category)
+            .WithMany()
+            .HasForeignKey(i => i.CategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Property(i => i.FamilyId)
             .HasColumnType("uuid");
 

@@ -67,6 +67,16 @@ public sealed class UpdateVariantDimensionTemplateHandler
         var nameChanged = !string.Equals(oldName, targetName, StringComparison.OrdinalIgnoreCase);
         if (nameChanged)
         {
+            var systemConflict = SystemBaseAttributes.FindItemFieldByNameOrAlias(targetName);
+            if (systemConflict is not null)
+            {
+                return Result.Failure<UpdateVariantDimensionTemplateResponse>(
+                    new Error(
+                        "catalog.variant_template.system_base_conflict",
+                        $"«{systemConflict.Name}» ya existe como atributo base del sistema en todos los ítems. No es necesario crearlo de nuevo.",
+                        ErrorType.Validation));
+            }
+
             var duplicate = await _templates.ExistsByNameAsync(command.TenantId, targetName, template.Id, ct)
                 .ConfigureAwait(false);
             if (duplicate)

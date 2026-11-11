@@ -380,7 +380,7 @@ export function PurchaseProformaCreatePage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <form className="ecu-companies-form" onSubmit={handleSubmit}>
           {/* SECCIÓN 1: CABECERA COMERCIAL & VIGENCIA */}
           <SectionCard
             title="Datos de la Cotización & Proveedor"

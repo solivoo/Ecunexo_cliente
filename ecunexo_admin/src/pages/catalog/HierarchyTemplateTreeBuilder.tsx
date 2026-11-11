@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent } from 'react'
+import { useMemo, type ChangeEvent } from 'react'
 import { Button, OptionGroup, Select, TextBox, useToast } from 'glubox'
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react'
 import type { ProductTemplateLevel, VariantDimensionTemplateDto } from '@/types/catalogApi'
@@ -12,11 +12,18 @@ import {
 } from '@/lib/catalogArchetype'
 import { findSystemBaseAttribute } from '@/lib/catalogBaseAttributes'
 
+export type CreateAttributeTarget = {
+  levelIndex: number
+  list: 'attributes' | 'axes'
+}
+
 export interface HierarchyTemplateTreeBuilderProps {
   levels: ProductTemplateLevel[]
   onChange: (levels: ProductTemplateLevel[]) => void
   availableAttributes: VariantDimensionTemplateDto[]
   disabled?: boolean
+  /** Abre el modal de crear atributo del diccionario (en lugar de texto libre). */
+  onRequestCreateAttribute?: (target: CreateAttributeTarget) => void
 }
 
 function nextLevelId(): string {
@@ -69,9 +76,9 @@ export function HierarchyTemplateTreeBuilder({
   onChange,
   availableAttributes,
   disabled = false,
+  onRequestCreateAttribute,
 }: HierarchyTemplateTreeBuilderProps) {
   const toast = useToast()
-  const [customByLevel, setCustomByLevel] = useState<Record<string, { data: string; axis: string }>>({})
 
   const attributeLookup = useMemo(
     () => buildDimensionValuesMap(availableAttributes),
@@ -234,39 +241,32 @@ export function HierarchyTemplateTreeBuilder({
             </div>
           </div>
 
-          <TextBox
-            id={`level-name-${lvl.id}`}
-            label="Nombre del nivel"
-            labelPosition="outlined"
-            variant="outline"
-            value={lvl.name}
-            placeholder="Ej. Colección, Modelo, Presentación"
-            disabled={disabled}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => patchLevel(index, { name: e.target.value })}
-            fullWidth
-          />
+          <div style={{ maxWidth: '22rem' }}>
+            <TextBox
+              id={`level-name-${lvl.id}`}
+              label="Nombre del nivel"
+              labelPosition="outlined"
+              variant="outline"
+              value={lvl.name}
+              placeholder="Ej. Colección, Modelo, Presentación"
+              disabled={disabled}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => patchLevel(index, { name: e.target.value })}
+              fullWidth
+            />
+          </div>
 
           <LevelList
             title="Datos de este nivel"
-            hint="Se completan una vez en este peldaño (ficha o notas)."
+            hint=""
             items={lvl.attributes}
             disabled={disabled}
             options={dictionaryOptions()}
-            customValue={customByLevel[lvl.id]?.data ?? ''}
-            onCustomChange={(value) =>
-              setCustomByLevel((prev) => ({
-                ...prev,
-                [lvl.id]: { data: value, axis: prev[lvl.id]?.axis ?? '' },
-              }))
-            }
             onPick={(name) => addToList(index, 'attributes', name)}
-            onAddCustom={() => {
-              addToList(index, 'attributes', customByLevel[lvl.id]?.data ?? '')
-              setCustomByLevel((prev) => ({
-                ...prev,
-                [lvl.id]: { data: '', axis: prev[lvl.id]?.axis ?? '' },
-              }))
-            }}
+            onCreateAttribute={
+              onRequestCreateAttribute
+                ? () => onRequestCreateAttribute({ levelIndex: index, list: 'attributes' })
+                : undefined
+            }
             onRemove={(name) => removeFromList(index, 'attributes', name)}
             onMove={(name) => moveAcross(index, 'attributes', name)}
             moveLabel="Pasar a ejes"
@@ -274,25 +274,16 @@ export function HierarchyTemplateTreeBuilder({
 
           <LevelList
             title="Ejes de este nivel"
-            hint="Cada valor genera un código distinto. El orden es el orden del código."
+            hint=""
             items={lvl.axes ?? []}
             disabled={disabled}
             options={dictionaryOptions()}
-            customValue={customByLevel[lvl.id]?.axis ?? ''}
-            onCustomChange={(value) =>
-              setCustomByLevel((prev) => ({
-                ...prev,
-                [lvl.id]: { data: prev[lvl.id]?.data ?? '', axis: value },
-              }))
-            }
             onPick={(name) => addToList(index, 'axes', name)}
-            onAddCustom={() => {
-              addToList(index, 'axes', customByLevel[lvl.id]?.axis ?? '')
-              setCustomByLevel((prev) => ({
-                ...prev,
-                [lvl.id]: { data: prev[lvl.id]?.data ?? '', axis: '' },
-              }))
-            }}
+            onCreateAttribute={
+              onRequestCreateAttribute
+                ? () => onRequestCreateAttribute({ levelIndex: index, list: 'axes' })
+                : undefined
+            }
             onRemove={(name) => removeFromList(index, 'axes', name)}
             onMove={(name) => moveAcross(index, 'axes', name)}
             moveLabel="Pasar a datos"
@@ -412,10 +403,8 @@ function LevelList({
   items,
   disabled,
   options,
-  customValue,
-  onCustomChange,
   onPick,
-  onAddCustom,
+  onCreateAttribute,
   onRemove,
   onMove,
   moveLabel,
@@ -425,10 +414,8 @@ function LevelList({
   items: readonly string[]
   disabled: boolean
   options: { value: string; label: string }[]
-  customValue: string
-  onCustomChange: (value: string) => void
   onPick: (name: string) => void
-  onAddCustom: () => void
+  onCreateAttribute?: () => void
   onRemove: (name: string) => void
   onMove: (name: string) => void
   moveLabel: string
@@ -448,36 +435,39 @@ function LevelList({
         <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{title}</div>
         <div style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #64748b)' }}>{hint}</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) minmax(160px, 1fr)', gap: '0.6rem' }}>
-        <Select
-          placeholder="Agregar del diccionario"
-          value=""
-          disabled={disabled || options.length === 0}
-          options={[{ value: '', label: 'Agregar del diccionario' }, ...options]}
-          onChange={(value: string) => {
-            if (value) onPick(value)
-          }}
-          fullWidth
-        />
-        <div style={{ display: 'flex', gap: '0.4rem' }}>
-          <TextBox
-            variant="outline"
-            value={customValue}
-            placeholder="Agregar otro"
-            disabled={disabled}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => onCustomChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                onAddCustom()
-              }
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', maxWidth: '22rem' }}>
+        <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+          <Select
+            placeholder="Agregar del diccionario"
+            value=""
+            disabled={disabled || options.length === 0}
+            options={[{ value: '', label: 'Agregar del diccionario' }, ...options]}
+            onChange={(value: string) => {
+              if (value) onPick(value)
             }}
             fullWidth
           />
-          <Button type="button" variant="outline" disabled={disabled || !customValue.trim()} onClick={onAddCustom}>
-            <Plus size={15} />
-          </Button>
         </div>
+        {onCreateAttribute ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            onClick={onCreateAttribute}
+            aria-label="Crear atributo"
+            title="Crear atributo"
+            style={{
+              width: 36,
+              height: 36,
+              minWidth: 36,
+              padding: 0,
+              borderRadius: '999px',
+              flexShrink: 0,
+            }}
+          >
+            <Plus size={16} strokeWidth={2} aria-hidden />
+          </Button>
+        ) : null}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
         {items.length === 0 ? (

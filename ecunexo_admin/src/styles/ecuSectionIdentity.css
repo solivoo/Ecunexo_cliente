@@ -268,7 +268,7 @@
 
 /* Cuerpo sin DataGrid: conserva aire propio */
 .ecu-section-page .ecu-section-card__body--padded {
-  padding: 1.35rem;
+  padding: 1rem 1.15rem;
 }
 
 /* Banners de error como hijo directo del cuerpo sin padding */

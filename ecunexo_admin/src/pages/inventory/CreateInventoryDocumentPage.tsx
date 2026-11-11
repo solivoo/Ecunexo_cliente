@@ -714,6 +714,7 @@ export function CreateInventoryDocumentPage() {
         />
 
         <form
+          className="ecu-companies-form"
           onSubmit={(e) => void onSubmit(e, { approveAfterCreate: false })}
           noValidate
         >

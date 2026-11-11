@@ -9,13 +9,16 @@ public sealed class ListCatalogItemsHandler
 {
     private readonly ICatalogItemRepository _items;
     private readonly IProductTemplateRepository _templates;
+    private readonly ICategoryRepository? _categories;
 
     public ListCatalogItemsHandler(
         ICatalogItemRepository items,
-        IProductTemplateRepository templates)
+        IProductTemplateRepository templates,
+        ICategoryRepository? categories = null)
     {
         _items = items;
         _templates = templates;
+        _categories = categories;
     }
 
     public async Task<Result<IReadOnlyList<CatalogItemListItemResponse>>> Handle(
@@ -52,6 +55,13 @@ public sealed class ListCatalogItemsHandler
         {
             var templates = await _templates.ListByTenantAsync(query.TenantId, ct).ConfigureAwait(false);
             familyNames = templates.ToDictionary(t => t.Id, t => t.Name);
+        }
+
+        Dictionary<Guid, string> categoryNames = [];
+        if (_categories is not null && list.Any(i => i.CategoryId.HasValue))
+        {
+            var categories = await _categories.ListActiveByTenantAsync(query.TenantId, ct).ConfigureAwait(false);
+            categoryNames = categories.ToDictionary(c => c.Id, c => c.Name);
         }
 
         IReadOnlyList<CatalogItemListItemResponse> items = list
@@ -104,7 +114,9 @@ public sealed class ListCatalogItemsHandler
                     i.IsHiddenFromStorefront,
                     i.ParentId is { } pid && parentNames.TryGetValue(pid, out var parentName) ? parentName : null,
                     i.MinOrderQuantity,
-                    i.CostPrice);
+                    i.CostPrice,
+                    i.CategoryId,
+                    i.CategoryId is { } cid && categoryNames.TryGetValue(cid, out var cn) ? cn : null);
             })
             .ToList();
         return Result.Success(items);

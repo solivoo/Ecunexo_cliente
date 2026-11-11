@@ -49,6 +49,10 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
     public Tenant? Tenant { get; private set; }
 
+    public Guid? CategoryId { get; private set; }
+
+    public Category? Category { get; private set; }
+
     /// <summary>Arquetipo/Familia (plantilla de producto) que describe la forma del ítem.</summary>
     public Guid? FamilyId { get; private set; }
 
@@ -110,7 +114,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string? hierarchyPathJson = null,
         string? barcode = null,
         decimal? minOrderQuantity = null,
-        decimal? costPrice = null)
+        decimal? costPrice = null,
+        Guid? categoryId = null)
     {
         if (tenantId == Guid.Empty)
         {
@@ -182,6 +187,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         {
             Id = id,
             TenantId = tenantId,
+            CategoryId = categoryId,
             FamilyId = familyId,
             HierarchyPathJson = path.Value,
             Kind = kind,
@@ -213,7 +219,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Guid? familyId = null,
         string? hierarchyPathJson = null,
         decimal? costPrice = null,
-        decimal? minOrderQuantity = null)
+        decimal? minOrderQuantity = null,
+        Guid? categoryId = null)
     {
         if (tenantId == Guid.Empty)
         {
@@ -285,6 +292,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         {
             Id = id,
             TenantId = tenantId,
+            CategoryId = categoryId,
             FamilyId = familyId,
             HierarchyPathJson = path.Value,
             Kind = kind,
@@ -394,6 +402,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             ParentId = parent.Id,
             Parent = parent,
             IsMatrixParent = false,
+            CategoryId = parent.CategoryId,
             FamilyId = parent.FamilyId,
             HierarchyPathJson = parent.HierarchyPathJson,
             Kind = parent.Kind,
@@ -437,6 +446,90 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
         RecalculateTreeThumbnails();
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Sincroniza la entrada de Categoría en la ruta jerárquica:
+    /// Si <paramref name="categoryName"/> tiene valor, asegura la entrada
+    /// <c>{ "level": "Clasificación", "name": "Categoría", "value": "&lt;categoryName&gt;" }</c>.
+    /// Si es nulo o vacío, elimina cualquier entrada cuyo <c>name</c> sea "Categoría" (case-insensitive).
+    /// Preserva el resto de las entradas jerárquicas.
+    /// </summary>
+    public static string? SyncCategoryInHierarchyPath(string? rawHierarchyPathJson, string? categoryName)
+    {
+        var preservedEntries = new List<object>();
+
+        if (!string.IsNullOrWhiteSpace(rawHierarchyPathJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(rawHierarchyPathJson.Trim());
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var entry in doc.RootElement.EnumerateArray())
+                    {
+                        if (entry.ValueKind != JsonValueKind.Object)
+                        {
+                            continue;
+                        }
+
+                        var level = entry.TryGetProperty("level", out var levelEl) ? levelEl.GetString()?.Trim() : null;
+                        var name = entry.TryGetProperty("name", out var nameEl) ? nameEl.GetString()?.Trim() : null;
+                        var value = entry.TryGetProperty("value", out var valueEl) ? valueEl.GetString()?.Trim() : null;
+
+                        if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(value))
+                        {
+                            continue;
+                        }
+
+                        if (IsCategoryHierarchyName(name))
+                        {
+                            continue;
+                        }
+
+                        if (string.IsNullOrEmpty(level))
+                        {
+                            level = name;
+                        }
+
+                        preservedEntries.Add(new { level, name, value });
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // Si el JSON previo no se puede parsear, se ignora para reconstruir con la categoría o dejar que NormalizeHierarchyPath falle si corresponde.
+                return string.IsNullOrWhiteSpace(categoryName)
+                    ? rawHierarchyPathJson
+                    : JsonSerializer.Serialize(new[]
+                    {
+                        new { level = "Clasificación", name = "Categoría", value = categoryName.Trim() }
+                    });
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(categoryName))
+        {
+            preservedEntries.Insert(
+                0,
+                new
+                {
+                    level = "Clasificación",
+                    name = "Categoría",
+                    value = categoryName.Trim(),
+                });
+        }
+
+        return preservedEntries.Count == 0
+            ? null
+            : JsonSerializer.Serialize(preservedEntries);
+    }
+
+    private static bool IsCategoryHierarchyName(string name)
+    {
+        var trimmed = name.Trim();
+        return trimmed.Equals("Categoría", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Equals("Categoria", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -637,7 +730,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Guid? familyId = null,
         string? hierarchyPathJson = null,
         decimal? minOrderQuantity = null,
-        decimal? costPrice = null)
+        decimal? costPrice = null,
+        Guid? categoryId = null)
     {
         var nameResult = NormalizeName(name);
         if (nameResult.IsFailure)
@@ -697,6 +791,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Sku = skuResult.Value;
         BasePrice = priceResult.Value;
         CostPrice = costResult.Value;
+        CategoryId = categoryId;
         FamilyId = familyId;
         HierarchyPathJson = path.Value;
         CustomAttributesJson = PreserveSystemAttributes(CustomAttributesJson, attrs.Value!);

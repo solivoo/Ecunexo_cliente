@@ -48,6 +48,16 @@ public sealed class CreateVariantDimensionTemplateHandler
                 new Error("catalog.variant_template.tenant.not_found", "El tenant no existe.", ErrorType.NotFound));
         }
 
+        var systemConflict = SystemBaseAttributes.FindItemFieldByNameOrAlias(command.Name);
+        if (systemConflict is not null)
+        {
+            return Result.Failure<CreateVariantDimensionTemplateResponse>(
+                new Error(
+                    "catalog.variant_template.system_base_conflict",
+                    $"«{systemConflict.Name}» ya existe como atributo base del sistema en todos los ítems. No es necesario crearlo de nuevo.",
+                    ErrorType.Validation));
+        }
+
         var id = _idGenerator.NewId();
         var templateResult = VariantDimensionTemplate.Create(
             id,

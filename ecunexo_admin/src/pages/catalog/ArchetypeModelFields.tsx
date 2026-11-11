@@ -1,5 +1,5 @@
 import { useMemo, type ChangeEvent } from 'react'
-import { ColorPicker, NumberBox, Select, TextBox } from 'glubox'
+import { ColorPicker, NumberBox, Select, TextArea, TextBox } from 'glubox'
 import { EcuColorListInput, EcuMediaListInput, EcuTagInput } from '@/components/ui'
 import { parseMediaValue, type ArchetypeAttributeField, type DimensionLookup } from '@/lib/catalogArchetype'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
@@ -16,37 +16,75 @@ type ArchetypeModelFieldsProps = {
   bare?: boolean
 }
 
-type FieldKind = 'text' | 'number' | 'select' | 'color' | 'colorlist' | 'tags' | 'media'
-type FieldGroupKey = 'text' | 'number' | 'select' | 'colors' | 'tags' | 'media'
+type FieldKind = 'text' | 'textarea' | 'number' | 'select' | 'color' | 'colorlist' | 'tags' | 'media'
+type FieldGroupKey = 'select' | 'number' | 'color' | 'text' | 'textarea' | 'tags' | 'colors' | 'media'
 
-const GROUP_ORDER: FieldGroupKey[] = ['text', 'number', 'select', 'colors', 'tags', 'media']
+/** Orden visual: compactos primero, anchos al final. */
+const GROUP_ORDER: FieldGroupKey[] = [
+  'select',
+  'number',
+  'color',
+  'text',
+  'textarea',
+  'tags',
+  'colors',
+  'media',
+]
 
 const GROUP_META: Record<FieldGroupKey, { title: string; gridClass: string }> = {
-  text: { title: 'Texto', gridClass: 'ecu-companies-form__grid--4' },
-  number: { title: 'Números', gridClass: 'ecu-companies-form__grid--4' },
-  select: { title: 'Listas de selección', gridClass: 'ecu-companies-form__grid--4' },
-  colors: { title: 'Colores', gridClass: 'ecu-companies-form__grid--4' },
-  tags: { title: 'Etiquetas', gridClass: 'ecu-companies-form__grid--2' },
-  media: { title: 'Fotos', gridClass: 'ecu-companies-form__grid--2' },
+  select: { title: 'Listas de selección', gridClass: 'ecu-companies-form__grid--dynamic' },
+  number: { title: 'Números', gridClass: 'ecu-companies-form__grid--dynamic' },
+  color: { title: 'Color', gridClass: 'ecu-companies-form__grid--dynamic' },
+  text: { title: 'Texto', gridClass: 'ecu-companies-form__grid--dynamic' },
+  textarea: { title: 'Descripción', gridClass: 'ecu-companies-form__grid--dynamic' },
+  colors: { title: 'Colores', gridClass: 'ecu-companies-form__grid--dynamic' },
+  tags: { title: 'Etiquetas', gridClass: 'ecu-companies-form__grid--dynamic' },
+  media: { title: 'Fotos', gridClass: 'ecu-companies-form__grid--dynamic' },
 }
 
 const KIND_GROUP: Record<FieldKind, FieldGroupKey> = {
   text: 'text',
+  textarea: 'textarea',
   number: 'number',
   select: 'select',
-  color: 'colors',
+  color: 'color',
   colorlist: 'colors',
   tags: 'tags',
   media: 'media',
 }
 
-/** Los controles anchos ocupan más de una columna para no romper la fila. */
+/**
+ * Densidad por tipo de control (formularios de plantilla/matriz).
+ * Compacto = 1 columna (~14–16rem).
+ * Tags / colorlist / media / textarea = fila completa.
+ */
 const KIND_SPAN_CLASS: Partial<Record<FieldKind, string>> = {
-  colorlist: 'ecu-companies-form__field--span-2',
-  media: 'ecu-companies-form__field--span-2',
+  colorlist: 'ecu-companies-form__field--wide',
+  tags: 'ecu-companies-form__field--wide',
+  media: 'ecu-companies-form__field--wide',
+  textarea: 'ecu-companies-form__field--wide',
 }
 
-function resolveFieldKind(dataType: string, hasOptions: boolean): FieldKind {
+function isLongTextKey(key: string): boolean {
+  const n = key
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+  return (
+    n === 'descripcion' ||
+    n === 'description' ||
+    n.startsWith('descripcion ') ||
+    n === 'detalle' ||
+    n === 'nota' ||
+    n === 'notas' ||
+    n === 'observaciones' ||
+    n === 'comentario' ||
+    n === 'comentarios'
+  )
+}
+
+function resolveFieldKind(dataType: string, hasOptions: boolean, key: string): FieldKind {
   if (dataType === 'number') return 'number'
   if (dataType === 'boolean') return 'select'
   if (dataType === 'color') return 'color'
@@ -54,6 +92,7 @@ function resolveFieldKind(dataType: string, hasOptions: boolean): FieldKind {
   if (dataType === 'media') return 'media'
   if (dataType === 'multiselect') return 'tags'
   if (hasOptions) return 'select'
+  if (dataType === 'textarea' || isLongTextKey(key)) return 'textarea'
   return 'text'
 }
 
@@ -85,7 +124,11 @@ export function ArchetypeModelFields({
     const map = new Map<FieldGroupKey, ArchetypeAttributeField[]>()
     for (const field of fields) {
       const lookup = dimensionValuesMap.get(field.key.trim().toLowerCase())
-      const kind = resolveFieldKind(lookup?.dataType ?? 'text', (lookup?.values.length ?? 0) > 0)
+      const kind = resolveFieldKind(
+        lookup?.dataType ?? 'text',
+        (lookup?.values.length ?? 0) > 0,
+        field.key
+      )
       const groupKey = KIND_GROUP[kind]
       const list = map.get(groupKey)
       if (list) list.push(field)
@@ -113,7 +156,7 @@ export function ArchetypeModelFields({
     const unit = lookup?.unit ?? null
     const label = buildLabel(field, unit)
     const hasOptions = (lookup?.values.length ?? 0) > 0
-    const kind = resolveFieldKind(dataType, hasOptions)
+    const kind = resolveFieldKind(dataType, hasOptions, field.key)
     const multiValues = value
       .split(',')
       .map((v) => v.trim())
@@ -133,6 +176,20 @@ export function ArchetypeModelFields({
             value={value}
             onChange={(e: ChangeEvent<HTMLInputElement>) => onChangeValue(field.key, e.target.value)}
             placeholder={`Ej. ${field.levelName}`}
+            disabled={disabled}
+            fullWidth
+          />
+        ) : kind === 'textarea' ? (
+          <TextArea
+            id={id}
+            label={label}
+            labelPosition="outlined"
+            variant="outline"
+            value={value}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onChangeValue(field.key, e.target.value)}
+            placeholder={`Ej. ${field.levelName}`}
+            rows={3}
+            resize="vertical"
             disabled={disabled}
             fullWidth
           />

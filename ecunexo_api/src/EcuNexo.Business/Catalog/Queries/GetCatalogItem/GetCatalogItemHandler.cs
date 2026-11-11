@@ -9,13 +9,16 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
 {
     private readonly ICatalogItemRepository _items;
     private readonly IProductTemplateRepository _templates;
+    private readonly ICategoryRepository? _categories;
 
     public GetCatalogItemHandler(
         ICatalogItemRepository items,
-        IProductTemplateRepository templates)
+        IProductTemplateRepository templates,
+        ICategoryRepository? categories = null)
     {
         _items = items;
         _templates = templates;
+        _categories = categories;
     }
 
     public async Task<Result<CatalogItemDetailResponse>> Handle(
@@ -160,6 +163,13 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
             familyName = family?.Name;
         }
 
+        string? categoryName = null;
+        if (_categories is not null && item.CategoryId is { } categoryId)
+        {
+            var category = await _categories.GetActiveByIdAsync(query.TenantId, categoryId, ct).ConfigureAwait(false);
+            categoryName = category?.Name;
+        }
+
         return Result.Success(
             new CatalogItemDetailResponse(
                 item.Id,
@@ -186,7 +196,9 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 item.Barcode,
                 item.MinOrderQuantity,
                 parentDescription,
-                item.CostPrice));
+                item.CostPrice,
+                item.CategoryId,
+                categoryName));
     }
 
     private static IReadOnlyList<MatrixAxisDef> ParseMatrixAxes(string? variantDimensionsJson)

@@ -27,6 +27,8 @@ public sealed class UiAccessEvaluator : IUiAccessEvaluator
             ["catalog.item.update"] = ["edit"],
             ["catalog.item.delete"] = ["delete"],
             ["catalog.item.hide"] = ["hide"],
+            ["catalog.category.read"] = ["view"],
+            ["catalog.category.manage"] = ["create", "edit", "delete"],
             ["warehousing.read"] = ["view"],
             ["warehousing.locations.manage"] = ["create", "edit"],
             ["inventory.stock.read"] = ["view"],

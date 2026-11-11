@@ -90,4 +90,80 @@ public sealed class UpdateCatalogItemHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("catalog.variants.active_limit_reached");
     }
+
+    [Fact(DisplayName = "UpdateCatalogItem sincroniza hierarchyPathJson al asignar y limpiar CategoryId")]
+    public async Task Handle_SyncsHierarchyPathWithCategoryOnSave()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var itemId = Guid.CreateVersion7();
+        var categoryId = Guid.CreateVersion7();
+        var category = Category.Create(categoryId, tenantId, "Deportivos").Value!;
+
+        var item = CatalogItem.Create(
+            itemId,
+            tenantId,
+            CatalogItemKind.Physical,
+            "Calcetín Pro",
+            null,
+            "CALC-PRO-01",
+            4.5m,
+            null,
+            CatalogAttributeSchema.EmptyArrayJson,
+            hierarchyPathJson: """[{"level":"Familia","name":"Material","value":"Algodón"}]""").Value!;
+
+        _items.GetTrackedByIdAsync(tenantId, itemId, Arg.Any<CancellationToken>())
+            .Returns(item);
+
+        var categoriesRepo = Substitute.For<ICategoryRepository>();
+        categoriesRepo.GetActiveByIdAsync(tenantId, categoryId, Arg.Any<CancellationToken>())
+            .Returns(category);
+
+        var sut = new UpdateCatalogItemHandler(
+            _validator,
+            _items,
+            _settings,
+            _templates,
+            _tenants,
+            _stocks,
+            _movements,
+            _unitOfWork,
+            categoriesRepo);
+
+        var assignResult = await sut.Handle(
+            new UpdateCatalogItemCommand(
+                tenantId,
+                itemId,
+                item.Name,
+                item.Description,
+                item.Sku,
+                item.BasePrice,
+                item.CustomAttributesJson,
+                HierarchyPathJson: item.HierarchyPathJson,
+                CategoryId: categoryId),
+            CancellationToken.None);
+
+        assignResult.IsSuccess.Should().BeTrue();
+        item.CategoryId.Should().Be(categoryId);
+        item.HierarchyPathJson.Should().Contain("Clasificaci");
+        item.HierarchyPathJson.Should().Contain("Deportivos");
+        item.HierarchyPathJson.Should().Contain("Algod");
+
+        var clearResult = await sut.Handle(
+            new UpdateCatalogItemCommand(
+                tenantId,
+                itemId,
+                item.Name,
+                item.Description,
+                item.Sku,
+                item.BasePrice,
+                item.CustomAttributesJson,
+                HierarchyPathJson: item.HierarchyPathJson,
+                CategoryId: null),
+            CancellationToken.None);
+
+        clearResult.IsSuccess.Should().BeTrue();
+        item.CategoryId.Should().BeNull();
+        item.HierarchyPathJson.Should().NotContain("Deportivos");
+        item.HierarchyPathJson.Should().Contain("Algod");
+    }
 }
