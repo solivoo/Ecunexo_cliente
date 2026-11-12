@@ -31,6 +31,12 @@ import {
   readUnitOfMeasureFromCustomAttributes,
   upsertBaseCommercialAttributes,
 } from '@/lib/catalogBaseAttributes'
+import {
+  paletteFromDimensionMap,
+  readNamedColorsFromAttributes,
+  upsertNamedColorAttributes,
+} from '@/lib/catalogNamedColors'
+import { NamedColorSelect } from '@/pages/catalog/NamedColorSelect'
 import { VariantAdminSummaryBlock } from '@/pages/catalog/VariantAdminSummaryBlock'
 import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
 import {
@@ -132,6 +138,7 @@ export function EditCatalogItemPage() {
   const [basePrice, setBasePrice] = useState('')
   const [minOrderQuantity, setMinOrderQuantity] = useState(1)
   const [brand, setBrand] = useState('')
+  const [productColors, setProductColors] = useState<string[]>([])
   const [unitOfMeasure, setUnitOfMeasure] = useState('UND')
   const [status, setStatus] = useState(String(CatalogItemStatus.Active))
   const [customAttributes, setCustomAttributes] = useState<CustomAttributeRow[]>([])
@@ -218,6 +225,11 @@ export function EditCatalogItemPage() {
   const dimensionValuesMap = useMemo(
     () => buildDimensionValuesMap(allDimensionTemplates),
     [allDimensionTemplates]
+  )
+
+  const systemColorPalette = useMemo(
+    () => paletteFromDimensionMap(dimensionValuesMap),
+    [dimensionValuesMap]
   )
 
   const modelAttributeFields = useMemo(
@@ -403,6 +415,7 @@ export function EditCatalogItemPage() {
       setStatus(String(detail.status))
       const parsedAttrs = deserializeCustomAttributes(detail.customAttributesJson)
       setBrand(readBrandFromCustomAttributes(parsedAttrs))
+      setProductColors(readNamedColorsFromAttributes(parsedAttrs))
       setUnitOfMeasure(readUnitOfMeasureFromCustomAttributes(parsedAttrs, 'UND'))
       setCustomAttributes(parsedAttrs)
       setTags(extractTagsFromCustomAttributes(detail.customAttributesJson))
@@ -621,7 +634,14 @@ export function EditCatalogItemPage() {
 
         const isStandardSingleItem = !isMatrixParent && !isVariantChild && !familyTemplate
         const attrsWithBase = isStandardSingleItem
-          ? upsertBaseCommercialAttributes(customAttributes, brand, unitOfMeasure)
+          ? (() => {
+              const withBase = upsertBaseCommercialAttributes(
+                customAttributes,
+                brand,
+                unitOfMeasure
+              )
+              return upsertNamedColorAttributes(withBase, productColors, systemColorPalette)
+            })()
           : customAttributes
         const resolvedMinOrderQty = isStandardSingleItem
           ? minOrderQuantity
@@ -681,6 +701,8 @@ export function EditCatalogItemPage() {
     [
       barcode,
       brand,
+      productColors,
+      systemColorPalette,
       categoryId,
       costPrice,
       basePrice,
@@ -1247,6 +1269,28 @@ export function EditCatalogItemPage() {
                       />
                     </div>
                   ) : null}
+
+                  {!isMatrixParent && !isVariantChild && !familyTemplate ? (
+                    <div className="ecu-companies-form__field">
+                      <NamedColorSelect
+                        label="Color"
+                        value=""
+                    multiValues={productColors}
+                    onMultiChange={setProductColors}
+                        palette={systemColorPalette}
+                        tenantId={tenantId}
+                        onPaletteUpdated={async () => {
+                          if (!tenantId) return
+                          const fresh = await listVariantDimensionTemplates(tenantId)
+                          setDimensionTemplates(fresh)
+                          setSystemBaseEpoch((n) => n + 1)
+                        }}
+                        disabled={busy}
+                        allowEmpty
+                        emptyLabel="Ninguno"
+                      />
+                    </div>
+                  ) : null}
                 </div>
 
                 <span className="ecu-hint">
@@ -1381,6 +1425,13 @@ export function EditCatalogItemPage() {
                     onMediaError={handleMediaError}
                     disabled={busy}
                     bare
+                    tenantId={tenantId}
+                    onColorPaletteUpdated={async () => {
+                      if (!tenantId) return
+                      const fresh = await listVariantDimensionTemplates(tenantId)
+                      setDimensionTemplates(fresh)
+                      setSystemBaseEpoch((n) => n + 1)
+                    }}
                   />
                 </SectionCard>
               ) : null}
@@ -1411,6 +1462,13 @@ export function EditCatalogItemPage() {
                     onMediaError={handleMediaError}
                     disabled={busy}
                     bare
+                    tenantId={tenantId}
+                    onColorPaletteUpdated={async () => {
+                      if (!tenantId) return
+                      const fresh = await listVariantDimensionTemplates(tenantId)
+                      setDimensionTemplates(fresh)
+                      setSystemBaseEpoch((n) => n + 1)
+                    }}
                   />
                 </SectionCard>
               ) : null}

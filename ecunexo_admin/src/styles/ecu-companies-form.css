@@ -189,16 +189,13 @@ html.sf-dark-mode .ecu-invoice-status--danger {
 }
 
 /*
- * Grid dinámico (plantillas/matrices): columnas compactas por tipo de control.
- * auto-fill crea pistas hasta llenar el ancho; los campos compactos se empaquetan
- * a la izquierda sin huecos entre sí. Los --wide/--span-4 ocupan toda la fila.
+ * Grid dinámico: máximo 4 columnas iguales.
+ * --span-2 = media fila; --wide / textarea = fila completa.
  */
 .ecu-companies-form__grid--dynamic {
   display: grid;
-  /* Columna 1fr al final: absorbe el sobrante para que --wide ocupe todo el ancho
-     (con solo auto-fill + max 16rem, 1/-1 solo cubría la suma de pistas). */
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 16rem)) minmax(0, 1fr);
-  justify-content: start;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: stretch;
   align-items: start;
   gap: 0.75rem;
   width: 100%;
@@ -206,7 +203,7 @@ html.sf-dark-mode .ecu-invoice-status--danger {
 
 .ecu-companies-form__grid--dynamic > .ecu-companies-form__field--span-2 {
   grid-column: span 2;
-  max-width: 33rem;
+  max-width: none;
 }
 
 .ecu-companies-form__grid--dynamic > .ecu-companies-form__field--span-4,
@@ -217,14 +214,19 @@ html.sf-dark-mode .ecu-invoice-status--danger {
   width: 100%;
 }
 
+@media (max-width: 1099px) {
+  .ecu-companies-form__grid--dynamic {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 639px) {
   .ecu-companies-form__grid--dynamic {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .ecu-companies-form__grid--dynamic > .ecu-companies-form__field--span-2 {
-    grid-column: auto;
-    max-width: none;
+    grid-column: 1 / -1;
   }
 }
 

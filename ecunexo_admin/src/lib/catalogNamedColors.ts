@@ -1,10 +1,12 @@
+import type { DimensionLookup } from '@/lib/catalogArchetype'
+import { getTemplateDictionaryAttributes } from '@/lib/catalogBaseAttributes'
+import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 import type { VariantDimensionTemplateDto } from '@/types/catalogApi'
 import {
   createVariantDimensionTemplate,
   listVariantDimensionTemplates,
   updateVariantDimensionTemplate,
 } from '@/services/catalogApi'
-import { getTemplateDictionaryAttributes } from '@/lib/catalogBaseAttributes'
 
 export type NamedColor = {
   name: string
@@ -73,6 +75,66 @@ export function namedColorsToHexMap(colors: readonly NamedColor[]): Record<strin
     map[c.hex] = c.hex
   }
   return map
+}
+
+/** Paleta del atributo Color sistema desde el mapa de dimensiones. */
+export function paletteFromDimensionMap(
+  map: Map<string, DimensionLookup> | undefined
+): NamedColor[] {
+  if (!map) return []
+  const lookup = map.get('color') ?? map.get('colores')
+  if (!lookup?.isColor || !lookup.values?.length) return []
+  return lookup.values.map((name) => ({
+    name,
+    hex:
+      lookup.colorHexByName?.[name] ??
+      lookup.colorHexByName?.[name.toLowerCase()] ??
+      '#808080',
+  }))
+}
+
+const COLOR_ATTR_KEYS = new Set(['color', 'colores', 'color_hex', 'colores_hex'])
+
+/** Lee los colores nombrados guardados en atributos custom (vacío = ninguno). Separados por coma. */
+export function readNamedColorsFromAttributes(
+  rows: readonly { key: string; value: string }[]
+): string[] {
+  for (const row of rows) {
+    const k = row.key.trim().toLowerCase()
+    if (k === 'color' || k === 'colores') {
+      const names = row.value
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean)
+      if (names.length) return names
+    }
+  }
+  return []
+}
+
+/**
+ * Persiste Color (+ color_hex) en atributos custom; varios colores van separados por coma.
+ * Si `colorNames` está vacío, elimina claves de color.
+ */
+export function upsertNamedColorAttributes(
+  rows: readonly CustomAttributeRow[],
+  colorNames: readonly string[],
+  palette: readonly NamedColor[]
+): CustomAttributeRow[] {
+  const cleaned = rows.filter((r) => !COLOR_ATTR_KEYS.has(r.key.trim().toLowerCase()))
+  const names = colorNames.map((n) => n.trim()).filter(Boolean)
+  if (!names.length) return cleaned
+  const hexes = names.map(
+    (n) => palette.find((c) => c.name.toLowerCase() === n.toLowerCase())?.hex ?? ''
+  )
+  const next: CustomAttributeRow[] = [
+    ...cleaned,
+    { id: `attr-color-${Date.now()}`, key: 'Color', value: names.join(', ') },
+  ]
+  if (hexes.every(Boolean)) {
+    next.push({ id: `attr-color-hex-${Date.now()}`, key: 'color_hex', value: hexes.join(', ') })
+  }
+  return next
 }
 
 /** Fila Color del sistema (overlay tenant o DTO virtual system-colors). */

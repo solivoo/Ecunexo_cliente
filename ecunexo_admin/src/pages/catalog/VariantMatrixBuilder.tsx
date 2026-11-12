@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Button, ColorPicker, FileBox, NumberBox, Popup, Select, TextArea, TextBox, useToast } from 'glubox'
 import { ArrowLeft, ArrowRight, Camera, Check, Copy, Layers, Plus, Trash2, X } from 'lucide-react'
-import { EcuColorListInput, EcuMediaListInput, EcuTagInput } from '@/components/ui'
+import { EcuMediaListInput, EcuTagInput } from '@/components/ui'
+import { NamedColorSelect } from '@/pages/catalog/NamedColorSelect'
 import {
   findDuplicateSkuValues,
   isColorDimension,
@@ -132,6 +133,8 @@ export type VariantMatrixBuilderProps = {
   dimensionValuesMap?: Map<string, DimensionLookup>
   onUploadMedia?: (file: File) => Promise<TenantMediaAssetDto>
   onMediaError?: (message: string) => void
+  /** Refresco de paleta Color tras alta desde atributos de variante. */
+  onColorPaletteUpdated?: () => void | Promise<void>
   /** Sin banner interno cuando ya está dentro de una SectionCard. */
   embedded?: boolean
 }
@@ -233,6 +236,7 @@ export function VariantMatrixBuilder({
   dimensionValuesMap,
   onUploadMedia,
   onMediaError,
+  onColorPaletteUpdated,
   embedded = false,
 }: VariantMatrixBuilderProps) {
   const toast = useToast()
@@ -518,7 +522,7 @@ export function VariantMatrixBuilder({
     [dimensions, primaryDim]
   )
 
-  // Orden estable de los atributos por tipo de control: Nombre junto al SKU, Descripción al final de la fila, etc.
+  // Orden estable: Nombre junto al SKU; Color al final de la fila (como producto estándar).
   const orderedVariantAttributeFields = useMemo(() => {
     const rankOf = (field: ArchetypeAttributeField): number => {
       const cleanLower = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -530,7 +534,15 @@ export function VariantMatrixBuilder({
       const hasOptions = (lookup?.values.length ?? 0) > 0
       if (dataType === 'media') return 4
       if (dataType === 'multiselect') return 3
-      if (dataType === 'color' || dataType === 'colorlist') return 2
+      if (
+        dataType === 'color' ||
+        dataType === 'colorlist' ||
+        cleanLower === 'color' ||
+        cleanLower === 'colores' ||
+        Boolean(lookup?.isColor)
+      ) {
+        return 6
+      }
       if (dataType === 'text' && !hasOptions) return 0.5
       return 1
     }
@@ -1697,80 +1709,6 @@ export function VariantMatrixBuilder({
                         )
                       })}
 
-                      {/* Colores de la variante: solo si la plantilla declara color */}
-                      {(showsColorFields || (row.extraColors?.length ?? 0) > 0) && (() => {
-                        const extras = row.extraColors ?? []
-                        const baseHex =
-                          isPrimaryColor && primaryDim
-                            ? colorHexFor((row.dimensionValues[primaryDim.name] || '').trim())
-                            : ''
-                        const hasColors = Boolean(baseHex) || extras.length > 0
-
-                        return (
-                          <div className="ecu-variant-sub-item-field">
-                            <label className="ecu-variant-sub-item-label">Colores</label>
-                            {hasColors ? (
-                              <div className="ecu-variant-color-field">
-                                {baseHex && (
-                                  <span
-                                    className="ecu-extra-color-chip ecu-extra-color-chip--base"
-                                    title={`Color base heredado del grupo: ${baseHex}`}
-                                  >
-                                    <span
-                                      className="ecu-extra-color-dot"
-                                      style={{ backgroundColor: baseHex }}
-                                    />
-                                    <span>{baseHex}</span>
-                                  </span>
-                                )}
-                                {extras.map((hex) => (
-                                  <span key={hex} className="ecu-extra-color-chip" title={`Color adicional: ${hex}`}>
-                                    <span
-                                      className="ecu-extra-color-dot"
-                                      style={{ backgroundColor: colorHexFor(hex) || '#94a3b8' }}
-                                    />
-                                    <span>{hex}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleExtraColorsChange(row.id, extras.filter((c) => c !== hex))}
-                                      disabled={disabled}
-                                      title={`Quitar ${hex}`}
-                                    >
-                                      <X size={10} />
-                                    </button>
-                                  </span>
-                                ))}
-                                <button
-                                  type="button"
-                                  className="ecu-extra-color-add"
-                                  onClick={() =>
-                                    setColorModal({ mode: 'extra', rowId: row.id, value: '', hex: '#3b82f6' })
-                                  }
-                                  disabled={disabled}
-                                  aria-label="Añadir color"
-                                  title="Añadir color"
-                                >
-                                  <Plus size={13} />
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                className="ecu-extra-color-add ecu-extra-color-add--empty"
-                                onClick={() =>
-                                  setColorModal({ mode: 'extra', rowId: row.id, value: '', hex: '#3b82f6' })
-                                }
-                                disabled={disabled}
-                                aria-label="Añadir color"
-                                title="Añadir color"
-                              >
-                                <Plus size={12} /> Añadir color
-                              </button>
-                            )}
-                          </div>
-                        )
-                      })()}
-
                       {/* Cód. Barras */}
                       <div className="ecu-variant-sub-item-field">
                         <label className="ecu-variant-sub-item-label">Cód. Barras</label>
@@ -1787,7 +1725,7 @@ export function VariantMatrixBuilder({
                         />
                       </div>
 
-                      {/* Atributos del nivel terminal: se capturan por variante (Nombre ya va junto al SKU) */}
+                      {/* Atributos del nivel terminal (Color va al final vía orderedVariantAttributeFields) */}
                       {variantFieldsAfterSku.map((field) => {
                         const lookup = dimensionValuesMap?.get(field.key.trim().toLowerCase())
                         const dataType = lookup?.dataType ?? 'text'
@@ -1799,10 +1737,7 @@ export function VariantMatrixBuilder({
                           <div
                             key={`attr-${field.key}`}
                             className={`ecu-variant-sub-item-field${
-                              dataType === 'media' ||
-                              dataType === 'colorlist' ||
-                              dataType === 'multiselect' ||
-                              isDesc
+                              dataType === 'media' || dataType === 'multiselect' || isDesc
                                 ? ' ecu-variant-sub-item-field--span-4'
                                 : ''
                             }`}
@@ -1836,16 +1771,22 @@ export function VariantMatrixBuilder({
                                 disabled={disabled}
                                 fullWidth
                               />
-                            ) : dataType === 'color' ? (
-                              <ColorPicker
+                            ) : dataType === 'color' || dataType === 'colorlist' ? (
+                              <NamedColorSelect
                                 size="sm"
-                                variant="outline"
-                                value={value || '#ffffff'}
-                                onChange={(hex: string) =>
-                                  handleVariantAttributeChange(row.id, field.key, hex)
+                                multiValues={value
+                                  .split(',')
+                                  .map((v) => v.trim())
+                                  .filter(Boolean)}
+                                onMultiChange={(names) =>
+                                  handleVariantAttributeChange(row.id, field.key, names.join(', '))
                                 }
+                                dimensionValuesMap={dimensionValuesMap}
+                                tenantId={tenantId}
+                                onPaletteUpdated={onColorPaletteUpdated}
                                 disabled={disabled}
-                                fullWidth
+                                allowEmpty
+                                emptyLabel="Ninguno"
                               />
                             ) : dataType === 'multiselect' ? (
                               <EcuTagInput
@@ -1858,17 +1799,6 @@ export function VariantMatrixBuilder({
                                   handleVariantAttributeChange(row.id, field.key, tags.join(', '))
                                 }
                                 placeholder={`Añadir ${field.key}...`}
-                                disabled={disabled}
-                              />
-                            ) : dataType === 'colorlist' ? (
-                              <EcuColorListInput
-                                colors={value
-                                  .split(',')
-                                  .map((v) => v.trim())
-                                  .filter(Boolean)}
-                                onChange={(colors: string[]) =>
-                                  handleVariantAttributeChange(row.id, field.key, colors.join(', '))
-                                }
                                 disabled={disabled}
                               />
                             ) : dataType === 'media' ? (
@@ -1929,6 +1859,95 @@ export function VariantMatrixBuilder({
                           </div>
                         )
                       })}
+
+                      {/* Colores extra de la variante: al final, antes de acciones */}
+                      {(showsColorFields || (row.extraColors?.length ?? 0) > 0) && (() => {
+                        const extras = row.extraColors ?? []
+                        const baseHex =
+                          isPrimaryColor && primaryDim
+                            ? colorHexFor((row.dimensionValues[primaryDim.name] || '').trim())
+                            : ''
+                        const hasColors = Boolean(baseHex) || extras.length > 0
+
+                        return (
+                          <div className="ecu-variant-sub-item-field">
+                            <label className="ecu-variant-sub-item-label">Colores</label>
+                            {hasColors ? (
+                              <div className="ecu-variant-color-field">
+                                {baseHex && (
+                                  <span
+                                    className="ecu-extra-color-chip ecu-extra-color-chip--base"
+                                    title={`Color base heredado del grupo: ${baseHex}`}
+                                  >
+                                    <span
+                                      className="ecu-extra-color-dot"
+                                      style={{ backgroundColor: baseHex }}
+                                    />
+                                    <span>{baseHex}</span>
+                                  </span>
+                                )}
+                                {extras.map((hex) => (
+                                  <span key={hex} className="ecu-extra-color-chip" title={`Color adicional: ${hex}`}>
+                                    <span
+                                      className="ecu-extra-color-dot"
+                                      style={{ backgroundColor: colorHexFor(hex) || '#94a3b8' }}
+                                    />
+                                    <span>{hex}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleExtraColorsChange(
+                                          row.id,
+                                          extras.filter((c) => c !== hex)
+                                        )
+                                      }
+                                      disabled={disabled}
+                                      title={`Quitar ${hex}`}
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  </span>
+                                ))}
+                                <button
+                                  type="button"
+                                  className="ecu-extra-color-add"
+                                  onClick={() =>
+                                    setColorModal({
+                                      mode: 'extra',
+                                      rowId: row.id,
+                                      value: '',
+                                      hex: '#3b82f6',
+                                    })
+                                  }
+                                  disabled={disabled}
+                                  aria-label="Añadir color"
+                                  title="Añadir color"
+                                >
+                                  <Plus size={13} />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="ecu-extra-color-add ecu-extra-color-add--empty"
+                                onClick={() =>
+                                  setColorModal({
+                                    mode: 'extra',
+                                    rowId: row.id,
+                                    value: '',
+                                    hex: '#3b82f6',
+                                  })
+                                }
+                                disabled={disabled}
+                                aria-label="Añadir color"
+                                title="Añadir color"
+                              >
+                                <Plus size={12} /> Añadir color
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })()}
 
                       {/* Acciones de la fila */}
                       <div className="ecu-variant-sub-item-actions">

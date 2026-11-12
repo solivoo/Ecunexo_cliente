@@ -1,6 +1,7 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
-import { ColorPicker, NumberBox, Select, TextArea, TextBox } from 'glubox'
-import { EcuColorListInput, EcuMediaListInput, EcuTagInput } from '@/components/ui'
+import { NumberBox, Select, TextArea, TextBox } from 'glubox'
+import { EcuMediaListInput, EcuTagInput } from '@/components/ui'
+import { NamedColorSelect } from '@/pages/catalog/NamedColorSelect'
 import {
   isColorDimension,
   parseMediaValue,
@@ -323,14 +324,18 @@ export function VariantPhysicalFields({
                 disabled={disabled}
                 fullWidth
               />
-            ) : dataType === 'color' ? (
-              <ColorPicker
-                size="sm"
-                variant="outline"
-                value={value || '#ffffff'}
-                onChange={(hex: string) => onAttributeChange(field.key, hex)}
+            ) : dataType === 'color' || dataType === 'colorlist' ? (
+              <NamedColorSelect
+                multiValues={value
+                  .split(',')
+                  .map((v) => v.trim())
+                  .filter(Boolean)}
+                onMultiChange={(names) => onAttributeChange(field.key, names.join(', '))}
+                dimensionValuesMap={dimensionValuesMap}
+                tenantId={tenantId}
                 disabled={disabled}
-                fullWidth
+                allowEmpty
+                emptyLabel="Ninguno"
               />
             ) : dataType === 'multiselect' ? (
               <EcuTagInput
@@ -341,15 +346,6 @@ export function VariantPhysicalFields({
                 suggestedTags={lookup?.values ?? []}
                 onChange={(tags: string[]) => onAttributeChange(field.key, tags.join(', '))}
                 placeholder={`Añadir ${field.key}...`}
-                disabled={disabled}
-              />
-            ) : dataType === 'colorlist' ? (
-              <EcuColorListInput
-                colors={value
-                  .split(',')
-                  .map((v) => v.trim())
-                  .filter(Boolean)}
-                onChange={(colors: string[]) => onAttributeChange(field.key, colors.join(', '))}
                 disabled={disabled}
               />
             ) : dataType === 'media' ? (

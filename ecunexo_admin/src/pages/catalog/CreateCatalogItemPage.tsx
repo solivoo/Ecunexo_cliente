@@ -60,7 +60,12 @@ import {
   readMinOrderQuantityFromCustomAttributes,
   upsertBaseCommercialAttributes,
 } from '@/lib/catalogBaseAttributes'
+import {
+  paletteFromDimensionMap,
+  upsertNamedColorAttributes,
+} from '@/lib/catalogNamedColors'
 import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
+import { NamedColorSelect } from '@/pages/catalog/NamedColorSelect'
 
 const NAME_FIELD_KEYS = ['nombre', 'nombre del producto', 'nombre producto', 'name', 'producto', 'titulo', 'título']
 const DESCRIPTION_FIELD_KEYS = ['descripcion', 'descripción', 'detalle', 'notas', 'nota']
@@ -135,6 +140,7 @@ export function CreateCatalogItemPage() {
   const [costPrice, setCostPrice] = useState('')
   const [basePrice, setBasePrice] = useState('')
   const [brand, setBrand] = useState('')
+  const [productColors, setProductColors] = useState<string[]>([])
   const [unitOfMeasure, setUnitOfMeasure] = useState('UND')
   const [existingSkus, setExistingSkus] = useState<Set<string>>(new Set())
   const [minOrderQuantity, setMinOrderQuantity] = useState(1)
@@ -193,6 +199,11 @@ export function CreateCatalogItemPage() {
   const dimensionValuesMap = useMemo(
     () => buildDimensionValuesMap(allDimensionTemplates),
     [allDimensionTemplates]
+  )
+
+  const systemColorPalette = useMemo(
+    () => paletteFromDimensionMap(dimensionValuesMap),
+    [dimensionValuesMap]
   )
 
   const appliedTemplate = useMemo(
@@ -287,15 +298,39 @@ export function CreateCatalogItemPage() {
     photoChoice === 'group' ? 'group' : photoChoice === 'variant' ? 'variant' : 'model'
 
   const modelFieldGroups = useMemo(() => {
-    const groups: { key: string; title: string; fields: typeof modelAttributeFields }[] = []
+    const isColorField = (field: (typeof modelAttributeFields)[number]) => {
+      const lower = field.key.trim().toLowerCase()
+      const lookup = dimensionValuesMap.get(lower)
+      const dt = (lookup?.dataType ?? '').toLowerCase()
+      return (
+        dt === 'color' ||
+        dt === 'colorlist' ||
+        lower === 'color' ||
+        lower === 'colores' ||
+        Boolean(lookup?.isColor)
+      )
+    }
+
+    const colorFields: typeof modelAttributeFields = []
+    const rest: typeof modelAttributeFields = []
     for (const field of modelAttributeFields) {
+      if (isColorField(field)) colorFields.push(field)
+      else rest.push(field)
+    }
+
+    // Por nivel; Color siempre al final (como producto estándar).
+    const groups: { key: string; title: string; fields: typeof modelAttributeFields }[] = []
+    for (const field of rest) {
       const key = String(field.levelIndex)
       const last = groups[groups.length - 1]
       if (last?.key === key) last.fields.push(field)
       else groups.push({ key, title: field.levelName || `Nivel ${field.levelIndex}`, fields: [field] })
     }
+    if (colorFields.length > 0) {
+      groups.push({ key: 'color', title: 'Color', fields: colorFields })
+    }
     return groups
-  }, [modelAttributeFields])
+  }, [dimensionValuesMap, modelAttributeFields])
 
   const hasTemplateNameField = useMemo(
     () => modelAttributeFields.some((field) => matchesFieldKey(field.key, NAME_FIELD_KEYS)),
@@ -496,7 +531,14 @@ export function CreateCatalogItemPage() {
         const parsedBasePrice = rawBasePrice != null && rawBasePrice >= 0 ? rawBasePrice : null
 
         const attrsToSerialize = isStandardProduct
-          ? upsertBaseCommercialAttributes(customAttributes, brand, unitOfMeasure)
+          ? (() => {
+              const withBase = upsertBaseCommercialAttributes(
+                customAttributes,
+                brand,
+                unitOfMeasure
+              )
+              return upsertNamedColorAttributes(withBase, productColors, systemColorPalette)
+            })()
           : [...customAttributes]
         const resolvedMinOrderQty = isStandardProduct
           ? minOrderQuantity
@@ -693,6 +735,8 @@ export function CreateCatalogItemPage() {
       costPrice,
       basePrice,
       brand,
+      productColors,
+      systemColorPalette,
       customAttributes,
       derivedTemplateDescription,
       derivedTemplateName,
@@ -814,6 +858,7 @@ export function CreateCatalogItemPage() {
               }
             >
               <div className="ecu-companies-form__grid ecu-companies-form__grid--dynamic">
+                {/* Identidad */}
                 {isStandardProduct && (
                   <div className="ecu-companies-form__field">
                     <Select
@@ -912,6 +957,7 @@ export function CreateCatalogItemPage() {
                   </div>
                 ) : null}
 
+                {/* Códigos */}
                 {!usesMatrix ? (
                   <div className="ecu-companies-form__field">
                     <TextBox
@@ -956,81 +1002,84 @@ export function CreateCatalogItemPage() {
                 )}
 
                 {isStandardProduct && (
-                  <>
-                    <div className="ecu-companies-form__field">
-                      <Select
-                        id="ci-unit"
-                        label="Unidad de medida"
-                        labelPosition="outlined"
-                        variant="outline"
-                        options={unitOfMeasureOptions}
-                        value={unitOfMeasure}
-                        onChange={(val) => setUnitOfMeasure(val)}
-                        disabled={busy}
-                        fullWidth
-                      />
-                    </div>
+                  <div className="ecu-companies-form__field">
+                    <Select
+                      id="ci-unit"
+                      label="Unidad de medida"
+                      labelPosition="outlined"
+                      variant="outline"
+                      options={unitOfMeasureOptions}
+                      value={unitOfMeasure}
+                      onChange={(val) => setUnitOfMeasure(val)}
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
 
-                    <div className="ecu-companies-form__field">
-                      <NumberBox
-                        id="ci-min-order-qty"
-                        label="Compra mínima (cantidad)"
-                        labelPosition="outlined"
-                        variant="outline"
-                        min={1}
-                        step={1}
-                        showSpinButtons
-                        value={minOrderQuantity}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          setMinOrderQuantity(
-                            Math.max(1, Math.floor(Number(e.target.value) || 1))
-                          )
-                        }
-                        disabled={busy}
-                        fullWidth
-                      />
-                    </div>
-                  </>
+                {/* Comercial / precios */}
+                {isStandardProduct && (
+                  <div className="ecu-companies-form__field">
+                    <NumberBox
+                      id="ci-min-order-qty"
+                      label="Compra mínima (cantidad)"
+                      labelPosition="outlined"
+                      variant="outline"
+                      min={1}
+                      step={1}
+                      showSpinButtons
+                      value={minOrderQuantity}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setMinOrderQuantity(
+                          Math.max(1, Math.floor(Number(e.target.value) || 1))
+                        )
+                      }
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
                 )}
 
                 {isStandardProduct && (
-                  <>
-                    <div className="ecu-companies-form__field">
-                      <NumberBox
-                        id="ci-cost-price"
-                        label="Precio costo"
-                        labelPosition="outlined"
-                        variant="outline"
-                        min={0}
-                        step={0.01}
-                        placeholder="0.00"
-                        value={costPrice !== '' ? Number(costPrice) : undefined}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setCostPrice(e.target.value)}
-                        disabled={busy}
-                        fullWidth
-                      />
-                    </div>
+                  <div className="ecu-companies-form__field">
+                    <NumberBox
+                      id="ci-cost-price"
+                      label="Precio costo"
+                      labelPosition="outlined"
+                      variant="outline"
+                      min={0}
+                      step={0.01}
+                      placeholder="0.00"
+                      value={costPrice !== '' ? Number(costPrice) : undefined}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setCostPrice(e.target.value)}
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
 
-                    <div className="ecu-companies-form__field">
-                      <NumberBox
-                        id="ci-base-price"
-                        label="PVP"
-                        labelPosition="outlined"
-                        variant="outline"
-                        min={0}
-                        step={0.01}
-                        placeholder="0.00"
-                        value={basePrice !== '' ? Number(basePrice) : undefined}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
-                        disabled={busy}
-                        fullWidth
-                      />
-                    </div>
+                {isStandardProduct && (
+                  <div className="ecu-companies-form__field">
+                    <NumberBox
+                      id="ci-base-price"
+                      label="PVP"
+                      labelPosition="outlined"
+                      variant="outline"
+                      min={0}
+                      step={0.01}
+                      placeholder="0.00"
+                      value={basePrice !== '' ? Number(basePrice) : undefined}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setBasePrice(e.target.value)}
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
 
-                    <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                      <CatalogPricingMarginBar costPrice={costPrice} basePrice={basePrice} />
-                    </div>
-                  </>
+                {isStandardProduct && (
+                  <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                    <CatalogPricingMarginBar costPrice={costPrice} basePrice={basePrice} />
+                  </div>
                 )}
 
                 {showManualDescription ? (
@@ -1045,6 +1094,28 @@ export function CreateCatalogItemPage() {
                       placeholder="Escriba aquí..."
                       disabled={busy}
                       fullWidth
+                    />
+                  </div>
+                ) : null}
+                {/* Colores: fila propia al final */}
+                {isStandardProduct ? (
+                  <div className="ecu-companies-form__field">
+                    <NamedColorSelect
+                      label="Color"
+                      value=""
+                      multiValues={productColors}
+                      onMultiChange={setProductColors}
+                      palette={systemColorPalette}
+                      tenantId={tenantId}
+                      onPaletteUpdated={async () => {
+                        if (!tenantId) return
+                        const fresh = await listVariantDimensionTemplates(tenantId)
+                        setDimensionTemplates(fresh)
+                        setSystemBaseEpoch((n) => n + 1)
+                      }}
+                      disabled={busy}
+                      allowEmpty
+                      emptyLabel="Ninguno"
                     />
                   </div>
                 ) : null}
@@ -1067,6 +1138,13 @@ export function CreateCatalogItemPage() {
                   onMediaError={handleMediaError}
                   disabled={busy}
                   bare
+                  tenantId={tenantId}
+                  onColorPaletteUpdated={async () => {
+                    if (!tenantId) return
+                    const fresh = await listVariantDimensionTemplates(tenantId)
+                    setDimensionTemplates(fresh)
+                    setSystemBaseEpoch((n) => n + 1)
+                  }}
                 />
               </SectionCard>
             ))}
@@ -1119,6 +1197,12 @@ export function CreateCatalogItemPage() {
                 dimensionValuesMap={dimensionValuesMap}
                 onUploadMedia={handleUploadMedia}
                 onMediaError={handleMediaError}
+                onColorPaletteUpdated={async () => {
+                  if (!tenantId) return
+                  const fresh = await listVariantDimensionTemplates(tenantId)
+                  setDimensionTemplates(fresh)
+                  setSystemBaseEpoch((n) => n + 1)
+                }}
                 embedded
               />
             </SectionCard>

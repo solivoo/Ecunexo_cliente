@@ -1,9 +1,10 @@
 import { useMemo, type ChangeEvent } from 'react'
-import { ColorPicker, NumberBox, Select, TextArea, TextBox } from 'glubox'
-import { EcuColorListInput, EcuMediaListInput, EcuTagInput } from '@/components/ui'
+import { NumberBox, Select, TextArea, TextBox } from 'glubox'
+import { EcuMediaListInput, EcuTagInput } from '@/components/ui'
 import { parseMediaValue, type ArchetypeAttributeField, type DimensionLookup } from '@/lib/catalogArchetype'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 import type { TenantMediaAssetDto } from '@/types/catalogApi'
+import { NamedColorSelect } from '@/pages/catalog/NamedColorSelect'
 
 type ArchetypeModelFieldsProps = {
   fields: ArchetypeAttributeField[]
@@ -14,21 +15,22 @@ type ArchetypeModelFieldsProps = {
   onMediaError?: (message: string) => void
   disabled?: boolean
   bare?: boolean
+  tenantId?: string | null
+  onColorPaletteUpdated?: () => void | Promise<void>
 }
 
 type FieldKind = 'text' | 'textarea' | 'number' | 'select' | 'color' | 'colorlist' | 'tags' | 'media'
 type FieldGroupKey = 'select' | 'number' | 'color' | 'text' | 'textarea' | 'tags' | 'colors' | 'media'
 
-/** Orden visual: compactos primero, anchos al final. */
+/** Orden visual: compactos primero; Color al final (como producto estándar). */
 const GROUP_ORDER: FieldGroupKey[] = [
   'select',
   'number',
-  'color',
   'text',
   'textarea',
   'tags',
-  'colors',
   'media',
+  'colors',
 ]
 
 const GROUP_META: Record<FieldGroupKey, { title: string; gridClass: string }> = {
@@ -37,7 +39,7 @@ const GROUP_META: Record<FieldGroupKey, { title: string; gridClass: string }> = 
   color: { title: 'Color', gridClass: 'ecu-companies-form__grid--dynamic' },
   text: { title: 'Texto', gridClass: 'ecu-companies-form__grid--dynamic' },
   textarea: { title: 'Descripción', gridClass: 'ecu-companies-form__grid--dynamic' },
-  colors: { title: 'Colores', gridClass: 'ecu-companies-form__grid--dynamic' },
+  colors: { title: 'Color', gridClass: 'ecu-companies-form__grid--dynamic' },
   tags: { title: 'Etiquetas', gridClass: 'ecu-companies-form__grid--dynamic' },
   media: { title: 'Fotos', gridClass: 'ecu-companies-form__grid--dynamic' },
 }
@@ -47,7 +49,7 @@ const KIND_GROUP: Record<FieldKind, FieldGroupKey> = {
   textarea: 'textarea',
   number: 'number',
   select: 'select',
-  color: 'color',
+  color: 'colors',
   colorlist: 'colors',
   tags: 'tags',
   media: 'media',
@@ -55,11 +57,10 @@ const KIND_GROUP: Record<FieldKind, FieldGroupKey> = {
 
 /**
  * Densidad por tipo de control (formularios de plantilla/matriz).
- * Compacto = 1 columna (~14–16rem).
- * Tags / colorlist / media / textarea = fila completa.
+ * Compacto = 1 columna. Tags / media / textarea = fila completa.
+ * Color = 1 columna al final (no --wide).
  */
 const KIND_SPAN_CLASS: Partial<Record<FieldKind, string>> = {
-  colorlist: 'ecu-companies-form__field--wide',
   tags: 'ecu-companies-form__field--wide',
   media: 'ecu-companies-form__field--wide',
   textarea: 'ecu-companies-form__field--wide',
@@ -87,8 +88,8 @@ function isLongTextKey(key: string): boolean {
 function resolveFieldKind(dataType: string, hasOptions: boolean, key: string): FieldKind {
   if (dataType === 'number') return 'number'
   if (dataType === 'boolean') return 'select'
-  if (dataType === 'color') return 'color'
-  if (dataType === 'colorlist') return 'colorlist'
+  // Color / colorlist: multi-select nombrado (igual que producto estándar).
+  if (dataType === 'color' || dataType === 'colorlist') return 'colorlist'
   if (dataType === 'media') return 'media'
   if (dataType === 'multiselect') return 'tags'
   if (hasOptions) return 'select'
@@ -119,6 +120,8 @@ export function ArchetypeModelFields({
   onMediaError,
   disabled = false,
   bare = false,
+  tenantId = null,
+  onColorPaletteUpdated,
 }: ArchetypeModelFieldsProps) {
   const groups = useMemo(() => {
     const map = new Map<FieldGroupKey, ArchetypeAttributeField[]>()
@@ -228,23 +231,17 @@ export function ArchetypeModelFields({
             disabled={disabled}
             fullWidth
           />
-        ) : kind === 'color' ? (
-          <ColorPicker
-            id={id}
+        ) : kind === 'color' || kind === 'colorlist' ? (
+          <NamedColorSelect
             label={label}
-            labelPosition="outlined"
-            variant="outline"
-            value={value || '#ffffff'}
-            onChange={(hex: string) => onChangeValue(field.key, hex)}
+            multiValues={multiValues}
+            onMultiChange={(names) => onChangeValue(field.key, names.join(', '))}
+            dimensionValuesMap={dimensionValuesMap}
+            tenantId={tenantId}
+            onPaletteUpdated={onColorPaletteUpdated}
             disabled={disabled}
-            fullWidth
-          />
-        ) : kind === 'colorlist' ? (
-          <EcuColorListInput
-            label={label}
-            colors={multiValues}
-            onChange={(colors: string[]) => onChangeValue(field.key, colors.join(', '))}
-            disabled={disabled}
+            allowEmpty
+            emptyLabel="Ninguno"
           />
         ) : kind === 'tags' ? (
           <EcuTagInput
