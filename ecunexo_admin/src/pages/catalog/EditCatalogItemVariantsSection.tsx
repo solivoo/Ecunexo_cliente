@@ -1102,6 +1102,7 @@ export function EditCatalogItemVariantsSection({
               onUploadMedia={onUploadMedia}
               onMediaError={onMediaError}
               disabled={savingEditModal}
+              tenantId={tenantId}
             />
           </div>
         ) : null}

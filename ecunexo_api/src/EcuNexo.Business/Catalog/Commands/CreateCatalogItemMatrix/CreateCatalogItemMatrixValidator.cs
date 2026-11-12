@@ -10,10 +10,10 @@ public sealed class CreateCatalogItemMatrixValidator : AbstractValidator<CreateC
             .NotEmpty()
             .WithMessage("El tenant es obligatorio.");
 
+        // Name es metadata interna (UUID es la identidad); se resuelve en el handler si viene vacío.
         RuleFor(c => c.Name)
-            .NotEmpty()
-            .WithMessage("El nombre del producto matriz es obligatorio.")
             .MaximumLength(200)
+            .When(c => !string.IsNullOrWhiteSpace(c.Name))
             .WithMessage("El nombre no puede superar 200 caracteres.");
 
         RuleFor(c => c.VariantDimensionsJson)

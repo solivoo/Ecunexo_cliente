@@ -189,11 +189,19 @@ export function CatalogItemsGrid({
       },
       {
         key: 'sku',
-        header: 'SKU',
-        width: 50,
+        header: 'SKU / UUID',
+        width: 110,
         sortable: false,
-        renderCell: (_value: CatalogItemGridRow['sku'], row: CatalogItemGridRow) =>
-          row.sku ? <code className="ecu-code">{row.sku}</code> : '—',
+        renderCell: (_value: CatalogItemGridRow['sku'], row: CatalogItemGridRow) => {
+          if (row.isMatrixParent) {
+            return (
+              <code className="ecu-code" title={row.id}>
+                {row.id.slice(0, 8)}…
+              </code>
+            )
+          }
+          return row.sku ? <code className="ecu-code">{row.sku}</code> : '—'
+        },
       },
       {
         key: 'name',
@@ -203,13 +211,13 @@ export function CatalogItemsGrid({
           const levelSummary = firstLevelSummary(row.hierarchyPathJson)
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <strong>{row.name}</strong>
+              <strong>{row.isMatrixParent ? `Matriz ${row.id.slice(0, 8)}…` : row.name}</strong>
               {row.categoryName ? (
                 <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted)' }}>
                   Categoría: {row.categoryName}
                 </span>
               ) : null}
-              {row.description ? (
+              {!row.isMatrixParent && row.description ? (
                 <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
                   {row.description}
                 </span>
@@ -365,8 +373,11 @@ export function CatalogItemsGrid({
               {row.isHiddenFromStorefront ? <CatalogHiddenMark /> : null}
             </div>
 
-            <h4 className="ecu-catalog-card__title" title={row.name}>
-              {row.name}
+            <h4
+              className="ecu-catalog-card__title"
+              title={row.isMatrixParent ? row.id : row.name}
+            >
+              {row.isMatrixParent ? `Matriz ${row.id.slice(0, 8)}…` : row.name}
             </h4>
 
             {row.isMatrixParent ? (
@@ -376,7 +387,14 @@ export function CatalogItemsGrid({
             ) : null}
 
             <div className="ecu-catalog-card__tags">
-              {row.sku ? (
+              {row.isMatrixParent ? (
+                <span className="ecu-catalog-card__sku">
+                  <span className="ecu-catalog-card__sku-label">UUID:</span>
+                  <code className="ecu-code" title={row.id}>
+                    {row.id.slice(0, 8)}…
+                  </code>
+                </span>
+              ) : row.sku ? (
                 <span className="ecu-catalog-card__sku">
                   <span className="ecu-catalog-card__sku-label">SKU:</span>
                   <code className="ecu-code">{row.sku}</code>
@@ -484,8 +502,8 @@ export function CatalogItemsGrid({
       showSearch
       searchPosition="left"
       searchWidth={280}
-      searchPlaceholder="Buscar nombre o SKU…"
-      searchKeys={['name', 'sku', 'description', 'categoryName']}
+      searchPlaceholder="Buscar nombre, SKU o UUID…"
+      searchKeys={['name', 'sku', 'id', 'description', 'categoryName']}
       toolbarRight={toolbarRight}
       paging={paging}
       onPageChange={onPageChange}

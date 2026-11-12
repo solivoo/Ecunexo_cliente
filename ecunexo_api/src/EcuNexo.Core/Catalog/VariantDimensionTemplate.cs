@@ -267,6 +267,15 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
 
     private static Result<string> NormalizeValuesJson(string? json, string dataType, bool isVariantAxis = true)
     {
+        var isColorData =
+            string.Equals(dataType, DataTypeColor, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(dataType, DataTypeColorList, StringComparison.OrdinalIgnoreCase);
+
+        if (isColorData)
+        {
+            return NormalizeNamedColorValuesJson(json, requireAtLeastOne: false);
+        }
+
         if (isVariantAxis)
         {
             if (string.IsNullOrWhiteSpace(json))
@@ -318,7 +327,7 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
         // Si es solo descriptivo (isVariantAxis == false), los valores predefinidos son opcionales
         if (string.IsNullOrWhiteSpace(json))
         {
-            return Result.Success("[]");
+            return Result.Success(EmptyArrayJson);
         }
 
         try
@@ -353,5 +362,163 @@ public sealed class VariantDimensionTemplate : AggregateRoot<Guid>, ITenantEntit
             return Result.Failure<string>(
                 new Error("catalog.variant_template.values.json", "El formato JSON de los valores no es válido.", ErrorType.Validation));
         }
+    }
+
+    /// <summary>
+    /// Colores nombrados: [{ "name": "Rojo", "hex": "#E11D48" }, ...].
+    /// Strings legacy (nombre o #hex) se normalizan a objetos.
+    /// </summary>
+    private static Result<string> NormalizeNamedColorValuesJson(string? json, bool requireAtLeastOne)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return requireAtLeastOne
+                ? Result.Failure<string>(
+                    new Error("catalog.variant_template.values.required", "Debes definir al menos un color nombrado.", ErrorType.Validation))
+                : Result.Success(EmptyArrayJson);
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return Result.Failure<string>(
+                    new Error("catalog.variant_template.values.array", "Los colores deben ser un arreglo JSON.", ErrorType.Validation));
+            }
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var colors = new List<Dictionary<string, string>>();
+
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                string? name = null;
+                string? hex = null;
+
+                if (el.ValueKind == JsonValueKind.String)
+                {
+                    var raw = el.GetString()?.Trim() ?? string.Empty;
+                    if (raw.Length == 0)
+                    {
+                        continue;
+                    }
+                    if (TryNormalizeHex(raw, out var asHex))
+                    {
+                        name = asHex;
+                        hex = asHex;
+                    }
+                    else
+                    {
+                        name = raw;
+                        hex = "#808080";
+                    }
+                }
+                else if (el.ValueKind == JsonValueKind.Object)
+                {
+                    if (el.TryGetProperty("name", out var nameProp) && nameProp.ValueKind == JsonValueKind.String)
+                    {
+                        name = nameProp.GetString()?.Trim();
+                    }
+
+                    if (el.TryGetProperty("hex", out var hexProp) && hexProp.ValueKind == JsonValueKind.String)
+                    {
+                        hex = hexProp.GetString()?.Trim();
+                    }
+                }
+                else
+                {
+                    return Result.Failure<string>(
+                        new Error(
+                            "catalog.variant_template.color.entry_invalid",
+                            "Cada color debe ser un objeto { name, hex } o un texto legacy.",
+                            ErrorType.Validation));
+                }
+
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    return Result.Failure<string>(
+                        new Error(
+                            "catalog.variant_template.color.name.required",
+                            "Cada color debe tener un nombre.",
+                            ErrorType.Validation));
+                }
+
+                if (!TryNormalizeHex(hex, out var normalizedHex))
+                {
+                    return Result.Failure<string>(
+                        new Error(
+                            "catalog.variant_template.color.hex.invalid",
+                            $"El color «{name}» requiere un hexadecimal válido (#RRGGBB).",
+                            ErrorType.Validation));
+                }
+
+                if (!seen.Add(name))
+                {
+                    return Result.Failure<string>(
+                        new Error(
+                            "catalog.variant_template.color.name.duplicate",
+                            $"El color «{name}» está duplicado. Usa un nombre único.",
+                            ErrorType.Validation));
+                }
+
+                colors.Add(new Dictionary<string, string>
+                {
+                    ["name"] = name,
+                    ["hex"] = normalizedHex,
+                });
+            }
+
+            if (requireAtLeastOne && colors.Count == 0)
+            {
+                return Result.Failure<string>(
+                    new Error("catalog.variant_template.values.empty", "Debes definir al menos un color nombrado.", ErrorType.Validation));
+            }
+
+            return Result.Success(JsonSerializer.Serialize(colors));
+        }
+        catch (JsonException)
+        {
+            return Result.Failure<string>(
+                new Error("catalog.variant_template.values.json", "El formato JSON de los colores no es válido.", ErrorType.Validation));
+        }
+    }
+
+    private static bool TryNormalizeHex(string? raw, out string hex)
+    {
+        hex = string.Empty;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+        var t = raw.Trim();
+        if (t.Length == 7 && t[0] == '#')
+        {
+            for (var i = 1; i < 7; i++)
+            {
+                if (!Uri.IsHexDigit(t[i]))
+                {
+                    return false;
+                }
+            }
+
+            hex = "#" + t[1..].ToUpperInvariant();
+            return true;
+        }
+
+        if (t.Length == 6)
+        {
+            for (var i = 0; i < 6; i++)
+            {
+                if (!Uri.IsHexDigit(t[i]))
+                {
+                    return false;
+                }
+            }
+
+            hex = "#" + t.ToUpperInvariant();
+            return true;
+        }
+
+        return false;
     }
 }

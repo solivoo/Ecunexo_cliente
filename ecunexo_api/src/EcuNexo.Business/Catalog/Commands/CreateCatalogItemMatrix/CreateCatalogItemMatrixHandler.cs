@@ -88,6 +88,7 @@ public sealed class CreateCatalogItemMatrixHandler
             categoryName = category.Name;
         }
 
+        string? familyName = null;
         if (command.FamilyId is { } familyId)
         {
             var family = await _templates.GetByIdAsync(familyId, command.TenantId, ct).ConfigureAwait(false);
@@ -96,6 +97,8 @@ public sealed class CreateCatalogItemMatrixHandler
                 return Result.Failure<CreateCatalogItemMatrixResponse>(
                     new Error("catalog.matrix.family.not_found", "El arquetipo (familia) no existe.", ErrorType.NotFound));
             }
+
+            familyName = family.Name;
         }
 
         var variantsAllowed = await CatalogTierLimits
@@ -150,14 +153,18 @@ public sealed class CreateCatalogItemMatrixHandler
             command.HierarchyPathJson,
             categoryName);
 
+        // Matriz: identidad útil = UUID (Id). ModelCode/Sku del padre quedan null.
+        // Name es metadata interna (plantilla / primera variante / "Matriz"); no se usa como código.
+        var resolvedParentName = ResolveMatrixParentName(command.Name, familyName, command.Variants);
+
         var parentId = _idGenerator.NewId();
         var parentResult = CatalogItem.CreateMatrixParent(
             parentId,
             command.TenantId,
             command.Kind,
-            command.Name,
+            resolvedParentName,
             command.Description,
-            command.ModelCode,
+            modelCode: null,
             command.BasePrice,
             command.VariantDimensionsJson,
             command.CustomAttributesJson,
@@ -174,20 +181,6 @@ public sealed class CreateCatalogItemMatrixHandler
         }
 
         var parent = parentResult.Value!;
-        if (string.IsNullOrWhiteSpace(command.Name) || command.Name.Trim().Equals("Producto", StringComparison.OrdinalIgnoreCase))
-        {
-            var firstVariantName = command.Variants
-                .Select(v => CatalogVariantNameResolver.ResolveFromAttributes(v.CustomAttributesJson))
-                .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
-            if (!string.IsNullOrWhiteSpace(firstVariantName))
-            {
-                var renamed = parent.Rename(firstVariantName!);
-                if (renamed.IsFailure)
-                {
-                    return Result.Failure<CreateCatalogItemMatrixResponse>(renamed.Error!);
-                }
-            }
-        }
 
         await _items.AddAsync(parent, ct).ConfigureAwait(false);
 
@@ -227,5 +220,44 @@ public sealed class CreateCatalogItemMatrixHandler
             parent.Id,
             variantIds.Count,
             variantIds));
+    }
+
+    private static string ResolveMatrixParentName(
+        string? requestedName,
+        string? familyName,
+        IReadOnlyList<CreateVariantChildDto> variants)
+    {
+        static bool IsPlaceholder(string? value) =>
+            string.IsNullOrWhiteSpace(value)
+            || value.Trim().Equals("Producto", StringComparison.OrdinalIgnoreCase)
+            || value.Trim().Equals("Matriz", StringComparison.OrdinalIgnoreCase);
+
+        if (!IsPlaceholder(requestedName))
+        {
+            return requestedName!.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(familyName))
+        {
+            return familyName.Trim();
+        }
+
+        var firstVariantName = variants
+            .Select(v => CatalogVariantNameResolver.ResolveFromAttributes(v.CustomAttributesJson))
+            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
+        if (!string.IsNullOrWhiteSpace(firstVariantName))
+        {
+            return firstVariantName!;
+        }
+
+        var firstTitle = variants
+            .Select(v => v.VariantTitle)
+            .FirstOrDefault(title => !string.IsNullOrWhiteSpace(title));
+        if (!string.IsNullOrWhiteSpace(firstTitle))
+        {
+            return firstTitle!;
+        }
+
+        return "Matriz";
     }
 }

@@ -65,6 +65,36 @@ public sealed class UpdateVariantDimensionTemplateHandler
 
         var targetName = command.Name.Trim();
         var nameChanged = !string.Equals(oldName, targetName, StringComparison.OrdinalIgnoreCase);
+        var isSystemColorOverlay = SystemBaseAttributes.FindByNameOrAlias(oldName) is { Id: "system-colors" };
+        if (isSystemColorOverlay)
+        {
+            // Color sistema: solo se actualiza la paleta (nombre/tipo fijos).
+            targetName = oldName;
+            nameChanged = false;
+            command = command with
+            {
+                Name = oldName,
+                DimensionType = "color",
+                DataType = VariantDimensionTemplate.DataTypeColor,
+                IsVariantAxis = true,
+                Unit = null,
+            };
+        }
+
+        var nextDataType = (command.DataType ?? string.Empty).Trim().ToLowerInvariant();
+        var nextDimType = (command.DimensionType ?? string.Empty).Trim().ToLowerInvariant();
+        var nextIsColorKind =
+            nextDataType is VariantDimensionTemplate.DataTypeColor or VariantDimensionTemplate.DataTypeColorList
+            || nextDimType == "color";
+        if (nextIsColorKind && !isSystemColorOverlay)
+        {
+            return Result.Failure<UpdateVariantDimensionTemplateResponse>(
+                new Error(
+                    "catalog.variant_template.color.system_only",
+                    "Los colores se gestionan solo en el atributo Color base del sistema. No se puede convertir otro atributo a color.",
+                    ErrorType.Validation));
+        }
+
         if (nameChanged)
         {
             var systemConflict = SystemBaseAttributes.FindItemFieldByNameOrAlias(targetName);
@@ -108,9 +138,9 @@ public sealed class UpdateVariantDimensionTemplateHandler
 
         var updateResult = template.Update(
             command.Name,
-            command.DimensionType,
+            command.DimensionType ?? template.DimensionType,
             command.PredefinedValuesJson,
-            command.DataType,
+            command.DataType ?? template.DataType,
             command.IsVariantAxis,
             command.Unit,
             command.UpdatedBy);
@@ -120,9 +150,12 @@ public sealed class UpdateVariantDimensionTemplateHandler
             return Result.Failure<UpdateVariantDimensionTemplateResponse>(updateResult.Error!);
         }
 
-        var typeChanged = !string.Equals(oldDataType, template.DataType, StringComparison.OrdinalIgnoreCase)
-            || oldIsVariantAxis != template.IsVariantAxis
-            || !string.Equals(oldDimensionType, template.DimensionType, StringComparison.OrdinalIgnoreCase);
+        // Color sistema: se permite normalizar dataType/dimensionType/eje al guardar la paleta
+        // aunque el atributo ya esté en productos (solo cambian valores nombre+hex).
+        var typeChanged = !isSystemColorOverlay
+            && (!string.Equals(oldDataType, template.DataType, StringComparison.OrdinalIgnoreCase)
+                || oldIsVariantAxis != template.IsVariantAxis
+                || !string.Equals(oldDimensionType, template.DimensionType, StringComparison.OrdinalIgnoreCase));
 
         if (typeChanged)
         {
@@ -213,12 +246,33 @@ public sealed class UpdateVariantDimensionTemplateHandler
                 return [];
             }
 
-            return doc.RootElement
-                .EnumerateArray()
-                .Where(el => el.ValueKind == JsonValueKind.String)
-                .Select(el => el.GetString() ?? string.Empty)
-                .Where(value => value.Length > 0)
-                .ToList();
+            var values = new List<string>();
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                if (el.ValueKind == JsonValueKind.String)
+                {
+                    var s = el.GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(s))
+                    {
+                        values.Add(s);
+                    }
+
+                    continue;
+                }
+
+                if (el.ValueKind == JsonValueKind.Object
+                    && el.TryGetProperty("name", out var nameProp)
+                    && nameProp.ValueKind == JsonValueKind.String)
+                {
+                    var n = nameProp.GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(n))
+                    {
+                        values.Add(n);
+                    }
+                }
+            }
+
+            return values;
         }
         catch (JsonException)
         {

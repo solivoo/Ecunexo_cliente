@@ -564,6 +564,7 @@ export function CreateCatalogVariantPage() {
               disabled={submitting}
               skuError={skuAlreadyExists}
               skuErrorMessage={skuErrorMessage}
+              tenantId={tenantId}
             />
           </SectionCard>
 

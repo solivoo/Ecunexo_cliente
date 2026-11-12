@@ -211,7 +211,7 @@ public static class SystemBaseAttributes
             null,
             true,
             RoleTemplateAxis,
-            "Atributo y eje de color hexadecimal del sistema reutilizable en plantillas y variantes.",
+            "Paleta de colores nombrados del sistema (nombre + hex) reutilizable en plantillas y variantes.",
             ["color", "colores"]),
     ];
 

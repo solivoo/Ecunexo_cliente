@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { Button, ColorPicker, DEFAULT_COLOR_PRESETS, FileBox, NumberBox, Popup, Select, TextArea, TextBox, useToast } from 'glubox'
+import { Button, ColorPicker, FileBox, NumberBox, Popup, Select, TextArea, TextBox, useToast } from 'glubox'
 import { ArrowLeft, ArrowRight, Camera, Check, Copy, Layers, Plus, Trash2, X } from 'lucide-react'
 import { EcuColorListInput, EcuMediaListInput, EcuTagInput } from '@/components/ui'
 import {
@@ -10,7 +10,9 @@ import {
   type DimensionLookup,
 } from '@/lib/catalogArchetype'
 import { isVariantBuiltInColumnKey } from '@/lib/catalogBaseAttributes'
+import { upsertSystemNamedColor } from '@/lib/catalogNamedColors'
 import type { CreateVariantChildPayload, TenantMediaAssetDto } from '@/types/catalogApi'
+import { NamedColorPopup } from '@/pages/catalog/NamedColorPopup'
 import { parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
 import './variantMatrixBuilder.css'
 
@@ -215,7 +217,7 @@ function splitTagValues(raw: string): string[] {
 }
 
 export function VariantMatrixBuilder({
-  tenantId: _tenantId,
+  tenantId,
   baseName,
   basePrice,
   costPrice = '',
@@ -240,7 +242,7 @@ export function VariantMatrixBuilder({
   const [rowPhotoModalTarget, setRowPhotoModalTarget] = useState<string | null>(null)
   const [groupStagedImages, setGroupStagedImages] = useState<Record<string, VariantImageItem[]>>({})
 
-  // Color Hex Map
+  // Color Hex Map (nombres → hex); se enriquece con la paleta del sistema
   const [colorHexMap, setColorHexMap] = useState<Record<string, string>>(DEFAULT_COLOR_MAP)
   const [colorModal, setColorModal] = useState<{
     mode: 'duplicate' | 'add-group' | 'extra'
@@ -248,6 +250,7 @@ export function VariantMatrixBuilder({
     hex: string
     rowId?: string
   } | null>(null)
+  const [colorModalBusy, setColorModalBusy] = useState(false)
 
   /** Hex de un color: acepta `#RRGGBB` o nombres históricos del catálogo. */
   const colorHexFor = useCallback(
@@ -288,8 +291,10 @@ export function VariantMatrixBuilder({
     if (!initialDimensions || initialDimensions.length === 0) return
     const newDims: DimensionState[] = initialDimensions.map((d, idx) => {
       const isColor = d.isColor || isColorDimension(d.name)
-      // Sin presets: los valores vienen del diccionario/plantilla (o se agregan con «+ Nueva»).
-      const values = isColor ? [] : (d.values ?? [])
+      const lookup = dimensionValuesMap?.get(d.name.trim().toLowerCase())
+      const values = isColor
+        ? (lookup?.values?.length ? lookup.values : (d.values ?? []))
+        : (d.values ?? [])
       return {
         id: `dim-tpl-${idx}`,
         name: d.name,
@@ -302,7 +307,15 @@ export function VariantMatrixBuilder({
       }
     })
     setDimensions(newDims)
-  }, [initialDimensions])
+
+    // Hex map desde paleta nombrada del diccionario
+    const nextHex: Record<string, string> = { ...DEFAULT_COLOR_MAP }
+    dimensionValuesMap?.forEach((lookup) => {
+      if (!lookup.isColor || !lookup.colorHexByName) return
+      Object.assign(nextHex, lookup.colorHexByName)
+    })
+    setColorHexMap(nextHex)
+  }, [dimensionValuesMap, initialDimensions])
 
   // Generated Variant Rows
   const [rows, setRows] = useState<VariantRowState[]>([])
@@ -1149,55 +1162,82 @@ export function VariantMatrixBuilder({
     [childDims, groupValueOf, handleAddCustomOptionToDimension, photoGroupKeyOf, photoScope, primaryDim, rows]
   )
 
-  const handleConfirmColorModal = useCallback(() => {
-    if (!colorModal) return
-    const targetVal = normalizeHexColor(colorModal.hex)
-    if (!targetVal) return
+  const handleConfirmNamedColor = useCallback(
+    async (color: { name: string; hex: string }) => {
+      if (!colorModal) return
+      const colorName = color.name.trim()
+      const colorHex = normalizeHexColor(color.hex)
+      if (!colorName || !colorHex) return
 
-    if (colorModal.mode === 'extra') {
-      if (!colorModal.rowId) return
-      setColorHexMap((prev) => ({ ...prev, [targetVal]: targetVal }))
-      setRows((prev) =>
-        prev.map((r) => {
-          if (r.id !== colorModal.rowId) return r
-          const extras = r.extraColors ?? []
-          if (extras.includes(targetVal)) return r
-          return { ...r, extraColors: [...extras, targetVal] }
-        })
-      )
-      setColorModal(null)
-      return
-    }
+      setColorModalBusy(true)
+      try {
+        if (tenantId) {
+          const { colors } = await upsertSystemNamedColor(tenantId, {
+            name: colorName,
+            hex: colorHex,
+          })
+          const map: Record<string, string> = { ...DEFAULT_COLOR_MAP }
+          for (const c of colors) {
+            map[c.name] = c.hex
+            map[c.name.toLowerCase()] = c.hex
+          }
+          setColorHexMap(map)
+        } else {
+          setColorHexMap((prev) => ({
+            ...prev,
+            [colorName]: colorHex,
+            [colorName.toLowerCase()]: colorHex,
+          }))
+        }
 
-    if (!primaryDim) return
+        if (colorModal.mode === 'extra') {
+          if (!colorModal.rowId) return
+          setRows((prev) =>
+            prev.map((r) => {
+              if (r.id !== colorModal.rowId) return r
+              const extras = r.extraColors ?? []
+              if (extras.includes(colorName)) return r
+              return { ...r, extraColors: [...extras, colorName] }
+            })
+          )
+          setColorModal(null)
+          return
+        }
 
-    if (colorModal.mode === 'duplicate' && targetVal === colorModal.value) {
-      toast.show({
-        title: 'Color duplicado',
-        message: 'El nuevo color debe ser distinto al color de origen.',
-        variant: 'warning',
-      })
-      return
-    }
+        if (!primaryDim) return
 
-    handleAddCustomOptionToDimension(primaryDim.id, targetVal)
-    setColorHexMap((prev) => ({ ...prev, [targetVal]: targetVal }))
+        if (colorModal.mode === 'duplicate' && colorName === colorModal.value) {
+          toast.show({
+            title: 'Color duplicado',
+            message: 'El nuevo color debe ser distinto al color de origen.',
+            variant: 'warning',
+          })
+          return
+        }
 
-    if (colorModal.mode === 'add-group') {
-      handleAddSubVariantToGroup(targetVal)
-    } else {
-      handleDuplicateGroupTo(colorModal.value, targetVal)
-    }
+        handleAddCustomOptionToDimension(primaryDim.id, colorName)
 
-    setColorModal(null)
-  }, [
-    colorModal,
-    handleAddCustomOptionToDimension,
-    handleAddSubVariantToGroup,
-    handleDuplicateGroupTo,
-    primaryDim,
-    toast,
-  ])
+        if (colorModal.mode === 'add-group') {
+          handleAddSubVariantToGroup(colorName)
+        } else {
+          handleDuplicateGroupTo(colorModal.value, colorName)
+        }
+
+        setColorModal(null)
+      } finally {
+        setColorModalBusy(false)
+      }
+    },
+    [
+      colorModal,
+      handleAddCustomOptionToDimension,
+      handleAddSubVariantToGroup,
+      handleDuplicateGroupTo,
+      primaryDim,
+      tenantId,
+      toast,
+    ]
+  )
 
   // Clean up object URLs on unmount
   useEffect(() => {
@@ -2179,77 +2219,23 @@ export function VariantMatrixBuilder({
         )
       })()}
 
-      {colorModal && (primaryDim || colorModal.mode === 'extra') && (
-        <Popup
-          open={true}
-          onClose={() => setColorModal(null)}
+      {colorModal && (primaryDim || colorModal.mode === 'extra') ? (
+        <NamedColorPopup
+          key={`${colorModal.mode}-${colorModal.rowId ?? colorModal.value}`}
+          open
           title={
             colorModal.mode === 'duplicate'
-              ? `Duplicar ${primaryDim?.name} a un color nuevo`
+              ? `Duplicar ${primaryDim?.name ?? 'color'} con un color nuevo`
               : colorModal.mode === 'extra'
                 ? 'Color adicional de la variante'
-                : `Nuevo ${primaryDim?.name}`
+                : `Nuevo ${primaryDim?.name ?? 'color'}`
           }
-          width="420px"
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
-            <div>
-              <span className="ecu-color-preset-title">Elige un color</span>
-              <div className="ecu-color-preset-grid">
-                {DEFAULT_COLOR_PRESETS.map((preset: string) => {
-                  const selected = normalizeHexColor(colorModal.hex) === preset
-                  return (
-                    <button
-                      key={preset}
-                      type="button"
-                      className={`ecu-color-preset${selected ? ' ecu-color-preset--active' : ''}`}
-                      style={{ backgroundColor: preset }}
-                      aria-label={`Color ${preset}`}
-                      aria-pressed={selected}
-                      title={preset}
-                      onClick={() =>
-                        setColorModal((prev) => (prev ? { ...prev, hex: preset } : prev))
-                      }
-                    />
-                  )
-                })}
-              </div>
-            </div>
-            <ColorPicker
-              label="Color personalizado (hexadecimal)"
-              labelPosition="outlined"
-              variant="outline"
-              value={colorModal.hex}
-              onChange={(hex: string) =>
-                setColorModal((prev) => (prev ? { ...prev, hex: hex || '' } : prev))
-              }
-              fullWidth
-            />
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '0.5rem',
-                paddingTop: '0.75rem',
-                borderTop: '1px solid var(--shell-border, rgba(0,0,0,0.08))',
-              }}
-            >
-              <Button type="button" variant="outline" size="sm" onClick={() => setColorModal(null)}>
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={handleConfirmColorModal}
-                disabled={!normalizeHexColor(colorModal.hex)}
-              >
-                <Check size={14} /> Aceptar
-              </Button>
-            </div>
-          </div>
-        </Popup>
-      )}
+          initialHex={colorModal.hex || '#3B82F6'}
+          busy={colorModalBusy}
+          onClose={() => !colorModalBusy && setColorModal(null)}
+          onConfirm={handleConfirmNamedColor}
+        />
+      ) : null}
 
     </div>
   )

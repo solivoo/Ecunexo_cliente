@@ -1,4 +1,4 @@
-import { useMemo, type ChangeEvent } from 'react'
+import { useMemo, useState, type ChangeEvent } from 'react'
 import { ColorPicker, NumberBox, Select, TextArea, TextBox } from 'glubox'
 import { EcuColorListInput, EcuMediaListInput, EcuTagInput } from '@/components/ui'
 import {
@@ -7,7 +7,9 @@ import {
   type ArchetypeAttributeField,
   type DimensionLookup,
 } from '@/lib/catalogArchetype'
+import { upsertSystemNamedColor } from '@/lib/catalogNamedColors'
 import type { TenantMediaAssetDto } from '@/types/catalogApi'
+import { NamedColorPopup } from '@/pages/catalog/NamedColorPopup'
 import { CatalogPricingMarginBar } from '@/pages/catalog/CatalogPricingMarginBar'
 import './variantMatrixBuilder.css'
 
@@ -41,6 +43,9 @@ export type VariantPhysicalFieldsProps = {
   readonly onUploadMedia?: (file: File) => Promise<TenantMediaAssetDto>
   readonly onMediaError?: (message: string) => void
   readonly className?: string
+  /** Para persistir colores nombrados en la paleta del sistema. */
+  readonly tenantId?: string | null
+  readonly onNamedColorCreated?: (name: string, hex: string) => void
 }
 
 function normalizeKey(key: string): string {
@@ -83,7 +88,12 @@ export function VariantPhysicalFields({
   onUploadMedia,
   onMediaError,
   className,
+  tenantId = null,
+  onNamedColorCreated,
 }: VariantPhysicalFieldsProps) {
+  const [namedColorDim, setNamedColorDim] = useState<string | null>(null)
+  const [namedColorBusy, setNamedColorBusy] = useState(false)
+
   const nameField = useMemo(
     () => variantAttributeFields.find((f) => isNameField(f.key)) ?? null,
     [variantAttributeFields]
@@ -150,12 +160,28 @@ export function VariantPhysicalFields({
         return (
           <div key={dim.name} className="ecu-variant-sub-item-field">
             <label className="ecu-variant-sub-item-label">{dim.name}</label>
-            {isColor && availableVals.length === 0 ? (
-              <ColorPicker
+            {isColor ? (
+              <Select
                 size="sm"
                 variant="outline"
-                value={currentVal || '#3b82f6'}
-                onChange={(hex: string) => onDimensionChange(dim.name, hex)}
+                value={currentVal}
+                onChange={(val: string) => {
+                  if (val === '__add_new__') {
+                    setNamedColorDim(dim.name)
+                    return
+                  }
+                  onDimensionChange(dim.name, val)
+                }}
+                options={[
+                  ...(currentVal && !availableVals.includes(currentVal)
+                    ? [{ value: currentVal, label: currentVal }]
+                    : []),
+                  ...availableVals.map((v) => {
+                    const hex = lookup?.colorHexByName?.[v] ?? lookup?.colorHexByName?.[v.toLowerCase()]
+                    return { value: v, label: hex ? `${v} (${hex})` : v }
+                  }),
+                  { value: '__add_new__', label: '+ Nuevo color...' },
+                ]}
                 disabled={disabled}
                 fullWidth
               />
@@ -378,6 +404,29 @@ export function VariantPhysicalFields({
           </div>
         )
       })}
+
+      {namedColorDim ? (
+        <NamedColorPopup
+          key={`vpf-${namedColorDim}`}
+          open
+          title={`Nuevo color (${namedColorDim})`}
+          busy={namedColorBusy}
+          onClose={() => !namedColorBusy && setNamedColorDim(null)}
+          onConfirm={async (color) => {
+            setNamedColorBusy(true)
+            try {
+              if (tenantId) {
+                await upsertSystemNamedColor(tenantId, color)
+              }
+              onNamedColorCreated?.(color.name, color.hex)
+              onDimensionChange(namedColorDim, color.name)
+              setNamedColorDim(null)
+            } finally {
+              setNamedColorBusy(false)
+            }
+          }}
+        />
+      ) : null}
     </div>
   )
 }

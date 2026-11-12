@@ -12,6 +12,8 @@ export type DimensionLookup = {
   isVariantAxis: boolean
   unit: string | null
   dimensionType: string
+  /** Solo ejes color: nombre → hex */
+  colorHexByName?: Record<string, string>
 }
 
 export function isColorDimension(name: string, type?: string, tplId?: string): boolean {
@@ -34,14 +36,52 @@ export function buildDimensionValuesMap(
       const isColor = (t.dimensionType || '').toLowerCase() === 'color' || isColorDimension(t.name)
       const dataType = (t.dataType || (isColor ? 'color' : 'text')).trim().toLowerCase()
       const lowerType = (t.dimensionType || '').trim().toLowerCase()
+      const treatAsNamedColor = isColor || dataType === 'color' || dataType === 'colorlist'
+
+      let values: string[]
+      let colorHexByName: Record<string, string> | undefined
+      if (treatAsNamedColor) {
+        const named: { name: string; hex: string }[] = []
+        for (const entry of parsed) {
+          if (typeof entry === 'string') {
+            const raw = entry.trim()
+            if (!raw) continue
+            const hexMatch = /^#?[0-9A-Fa-f]{6}$/.test(raw)
+            const hex = hexMatch
+              ? raw.startsWith('#')
+                ? `#${raw.slice(1).toUpperCase()}`
+                : `#${raw.toUpperCase()}`
+              : '#808080'
+            named.push({ name: hexMatch ? hex : raw, hex })
+            continue
+          }
+          if (entry && typeof entry === 'object') {
+            const rec = entry as { name?: unknown; hex?: unknown }
+            const name = typeof rec.name === 'string' ? rec.name.trim() : ''
+            const hexRaw = typeof rec.hex === 'string' ? rec.hex.trim() : ''
+            if (!name) continue
+            const hex = /^#?[0-9A-Fa-f]{6}$/.test(hexRaw)
+              ? hexRaw.startsWith('#')
+                ? `#${hexRaw.slice(1).toUpperCase()}`
+                : `#${hexRaw.toUpperCase()}`
+              : '#808080'
+            named.push({ name, hex })
+          }
+        }
+        values = named.map((c) => c.name)
+        colorHexByName = Object.fromEntries(named.flatMap((c) => [[c.name, c.hex], [c.name.toLowerCase(), c.hex]]))
+      } else {
+        values = parsed.map(String)
+      }
 
       const entry: DimensionLookup = {
-        values: parsed.map(String),
-        isColor: isColor || dataType === 'color',
+        values,
+        isColor: treatAsNamedColor,
         dataType,
         isVariantAxis: t.isVariantAxis !== false,
         unit: t.unit ?? null,
         dimensionType: lowerType,
+        colorHexByName,
       }
       const lowerName = t.name.trim().toLowerCase()
       if (!map.has(lowerName)) map.set(lowerName, entry)

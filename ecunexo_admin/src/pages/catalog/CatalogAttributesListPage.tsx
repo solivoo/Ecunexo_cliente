@@ -45,6 +45,13 @@ import {
   findConflictingSystemBaseItemAttribute,
   mergeWithSystemBaseAttributes,
 } from '@/lib/catalogBaseAttributes'
+import {
+  isSystemColorAttribute,
+  parseNamedColorsJson,
+  saveSystemNamedColors,
+  type NamedColor,
+} from '@/lib/catalogNamedColors'
+import { NamedColorPopup } from '@/pages/catalog/NamedColorPopup'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { VariantDimensionTemplateDto } from '@/types/catalogApi'
@@ -149,30 +156,6 @@ export const ATTRIBUTE_KINDS: AttributeKindConfig[] = [
     predefinedValuesHint: '',
   },
   {
-    value: 'color',
-    label: 'Color',
-    shortLabel: 'Color',
-    description: 'Un color por hexadecimal.',
-    dimensionType: 'color',
-    dataType: 'color',
-    allowsPredefinedValues: false,
-    requiresPredefinedValues: false,
-    hasUnit: false,
-    predefinedValuesHint: '',
-  },
-  {
-    value: 'colorlist',
-    label: 'Colores múltiples',
-    shortLabel: 'Colores',
-    description: 'Varios colores por hexadecimal en un mismo atributo.',
-    dimensionType: 'color',
-    dataType: 'colorlist',
-    allowsPredefinedValues: false,
-    requiresPredefinedValues: false,
-    hasUnit: false,
-    predefinedValuesHint: '',
-  },
-  {
     value: 'media',
     label: 'Fotos',
     shortLabel: 'Fotos',
@@ -236,6 +219,10 @@ export function CatalogAttributesListPage() {
   // Modal Crear / Editar
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<VariantDimensionTemplateDto | null>(null)
+  const [colorPaletteOpen, setColorPaletteOpen] = useState(false)
+  const [paletteColors, setPaletteColors] = useState<NamedColor[]>([])
+  const [paletteSaving, setPaletteSaving] = useState(false)
+  const [namedColorPopupOpen, setNamedColorPopupOpen] = useState(false)
   const [formName, setFormName] = useState('')
   const [formKind, setFormKind] = useState<AttributeKind>('text')
   const [formUnit, setFormUnit] = useState('')
@@ -304,25 +291,39 @@ export function CatalogAttributesListPage() {
     setEditModalOpen(true)
   }, [])
 
-  const openEditModal = useCallback((template: VariantDimensionTemplateDto) => {
+  const openColorPalette = useCallback((template: VariantDimensionTemplateDto) => {
     setEditingTemplate(template)
-    setFormName(template.name)
-    setFormKind(resolveAttributeKind(template))
-    setFormUnit(template.unit ?? '')
-    try {
-      const parsed = JSON.parse(template.predefinedValuesJson)
-      setFormValues(Array.isArray(parsed) ? parsed : [])
-    } catch {
-      setFormValues([])
-    }
-    setNewValueInput('')
-    setEditingValueIndex(null)
-    setEditingValueDraft('')
-    setValueRenames([])
-    setDuplicateSource(null)
-    setReassignProducts(false)
-    setEditModalOpen(true)
+    setPaletteColors(parseNamedColorsJson(template.predefinedValuesJson))
+    setNamedColorPopupOpen(false)
+    setColorPaletteOpen(true)
   }, [])
+
+  const openEditModal = useCallback(
+    (template: VariantDimensionTemplateDto) => {
+      if (isSystemColorAttribute(template) || resolveAttributeKind(template) === 'color') {
+        openColorPalette(template)
+        return
+      }
+      setEditingTemplate(template)
+      setFormName(template.name)
+      setFormKind(resolveAttributeKind(template))
+      setFormUnit(template.unit ?? '')
+      try {
+        const parsed = JSON.parse(template.predefinedValuesJson)
+        setFormValues(Array.isArray(parsed) ? parsed.map(String) : [])
+      } catch {
+        setFormValues([])
+      }
+      setNewValueInput('')
+      setEditingValueIndex(null)
+      setEditingValueDraft('')
+      setValueRenames([])
+      setDuplicateSource(null)
+      setReassignProducts(false)
+      setEditModalOpen(true)
+    },
+    [openColorPalette]
+  )
 
   const openDuplicateModal = useCallback((template: VariantDimensionTemplateDto) => {
     setEditingTemplate(null)
@@ -589,10 +590,19 @@ export function CatalogAttributesListPage() {
         return inName || inValues || inDesc
       })
       .map((r) => {
+        const kind = resolveAttributeKind(r)
+        if (kind === 'color' || kind === 'colorlist' || isSystemColorAttribute(r)) {
+          return {
+            ...r,
+            parsedValues: parseNamedColorsJson(r.predefinedValuesJson).map(
+              (c) => `${c.name} (${c.hex})`
+            ),
+          }
+        }
         let parsed: string[] = []
         try {
-          parsed = JSON.parse(r.predefinedValuesJson)
-          if (!Array.isArray(parsed)) parsed = []
+          const raw = JSON.parse(r.predefinedValuesJson)
+          parsed = Array.isArray(raw) ? raw.map(String) : []
         } catch {
           parsed = []
         }
@@ -657,10 +667,16 @@ export function CatalogAttributesListPage() {
         sortable: true,
         renderCell: (_val: unknown, row: TemplateGridRow) => {
           const kind = resolveAttributeKind(row)
-          const config = ATTRIBUTE_KINDS.find((k) => k.value === kind) ?? ATTRIBUTE_KINDS[0]
+          const config = ATTRIBUTE_KINDS.find((k) => k.value === kind)
+          const shortLabel =
+            kind === 'color' || isSystemColorAttribute(row)
+              ? 'Colores nombrados'
+              : kind === 'colorlist'
+                ? 'Colores (legacy)'
+                : (config?.shortLabel ?? 'Texto')
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <span className="ecu-chip">{config.shortLabel}</span>
+              <span className="ecu-chip">{shortLabel}</span>
               {row.unit && <span className="ecu-hint">Unidad: {row.unit}</span>}
             </div>
           )
@@ -676,8 +692,8 @@ export function CatalogAttributesListPage() {
               <span className="ecu-hint">
                 {row.dataType === 'number'
                   ? 'Valor numérico'
-                  : row.dataType === 'color'
-                    ? 'Selector hexadecimal (#HEX)'
+                  : row.dataType === 'color' || isSystemColorAttribute(row)
+                    ? 'Sin colores aún — gestiona la paleta'
                     : 'Texto libre'}
               </span>
             ) : (
@@ -727,32 +743,35 @@ export function CatalogAttributesListPage() {
         align: 'center',
         renderCell: (_val: unknown, row: TemplateGridRow) => {
           const isBuiltIn = Boolean(row.isSystemDefault)
+          const isSystemColor = isSystemColorAttribute(row)
           return (
             <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
               <GridIconButton
                 icon={Pencil}
                 label={
-                  isBuiltIn
-                    ? `«${row.name}» es un atributo base del sistema`
-                    : `Editar «${row.name}»`
+                  isSystemColor
+                    ? `Gestionar colores de «${row.name}»`
+                    : isBuiltIn
+                      ? `«${row.name}» es un atributo base del sistema`
+                      : `Editar «${row.name}»`
                 }
                 onClick={() => openEditModal(row)}
-                disabled={!canManage || isBuiltIn}
+                disabled={!canManage || (isBuiltIn && !isSystemColor)}
               />
               <GridIconButton
                 icon={Copy}
                 label={
-                  isBuiltIn
+                  isBuiltIn || isSystemColor
                     ? `«${row.name}» ya está incluido en todos los ítems`
                     : `Duplicar «${row.name}» (útil para cambiar el tipo)`
                 }
                 onClick={() => openDuplicateModal(row)}
-                disabled={!canManage || isBuiltIn}
+                disabled={!canManage || isBuiltIn || isSystemColor}
               />
               <GridIconButton
                 icon={Trash2}
                 label={
-                  isBuiltIn
+                  isBuiltIn || isSystemColor
                     ? `Inmutable: «${row.name}» es atributo base del sistema`
                     : row.isInUse
                       ? `Inmutable: «${row.name}» tiene productos asociados`
@@ -760,7 +779,7 @@ export function CatalogAttributesListPage() {
                 }
                 danger
                 onClick={() => setConfirmDelete(row)}
-                disabled={!canManage || isBuiltIn || Boolean(row.isInUse)}
+                disabled={!canManage || isBuiltIn || isSystemColor || Boolean(row.isInUse)}
               />
             </div>
           )
@@ -831,8 +850,7 @@ export function CatalogAttributesListPage() {
                   { value: 'multiselect', label: 'Selección múltiple' },
                   { value: 'number', label: 'Número' },
                   { value: 'boolean', label: 'Sí / No' },
-                  { value: 'color', label: 'Color' },
-                  { value: 'colorlist', label: 'Colores múltiples' },
+                  { value: 'color', label: 'Color (sistema)' },
                   { value: 'media', label: 'Fotos' },
                 ]}
                 value={filterType}
@@ -1178,6 +1196,132 @@ export function CatalogAttributesListPage() {
             </div>
           </div>
         </Popup>
+
+        <Popup
+          open={colorPaletteOpen}
+          onClose={() => !paletteSaving && setColorPaletteOpen(false)}
+          title="Colores del sistema"
+          width={520}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.25rem 0' }}>
+            <p className="ecu-hint" style={{ margin: 0 }}>
+              Paleta nombrada (nombre + hex). Se reutiliza en plantillas y matrices; no se pueden crear
+              otros atributos de color.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {paletteColors.length === 0 ? (
+                <span className="ecu-hint">Aún no hay colores. Añade el primero.</span>
+              ) : (
+                paletteColors.map((c) => (
+                  <span
+                    key={c.name}
+                    className="ecu-token"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                  >
+                    <span
+                      aria-hidden
+                      style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: 4,
+                        backgroundColor: c.hex,
+                        border: '1px solid rgba(0,0,0,0.15)',
+                      }}
+                    />
+                    {c.name}
+                    <button
+                      type="button"
+                      aria-label={`Quitar ${c.name}`}
+                      onClick={() =>
+                        setPaletteColors((prev) => prev.filter((x) => x.name !== c.name))
+                      }
+                      disabled={paletteSaving}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'inline-flex',
+                      }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setNamedColorPopupOpen(true)}
+                disabled={paletteSaving}
+              >
+                <Plus size={14} /> Añadir color
+              </Button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setColorPaletteOpen(false)}
+                  disabled={paletteSaving}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  loading={paletteSaving}
+                  disabled={paletteSaving}
+                  onClick={() => {
+                    if (!tenantId) return
+                    setPaletteSaving(true)
+                    void saveSystemNamedColors(tenantId, paletteColors)
+                      .then(async () => {
+                        toast.show({
+                          title: 'Paleta guardada',
+                          message: `${paletteColors.length} color(es) en el Color del sistema.`,
+                          variant: 'success',
+                        })
+                        setColorPaletteOpen(false)
+                        await loadData({ silent: true })
+                      })
+                      .catch((err: unknown) => {
+                        toast.show({
+                          title: 'Error',
+                          message: readApiError(err, 'No se pudo guardar la paleta.'),
+                          variant: 'error',
+                        })
+                      })
+                      .finally(() => setPaletteSaving(false))
+                  }}
+                >
+                  Guardar paleta
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Popup>
+
+        {namedColorPopupOpen ? (
+          <NamedColorPopup
+            key="attr-named-color"
+            open={namedColorPopupOpen}
+            title="Añadir color a la paleta"
+            busy={paletteSaving}
+            onClose={() => setNamedColorPopupOpen(false)}
+            onConfirm={(color) => {
+              if (paletteColors.some((c) => c.name.toLowerCase() === color.name.toLowerCase())) {
+                throw new Error(`Ya existe el color «${color.name}».`)
+              }
+              setPaletteColors((prev) => [...prev, color])
+              setNamedColorPopupOpen(false)
+            }}
+          />
+        ) : null}
 
         {/* Modal Confirmar Eliminar */}
         <Popup
