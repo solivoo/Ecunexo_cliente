@@ -43,6 +43,7 @@ import {
 import {
   ensureSystemBaseAttributesLoaded,
   findConflictingSystemBaseItemAttribute,
+  findSystemBaseAttribute,
   mergeWithSystemBaseAttributes,
 } from '@/lib/catalogBaseAttributes'
 import {
@@ -435,7 +436,8 @@ export function CatalogAttributesListPage() {
       return
     }
 
-    const baseConflict = findConflictingSystemBaseItemAttribute(name)
+    const editingSystem = editingTemplate ? findSystemBaseAttribute(editingTemplate.name) : undefined
+    const baseConflict = editingSystem ? undefined : findConflictingSystemBaseItemAttribute(name)
     if (baseConflict) {
       toast.show({
         title: 'Atributo base existente',
@@ -469,8 +471,32 @@ export function CatalogAttributesListPage() {
         unit: kindConfig.hasUnit && formUnit.trim() ? formUnit.trim() : null,
       }
       if (editingTemplate) {
+        const isVirtual = !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          editingTemplate.id
+        )
+        const systemPayload = editingSystem
+          ? {
+              ...payload,
+              name: editingSystem.name,
+              dimensionType: editingSystem.dimensionType,
+              dataType: editingSystem.dataType,
+              isVariantAxis: editingSystem.isVariantAxis,
+              unit: editingSystem.unit,
+            }
+          : payload
+        if (isVirtual) {
+          await createVariantDimensionTemplate(tenantId, systemPayload)
+          toast.show({
+            title: 'Opciones agregadas',
+            message: `«${editingSystem?.name ?? name}» conserva las opciones base y suma las nuevas.`,
+            variant: 'success',
+          })
+          setEditModalOpen(false)
+          await loadData({ silent: true })
+          return
+        }
         const result = await updateVariantDimensionTemplate(tenantId, editingTemplate.id, {
-          ...payload,
+          ...systemPayload,
           ...(valueRenames.length > 0 ? { valueRenames } : {}),
         })
         const affected = result.renamedItems ?? 0
@@ -742,8 +768,8 @@ export function CatalogAttributesListPage() {
         width: 110,
         align: 'center',
         renderCell: (_val: unknown, row: TemplateGridRow) => {
-          const isBuiltIn = Boolean(row.isSystemDefault)
           const isSystemColor = isSystemColorAttribute(row)
+          const isSystemLocked = Boolean(row.isSystemBase || row.isSystemDefault || isSystemColor)
           return (
             <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
               <GridIconButton
@@ -751,35 +777,35 @@ export function CatalogAttributesListPage() {
                 label={
                   isSystemColor
                     ? `Gestionar colores de «${row.name}»`
-                    : isBuiltIn
-                      ? `«${row.name}» es un atributo base del sistema`
+                    : isSystemLocked
+                      ? `Agregar opciones a «${row.name}»`
                       : `Editar «${row.name}»`
                 }
                 onClick={() => openEditModal(row)}
-                disabled={!canManage || (isBuiltIn && !isSystemColor)}
+                disabled={!canManage}
               />
               <GridIconButton
                 icon={Copy}
                 label={
-                  isBuiltIn || isSystemColor
+                  isSystemLocked
                     ? `«${row.name}» ya está incluido en todos los ítems`
                     : `Duplicar «${row.name}» (útil para cambiar el tipo)`
                 }
                 onClick={() => openDuplicateModal(row)}
-                disabled={!canManage || isBuiltIn || isSystemColor}
+                disabled={!canManage || isSystemLocked}
               />
               <GridIconButton
                 icon={Trash2}
                 label={
-                  isBuiltIn || isSystemColor
-                    ? `Inmutable: «${row.name}» es atributo base del sistema`
+                  isSystemLocked
+                    ? `No se elimina: «${row.name}» es atributo base del sistema`
                     : row.isInUse
                       ? `Inmutable: «${row.name}» tiene productos asociados`
                       : `Eliminar «${row.name}»`
                 }
                 danger
                 onClick={() => setConfirmDelete(row)}
-                disabled={!canManage || isBuiltIn || isSystemColor || Boolean(row.isInUse)}
+                disabled={!canManage || isSystemLocked || Boolean(row.isInUse)}
               />
             </div>
           )
@@ -919,10 +945,16 @@ export function CatalogAttributesListPage() {
               placeholder="Escriba aquí..."
               value={formName}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setFormName(e.target.value)}
-              disabled={saving}
+              disabled={saving || Boolean(editingTemplate && findSystemBaseAttribute(editingTemplate.name))}
               required
               fullWidth
             />
+            {editingTemplate && findSystemBaseAttribute(editingTemplate.name) ? (
+              <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted, #64748b)', fontWeight: 500 }}>
+                Atributo base del sistema: no se elimina ni se le quitan las opciones de origen. Puedes
+                agregar opciones nuevas.
+              </span>
+            ) : null}
             {editingTemplate?.isInUse && (
               <span style={{ fontSize: '0.75rem', color: '#b45309', fontWeight: 500 }}>
                 * Atributo en uso: al cambiar el nombre o renombrar una opción se actualizarán
@@ -988,7 +1020,11 @@ export function CatalogAttributesListPage() {
               }))}
               value={formKind}
               onChange={(v: string) => setFormKind(v as AttributeKind)}
-              disabled={saving || Boolean(editingTemplate?.isInUse)}
+              disabled={
+                saving ||
+                Boolean(editingTemplate?.isInUse) ||
+                Boolean(editingTemplate && findSystemBaseAttribute(editingTemplate.name))
+              }
               fullWidth
             />
             <span
@@ -1015,7 +1051,8 @@ export function CatalogAttributesListPage() {
               />
             )}
 
-            {selectedKindConfig.allowsPredefinedValues && (
+            {(selectedKindConfig.allowsPredefinedValues ||
+              Boolean(editingTemplate && findSystemBaseAttribute(editingTemplate.name))) && (
               <div>
                 <label
                   style={{
@@ -1113,6 +1150,10 @@ export function CatalogAttributesListPage() {
                           }}
                         >
                           <span>{val}</span>
+                          {editingTemplate &&
+                          findSystemBaseAttribute(editingTemplate.name)?.predefinedValues.some(
+                            (origin) => origin.toLowerCase() === val.toLowerCase()
+                          ) ? null : (
                           <button
                             type="button"
                             onClick={() => startEditingValue(idx, val)}
@@ -1130,23 +1171,29 @@ export function CatalogAttributesListPage() {
                           >
                             <Pencil size={11} />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveValueFromForm(idx)}
-                            disabled={saving}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              padding: 0,
-                              color: 'var(--glb-muted, #94a3b8)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                            }}
-                            title="Quitar"
-                          >
-                            <X size={12} />
-                          </button>
+                          )}
+                          {editingTemplate &&
+                          findSystemBaseAttribute(editingTemplate.name)?.predefinedValues.some(
+                            (origin) => origin.toLowerCase() === val.toLowerCase()
+                          ) ? null : (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveValueFromForm(idx)}
+                              disabled={saving}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: 0,
+                                color: 'var(--glb-muted, #94a3b8)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                              }}
+                              title="Quitar"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
                         </span>
                       )
                     )}

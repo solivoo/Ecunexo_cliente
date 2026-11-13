@@ -4,6 +4,7 @@ import { EcuMediaListInput, EcuTagInput } from '@/components/ui'
 import { parseMediaValue, type ArchetypeAttributeField, type DimensionLookup } from '@/lib/catalogArchetype'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 import type { TenantMediaAssetDto } from '@/types/catalogApi'
+import { ListOptionSelect } from '@/pages/catalog/ListOptionSelect'
 import { NamedColorSelect } from '@/pages/catalog/NamedColorSelect'
 
 type ArchetypeModelFieldsProps = {
@@ -208,28 +209,33 @@ export function ArchetypeModelFields({
             disabled={disabled}
             fullWidth
           />
-        ) : kind === 'select' ? (
+        ) : kind === 'select' && dataType === 'boolean' ? (
           <Select
             id={id}
             label={label}
             labelPosition="outlined"
             variant="outline"
-            options={
-              dataType === 'boolean'
-                ? [
-                    { value: '', label: 'Sin definir' },
-                    { value: 'true', label: 'Sí' },
-                    { value: 'false', label: 'No' },
-                  ]
-                : [
-                    { value: '', label: 'Sin definir' },
-                    ...(lookup?.values ?? []).map((v) => ({ value: v, label: v })),
-                  ]
-            }
+            options={[
+              { value: '', label: 'Sin definir' },
+              { value: 'true', label: 'Sí' },
+              { value: 'false', label: 'No' },
+            ]}
             value={value}
             onChange={(v: string) => onChangeValue(field.key, v)}
             disabled={disabled}
             fullWidth
+          />
+        ) : kind === 'select' ? (
+          <ListOptionSelect
+            id={id}
+            label={label}
+            value={value}
+            options={lookup?.values ?? []}
+            onChange={(v) => onChangeValue(field.key, v)}
+            attributeName={field.key}
+            tenantId={tenantId}
+            onAdded={onColorPaletteUpdated}
+            disabled={disabled}
           />
         ) : kind === 'color' || kind === 'colorlist' ? (
           <NamedColorSelect

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 
 namespace EcuNexo.Core.Catalog;
 
@@ -300,6 +301,65 @@ public static class SystemBaseAttributes
     {
         var match = FindItemFieldByNameOrAlias(rawKey);
         return match is not null && VariantBuiltinColumnIds.Contains(match.Id);
+    }
+
+    /// <summary>
+    /// Opción canónica que falta en el JSON enviado. Null si se conservan todas.
+    /// </summary>
+    public static string? FirstRemovedCanonicalValue(SystemBaseAttributeDefinition definition, string? json)
+    {
+        var present = ParseOptionNames(json);
+        foreach (var required in definition.PredefinedValues)
+        {
+            var clean = required?.Trim();
+            if (string.IsNullOrEmpty(clean))
+            {
+                continue;
+            }
+
+            if (!present.Any(v => v.Equals(clean, StringComparison.OrdinalIgnoreCase)))
+            {
+                return clean;
+            }
+        }
+
+        return null;
+    }
+
+    private static List<string> ParseOptionNames(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return [];
+            }
+
+            var values = new List<string>();
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                if (el.ValueKind == JsonValueKind.String)
+                {
+                    var s = el.GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(s))
+                    {
+                        values.Add(s);
+                    }
+                }
+            }
+
+            return values;
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
 }
 

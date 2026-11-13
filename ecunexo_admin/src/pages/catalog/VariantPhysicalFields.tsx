@@ -1,6 +1,7 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { NumberBox, Select, TextArea, TextBox } from 'glubox'
 import { EcuMediaListInput, EcuTagInput } from '@/components/ui'
+import { ListOptionSelect } from '@/pages/catalog/ListOptionSelect'
 import { NamedColorSelect } from '@/pages/catalog/NamedColorSelect'
 import {
   isColorDimension,
@@ -187,27 +188,15 @@ export function VariantPhysicalFields({
                 fullWidth
               />
             ) : availableVals.length > 0 ? (
-              <Select
+              <ListOptionSelect
                 size="sm"
-                variant="outline"
                 value={currentVal}
-                onChange={(val: string) => {
-                  if (val === '__add_new__') {
-                    const created = window.prompt(`Nueva opción para «${dim.name}»:`)
-                    if (created?.trim()) onDimensionChange(dim.name, created.trim())
-                    return
-                  }
-                  onDimensionChange(dim.name, val)
-                }}
-                options={[
-                  ...(currentVal && !availableVals.includes(currentVal)
-                    ? [{ value: currentVal, label: currentVal }]
-                    : []),
-                  ...availableVals.map((v) => ({ value: v, label: v })),
-                  { value: '__add_new__', label: '+ Nueva...' },
-                ]}
+                options={availableVals}
+                allowEmpty={false}
+                onChange={(val) => onDimensionChange(dim.name, val)}
+                attributeName={dim.name}
+                tenantId={tenantId}
                 disabled={disabled}
-                fullWidth
               />
             ) : (
               <TextBox
@@ -359,17 +348,14 @@ export function VariantPhysicalFields({
                 disabled={disabled}
               />
             ) : (lookup?.values.length ?? 0) > 0 ? (
-              <Select
+              <ListOptionSelect
                 size="sm"
-                variant="outline"
                 value={value}
-                onChange={(v: string) => onAttributeChange(field.key, v)}
-                options={[
-                  { value: '', label: 'Sin definir' },
-                  ...(lookup?.values ?? []).map((v) => ({ value: v, label: v })),
-                ]}
+                options={lookup?.values ?? []}
+                onChange={(v) => onAttributeChange(field.key, v)}
+                attributeName={field.key}
+                tenantId={tenantId}
                 disabled={disabled}
-                fullWidth
               />
             ) : isDesc ? (
               <TextArea

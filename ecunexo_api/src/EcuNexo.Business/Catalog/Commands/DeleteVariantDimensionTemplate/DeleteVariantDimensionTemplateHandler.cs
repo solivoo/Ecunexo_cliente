@@ -1,5 +1,6 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Tenancy;
+using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
 
 namespace EcuNexo.Business.Catalog.Commands.DeleteVariantDimensionTemplate;
@@ -47,6 +48,15 @@ public sealed class DeleteVariantDimensionTemplateHandler
         {
             return Result.Failure<DeleteVariantDimensionTemplateResponse>(
                 new Error("catalog.variant_template.not_found", "La plantilla de variantes no existe.", ErrorType.NotFound));
+        }
+
+        if (SystemBaseAttributes.FindByNameOrAlias(template.Name) is not null)
+        {
+            return Result.Failure<DeleteVariantDimensionTemplateResponse>(
+                new Error(
+                    "catalog.variant_template.system_base.immutable",
+                    $"No se puede eliminar «{template.Name}»: es un atributo base del sistema. Puedes agregar opciones.",
+                    ErrorType.Conflict));
         }
 
         var isInUse = await _items.IsAttributeTemplateInUseAsync(command.TenantId, template.Name, ct)

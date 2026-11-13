@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import { Button, ColorPicker, FileBox, NumberBox, Popup, Select, TextArea, TextBox, useToast } from 'glubox'
 import { ArrowLeft, ArrowRight, Camera, Check, Copy, Layers, Plus, Trash2, X } from 'lucide-react'
 import { EcuMediaListInput, EcuTagInput } from '@/components/ui'
+import { ListOptionSelect } from '@/pages/catalog/ListOptionSelect'
 import { NamedColorSelect } from '@/pages/catalog/NamedColorSelect'
 import {
   findDuplicateSkuValues,
@@ -1544,21 +1545,20 @@ export function VariantMatrixBuilder({
                           />
                         </div>
                       ) : primaryDim && primaryDim.id ? (
-                        <div style={{ minWidth: 170, maxWidth: 240 }}>
-                          <Select
+                        <div style={{ minWidth: 190, maxWidth: 280 }}>
+                          <ListOptionSelect
                             size="sm"
-                            variant="outline"
                             value={group.groupValue}
-                            onChange={(val: string) => handleRenameGroupValue(group.groupValue, val)}
+                            options={availableGroupVals}
+                            allowEmpty={false}
+                            onChange={(val) => handleRenameGroupValue(group.groupValue, val)}
+                            attributeName={primaryDim.name}
+                            tenantId={tenantId}
+                            onAdded={async (saved) => {
+                              handleAddCustomOptionToDimension(primaryDim.id, saved)
+                              await onColorPaletteUpdated?.()
+                            }}
                             disabled={disabled}
-                            options={[
-                              ...availableGroupVals.map((val) => ({ value: val, label: val })),
-                              ...(group.groupValue && !availableGroupVals.includes(group.groupValue)
-                                ? [{ value: group.groupValue, label: group.groupValue }]
-                                : []),
-                              { value: '__add_new__', label: `+ Nuevo ${primaryDim.name}...` },
-                            ]}
-                            fullWidth
                           />
                         </div>
                       ) : (
@@ -1680,30 +1680,19 @@ export function VariantMatrixBuilder({
                         return (
                           <div key={dim.id} className="ecu-variant-sub-item-field">
                             <label className="ecu-variant-sub-item-label">{dim.name}</label>
-                            <Select
+                            <ListOptionSelect
                               size="sm"
-                              variant="outline"
                               value={currentVal}
-                              onChange={(val: string) => {
-                                if (val === '__add_new__') {
-                                  const newVal = window.prompt(`Añadir nueva opción para «${dim.name}»:`)
-                                  if (newVal && newVal.trim()) {
-                                    handleAddCustomOptionToDimension(dim.id, newVal.trim())
-                                    handleRowDimensionChange(row.id, dim.name, newVal.trim())
-                                  }
-                                } else {
-                                  handleRowDimensionChange(row.id, dim.name, val)
-                                }
+                              options={availableVals}
+                              allowEmpty={false}
+                              onChange={(val) => handleRowDimensionChange(row.id, dim.name, val)}
+                              attributeName={dim.name}
+                              tenantId={tenantId}
+                              onAdded={async (saved) => {
+                                handleAddCustomOptionToDimension(dim.id, saved)
+                                await onColorPaletteUpdated?.()
                               }}
                               disabled={disabled}
-                              options={[
-                                ...(currentVal && !availableVals.includes(currentVal)
-                                  ? [{ value: currentVal, label: currentVal }]
-                                  : []),
-                                ...availableVals.map((val) => ({ value: val, label: val })),
-                                { value: '__add_new__', label: '+ Nueva...' },
-                              ]}
-                              fullWidth
                             />
                           </div>
                         )
@@ -1816,19 +1805,15 @@ export function VariantMatrixBuilder({
                                 disabled={disabled}
                               />
                             ) : (lookup?.values.length ?? 0) > 0 ? (
-                              <Select
+                              <ListOptionSelect
                                 size="sm"
-                                variant="outline"
                                 value={value}
-                                onChange={(v: string) =>
-                                  handleVariantAttributeChange(row.id, field.key, v)
-                                }
-                                options={[
-                                  { value: '', label: 'Sin definir' },
-                                  ...(lookup?.values ?? []).map((v) => ({ value: v, label: v })),
-                                ]}
+                                options={lookup?.values ?? []}
+                                onChange={(v) => handleVariantAttributeChange(row.id, field.key, v)}
+                                attributeName={field.key}
+                                tenantId={tenantId}
+                                onAdded={onColorPaletteUpdated}
                                 disabled={disabled}
-                                fullWidth
                               />
                             ) : isDesc ? (
                               <TextArea

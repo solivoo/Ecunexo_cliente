@@ -48,16 +48,6 @@ public sealed class CreateVariantDimensionTemplateHandler
                 new Error("catalog.variant_template.tenant.not_found", "El tenant no existe.", ErrorType.NotFound));
         }
 
-        var systemConflict = SystemBaseAttributes.FindItemFieldByNameOrAlias(command.Name);
-        if (systemConflict is not null)
-        {
-            return Result.Failure<CreateVariantDimensionTemplateResponse>(
-                new Error(
-                    "catalog.variant_template.system_base_conflict",
-                    $"«{systemConflict.Name}» ya existe como atributo base del sistema en todos los ítems. No es necesario crearlo de nuevo.",
-                    ErrorType.Validation));
-        }
-
         var dataTypeNorm = (command.DataType ?? string.Empty).Trim().ToLowerInvariant();
         var dimensionTypeNorm = (command.DimensionType ?? string.Empty).Trim().ToLowerInvariant();
         var isColorKind =
@@ -77,13 +67,29 @@ public sealed class CreateVariantDimensionTemplateHandler
                     ErrorType.Validation));
         }
 
-        if (isSystemColorOverlay
+        var systemListOverlay = systemColor is not null && !isSystemColorOverlay ? systemColor : null;
+        if (systemListOverlay is not null)
+        {
+            var removed = SystemBaseAttributes.FirstRemovedCanonicalValue(
+                systemListOverlay,
+                command.PredefinedValuesJson);
+            if (removed is not null)
+            {
+                return Result.Failure<CreateVariantDimensionTemplateResponse>(
+                    new Error(
+                        "catalog.variant_template.system_base.value_removed",
+                        $"No se puede quitar «{removed}»: es una opción base del sistema. Puedes agregar opciones nuevas.",
+                        ErrorType.Validation));
+            }
+        }
+
+        if ((isSystemColorOverlay || systemListOverlay is not null)
             && await _templates.ExistsByNameAsync(command.TenantId, systemColor!.Name, null, ct).ConfigureAwait(false))
         {
             return Result.Failure<CreateVariantDimensionTemplateResponse>(
                 new Error(
-                    "catalog.variant_template.color.overlay_exists",
-                    "El Color del sistema ya tiene paleta en este tenant. Actualiza sus valores en lugar de crear otro.",
+                    "catalog.variant_template.system_base.overlay_exists",
+                    $"«{systemColor.Name}» ya tiene valores en este tenant. Actualízalos en lugar de crear otro atributo.",
                     ErrorType.Conflict));
         }
 
@@ -91,14 +97,24 @@ public sealed class CreateVariantDimensionTemplateHandler
         var templateResult = VariantDimensionTemplate.Create(
             id,
             command.TenantId,
-            isSystemColorOverlay ? systemColor!.Name : command.Name,
-            isSystemColorOverlay ? "color" : (command.DimensionType ?? "custom"),
+            systemColor is not null ? systemColor.Name : command.Name,
+            isSystemColorOverlay
+                ? "color"
+                : systemListOverlay is not null
+                    ? systemListOverlay.DimensionType
+                    : (command.DimensionType ?? "custom"),
             command.PredefinedValuesJson,
             isSystemColorOverlay
                 ? VariantDimensionTemplate.DataTypeColor
-                : (command.DataType ?? VariantDimensionTemplate.DataTypeText),
-            isSystemColorOverlay || command.IsVariantAxis,
-            isSystemColorOverlay ? null : command.Unit);
+                : systemListOverlay is not null
+                    ? systemListOverlay.DataType
+                    : (command.DataType ?? VariantDimensionTemplate.DataTypeText),
+            isSystemColorOverlay || (systemListOverlay?.IsVariantAxis ?? false) || command.IsVariantAxis,
+            isSystemColorOverlay
+                ? null
+                : systemListOverlay is not null
+                    ? systemListOverlay.Unit
+                    : command.Unit);
 
         if (templateResult.IsFailure)
         {

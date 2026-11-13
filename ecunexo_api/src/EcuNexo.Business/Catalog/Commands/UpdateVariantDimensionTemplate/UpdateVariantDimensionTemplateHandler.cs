@@ -65,20 +65,37 @@ public sealed class UpdateVariantDimensionTemplateHandler
 
         var targetName = command.Name.Trim();
         var nameChanged = !string.Equals(oldName, targetName, StringComparison.OrdinalIgnoreCase);
-        var isSystemColorOverlay = SystemBaseAttributes.FindByNameOrAlias(oldName) is { Id: "system-colors" };
-        if (isSystemColorOverlay)
+        var systemMatch = SystemBaseAttributes.FindByNameOrAlias(oldName);
+        var isSystemColorOverlay = systemMatch is { Id: "system-colors" };
+        var isSystemOverlay = systemMatch is not null;
+        if (isSystemOverlay)
         {
-            // Color sistema: solo se actualiza la paleta (nombre/tipo fijos).
+            // Atributo base: nombre y tipo fijos. Solo se agregan opciones.
             targetName = oldName;
             nameChanged = false;
             command = command with
             {
                 Name = oldName,
-                DimensionType = "color",
-                DataType = VariantDimensionTemplate.DataTypeColor,
-                IsVariantAxis = true,
-                Unit = null,
+                DimensionType = isSystemColorOverlay ? "color" : oldDimensionType,
+                DataType = isSystemColorOverlay ? VariantDimensionTemplate.DataTypeColor : oldDataType,
+                IsVariantAxis = isSystemColorOverlay || oldIsVariantAxis,
+                Unit = isSystemColorOverlay ? null : template.Unit,
             };
+
+            if (!isSystemColorOverlay)
+            {
+                var removed = SystemBaseAttributes.FirstRemovedCanonicalValue(
+                    systemMatch!,
+                    command.PredefinedValuesJson);
+                if (removed is not null)
+                {
+                    return Result.Failure<UpdateVariantDimensionTemplateResponse>(
+                        new Error(
+                            "catalog.variant_template.system_base.value_removed",
+                            $"No se puede quitar «{removed}»: es una opción base del sistema. Puedes agregar opciones nuevas.",
+                            ErrorType.Validation));
+                }
+            }
         }
 
         var nextDataType = (command.DataType ?? string.Empty).Trim().ToLowerInvariant();
