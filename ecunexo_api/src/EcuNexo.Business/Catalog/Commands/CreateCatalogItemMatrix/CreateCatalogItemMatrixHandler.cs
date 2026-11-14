@@ -227,20 +227,14 @@ public sealed class CreateCatalogItemMatrixHandler
         string? familyName,
         IReadOnlyList<CreateVariantChildDto> variants)
     {
-        static bool IsPlaceholder(string? value) =>
+        // La familia es solo un UUID interno (family_id); su nombre de plantilla
+        // nunca debe convertirse en el nombre comercial del producto.
+        static bool IsWeakName(string? value, string? family) =>
             string.IsNullOrWhiteSpace(value)
             || value.Trim().Equals("Producto", StringComparison.OrdinalIgnoreCase)
-            || value.Trim().Equals("Matriz", StringComparison.OrdinalIgnoreCase);
-
-        if (!IsPlaceholder(requestedName))
-        {
-            return requestedName!.Trim();
-        }
-
-        if (!string.IsNullOrWhiteSpace(familyName))
-        {
-            return familyName.Trim();
-        }
+            || value.Trim().Equals("Matriz", StringComparison.OrdinalIgnoreCase)
+            || (!string.IsNullOrWhiteSpace(family)
+                && value.Trim().Equals(family.Trim(), StringComparison.OrdinalIgnoreCase));
 
         var firstVariantName = variants
             .Select(v => CatalogVariantNameResolver.ResolveFromAttributes(v.CustomAttributesJson))
@@ -256,6 +250,11 @@ public sealed class CreateCatalogItemMatrixHandler
         if (!string.IsNullOrWhiteSpace(firstTitle))
         {
             return firstTitle!;
+        }
+
+        if (!IsWeakName(requestedName, familyName))
+        {
+            return requestedName!.Trim();
         }
 
         return "Matriz";

@@ -1,5 +1,6 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Inventory;
+using EcuNexo.Core.Catalog;
 using EcuNexo.Core.Common;
 
 namespace EcuNexo.Business.Catalog.Commands.SoftDeleteCatalogItem;
@@ -93,7 +94,42 @@ public sealed class SoftDeleteCatalogItemHandler
             return Result.Failure<SoftDeleteCatalogItemResponse>(deleted.Error!);
         }
 
+        // Si era la última variante viva, el padre queda huérfano en vitrina (sin stock/imagen).
+        await CascadeOrphanMatrixParentAsync(item, ct).ConfigureAwait(false);
+
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
         return Result.Success(new SoftDeleteCatalogItemResponse(item.Id, item.TenantId));
+    }
+
+    private async Task CascadeOrphanMatrixParentAsync(CatalogItem item, CancellationToken ct)
+    {
+        if (item.ParentId is null || item.Parent is not { IsMatrixParent: true } parent)
+        {
+            return;
+        }
+
+        var remainingLive = parent.Variants.Count(v => v.DeletedAt is null && v.Id != item.Id);
+        if (remainingLive > 0)
+        {
+            return;
+        }
+
+        var parentHasStock = await _stocks
+            .ExistsForItemAsync(item.TenantId, parent.Id, ct)
+            .ConfigureAwait(false);
+        var parentHasMoves = await _movements
+            .ExistsForItemAsync(item.TenantId, parent.Id, ct)
+            .ConfigureAwait(false);
+        var parentHasDocuments = await _documents
+            .ExistsForItemAsync(item.TenantId, parent.Id, ct)
+            .ConfigureAwait(false);
+
+        if (parentHasStock || parentHasMoves || parentHasDocuments)
+        {
+            _ = parent.SetStorefrontVisibility(hidden: true, _caller.UserId);
+            return;
+        }
+
+        _ = parent.SoftDelete(DateTimeOffset.UtcNow, _caller.UserId);
     }
 }

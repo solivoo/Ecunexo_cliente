@@ -17,7 +17,7 @@ public sealed class StorefrontCatalogRepository : IStorefrontCatalogRepository
         Guid tenantId,
         CancellationToken ct)
     {
-        return await _db.CatalogItems.AsNoTracking()
+        var roots = await _db.CatalogItems.AsNoTracking()
             .Include(i => i.Images.OrderBy(img => img.DisplayOrder))
             .Include(i => i.Variants.Where(v => v.DeletedAt == null))
                 .ThenInclude(v => v.Images.OrderBy(img => img.DisplayOrder))
@@ -29,6 +29,11 @@ public sealed class StorefrontCatalogRepository : IStorefrontCatalogRepository
                 && !i.IsHiddenFromStorefront)
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        // Padres de matriz sin variantes vivas no deben aparecer en vitrina.
+        return roots
+            .Where(i => !i.IsMatrixParent || i.Variants.Count > 0)
+            .ToList();
     }
 
     public Task<CatalogItem?> FindActiveRootAsync(
@@ -46,7 +51,8 @@ public sealed class StorefrontCatalogRepository : IStorefrontCatalogRepository
                     && i.Status == CatalogItemStatus.Active
                     && i.Kind == CatalogItemKind.Physical
                     && i.ParentId == null
-                    && !i.IsHiddenFromStorefront,
+                    && !i.IsHiddenFromStorefront
+                    && (!i.IsMatrixParent || i.Variants.Any(v => v.DeletedAt == null)),
                 ct);
 
     public async Task<DateTimeOffset?> GetLastCatalogChangeAtAsync(Guid tenantId, CancellationToken ct)

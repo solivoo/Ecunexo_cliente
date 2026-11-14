@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, ColorPicker, NumberBox, Popup, Select, TextArea, TextBox, useToast, type PageActionItem } from 'glubox'
+import { Button, NumberBox, Popup, Select, TextArea, TextBox, useToast, type PageActionItem } from 'glubox'
 import {
   EcuPageActions,
   EcuTagInput,
@@ -36,6 +36,7 @@ import {
   readNamedColorsFromAttributes,
   upsertNamedColorAttributes,
 } from '@/lib/catalogNamedColors'
+import { ListOptionSelect } from '@/pages/catalog/ListOptionSelect'
 import { NamedColorSelect } from '@/pages/catalog/NamedColorSelect'
 import { VariantAdminSummaryBlock } from '@/pages/catalog/VariantAdminSummaryBlock'
 import { ArchetypeModelFields } from '@/pages/catalog/ArchetypeModelFields'
@@ -1327,60 +1328,44 @@ export function EditCatalogItemPage() {
                         ])
                       )
 
+                      const refreshTemplates = async () => {
+                        if (!tenantId) return
+                        const fresh = await listVariantDimensionTemplates(tenantId)
+                        setDimensionTemplates(fresh)
+                        setSystemBaseEpoch((n) => n + 1)
+                      }
+
                       if (isColor) {
                         return (
                           <div key={entry.name} className="ecu-companies-form__field">
-                            <label
-                              className="ecu-companies-form__label"
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                marginBottom: '0.35rem',
-                                fontSize: '0.85rem',
-                                fontWeight: 500,
-                              }}
-                            >
-                              <span>{entry.name}</span>
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  width: 14,
-                                  height: 14,
-                                  borderRadius: '50%',
-                                  backgroundColor: currentValue || '#3b82f6',
-                                  border: '1px solid rgba(0,0,0,0.2)',
-                                }}
-                              />
-                            </label>
-                            <ColorPicker
-                              value={currentValue || '#3b82f6'}
-                              onChange={(hex: string) => setAttributeValue(entry.name, hex)}
+                            <NamedColorSelect
+                              label={entry.name}
+                              value={currentValue}
+                              onChange={(name) => setAttributeValue(entry.name, name)}
+                              dimensionValuesMap={dimensionValuesMap}
+                              tenantId={tenantId}
+                              onPaletteUpdated={refreshTemplates}
                               disabled={busy}
+                              allowEmpty={false}
                             />
                           </div>
                         )
                       }
 
-                      if (availableOptions.length > 0) {
-                        const options = [
-                          ...availableOptions.map((opt) => ({ value: opt, label: opt })),
-                          ...(currentValue && !availableOptions.includes(currentValue)
-                            ? [{ value: currentValue, label: currentValue }]
-                            : []),
-                        ]
+                      if (availableOptions.length > 0 || lookup) {
                         return (
                           <div key={entry.name} className="ecu-companies-form__field">
-                            <Select
+                            <ListOptionSelect
                               id={`axis-${entry.name}`}
                               label={entry.name}
-                              labelPosition="outlined"
-                              variant="outline"
                               value={currentValue}
-                              onChange={(val: string) => setAttributeValue(entry.name, val)}
-                              options={options}
+                              options={availableOptions}
+                              allowEmpty={false}
+                              onChange={(val) => setAttributeValue(entry.name, val)}
+                              attributeName={entry.name}
+                              tenantId={tenantId}
+                              onAdded={refreshTemplates}
                               disabled={busy}
-                              fullWidth
                             />
                           </div>
                         )

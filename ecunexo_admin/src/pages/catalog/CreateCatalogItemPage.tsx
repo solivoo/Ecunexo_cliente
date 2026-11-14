@@ -503,7 +503,7 @@ export function CreateCatalogItemPage() {
           throw new Error('Elige una plantilla o selecciona «Producto estándar (sin plantilla)».')
         }
         const nameSeed = usesMatrix
-          ? appliedTemplate?.name?.trim() || firstVariantName || derivedTemplateName || 'Matriz'
+          ? firstVariantName || derivedTemplateName || 'Matriz'
           : showManualName
             ? name.trim()
             : derivedTemplateName
