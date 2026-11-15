@@ -32,7 +32,9 @@ public sealed record CatalogItemDetailResponse(
     string? ParentDescription = null,
     decimal? CostPrice = null,
     Guid? CategoryId = null,
-    string? CategoryName = null);
+    string? CategoryName = null,
+    string? ParentHierarchyPathJson = null,
+    string? ParentCustomAttributesJson = null);
 
 public sealed record CatalogItemVariantDto(
     Guid Id,

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, ColorPicker, DataGrid, DEFAULT_COLOR_PRESETS, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Palette, Pencil, Plus, SlidersHorizontal, X } from 'lucide-react'
+import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Package, Pencil, Plus, SlidersHorizontal } from 'lucide-react'
 import { SectionCard, StatusBadge } from '@/components/ui'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
@@ -23,13 +23,13 @@ import {
 } from '@/types/catalogApi'
 import {
   buildVariantAdminSummary,
-  formatVariantDisplayName,
   isHexColorToken,
   type ArchetypeAttributeField,
   type DimensionLookup,
 } from '@/lib/catalogArchetype'
+import { paletteFromDimensionMap } from '@/lib/catalogNamedColors'
 import { VariantPhysicalFields } from '@/pages/catalog/VariantPhysicalFields'
-import { computeProfitAndMargin } from '@/pages/catalog/CatalogPricingMarginBar'
+import { computeProfitAndMargin, parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 import { VariantAdminSummaryBlock } from '@/pages/catalog/VariantAdminSummaryBlock'
 import type { CatalogMatrixAxisDto } from '@/types/catalogApi'
@@ -68,6 +68,7 @@ export type EditCatalogItemVariantsSectionProps = {
   readonly dimensionValuesMap?: Map<string, DimensionLookup>
   readonly onUploadMedia?: (file: File) => Promise<TenantMediaAssetDto>
   readonly onMediaError?: (message: string) => void
+  readonly onPaletteUpdated?: () => void | Promise<void>
 }
 
 type VariantDimensionDef = {
@@ -92,6 +93,7 @@ export function EditCatalogItemVariantsSection({
   dimensionValuesMap,
   onUploadMedia,
   onMediaError,
+  onPaletteUpdated,
 }: EditCatalogItemVariantsSectionProps) {
   const toast = useToast()
   const navigate = useNavigate()
@@ -197,19 +199,20 @@ export function EditCatalogItemVariantsSection({
 
   const [listPrices, setListPrices] = useState<Map<string, number>>(new Map())
 
-  // Colors editor per variant
-  const [colorsModalVariant, setColorsModalVariant] = useState<VariantRow | null>(null)
-  const [colorDraft, setColorDraft] = useState<string[]>([])
-  const [customColorHex, setCustomColorHex] = useState('#3b82f6')
-  const [savingColors, setSavingColors] = useState(false)
-
   // Quick Edit modal per variant
   const [editModalVariant, setEditModalVariant] = useState<VariantRow | null>(null)
   const [editModalSku, setEditModalSku] = useState('')
   const [editModalBarcode, setEditModalBarcode] = useState('')
+  const [editModalCostPrice, setEditModalCostPrice] = useState('')
+  const [editModalTags, setEditModalTags] = useState<string[]>([])
   const [editModalDimValues, setEditModalDimValues] = useState<Record<string, string>>({})
   const [editModalAttributeValues, setEditModalAttributeValues] = useState<CustomAttributeRow[]>([])
   const [savingEditModal, setSavingEditModal] = useState(false)
+
+  const colorPalette = useMemo(
+    () => (dimensionValuesMap ? paletteFromDimensionMap(dimensionValuesMap) : []),
+    [dimensionValuesMap]
+  )
 
   // Precios vigentes por SKU desde la lista predeterminada (el precio vive en Gestión de precios).
   useEffect(() => {
@@ -271,18 +274,16 @@ export function EditCatalogItemVariantsSection({
     return {}
   }, [])
 
-  const toggleDraftColor = useCallback((hex: string) => {
-    const normalized = hex.trim().toLowerCase()
-    if (!/^#[0-9a-f]{6}$/.test(normalized)) return
-    setColorDraft((prev) =>
-      prev.includes(normalized) ? prev.filter((c) => c !== normalized) : [...prev, normalized]
-    )
-  }, [])
-
-  const handleOpenColorsModal = useCallback((row: VariantRow) => {
-    setColorsModalVariant(row)
-    setColorDraft(Array.isArray(row.extraColors) ? [...row.extraColors] : [])
-    setCustomColorHex('#3b82f6')
+  const parseRawAttributes = useCallback((jsonStr: string): Record<string, unknown> => {
+    try {
+      const parsed = JSON.parse(jsonStr)
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+        return { ...(parsed as Record<string, unknown>) }
+      }
+    } catch {
+      // Ignorar error de parseo
+    }
+    return {}
   }, [])
 
   const handleReorderVariant = useCallback(
@@ -317,59 +318,6 @@ export function EditCatalogItemVariantsSection({
     [canEdit, onRefreshRequired, parentItem.id, reordering, tenantId, toast, variants]
   )
 
-  const handleSaveVariantColors = useCallback(async () => {
-    if (!tenantId || !colorsModalVariant) return
-    setSavingColors(true)
-    try {
-      let attrs: Record<string, unknown> = {}
-      try {
-        const parsed = JSON.parse(colorsModalVariant.customAttributesJson || '{}')
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          attrs = { ...(parsed as Record<string, unknown>) }
-        }
-      } catch {
-        attrs = {}
-      }
-
-      if (colorDraft.length > 0) {
-        attrs['colores_secundarios'] = colorDraft
-      } else {
-        delete attrs['colores_secundarios']
-      }
-
-      await updateCatalogItem(tenantId, colorsModalVariant.id, {
-        kind: parentItem.kind,
-        name: colorsModalVariant.name,
-        sku: colorsModalVariant.sku,
-        costPrice: colorsModalVariant.costPrice ?? null,
-        basePrice: colorsModalVariant.basePrice,
-        customAttributesJson: JSON.stringify(attrs),
-        familyId: parentItem.familyId ?? null,
-        hierarchyPathJson: parentItem.hierarchyPathJson ?? null,
-        status: colorsModalVariant.status,
-      })
-
-      toast.show({
-        title: 'Colores actualizados',
-        message:
-          colorDraft.length > 0
-            ? `La variante «${colorsModalVariant.name}» quedó con ${colorDraft.length} color(es).`
-            : `Se quitaron los colores de «${colorsModalVariant.name}».`,
-        variant: 'success',
-      })
-      setColorsModalVariant(null)
-      await onRefreshRequired()
-    } catch (err) {
-      toast.show({
-        title: 'Error al guardar colores',
-        message: readApiError(err, 'No se pudieron actualizar los colores de la variante.'),
-        variant: 'error',
-      })
-    } finally {
-      setSavingColors(false)
-    }
-  }, [colorDraft, colorsModalVariant, onRefreshRequired, parentItem, tenantId, toast])
-
   const matrixAxes = useMemo<CatalogMatrixAxisDto[]>(
     () => parentItem.matrixDescriptor?.axes ?? [],
     [parentItem.matrixDescriptor?.axes]
@@ -387,12 +335,24 @@ export function EditCatalogItemVariantsSection({
       setEditModalVariant(row)
       setEditModalSku(row.sku ?? '')
       setEditModalBarcode(row.barcode ?? '')
+      setEditModalCostPrice(row.costPrice != null ? String(row.costPrice) : '')
 
-      const attrs = parseAttributes(row.customAttributesJson)
+      const rawAttrs = parseRawAttributes(row.customAttributesJson)
+      const initialTags = Array.isArray(row.tags)
+        ? row.tags
+        : Array.isArray(rawAttrs.tags)
+          ? rawAttrs.tags.map(String)
+          : []
+      setEditModalTags(initialTags.map((t) => String(t).trim().replace(/^#+/, '')).filter(Boolean))
+
       const dims: Record<string, string> = {}
       for (const d of dimensions) {
         const key = d.name.toLowerCase()
-        dims[key] = row.dimensionValues?.[d.name] || attrs[key] || attrs[d.name] || ''
+        dims[key] =
+          row.dimensionValues?.[d.name] ||
+          (typeof rawAttrs[key] === 'string' ? (rawAttrs[key] as string) : '') ||
+          (typeof rawAttrs[d.name] === 'string' ? (rawAttrs[d.name] as string) : '') ||
+          ''
       }
       setEditModalDimValues(dims)
 
@@ -400,16 +360,29 @@ export function EditCatalogItemVariantsSection({
       const used = new Set<string>()
       for (const field of variantAttributeFields) {
         const lower = field.key.trim().toLowerCase()
+        const clean = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        if (clean === 'tag' || clean === 'tags' || clean === 'etiqueta' || clean === 'etiquetas') {
+          used.add(lower)
+          continue
+        }
         let value = ''
-        for (const [k, v] of Object.entries(attrs)) {
+        for (const [k, v] of Object.entries(rawAttrs)) {
           if (k.trim().toLowerCase() === lower) {
             value = typeof v === 'string' ? v : String(v ?? '')
             break
           }
         }
-        const clean = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         if (!value && (clean === 'nombre' || clean === 'name')) {
           value = row.name ?? ''
+        }
+        if (!value && (clean === 'descripcion' || clean === 'description')) {
+          const descFromAttrs =
+            typeof rawAttrs['descripcion'] === 'string'
+              ? rawAttrs['descripcion']
+              : typeof rawAttrs['descripción'] === 'string'
+                ? rawAttrs['descripción']
+                : ''
+          value = descFromAttrs || parentItem.description || ''
         }
         customAttrRows.push({
           id: `attr-${field.key}-${Math.random().toString(36).slice(2, 6)}`,
@@ -418,35 +391,42 @@ export function EditCatalogItemVariantsSection({
         })
         used.add(lower)
       }
-      for (const [k, v] of Object.entries(attrs)) {
-        if (used.has(k.trim().toLowerCase())) continue
-        if (typeof v !== 'string') continue
-        // omitir ejes de dimensión ya capturados arriba
-        if (dimensions.some((d) => d.name.toLowerCase() === k.trim().toLowerCase())) continue
-        customAttrRows.push({
-          id: `attr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          key: k,
-          value: v,
-        })
-      }
       setEditModalAttributeValues(customAttrRows)
     },
-    [dimensions, parseAttributes, variantAttributeFields]
+    [dimensions, parentItem.description, parseRawAttributes, variantAttributeFields]
   )
 
   const handleSaveEditModal = useCallback(async () => {
     if (!tenantId || !editModalVariant) return
     setSavingEditModal(true)
     try {
-      const currentAttrs = parseAttributes(editModalVariant.customAttributesJson)
-      const merged: Record<string, string> = { ...currentAttrs, ...editModalDimValues }
+      const currentAttrs = parseRawAttributes(editModalVariant.customAttributesJson)
+      const merged: Record<string, unknown> = { ...currentAttrs, ...editModalDimValues }
       let resolvedName = editModalVariant.name
-      let resolvedDescription: string | null = null
+      const prevDescAttr =
+        typeof currentAttrs['descripcion'] === 'string'
+          ? currentAttrs['descripcion']
+          : typeof currentAttrs['descripción'] === 'string'
+            ? currentAttrs['descripción']
+            : null
+      let resolvedDescription: string | null = prevDescAttr || parentItem.description || null
+
       for (const row of editModalAttributeValues) {
         const key = row.key.trim()
         if (!key) continue
-        merged[key] = row.value
-        const clean = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        const lower = key.toLowerCase()
+        const clean = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        if (clean === 'tag' || clean === 'tags') continue
+
+        if (row.value.trim()) {
+          merged[clean] = row.value.trim()
+          if (lower !== clean) merged[lower] = row.value.trim()
+        } else {
+          delete merged[clean]
+          delete merged[lower]
+          delete merged[key]
+        }
+
         if ((clean === 'nombre' || clean === 'name') && row.value.trim()) {
           resolvedName = row.value.trim()
           merged['nombre'] = row.value.trim()
@@ -455,7 +435,32 @@ export function EditCatalogItemVariantsSection({
           resolvedDescription = row.value.trim()
           merged['descripcion'] = row.value.trim()
         }
+
+        const lookup = dimensionValuesMap?.get(lower)
+        const isColorAttr =
+          lookup?.isColor ||
+          lookup?.dataType === 'color' ||
+          lookup?.dataType === 'colorlist' ||
+          lower === 'color' ||
+          lower === 'colores'
+        if (isColorAttr) {
+          const names = row.value
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean)
+          const hexes = names
+            .map((n) => colorPalette.find((p) => p.name.toLowerCase() === n.toLowerCase())?.hex)
+            .filter((h): h is string => Boolean(h))
+          if (hexes.length > 0) merged[`${clean}_hex`] = hexes.join(', ')
+          else delete merged[`${clean}_hex`]
+        }
       }
+
+      const cleanTags = editModalTags.map((t) => t.trim().replace(/^#+/, '')).filter(Boolean)
+      if (cleanTags.length > 0) merged['tags'] = cleanTags
+      else delete merged['tags']
+
+      const parsedCost = parsePriceInput(editModalCostPrice)
 
       await updateCatalogItem(tenantId, editModalVariant.id, {
         kind: parentItem.kind,
@@ -463,11 +468,13 @@ export function EditCatalogItemVariantsSection({
         description: resolvedDescription,
         sku: editModalSku.trim() || null,
         barcode: editModalBarcode.trim() || null,
-        costPrice: editModalVariant.costPrice ?? null,
+        costPrice: parsedCost != null && parsedCost >= 0 ? parsedCost : null,
         basePrice: editModalVariant.basePrice ?? null,
         customAttributesJson: JSON.stringify(merged),
         familyId: parentItem.familyId ?? null,
         hierarchyPathJson: parentItem.hierarchyPathJson ?? null,
+        minOrderQuantity: editModalVariant.minOrderQuantity ?? 1,
+        categoryId: parentItem.categoryId ?? null,
         status: editModalVariant.status,
       })
 
@@ -488,14 +495,18 @@ export function EditCatalogItemVariantsSection({
       setSavingEditModal(false)
     }
   }, [
+    colorPalette,
+    dimensionValuesMap,
     editModalAttributeValues,
     editModalBarcode,
+    editModalCostPrice,
     editModalDimValues,
     editModalSku,
+    editModalTags,
     editModalVariant,
     onRefreshRequired,
     parentItem,
-    parseAttributes,
+    parseRawAttributes,
     tenantId,
     toast,
   ])
@@ -545,24 +556,140 @@ export function EditCatalogItemVariantsSection({
       },
     })) as unknown as ColumnDef<VariantRow>[]
 
-    const leadingColumns: ColumnDef<VariantRow>[] =
-      axisColumns.length > 0
-        ? axisColumns
-        : [
-            {
-              key: 'name',
-              header: 'Variante',
-              width: 180,
-              renderCell: (_value: unknown, row: VariantRow) => (
-                <span style={{ fontSize: '0.82rem', fontWeight: 600 }} title={row.name}>
-                  {row.name || 'Variante'}
-                </span>
-              ),
-            } as unknown as ColumnDef<VariantRow>,
-          ]
+    const hasColorAxis = matrixAxes.some(
+      (axis) => axis.type === 'color' || axis.name.trim().toLowerCase().includes('color')
+    )
+
+    const photoCol: ColumnDef<VariantRow> = {
+      key: 'mainImageThumbUrl',
+      header: 'Foto',
+      width: 60,
+      align: 'center',
+      renderCell: (_value: unknown, row: VariantRow) => {
+        const src = row.mainImageThumbUrl
+        if (!src) {
+          return (
+            <div
+              className="catalog-item-thumb"
+              style={{ width: 34, height: 34, minWidth: 34, minHeight: 34, margin: '0 auto' }}
+              aria-hidden
+            >
+              <Package size={14} />
+            </div>
+          )
+        }
+        return (
+          <img
+            src={src}
+            alt={row.name}
+            className="catalog-item-thumb"
+            loading="lazy"
+            style={{ width: 34, height: 34, minWidth: 34, minHeight: 34, objectFit: 'cover', borderRadius: 6 }}
+          />
+        )
+      },
+    }
+
+    const nameCol: ColumnDef<VariantRow> = {
+      key: 'name',
+      header: 'Variante',
+      width: 210,
+      renderCell: (_value: unknown, row: VariantRow) => {
+        const attrs = parseAttributes(row.customAttributesJson)
+        const desc = attrs['descripcion'] || attrs['descripción'] || ''
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <button
+              type="button"
+              onClick={() => openVariantAdmin(row.id)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: '0.84rem',
+                color: 'var(--glb-text, inherit)',
+              }}
+              title="Abrir ficha completa de la variante"
+            >
+              {row.name || 'Variante'}
+            </button>
+            {desc ? (
+              <span className="app-shell__muted" style={{ fontSize: '0.72rem' }}>
+                {desc}
+              </span>
+            ) : null}
+          </div>
+        )
+      },
+    }
+
+    const colorAttrCol: ColumnDef<VariantRow>[] = hasColorAxis
+      ? []
+      : [
+          {
+            key: 'customAttributesJson' as keyof VariantRow,
+            header: 'Color',
+            width: 150,
+            renderCell: (_value: unknown, row: VariantRow) => {
+              const attrs = parseAttributes(row.customAttributesJson)
+              const rawColor =
+                Object.entries(attrs).find(([k]) => {
+                  const lower = k.trim().toLowerCase()
+                  return lower === 'color' || lower === 'colores'
+                })?.[1] ?? ''
+              const names = String(rawColor)
+                .split(',')
+                .map((v) => v.trim())
+                .filter(Boolean)
+              if (names.length === 0) {
+                return <span className="app-shell__muted" style={{ fontSize: '0.8rem' }}>—</span>
+              }
+              return (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', alignItems: 'center' }}>
+                  {names.map((name) => {
+                    const hex =
+                      colorPalette.find((p) => p.name.toLowerCase() === name.toLowerCase())?.hex ??
+                      (isHexColorToken(name) ? name : '#94a3b8')
+                    return (
+                      <span
+                        key={name}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.28rem',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 11,
+                            height: 11,
+                            borderRadius: '50%',
+                            backgroundColor: hex,
+                            border: '1px solid rgba(15, 23, 42, 0.2)',
+                            flexShrink: 0,
+                          }}
+                        />
+                        {name}
+                      </span>
+                    )
+                  })}
+                </div>
+              )
+            },
+          },
+        ]
 
     return [
-      ...leadingColumns,
+      photoCol,
+      nameCol,
+      ...axisColumns,
+      ...colorAttrCol,
       {
         key: 'sku',
         header: 'SKU',
@@ -701,15 +828,6 @@ export function EditCatalogItemVariantsSection({
               />
               {canEdit && (
                 <GridIconButton
-                  label="Colores de la variante"
-                  icon={Palette}
-                  onClick={() => {
-                    handleOpenColorsModal(row)
-                  }}
-                />
-              )}
-              {canEdit && (
-                <GridIconButton
                   label="Reasignar / Mover a otro producto matriz"
                   icon={ArrowLeftRight}
                   onClick={() => {
@@ -724,7 +842,7 @@ export function EditCatalogItemVariantsSection({
     ]
   }, [
     canEdit,
-    handleOpenColorsModal,
+    colorPalette,
     handleOpenEditModal,
     handleOpenReassignModal,
     handleReorderVariant,
@@ -865,162 +983,6 @@ export function EditCatalogItemVariantsSection({
         </div>
       </Popup>
 
-      {/* Modal de colores de la variante */}
-      <Popup
-        open={colorsModalVariant != null}
-        onClose={() => {
-          if (!savingColors) setColorsModalVariant(null)
-        }}
-        title="Colores de la Variante"
-        width="min(92vw, 30rem)"
-        actions={[
-          {
-            id: 'cancel-colors',
-            label: 'Cancelar',
-            variant: 'outline',
-            onClick: () => setColorsModalVariant(null),
-            disabled: savingColors,
-          },
-          {
-            id: 'save-colors',
-            label: savingColors ? 'Guardando…' : 'Guardar',
-            variant: 'primary',
-            onClick: () => void handleSaveVariantColors(),
-            disabled: savingColors,
-          },
-        ]}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '0.5rem' }}>
-          <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.85rem' }}>
-            Variante:{' '}
-            <strong>
-              {formatVariantDisplayName(
-                colorsModalVariant?.name ?? '',
-                parentItem.name
-              )}
-            </strong>
-            {colorsModalVariant?.sku ? ` (${colorsModalVariant.sku})` : ''}
-          </p>
-
-          <div>
-            <span
-              style={{
-                display: 'block',
-                marginBottom: '0.45rem',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                color: 'var(--glb-muted, #64748b)',
-              }}
-            >
-              Elige un color
-            </span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.5rem' }}>
-              {DEFAULT_COLOR_PRESETS.map((preset) => {
-                const selected = colorDraft.includes(preset)
-                return (
-                  <button
-                    key={preset}
-                    type="button"
-                    aria-label={`Color ${preset}`}
-                    aria-pressed={selected}
-                    title={preset}
-                    onClick={() => toggleDraftColor(preset)}
-                    style={{
-                      width: '100%',
-                      aspectRatio: '1',
-                      padding: 0,
-                      borderRadius: 8,
-                      border: '1px solid var(--glb-border, rgba(0, 0, 0, 0.15))',
-                      backgroundColor: preset,
-                      cursor: 'pointer',
-                      boxShadow: selected
-                        ? '0 0 0 2px var(--glb-surface, #fff), 0 0 0 4px var(--shell-primary, #3b82f6)'
-                        : undefined,
-                    }}
-                  />
-                )
-              })}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
-            <div style={{ flex: 1 }}>
-              <ColorPicker
-                label="Otro color (hexadecimal)"
-                labelPosition="outlined"
-                variant="outline"
-                value={customColorHex}
-                onChange={(hex: string) => setCustomColorHex(hex || '')}
-                disabled={savingColors}
-                fullWidth
-              />
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => toggleDraftColor(customColorHex)}
-              disabled={savingColors || !/^#[0-9a-fA-F]{6}$/.test(customColorHex.trim())}
-            >
-              <Plus size={13} /> Añadir
-            </Button>
-          </div>
-
-          {colorDraft.length > 0 && (
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              {colorDraft.map((hex) => (
-                <span
-                  key={hex}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.3rem',
-                    padding: '0.15rem 0.4rem',
-                    borderRadius: '999px',
-                    border: '1px solid var(--glb-border, #e2e8f0)',
-                    backgroundColor: 'var(--glb-surface-variant, rgba(0, 0, 0, 0.04))',
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      border: '1px solid rgba(0, 0, 0, 0.2)',
-                      backgroundColor: hex,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span>{hex}</span>
-                  <button
-                    type="button"
-                    onClick={() => toggleDraftColor(hex)}
-                    disabled={savingColors}
-                    title={`Quitar ${hex}`}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: 0,
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'inherit',
-                      cursor: 'pointer',
-                      opacity: 0.7,
-                    }}
-                  >
-                    <X size={10} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </Popup>
-
       {/* Modal para edición rápida de variante */}
       <Popup
         open={Boolean(editModalVariant)}
@@ -1071,6 +1033,8 @@ export function EditCatalogItemVariantsSection({
               onSkuChange={setEditModalSku}
               barcode={editModalBarcode}
               onBarcodeChange={setEditModalBarcode}
+              costPrice={editModalCostPrice}
+              onCostPriceChange={setEditModalCostPrice}
               dimensions={dimensions}
               dimensionValues={editModalDimValues}
               onDimensionChange={(dimName, value) =>
@@ -1101,6 +1065,9 @@ export function EditCatalogItemVariantsSection({
               dimensionValuesMap={dimensionValuesMap ?? new Map()}
               onUploadMedia={onUploadMedia}
               onMediaError={onMediaError}
+              onPaletteUpdated={onPaletteUpdated}
+              searchTags={editModalTags}
+              onChangeSearchTags={setEditModalTags}
               disabled={savingEditModal}
               tenantId={tenantId}
             />

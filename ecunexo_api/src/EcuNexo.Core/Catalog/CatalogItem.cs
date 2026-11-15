@@ -857,6 +857,241 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         return Result.Success();
     }
 
+    /// <summary>
+    /// Propaga desde el padre matriz hacia una variante hija la clasificación compartida
+    /// (familia, categoría, ruta jerárquica y atributos de modelo), preservando ejes y datos propios del SKU.
+    /// </summary>
+    public void SyncSharedModelFromParent(
+        CatalogItem parent,
+        IReadOnlyCollection<string> modelAttributeKeys,
+        Guid? updatedBy = null)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        if (ParentId != parent.Id)
+        {
+            return;
+        }
+
+        FamilyId = parent.FamilyId;
+        CategoryId = parent.CategoryId;
+        HierarchyPathJson = parent.HierarchyPathJson;
+
+        var parentMap = ParseObjectMap(parent.CustomAttributesJson);
+        var childMap = ParseObjectMap(CustomAttributesJson);
+
+        var keysToSync = new HashSet<string>(
+            modelAttributeKeys.Where(k => !string.IsNullOrWhiteSpace(k)).Select(k => k.Trim()),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var k in parentMap.Keys)
+        {
+            keysToSync.Add(k);
+        }
+
+        foreach (var key in keysToSync)
+        {
+            RemoveCaseInsensitive(childMap, key);
+            if (TryGetCaseInsensitive(parentMap, key, out var value) && value is not null)
+            {
+                childMap[key] = value;
+            }
+        }
+
+        CustomAttributesJson = childMap.Count > 0
+            ? JsonSerializer.Serialize(childMap)
+            : CatalogAttributeSchema.EmptyObjectJson;
+        Touch(updatedBy);
+    }
+
+    /// <summary>
+    /// Recalcula los valores disponibles de cada eje en <see cref="VariantDimensionsJson"/>
+    /// a partir de las variantes activas/no eliminadas del padre matriz.
+    /// </summary>
+    public void RebuildVariantDimensionsFromVariants(
+        IReadOnlyCollection<CatalogItem> liveVariants,
+        Guid? updatedBy = null)
+    {
+        if (!IsMatrixParent || string.IsNullOrWhiteSpace(VariantDimensionsJson))
+        {
+            return;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(VariantDimensionsJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return;
+            }
+
+            var orderedVariants = liveVariants
+                .Where(v => v.DeletedAt is null && v.ParentId == Id)
+                .OrderBy(v => v.SortOrder)
+                .ThenBy(v => v.CreatedAt)
+                .ToList();
+
+            if (orderedVariants.Count == 0)
+            {
+                return;
+            }
+
+            var variantMaps = orderedVariants
+                .Select(v => ParseObjectMap(v.CustomAttributesJson))
+                .ToList();
+
+            var updatedAxes = new List<Dictionary<string, object>>();
+            foreach (var dim in doc.RootElement.EnumerateArray())
+            {
+                if (dim.ValueKind != JsonValueKind.Object
+                    || !dim.TryGetProperty("name", out var nameEl))
+                {
+                    continue;
+                }
+
+                var name = nameEl.GetString()?.Trim();
+                if (string.IsNullOrEmpty(name))
+                {
+                    continue;
+                }
+
+                var values = new List<string>();
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var map in variantMaps)
+                {
+                    if (!TryGetCaseInsensitive(map, name, out var rawVal))
+                    {
+                        continue;
+                    }
+
+                    var text = rawVal switch
+                    {
+                        JsonElement el when el.ValueKind == JsonValueKind.String => el.GetString()?.Trim(),
+                        string s => s.Trim(),
+                        _ => null,
+                    };
+
+                    if (!string.IsNullOrEmpty(text) && seen.Add(text))
+                    {
+                        values.Add(text);
+                    }
+                }
+
+                // Si ninguna variante conserva un valor explícito en el eje, mantener los previos.
+                if (values.Count == 0
+                    && dim.TryGetProperty("values", out var prevValues)
+                    && prevValues.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var v in prevValues.EnumerateArray())
+                    {
+                        var text = v.GetString()?.Trim();
+                        if (!string.IsNullOrEmpty(text) && seen.Add(text))
+                        {
+                            values.Add(text);
+                        }
+                    }
+                }
+
+                var axisObj = new Dictionary<string, object>
+                {
+                    ["name"] = name,
+                    ["values"] = values,
+                };
+
+                if (dim.TryGetProperty("photoGroup", out var photoGroupEl)
+                    && photoGroupEl.ValueKind == JsonValueKind.True)
+                {
+                    axisObj["photoGroup"] = true;
+                }
+
+                if (dim.TryGetProperty("type", out var typeEl)
+                    && typeEl.ValueKind == JsonValueKind.String)
+                {
+                    var typeStr = typeEl.GetString()?.Trim().ToLowerInvariant();
+                    if (typeStr is "size" or "color" or "custom")
+                    {
+                        axisObj["type"] = typeStr;
+                    }
+                }
+
+                updatedAxes.Add(axisObj);
+            }
+
+            if (updatedAxes.Count == 0)
+            {
+                return;
+            }
+
+            var serialized = JsonSerializer.Serialize(updatedAxes);
+            if (!string.Equals(serialized, VariantDimensionsJson, StringComparison.Ordinal))
+            {
+                VariantDimensionsJson = serialized;
+                Touch(updatedBy);
+            }
+        }
+        catch (JsonException)
+        {
+            // Ignorar JSON previo inválido
+        }
+    }
+
+    private static Dictionary<string, object?> ParseObjectMap(string? json)
+    {
+        var result = new Dictionary<string, object?>(StringComparer.Ordinal);
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return result;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return result;
+            }
+
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                result[prop.Name] = prop.Value.Clone();
+            }
+        }
+        catch (JsonException)
+        {
+            // Ignorar JSON malformado
+        }
+
+        return result;
+    }
+
+    private static bool TryGetCaseInsensitive(
+        IReadOnlyDictionary<string, object?> map,
+        string key,
+        out object? value)
+    {
+        foreach (var pair in map)
+        {
+            if (string.Equals(pair.Key.Trim(), key.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                value = pair.Value;
+                return true;
+            }
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static void RemoveCaseInsensitive(Dictionary<string, object?> map, string key)
+    {
+        var matching = map.Keys
+            .Where(k => string.Equals(k.Trim(), key.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        foreach (var k in matching)
+        {
+            map.Remove(k);
+        }
+    }
+
     private static string PreserveSystemAttributes(string? existingJson, string newJson)
     {
         if (string.IsNullOrWhiteSpace(existingJson) || existingJson == CatalogAttributeSchema.EmptyObjectJson)

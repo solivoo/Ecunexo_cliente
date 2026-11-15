@@ -108,9 +108,12 @@ public sealed class SoftDeleteCatalogItemHandler
             return;
         }
 
-        var remainingLive = parent.Variants.Count(v => v.DeletedAt is null && v.Id != item.Id);
-        if (remainingLive > 0)
+        var remainingVariants = parent.Variants
+            .Where(v => v.DeletedAt is null && v.Id != item.Id)
+            .ToList();
+        if (remainingVariants.Count > 0)
         {
+            parent.RebuildVariantDimensionsFromVariants(remainingVariants, _caller.UserId);
             return;
         }
 

@@ -261,10 +261,10 @@ export function EditCatalogItemPage() {
     [modelAttributeFields]
   )
 
-  // Matriz: identidad = UUID (sin nombre/SKU editables). Variante: nombre + SKU propios.
+  // Matriz: nombre editable + UUID; Variante: nombre + SKU propios.
   const showDescriptionField =
     isMatrixParent || isVariantChild || (!isVariantChild && !templateCapturesDescription)
-  const showNameField = !isMatrixParent && (isVariantChild || !templateCapturesName)
+  const showNameField = isVariantChild || isMatrixParent || !templateCapturesName
   const showSkuField = !isMatrixParent
   const showBarcodeField = !isMatrixParent
 
@@ -280,6 +280,74 @@ export function EditCatalogItemPage() {
         : variantAttributeFields,
     [isVariantChild, showDescriptionField, showNameField, variantAttributeFields]
   )
+
+  const variantHasSearchTagField = useMemo(
+    () =>
+      isVariantChild &&
+      variantFieldsForArchetype.some((field) => {
+        const n = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        return n === 'tag' || n === 'tags' || n === 'etiqueta' || n === 'etiquetas'
+      }),
+    [isVariantChild, variantFieldsForArchetype]
+  )
+
+  const inheritedModelSummary = useMemo(() => {
+    if (!isVariantChild || !item) return []
+    const itemsMap = new Map<string, { name: string; value: string }>()
+
+    const upsert = (key: string, val: string) => {
+      const k = key.trim()
+      const v = val.trim()
+      if (!k || !v) return
+      const lower = k.toLowerCase()
+      if (!itemsMap.has(lower)) {
+        itemsMap.set(lower, { name: k, value: v })
+      }
+    }
+
+    const tryParsePath = (json: string | null | undefined) => {
+      if (!json) return
+      try {
+        const parsed = JSON.parse(json) as Array<{ name?: string; value?: string }>
+        if (!Array.isArray(parsed)) return
+        for (const entry of parsed) {
+          if (entry?.name && entry?.value) upsert(entry.name, entry.value)
+        }
+      } catch {
+        // ignorar
+      }
+    }
+
+    const tryParseAttrs = (json: string | null | undefined) => {
+      if (!json) return
+      try {
+        const parsed = JSON.parse(json) as Record<string, unknown>
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return
+        for (const field of modelAttributeFields) {
+          const match = Object.entries(parsed).find(
+            ([k]) => k.trim().toLowerCase() === field.key.trim().toLowerCase()
+          )
+          if (match && typeof match[1] === 'string' && match[1].trim()) {
+            upsert(field.key, match[1])
+          }
+        }
+      } catch {
+        // ignorar
+      }
+    }
+
+    tryParsePath(item.parentHierarchyPathJson)
+    tryParseAttrs(item.parentCustomAttributesJson)
+    tryParsePath(item.hierarchyPathJson)
+    for (const field of modelAttributeFields) {
+      const row = customAttributes.find(
+        (r) => r.key.trim().toLowerCase() === field.key.trim().toLowerCase()
+      )
+      if (row?.value.trim()) upsert(field.key, row.value)
+    }
+
+    return Array.from(itemsMap.values())
+  }, [customAttributes, isVariantChild, item, modelAttributeFields])
 
   const variantDimensionNames = useMemo<string[]>(
     () => parseVariantDimensionNames(item?.variantDimensionsJson),
@@ -622,7 +690,7 @@ export function EditCatalogItemPage() {
           (isVariantChild
             ? name.trim()
             : isMatrixParent
-              ? item.name?.trim() || item.familyName?.trim() || 'Matriz'
+              ? name.trim() || item.name?.trim() || item.familyName?.trim() || 'Matriz'
               : templateCapturesName
                 ? templateNameValue || name.trim()
                 : name.trim()) ||
@@ -643,10 +711,48 @@ export function EditCatalogItemPage() {
               )
               return upsertNamedColorAttributes(withBase, productColors, systemColorPalette)
             })()
-          : customAttributes
-        const resolvedMinOrderQty = isStandardSingleItem
-          ? minOrderQuantity
-          : readMinOrderQuantityFromCustomAttributes(customAttributes, minOrderQuantity)
+          : isVariantChild
+            ? (() => {
+                // Sincronizar nombre/descripción y limpiar llaves tag redundantes porque tags va en array `tags`.
+                const next = customAttributes.filter((r) => {
+                  const n = r.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                  return n !== 'tag' && n !== 'tags'
+                })
+                const upsertAttr = (k: string, val: string) => {
+                  const lower = k.toLowerCase()
+                  const idx = next.findIndex((r) => r.key.trim().toLowerCase() === lower)
+                  if (idx >= 0) next[idx] = { ...next[idx], value: val }
+                  else next.push({ id: `sync-${lower}`, key: k, value: val })
+                }
+                if (name.trim()) upsertAttr('nombre', name.trim())
+                if (description.trim()) upsertAttr('descripcion', description.trim())
+
+                // Añadir *_hex para atributos de color nombrados en variantes
+                for (const row of [...next]) {
+                  const lower = row.key.trim().toLowerCase()
+                  const lookup = dimensionValuesMap?.get(lower)
+                  const isColor =
+                    lookup?.isColor ||
+                    lookup?.dataType === 'color' ||
+                    lookup?.dataType === 'colorlist' ||
+                    lower === 'color' ||
+                    lower === 'colores'
+                  if (!isColor) continue
+                  const hexes = row.value
+                    .split(',')
+                    .map((v) => v.trim())
+                    .filter(Boolean)
+                    .map((n) => systemColorPalette.find((p) => p.name.toLowerCase() === n.toLowerCase())?.hex)
+                    .filter((h): h is string => Boolean(h))
+                  if (hexes.length > 0) upsertAttr(`${lower}_hex`, hexes.join(', '))
+                }
+                return next
+              })()
+            : customAttributes
+        const resolvedMinOrderQty =
+          isStandardSingleItem || isVariantChild
+            ? minOrderQuantity
+            : readMinOrderQuantityFromCustomAttributes(customAttributes, minOrderQuantity)
 
         const hierarchyPathJson =
           buildHierarchyPathJson(familyLevels, attrsWithBase, dimensionValuesMap) ??
@@ -668,7 +774,7 @@ export function EditCatalogItemPage() {
           barcode: isMatrixParent ? null : barcode.trim() || null,
           costPrice: isMatrixParent
             ? null
-            : isStandardSingleItem
+            : isStandardSingleItem || isVariantChild
               ? parsedCostPrice
               : item.costPrice ?? null,
           basePrice: isMatrixParent
@@ -681,7 +787,8 @@ export function EditCatalogItemPage() {
           familyId: item.familyId ?? null,
           hierarchyPathJson,
           minOrderQuantity: isMatrixParent ? null : resolvedMinOrderQty,
-          categoryId: isStandardSingleItem ? categoryId || null : item.categoryId ?? null,
+          categoryId:
+            isStandardSingleItem || isMatrixParent ? categoryId || null : item.categoryId ?? null,
         })
 
         toast.show({
@@ -788,7 +895,12 @@ export function EditCatalogItemPage() {
               ? isVariantChild
                 ? item.name || item.sku || 'Variante'
                 : isMatrixParent
-                  ? `Matriz ${item.id.slice(0, 8)}…`
+                  ? (item.name &&
+                    item.name.trim().toLowerCase() !== 'matriz' &&
+                    item.name.trim().toLowerCase() !== 'producto' &&
+                    item.name.trim().toLowerCase() !== (item.familyName ?? '').trim().toLowerCase()
+                      ? item.name.trim()
+                      : `Matriz ${item.id.slice(0, 8)}…`)
                   : item.name || 'Producto'
               : 'Editar Ítem'
           }
@@ -1139,7 +1251,30 @@ export function EditCatalogItemPage() {
                     </>
                   ) : null}
 
-                  {!isMatrixParent && !familyTemplate ? (
+                  {isVariantChild ? (
+                    <div className="ecu-companies-form__field">
+                      <NumberBox
+                        id="ei-variant-cost-price"
+                        label="Costo ref. ($)"
+                        labelPosition="outlined"
+                        variant="outline"
+                        min={0}
+                        step={0.01}
+                        placeholder="0.00"
+                        value={costPrice !== '' ? Number(costPrice) : undefined}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                          setCostPrice(e.target.value)
+                        }
+                        disabled={busy}
+                        fullWidth
+                      />
+                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                        Referencia de costo para medir margen en Gestión de precios.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {!isMatrixParent && (!familyTemplate || isVariantChild) ? (
                     <div className="ecu-companies-form__field">
                       <NumberBox
                         id="ei-min-order-qty"
@@ -1162,6 +1297,52 @@ export function EditCatalogItemPage() {
                         Cantidad mínima que debe comprar el cliente de este producto en la
                         tienda online.
                       </p>
+                    </div>
+                  ) : null}
+
+                  {isMatrixParent ? (
+                    <div className="ecu-companies-form__field">
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <Select
+                            id="ei-matrix-category"
+                            label="Categoría"
+                            labelPosition="outlined"
+                            variant="outline"
+                            placeholder="Seleccione..."
+                            options={categorySelectOptions}
+                            value={categoryId}
+                            onChange={setCategoryId}
+                            disabled={busy}
+                            fullWidth
+                          />
+                        </div>
+                        {canManageCategories && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            title="Nueva categoría"
+                            aria-label="Nueva categoría"
+                            onClick={() => {
+                              setQuickCatName('')
+                              setQuickCatParentId('')
+                              setQuickCatOpen(true)
+                            }}
+                            disabled={busy}
+                            style={{
+                              width: 36,
+                              height: 36,
+                              minWidth: 36,
+                              padding: 0,
+                              borderRadius: '999px',
+                              flexShrink: 0,
+                              marginTop: '0.35rem',
+                            }}
+                          >
+                            <Plus size={16} strokeWidth={2} aria-hidden />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ) : null}
 
@@ -1303,6 +1484,45 @@ export function EditCatalogItemPage() {
                 </span>
               </SectionCard>
 
+              {isVariantChild && (inheritedModelSummary.length > 0 || item?.categoryName || item?.parentId) ? (
+                <SectionCard
+                  title="Información del Producto (heredada de la matriz)"
+                  subtitle="Propiedades compartidas de la matriz; al editarlas en la matriz se sincronizan a todas sus variantes."
+                  action={
+                    item?.parentId ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        iconRight={<ArrowUpRight size={14} />}
+                        onClick={() => navigate(`/catalogo/items/${item.parentId}`)}
+                      >
+                        Editar en matriz
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  {inheritedModelSummary.length === 0 && !item?.categoryName ? (
+                    <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.85rem' }}>
+                      La matriz aún no tiene atributos compartidos completados. Edítalos desde la matriz para propagarlos.
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {item?.categoryName ? (
+                        <StatusBadge tone="primary">
+                          Categoría: {item.categoryName}
+                        </StatusBadge>
+                      ) : null}
+                      {inheritedModelSummary.map((entry) => (
+                        <StatusBadge key={entry.name} tone="neutral">
+                          {entry.name}: {entry.value}
+                        </StatusBadge>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+              ) : null}
+
               {isVariantChild && variantAxisEntries.length > 0 && (
                 <SectionCard
                   title="Dimensiones de la variante"
@@ -1411,6 +1631,9 @@ export function EditCatalogItemPage() {
                     disabled={busy}
                     bare
                     tenantId={tenantId}
+                    searchTags={tags}
+                    onChangeSearchTags={setTags}
+                    suggestedSearchTags={suggestedTags}
                     onColorPaletteUpdated={async () => {
                       if (!tenantId) return
                       const fresh = await listVariantDimensionTemplates(tenantId)
@@ -1423,8 +1646,12 @@ export function EditCatalogItemPage() {
 
               {!isVariantChild && modelAttributeFields.length > 0 ? (
                 <SectionCard
-                  title="Datos de la plantilla"
-                  subtitle={familyTemplate?.name}
+                  title={isMatrixParent ? 'Información del Producto' : 'Datos de la plantilla'}
+                  subtitle={
+                    isMatrixParent
+                      ? `${familyTemplate?.name ?? 'Atributos compartidos'} · Al guardar se sincronizan con todas las variantes`
+                      : familyTemplate?.name
+                  }
                   action={
                     familyTemplate ? (
                       <Button
@@ -1458,6 +1685,7 @@ export function EditCatalogItemPage() {
                 </SectionCard>
               ) : null}
 
+              {(!variantHasSearchTagField || !familyTemplate || freeAttributeRows.length > 0) ? (
               <SectionCard title="Avanzado">
                 <details>
                   <summary
@@ -1470,21 +1698,23 @@ export function EditCatalogItemPage() {
                     Etiquetas de búsqueda y atributos libres
                   </summary>
                   <div className="ecu-companies-form__grid ecu-companies-form__grid--dynamic" style={{ marginTop: '1rem' }}>
-                    <div className="ecu-companies-form__field ecu-companies-form__field--wide" style={{ marginBottom: '0.25rem' }}>
-                      <EcuTagInput
-                        tags={tags}
-                        onChange={setTags}
-                        label="Etiquetas"
-                        placeholder="Deportivo, Premium, temporada…"
-                        helperText={
-                          isVariantChild
-                            ? 'Etiquetas de búsqueda específicas para esta variante en POS y tienda.'
-                            : 'Búsqueda en POS y tienda; se heredan a las variantes. Recomendado: declararlas en la plantilla como «Tags».'
-                        }
-                        suggestedTags={suggestedTags}
-                        disabled={busy}
-                      />
-                    </div>
+                    {!variantHasSearchTagField ? (
+                      <div className="ecu-companies-form__field ecu-companies-form__field--wide" style={{ marginBottom: '0.25rem' }}>
+                        <EcuTagInput
+                          tags={tags}
+                          onChange={setTags}
+                          label="Etiquetas"
+                          placeholder="Deportivo, Premium, temporada…"
+                          helperText={
+                            isVariantChild
+                              ? 'Etiquetas de búsqueda específicas para esta variante en POS y tienda.'
+                              : 'Búsqueda en POS y tienda; se heredan a las variantes. Recomendado: declararlas en la plantilla como «Tags».'
+                          }
+                          suggestedTags={suggestedTags}
+                          disabled={busy}
+                        />
+                      </div>
+                    ) : null}
 
                     {familyTemplate && freeAttributeRows.length > 0 ? (
                       <div
@@ -1516,6 +1746,7 @@ export function EditCatalogItemPage() {
                   </div>
                 </details>
               </SectionCard>
+              ) : null}
             </form>
 
           {tenantId && item?.isMatrixParent && (
@@ -1533,6 +1764,11 @@ export function EditCatalogItemPage() {
               dimensionValuesMap={dimensionValuesMap}
               onUploadMedia={handleUploadMedia}
               onMediaError={handleMediaError}
+              onPaletteUpdated={async () => {
+                const fresh = await listVariantDimensionTemplates(tenantId)
+                setDimensionTemplates(fresh)
+                setSystemBaseEpoch((n) => n + 1)
+              }}
               onRefreshRequired={async () => {
                 const fresh = await getCatalogItem(tenantId, item.id)
                 setItem(fresh)

@@ -108,6 +108,7 @@ public sealed class AddCatalogItemVariantHandler
         }
 
         parent.AddVariantChild(child);
+        parent.RebuildVariantDimensionsFromVariants(parent.Variants.Where(v => v.DeletedAt is null).ToList());
         await _items.AddAsync(child, ct).ConfigureAwait(false);
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);

@@ -71,6 +71,17 @@ function CatalogVariantNote({ count }: { readonly count: number }) {
   )
 }
 
+function resolveDisplayItemName(row: CatalogItemListItemDto): string {
+  const raw = (row.name ?? '').trim()
+  if (!row.isMatrixParent) return raw || 'Producto'
+  const isGeneric =
+    !raw ||
+    raw.toLowerCase() === 'matriz' ||
+    raw.toLowerCase() === 'producto' ||
+    (row.familyName && raw.toLowerCase() === row.familyName.trim().toLowerCase())
+  return isGeneric ? `Matriz ${row.id.slice(0, 8)}…` : raw
+}
+
 function resolveCatalogItemThumbUrl(row: CatalogItemGridRow): string | null {
   const raw = row.mainImageThumbUrl || (row as { mainImageUrl?: string | null }).mainImageUrl
   if (!raw || typeof raw !== 'string') return null
@@ -211,13 +222,13 @@ export function CatalogItemsGrid({
           const levelSummary = firstLevelSummary(row.hierarchyPathJson)
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <strong>{row.isMatrixParent ? `Matriz ${row.id.slice(0, 8)}…` : row.name}</strong>
+              <strong>{resolveDisplayItemName(row)}</strong>
               {row.categoryName ? (
                 <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted)' }}>
                   Categoría: {row.categoryName}
                 </span>
               ) : null}
-              {!row.isMatrixParent && row.description ? (
+              {row.description ? (
                 <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
                   {row.description}
                 </span>
@@ -375,9 +386,9 @@ export function CatalogItemsGrid({
 
             <h4
               className="ecu-catalog-card__title"
-              title={row.isMatrixParent ? row.id : row.name}
+              title={row.isMatrixParent ? `${resolveDisplayItemName(row)} · ${row.id}` : row.name}
             >
-              {row.isMatrixParent ? `Matriz ${row.id.slice(0, 8)}…` : row.name}
+              {resolveDisplayItemName(row)}
             </h4>
 
             {row.isMatrixParent ? (

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Platform;
@@ -83,6 +84,7 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
             categoryName = category.Name;
         }
 
+        string? familyHierarchyJson = null;
         if (command.FamilyId is { } familyId)
         {
             var family = await _templates.GetByIdAsync(familyId, command.TenantId, ct).ConfigureAwait(false);
@@ -91,6 +93,8 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
                 return Result.Failure<UpdateCatalogItemResponse>(
                     new Error("catalog.item.family.not_found", "El arquetipo (familia) no existe.", ErrorType.NotFound));
             }
+
+            familyHierarchyJson = family.HierarchyTreeJson;
         }
 
         if (!string.IsNullOrWhiteSpace(command.Sku)
@@ -148,6 +152,10 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
             command.HierarchyPathJson,
             categoryName);
 
+        var previousParentKeys = item.IsMatrixParent
+            ? ExtractKeysForParentSync(item.CustomAttributesJson, item.HierarchyPathJson, familyHierarchyJson)
+            : [];
+
         var updated = item.Update(
             command.Name,
             command.Description,
@@ -172,23 +180,51 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
             return Result.Failure<UpdateCatalogItemResponse>(barcodeResult.Error!);
         }
 
-        // La primera variante define el nombre visible del producto (padre).
-        if (item.ParentId is { } parentId && item.SortOrder == 0)
+        // Si se edita el padre matriz, propagar clasificación y atributos de modelo a sus variantes vivas.
+        if (item.IsMatrixParent && item.Variants.Count > 0)
         {
-            var variantName = CatalogVariantNameResolver.ResolveFromAttributes(item.CustomAttributesJson);
-            if (!string.IsNullOrWhiteSpace(variantName))
+            var keysToSync = new HashSet<string>(previousParentKeys, StringComparer.OrdinalIgnoreCase);
+            foreach (var k in ExtractKeysForParentSync(item.CustomAttributesJson, item.HierarchyPathJson, familyHierarchyJson))
             {
-                var parent = await _items
-                    .GetTrackedByIdAsync(command.TenantId, parentId, ct)
-                    .ConfigureAwait(false);
-                if (parent is not null)
+                keysToSync.Add(k);
+            }
+
+            foreach (var variant in item.Variants.Where(v => v.DeletedAt is null))
+            {
+                variant.SyncSharedModelFromParent(item, keysToSync);
+            }
+        }
+
+        // Si se edita una variante, recalcular ejes disponibles del padre y sincronizar nombre si es la primera.
+        if (item.ParentId is { } parentId)
+        {
+            var parent = item.Parent
+                ?? await _items.GetTrackedByIdAsync(command.TenantId, parentId, ct).ConfigureAwait(false);
+            if (parent is not null)
+            {
+                if (item.SortOrder == 0)
                 {
-                    var renamed = parent.Rename(variantName!);
-                    if (renamed.IsFailure)
+                    var variantName = CatalogVariantNameResolver.ResolveFromAttributes(item.CustomAttributesJson)
+                        ?? item.Name;
+                    if (!string.IsNullOrWhiteSpace(variantName))
                     {
-                        return Result.Failure<UpdateCatalogItemResponse>(renamed.Error!);
+                        var renamed = parent.Rename(variantName);
+                        if (renamed.IsFailure)
+                        {
+                            return Result.Failure<UpdateCatalogItemResponse>(renamed.Error!);
+                        }
                     }
                 }
+
+                var liveVariants = parent.Variants
+                    .Where(v => v.DeletedAt is null)
+                    .ToList();
+                if (liveVariants.All(v => v.Id != item.Id))
+                {
+                    liveVariants.Add(item);
+                }
+
+                parent.RebuildVariantDimensionsFromVariants(liveVariants);
             }
         }
 
@@ -216,5 +252,110 @@ public sealed class UpdateCatalogItemHandler : ICommandHandler<UpdateCatalogItem
 
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
         return Result.Success(new UpdateCatalogItemResponse(item.Id, item.TenantId));
+    }
+
+    private static HashSet<string> ExtractKeysForParentSync(
+        string? customAttributesJson,
+        string? hierarchyPathJson,
+        string? familyTreeJson)
+    {
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(customAttributesJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(customAttributesJson);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in doc.RootElement.EnumerateObject())
+                    {
+                        if (!string.IsNullOrWhiteSpace(prop.Name))
+                        {
+                            keys.Add(prop.Name.Trim());
+                        }
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // ignorar
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(hierarchyPathJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(hierarchyPathJson);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var el in doc.RootElement.EnumerateArray())
+                    {
+                        if (el.ValueKind == JsonValueKind.Object
+                            && el.TryGetProperty("name", out var nEl)
+                            && nEl.ValueKind == JsonValueKind.String)
+                        {
+                            var name = nEl.GetString()?.Trim();
+                            if (!string.IsNullOrEmpty(name))
+                            {
+                                keys.Add(name);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // ignorar
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(familyTreeJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(familyTreeJson);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    var levels = doc.RootElement.EnumerateArray().ToList();
+                    var hasAxes = levels.Any(lvl =>
+                        lvl.ValueKind == JsonValueKind.Object
+                        && lvl.TryGetProperty("axes", out var axesEl)
+                        && axesEl.ValueKind == JsonValueKind.Array
+                        && axesEl.GetArrayLength() > 0);
+
+                    for (var i = 0; i < levels.Count; i++)
+                    {
+                        // Si la plantilla tiene ejes en el nivel final, sus atributos pertenecen al SKU, no al padre.
+                        if (hasAxes && i == levels.Count - 1)
+                        {
+                            continue;
+                        }
+
+                        var lvl = levels[i];
+                        if (lvl.ValueKind == JsonValueKind.Object
+                            && lvl.TryGetProperty("attributes", out var attrsEl)
+                            && attrsEl.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var attr in attrsEl.EnumerateArray())
+                            {
+                                var name = attr.GetString()?.Trim();
+                                if (!string.IsNullOrEmpty(name))
+                                {
+                                    keys.Add(name);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // ignorar
+            }
+        }
+
+        return keys;
     }
 }

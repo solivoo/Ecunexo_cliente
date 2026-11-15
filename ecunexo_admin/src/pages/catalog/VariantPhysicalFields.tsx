@@ -48,6 +48,9 @@ export type VariantPhysicalFieldsProps = {
   /** Para persistir colores nombrados en la paleta del sistema. */
   readonly tenantId?: string | null
   readonly onNamedColorCreated?: (name: string, hex: string) => void
+  readonly onPaletteUpdated?: () => void | Promise<void>
+  readonly searchTags?: readonly string[]
+  readonly onChangeSearchTags?: (tags: string[]) => void
 }
 
 function normalizeKey(key: string): string {
@@ -62,6 +65,11 @@ function isNameField(key: string): boolean {
 function isDescField(key: string): boolean {
   const n = normalizeKey(key)
   return n === 'descripcion' || n === 'description'
+}
+
+function isTagField(key: string): boolean {
+  const n = normalizeKey(key)
+  return n === 'tag' || n === 'tags' || n === 'etiqueta' || n === 'etiquetas'
 }
 
 /**
@@ -92,6 +100,9 @@ export function VariantPhysicalFields({
   className,
   tenantId = null,
   onNamedColorCreated,
+  onPaletteUpdated,
+  searchTags,
+  onChangeSearchTags,
 }: VariantPhysicalFieldsProps) {
   const [namedColorDim, setNamedColorDim] = useState<string | null>(null)
   const [namedColorBusy, setNamedColorBusy] = useState(false)
@@ -196,6 +207,7 @@ export function VariantPhysicalFields({
                 onChange={(val) => onDimensionChange(dim.name, val)}
                 attributeName={dim.name}
                 tenantId={tenantId}
+                onAdded={onPaletteUpdated}
                 disabled={disabled}
               />
             ) : (
@@ -322,9 +334,18 @@ export function VariantPhysicalFields({
                 onMultiChange={(names) => onAttributeChange(field.key, names.join(', '))}
                 dimensionValuesMap={dimensionValuesMap}
                 tenantId={tenantId}
+                onPaletteUpdated={onPaletteUpdated}
                 disabled={disabled}
                 allowEmpty
                 emptyLabel="Ninguno"
+              />
+            ) : dataType === 'multiselect' && isTagField(field.key) && searchTags !== undefined && onChangeSearchTags ? (
+              <EcuTagInput
+                tags={[...searchTags]}
+                suggestedTags={lookup?.values ?? []}
+                onChange={(nextTags: string[]) => onChangeSearchTags(nextTags)}
+                placeholder={`Añadir ${field.key}...`}
+                disabled={disabled}
               />
             ) : dataType === 'multiselect' ? (
               <EcuTagInput
@@ -355,6 +376,7 @@ export function VariantPhysicalFields({
                 onChange={(v) => onAttributeChange(field.key, v)}
                 attributeName={field.key}
                 tenantId={tenantId}
+                onAdded={onPaletteUpdated}
                 disabled={disabled}
               />
             ) : isDesc ? (

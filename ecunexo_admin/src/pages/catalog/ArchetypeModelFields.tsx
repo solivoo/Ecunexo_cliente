@@ -18,6 +18,15 @@ type ArchetypeModelFieldsProps = {
   bare?: boolean
   tenantId?: string | null
   onColorPaletteUpdated?: () => void | Promise<void>
+  /** Si se pasa, campos `Tag`/`Tags` editan directamente el arreglo unificado `tags`. */
+  searchTags?: readonly string[]
+  onChangeSearchTags?: (tags: string[]) => void
+  suggestedSearchTags?: readonly string[]
+}
+
+function isSearchTagFieldKey(key: string): boolean {
+  const n = key.trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
+  return n === 'tag' || n === 'tags' || n === 'etiqueta' || n === 'etiquetas'
 }
 
 type FieldKind = 'text' | 'textarea' | 'number' | 'select' | 'color' | 'colorlist' | 'tags' | 'media'
@@ -123,6 +132,9 @@ export function ArchetypeModelFields({
   bare = false,
   tenantId = null,
   onColorPaletteUpdated,
+  searchTags,
+  onChangeSearchTags,
+  suggestedSearchTags = [],
 }: ArchetypeModelFieldsProps) {
   const groups = useMemo(() => {
     const map = new Map<FieldGroupKey, ArchetypeAttributeField[]>()
@@ -248,6 +260,14 @@ export function ArchetypeModelFields({
             disabled={disabled}
             allowEmpty
             emptyLabel="Ninguno"
+          />
+        ) : kind === 'tags' && isSearchTagFieldKey(field.key) && searchTags !== undefined && onChangeSearchTags ? (
+          <EcuTagInput
+            label={label}
+            tags={[...searchTags]}
+            suggestedTags={[...new Set([...suggestedSearchTags, ...(lookup?.values ?? [])])]}
+            onChange={(nextTags: string[]) => onChangeSearchTags(nextTags)}
+            disabled={disabled}
           />
         ) : kind === 'tags' ? (
           <EcuTagInput

@@ -198,7 +198,9 @@ public sealed class GetCatalogItemHandler : IQueryHandler<GetCatalogItemQuery, C
                 parentDescription,
                 item.CostPrice,
                 item.CategoryId,
-                categoryName));
+                categoryName,
+                parent?.HierarchyPathJson,
+                parent?.CustomAttributesJson));
     }
 
     private static IReadOnlyList<MatrixAxisDef> ParseMatrixAxes(string? variantDimensionsJson)

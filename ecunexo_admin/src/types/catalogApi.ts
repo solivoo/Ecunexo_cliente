@@ -136,6 +136,8 @@ export type CatalogItemDetailDto = {
   minOrderQuantity?: number
   categoryId?: string | null
   categoryName?: string | null
+  parentHierarchyPathJson?: string | null
+  parentCustomAttributesJson?: string | null
 }
 
 export type CreateCatalogItemBody = {
