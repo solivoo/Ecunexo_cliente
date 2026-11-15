@@ -364,6 +364,9 @@ export function ProductPriceFormPage() {
         if (!isEdit && selectedItemIds.length === 0) throw new Error('Selecciona al menos un producto.')
         if (!listId) throw new Error('Selecciona la lista de precios.')
         if (!price.trim()) throw new Error('El precio es obligatorio.')
+        if (renewing && !reason.trim()) {
+          throw new Error('Indica el motivo del cambio para renovar la vigencia anterior.')
+        }
         const numericPrice = Number(price)
         if (!Number.isFinite(numericPrice) || numericPrice < 0) {
           throw new Error('El precio debe ser un número mayor o igual a cero.')
@@ -419,6 +422,7 @@ export function ProductPriceFormPage() {
               catalogItemId,
               price: numericPrice,
               tiers: tierPayload,
+              volumeDiscountSchemeId: volumeDiscountSchemeId || null,
             })),
           })
           toast.show({
@@ -847,7 +851,7 @@ export function ProductPriceFormPage() {
           {/* PASO 3: ESCALAS DE DESCUENTO POR VOLUMEN */}
           <SectionCard
             title="3. Descuento por Volumen (Opcional)"
-            subtitle="Asigna un esquema estandarizado (ej: Docena Calcetines) para aplicar descuentos escalonados sin reescribir tramos."
+            subtitle="Elige un esquema reutilizable (ej: Docena Calcetines) o define tramos manuales exclusivos para este producto. Si configuras tramos manuales activos, estos tienen prioridad y reemplazan al esquema."
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ maxWidth: 460 }}>
@@ -936,8 +940,17 @@ export function ProductPriceFormPage() {
                 </summary>
 
                 <div style={{ marginTop: '0.75rem' }}>
+                  {volumeDiscountSchemeId && tiers.length > 0 ? (
+                    <div className="ecu-form-warning-banner" role="alert" style={{ marginBottom: '0.75rem' }}>
+                      <span className="material-symbols-outlined">warning</span>
+                      <span>
+                        Tienes un esquema reutilizable seleccionado arriba y tramos manuales aquí.
+                        Al vender o simular, los tramos manuales tienen prioridad y anulan el esquema.
+                      </span>
+                    </div>
+                  ) : null}
                   <p className="ecu-companies-form__hint" style={{ marginBottom: '0.75rem' }}>
-                    Opcional. Úsalo únicamente si este producto requiere escalas específicas que no aplican a ningún otro producto.
+                    Opcional. Úsalo únicamente si este producto requiere un precio unitario fijo por tramo que no aplica a otros productos.
                     Ejemplo: «desde 1 hasta 11» → $3.50, y «desde 12» con «hasta» vacío → $3.00.
                   </p>
 

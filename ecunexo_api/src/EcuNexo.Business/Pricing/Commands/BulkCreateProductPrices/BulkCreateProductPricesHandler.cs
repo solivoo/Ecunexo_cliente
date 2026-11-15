@@ -108,6 +108,11 @@ public sealed class BulkCreateProductPricesHandler
                     existing.SetActive(true, _caller.UserId);
                 }
 
+                if (input.VolumeDiscountSchemeId is { } newSchemeId)
+                {
+                    existing.AssignVolumeDiscountScheme(newSchemeId, _caller.UserId);
+                }
+
                 if (input.Tiers is { Count: > 0 })
                 {
                     existing.ClearTiers(_caller.UserId);
@@ -189,7 +194,11 @@ public sealed class BulkCreateProductPricesHandler
                 return Result.Failure<BulkCreateProductPricesResponse>(created.Error!);
             }
 
-            if (overlap?.VolumeDiscountSchemeId is { } prevSchemeId)
+            if (input.VolumeDiscountSchemeId is { } explicitSchemeId)
+            {
+                created.Value!.AssignVolumeDiscountScheme(explicitSchemeId, _caller.UserId);
+            }
+            else if (overlap?.VolumeDiscountSchemeId is { } prevSchemeId)
             {
                 created.Value!.AssignVolumeDiscountScheme(prevSchemeId, _caller.UserId);
             }

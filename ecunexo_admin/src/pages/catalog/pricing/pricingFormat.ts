@@ -73,6 +73,9 @@ export function formatVolumeTiersSummary(
   return sorted
     .map((t) => {
       const range = t.quantityTo ? `${t.quantityFrom}–${t.quantityTo} un.` : `≥${t.quantityFrom} un.`
+      if (type === VolumeDiscountSchemeType.FixedPrice) {
+        return `${range}: ${formatMoney(t.value)} c/u`
+      }
       const val = type === VolumeDiscountSchemeType.Percentage ? `${t.value}%` : formatMoney(t.value)
       return `${range}: -${val}`
     })

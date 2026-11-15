@@ -631,7 +631,7 @@ export function ProductPricesListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Precios de Productos"
-          info="Precios por lista con vigencia y escalas de descuento por cantidad. Puedes seleccionar productos en lote para asignarles una escala de volumen."
+          info="Consulta precios vigentes por SKU y lista, asigna escalas por volumen o entra a la Matriz para editar varias listas en línea."
           actions={
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Button
@@ -646,7 +646,7 @@ export function ProductPricesListPage() {
                 iconLeft={<Layers size={16} />}
                 onClick={() => navigate('/catalogo/precios/matriz')}
               >
-                Vista matriz
+                Matriz lista × producto
               </Button>
               <Button
                 variant="outline"
@@ -662,7 +662,7 @@ export function ProductPricesListPage() {
         <div className="ecu-stat-grid" aria-label="Resumen de precios">
           <StatCard label="Productos" value={uniqueProductCount} />
           <StatCard label="Vigencias activas" value={vigentCount} />
-          <StatCard label="Con Escala Volumen" value={withSchemeCount} />
+          <StatCard label="Precios con escala" value={withSchemeCount} />
           <StatCard label="Listas comerciales" value={listCount} />
         </div>
 
@@ -689,7 +689,9 @@ export function ProductPricesListPage() {
                   {selectedIds.length} {activeTab === '__grouped__' ? 'producto(s)' : 'precio(s)'} seleccionado(s)
                 </strong>
                 <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--glb-muted, var(--shell-muted, #93c5fd))' }}>
-                  Asigna o cambia la escala de descuento por volumen a todos los ítems seleccionados.
+                  {activeTab === '__grouped__'
+                    ? 'Se aplicará a los precios vigentes de los productos seleccionados en todas sus listas activas.'
+                    : 'Asigna o cambia la escala de descuento por volumen en las filas seleccionadas.'}
                 </p>
               </div>
             </div>
@@ -775,7 +777,7 @@ export function ProductPricesListPage() {
                 cursor: 'pointer',
               }}
             >
-              <span>📊 Columnas por lista</span>
+              <span>Comparativa por lista</span>
               {groupedRows.length > 0 ? (
                 <span style={{ fontSize: '0.75rem', opacity: 0.8, background: 'rgba(125,125,125,0.2)', padding: '1px 6px', borderRadius: '10px' }}>
                   {groupedRows.length} productos
@@ -895,12 +897,12 @@ export function ProductPricesListPage() {
                     <div style={{ minWidth: 165 }}>
                       <Select
                         id="pp-template-filter"
-                        label="Plantilla"
+                        label="Familia / Plantilla"
                         labelPosition="outlined"
-                        aria-label="Filtrar por plantilla"
+                        aria-label="Filtrar por familia o plantilla"
                         variant="outline"
                         options={[
-                          { value: '', label: 'Todas las plantillas' },
+                          { value: '', label: 'Todas las familias' },
                           ...availableTemplates.map((t) => ({ value: t, label: t })),
                         ]}
                         value={templateFilter}
@@ -952,7 +954,7 @@ export function ProductPricesListPage() {
                         variant="outline"
                         onClick={() => navigate('/catalogo/precios/productos/masivo')}
                       >
-                        Carga masiva
+                        Carga por lote
                       </Button>
                       <Button
                         type="button"
@@ -1004,12 +1006,12 @@ export function ProductPricesListPage() {
                     <div style={{ minWidth: 165 }}>
                       <Select
                         id="pp-template-filter-tab"
-                        label="Plantilla"
+                        label="Familia / Plantilla"
                         labelPosition="outlined"
-                        aria-label="Filtrar por plantilla"
+                        aria-label="Filtrar por familia o plantilla"
                         variant="outline"
                         options={[
-                          { value: '', label: 'Todas las plantillas' },
+                          { value: '', label: 'Todas las familias' },
                           ...availableTemplates.map((t) => ({ value: t, label: t })),
                         ]}
                         value={templateFilter}
@@ -1061,7 +1063,7 @@ export function ProductPricesListPage() {
                         variant="outline"
                         onClick={() => navigate('/catalogo/precios/productos/masivo')}
                       >
-                        Carga masiva
+                        Carga por lote
                       </Button>
                       <Button
                         type="button"

@@ -5,7 +5,8 @@ namespace EcuNexo.Business.Pricing.Commands.BulkCreateProductPrices;
 public sealed record BulkPriceItemInput(
     Guid CatalogItemId,
     decimal Price,
-    IReadOnlyList<PriceTierInput>? Tiers = null);
+    IReadOnlyList<PriceTierInput>? Tiers = null,
+    Guid? VolumeDiscountSchemeId = null);
 
 public sealed record BulkCreateProductPricesCommand(
     Guid TenantId,

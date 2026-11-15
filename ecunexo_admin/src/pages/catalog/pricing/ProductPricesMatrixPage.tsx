@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button, CheckButton, DataGrid, DateBox, NumberBox, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
-import { Download, Layers } from 'lucide-react'
+import { Calculator, DollarSign, Download, Layers } from 'lucide-react'
 import {
   EmptyState,
   GridToolbarRefresh,
@@ -13,8 +14,9 @@ import { useHasPermission } from '@/hooks/useHasPermission'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
-import { todayIso } from '@/pages/catalog/pricing/pricingFormat'
+import { calculateMarginPercent, formatMoney, todayIso } from '@/pages/catalog/pricing/pricingFormat'
 import { listCatalogItems } from '@/services/catalogApi'
+import { listStock } from '@/services/inventoryApi'
 import {
   bulkCreateProductPrices,
   createProductPrice,
@@ -35,6 +37,8 @@ type MatrixCell = {
 
 type MatrixRow = CatalogItemListItemDto & {
   matrix: Record<string, MatrixCell | undefined>
+  referenceCost: number | null
+  costSource: 'stock' | 'catalog' | null
 }
 
 type BulkOperation = 'percentIncrease' | 'percentDecrease' | 'fixed' | 'copy'
@@ -68,13 +72,17 @@ function escapeCsv(value: string): string {
 
 export function ProductPricesMatrixPage() {
   const toast = useToast()
+  const navigate = useNavigate()
   const tenantId = useAppSelector(selectTenantId)
   const canRead = useHasPermission('catalog.pricing.read')
-  const canManage = useHasPermission('catalog.pricing.create')
+  const canCreate = useHasPermission('catalog.pricing.create')
+  const canUpdate = useHasPermission('catalog.pricing.update')
+  const canManage = canCreate || canUpdate
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
 
   const [lists, setLists] = useState<PriceListDto[]>([])
   const [items, setItems] = useState<CatalogItemListItemDto[]>([])
+  const [stockCosts, setStockCosts] = useState<Map<string, number>>(new Map())
   const [matrix, setMatrix] = useState<Map<string, Record<string, MatrixCell | undefined>>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -97,10 +105,27 @@ export function ProductPricesMatrixPage() {
       if (!opts?.silent) setLoading(true)
       setError(null)
       try {
-        const [catalog, priceLists] = await Promise.all([
+        const [catalog, priceLists, stockRows] = await Promise.all([
           listCatalogItems(tenantId, { includeParents: false }),
           listPriceLists(tenantId, true),
+          listStock(tenantId).catch(() => []),
         ])
+        const costAcc = new Map<string, { qty: number; value: number; fallback: number }>()
+        for (const s of stockRows) {
+          const avgCost = s.averageCost ?? 0
+          if (avgCost <= 0) continue
+          const prev = costAcc.get(s.catalogItemId) ?? { qty: 0, value: 0, fallback: 0 }
+          const q = s.quantity > 0 ? s.quantity : 0
+          prev.qty += q
+          prev.value += q > 0 ? q * avgCost : 0
+          prev.fallback = prev.fallback > 0 ? prev.fallback : avgCost
+          costAcc.set(s.catalogItemId, prev)
+        }
+        const nextStockCosts = new Map<string, number>()
+        for (const [id, acc] of costAcc) {
+          const avg = acc.qty > 0 ? acc.value / acc.qty : acc.fallback
+          if (avg > 0) nextStockCosts.set(id, Math.round(avg * 10000) / 10000)
+        }
         const active = priceLists.filter((list) => list.isActive)
         const pricesByList = await Promise.all(
           active.map((list) =>
@@ -125,6 +150,7 @@ export function ProductPricesMatrixPage() {
 
         setLists(priceLists)
         setItems(catalog.filter((item) => item.kind === CatalogItemKind.Physical))
+        setStockCosts(nextStockCosts)
         setMatrix(nextMatrix)
       } catch (err: unknown) {
         if (!opts?.silent) setError(readApiError(err, 'No se pudo cargar la matriz de precios.'))
@@ -141,11 +167,19 @@ export function ProductPricesMatrixPage() {
 
   const rows = useMemo<MatrixRow[]>(
     () =>
-      items.map((item) => ({
-        ...item,
-        matrix: matrix.get(item.id) ?? {},
-      })),
-    [items, matrix]
+      items.map((item) => {
+        const stockCost = stockCosts.get(item.id)
+        const catalogCost = item.costPrice != null && item.costPrice > 0 ? item.costPrice : null
+        const referenceCost = stockCost ?? catalogCost
+        const costSource = stockCost != null ? 'stock' : catalogCost != null ? 'catalog' : null
+        return {
+          ...item,
+          matrix: matrix.get(item.id) ?? {},
+          referenceCost,
+          costSource,
+        }
+      }),
+    [items, matrix, stockCosts]
   )
 
   const visibleRows = useMemo(() => {
@@ -474,7 +508,7 @@ export function ProductPricesMatrixPage() {
       {
         key: 'name',
         header: 'Producto',
-        width: 320,
+        width: 300,
         renderCell: (_value, row) => (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <strong style={{ fontSize: '0.85rem' }}>{row.description?.trim() || row.name}</strong>
@@ -484,31 +518,48 @@ export function ProductPricesMatrixPage() {
           </div>
         ),
       },
-    ]
-
-    for (const list of activeLists) {
-      base.push({
-        key: `list-${list.id}` as unknown as keyof MatrixRow,
-        header: (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <strong>{list.code}</strong>
-            <span style={{ fontSize: '0.7rem', color: 'var(--glb-muted)', fontWeight: 400 }}>
-              {list.name}
-            </span>
-          </div>
-        ) as unknown as string,
-        width: 150,
+      {
+        key: 'referenceCost',
+        header: 'Costo ref.',
+        width: 120,
         align: 'right',
-        renderCell: (_value: unknown, row: MatrixRow) => (
-          <MatrixPriceCell
-            cell={row.matrix[list.id]}
-            busy={busyCells.has(`${row.id}:${list.id}`)}
-            editable={canManage}
-            onCommit={(raw) => void saveCell(row, list, raw)}
-          />
-        ),
-      })
-    }
+        renderCell: (_value, row) =>
+          row.referenceCost != null ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+              <span style={{ fontWeight: 600 }}>{formatMoney(row.referenceCost)}</span>
+              <span className="app-shell__muted" style={{ fontSize: '0.68rem' }}>
+                {row.costSource === 'stock' ? 'Kárdex' : 'Catálogo'}
+              </span>
+            </div>
+          ) : (
+            <span className="app-shell__muted" style={{ fontSize: '0.78rem' }}>Sin costo</span>
+          ),
+      },
+      ...activeLists.map(
+        (list): ColumnDef<MatrixRow> => ({
+          key: `list-${list.id}` as unknown as 'matrix',
+          header: (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <strong>{list.code}</strong>
+              <span style={{ fontSize: '0.7rem', color: 'var(--glb-muted)', fontWeight: 400 }}>
+                {list.name} · {list.pricesIncludeTax ? 'IVA incl.' : 'Neto + IVA'}
+              </span>
+            </div>
+          ) as unknown as string,
+          width: 165,
+          align: 'right',
+          renderCell: (_value: unknown, row: MatrixRow) => (
+            <MatrixPriceCell
+              cell={row.matrix[list.id]}
+              referenceCost={row.referenceCost}
+              busy={busyCells.has(`${row.id}:${list.id}`)}
+              editable={canManage}
+              onCommit={(raw) => void saveCell(row, list, raw)}
+            />
+          ),
+        })
+      ),
+    ]
 
     return base
   }, [activeLists, busyCells, canManage, saveCell])
@@ -536,7 +587,25 @@ export function ProductPricesMatrixPage() {
         <PageHeader
           title="Matriz de precios"
           badge={<StatusBadge tone="primary">Listas × Productos</StatusBadge>}
-          info="Edita el precio vigente de cada producto por lista en línea. Al guardar se cierra la vigencia anterior y queda historial."
+          info="Edita en línea el precio vigente de cada SKU por lista, viendo su costo de referencia (kárdex o catálogo) y si la lista incluye IVA. Al guardar se cierra la vigencia anterior y queda historial."
+          actions={
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Button
+                variant="outline"
+                iconLeft={<DollarSign size={16} />}
+                onClick={() => navigate('/catalogo/precios/productos')}
+              >
+                Precios de productos
+              </Button>
+              <Button
+                variant="outline"
+                iconLeft={<Calculator size={16} />}
+                onClick={() => navigate('/catalogo/precios/simulador')}
+              >
+                Simulador
+              </Button>
+            </div>
+          }
         />
 
         <SectionCard title="Cobertura por lista">
@@ -856,11 +925,13 @@ export function ProductPricesMatrixPage() {
 
 function MatrixPriceCell({
   cell,
+  referenceCost,
   busy,
   editable,
   onCommit,
 }: {
   readonly cell: MatrixCell | undefined
+  readonly referenceCost: number | null
   readonly busy: boolean
   readonly editable: boolean
   readonly onCommit: (raw: string) => void
@@ -880,6 +951,8 @@ function MatrixPriceCell({
   }
 
   if (!editing) {
+    const margin = cell ? calculateMarginPercent(cell.price, referenceCost) : null
+    const belowCost = cell && referenceCost != null && referenceCost > 0 && cell.price < referenceCost
     return (
       <button
         type="button"
@@ -897,9 +970,27 @@ function MatrixPriceCell({
           width: '100%',
           textAlign: 'right',
           opacity: busy ? 0.5 : 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
         }}
       >
-        {cell ? `$${cell.price.toFixed(2)}` : '+ Agregar'}
+        <span>{cell ? `$${cell.price.toFixed(2)}` : '+ Agregar'}</span>
+        {margin !== null ? (
+          <span
+            style={{
+              fontSize: '0.68rem',
+              fontWeight: 600,
+              color: belowCost
+                ? 'var(--color-danger, #ef4444)'
+                : margin < 15
+                  ? 'var(--color-warning, #d97706)'
+                  : 'var(--color-success, #16a34a)',
+            }}
+          >
+            {belowCost ? `Bajo costo (${margin.toFixed(0)}%)` : `Mg ${margin.toFixed(0)}%`}
+          </span>
+        ) : null}
       </button>
     )
   }

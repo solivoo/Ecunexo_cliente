@@ -249,7 +249,7 @@ export function PriceListFormPage() {
               <div className="ecu-companies-form__field">
                 <NumberBox
                   id="pl-priority"
-                  label="Prioridad"
+                  label="Prioridad (referencia)"
                   labelPosition="outlined"
                   variant="outline"
                   value={priority}
@@ -259,6 +259,11 @@ export function PriceListFormPage() {
                   disabled={busy || loading}
                   fullWidth
                 />
+                <span className="ecu-hint">
+                  Orden referencial entre listas. Al cotizar o vender se usa la lista elegida o la predeterminada.
+                </span>
+              </div>
+              <div className="ecu-companies-form__field">
                 <NumberBox
                   id="pl-margin"
                   label="Margen sugerido (%)"

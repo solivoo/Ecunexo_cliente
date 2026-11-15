@@ -255,6 +255,7 @@ export type BulkPriceItemBody = {
   catalogItemId: string
   price: number
   tiers?: PriceTierBody[]
+  volumeDiscountSchemeId?: string | null
 }
 
 export type BulkCreateProductPricesBody = {

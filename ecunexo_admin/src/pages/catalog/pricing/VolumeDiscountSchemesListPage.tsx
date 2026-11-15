@@ -353,7 +353,11 @@ export function VolumeDiscountSchemesListPage() {
                       {t.quantityTo ? `${t.quantityFrom}–${t.quantityTo} un.` : `≥${t.quantityFrom} un.`}
                     </span>
                     <strong style={{ color: 'var(--color-primary-dark, #0f766e)' }}>
-                      -{row.type === VolumeDiscountSchemeType.Percentage ? `${t.value}%` : `$${t.value}`}
+                      {row.type === VolumeDiscountSchemeType.FixedPrice
+                        ? `$${t.value} c/u`
+                        : row.type === VolumeDiscountSchemeType.Percentage
+                          ? `-${t.value}%`
+                          : `-$${t.value}`}
                     </strong>
                   </span>
                 ))
@@ -427,8 +431,8 @@ export function VolumeDiscountSchemesListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Escalas de Descuento por Cantidad"
-          info="Define reglas reutilizables por volumen (ej: calcetines 3–5 pares: 10%, 6+: 15%). Asígnalas en lote a productos sin crear mínimos y máximos repetitivos."
-          badge={<StatusBadge tone="neutral">Volumen Enterprise</StatusBadge>}
+          info="Reglas reutilizables por volumen (ej: 3–5 un.: -5%, 6+: -10%, o precio fijo). Créalas aquí y asígnalas luego en Precios de productos. Si un producto tiene tramos manuales propios, esos tienen prioridad sobre el esquema."
+          badge={<StatusBadge tone="neutral">Volumen</StatusBadge>}
           actions={
             canCreate ? (
               <Button
@@ -646,7 +650,9 @@ export function VolumeDiscountSchemesListPage() {
                 <span>
                   {formType === VolumeDiscountSchemeType.Percentage
                     ? 'Descuento (%)'
-                    : 'Descuento ($/un.)'}
+                    : formType === VolumeDiscountSchemeType.FixedPrice
+                      ? 'Precio unitario ($)'
+                      : 'Descuento ($/un.)'}
                 </span>
                 <span />
               </div>
