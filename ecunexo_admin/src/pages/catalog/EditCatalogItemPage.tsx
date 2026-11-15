@@ -281,16 +281,6 @@ export function EditCatalogItemPage() {
     [isVariantChild, showDescriptionField, showNameField, variantAttributeFields]
   )
 
-  const variantHasSearchTagField = useMemo(
-    () =>
-      isVariantChild &&
-      variantFieldsForArchetype.some((field) => {
-        const n = field.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        return n === 'tag' || n === 'tags' || n === 'etiqueta' || n === 'etiquetas'
-      }),
-    [isVariantChild, variantFieldsForArchetype]
-  )
-
   const inheritedModelSummary = useMemo(() => {
     if (!isVariantChild || !item) return []
     const itemsMap = new Map<string, { name: string; value: string }>()
@@ -406,13 +396,21 @@ export function EditCatalogItemPage() {
 
   const setAttributeValue = useCallback((key: string, value: string) => {
     const lower = key.trim().toLowerCase()
+    const clean = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     setCustomAttributes((prev) => {
-      const exists = prev.some((r) => r.key.trim().toLowerCase() === lower)
+      // Si existía un alias sin tilde del mismo campo (ej. tematica -> temática), consolidarlo en la clave canónica.
+      const filtered =
+        lower !== clean
+          ? prev.filter((r) => r.key.trim().toLowerCase() !== clean)
+          : prev
+      const exists = filtered.some((r) => r.key.trim().toLowerCase() === lower)
       if (exists) {
-        return prev.map((r) => (r.key.trim().toLowerCase() === lower ? { ...r, value } : r))
+        return filtered.map((r) =>
+          r.key.trim().toLowerCase() === lower ? { ...r, key, value } : r
+        )
       }
       return [
-        ...prev,
+        ...filtered,
         {
           id: `attr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           key,
@@ -614,7 +612,7 @@ export function EditCatalogItemPage() {
     matrixParents.forEach((p) => {
       opts.push({
         value: p.id,
-        label: `Matriz ${p.id.slice(0, 8)}… (${p.variantCount ?? 0} var.)`,
+        label: `${p.name?.trim() || p.sku || 'Producto'} (${p.variantCount ?? 0} var.)`,
       })
     })
     return opts
@@ -713,10 +711,23 @@ export function EditCatalogItemPage() {
             })()
           : isVariantChild
             ? (() => {
-                // Sincronizar nombre/descripción y limpiar llaves tag redundantes porque tags va en array `tags`.
+                // Sincronizar nombre/descripción y limpiar llaves duplicadas sin/con tilde o tags redundantes.
+                const templateFieldCleans = new Map(
+                  variantFieldsForArchetype.map((f) => [
+                    f.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+                    f.key.trim().toLowerCase(),
+                  ])
+                )
                 const next = customAttributes.filter((r) => {
-                  const n = r.key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                  return n !== 'tag' && n !== 'tags'
+                  const lower = r.key.trim().toLowerCase()
+                  const n = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                  if (n === 'tag' || n === 'tags' || n === 'etiqueta' || n === 'etiquetas') {
+                    return false
+                  }
+                  if (n === 'descripción') return false
+                  const canonicalLower = templateFieldCleans.get(n)
+                  if (canonicalLower && canonicalLower !== lower) return false
+                  return true
                 })
                 const upsertAttr = (k: string, val: string) => {
                   const lower = k.toLowerCase()
@@ -749,10 +760,9 @@ export function EditCatalogItemPage() {
                 return next
               })()
             : customAttributes
-        const resolvedMinOrderQty =
-          isStandardSingleItem || isVariantChild
-            ? minOrderQuantity
-            : readMinOrderQuantityFromCustomAttributes(customAttributes, minOrderQuantity)
+        const resolvedMinOrderQty = isStandardSingleItem
+          ? minOrderQuantity
+          : readMinOrderQuantityFromCustomAttributes(customAttributes, item.minOrderQuantity ?? minOrderQuantity)
 
         const hierarchyPathJson =
           buildHierarchyPathJson(familyLevels, attrsWithBase, dimensionValuesMap) ??
@@ -774,7 +784,7 @@ export function EditCatalogItemPage() {
           barcode: isMatrixParent ? null : barcode.trim() || null,
           costPrice: isMatrixParent
             ? null
-            : isStandardSingleItem || isVariantChild
+            : isStandardSingleItem
               ? parsedCostPrice
               : item.costPrice ?? null,
           basePrice: isMatrixParent
@@ -830,6 +840,7 @@ export function EditCatalogItemPage() {
       minOrderQuantity,
       sku,
       templateCapturesName,
+      variantFieldsForArchetype,
       status,
       tags,
       tenantId,
@@ -900,7 +911,7 @@ export function EditCatalogItemPage() {
                     item.name.trim().toLowerCase() !== 'producto' &&
                     item.name.trim().toLowerCase() !== (item.familyName ?? '').trim().toLowerCase()
                       ? item.name.trim()
-                      : `Matriz ${item.id.slice(0, 8)}…`)
+                      : 'Producto matriz')
                   : item.name || 'Producto'
               : 'Editar Ítem'
           }
@@ -908,16 +919,13 @@ export function EditCatalogItemPage() {
             item
               ? isVariantChild
                 ? [
-                    item.parentId
-                      ? `Variante de matriz ${item.parentId.slice(0, 8)}…`
-                      : 'Variante física',
+                    item.parentName ? `Producto matriz: ${item.parentName}` : null,
                     item.sku ? `SKU ${item.sku}` : null,
                   ]
                     .filter(Boolean)
                     .join(' · ')
                 : isMatrixParent
                   ? [
-                      `UUID ${item.id}`,
                       item.familyName ? `Plantilla: ${item.familyName}` : null,
                       `${item.variants?.length ?? 0} variante(s)`,
                     ]
@@ -1074,23 +1082,55 @@ export function EditCatalogItemPage() {
                 </div>
               ) : null}
 
+              {isVariantChild && (inheritedModelSummary.length > 0 || item?.categoryName || item?.parentId) ? (
+                <SectionCard
+                  title="Información heredada de la matriz"
+                  subtitle="Propiedades compartidas; al editarlas en la matriz se sincronizan a todas sus variantes."
+                  action={
+                    item?.parentId ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        iconRight={<ArrowUpRight size={14} />}
+                        onClick={() => navigate(`/catalogo/items/${item.parentId}`)}
+                      >
+                        Editar en matriz
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  {inheritedModelSummary.length === 0 && !item?.categoryName ? (
+                    <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.85rem' }}>
+                      La matriz aún no tiene atributos compartidos completados. Edítalos desde la matriz para propagarlos.
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {item?.categoryName ? (
+                        <StatusBadge tone="primary">
+                          Categoría: {item.categoryName}
+                        </StatusBadge>
+                      ) : null}
+                      {inheritedModelSummary.map((entry) => (
+                        <StatusBadge key={entry.name} tone="neutral">
+                          {entry.name}: {entry.value}
+                        </StatusBadge>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+              ) : null}
+
               <SectionCard
-                title={
-                  isMatrixParent
-                    ? 'Matriz de producto'
-                    : isVariantChild
-                      ? 'Datos de la variante física'
-                      : 'Datos del producto'
-                }
+                title={isMatrixParent ? 'Datos generales' : 'Información del producto'}
                 subtitle={
                   isMatrixParent
-                    ? 'La matriz se identifica por UUID. Agrupa propiedades y variantes; cada variante tiene su propio SKU.'
-                    : isVariantChild && item?.parentId
-                      ? `Variante de matriz ${item.parentId.slice(0, 8)}…`
+                    ? 'Propiedades generales del producto; el stock y el SKU viven en cada variante.'
+                    : isVariantChild && item?.parentName
+                      ? `Variante de «${item.parentName}»`
                       : undefined
                 }
               >
-                {/* Referencia a la matriz cuando editamos una variante física */}
                 <div className="ecu-companies-form__grid ecu-companies-form__grid--dynamic">
                   {!isMatrixParent && !isVariantChild && !familyTemplate && (
                     <div className="ecu-companies-form__field">
@@ -1130,21 +1170,6 @@ export function EditCatalogItemPage() {
                     </div>
                   ) : null}
 
-                  {isMatrixParent && item ? (
-                    <div className="ecu-companies-form__field ecu-companies-form__field--wide">
-                      <TextBox
-                        id="ei-matrix-uuid"
-                        label="UUID de la matriz"
-                        labelPosition="outlined"
-                        variant="outline"
-                        value={item.id}
-                        readOnly
-                        disabled
-                        fullWidth
-                      />
-                    </div>
-                  ) : null}
-
                   {showNameField ? (
                     <div className="ecu-companies-form__field">
                       <TextBox
@@ -1155,7 +1180,7 @@ export function EditCatalogItemPage() {
                         value={name}
                         onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                         placeholder={
-                          isVariantChild ? 'Nombre de la variante' : 'Ej. Calcetín Hello Kitty'
+                          isVariantChild ? 'Nombre del producto' : 'Ej. Calcetín Hello Kitty'
                         }
                         required
                         disabled={busy}
@@ -1206,7 +1231,7 @@ export function EditCatalogItemPage() {
                       <div className="ecu-companies-form__field">
                         <NumberBox
                           id="ei-cost-price"
-                          label="Precio base / Costo ($)"
+                          label="Precio costo ($)"
                           labelPosition="outlined"
                           variant="outline"
                           min={0}
@@ -1219,15 +1244,12 @@ export function EditCatalogItemPage() {
                           disabled={busy}
                           fullWidth
                         />
-                        <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                          Costo por artículo para calcular tu ganancia (los clientes no verán esto).
-                        </p>
                       </div>
 
                       <div className="ecu-companies-form__field">
                         <NumberBox
                           id="ei-base-price"
-                          label="PVP / Precio de venta ($)"
+                          label="PVP ($)"
                           labelPosition="outlined"
                           variant="outline"
                           min={0}
@@ -1240,9 +1262,6 @@ export function EditCatalogItemPage() {
                           disabled={busy}
                           fullWidth
                         />
-                        <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                          Precio unitario de venta al público para facturación y catálogo.
-                        </p>
                       </div>
 
                       <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
@@ -1251,30 +1270,7 @@ export function EditCatalogItemPage() {
                     </>
                   ) : null}
 
-                  {isVariantChild ? (
-                    <div className="ecu-companies-form__field">
-                      <NumberBox
-                        id="ei-variant-cost-price"
-                        label="Costo ref. ($)"
-                        labelPosition="outlined"
-                        variant="outline"
-                        min={0}
-                        step={0.01}
-                        placeholder="0.00"
-                        value={costPrice !== '' ? Number(costPrice) : undefined}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          setCostPrice(e.target.value)
-                        }
-                        disabled={busy}
-                        fullWidth
-                      />
-                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                        Referencia de costo para medir margen en Gestión de precios.
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {!isMatrixParent && (!familyTemplate || isVariantChild) ? (
+                  {!isMatrixParent && !familyTemplate ? (
                     <div className="ecu-companies-form__field">
                       <NumberBox
                         id="ei-min-order-qty"
@@ -1293,10 +1289,6 @@ export function EditCatalogItemPage() {
                         disabled={busy}
                         fullWidth
                       />
-                      <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
-                        Cantidad mínima que debe comprar el cliente de este producto en la
-                        tienda online.
-                      </p>
                     </div>
                   ) : null}
 
@@ -1428,7 +1420,7 @@ export function EditCatalogItemPage() {
                         id="ei-desc"
                         label={
                           isMatrixParent
-                            ? 'Descripción general de la matriz'
+                            ? 'Descripción general'
                             : 'Descripción'
                         }
                         labelPosition="outlined"
@@ -1441,7 +1433,7 @@ export function EditCatalogItemPage() {
                           isMatrixParent
                             ? 'Ej. Calcetín deportivo de algodón con tecnología absorbente'
                             : isVariantChild
-                              ? 'Descripción de la variante'
+                              ? 'Descripción del producto'
                               : 'Escriba aquí...'
                         }
                         rows={isVariantChild || isMatrixParent ? 3 : 2}
@@ -1475,53 +1467,12 @@ export function EditCatalogItemPage() {
                   ) : null}
                 </div>
 
-                <span className="ecu-hint">
-                  {isMatrixParent
-                    ? 'Los atributos base identifican al producto matriz y se heredan en sus variantes. Las existencias y SKUs se gestionan en las variantes abajo.'
-                    : isVariantChild
-                      ? 'El SKU identifica individualmente a esta combinación física en almacén, pedidos y facturación.'
-                      : 'Estos atributos base pertenecen a todo ítem del catálogo; abajo se muestran los atributos adicionales de la plantilla.'}
-                </span>
+                {isMatrixParent ? (
+                  <span className="ecu-hint">
+                    Los atributos compartidos abajo se propagan a todas las variantes. Las existencias y SKUs se gestionan por variante.
+                  </span>
+                ) : null}
               </SectionCard>
-
-              {isVariantChild && (inheritedModelSummary.length > 0 || item?.categoryName || item?.parentId) ? (
-                <SectionCard
-                  title="Información del Producto (heredada de la matriz)"
-                  subtitle="Propiedades compartidas de la matriz; al editarlas en la matriz se sincronizan a todas sus variantes."
-                  action={
-                    item?.parentId ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        iconRight={<ArrowUpRight size={14} />}
-                        onClick={() => navigate(`/catalogo/items/${item.parentId}`)}
-                      >
-                        Editar en matriz
-                      </Button>
-                    ) : undefined
-                  }
-                >
-                  {inheritedModelSummary.length === 0 && !item?.categoryName ? (
-                    <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.85rem' }}>
-                      La matriz aún no tiene atributos compartidos completados. Edítalos desde la matriz para propagarlos.
-                    </p>
-                  ) : (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {item?.categoryName ? (
-                        <StatusBadge tone="primary">
-                          Categoría: {item.categoryName}
-                        </StatusBadge>
-                      ) : null}
-                      {inheritedModelSummary.map((entry) => (
-                        <StatusBadge key={entry.name} tone="neutral">
-                          {entry.name}: {entry.value}
-                        </StatusBadge>
-                      ))}
-                    </div>
-                  )}
-                </SectionCard>
-              ) : null}
 
               {isVariantChild && variantAxisEntries.length > 0 && (
                 <SectionCard
@@ -1685,7 +1636,7 @@ export function EditCatalogItemPage() {
                 </SectionCard>
               ) : null}
 
-              {(!variantHasSearchTagField || !familyTemplate || freeAttributeRows.length > 0) ? (
+              {!familyTemplate ? (
               <SectionCard title="Avanzado">
                 <details>
                   <summary
@@ -1698,51 +1649,26 @@ export function EditCatalogItemPage() {
                     Etiquetas de búsqueda y atributos libres
                   </summary>
                   <div className="ecu-companies-form__grid ecu-companies-form__grid--dynamic" style={{ marginTop: '1rem' }}>
-                    {!variantHasSearchTagField ? (
-                      <div className="ecu-companies-form__field ecu-companies-form__field--wide" style={{ marginBottom: '0.25rem' }}>
-                        <EcuTagInput
-                          tags={tags}
-                          onChange={setTags}
-                          label="Etiquetas"
-                          placeholder="Deportivo, Premium, temporada…"
-                          helperText={
-                            isVariantChild
-                              ? 'Etiquetas de búsqueda específicas para esta variante en POS y tienda.'
-                              : 'Búsqueda en POS y tienda; se heredan a las variantes. Recomendado: declararlas en la plantilla como «Tags».'
-                          }
-                          suggestedTags={suggestedTags}
-                          disabled={busy}
-                        />
-                      </div>
-                    ) : null}
+                    <div className="ecu-companies-form__field ecu-companies-form__field--wide" style={{ marginBottom: '0.25rem' }}>
+                      <EcuTagInput
+                        tags={tags}
+                        onChange={setTags}
+                        label="Etiquetas"
+                        placeholder="Deportivo, Premium, temporada…"
+                        helperText="Búsqueda en POS y tienda."
+                        suggestedTags={suggestedTags}
+                        disabled={busy}
+                      />
+                    </div>
 
-                    {familyTemplate && freeAttributeRows.length > 0 ? (
-                      <div
-                        className="ecu-companies-form__field ecu-companies-form__field--wide"
-                        style={{
-                          display: 'flex',
-                          gap: '0.35rem',
-                          flexWrap: 'wrap',
-                        }}
-                      >
-                        {freeAttributeRows.map((row) => (
-                          <StatusBadge key={row.id} tone="neutral">
-                            {row.key}: {row.value || '—'}
-                          </StatusBadge>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {!familyTemplate ? (
-                      <div className="ecu-companies-form__field ecu-companies-form__field--wide">
-                        <ItemCustomAttributesEditor
-                          attributes={freeAttributeRows}
-                          onChange={handleFreeAttributesChange}
-                          excludeKeys={reservedAttributeKeys}
-                          disabled={busy}
-                        />
-                      </div>
-                    ) : null}
+                    <div className="ecu-companies-form__field ecu-companies-form__field--wide">
+                      <ItemCustomAttributesEditor
+                        attributes={freeAttributeRows}
+                        onChange={handleFreeAttributesChange}
+                        excludeKeys={reservedAttributeKeys}
+                        disabled={busy}
+                      />
+                    </div>
                   </div>
                 </details>
               </SectionCard>
@@ -1995,10 +1921,7 @@ export function EditCatalogItemPage() {
               {item?.parentId ? (
                 <>
                   Matriz actual:{' '}
-                  <strong>
-                    <code>{item.parentId}</code>
-                  </strong>
-                  .{' '}
+                  <strong>{item.parentName || 'Producto matriz'}</strong>.{' '}
                 </>
               ) : null}
               El SKU, código de barras, facturación histórica y stock en bodega se conservan intactos.
@@ -2013,7 +1936,7 @@ export function EditCatalogItemPage() {
           ) : (
             <Select
               id="reassign-target"
-              label="Matriz destino (UUID)"
+              label="Producto matriz destino"
               labelPosition="outlined"
               variant="outline"
               options={reassignTargetOptions}

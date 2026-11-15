@@ -29,7 +29,7 @@ import {
 } from '@/lib/catalogArchetype'
 import { paletteFromDimensionMap } from '@/lib/catalogNamedColors'
 import { VariantPhysicalFields } from '@/pages/catalog/VariantPhysicalFields'
-import { computeProfitAndMargin, parsePriceInput } from '@/pages/catalog/CatalogPricingMarginBar'
+import { computeProfitAndMargin } from '@/pages/catalog/CatalogPricingMarginBar'
 import type { CustomAttributeRow } from '@/pages/catalog/ItemCustomAttributesEditor'
 import { VariantAdminSummaryBlock } from '@/pages/catalog/VariantAdminSummaryBlock'
 import type { CatalogMatrixAxisDto } from '@/types/catalogApi'
@@ -203,7 +203,6 @@ export function EditCatalogItemVariantsSection({
   const [editModalVariant, setEditModalVariant] = useState<VariantRow | null>(null)
   const [editModalSku, setEditModalSku] = useState('')
   const [editModalBarcode, setEditModalBarcode] = useState('')
-  const [editModalCostPrice, setEditModalCostPrice] = useState('')
   const [editModalTags, setEditModalTags] = useState<string[]>([])
   const [editModalDimValues, setEditModalDimValues] = useState<Record<string, string>>({})
   const [editModalAttributeValues, setEditModalAttributeValues] = useState<CustomAttributeRow[]>([])
@@ -335,7 +334,6 @@ export function EditCatalogItemVariantsSection({
       setEditModalVariant(row)
       setEditModalSku(row.sku ?? '')
       setEditModalBarcode(row.barcode ?? '')
-      setEditModalCostPrice(row.costPrice != null ? String(row.costPrice) : '')
 
       const rawAttrs = parseRawAttributes(row.customAttributesJson)
       const initialTags = Array.isArray(row.tags)
@@ -419,8 +417,9 @@ export function EditCatalogItemVariantsSection({
         if (clean === 'tag' || clean === 'tags') continue
 
         if (row.value.trim()) {
-          merged[clean] = row.value.trim()
-          if (lower !== clean) merged[lower] = row.value.trim()
+          // Si existía la clave antigua sin tilde (ej. tematica vs temática), limpiarla para no duplicar.
+          if (lower !== clean) delete merged[clean]
+          merged[lower] = row.value.trim()
         } else {
           delete merged[clean]
           delete merged[lower]
@@ -460,15 +459,13 @@ export function EditCatalogItemVariantsSection({
       if (cleanTags.length > 0) merged['tags'] = cleanTags
       else delete merged['tags']
 
-      const parsedCost = parsePriceInput(editModalCostPrice)
-
       await updateCatalogItem(tenantId, editModalVariant.id, {
         kind: parentItem.kind,
         name: resolvedName,
         description: resolvedDescription,
         sku: editModalSku.trim() || null,
         barcode: editModalBarcode.trim() || null,
-        costPrice: parsedCost != null && parsedCost >= 0 ? parsedCost : null,
+        costPrice: editModalVariant.costPrice ?? null,
         basePrice: editModalVariant.basePrice ?? null,
         customAttributesJson: JSON.stringify(merged),
         familyId: parentItem.familyId ?? null,
@@ -499,7 +496,6 @@ export function EditCatalogItemVariantsSection({
     dimensionValuesMap,
     editModalAttributeValues,
     editModalBarcode,
-    editModalCostPrice,
     editModalDimValues,
     editModalSku,
     editModalTags,
@@ -1033,8 +1029,6 @@ export function EditCatalogItemVariantsSection({
               onSkuChange={setEditModalSku}
               barcode={editModalBarcode}
               onBarcodeChange={setEditModalBarcode}
-              costPrice={editModalCostPrice}
-              onCostPriceChange={setEditModalCostPrice}
               dimensions={dimensions}
               dimensionValues={editModalDimValues}
               onDimensionChange={(dimName, value) =>

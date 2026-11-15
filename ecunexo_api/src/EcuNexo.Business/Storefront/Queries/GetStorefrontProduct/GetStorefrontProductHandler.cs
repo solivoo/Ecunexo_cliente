@@ -321,7 +321,18 @@ public sealed class GetStorefrontProductHandler
     }
 
     private static readonly string[] InternalAttributeKeys =
-        ["parent_reassignment_history", "tags", "colores_secundarios", "barcode", "ean"];
+        [
+            "parent_reassignment_history",
+            "tags",
+            "colores_secundarios",
+            "barcode",
+            "ean",
+            "nombre",
+            "name",
+            "descripcion",
+            "descripción",
+            "description",
+        ];
 
     private static List<StorefrontAttributeDto> ParseAttributes(
         string? hierarchyPathJson,
@@ -329,11 +340,13 @@ public sealed class GetStorefrontProductHandler
     {
         var attributes = new List<StorefrontAttributeDto>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenNormalized = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var attribute in ParseHierarchyPath(hierarchyPathJson))
         {
             attributes.Add(attribute);
             seen.Add(attribute.Name);
+            seenNormalized.Add(StorefrontFacetCatalog.NormalizeForMatch(attribute.Name));
         }
 
         if (string.IsNullOrWhiteSpace(customAttributesJson))
@@ -351,8 +364,11 @@ public sealed class GetStorefrontProductHandler
 
             foreach (var property in doc.RootElement.EnumerateObject())
             {
+                var normalizedKey = StorefrontFacetCatalog.NormalizeForMatch(property.Name);
                 if (InternalAttributeKeys.Contains(property.Name, StringComparer.OrdinalIgnoreCase)
-                    || seen.Contains(property.Name))
+                    || property.Name.EndsWith("_hex", StringComparison.OrdinalIgnoreCase)
+                    || seen.Contains(property.Name)
+                    || (!string.IsNullOrEmpty(normalizedKey) && !seenNormalized.Add(normalizedKey)))
                 {
                     continue;
                 }

@@ -1319,12 +1319,8 @@ export function VariantMatrixBuilder({
           if (isSearchTagAttributeKey(attrName)) return
 
           const rawLower = attrName.trim().toLowerCase()
-          const cleanKey = rawLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-          // Actividad, Temática, etc. (multiselect): lista separada por coma bajo su propia clave.
-          customAttrs[cleanKey] = val.trim()
-          if (rawLower !== cleanKey) {
-            customAttrs[rawLower] = val.trim()
-          }
+          // Actividad, Temática, etc.: guardar bajo una sola clave limpia sin duplicar variantes con/sin tilde.
+          customAttrs[rawLower] = val.trim()
         })
       }
       if (r.extraColors && r.extraColors.length > 0) {

@@ -79,7 +79,7 @@ function resolveDisplayItemName(row: CatalogItemListItemDto): string {
     raw.toLowerCase() === 'matriz' ||
     raw.toLowerCase() === 'producto' ||
     (row.familyName && raw.toLowerCase() === row.familyName.trim().toLowerCase())
-  return isGeneric ? `Matriz ${row.id.slice(0, 8)}…` : raw
+  return isGeneric ? 'Producto matriz' : raw
 }
 
 function resolveCatalogItemThumbUrl(row: CatalogItemGridRow): string | null {
@@ -200,15 +200,15 @@ export function CatalogItemsGrid({
       },
       {
         key: 'sku',
-        header: 'SKU / UUID',
+        header: 'SKU',
         width: 110,
         sortable: false,
         renderCell: (_value: CatalogItemGridRow['sku'], row: CatalogItemGridRow) => {
           if (row.isMatrixParent) {
             return (
-              <code className="ecu-code" title={row.id}>
-                {row.id.slice(0, 8)}…
-              </code>
+              <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
+                Por variante
+              </span>
             )
           }
           return row.sku ? <code className="ecu-code">{row.sku}</code> : '—'
@@ -386,7 +386,7 @@ export function CatalogItemsGrid({
 
             <h4
               className="ecu-catalog-card__title"
-              title={row.isMatrixParent ? `${resolveDisplayItemName(row)} · ${row.id}` : row.name}
+              title={row.isMatrixParent ? resolveDisplayItemName(row) : row.name}
             >
               {resolveDisplayItemName(row)}
             </h4>
@@ -398,14 +398,7 @@ export function CatalogItemsGrid({
             ) : null}
 
             <div className="ecu-catalog-card__tags">
-              {row.isMatrixParent ? (
-                <span className="ecu-catalog-card__sku">
-                  <span className="ecu-catalog-card__sku-label">UUID:</span>
-                  <code className="ecu-code" title={row.id}>
-                    {row.id.slice(0, 8)}…
-                  </code>
-                </span>
-              ) : row.sku ? (
+              {!row.isMatrixParent && row.sku ? (
                 <span className="ecu-catalog-card__sku">
                   <span className="ecu-catalog-card__sku-label">SKU:</span>
                   <code className="ecu-code">{row.sku}</code>
@@ -513,8 +506,8 @@ export function CatalogItemsGrid({
       showSearch
       searchPosition="left"
       searchWidth={280}
-      searchPlaceholder="Buscar nombre, SKU o UUID…"
-      searchKeys={['name', 'sku', 'id', 'description', 'categoryName']}
+      searchPlaceholder="Buscar nombre, SKU o descripción…"
+      searchKeys={['name', 'sku', 'description', 'categoryName']}
       toolbarRight={toolbarRight}
       paging={paging}
       onPageChange={onPageChange}

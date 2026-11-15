@@ -159,8 +159,13 @@ export function ArchetypeModelFields({
 
   if (fields.length === 0) return null
 
-  const getValue = (key: string) =>
-    values.find((r) => r.key.trim().toLowerCase() === key.toLowerCase())?.value ?? ''
+  const getValue = (key: string) => {
+    const exact = values.find((r) => r.key.trim().toLowerCase() === key.toLowerCase())?.value
+    if (exact !== undefined) return exact
+    const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    const target = norm(key)
+    return values.find((r) => norm(r.key) === target)?.value ?? ''
+  }
 
   const showGroupTitles = groups.length > 1
 
