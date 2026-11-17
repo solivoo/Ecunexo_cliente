@@ -931,15 +931,58 @@ public sealed class EcommerceOrderHandlersTests
         var pricing = Substitute.For<IPricingService>();
         pricing.ResolveAsync(Arg.Any<Guid>(), Arg.Any<PricingRequest>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(resolved));
+        pricing.ResolveCartAsync(Arg.Any<Guid>(), Arg.Any<CartPricingRequest>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                var req = call.ArgAt<CartPricingRequest>(1);
+                var lines = req.Lines.Select(l =>
+                {
+                    var lineSubtotal = Math.Round(unitPrice * l.Quantity, 2, MidpointRounding.AwayFromZero);
+                    var lineTax = Math.Round(lineSubtotal * taxRate, 2, MidpointRounding.AwayFromZero);
+                    return new CartPricingLineResult(
+                        l.LineId ?? Guid.NewGuid(),
+                        l.CatalogItemId,
+                        unitPrice,
+                        unitPrice,
+                        l.Quantity,
+                        null,
+                        lineSubtotal,
+                        0m,
+                        lineSubtotal,
+                        lineSubtotal,
+                        lineTax,
+                        lineSubtotal + lineTax,
+                        taxRate,
+                        false,
+                        ["LISTA_PUBLICO"]);
+                }).ToList();
+
+                var totalSubtotal = lines.Sum(l => l.Subtotal);
+                var totalTax = lines.Sum(l => l.TaxAmount);
+                return Result.Success(new CartPricingResult(
+                    resolved.PriceListId,
+                    resolved.PriceListCode,
+                    resolved.Currency,
+                    lines,
+                    totalSubtotal,
+                    0m,
+                    totalSubtotal,
+                    totalSubtotal,
+                    totalTax,
+                    totalSubtotal + totalTax,
+                    ["LISTA_PUBLICO"]));
+            });
         return pricing;
     }
 
     private static IPricingService MissingPricePricing()
     {
         var pricing = Substitute.For<IPricingService>();
+        var err = new Error("catalog.pricing.price_list.not_found", "Sin lista de precios configurada.", ErrorType.NotFound);
         pricing.ResolveAsync(Arg.Any<Guid>(), Arg.Any<PricingRequest>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<PricingResult>(
-                new Error("catalog.pricing.price_list.not_found", "Sin lista de precios configurada.", ErrorType.NotFound)));
+            .Returns(Result.Failure<PricingResult>(err));
+        pricing.ResolveCartAsync(Arg.Any<Guid>(), Arg.Any<CartPricingRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<CartPricingResult>(err));
         return pricing;
     }
 }

@@ -33,6 +33,7 @@ using EcuNexo.Business.Logistics.Commands.DeleteShippingRateRule;
 using EcuNexo.Business.Logistics.Commands.UpdateShippingRateRule;
 using EcuNexo.Business.Logistics.Queries.ListShippingRateRules;
 using EcuNexo.Business.Logistics.Queries.ResolveShippingRates;
+using EcuNexo.Business.Pricing.Queries.ResolveCart;
 using EcuNexo.Business.Pricing.Queries.ResolvePrice;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.CalculateStorefrontQuote;
 using EcuNexo.Business.Accounting;
@@ -498,6 +499,7 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<GetPriceHistoryQuery, IReadOnlyList<PriceHistoryItemResponse>>, GetPriceHistoryHandler>();
         services.AddScoped<IQueryHandler<ListPromotionsQuery, IReadOnlyList<PromotionResponse>>, ListPromotionsHandler>();
         services.AddScoped<IQueryHandler<ResolvePriceQuery, PricingResult>, ResolvePriceHandler>();
+        services.AddScoped<IQueryHandler<ResolveCartQuery, CartPricingResult>, ResolveCartHandler>();
         services.AddScoped<ICommandHandler<CreateVolumeDiscountSchemeCommand, CreateVolumeDiscountSchemeResponse>, CreateVolumeDiscountSchemeHandler>();
         services.AddScoped<ICommandHandler<UpdateVolumeDiscountSchemeCommand, UpdateVolumeDiscountSchemeResponse>, UpdateVolumeDiscountSchemeHandler>();
         services.AddScoped<ICommandHandler<DeleteVolumeDiscountSchemeCommand, DeleteVolumeDiscountSchemeResponse>, DeleteVolumeDiscountSchemeHandler>();

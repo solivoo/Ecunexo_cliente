@@ -90,6 +90,17 @@ public static class PriceCalculator
                         }
                         appliedRules.Add($"ESQUEMA_{volumeScheme.Name}_{schemeTier.QuantityFrom:0.####}_PVP${schemeTier.Value:0.00}");
                         break;
+                    case VolumeDiscountSchemeType.PackagePrice:
+                    {
+                        var packageTotal = RoundMoney(schemeTier.Value * (quantity / schemeTier.QuantityFrom));
+                        var rawTotal = RoundMoney(unitPrice * quantity);
+                        if (packageTotal < rawTotal)
+                        {
+                            volumeDiscount = rawTotal - packageTotal;
+                        }
+                        appliedRules.Add($"PAQUETE_{volumeScheme.Name}_{schemeTier.QuantityFrom:0.####}_${schemeTier.Value:0.00}");
+                        break;
+                    }
                 }
             }
         }

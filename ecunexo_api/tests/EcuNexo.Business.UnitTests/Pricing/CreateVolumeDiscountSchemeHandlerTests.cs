@@ -69,6 +69,48 @@ public sealed class CreateVolumeDiscountSchemeHandlerTests
         uow.SaveCount.Should().Be(0);
     }
 
+    [Fact(DisplayName = "Crea un esquema agrupado PackagePrice con targets de inclusión y exclusión")]
+    public async Task Handle_GroupedPackagePriceWithTargets_CreatesAndSaves()
+    {
+        var schemes = new InMemoryVolumeDiscountSchemeRepository();
+        var uow = new InMemoryUnitOfWork();
+        var handler = CreateHandler(schemes, uow);
+
+        var categoryId = Guid.CreateVersion7();
+        var excludedProductId = Guid.CreateVersion7();
+
+        var command = new CreateVolumeDiscountSchemeCommand(
+            TenantId,
+            "Pack Calcetines",
+            "5 por $15 y 12 por $34",
+            VolumeDiscountSchemeType.PackagePrice,
+            [
+                new(5m, 11m, 15m),
+                new(12m, null, 34m),
+            ],
+            GroupingMode: VolumeGroupingMode.PerGroup,
+            MinGroupQuantity: 5m,
+            EnforceMinPurchase: false,
+            Priority: 10,
+            Targets:
+            [
+                new(VolumeRuleTargetType.Category, categoryId.ToString(), IsExclusion: false),
+                new(VolumeRuleTargetType.Product, excludedProductId.ToString(), IsExclusion: true),
+            ]);
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var saved = schemes.Items.Should().ContainSingle().Subject;
+        saved.GroupingMode.Should().Be(VolumeGroupingMode.PerGroup);
+        saved.MinGroupQuantity.Should().Be(5m);
+        saved.EnforceMinPurchase.Should().BeFalse();
+        saved.Priority.Should().Be(10);
+        saved.Targets.Should().HaveCount(2);
+        saved.Targets.Should().Contain(t => t.TargetType == VolumeRuleTargetType.Category && t.TargetReference == categoryId.ToString() && !t.IsExclusion);
+        saved.Targets.Should().Contain(t => t.TargetType == VolumeRuleTargetType.Product && t.TargetReference == excludedProductId.ToString() && t.IsExclusion);
+    }
+
     private static CreateVolumeDiscountSchemeHandler CreateHandler(
         InMemoryVolumeDiscountSchemeRepository schemes,
         InMemoryUnitOfWork uow)

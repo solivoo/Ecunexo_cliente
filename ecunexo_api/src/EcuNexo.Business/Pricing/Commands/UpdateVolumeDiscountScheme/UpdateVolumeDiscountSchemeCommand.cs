@@ -12,7 +12,12 @@ public sealed record UpdateVolumeDiscountSchemeCommand(
     string? Description,
     VolumeDiscountSchemeType Type,
     bool? IsActive,
-    IReadOnlyList<VolumeDiscountTierInput>? Tiers = null) : ICommand<UpdateVolumeDiscountSchemeResponse>;
+    IReadOnlyList<VolumeDiscountTierInput>? Tiers = null,
+    VolumeGroupingMode? GroupingMode = null,
+    decimal? MinGroupQuantity = null,
+    bool? EnforceMinPurchase = null,
+    int? Priority = null,
+    IReadOnlyList<VolumeDiscountTargetInput>? Targets = null) : ICommand<UpdateVolumeDiscountSchemeResponse>;
 
 public sealed record UpdateVolumeDiscountSchemeResponse(Guid SchemeId, Guid TenantId);
 
@@ -53,7 +58,15 @@ public sealed class UpdateVolumeDiscountSchemeHandler : ICommandHandler<UpdateVo
                 new Error("catalog.pricing.volume_scheme.name.duplicate", "Ya existe otro esquema con el mismo nombre.", ErrorType.Conflict));
         }
 
-        var updateResult = scheme.Update(normalizedName, command.Description, command.Type, _caller.UserId);
+        var updateResult = scheme.Update(
+            normalizedName,
+            command.Description,
+            command.Type,
+            _caller.UserId,
+            command.GroupingMode,
+            command.MinGroupQuantity,
+            command.EnforceMinPurchase,
+            command.Priority);
         if (updateResult.IsFailure)
         {
             return Result.Failure<UpdateVolumeDiscountSchemeResponse>(updateResult.Error!);
@@ -80,6 +93,26 @@ public sealed class UpdateVolumeDiscountSchemeHandler : ICommandHandler<UpdateVo
                 if (tierResult.IsFailure)
                 {
                     return Result.Failure<UpdateVolumeDiscountSchemeResponse>(tierResult.Error!);
+                }
+            }
+        }
+
+        if (command.Targets is not null)
+        {
+            scheme.ClearTargets(_caller.UserId);
+
+            foreach (var target in command.Targets)
+            {
+                var targetResult = scheme.AddTarget(
+                    _idGenerator.NewId(),
+                    target.TargetType,
+                    target.TargetReference,
+                    target.IsExclusion,
+                    _caller.UserId);
+
+                if (targetResult.IsFailure)
+                {
+                    return Result.Failure<UpdateVolumeDiscountSchemeResponse>(targetResult.Error!);
                 }
             }
         }

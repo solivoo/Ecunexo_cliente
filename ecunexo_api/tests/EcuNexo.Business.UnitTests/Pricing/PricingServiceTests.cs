@@ -381,6 +381,116 @@ public sealed class PricingServiceTests
         result.Value.AppliedRules.Should().Contain("MARGIN_WARNING_BELOW_COST");
     }
 
+    [Fact(DisplayName = "ResolveCart aplica regla agrupada PackagePrice entre distintas variantes de una matriz")]
+    public async Task ResolveCart_GroupedPackagePrice_ProratesAcrossVariants()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var parent = MatrixParent(tenantId);
+        var variantA = Variant(parent);
+        var variantB = Variant(parent);
+        var list = List(tenantId, "PVP", isDefault: true, includeTax: true);
+
+        var lists = new InMemoryPriceListRepository();
+        lists.Seed(list);
+        var prices = new InMemoryProductPriceRepository();
+        prices.Seed(Price(tenantId, list.Id, variantA.Id, 4.00m));
+        prices.Seed(Price(tenantId, list.Id, variantB.Id, 4.00m));
+
+        var scheme = VolumeDiscountScheme.Create(
+            Guid.CreateVersion7(),
+            tenantId,
+            "Pack 5 Calcetines",
+            null,
+            VolumeDiscountSchemeType.PackagePrice,
+            groupingMode: VolumeGroupingMode.PerGroup,
+            minGroupQuantity: 5m,
+            enforceMinPurchase: false,
+            priority: 10).Value!;
+        scheme.AddTier(Guid.CreateVersion7(), 5m, 11m, 15.00m);
+        scheme.AddTarget(Guid.CreateVersion7(), VolumeRuleTargetType.Matrix, parent.Id.ToString());
+
+        var schemes = new InMemoryVolumeDiscountSchemeRepository();
+        schemes.Seed(scheme);
+
+        var items = Substitute.For<ICatalogItemRepository>();
+        items.GetActiveByIdAsync(tenantId, variantA.Id, Arg.Any<CancellationToken>()).Returns(variantA);
+        items.GetActiveByIdAsync(tenantId, variantB.Id, Arg.Any<CancellationToken>()).Returns(variantB);
+        items.GetActiveByIdAsync(tenantId, parent.Id, Arg.Any<CancellationToken>()).Returns(parent);
+
+        var service = new PricingService(
+            lists,
+            prices,
+            new InMemoryPromotionRepository(),
+            items,
+            new EcuadorTaxRateProvider(),
+            volumeSchemes: schemes);
+
+        var result = await service.ResolveCartAsync(
+            tenantId,
+            new CartPricingRequest(
+                [
+                    new(variantA.Id, 2m),
+                    new(variantB.Id, 3m),
+                ],
+                Today,
+                PricesIncludeTaxOverride: true),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.FinalPrice.Should().Be(15.00m);
+        result.Value.Lines.Should().HaveCount(2);
+        result.Value.Lines.Sum(l => l.FinalPrice).Should().Be(15.00m);
+        result.Value.AppliedRules.Should().Contain(r => r.StartsWith("PAQUETE_", StringComparison.Ordinal));
+    }
+
+    [Fact(DisplayName = "ResolveCart falla si una regla agrupada con EnforceMinPurchase=true no alcanza el mínimo")]
+    public async Task ResolveCart_EnforceMinPurchase_FailsWhenBelowMinGroupQuantity()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var item = Physical(tenantId);
+        var list = List(tenantId, "PVP", isDefault: true, includeTax: true);
+
+        var lists = new InMemoryPriceListRepository();
+        lists.Seed(list);
+        var prices = new InMemoryProductPriceRepository();
+        prices.Seed(Price(tenantId, list.Id, item.Id, 4.00m));
+
+        var scheme = VolumeDiscountScheme.Create(
+            Guid.CreateVersion7(),
+            tenantId,
+            "Mínimo 5 unidades",
+            null,
+            VolumeDiscountSchemeType.PackagePrice,
+            groupingMode: VolumeGroupingMode.PerGroup,
+            minGroupQuantity: 5m,
+            enforceMinPurchase: true,
+            priority: 10).Value!;
+        scheme.AddTier(Guid.CreateVersion7(), 5m, null, 15.00m);
+        scheme.AddTarget(Guid.CreateVersion7(), VolumeRuleTargetType.Product, item.Id.ToString());
+
+        var schemes = new InMemoryVolumeDiscountSchemeRepository();
+        schemes.Seed(scheme);
+
+        var items = Substitute.For<ICatalogItemRepository>();
+        items.GetActiveByIdAsync(tenantId, item.Id, Arg.Any<CancellationToken>()).Returns(item);
+
+        var service = new PricingService(
+            lists,
+            prices,
+            new InMemoryPromotionRepository(),
+            items,
+            new EcuadorTaxRateProvider(),
+            volumeSchemes: schemes);
+
+        var result = await service.ResolveCartAsync(
+            tenantId,
+            new CartPricingRequest([new(item.Id, 3m)], Today, PricesIncludeTaxOverride: true),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("catalog.pricing.group_min_quantity");
+    }
+
     private static PricingService Service(
         InMemoryPriceListRepository lists,
         InMemoryProductPriceRepository prices,

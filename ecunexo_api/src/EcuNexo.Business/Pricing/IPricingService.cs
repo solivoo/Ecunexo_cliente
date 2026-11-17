@@ -38,8 +38,52 @@ public sealed record PricingResult(
     decimal? MarginPercent = null,
     bool IsBelowCost = false);
 
+public sealed record CartPricingLineRequest(
+    Guid CatalogItemId,
+    decimal Quantity,
+    Guid? LineId = null);
+
+public sealed record CartPricingRequest(
+    IReadOnlyList<CartPricingLineRequest> Lines,
+    DateOnly Date,
+    Guid? PriceListId = null,
+    string? CouponCode = null,
+    bool? PricesIncludeTaxOverride = null);
+
+public sealed record CartPricingLineResult(
+    Guid LineId,
+    Guid CatalogItemId,
+    decimal ListPrice,
+    decimal UnitPrice,
+    decimal Quantity,
+    string? TierLabel,
+    decimal Subtotal,
+    decimal DiscountAmount,
+    decimal NetPrice,
+    decimal TaxableBase,
+    decimal TaxAmount,
+    decimal FinalPrice,
+    decimal TaxRate,
+    bool PricesIncludeTax,
+    IReadOnlyList<string> AppliedRules);
+
+public sealed record CartPricingResult(
+    Guid PriceListId,
+    string PriceListCode,
+    string Currency,
+    IReadOnlyList<CartPricingLineResult> Lines,
+    decimal Subtotal,
+    decimal DiscountAmount,
+    decimal NetPrice,
+    decimal TaxableBase,
+    decimal TaxAmount,
+    decimal FinalPrice,
+    IReadOnlyList<string> AppliedRules);
+
 /// <summary>Única fuente de verdad del precio comercial de EcuNexo.</summary>
 public interface IPricingService
 {
     Task<Result<PricingResult>> ResolveAsync(Guid tenantId, PricingRequest request, CancellationToken ct);
+
+    Task<Result<CartPricingResult>> ResolveCartAsync(Guid tenantId, CartPricingRequest request, CancellationToken ct);
 }

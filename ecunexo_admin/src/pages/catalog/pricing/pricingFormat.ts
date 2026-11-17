@@ -1,4 +1,10 @@
-import { PromotionTargetType, PromotionType, VolumeDiscountSchemeType } from '@/types/pricingApi'
+import {
+  PromotionTargetType,
+  PromotionType,
+  VolumeDiscountSchemeType,
+  VolumeGroupingMode,
+  VolumeRuleTargetType,
+} from '@/types/pricingApi'
 
 const moneyFormatter = new Intl.NumberFormat('es-EC', {
   style: 'currency',
@@ -54,7 +60,22 @@ export function isVigentOn(validFrom: string, validTo: string | null, date: stri
 export function volumeSchemeTypeLabel(type: VolumeDiscountSchemeType): string {
   if (type === VolumeDiscountSchemeType.Percentage) return 'Porcentaje (%)'
   if (type === VolumeDiscountSchemeType.FixedAmount) return 'Descuento fijo ($)'
+  if (type === VolumeDiscountSchemeType.PackagePrice) return 'Precio por paquete ($)'
   return 'Precio unitario fijo ($)'
+}
+
+export function volumeGroupingModeLabel(mode: VolumeGroupingMode): string {
+  if (mode === VolumeGroupingMode.PerMatrix) return 'Por matriz'
+  if (mode === VolumeGroupingMode.PerGroup) return 'Grupo / Mix & Match'
+  return 'Por línea'
+}
+
+export function volumeRuleTargetTypeLabel(type: VolumeRuleTargetType): string {
+  if (type === VolumeRuleTargetType.AllItems) return 'Toda la tienda'
+  if (type === VolumeRuleTargetType.Category) return 'Categoría'
+  if (type === VolumeRuleTargetType.Matrix) return 'Matriz'
+  if (type === VolumeRuleTargetType.Variant) return 'Variante'
+  return 'Producto'
 }
 
 /** Margen bruto (%) sobre el precio de venta, usando el costo promedio ponderado de inventario. */
@@ -75,6 +96,9 @@ export function formatVolumeTiersSummary(
       const range = t.quantityTo ? `${t.quantityFrom}–${t.quantityTo} un.` : `≥${t.quantityFrom} un.`
       if (type === VolumeDiscountSchemeType.FixedPrice) {
         return `${range}: ${formatMoney(t.value)} c/u`
+      }
+      if (type === VolumeDiscountSchemeType.PackagePrice) {
+        return `${t.quantityFrom} un. = ${formatMoney(t.value)}`
       }
       const val = type === VolumeDiscountSchemeType.Percentage ? `${t.value}%` : formatMoney(t.value)
       return `${range}: -${val}`

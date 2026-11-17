@@ -345,7 +345,18 @@ internal sealed class InMemoryVolumeDiscountSchemeRepository : IVolumeDiscountSc
     {
         IReadOnlyList<VolumeDiscountScheme> result = _items
             .Where(s => s.TenantId == tenantId && (!onlyActive || s.IsActive))
-            .OrderBy(s => s.Name)
+            .OrderByDescending(s => s.Priority)
+            .ThenBy(s => s.Name)
+            .ToList();
+        return Task.FromResult(result);
+    }
+
+    public Task<IReadOnlyList<VolumeDiscountScheme>> ListActiveGroupRulesAsync(Guid tenantId, CancellationToken ct)
+    {
+        IReadOnlyList<VolumeDiscountScheme> result = _items
+            .Where(s => s.TenantId == tenantId && s.IsActive && s.GroupingMode != VolumeGroupingMode.PerLine)
+            .OrderByDescending(s => s.Priority)
+            .ThenBy(s => s.Name)
             .ToList();
         return Task.FromResult(result);
     }

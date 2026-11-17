@@ -1,6 +1,7 @@
 import { api } from '@/lib/apiClient'
 import type {
   BulkCreateProductPricesBody,
+  CartPricingResultDto,
   CreatePriceListBody,
   CreateProductPriceBody,
   CreatePromotionBody,
@@ -12,6 +13,7 @@ import type {
   ProductPriceFilters,
   ProductPriceListItemDto,
   PromotionDto,
+  ResolveCartBody,
   ResolvePriceBody,
   UpdatePriceListBody,
   UpdateProductPriceBody,
@@ -179,6 +181,14 @@ export async function resolvePrice(
   body: ResolvePriceBody
 ): Promise<PricingResultDto> {
   const { data } = await api.post<PricingResultDto>(`${base(tenantId)}/resolve`, body)
+  return data
+}
+
+export async function resolveCart(
+  tenantId: string,
+  body: ResolveCartBody
+): Promise<CartPricingResultDto> {
+  const { data } = await api.post<CartPricingResultDto>(`${base(tenantId)}/resolve-cart`, body)
   return data
 }
 

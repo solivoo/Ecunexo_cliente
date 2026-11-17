@@ -16,8 +16,10 @@ import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import {
+  volumeGroupingModeLabel,
   volumeSchemeTypeLabel,
 } from '@/pages/catalog/pricing/pricingFormat'
+import { listCatalogItems, listCategories } from '@/services/catalogApi'
 import {
   createVolumeDiscountScheme,
   deleteVolumeDiscountScheme,
@@ -26,9 +28,13 @@ import {
 } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
+import type { CatalogItemListItemDto, CategoryListItemDto } from '@/types/catalogApi'
 import {
   VolumeDiscountSchemeType,
+  VolumeGroupingMode,
+  VolumeRuleTargetType,
   type VolumeDiscountSchemeDto,
+  type VolumeDiscountTargetBody,
   type VolumeDiscountTierBody,
 } from '@/types/pricingApi'
 
@@ -39,6 +45,13 @@ interface TierDraft {
   quantityFrom: number
   quantityTo: number | null
   value: number
+}
+
+interface TargetDraft {
+  id: string
+  targetType: VolumeRuleTargetType
+  targetReference: string
+  isExclusion: boolean
 }
 
 const gridMessages = createSpanishDataGridMessages('escala', 'escalas')
@@ -63,9 +76,16 @@ export function VolumeDiscountSchemesListPage() {
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
   const [formType, setFormType] = useState<VolumeDiscountSchemeType>(VolumeDiscountSchemeType.Percentage)
+  const [formGroupingMode, setFormGroupingMode] = useState<VolumeGroupingMode>(VolumeGroupingMode.PerLine)
+  const [formMinGroupQuantity, setFormMinGroupQuantity] = useState<number | null>(null)
+  const [formEnforceMinPurchase, setFormEnforceMinPurchase] = useState(false)
+  const [formPriority, setFormPriority] = useState(0)
+  const [formTargets, setFormTargets] = useState<TargetDraft[]>([])
   const [formTiers, setFormTiers] = useState<TierDraft[]>([])
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [categories, setCategories] = useState<CategoryListItemDto[]>([])
+  const [catalogItems, setCatalogItems] = useState<CatalogItemListItemDto[]>([])
 
   // Confirmar desactivación
   const [confirmDeactivate, setConfirmDeactivate] = useState<VolumeDiscountSchemeDto | null>(null)
@@ -91,10 +111,14 @@ export function VolumeDiscountSchemesListPage() {
   }, [statusFilter, tenantId, toast])
 
   useEffect(() => {
-    if (!canRead) return
+    if (!canRead || !tenantId) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
-  }, [canRead, load])
+    void listCategories(tenantId).then(setCategories).catch(() => setCategories([]))
+    void listCatalogItems(tenantId, { includeParents: true })
+      .then(setCatalogItems)
+      .catch(() => setCatalogItems([]))
+  }, [canRead, load, tenantId])
 
   const totalCount = rows.length
   const activeCount = useMemo(() => rows.filter((r) => r.isActive).length, [rows])
@@ -122,6 +146,11 @@ export function VolumeDiscountSchemesListPage() {
     setFormName('')
     setFormDescription('')
     setFormType(VolumeDiscountSchemeType.Percentage)
+    setFormGroupingMode(VolumeGroupingMode.PerLine)
+    setFormMinGroupQuantity(null)
+    setFormEnforceMinPurchase(false)
+    setFormPriority(0)
+    setFormTargets([])
     setFormTiers([
       { id: '1', quantityFrom: 3, quantityTo: 5, value: 5 },
       { id: '2', quantityFrom: 6, quantityTo: 11, value: 10 },
@@ -136,6 +165,18 @@ export function VolumeDiscountSchemesListPage() {
     setFormName(scheme.name)
     setFormDescription(scheme.description ?? '')
     setFormType(scheme.type)
+    setFormGroupingMode(scheme.groupingMode ?? VolumeGroupingMode.PerLine)
+    setFormMinGroupQuantity(scheme.minGroupQuantity ?? null)
+    setFormEnforceMinPurchase(Boolean(scheme.enforceMinPurchase))
+    setFormPriority(scheme.priority ?? 0)
+    setFormTargets(
+      (scheme.targets ?? []).map((t, idx) => ({
+        id: t.id || String(idx),
+        targetType: t.targetType,
+        targetReference: t.targetReference ?? '',
+        isExclusion: t.isExclusion,
+      }))
+    )
     setFormTiers(
       scheme.tiers.map((t, idx) => ({
         id: t.id || String(idx),
@@ -146,6 +187,33 @@ export function VolumeDiscountSchemesListPage() {
     )
     setFormError(null)
     setModalOpen(true)
+  }
+
+  const handleAddTarget = () => {
+    setFormTargets((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        targetType: VolumeRuleTargetType.Category,
+        targetReference: categories[0]?.id ?? '',
+        isExclusion: false,
+      },
+    ])
+  }
+
+  const handleRemoveTarget = (index: number) => {
+    setFormTargets((prev) => prev.filter((_, idx) => idx !== index))
+  }
+
+  const handleTargetChange = (
+    index: number,
+    patch: Partial<Pick<TargetDraft, 'targetType' | 'targetReference' | 'isExclusion'>>
+  ) => {
+    setFormTargets((prev) => {
+      const next = [...prev]
+      next[index] = { ...next[index], ...patch }
+      return next
+    })
   }
 
   const handleAddTier = () => {
@@ -235,6 +303,14 @@ export function VolumeDiscountSchemesListPage() {
       isActive: true,
     }))
 
+    const targetsPayload: VolumeDiscountTargetBody[] = formTargets
+      .filter((t) => t.targetType === VolumeRuleTargetType.AllItems || t.targetReference.trim() !== '')
+      .map((t) => ({
+        targetType: t.targetType,
+        targetReference: t.targetType === VolumeRuleTargetType.AllItems ? '*' : t.targetReference.trim(),
+        isExclusion: t.isExclusion,
+      }))
+
     try {
       if (editingScheme) {
         await updateVolumeDiscountScheme(tenantId, editingScheme.id, {
@@ -243,6 +319,11 @@ export function VolumeDiscountSchemesListPage() {
           type: formType,
           isActive: editingScheme.isActive,
           tiers: tiersPayload,
+          groupingMode: formGroupingMode,
+          minGroupQuantity: formMinGroupQuantity && formMinGroupQuantity > 0 ? formMinGroupQuantity : null,
+          enforceMinPurchase: formEnforceMinPurchase,
+          priority: formPriority,
+          targets: targetsPayload,
         })
         toast.show({
           title: 'Escala actualizada',
@@ -255,6 +336,11 @@ export function VolumeDiscountSchemesListPage() {
           description: formDescription.trim() || null,
           type: formType,
           tiers: tiersPayload,
+          groupingMode: formGroupingMode,
+          minGroupQuantity: formMinGroupQuantity && formMinGroupQuantity > 0 ? formMinGroupQuantity : null,
+          enforceMinPurchase: formEnforceMinPurchase,
+          priority: formPriority,
+          targets: targetsPayload,
         })
         toast.show({
           title: 'Escala creada',
@@ -355,15 +441,37 @@ export function VolumeDiscountSchemesListPage() {
                     <strong style={{ color: 'var(--color-primary-dark, #0f766e)' }}>
                       {row.type === VolumeDiscountSchemeType.FixedPrice
                         ? `$${t.value} c/u`
-                        : row.type === VolumeDiscountSchemeType.Percentage
-                          ? `-${t.value}%`
-                          : `-$${t.value}`}
+                        : row.type === VolumeDiscountSchemeType.PackagePrice
+                          ? `$${t.value} paq.`
+                          : row.type === VolumeDiscountSchemeType.Percentage
+                            ? `-${t.value}%`
+                            : `-$${t.value}`}
                     </strong>
                   </span>
                 ))
             )}
           </div>
         ),
+      },
+      {
+        key: 'groupingMode',
+        header: 'Agrupación y alcance',
+        width: 210,
+        sortable: true,
+        renderCell: (_value, row) => {
+          const targetsCount = row.targets?.length ?? 0
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.8125rem' }}>
+              <span style={{ fontWeight: 600 }}>{volumeGroupingModeLabel(row.groupingMode)}</span>
+              <span style={{ color: 'var(--glb-muted, #64748b)' }}>
+                {targetsCount > 0
+                  ? `${targetsCount} ${targetsCount === 1 ? 'regla de alcance' : 'reglas de alcance'}`
+                  : 'Asignación directa'}
+                {row.enforceMinPurchase && row.minGroupQuantity ? ` · Mín. ${row.minGroupQuantity} oblig.` : ''}
+              </span>
+            </div>
+          )
+        },
       },
       {
         key: 'isActive',
@@ -579,12 +687,66 @@ export function VolumeDiscountSchemesListPage() {
                 { value: String(VolumeDiscountSchemeType.Percentage), label: 'Descuento porcentual (%)' },
                 { value: String(VolumeDiscountSchemeType.FixedAmount), label: 'Descuento fijo por unidad ($)' },
                 { value: String(VolumeDiscountSchemeType.FixedPrice), label: 'Precio unitario fijo ($)' },
+                { value: String(VolumeDiscountSchemeType.PackagePrice), label: 'Precio por paquete ($)' },
               ]}
               value={String(formType)}
               onChange={(val) => setFormType(Number(val) as VolumeDiscountSchemeType)}
               fullWidth
             />
           </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', alignItems: 'center' }}>
+            <Select
+              id="scheme-grouping"
+              label="Modo de agrupación"
+              labelPosition="outlined"
+              variant="outline"
+              options={[
+                { value: String(VolumeGroupingMode.PerLine), label: 'Por línea (SKU)' },
+                { value: String(VolumeGroupingMode.PerMatrix), label: 'Por matriz (variantes)' },
+                { value: String(VolumeGroupingMode.PerGroup), label: 'Grupo / Mix & Match' },
+              ]}
+              value={String(formGroupingMode)}
+              onChange={(val) => setFormGroupingMode(Number(val) as VolumeGroupingMode)}
+              fullWidth
+            />
+
+            <NumberBox
+              value={formMinGroupQuantity ?? ''}
+              min={1}
+              step={1}
+              label="Mínimo de grupo (un.)"
+              labelPosition="outlined"
+              variant="outline"
+              placeholder="Opcional"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                const raw = e.target.value.trim()
+                const num = Number(raw)
+                setFormMinGroupQuantity(!raw || isNaN(num) || num <= 0 ? null : num)
+              }}
+              fullWidth
+            />
+
+            <NumberBox
+              value={formPriority}
+              min={0}
+              step={1}
+              label="Prioridad"
+              labelPosition="outlined"
+              variant="outline"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setFormPriority(Number(e.target.value) || 0)}
+              fullWidth
+            />
+          </div>
+
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={formEnforceMinPurchase}
+              onChange={(e) => setFormEnforceMinPurchase(e.target.checked)}
+            />
+            <span>Exigir mínimo de grupo obligatorio (bloquea compra si no alcanza el mínimo)</span>
+          </label>
 
           <TextBox
             id="scheme-desc"
@@ -652,7 +814,9 @@ export function VolumeDiscountSchemesListPage() {
                     ? 'Descuento (%)'
                     : formType === VolumeDiscountSchemeType.FixedPrice
                       ? 'Precio unitario ($)'
-                      : 'Descuento ($/un.)'}
+                      : formType === VolumeDiscountSchemeType.PackagePrice
+                        ? 'Precio paquete ($)'
+                        : 'Descuento ($/un.)'}
                 </span>
                 <span />
               </div>
@@ -710,6 +874,128 @@ export function VolumeDiscountSchemesListPage() {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div
+            style={{
+              border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+              borderRadius: '8px',
+              padding: '1rem',
+              backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.06))',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+                gap: '0.75rem',
+              }}
+            >
+              <div>
+                <strong style={{ fontSize: '0.9375rem' }}>Alcance de la regla (Opcional / Mix & Match)</strong>
+                <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: 'var(--glb-muted, #94a3b8)' }}>
+                  Define qué categorías, matrices o productos participan en el conteo agrupado y cuáles quedan excluidos.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                iconLeft={<Plus size={14} />}
+                onClick={handleAddTarget}
+              >
+                Agregar objetivo
+              </Button>
+            </div>
+
+            {formTargets.length === 0 ? (
+              <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--glb-muted, #94a3b8)' }}>
+                Sin objetivos configurados (se aplicará solo a los productos donde asignes esta escala manualmente).
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {formTargets.map((target, idx) => {
+                  const referenceOptions =
+                    target.targetType === VolumeRuleTargetType.Category
+                      ? categories.map((c) => ({ value: c.id, label: c.name }))
+                      : target.targetType === VolumeRuleTargetType.Matrix
+                        ? catalogItems
+                            .filter((i) => i.isMatrixParent)
+                            .map((i) => ({ value: i.id, label: i.sku ? `${i.name} (${i.sku})` : i.name }))
+                        : target.targetType === VolumeRuleTargetType.Variant
+                          ? catalogItems
+                              .filter((i) => i.parentId !== null)
+                              .map((i) => ({ value: i.id, label: i.sku ? `${i.name} (${i.sku})` : i.name }))
+                          : catalogItems
+                              .filter((i) => !i.isMatrixParent)
+                              .map((i) => ({ value: i.id, label: i.sku ? `${i.name} (${i.sku})` : i.name }))
+
+                  return (
+                    <div
+                      key={target.id}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '120px 150px 1fr 44px',
+                        gap: '0.5rem',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Select
+                        options={[
+                          { value: 'include', label: 'Incluir' },
+                          { value: 'exclude', label: 'Excluir' },
+                        ]}
+                        value={target.isExclusion ? 'exclude' : 'include'}
+                        onChange={(val) => handleTargetChange(idx, { isExclusion: val === 'exclude' })}
+                        variant="outline"
+                        fullWidth
+                      />
+                      <Select
+                        options={[
+                          { value: String(VolumeRuleTargetType.AllItems), label: 'Toda la tienda' },
+                          { value: String(VolumeRuleTargetType.Category), label: 'Categoría' },
+                          { value: String(VolumeRuleTargetType.Matrix), label: 'Matriz' },
+                          { value: String(VolumeRuleTargetType.Product), label: 'Producto' },
+                          { value: String(VolumeRuleTargetType.Variant), label: 'Variante' },
+                        ]}
+                        value={String(target.targetType)}
+                        onChange={(val) => {
+                          const nextType = Number(val) as VolumeRuleTargetType
+                          handleTargetChange(idx, {
+                            targetType: nextType,
+                            targetReference: nextType === VolumeRuleTargetType.AllItems ? '*' : '',
+                          })
+                        }}
+                        variant="outline"
+                        fullWidth
+                      />
+                      {target.targetType === VolumeRuleTargetType.AllItems ? (
+                        <span style={{ fontSize: '0.8125rem', color: 'var(--glb-muted, #94a3b8)', paddingLeft: '0.5rem' }}>
+                          Aplica a todo el catálogo
+                        </span>
+                      ) : (
+                        <Select
+                          options={referenceOptions}
+                          value={target.targetReference}
+                          placeholder="Selecciona un elemento..."
+                          onChange={(val) => handleTargetChange(idx, { targetReference: String(val) })}
+                          variant="outline"
+                          fullWidth
+                        />
+                      )}
+                      <GridIconButton
+                        label="Eliminar objetivo"
+                        icon={Trash2}
+                        danger
+                        onClick={() => handleRemoveTarget(idx)}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </Popup>

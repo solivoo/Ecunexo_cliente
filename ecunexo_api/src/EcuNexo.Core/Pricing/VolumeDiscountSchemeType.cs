@@ -13,4 +13,7 @@ public enum VolumeDiscountSchemeType
 
     /// <summary>Precio unitario comercial fijo para el escalón (ej. $2.50 c/u).</summary>
     FixedPrice = 2,
+
+    /// <summary>Precio exacto por paquete/lote de N unidades (ej. 5 un. = $15.00, 12 un. = $34.00).</summary>
+    PackagePrice = 3,
 }

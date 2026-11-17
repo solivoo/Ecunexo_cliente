@@ -77,34 +77,44 @@ public sealed class CalculateStorefrontQuoteHandler
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var now = DateTimeOffset.UtcNow;
 
-        var baseResults = new List<(Guid ItemId, int Quantity, PricingResult Resolved)>(query.Items.Count);
-        foreach (var item in query.Items)
+        var requestedLines = query.Items
+            .Where(item => item.Quantity > 0)
+            .Select(item => new CartPricingLineRequest(item.CatalogItemId, item.Quantity, Guid.NewGuid()))
+            .ToList();
+
+        if (requestedLines.Count == 0)
         {
-            if (item.Quantity <= 0)
-            {
-                continue;
-            }
-
-            var resolved = await _pricing.ResolveAsync(
-                query.TenantId,
-                new PricingRequest(
-                    item.CatalogItemId,
-                    item.Quantity,
-                    today,
-                    PricesIncludeTaxOverride: true),
-                ct).ConfigureAwait(false);
-
-            if (resolved.IsFailure)
-            {
-                return Result.Failure<StorefrontCheckoutQuoteDto>(resolved.Error!);
-            }
-
-            baseResults.Add((item.CatalogItemId, item.Quantity, resolved.Value!));
+            return Result.Success(new StorefrontCheckoutQuoteDto(
+                Items: [],
+                GrossSubtotal: 0m,
+                PromotionDiscountAmount: 0m,
+                CouponDiscountAmount: 0m,
+                DiscountAmount: 0m,
+                Subtotal: 0m,
+                TaxRate: DefaultTaxRate,
+                TaxAmount: 0m,
+                PricesIncludeTax: true,
+                ShippingCost: shippingCost,
+                TotalAmount: shippingCost));
         }
 
-        var grossSubtotal = Round(baseResults.Sum(r => r.Resolved.ListPrice * r.Quantity));
-        var autoDiscountTotal = Round(baseResults.Sum(r =>
-            (r.Resolved.ListPrice * r.Quantity) - r.Resolved.NetPrice));
+        var baseCartResult = await _pricing.ResolveCartAsync(
+            query.TenantId,
+            new CartPricingRequest(
+                requestedLines,
+                today,
+                PricesIncludeTaxOverride: true),
+            ct).ConfigureAwait(false);
+
+        if (baseCartResult.IsFailure)
+        {
+            return Result.Failure<StorefrontCheckoutQuoteDto>(baseCartResult.Error!);
+        }
+
+        var baseCart = baseCartResult.Value!;
+        var grossSubtotal = Round(baseCart.Lines.Sum(r => r.ListPrice * r.Quantity));
+        var autoDiscountTotal = Round(baseCart.Lines.Sum(r =>
+            (r.ListPrice * r.Quantity) - r.NetPrice));
 
         string? normalizedCouponCode = string.IsNullOrWhiteSpace(query.CouponCode)
             ? null
@@ -145,36 +155,34 @@ public sealed class CalculateStorefrontQuoteHandler
             }
         }
 
-        var finalResults = baseResults;
+        var finalCart = baseCart;
         if (validCoupon is not null)
         {
-            var withCouponResults = new List<(Guid ItemId, int Quantity, PricingResult Resolved)>(baseResults.Count);
-            foreach (var entry in baseResults)
+            var couponCartResult = await _pricing.ResolveCartAsync(
+                query.TenantId,
+                new CartPricingRequest(
+                    requestedLines,
+                    today,
+                    CouponCode: validCoupon.Code,
+                    PricesIncludeTaxOverride: true),
+                ct).ConfigureAwait(false);
+
+            if (couponCartResult.IsSuccess)
             {
-                var resolvedWithCoupon = await _pricing.ResolveAsync(
-                    query.TenantId,
-                    new PricingRequest(
-                        entry.ItemId,
-                        entry.Quantity,
-                        today,
-                        CouponCode: validCoupon.Code,
-                        PricesIncludeTaxOverride: true),
-                    ct).ConfigureAwait(false);
+                var couponCart = couponCartResult.Value!;
+                var totalDiscountWithCoupon = Round(couponCart.Lines.Sum(r =>
+                    (r.ListPrice * r.Quantity) - r.NetPrice));
 
-                withCouponResults.Add((
-                    entry.ItemId,
-                    entry.Quantity,
-                    resolvedWithCoupon.IsSuccess ? resolvedWithCoupon.Value! : entry.Resolved));
-            }
-
-            var totalDiscountWithCoupon = Round(withCouponResults.Sum(r =>
-                (r.Resolved.ListPrice * r.Quantity) - r.Resolved.NetPrice));
-
-            if (totalDiscountWithCoupon > autoDiscountTotal)
-            {
-                finalResults = withCouponResults;
-                couponApplied = true;
-                couponMessage = $"Código {validCoupon.Code} aplicado.";
+                if (totalDiscountWithCoupon > autoDiscountTotal)
+                {
+                    finalCart = couponCart;
+                    couponApplied = true;
+                    couponMessage = $"Código {validCoupon.Code} aplicado.";
+                }
+                else
+                {
+                    couponMessage = "Este código promocional no aplica a los productos de tu carrito.";
+                }
             }
             else
             {
@@ -182,23 +190,22 @@ public sealed class CalculateStorefrontQuoteHandler
             }
         }
 
-        var lines = new List<StorefrontCheckoutQuoteLineDto>(finalResults.Count);
-        foreach (var entry in finalResults)
+        var lines = new List<StorefrontCheckoutQuoteLineDto>(finalCart.Lines.Count);
+        foreach (var r in finalCart.Lines)
         {
-            var r = entry.Resolved;
-            var lineGross = Round(r.ListPrice * entry.Quantity);
+            var lineGross = Round(r.ListPrice * r.Quantity);
             var lineTotal = Round(r.FinalPrice);
             var lineDiscount = Math.Max(0m, lineGross - lineTotal);
-            var effectiveUnit = entry.Quantity > 0
-                ? Round(lineTotal / entry.Quantity)
+            var effectiveUnit = r.Quantity > 0
+                ? Round(lineTotal / r.Quantity)
                 : r.UnitPrice;
             var discountPercent = lineGross > 0m && lineTotal < lineGross
                 ? (int)Math.Round((1m - (lineTotal / lineGross)) * 100m, MidpointRounding.AwayFromZero)
                 : (int?)null;
 
             lines.Add(new StorefrontCheckoutQuoteLineDto(
-                entry.ItemId,
-                entry.Quantity,
+                r.CatalogItemId,
+                (int)r.Quantity,
                 r.ListPrice,
                 effectiveUnit,
                 lineGross,
@@ -216,7 +223,7 @@ public sealed class CalculateStorefrontQuoteHandler
         var promotionDiscountAmount = Math.Max(0m, Round(totalDiscount - couponDiscountAmount));
         var subtotalExTax = Round(lines.Sum(l => l.LineSubtotalExTax));
         var taxAmount = Round(lines.Sum(l => l.LineTaxAmount));
-        var taxRate = finalResults.Count > 0 ? finalResults[0].Resolved.TaxRate : DefaultTaxRate;
+        var taxRate = finalCart.Lines.Count > 0 ? finalCart.Lines[0].TaxRate : DefaultTaxRate;
         var totalAmount = Round(subtotalExTax + taxAmount + shippingCost);
 
         return Result.Success(new StorefrontCheckoutQuoteDto(

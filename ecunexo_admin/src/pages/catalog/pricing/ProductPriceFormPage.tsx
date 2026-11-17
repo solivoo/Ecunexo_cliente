@@ -568,35 +568,70 @@ export function ProductPriceFormPage() {
       onSelectionChange={(rows) => handleSelectionChange(rows as ProductPriceRow[])}
       showSearch={false}
       toolbarLeft={
-        <div style={{ minWidth: 260, maxWidth: 380, width: '100%' }}>
-          <TextBox
-            id="pp-grid-search"
-            label="Buscar producto por SKU o descripción"
-            labelPosition="outlined"
-            variant="outline"
-            value={search}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-              setSearch(e.target.value)
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 220, maxWidth: 300, width: '100%' }}>
+            <TextBox
+              id="pp-grid-search"
+              label="Buscar producto"
+              labelPosition="outlined"
+              variant="outline"
+              value={search}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                setSearch(e.target.value)
+                onPageChange(0)
+              }}
+              placeholder="SKU o nombre…"
+              disabled={busy || loading}
+              fullWidth
+            />
+          </div>
+          <CheckButton
+            variant="ghost"
+            size="sm"
+            checked={onlyWithoutPrice}
+            onChange={(checked) => {
+              setOnlyWithoutPrice(checked)
               onPageChange(0)
             }}
-            placeholder="Escribe para buscar en el catálogo…"
             disabled={busy || loading}
-            fullWidth
-          />
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            Sin precio
+          </CheckButton>
         </div>
       }
       toolbarRight={
-        <CheckButton
-          variant="ghost"
-          checked={onlyWithoutPrice}
-          onChange={(checked) => {
-            setOnlyWithoutPrice(checked)
-            onPageChange(0)
-          }}
-          disabled={busy || loading}
-        >
-          Solo productos sin precio en esta lista
-        </CheckButton>
+        selectedItemIds.length > 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+            <StatusBadge tone="success">{selectedItemIds.length} sel.</StatusBadge>
+            {renewingIds.length > 0 ? (
+              <span className="ecu-chip">{renewingIds.length} renuevan</span>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy || loading}
+              onClick={() => setShowCatalogPicker(false)}
+            >
+              Ocultar
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy || loading}
+              onClick={() => {
+                setSelectedItemIds([])
+                setPrice('')
+                setPriceTouched(false)
+                setCostInfo(null)
+              }}
+            >
+              Limpiar
+            </Button>
+          </div>
+        ) : undefined
       }
       paging={paging}
       pageSizeOptions={pageSizeOptions}
@@ -720,114 +755,110 @@ export function ProductPriceFormPage() {
                   <span className="ecu-chip">Costo: ${effectiveCostInfo.averageCost.toFixed(4)}</span>
                 ) : null}
               </div>
-            ) : selectedItemIds.length > 0 ? (
-              <>
-                <div style={{ padding: '0.85rem 1.15rem' }}>
+            ) : selectedItemIds.length > 0 && !showCatalogPicker ? (
+              <div style={{ padding: '0.85rem 1.15rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+                    backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.05))',
+                  }}
+                >
                   <div
                     style={{
                       display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.5rem',
-                      padding: '0.85rem 1rem',
-                      borderRadius: '8px',
-                      border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
-                      backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.05))',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem',
                     }}
                   >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: '0.75rem',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <StatusBadge tone="success">
-                          {selectedItemIds.length === 1
-                            ? 'Producto seleccionado'
-                            : `${selectedItemIds.length} productos seleccionados`}
-                        </StatusBadge>
-                        {selectedItemIds.length === 1 && selectedItem ? (
-                          <>
-                            <span
-                              className="ecu-code"
-                              style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem' }}
-                            >
-                              {selectedItem.sku ?? 'Sin SKU'}
-                            </span>
-                            <strong style={{ fontSize: '1rem', color: 'var(--glb-text, inherit)' }}>
-                              {selectedItem.description?.trim() || selectedItem.name}
-                            </strong>
-                          </>
-                        ) : renewingIds.length > 0 ? (
-                          <span className="ecu-chip">{renewingIds.length} renovarán vigencia</span>
-                        ) : null}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={busy || loading}
-                          onClick={() => setShowCatalogPicker((prev) => !prev)}
-                        >
-                          {showCatalogPicker ? 'Ocultar catálogo' : 'Cambiar / Ver catálogo'}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={busy || loading}
-                          onClick={() => {
-                            setSelectedItemIds([])
-                            setPrice('')
-                            setPriceTouched(false)
-                            setCostInfo(null)
-                            setShowCatalogPicker(true)
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <StatusBadge tone="success">
+                        {selectedItemIds.length === 1
+                          ? '1 sel.'
+                          : `${selectedItemIds.length} sel.`}
+                      </StatusBadge>
+                      {selectedItemIds.length === 1 && selectedItem ? (
+                        <>
+                          <span
+                            className="ecu-code"
+                            style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem' }}
+                          >
+                            {selectedItem.sku ?? 'Sin SKU'}
+                          </span>
+                          <strong style={{ fontSize: '1rem', color: 'var(--glb-text, inherit)' }}>
+                            {selectedItem.description?.trim() || selectedItem.name}
+                          </strong>
+                        </>
+                      ) : renewingIds.length > 0 ? (
+                        <span className="ecu-chip">{renewingIds.length} renuevan</span>
+                      ) : null}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy || loading}
+                        onClick={() => setShowCatalogPicker(true)}
+                      >
+                        Ver catálogo
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={busy || loading}
+                        onClick={() => {
+                          setSelectedItemIds([])
+                          setPrice('')
+                          setPriceTouched(false)
+                          setCostInfo(null)
+                          setShowCatalogPicker(true)
+                        }}
+                      >
+                        Limpiar
+                      </Button>
+                    </div>
+                  </div>
+
+                  {selectedItemIds.length === 1 && (effectiveCostInfo || currentVigent || marginPercent != null) ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {effectiveCostInfo ? (
+                        <span className="ecu-chip">Costo: ${effectiveCostInfo.averageCost.toFixed(4)}</span>
+                      ) : null}
+                      {currentVigent ? (
+                        <span className="ecu-chip">
+                          Vigente: <strong>${currentVigent.price.toFixed(2)}</strong>
+                        </span>
+                      ) : null}
+                      {marginPercent != null ? (
+                        <span
+                          className="ecu-chip"
+                          style={{
+                            color:
+                              marginPercent < 0
+                                ? 'var(--color-danger, #ef4444)'
+                                : marginPercent < 15
+                                  ? 'var(--color-warning, #d97706)'
+                                  : 'var(--color-success, #16a34a)',
+                            fontWeight: 600,
                           }}
                         >
-                          Limpiar selección
-                        </Button>
-                      </div>
+                          {marginPercent < 0
+                            ? `Bajo costo (${marginPercent.toFixed(1)}%)`
+                            : `Margen: ${marginPercent.toFixed(1)}%`}
+                        </span>
+                      ) : null}
                     </div>
-
-                    {selectedItemIds.length === 1 && (effectiveCostInfo || currentVigent || marginPercent != null) ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        {effectiveCostInfo ? (
-                          <span className="ecu-chip">Costo: ${effectiveCostInfo.averageCost.toFixed(4)}</span>
-                        ) : null}
-                        {currentVigent ? (
-                          <span className="ecu-chip">
-                            Vigente: <strong>${currentVigent.price.toFixed(2)}</strong>
-                          </span>
-                        ) : null}
-                        {marginPercent != null ? (
-                          <span
-                            className="ecu-chip"
-                            style={{
-                              color:
-                                marginPercent < 0
-                                  ? 'var(--color-danger, #ef4444)'
-                                  : marginPercent < 15
-                                    ? 'var(--color-warning, #d97706)'
-                                    : 'var(--color-success, #16a34a)',
-                              fontWeight: 600,
-                            }}
-                          >
-                            {marginPercent < 0
-                              ? `Bajo costo (${marginPercent.toFixed(1)}%)`
-                              : `Margen: ${marginPercent.toFixed(1)}%`}
-                          </span>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
+                  ) : null}
                 </div>
-
-                {showCatalogPicker ? catalogPickerNode : null}
-              </>
+              </div>
             ) : (
               catalogPickerNode
             )}

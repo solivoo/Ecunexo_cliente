@@ -12,7 +12,7 @@ import { readApiError } from '@/lib/readApiError'
 import { CatalogItemPicker } from '@/pages/catalog/pricing/CatalogItemPicker'
 import { formatMoney, todayIso } from '@/pages/catalog/pricing/pricingFormat'
 import { listCatalogItems } from '@/services/catalogApi'
-import { listPriceLists, resolvePrice } from '@/services/pricingApi'
+import { listPriceLists, resolveCart, resolvePrice } from '@/services/pricingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { CatalogItemListItemDto } from '@/types/catalogApi'
@@ -88,21 +88,47 @@ export function PriceSimulatorPage() {
     setError(null)
     setBusy(true)
     try {
-      const updated = await Promise.all(
-        batchLines.map(async (line) => {
-          const res = await resolvePrice(tenantId, {
-            catalogItemId: line.itemId,
-            quantity: Math.max(1, Number(line.quantity) || 1),
-            date,
-            priceListId: listId || undefined,
-          })
-          return { ...line, result: res }
+      const cart = await resolveCart(tenantId, {
+        lines: batchLines.map((line) => ({
+          catalogItemId: line.itemId,
+          quantity: Math.max(1, Number(line.quantity) || 1),
+          lineId: line.itemId,
+        })),
+        date,
+        priceListId: listId || undefined,
+      })
+
+      const byId = new Map(cart.lines.map((l) => [l.lineId || l.catalogItemId, l]))
+      setBatchLines((prev) =>
+        prev.map((line) => {
+          const matched = byId.get(line.itemId)
+          if (!matched) return { ...line, result: null }
+          return {
+            ...line,
+            result: {
+              catalogItemId: matched.catalogItemId,
+              priceListId: cart.priceListId,
+              priceListCode: cart.priceListCode,
+              listPrice: matched.listPrice,
+              unitPrice: matched.unitPrice,
+              tierPrice: null,
+              tierLabel: matched.tierLabel,
+              subtotal: matched.subtotal,
+              discountAmount: matched.discountAmount,
+              netPrice: matched.netPrice,
+              taxableBase: matched.taxableBase,
+              taxAmount: matched.taxAmount,
+              finalPrice: matched.finalPrice,
+              taxRate: matched.taxRate,
+              pricesIncludeTax: matched.pricesIncludeTax,
+              currency: cart.currency,
+              appliedRules: matched.appliedRules,
+            },
+          }
         })
       )
-      setBatchLines(updated)
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : readApiError(err, 'No se pudo simular el lote.')
+      const message = readApiError(err, 'No se pudo simular el carrito.')
       setError(message)
       toast.show({ title: 'Error al simular tabla', message, variant: 'error' })
     } finally {

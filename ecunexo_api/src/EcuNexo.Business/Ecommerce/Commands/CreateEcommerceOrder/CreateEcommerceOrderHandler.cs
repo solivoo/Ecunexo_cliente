@@ -125,6 +125,7 @@ public sealed class CreateEcommerceOrderHandler
 
         var order = orderResult.Value!;
 
+        var validatedItems = new List<(Guid LineId, CatalogItem CatalogItem, CreateEcommerceOrderItemInput Input)>(command.Items.Count);
         foreach (var itemInput in command.Items)
         {
             var catalogItem = await _catalogItems.GetActiveByIdAsync(command.TenantId, itemInput.CatalogItemId, ct).ConfigureAwait(false);
@@ -172,13 +173,67 @@ public sealed class CreateEcommerceOrderHandler
                 }
             }
 
-            var itemResult = await BuildItem(command, order, catalogItem, itemInput, ct).ConfigureAwait(false);
-            if (itemResult.IsFailure)
+            validatedItems.Add((Guid.NewGuid(), catalogItem, itemInput));
+        }
+
+        if (validatedItems.Count > 0)
+        {
+            var cartPricing = await _pricing.ResolveCartAsync(
+                command.TenantId,
+                new CartPricingRequest(
+                    validatedItems
+                        .Select(v => new CartPricingLineRequest(v.CatalogItem.Id, v.Input.Quantity, v.LineId))
+                        .ToList(),
+                    DateOnly.FromDateTime(DateTime.UtcNow),
+                    CouponCode: string.IsNullOrWhiteSpace(command.CouponCode) ? null : command.CouponCode.Trim(),
+                    PricesIncludeTaxOverride: command.PricesIncludeTaxOverride),
+                ct).ConfigureAwait(false);
+
+            if (cartPricing.IsFailure)
             {
-                return Result.Failure<CreateEcommerceOrderResponse>(itemResult.Error!);
+                return Result.Failure<CreateEcommerceOrderResponse>(
+                    cartPricing.Error!.Code is "catalog.pricing.price_list.not_found"
+                        or "catalog.pricing.price.not_found"
+                        or "catalog.pricing.price_list.not_valid"
+                        ? new Error(
+                            "ecommerce.order.price_not_configured",
+                            "Alguno de los productos del pedido no tiene precio vigente en una lista activa.",
+                            ErrorType.Conflict)
+                        : cartPricing.Error);
             }
 
-            order.AddItem(itemResult.Value!);
+            var resolvedCart = cartPricing.Value!;
+            var linesById = resolvedCart.Lines.ToDictionary(l => l.LineId);
+
+            foreach (var v in validatedItems)
+            {
+                var resolved = linesById[v.LineId];
+                var snapshot = new EcommerceItemPricingSnapshot(
+                    resolvedCart.PriceListId == Guid.Empty ? null : resolvedCart.PriceListId,
+                    resolved.ListPrice,
+                    resolved.TaxAmount,
+                    resolved.FinalPrice,
+                    JsonSerializer.Serialize(resolved.AppliedRules));
+
+                var itemResult = EcommerceOrderItem.Create(
+                    _idGenerator.NewId(),
+                    order.Id,
+                    v.CatalogItem.Id,
+                    v.CatalogItem.Sku ?? string.Empty,
+                    v.CatalogItem.Name,
+                    v.Input.Quantity,
+                    resolved.UnitPrice,
+                    resolved.DiscountAmount,
+                    resolved.TaxRate,
+                    snapshot);
+
+                if (itemResult.IsFailure)
+                {
+                    return Result.Failure<CreateEcommerceOrderResponse>(itemResult.Error!);
+                }
+
+                order.AddItem(itemResult.Value!);
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(command.CouponCode) && _promotions is not null)
@@ -242,55 +297,4 @@ public sealed class CreateEcommerceOrderHandler
             order.PaymentMethod,
             order.PaymentProofToken,
             order.DiscountAmount);
-
-    private async Task<Result<EcommerceOrderItem>> BuildItem(
-        CreateEcommerceOrderCommand command,
-        EcommerceOrder order,
-        CatalogItem catalogItem,
-        CreateEcommerceOrderItemInput itemInput,
-        CancellationToken ct)
-    {
-        var pricing = await _pricing.ResolveAsync(
-            command.TenantId,
-            new PricingRequest(
-                catalogItem.Id,
-                itemInput.Quantity,
-                DateOnly.FromDateTime(DateTime.UtcNow),
-                CouponCode: string.IsNullOrWhiteSpace(command.CouponCode) ? null : command.CouponCode.Trim(),
-                PricesIncludeTaxOverride: command.PricesIncludeTaxOverride),
-            ct).ConfigureAwait(false);
-
-        if (pricing.IsFailure)
-        {
-            return Result.Failure<EcommerceOrderItem>(
-                pricing.Error!.Code is "catalog.pricing.price_list.not_found"
-                    or "catalog.pricing.price.not_found"
-                    or "catalog.pricing.price_list.not_valid"
-                    ? new Error(
-                        "ecommerce.order.price_not_configured",
-                        $"El producto «{catalogItem.Name}» no tiene precio vigente en una lista activa.",
-                        ErrorType.Conflict)
-                    : pricing.Error);
-        }
-
-        var resolved = pricing.Value!;
-        var snapshot = new EcommerceItemPricingSnapshot(
-            resolved.PriceListId == Guid.Empty ? null : resolved.PriceListId,
-            resolved.ListPrice,
-            resolved.TaxAmount,
-            resolved.FinalPrice,
-            JsonSerializer.Serialize(resolved.AppliedRules));
-
-        return EcommerceOrderItem.Create(
-            _idGenerator.NewId(),
-            order.Id,
-            catalogItem.Id,
-            catalogItem.Sku ?? string.Empty,
-            catalogItem.Name,
-            itemInput.Quantity,
-            resolved.UnitPrice,
-            resolved.DiscountAmount,
-            resolved.TaxRate,
-            snapshot);
-    }
 }

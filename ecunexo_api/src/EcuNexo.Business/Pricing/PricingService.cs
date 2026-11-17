@@ -17,6 +17,7 @@ public sealed class PricingService : IPricingService
     private readonly ICatalogItemRepository _items;
     private readonly ITaxRateProvider _taxRates;
     private readonly IStockRepository? _stocks;
+    private readonly IVolumeDiscountSchemeRepository? _volumeSchemes;
 
     public PricingService(
         IPriceListRepository priceLists,
@@ -24,7 +25,8 @@ public sealed class PricingService : IPricingService
         IPromotionRepository promotions,
         ICatalogItemRepository items,
         ITaxRateProvider taxRates,
-        IStockRepository? stocks = null)
+        IStockRepository? stocks = null,
+        IVolumeDiscountSchemeRepository? volumeSchemes = null)
     {
         _priceLists = priceLists;
         _productPrices = productPrices;
@@ -32,6 +34,7 @@ public sealed class PricingService : IPricingService
         _items = items;
         _taxRates = taxRates;
         _stocks = stocks;
+        _volumeSchemes = volumeSchemes;
     }
 
     public async Task<Result<PricingResult>> ResolveAsync(
@@ -249,6 +252,185 @@ public sealed class PricingService : IPricingService
             isBelowCost);
 
         return Result.Success(result);
+    }
+
+    public async Task<Result<CartPricingResult>> ResolveCartAsync(
+        Guid tenantId,
+        CartPricingRequest request,
+        CancellationToken ct)
+    {
+        if (request.Lines.Count == 0)
+        {
+            return Result.Success(new CartPricingResult(
+                Guid.Empty,
+                "BASE",
+                PriceList.DefaultCurrency,
+                [],
+                0m,
+                0m,
+                0m,
+                0m,
+                0m,
+                0m,
+                []));
+        }
+
+        var listResult = await ResolvePriceListAsync(
+            tenantId,
+            new PricingRequest(Guid.Empty, 1m, request.Date, request.PriceListId),
+            ct).ConfigureAwait(false);
+        if (listResult.IsFailure && request.PriceListId is not null)
+        {
+            return Result.Failure<CartPricingResult>(listResult.Error!);
+        }
+
+        var priceList = listResult.IsSuccess ? listResult.Value : null;
+        var pricesIncludeTax = request.PricesIncludeTaxOverride ?? priceList?.PricesIncludeTax ?? false;
+        var groupRules = _volumeSchemes is not null
+            ? await _volumeSchemes.ListActiveGroupRulesAsync(tenantId, ct).ConfigureAwait(false)
+            : [];
+
+        var inputs = new List<CartLineInput>(request.Lines.Count);
+
+        foreach (var line in request.Lines)
+        {
+            if (line.Quantity <= 0)
+            {
+                return Result.Failure<CartPricingResult>(
+                    new Error("catalog.pricing.quantity.range", "La cantidad debe ser mayor que cero.", ErrorType.Validation));
+            }
+
+            var item = await _items.GetActiveByIdAsync(tenantId, line.CatalogItemId, ct).ConfigureAwait(false);
+            if (item is null)
+            {
+                return Result.Failure<CartPricingResult>(
+                    new Error("catalog.pricing.item.not_found", "El producto no existe o no está disponible.", ErrorType.NotFound));
+            }
+
+            ProductPrice? productPrice = null;
+            if (priceList is not null)
+            {
+                productPrice = await _productPrices
+                    .GetVigentAsync(tenantId, priceList.Id, item.Id, request.Date, ct)
+                    .ConfigureAwait(false);
+
+                if (productPrice is null && item.ParentId is { } parentId)
+                {
+                    productPrice = await _productPrices
+                        .GetVigentAsync(tenantId, priceList.Id, parentId, request.Date, ct)
+                        .ConfigureAwait(false);
+                }
+            }
+
+            decimal basePrice;
+            IReadOnlyList<QuantityTier> tiers;
+            VolumeDiscountScheme? volumeScheme;
+
+            if (productPrice is not null)
+            {
+                basePrice = productPrice.Price;
+                tiers = productPrice.Tiers;
+                volumeScheme = productPrice.VolumeDiscountScheme;
+            }
+            else if (item.BasePrice is { } legacyPrice)
+            {
+                basePrice = legacyPrice;
+                tiers = [];
+                volumeScheme = null;
+            }
+            else if (item.ParentId is { } parentId)
+            {
+                var parentItem = await _items.GetActiveByIdAsync(tenantId, parentId, ct).ConfigureAwait(false);
+                if (parentItem?.BasePrice is not { } parentLegacyPrice)
+                {
+                    return Result.Failure<CartPricingResult>(
+                        new Error("catalog.pricing.price.not_found", "El producto no tiene un precio vigente configurado.", ErrorType.NotFound));
+                }
+
+                basePrice = parentLegacyPrice;
+                tiers = [];
+                volumeScheme = null;
+            }
+            else
+            {
+                return Result.Failure<CartPricingResult>(
+                    new Error("catalog.pricing.price.not_found", "El producto no tiene un precio vigente configurado.", ErrorType.NotFound));
+            }
+
+            var moment = request.Date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            var applicable = await _promotions
+                .ListApplicableAsync(tenantId, item.Id, item.ParentId, moment, ct)
+                .ConfigureAwait(false);
+            var activePromotions = applicable.Where(p => p.IsApplicableOn(moment)).ToList();
+
+            if (!string.IsNullOrWhiteSpace(request.CouponCode))
+            {
+                var coupon = await _promotions
+                    .GetTrackedByCodeAsync(tenantId, request.CouponCode, ct)
+                    .ConfigureAwait(false);
+                if (coupon is not null
+                    && coupon.IsApplicableOn(moment)
+                    && coupon.MatchesItem(item.Id, item.ParentId)
+                    && activePromotions.All(p => p.Id != coupon.Id))
+                {
+                    activePromotions.Add(coupon);
+                }
+            }
+
+            var taxRate = await _taxRates.GetRateAsync(tenantId, item.Id, request.Date, ct).ConfigureAwait(false);
+
+            inputs.Add(new CartLineInput(
+                line.LineId ?? Guid.CreateVersion7(),
+                item.Id,
+                item.ParentId,
+                item.CategoryId,
+                basePrice,
+                line.Quantity,
+                tiers,
+                volumeScheme,
+                activePromotions,
+                taxRate,
+                pricesIncludeTax));
+        }
+
+        var calc = CartPriceCalculator.Calculate(inputs, groupRules);
+        if (calc.IsFailure)
+        {
+            return Result.Failure<CartPricingResult>(calc.Error!);
+        }
+
+        var value = calc.Value!;
+        var listRule = priceList is not null ? $"LISTA_{priceList.Code}" : "PRECIO_BASE_CATALOGO";
+        var cartRules = new List<string> { listRule };
+        cartRules.AddRange(value.AppliedRules);
+
+        return Result.Success(new CartPricingResult(
+            priceList?.Id ?? Guid.Empty,
+            priceList?.Code ?? "BASE",
+            priceList?.Currency ?? PriceList.DefaultCurrency,
+            value.Lines.Select(l => new CartPricingLineResult(
+                l.LineId,
+                l.CatalogItemId,
+                l.ListPrice,
+                l.UnitPrice,
+                l.Quantity,
+                l.TierLabel,
+                l.Subtotal,
+                l.DiscountAmount,
+                l.NetPrice,
+                l.TaxableBase,
+                l.TaxAmount,
+                l.FinalPrice,
+                l.TaxRate,
+                l.PricesIncludeTax,
+                [listRule, .. l.AppliedRules])).ToList(),
+            value.Subtotal,
+            value.DiscountAmount,
+            value.NetPrice,
+            value.TaxableBase,
+            value.TaxAmount,
+            value.FinalPrice,
+            cartRules));
     }
 
     private async Task<Result<PriceList>> ResolvePriceListAsync(

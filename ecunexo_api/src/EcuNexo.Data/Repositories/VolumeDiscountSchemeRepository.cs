@@ -22,17 +22,20 @@ public sealed class VolumeDiscountSchemeRepository : IVolumeDiscountSchemeReposi
     public Task<VolumeDiscountScheme?> GetByIdAsync(Guid tenantId, Guid schemeId, CancellationToken ct) =>
         _db.VolumeDiscountSchemes.AsNoTracking()
             .Include(s => s.Tiers.OrderBy(t => t.QuantityFrom))
+            .Include(s => s.Targets)
             .FirstOrDefaultAsync(s => s.TenantId == tenantId && s.Id == schemeId, ct);
 
     public Task<VolumeDiscountScheme?> GetTrackedByIdAsync(Guid tenantId, Guid schemeId, CancellationToken ct) =>
         _db.VolumeDiscountSchemes
             .Include(s => s.Tiers)
+            .Include(s => s.Targets)
             .FirstOrDefaultAsync(s => s.TenantId == tenantId && s.Id == schemeId, ct);
 
     public async Task<IReadOnlyList<VolumeDiscountScheme>> ListAsync(Guid tenantId, bool onlyActive, CancellationToken ct)
     {
         var query = _db.VolumeDiscountSchemes.AsNoTracking()
             .Include(s => s.Tiers.OrderBy(t => t.QuantityFrom))
+            .Include(s => s.Targets)
             .Where(s => s.TenantId == tenantId);
 
         if (onlyActive)
@@ -41,10 +44,21 @@ public sealed class VolumeDiscountSchemeRepository : IVolumeDiscountSchemeReposi
         }
 
         return await query
-            .OrderBy(s => s.Name)
+            .OrderByDescending(s => s.Priority)
+            .ThenBy(s => s.Name)
             .ToListAsync(ct)
             .ConfigureAwait(false);
     }
+
+    public async Task<IReadOnlyList<VolumeDiscountScheme>> ListActiveGroupRulesAsync(Guid tenantId, CancellationToken ct) =>
+        await _db.VolumeDiscountSchemes.AsNoTracking()
+            .Include(s => s.Tiers.OrderBy(t => t.QuantityFrom))
+            .Include(s => s.Targets)
+            .Where(s => s.TenantId == tenantId && s.IsActive && s.GroupingMode != VolumeGroupingMode.PerLine)
+            .OrderByDescending(s => s.Priority)
+            .ThenBy(s => s.Name)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
 
     public Task<bool> NameExistsAsync(Guid tenantId, string name, Guid? excludeId, CancellationToken ct)
     {

@@ -34,7 +34,16 @@ public sealed class ListVolumeDiscountSchemesHandler
                     t.QuantityFrom,
                     t.QuantityTo,
                     t.Value,
-                    t.IsActive)).ToList()))
+                    t.IsActive)).ToList(),
+                s.GroupingMode,
+                s.MinGroupQuantity,
+                s.EnforceMinPurchase,
+                s.Priority,
+                s.Targets.Select(t => new VolumeDiscountTargetResponse(
+                    t.Id,
+                    t.TargetType,
+                    t.TargetReference,
+                    t.IsExclusion)).ToList()))
             .ToList();
 
         return Result.Success(response);

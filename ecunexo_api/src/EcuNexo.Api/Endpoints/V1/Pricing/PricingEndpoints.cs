@@ -27,6 +27,7 @@ using EcuNexo.Business.Pricing.Queries.ListPriceLists;
 using EcuNexo.Business.Pricing.Queries.ListProductPrices;
 using EcuNexo.Business.Pricing.Queries.ListPromotions;
 using EcuNexo.Business.Pricing.Queries.ListVolumeDiscountSchemes;
+using EcuNexo.Business.Pricing.Queries.ResolveCart;
 using EcuNexo.Business.Pricing.Queries.ResolvePrice;
 
 namespace EcuNexo.Api.Endpoints.V1.Pricing;
@@ -121,6 +122,14 @@ public static class PricingEndpoints
         app.MapPost(
                 "/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/pricing/resolve",
                 ResolvePriceAsync)
+            .WithApiVersionSet(versionSet)
+            .WithTags("Pricing")
+            .RequireAuthorization()
+            .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.read"));
+
+        app.MapPost(
+                "/api/v{version:apiVersion}/tenants/{tenantId:guid}/catalog/pricing/resolve-cart",
+                ResolveCartAsync)
             .WithApiVersionSet(versionSet)
             .WithTags("Pricing")
             .RequireAuthorization()
@@ -400,6 +409,18 @@ public static class PricingEndpoints
         return result.ToHttpResult();
     }
 
+    private static async Task<IResult> ResolveCartAsync(
+        Guid tenantId,
+        ResolveCartRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<ResolveCartQuery, CartPricingResult>(body.ToQuery(tenantId), ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
     private static async Task<IResult> ListVolumeDiscountSchemesAsync(
         Guid tenantId,
         bool? onlyActive,
@@ -435,9 +456,20 @@ public static class PricingEndpoints
         CancellationToken ct)
     {
         var tiers = body.Tiers?.Select(t => new VolumeDiscountTierInput(t.QuantityFrom, t.QuantityTo, t.Value)).ToList();
+        var targets = body.Targets?.Select(t => new VolumeDiscountTargetInput(t.TargetType, t.TargetReference, t.IsExclusion)).ToList();
         var result = await sender
             .SendAsync<CreateVolumeDiscountSchemeCommand, CreateVolumeDiscountSchemeResponse>(
-                new CreateVolumeDiscountSchemeCommand(tenantId, body.Name, body.Description, body.Type, tiers),
+                new CreateVolumeDiscountSchemeCommand(
+                    tenantId,
+                    body.Name,
+                    body.Description,
+                    body.Type,
+                    tiers,
+                    body.GroupingMode,
+                    body.MinGroupQuantity,
+                    body.EnforceMinPurchase,
+                    body.Priority,
+                    targets),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();
@@ -451,9 +483,22 @@ public static class PricingEndpoints
         CancellationToken ct)
     {
         var tiers = body.Tiers?.Select(t => new VolumeDiscountTierInput(t.QuantityFrom, t.QuantityTo, t.Value)).ToList();
+        var targets = body.Targets?.Select(t => new VolumeDiscountTargetInput(t.TargetType, t.TargetReference, t.IsExclusion)).ToList();
         var result = await sender
             .SendAsync<UpdateVolumeDiscountSchemeCommand, UpdateVolumeDiscountSchemeResponse>(
-                new UpdateVolumeDiscountSchemeCommand(tenantId, schemeId, body.Name, body.Description, body.Type, body.IsActive, tiers),
+                new UpdateVolumeDiscountSchemeCommand(
+                    tenantId,
+                    schemeId,
+                    body.Name,
+                    body.Description,
+                    body.Type,
+                    body.IsActive,
+                    tiers,
+                    body.GroupingMode,
+                    body.MinGroupQuantity,
+                    body.EnforceMinPurchase,
+                    body.Priority,
+                    targets),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

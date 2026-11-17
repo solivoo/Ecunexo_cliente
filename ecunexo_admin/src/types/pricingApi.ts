@@ -132,10 +132,44 @@ export const VolumeDiscountSchemeType = {
   Percentage: 0,
   FixedAmount: 1,
   FixedPrice: 2,
+  PackagePrice: 3,
 } as const
 
 export type VolumeDiscountSchemeType =
   (typeof VolumeDiscountSchemeType)[keyof typeof VolumeDiscountSchemeType]
+
+export const VolumeGroupingMode = {
+  PerLine: 0,
+  PerMatrix: 1,
+  PerGroup: 2,
+} as const
+
+export type VolumeGroupingMode =
+  (typeof VolumeGroupingMode)[keyof typeof VolumeGroupingMode]
+
+export const VolumeRuleTargetType = {
+  AllItems: 0,
+  Category: 1,
+  Matrix: 2,
+  Product: 3,
+  Variant: 4,
+} as const
+
+export type VolumeRuleTargetType =
+  (typeof VolumeRuleTargetType)[keyof typeof VolumeRuleTargetType]
+
+export type VolumeDiscountTargetDto = {
+  id: string
+  targetType: VolumeRuleTargetType
+  targetReference: string
+  isExclusion: boolean
+}
+
+export type VolumeDiscountTargetBody = {
+  targetType: VolumeRuleTargetType
+  targetReference: string
+  isExclusion?: boolean
+}
 
 export type VolumeDiscountTierDto = {
   id: string
@@ -158,8 +192,13 @@ export type VolumeDiscountSchemeDto = {
   name: string
   description: string | null
   type: VolumeDiscountSchemeType
+  groupingMode: VolumeGroupingMode
+  minGroupQuantity: number | null
+  enforceMinPurchase: boolean
+  priority: number
   isActive: boolean
   tiers: VolumeDiscountTierDto[]
+  targets: VolumeDiscountTargetDto[]
 }
 
 export type CreateVolumeDiscountSchemeBody = {
@@ -167,6 +206,11 @@ export type CreateVolumeDiscountSchemeBody = {
   description?: string | null
   type: VolumeDiscountSchemeType
   tiers?: VolumeDiscountTierBody[]
+  groupingMode?: VolumeGroupingMode
+  minGroupQuantity?: number | null
+  enforceMinPurchase?: boolean
+  priority?: number
+  targets?: VolumeDiscountTargetBody[]
 }
 
 export type UpdateVolumeDiscountSchemeBody = {
@@ -175,6 +219,11 @@ export type UpdateVolumeDiscountSchemeBody = {
   type: VolumeDiscountSchemeType
   isActive?: boolean
   tiers?: VolumeDiscountTierBody[]
+  groupingMode?: VolumeGroupingMode
+  minGroupQuantity?: number | null
+  enforceMinPurchase?: boolean
+  priority?: number
+  targets?: VolumeDiscountTargetBody[]
 }
 
 export type AssignVolumeDiscountSchemeBody = {
@@ -294,4 +343,50 @@ export type PricingResultDto = {
   averageCost?: number | null
   marginPercent?: number | null
   isBelowCost?: boolean
+}
+
+export type ResolveCartLineBody = {
+  catalogItemId: string
+  quantity: number
+  lineId?: string
+}
+
+export type ResolveCartBody = {
+  lines: ResolveCartLineBody[]
+  date: string
+  priceListId?: string
+  couponCode?: string
+  pricesIncludeTaxOverride?: boolean
+}
+
+export type CartPricingLineResultDto = {
+  lineId: string
+  catalogItemId: string
+  listPrice: number
+  unitPrice: number
+  quantity: number
+  tierLabel: string | null
+  subtotal: number
+  discountAmount: number
+  netPrice: number
+  taxableBase: number
+  taxAmount: number
+  finalPrice: number
+  taxRate: number
+  pricesIncludeTax: boolean
+  appliedRules: string[]
+}
+
+export type CartPricingResultDto = {
+  priceListId: string
+  priceListCode: string
+  currency: string
+  lines: CartPricingLineResultDto[]
+  subtotal: number
+  discountAmount: number
+  netPrice: number
+  taxableBase: number
+  taxAmount: number
+  finalPrice: number
+  appliedRules: string[]
 }

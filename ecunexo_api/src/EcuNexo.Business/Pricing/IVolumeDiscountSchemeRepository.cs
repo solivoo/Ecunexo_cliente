@@ -12,5 +12,7 @@ public interface IVolumeDiscountSchemeRepository
 
     Task<IReadOnlyList<VolumeDiscountScheme>> ListAsync(Guid tenantId, bool onlyActive, CancellationToken ct);
 
+    Task<IReadOnlyList<VolumeDiscountScheme>> ListActiveGroupRulesAsync(Guid tenantId, CancellationToken ct);
+
     Task<bool> NameExistsAsync(Guid tenantId, string name, Guid? excludeId, CancellationToken ct);
 }

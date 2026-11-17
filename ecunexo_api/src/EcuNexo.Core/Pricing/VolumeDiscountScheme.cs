@@ -15,6 +15,7 @@ public sealed class VolumeDiscountScheme : AggregateRoot<Guid>, ITenantEntity, I
     public const int DescriptionMaxLength = 300;
 
     private readonly List<VolumeDiscountTier> _tiers = [];
+    private readonly List<VolumeDiscountTarget> _targets = [];
 
     private VolumeDiscountScheme()
     {
@@ -31,9 +32,19 @@ public sealed class VolumeDiscountScheme : AggregateRoot<Guid>, ITenantEntity, I
 
     public VolumeDiscountSchemeType Type { get; private set; }
 
+    public VolumeGroupingMode GroupingMode { get; private set; } = VolumeGroupingMode.PerLine;
+
+    public decimal? MinGroupQuantity { get; private set; }
+
+    public bool EnforceMinPurchase { get; private set; }
+
+    public int Priority { get; private set; }
+
     public bool IsActive { get; private set; }
 
     public IReadOnlyList<VolumeDiscountTier> Tiers => _tiers.AsReadOnly();
+
+    public IReadOnlyList<VolumeDiscountTarget> Targets => _targets.AsReadOnly();
 
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -49,12 +60,28 @@ public sealed class VolumeDiscountScheme : AggregateRoot<Guid>, ITenantEntity, I
         string name,
         string? description,
         VolumeDiscountSchemeType type,
-        Guid? createdBy = null)
+        Guid? createdBy = null,
+        VolumeGroupingMode groupingMode = VolumeGroupingMode.PerLine,
+        decimal? minGroupQuantity = null,
+        bool enforceMinPurchase = false,
+        int priority = 0)
     {
         if (id == Guid.Empty || tenantId == Guid.Empty)
         {
             return Result.Failure<VolumeDiscountScheme>(
                 new Error("catalog.pricing.volume_scheme.keys.invalid", "El identificador y la empresa son obligatorios.", ErrorType.Validation));
+        }
+
+        if (!Enum.IsDefined(groupingMode))
+        {
+            return Result.Failure<VolumeDiscountScheme>(
+                new Error("catalog.pricing.volume_scheme.grouping.invalid", "El modo de agrupación no es válido.", ErrorType.Validation));
+        }
+
+        if (minGroupQuantity.HasValue && minGroupQuantity.Value <= 0)
+        {
+            return Result.Failure<VolumeDiscountScheme>(
+                new Error("catalog.pricing.volume_scheme.min_group_quantity.range", "La cantidad mínima del grupo debe ser mayor que cero.", ErrorType.Validation));
         }
 
         var nameResult = NormalizeName(name);
@@ -76,6 +103,10 @@ public sealed class VolumeDiscountScheme : AggregateRoot<Guid>, ITenantEntity, I
             Name = nameResult.Value!,
             Description = descResult.Value,
             Type = type,
+            GroupingMode = groupingMode,
+            MinGroupQuantity = minGroupQuantity,
+            EnforceMinPurchase = enforceMinPurchase,
+            Priority = priority,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,
@@ -86,8 +117,24 @@ public sealed class VolumeDiscountScheme : AggregateRoot<Guid>, ITenantEntity, I
         string name,
         string? description,
         VolumeDiscountSchemeType type,
-        Guid? updatedBy = null)
+        Guid? updatedBy = null,
+        VolumeGroupingMode? groupingMode = null,
+        decimal? minGroupQuantity = null,
+        bool? enforceMinPurchase = null,
+        int? priority = null)
     {
+        if (groupingMode.HasValue && !Enum.IsDefined(groupingMode.Value))
+        {
+            return Result.Failure(
+                new Error("catalog.pricing.volume_scheme.grouping.invalid", "El modo de agrupación no es válido.", ErrorType.Validation));
+        }
+
+        if (minGroupQuantity.HasValue && minGroupQuantity.Value <= 0)
+        {
+            return Result.Failure(
+                new Error("catalog.pricing.volume_scheme.min_group_quantity.range", "La cantidad mínima del grupo debe ser mayor que cero.", ErrorType.Validation));
+        }
+
         var nameResult = NormalizeName(name);
         if (nameResult.IsFailure)
         {
@@ -112,6 +159,26 @@ public sealed class VolumeDiscountScheme : AggregateRoot<Guid>, ITenantEntity, I
         Name = nameResult.Value!;
         Description = descResult.Value;
         Type = type;
+        if (groupingMode.HasValue)
+        {
+            GroupingMode = groupingMode.Value;
+        }
+
+        if (minGroupQuantity.HasValue || groupingMode.HasValue)
+        {
+            MinGroupQuantity = minGroupQuantity;
+        }
+
+        if (enforceMinPurchase.HasValue)
+        {
+            EnforceMinPurchase = enforceMinPurchase.Value;
+        }
+
+        if (priority.HasValue)
+        {
+            Priority = priority.Value;
+        }
+
         Touch(updatedBy);
         return Result.Success();
     }
@@ -171,6 +238,58 @@ public sealed class VolumeDiscountScheme : AggregateRoot<Guid>, ITenantEntity, I
         IsActive = isActive;
         Touch(updatedBy);
         return Result.Success();
+    }
+
+    public Result<VolumeDiscountTarget> AddTarget(
+        Guid targetId,
+        VolumeRuleTargetType targetType,
+        string targetReference,
+        bool isExclusion = false,
+        Guid? createdBy = null)
+    {
+        var targetResult = VolumeDiscountTarget.Create(targetId, Id, targetType, targetReference, isExclusion, createdBy);
+        if (targetResult.IsFailure)
+        {
+            return targetResult;
+        }
+
+        var duplicate = _targets.Any(t =>
+            t.TargetType == targetResult.Value!.TargetType &&
+            t.IsExclusion == targetResult.Value!.IsExclusion &&
+            string.Equals(t.TargetReference, targetResult.Value!.TargetReference, StringComparison.OrdinalIgnoreCase));
+        if (duplicate)
+        {
+            return Result.Failure<VolumeDiscountTarget>(
+                new Error("catalog.pricing.volume_scheme.target.duplicate", "El objetivo ya existe en este esquema.", ErrorType.Conflict));
+        }
+
+        _targets.Add(targetResult.Value!);
+        Touch(createdBy);
+        return targetResult;
+    }
+
+    public Result ClearTargets(Guid? updatedBy = null)
+    {
+        _targets.Clear();
+        Touch(updatedBy);
+        return Result.Success();
+    }
+
+    public bool MatchesItem(Guid catalogItemId, Guid? parentId, Guid? categoryId)
+    {
+        if (_targets.Count == 0)
+        {
+            return false;
+        }
+
+        var included = _targets.Any(t => !t.IsExclusion && t.Matches(catalogItemId, parentId, categoryId));
+        if (!included)
+        {
+            return false;
+        }
+
+        var excluded = _targets.Any(t => t.IsExclusion && t.Matches(catalogItemId, parentId, categoryId));
+        return !excluded;
     }
 
     private static Result<string> NormalizeName(string name)

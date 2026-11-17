@@ -3653,17 +3653,39 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("character varying(300)")
                         .HasColumnName("description");
 
+                    b.Property<bool>("EnforceMinPurchase")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("enforce_min_purchase");
+
+                    b.Property<int>("GroupingMode")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("grouping_mode");
+
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
+                    b.Property<decimal?>("MinGroupQuantity")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("min_group_quantity");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
+
+                    b.Property<int>("Priority")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("priority");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
@@ -3694,6 +3716,63 @@ namespace EcuNexo.Data.Migrations
                         .HasDatabaseName("ix_volume_discount_schemes_tenant_name");
 
                     b.ToTable("volume_discount_schemes", "pricing");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Pricing.VolumeDiscountTarget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsExclusion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_exclusion");
+
+                    b.Property<string>("TargetReference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("target_reference");
+
+                    b.Property<int>("TargetType")
+                        .HasColumnType("integer")
+                        .HasColumnName("target_type");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("VolumeDiscountSchemeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("volume_discount_scheme_id");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_volume_discount_targets");
+
+                    b.HasIndex("VolumeDiscountSchemeId")
+                        .HasDatabaseName("ix_volume_discount_targets_scheme_id");
+
+                    b.ToTable("volume_discount_targets", "pricing");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Pricing.VolumeDiscountTier", b =>
@@ -6651,6 +6730,18 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Pricing.VolumeDiscountTarget", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Pricing.VolumeDiscountScheme", "VolumeDiscountScheme")
+                        .WithMany("Targets")
+                        .HasForeignKey("VolumeDiscountSchemeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_volume_discount_targets_volume_discount_schemes_volume_disc");
+
+                    b.Navigation("VolumeDiscountScheme");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Pricing.VolumeDiscountTier", b =>
                 {
                     b.HasOne("EcuNexo.Core.Pricing.VolumeDiscountScheme", "Scheme")
@@ -6928,6 +7019,8 @@ namespace EcuNexo.Data.Migrations
 
             modelBuilder.Entity("EcuNexo.Core.Pricing.VolumeDiscountScheme", b =>
                 {
+                    b.Navigation("Targets");
+
                     b.Navigation("Tiers");
                 });
 

@@ -161,6 +161,8 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<VolumeDiscountTier> VolumeDiscountTiers => Set<VolumeDiscountTier>();
 
+    public DbSet<VolumeDiscountTarget> VolumeDiscountTargets => Set<VolumeDiscountTarget>();
+
     public DbSet<ShippingRateRule> ShippingRateRules => Set<ShippingRateRule>();
 
     public DbSet<ShippingZone> ShippingZones => Set<ShippingZone>();

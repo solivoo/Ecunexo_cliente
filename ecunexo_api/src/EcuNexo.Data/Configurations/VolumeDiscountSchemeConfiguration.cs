@@ -36,6 +36,22 @@ public sealed class VolumeDiscountSchemeConfiguration : IEntityTypeConfiguration
             .HasConversion<int>()
             .IsRequired();
 
+        builder.Property(s => s.GroupingMode)
+            .HasConversion<int>()
+            .IsRequired()
+            .HasDefaultValue(VolumeGroupingMode.PerLine);
+
+        builder.Property(s => s.MinGroupQuantity)
+            .HasColumnType("numeric(18,4)");
+
+        builder.Property(s => s.EnforceMinPurchase)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(s => s.Priority)
+            .IsRequired()
+            .HasDefaultValue(0);
+
         builder.Property(s => s.IsActive)
             .IsRequired()
             .HasDefaultValue(true);
@@ -56,6 +72,11 @@ public sealed class VolumeDiscountSchemeConfiguration : IEntityTypeConfiguration
         builder.HasMany(s => s.Tiers)
             .WithOne(t => t.Scheme)
             .HasForeignKey(t => t.SchemeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(s => s.Targets)
+            .WithOne(t => t.VolumeDiscountScheme)
+            .HasForeignKey(t => t.VolumeDiscountSchemeId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(s => new { s.TenantId, s.Name })

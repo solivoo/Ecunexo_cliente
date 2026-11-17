@@ -83,6 +83,11 @@ public sealed record ProductPriceDetailResponse(
 
 public sealed record VolumeDiscountTierInput(decimal QuantityFrom, decimal? QuantityTo, decimal Value);
 
+public sealed record VolumeDiscountTargetInput(
+    VolumeRuleTargetType TargetType,
+    string TargetReference,
+    bool IsExclusion = false);
+
 public sealed record VolumeDiscountTierResponse(
     Guid Id,
     decimal QuantityFrom,
@@ -90,13 +95,24 @@ public sealed record VolumeDiscountTierResponse(
     decimal Value,
     bool IsActive);
 
+public sealed record VolumeDiscountTargetResponse(
+    Guid Id,
+    VolumeRuleTargetType TargetType,
+    string TargetReference,
+    bool IsExclusion);
+
 public sealed record VolumeDiscountSchemeResponse(
     Guid Id,
     string Name,
     string? Description,
     VolumeDiscountSchemeType Type,
     bool IsActive,
-    IReadOnlyList<VolumeDiscountTierResponse> Tiers);
+    IReadOnlyList<VolumeDiscountTierResponse> Tiers,
+    VolumeGroupingMode GroupingMode = VolumeGroupingMode.PerLine,
+    decimal? MinGroupQuantity = null,
+    bool EnforceMinPurchase = false,
+    int Priority = 0,
+    IReadOnlyList<VolumeDiscountTargetResponse>? Targets = null);
 
 /// <summary>Proyección de historial con nombres de producto y lista.</summary>
 public sealed record PriceHistoryRow(

@@ -10,7 +10,12 @@ public sealed record CreateVolumeDiscountSchemeCommand(
     string Name,
     string? Description,
     VolumeDiscountSchemeType Type,
-    IReadOnlyList<VolumeDiscountTierInput>? Tiers = null) : ICommand<CreateVolumeDiscountSchemeResponse>;
+    IReadOnlyList<VolumeDiscountTierInput>? Tiers = null,
+    VolumeGroupingMode GroupingMode = VolumeGroupingMode.PerLine,
+    decimal? MinGroupQuantity = null,
+    bool EnforceMinPurchase = false,
+    int Priority = 0,
+    IReadOnlyList<VolumeDiscountTargetInput>? Targets = null) : ICommand<CreateVolumeDiscountSchemeResponse>;
 
 public sealed record CreateVolumeDiscountSchemeResponse(Guid SchemeId, Guid TenantId);
 
@@ -51,7 +56,11 @@ public sealed class CreateVolumeDiscountSchemeHandler : ICommandHandler<CreateVo
             normalizedName,
             command.Description,
             command.Type,
-            _caller.UserId);
+            _caller.UserId,
+            command.GroupingMode,
+            command.MinGroupQuantity,
+            command.EnforceMinPurchase,
+            command.Priority);
 
         if (created.IsFailure)
         {
@@ -74,6 +83,24 @@ public sealed class CreateVolumeDiscountSchemeHandler : ICommandHandler<CreateVo
                 if (tierResult.IsFailure)
                 {
                     return Result.Failure<CreateVolumeDiscountSchemeResponse>(tierResult.Error!);
+                }
+            }
+        }
+
+        if (command.Targets is not null)
+        {
+            foreach (var target in command.Targets)
+            {
+                var targetResult = scheme.AddTarget(
+                    _idGenerator.NewId(),
+                    target.TargetType,
+                    target.TargetReference,
+                    target.IsExclusion,
+                    _caller.UserId);
+
+                if (targetResult.IsFailure)
+                {
+                    return Result.Failure<CreateVolumeDiscountSchemeResponse>(targetResult.Error!);
                 }
             }
         }
