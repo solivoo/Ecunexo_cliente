@@ -291,17 +291,6 @@ export function ProductPriceFormPage() {
     [priceTouched, toast]
   )
 
-  const handleRemoveSelectedItem = useCallback(
-    (idToRemove: string) => {
-      setSelectedItemIds((prev) => prev.filter((id) => id !== idToRemove))
-      if (idToRemove === itemId) {
-        setCostInfo(null)
-        if (!priceTouched) setPrice('')
-      }
-    },
-    [itemId, priceTouched]
-  )
-
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase()
     const visible = items.filter((item) => {
@@ -706,16 +695,12 @@ export function ProductPriceFormPage() {
               {selectedList ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
                   <StatusBadge tone={pricesIncludeTax ? 'primary' : 'neutral'}>
-                    {pricesIncludeTax ? 'IVA incluido (PVP final)' : 'Neto + IVA'}
+                    {pricesIncludeTax ? 'IVA incluido' : 'Neto + IVA'}
                   </StatusBadge>
                   <span className="ecu-chip">{selectedList.currency}</span>
                   {selectedList.suggestedMarginPercent ? (
-                    <span className="ecu-chip">Margen sugerido +{selectedList.suggestedMarginPercent}%</span>
+                    <span className="ecu-chip">+{selectedList.suggestedMarginPercent}%</span>
                   ) : null}
-                  <span className="ecu-chip">
-                    Lista vigente {selectedList.validFrom}
-                    {selectedList.validTo ? ` → ${selectedList.validTo}` : ''}
-                  </span>
                 </div>
               ) : null}
             </div>
@@ -732,20 +717,18 @@ export function ProductPriceFormPage() {
                   {itemLabel || selectedItem?.name || '—'}
                 </strong>
                 {effectiveCostInfo ? (
-                  <span className="ecu-chip">Costo ref. neto: ${effectiveCostInfo.averageCost.toFixed(4)}</span>
-                ) : (
-                  <span className="ecu-chip">Sin costo en Kárdex ni costo estimado</span>
-                )}
+                  <span className="ecu-chip">Costo: ${effectiveCostInfo.averageCost.toFixed(4)}</span>
+                ) : null}
               </div>
             ) : selectedItemIds.length > 0 ? (
               <>
-                <div style={{ padding: '1rem 1.15rem' }}>
+                <div style={{ padding: '0.85rem 1.15rem' }}>
                   <div
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '0.75rem',
-                      padding: '1rem',
+                      gap: '0.5rem',
+                      padding: '0.85rem 1rem',
                       borderRadius: '8px',
                       border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
                       backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.05))',
@@ -778,6 +761,8 @@ export function ProductPriceFormPage() {
                               {selectedItem.description?.trim() || selectedItem.name}
                             </strong>
                           </>
+                        ) : renewingIds.length > 0 ? (
+                          <span className="ecu-chip">{renewingIds.length} renovarán vigencia</span>
                         ) : null}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -808,86 +793,36 @@ export function ProductPriceFormPage() {
                       </div>
                     </div>
 
-                    {selectedItemIds.length > 1 ? (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                        {selectedItemIds.map((id) => {
-                          const item = items.find((i) => i.id === id)
-                          const vigent = pricesByItem.get(id)
-                          return (
-                            <span
-                              key={id}
-                              className="ecu-chip"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                            >
-                              <code>{item?.sku ?? 'SKU'}</code>
-                              <span>{item?.name ?? id.slice(0, 8)}</span>
-                              {vigent ? (
-                                <span style={{ opacity: 0.75 }}>({formatMoney(vigent.price)})</span>
-                              ) : null}
-                              <button
-                                type="button"
-                                aria-label={`Quitar ${item?.name ?? id}`}
-                                onClick={() => handleRemoveSelectedItem(id)}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  color: 'inherit',
-                                  padding: 0,
-                                  fontWeight: 700,
-                                  lineHeight: 1,
-                                }}
-                              >
-                                ×
-                              </button>
-                            </span>
-                          )
-                        })}
+                    {selectedItemIds.length === 1 && (effectiveCostInfo || currentVigent || marginPercent != null) ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {effectiveCostInfo ? (
+                          <span className="ecu-chip">Costo: ${effectiveCostInfo.averageCost.toFixed(4)}</span>
+                        ) : null}
+                        {currentVigent ? (
+                          <span className="ecu-chip">
+                            Vigente: <strong>${currentVigent.price.toFixed(2)}</strong>
+                          </span>
+                        ) : null}
+                        {marginPercent != null ? (
+                          <span
+                            className="ecu-chip"
+                            style={{
+                              color:
+                                marginPercent < 0
+                                  ? 'var(--color-danger, #ef4444)'
+                                  : marginPercent < 15
+                                    ? 'var(--color-warning, #d97706)'
+                                    : 'var(--color-success, #16a34a)',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {marginPercent < 0
+                              ? `Bajo costo (${marginPercent.toFixed(1)}%)`
+                              : `Margen: ${marginPercent.toFixed(1)}%`}
+                          </span>
+                        ) : null}
                       </div>
                     ) : null}
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {selectedItemIds.length === 1 ? (
-                        effectiveCostInfo ? (
-                          <span className="ecu-chip">Costo ref. neto: ${effectiveCostInfo.averageCost.toFixed(4)}</span>
-                        ) : (
-                          <span className="ecu-chip">Sin costo en Kárdex ni costo estimado</span>
-                        )
-                      ) : null}
-                      {selectedItemIds.length === 1 ? (
-                        currentVigent ? (
-                          <span className="ecu-chip">
-                            Precio vigente en lista: <strong>${currentVigent.price.toFixed(2)}</strong> (desde {currentVigent.validFrom})
-                          </span>
-                        ) : (
-                          <span className="ecu-chip">Sin precio vigente en esta lista</span>
-                        )
-                      ) : renewingIds.length > 0 ? (
-                        <span className="ecu-chip">
-                          {renewingIds.length} de {selectedItemIds.length} ya tienen precio vigente (se renovarán)
-                        </span>
-                      ) : (
-                        <span className="ecu-chip">Ninguno tiene precio vigente en esta lista</span>
-                      )}
-                      {selectedItemIds.length === 1 && marginPercent != null ? (
-                        <span
-                          className="ecu-chip"
-                          style={{
-                            color:
-                              marginPercent < 0
-                                ? 'var(--color-danger, #ef4444)'
-                                : marginPercent < 15
-                                  ? 'var(--color-warning, #d97706)'
-                                  : 'var(--color-success, #16a34a)',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {marginPercent < 0
-                            ? `Bajo costo (${marginPercent.toFixed(1)}%)`
-                            : `Margen bruto s/venta neta: ${marginPercent.toFixed(1)}%`}
-                        </span>
-                      ) : null}
-                    </div>
                   </div>
                 </div>
 
@@ -992,19 +927,14 @@ export function ProductPriceFormPage() {
               <div className="ecu-companies-form__field sri-config-field--check-align">
                 <CheckButton
                   variant="ghost"
+                  size="sm"
                   checked={selectedItemIds.length > 1 ? true : isActive}
                   onChange={setIsActive}
                   disabled={busy || loading || (!isEdit && selectedItemIds.length > 1)}
+                  style={{ whiteSpace: 'nowrap' }}
                 >
                   Precio activo
                 </CheckButton>
-                {!isEdit ? (
-                  <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
-                    {selectedItemIds.length > 1
-                      ? 'En selección múltiple las vigencias se crean activas.'
-                      : 'Si lo desactivas, se guarda pero no se usará al cotizar o vender.'}
-                  </span>
-                ) : null}
               </div>
             </div>
 
@@ -1012,7 +942,7 @@ export function ProductPriceFormPage() {
               <div
                 style={{
                   marginTop: '0.9rem',
-                  padding: '0.75rem 1rem',
+                  padding: '0.65rem 1rem',
                   borderRadius: '8px',
                   border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
                   backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.05))',
@@ -1023,20 +953,20 @@ export function ProductPriceFormPage() {
                 }}
               >
                 <div>
-                  <span className="app-shell__muted">Base neta: </span>
+                  <span className="app-shell__muted">Neto: </span>
                   <strong>{formatMoney(priceBreakdown.netPrice)}</strong>
                 </div>
                 <div>
-                  <span className="app-shell__muted">IVA ref. (15%): </span>
+                  <span className="app-shell__muted">IVA (15%): </span>
                   <strong>{formatMoney(priceBreakdown.taxAmount)}</strong>
                 </div>
                 <div>
-                  <span className="app-shell__muted">PVP final ref.: </span>
+                  <span className="app-shell__muted">PVP: </span>
                   <strong>{formatMoney(priceBreakdown.finalPrice)}</strong>
                 </div>
                 {selectedItemIds.length === 1 && effectiveCostInfo ? (
                   <div>
-                    <span className="app-shell__muted">Margen bruto s/venta neta: </span>
+                    <span className="app-shell__muted">Margen: </span>
                     <strong
                       style={{
                         color:
