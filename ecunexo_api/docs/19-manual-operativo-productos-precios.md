@@ -2,6 +2,8 @@
 
 Guía paso a paso para publicar productos nuevos, registrar su costo real (con factura de proveedor o sin factura) y configurar precios de venta, escalas por volumen y promociones sin errores.
 
+> **Contrato técnico del motor y formas SÍ/NO de crear precios:** [`20-sistema-precios-actual.md`](20-sistema-precios-actual.md). Este manual es el flujo operativo en UI.
+
 ---
 
 ## 1. Cómo se divide el negocio (4 piezas)
@@ -37,7 +39,8 @@ Guía paso a paso para publicar productos nuevos, registrar su costo real (con f
 2. Elige **Producto estándar** (SKU único) o una **Plantilla** (matriz con variantes por talla/color).
 3. Completa identidad, descripción, SKU único (por cada variante), código de barras y fotos.
    - *Nota:* en producto con plantilla, la plantilla solo aporta atributos comunes y ejes; el nombre comercial es el del producto/variante.
-4. Guarda. Hasta aquí el producto existe con **stock 0** y **sin PVP**.
+4. Guarda. Hasta aquí el producto existe con **stock 0** y **sin PVP en `pricing`**.
+   - El campo opcional **precio base** del ítem (`base_price`) **no** sustituye Gestión de precios: solo es fallback de la lista predeterminada si aún no hay `product_price`.
 
 ### Paso 2: Registrar la factura en Compras y recibir a bodega
 1. Ve a **Compras → Documentos → Nueva compra** (puedes importar el **XML del SRI** o llenarla manualmente).
@@ -93,7 +96,7 @@ Guía paso a paso para publicar productos nuevos, registrar su costo real (con f
 |---|---|
 | Crear listas (`PUBLICO`, `MAYORISTA`), moneda e IVA incluido | **Listas de precios** |
 | Poner o ajustar precios rápidamente viendo costo ref. y margen en varias listas | **Matriz de precios** |
-| Poner precio a 1 producto con **tramos manuales propios** o renovar vigencia con motivo | **Precios de productos → + Nuevo Precio** |
+| Poner precio a 1 producto con **tramos manuales propios** o renovar vigencia con motivo | **Precios de productos → + Nuevo Precio** (elige primero la lista, valida desglose IVA/margen neto, escala única y usa **Guardar y simular**) |
 | Cargar un lote puntual de precios nuevos con **fecha de vigencia y motivo único** | **Precios de productos → Carga por lote** |
 | Crear descuentos reutilizables por volumen (`12+ un. -10%`) | **Escalas por cantidad** |
 | Asignar una escala por volumen a muchos productos a la vez | **Precios de productos** (seleccionar filas → aplicar escala) |
@@ -114,9 +117,10 @@ Guía paso a paso para publicar productos nuevos, registrar su costo real (con f
    - Una **promoción** es temporal (fechas) o usa **cupón** (`Requiere código promocional`) y puede ser acumulable o exclusiva según su **Prioridad**.
    - Si creas una promoción para toda la tienda usa alcance **Toda la tienda (`*`)** y asegúrate de dejarla **Activa** dentro de su rango de fechas.
 3. **Variantes vs Padre de matriz:**
-   - En productos con matriz (tallas/colores), carga **stock y precios en cada variante (SKU vendible)**.
-4. **Checklist antes de revisar en la tienda (Everchic):**
+   - En productos con matriz (tallas/colores), carga **stock y precios en cada variante (SKU vendible)**. El precio solo en el padre se hereda, pero no es el diseño recomendado.
+4. **No dar por terminado el alta** dejando solo `base_price` / “precio base” en Catálogo: el PVP oficial se crea en **Gestión de precios**.
+5. **Checklist antes de revisar en la tienda (Everchic):**
    - [ ] Producto y variantes en estado **Activo** y no ocultos de vitrina.
    - [ ] Stock aprobado (`> 0`) en bodega principal (si la tienda controla existencias).
-   - [ ] Precio vigente en la lista predeterminada (`PUBLICO`) para cada variante.
+   - [ ] Precio vigente en la lista predeterminada (`PUBLICO`) para cada variante (`pricing.product_prices`).
    - [ ] Probado en **Simulador** con cantidad `1` (y mayor cantidad si tiene escala).

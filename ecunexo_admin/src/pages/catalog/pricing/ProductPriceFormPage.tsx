@@ -23,7 +23,7 @@ import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
-import { formatVolumeTiersSummary, todayIso, volumeSchemeTypeLabel } from '@/pages/catalog/pricing/pricingFormat'
+import { formatMoney, todayIso, volumeSchemeTypeLabel } from '@/pages/catalog/pricing/pricingFormat'
 import { listCatalogItems } from '@/services/catalogApi'
 import { listStock } from '@/services/inventoryApi'
 import {
@@ -38,9 +38,18 @@ import {
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
-import type { PriceListDto, PriceTierBody, VolumeDiscountSchemeDto } from '@/types/pricingApi'
+import {
+  VolumeDiscountSchemeType,
+  type PriceListDto,
+  type PriceTierBody,
+  type VolumeDiscountSchemeDto,
+} from '@/types/pricingApi'
 
 type ProductPriceRow = CatalogItemListItemDto & { actions?: string }
+type ScaleMode = 'none' | 'scheme' | 'manual'
+type SubmitNextAction = 'list' | 'another' | 'simulate'
+
+const DEFAULT_TAX_RATE = 0.15
 
 type TierDraft = {
   quantityFrom: string
@@ -75,8 +84,10 @@ export function ProductPriceFormPage() {
   const [itemLabel, setItemLabel] = useState('')
   const [listId, setListId] = useState(() => searchParams.get('priceListId') ?? '')
   const [price, setPrice] = useState('')
+  const [priceTouched, setPriceTouched] = useState(false)
   const [pricesByItem, setPricesByItem] = useState<Map<string, { price: number; validFrom: string }>>(new Map())
   const [search, setSearch] = useState('')
+  const [onlyWithoutPrice, setOnlyWithoutPrice] = useState(false)
   const [costInfo, setCostInfo] = useState<{ averageCost: number } | null>(null)
   const [validFrom, setValidFrom] = useState(todayIso())
   const [validTo, setValidTo] = useState('')
@@ -85,6 +96,7 @@ export function ProductPriceFormPage() {
   const [tiers, setTiers] = useState<TierDraft[]>([])
   const [schemes, setSchemes] = useState<VolumeDiscountSchemeDto[]>([])
   const [volumeDiscountSchemeId, setVolumeDiscountSchemeId] = useState<string>('')
+  const [scaleMode, setScaleMode] = useState<ScaleMode>('none')
   const [showCatalogPicker, setShowCatalogPicker] = useState<boolean>(() => !searchParams.get('catalogItemId'))
 
   useEffect(() => {
@@ -122,15 +134,21 @@ export function ProductPriceFormPage() {
           setValidFrom(detail.validFrom)
           setValidTo(detail.validTo ?? '')
           setIsActive(detail.isActive)
+          const activeTiers = detail.tiers
+            .filter((tier) => tier.isActive !== false)
+            .map((tier) => ({
+              quantityFrom: String(tier.quantityFrom),
+              quantityTo: tier.quantityTo === null ? '' : String(tier.quantityTo),
+              unitPrice: String(tier.unitPrice),
+            }))
           setVolumeDiscountSchemeId(detail.volumeDiscountSchemeId ?? '')
-          setTiers(
-            detail.tiers
-              .filter((tier) => tier.isActive !== false)
-              .map((tier) => ({
-                quantityFrom: String(tier.quantityFrom),
-                quantityTo: tier.quantityTo === null ? '' : String(tier.quantityTo),
-                unitPrice: String(tier.unitPrice),
-              }))
+          setTiers(activeTiers)
+          setScaleMode(
+            activeTiers.length > 0
+              ? 'manual'
+              : detail.volumeDiscountSchemeId
+                ? 'scheme'
+                : 'none'
           )
         })
       )
@@ -167,7 +185,7 @@ export function ProductPriceFormPage() {
     return () => {
       cancelled = true
     }
-  }, [isEdit, itemId, listId, tenantId])
+  }, [isEdit, listId, tenantId])
 
   // Costo promedio del stock para estimar margen.
   useEffect(() => {
@@ -190,24 +208,53 @@ export function ProductPriceFormPage() {
   }, [itemId, tenantId])
 
   const selectedItem = items.find((i) => i.id === itemId) ?? null
-  const effectiveCostInfo =
-    costInfo && costInfo.averageCost > 0
-      ? costInfo
-      : selectedItem?.costPrice != null && selectedItem.costPrice > 0
-        ? { averageCost: selectedItem.costPrice }
-        : null
+  const effectiveCostInfo = useMemo(() => {
+    if (costInfo && costInfo.averageCost > 0) return costInfo
+    if (selectedItem?.costPrice != null && selectedItem.costPrice > 0) {
+      return { averageCost: selectedItem.costPrice }
+    }
+    return null
+  }, [costInfo, selectedItem])
   const selectedList = lists.find((l) => l.id === listId) ?? null
+  const pricesIncludeTax = selectedList?.pricesIncludeTax ?? false
   const currentVigent = itemId ? pricesByItem.get(itemId) ?? null : null
-  const renewing = !isEdit && currentVigent != null
-  const numericEnteredPrice = Number(price)
-  const marginPercent =
-    effectiveCostInfo && effectiveCostInfo.averageCost > 0 && Number.isFinite(numericEnteredPrice) && numericEnteredPrice > 0
-      ? ((numericEnteredPrice - effectiveCostInfo.averageCost) / numericEnteredPrice) * 100
-      : null
+  const renewingIds = useMemo(
+    () => (!isEdit ? selectedItemIds.filter((id) => pricesByItem.has(id)) : []),
+    [isEdit, pricesByItem, selectedItemIds]
+  )
+  const renewing = renewingIds.length > 0
 
-  // Precarga del precio: vigente de la lista, o sugerido por margen sobre el costo promedio.
+  const computeNetAndMargin = useCallback(
+    (enteredValue: number) => {
+      if (!Number.isFinite(enteredValue) || enteredValue <= 0) {
+        return { netPrice: null, taxAmount: null, finalPrice: null, marginPercent: null }
+      }
+      const netPrice = pricesIncludeTax ? enteredValue / (1 + DEFAULT_TAX_RATE) : enteredValue
+      const taxAmount = pricesIncludeTax ? enteredValue - netPrice : enteredValue * DEFAULT_TAX_RATE
+      const finalPrice = pricesIncludeTax ? enteredValue : enteredValue + taxAmount
+      const cost = effectiveCostInfo?.averageCost ?? 0
+      const marginPercent = cost > 0 && netPrice > 0 ? ((netPrice - cost) / netPrice) * 100 : null
+      return { netPrice, taxAmount, finalPrice, marginPercent }
+    },
+    [effectiveCostInfo, pricesIncludeTax]
+  )
+
+  const numericEnteredPrice = Number(price)
+  const priceBreakdown = computeNetAndMargin(numericEnteredPrice)
+  const marginPercent = priceBreakdown.marginPercent
+
+  const suggestedPrice = useMemo(() => {
+    const cost = effectiveCostInfo?.averageCost ?? 0
+    const margin = selectedList?.suggestedMarginPercent
+    if (cost <= 0 || !margin || margin <= 0) return null
+    const netSuggested = cost * (1 + margin / 100)
+    const raw = pricesIncludeTax ? netSuggested * (1 + DEFAULT_TAX_RATE) : netSuggested
+    return raw.toFixed(2)
+  }, [effectiveCostInfo, pricesIncludeTax, selectedList])
+
+  // Precarga del precio: vigente de la lista, o sugerido por margen sobre el costo neto.
   useEffect(() => {
-    if (isEdit || !itemId || !listId) return
+    if (isEdit || !itemId || !listId || priceTouched) return
     let cancelled = false
     void (async () => {
       await Promise.resolve()
@@ -216,26 +263,23 @@ export function ProductPriceFormPage() {
         if (prev.trim()) return prev
         const vigent = pricesByItem.get(itemId)
         if (vigent) return String(vigent.price)
-        const cost = effectiveCostInfo?.averageCost ?? 0
-        const margin = selectedList?.suggestedMarginPercent
-        if (cost > 0 && margin && margin > 0) {
-          return (cost * (1 + margin / 100)).toFixed(2)
-        }
+        if (suggestedPrice) return suggestedPrice
         return prev
       })
     })()
     return () => {
       cancelled = true
     }
-  }, [effectiveCostInfo, isEdit, itemId, listId, pricesByItem, selectedList])
-
+  }, [isEdit, itemId, listId, priceTouched, pricesByItem, suggestedPrice])
 
   const handleSelectionChange = useCallback(
     (rows: ProductPriceRow[]) => {
       const ids = rows.map((row) => row.id)
       setSelectedItemIds(ids)
       setCostInfo(null)
-      setPrice('')
+      if (!priceTouched) {
+        setPrice('')
+      }
       if (ids.length > 1) {
         toast.show({
           title: `${ids.length} productos seleccionados`,
@@ -244,12 +288,27 @@ export function ProductPriceFormPage() {
         })
       }
     },
-    [toast]
+    [priceTouched, toast]
+  )
+
+  const handleRemoveSelectedItem = useCallback(
+    (idToRemove: string) => {
+      setSelectedItemIds((prev) => prev.filter((id) => id !== idToRemove))
+      if (idToRemove === itemId) {
+        setCostInfo(null)
+        if (!priceTouched) setPrice('')
+      }
+    },
+    [itemId, priceTouched]
   )
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase()
-    const visible = items.filter((item) => !item.isMatrixParent)
+    const visible = items.filter((item) => {
+      if (item.isMatrixParent) return false
+      if (!isEdit && onlyWithoutPrice && pricesByItem.has(item.id)) return false
+      return true
+    })
     if (!term) return visible
     return visible.filter(
       (item) =>
@@ -257,7 +316,7 @@ export function ProductPriceFormPage() {
         item.name.toLowerCase().includes(term) ||
         (item.description ?? '').toLowerCase().includes(term)
     )
-  }, [items, search])
+  }, [isEdit, items, onlyWithoutPrice, pricesByItem, search])
 
   // Descripción del padre por id: si la variante hereda la descripción genérica del padre,
   // se prefiere su propio nombre (que incluye los atributos) como título visible.
@@ -355,7 +414,7 @@ export function ProductPriceFormPage() {
   }, [tiers])
 
   const onSubmit = useCallback(
-    async (event?: FormEvent) => {
+    async (event?: FormEvent, nextAction: SubmitNextAction = 'list') => {
       event?.preventDefault()
       if (!tenantId) return
       setError(null)
@@ -364,6 +423,9 @@ export function ProductPriceFormPage() {
         if (!isEdit && selectedItemIds.length === 0) throw new Error('Selecciona al menos un producto.')
         if (!listId) throw new Error('Selecciona la lista de precios.')
         if (!price.trim()) throw new Error('El precio es obligatorio.')
+        if (validTo && validTo < validFrom) {
+          throw new Error('La fecha «Vigente hasta» no puede ser anterior a «Vigente desde».')
+        }
         if (renewing && !reason.trim()) {
           throw new Error('Indica el motivo del cambio para renovar la vigencia anterior.')
         }
@@ -371,17 +433,26 @@ export function ProductPriceFormPage() {
         if (!Number.isFinite(numericPrice) || numericPrice < 0) {
           throw new Error('El precio debe ser un número mayor o igual a cero.')
         }
-        const tierPayload = buildTiers()
-        for (const tier of tierPayload) {
-          if (!Number.isFinite(tier.quantityFrom) || tier.quantityFrom <= 0) {
-            throw new Error('Cada escala debe tener una cantidad inicial mayor que cero.')
+        const tierPayload = scaleMode === 'manual' ? buildTiers() : []
+        if (scaleMode === 'manual') {
+          if (tierPayload.length === 0) {
+            throw new Error('Agrega al menos un tramo manual o cambia el modo de escala.')
           }
-          if (tier.quantityTo !== null && tier.quantityTo < tier.quantityFrom) {
-            throw new Error('La cantidad final de una escala no puede ser menor que la inicial.')
+          for (const tier of tierPayload) {
+            if (!Number.isFinite(tier.quantityFrom) || tier.quantityFrom <= 0) {
+              throw new Error('Cada escala debe tener una cantidad inicial mayor que cero.')
+            }
+            if (tier.quantityTo !== null && tier.quantityTo < tier.quantityFrom) {
+              throw new Error('La cantidad final de una escala no puede ser menor que la inicial.')
+            }
+            if (!Number.isFinite(tier.unitPrice) || tier.unitPrice < 0) {
+              throw new Error('El precio de una escala no puede ser negativo.')
+            }
           }
-          if (!Number.isFinite(tier.unitPrice) || tier.unitPrice < 0) {
-            throw new Error('El precio de una escala no puede ser negativo.')
-          }
+        }
+        const schemePayload = scaleMode === 'scheme' && volumeDiscountSchemeId ? volumeDiscountSchemeId : null
+        if (scaleMode === 'scheme' && !schemePayload) {
+          throw new Error('Selecciona un esquema por volumen o cambia el modo de escala.')
         }
 
         if (isEdit && priceId) {
@@ -392,7 +463,7 @@ export function ProductPriceFormPage() {
             reason: reason.trim() || null,
             isActive,
             tiers: tierPayload,
-            volumeDiscountSchemeId: volumeDiscountSchemeId || null,
+            volumeDiscountSchemeId: schemePayload,
           })
           toast.show({ title: 'Precio actualizado', message: 'La vigencia fue guardada.', variant: 'success' })
         } else if (selectedItemIds.length === 1) {
@@ -405,7 +476,7 @@ export function ProductPriceFormPage() {
             reason: reason.trim() || null,
             tiers: tierPayload,
             isActive,
-            volumeDiscountSchemeId: volumeDiscountSchemeId || null,
+            volumeDiscountSchemeId: schemePayload,
           })
           toast.show({
             title: 'Precio creado',
@@ -422,7 +493,7 @@ export function ProductPriceFormPage() {
               catalogItemId,
               price: numericPrice,
               tiers: tierPayload,
-              volumeDiscountSchemeId: volumeDiscountSchemeId || null,
+              volumeDiscountSchemeId: schemePayload,
             })),
           })
           toast.show({
@@ -435,7 +506,30 @@ export function ProductPriceFormPage() {
           })
         }
 
-        void navigate('/catalogo/precios/productos', { replace: true })
+        if (nextAction === 'simulate' && itemId && listId) {
+          void navigate(
+            `/catalogo/precios/simulador?catalogItemId=${encodeURIComponent(itemId)}&priceListId=${encodeURIComponent(listId)}`
+          )
+        } else if (nextAction === 'another' && !isEdit) {
+          setPricesByItem((prev) => {
+            const next = new Map(prev)
+            for (const id of selectedItemIds) {
+              next.set(id, { price: numericPrice, validFrom })
+            }
+            return next
+          })
+          setSelectedItemIds([])
+          setPrice('')
+          setPriceTouched(false)
+          setCostInfo(null)
+          setReason('')
+          setTiers([])
+          setVolumeDiscountSchemeId('')
+          setScaleMode('none')
+          setShowCatalogPicker(true)
+        } else {
+          void navigate('/catalogo/precios/productos', { replace: true })
+        }
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : readApiError(err, 'No se pudo guardar el precio.')
@@ -449,6 +543,7 @@ export function ProductPriceFormPage() {
       buildTiers,
       isActive,
       isEdit,
+      itemId,
       selectedItemIds,
       listId,
       navigate,
@@ -456,6 +551,7 @@ export function ProductPriceFormPage() {
       priceId,
       reason,
       renewing,
+      scaleMode,
       tenantId,
       toast,
       validFrom,
@@ -524,17 +620,59 @@ export function ProductPriceFormPage() {
             </div>
           ) : null}
 
-          {/* PASO 1: SELECCIÓN DEL PRODUCTO */}
+          {/* PASO 1: LISTA DE PRECIOS Y PRODUCTO */}
           <SectionCard
-            title="1. Producto a fijar precio"
+            title="1. Lista de precios y Producto"
             subtitle={
               isEdit
-                ? 'Producto asociado a esta vigencia de precio.'
-                : selectedItemIds.length > 0
-                  ? 'Producto seleccionado. Puedes modificar la selección si deseas cotizar otro.'
-                  : 'Busca y selecciona el producto al que deseas asignar o renovar el precio.'
+                ? 'Lista y producto asociados a esta vigencia de precio.'
+                : 'Elige primero la lista (define moneda e IVA) y luego el o los productos a configurar.'
             }
           >
+            <div
+              className="ecu-companies-form__grid ecu-companies-form__grid--3"
+              style={{ marginBottom: '1rem', alignItems: 'end' }}
+            >
+              <div className="ecu-companies-form__field">
+                <Select
+                  id="pp-list"
+                  aria-label="Lista de precios"
+                  label="Lista de precios"
+                  labelPosition="outlined"
+                  variant="outline"
+                  options={lists.map((l) => ({
+                    value: l.id,
+                    label: l.isDefault ? `${l.code} · predeterminada` : l.code,
+                  }))}
+                  value={listId}
+                  onChange={(value) => {
+                    setListId(String(value))
+                    setPrice('')
+                    setPriceTouched(false)
+                  }}
+                  disabled={busy || loading || isEdit}
+                />
+              </div>
+              {selectedList ? (
+                <div
+                  className="ecu-companies-form__field ecu-companies-form__field--span-2"
+                  style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', paddingBottom: '0.25rem' }}
+                >
+                  <StatusBadge tone={pricesIncludeTax ? 'primary' : 'neutral'}>
+                    {pricesIncludeTax ? 'IVA incluido (PVP final)' : 'Neto + IVA'}
+                  </StatusBadge>
+                  <span className="ecu-chip">{selectedList.currency}</span>
+                  {selectedList.suggestedMarginPercent ? (
+                    <span className="ecu-chip">Margen sugerido +{selectedList.suggestedMarginPercent}%</span>
+                  ) : null}
+                  <span className="ecu-chip">
+                    Lista vigente {selectedList.validFrom}
+                    {selectedList.validTo ? ` → ${selectedList.validTo}` : ''}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
             {isEdit ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <StatusBadge tone="neutral">Producto</StatusBadge>
@@ -547,8 +685,10 @@ export function ProductPriceFormPage() {
                   {itemLabel || selectedItem?.name || '—'}
                 </strong>
                 {effectiveCostInfo ? (
-                  <span className="ecu-chip">Costo ref. ${effectiveCostInfo.averageCost.toFixed(4)}</span>
-                ) : null}
+                  <span className="ecu-chip">Costo ref. neto: ${effectiveCostInfo.averageCost.toFixed(4)}</span>
+                ) : (
+                  <span className="ecu-chip">Sin costo en Kárdex ni costo estimado</span>
+                )}
               </div>
             ) : selectedItemIds.length > 0 ? (
               <>
@@ -579,7 +719,7 @@ export function ProductPriceFormPage() {
                           ? 'Producto seleccionado'
                           : `${selectedItemIds.length} productos seleccionados`}
                       </StatusBadge>
-                      {selectedItem ? (
+                      {selectedItemIds.length === 1 && selectedItem ? (
                         <>
                           <span
                             className="ecu-code"
@@ -611,6 +751,7 @@ export function ProductPriceFormPage() {
                         onClick={() => {
                           setSelectedItemIds([])
                           setPrice('')
+                          setPriceTouched(false)
                           setCostInfo(null)
                           setShowCatalogPicker(true)
                         }}
@@ -620,26 +761,83 @@ export function ProductPriceFormPage() {
                     </div>
                   </div>
 
+                  {selectedItemIds.length > 1 ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      {selectedItemIds.map((id) => {
+                        const item = items.find((i) => i.id === id)
+                        const vigent = pricesByItem.get(id)
+                        return (
+                          <span
+                            key={id}
+                            className="ecu-chip"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                          >
+                            <code>{item?.sku ?? 'SKU'}</code>
+                            <span>{item?.name ?? id.slice(0, 8)}</span>
+                            {vigent ? (
+                              <span style={{ opacity: 0.75 }}>({formatMoney(vigent.price)})</span>
+                            ) : null}
+                            <button
+                              type="button"
+                              aria-label={`Quitar ${item?.name ?? id}`}
+                              onClick={() => handleRemoveSelectedItem(id)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: 'inherit',
+                                padding: 0,
+                                fontWeight: 700,
+                                lineHeight: 1,
+                              }}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  ) : null}
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {effectiveCostInfo ? (
-                      <span className="ecu-chip">Costo referencia: ${effectiveCostInfo.averageCost.toFixed(4)}</span>
+                    {selectedItemIds.length === 1 ? (
+                      effectiveCostInfo ? (
+                        <span className="ecu-chip">Costo ref. neto: ${effectiveCostInfo.averageCost.toFixed(4)}</span>
+                      ) : (
+                        <span className="ecu-chip">Sin costo en Kárdex ni costo estimado</span>
+                      )
                     ) : null}
-                    {currentVigent ? (
+                    {selectedItemIds.length === 1 ? (
+                      currentVigent ? (
+                        <span className="ecu-chip">
+                          Precio vigente en lista: <strong>${currentVigent.price.toFixed(2)}</strong> (desde {currentVigent.validFrom})
+                        </span>
+                      ) : (
+                        <span className="ecu-chip">Sin precio vigente en esta lista</span>
+                      )
+                    ) : renewingIds.length > 0 ? (
                       <span className="ecu-chip">
-                        Precio vigente en lista: <strong>${currentVigent.price.toFixed(2)}</strong> (desde {currentVigent.validFrom})
+                        {renewingIds.length} de {selectedItemIds.length} ya tienen precio vigente (se renovarán)
                       </span>
                     ) : (
-                      <span className="ecu-chip">Sin precio vigente en esta lista</span>
+                      <span className="ecu-chip">Ninguno tiene precio vigente en esta lista</span>
                     )}
-                    {marginPercent != null ? (
+                    {selectedItemIds.length === 1 && marginPercent != null ? (
                       <span
                         className="ecu-chip"
                         style={{
-                          color: marginPercent >= 0 ? 'var(--color-success, #16a34a)' : 'var(--color-danger, #ef4444)',
+                          color:
+                            marginPercent < 0
+                              ? 'var(--color-danger, #ef4444)'
+                              : marginPercent < 15
+                                ? 'var(--color-warning, #d97706)'
+                                : 'var(--color-success, #16a34a)',
                           fontWeight: 600,
                         }}
                       >
-                        Margen estimado: {marginPercent.toFixed(1)}%
+                        {marginPercent < 0
+                          ? `Bajo costo (${marginPercent.toFixed(1)}%)`
+                          : `Margen real sobre neto: ${marginPercent.toFixed(1)}%`}
                       </span>
                     ) : null}
                   </div>
@@ -649,7 +847,7 @@ export function ProductPriceFormPage() {
                   <div>
                     <div
                       className="ecu-companies-form__grid ecu-companies-form__grid--4"
-                      style={{ marginBottom: '0.75rem' }}
+                      style={{ marginBottom: '0.75rem', alignItems: 'center' }}
                     >
                       <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                         <TextBox
@@ -666,6 +864,19 @@ export function ProductPriceFormPage() {
                           disabled={busy || loading}
                           fullWidth
                         />
+                      </div>
+                      <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                        <CheckButton
+                          variant="ghost"
+                          checked={onlyWithoutPrice}
+                          onChange={(checked) => {
+                            setOnlyWithoutPrice(checked)
+                            onPageChange(0)
+                          }}
+                          disabled={busy || loading}
+                        >
+                          Solo productos sin precio en esta lista
+                        </CheckButton>
                       </div>
                     </div>
                     <div style={{ width: '100%', overflowX: 'auto' }}>
@@ -692,7 +903,7 @@ export function ProductPriceFormPage() {
               <div>
                 <div
                   className="ecu-companies-form__grid ecu-companies-form__grid--4"
-                  style={{ marginBottom: '0.75rem' }}
+                  style={{ marginBottom: '0.75rem', alignItems: 'center' }}
                 >
                   <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
                     <TextBox
@@ -709,6 +920,19 @@ export function ProductPriceFormPage() {
                       disabled={busy || loading}
                       fullWidth
                     />
+                  </div>
+                  <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                    <CheckButton
+                      variant="ghost"
+                      checked={onlyWithoutPrice}
+                      onChange={(checked) => {
+                        setOnlyWithoutPrice(checked)
+                        onPageChange(0)
+                      }}
+                      disabled={busy || loading}
+                    >
+                      Solo productos sin precio en esta lista
+                    </CheckButton>
                   </div>
                 </div>
                 <div style={{ width: '100%', overflowX: 'auto' }}>
@@ -734,37 +958,25 @@ export function ProductPriceFormPage() {
 
           {/* PASO 2: PRECIO Y CONDICIONES */}
           <SectionCard
-            title="2. Precio y Condiciones de Lista"
-            subtitle="Define el precio base de venta, la lista aplicable y la vigencia temporal."
+            title="2. Precio y Vigencia"
+            subtitle={
+              pricesIncludeTax
+                ? 'Esta lista incluye IVA: ingresa el PVP final al cliente.'
+                : 'Esta lista es Neto + IVA: ingresa el valor antes de impuestos.'
+            }
           >
             <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
               <div className="ecu-companies-form__field">
-                <Select
-                  id="pp-list"
-                  aria-label="Lista de precios"
-                  label="Lista de precios"
-                  labelPosition="outlined"
-                  variant="outline"
-                  options={lists.map((l) => ({
-                    value: l.id,
-                    label: l.isDefault ? `${l.code} · predeterminada` : l.code,
-                  }))}
-                  value={listId}
-                  onChange={(value) => {
-                    setListId(String(value))
-                    setPrice('')
-                  }}
-                  disabled={busy || loading || isEdit}
-                />
-              </div>
-              <div className="ecu-companies-form__field">
                 <NumberBox
                   id="pp-price"
-                  label="Precio base unitario"
+                  label={pricesIncludeTax ? 'PVP unitario (IVA incl.)' : 'Precio unitario (Neto + IVA)'}
                   labelPosition="outlined"
                   variant="outline"
                   value={price === '' ? '' : Number(price)}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPrice(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                    setPriceTouched(true)
+                    setPrice(e.target.value)
+                  }}
                   step={0.01}
                   min={0}
                   showSpinButtons
@@ -773,13 +985,29 @@ export function ProductPriceFormPage() {
                 />
                 {renewing ? (
                   <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
-                    Cerrará la vigencia anterior e iniciará el {validFrom}.
+                    Cerrará la vigencia anterior de {renewingIds.length} producto(s) e iniciará el {validFrom}.
                   </span>
                 ) : null}
-                {selectedList?.suggestedMarginPercent ? (
-                  <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
-                    Lista con margen sugerido del {selectedList.suggestedMarginPercent}% sobre costo promedio.
-                  </span>
+                {suggestedPrice ? (
+                  <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
+                      Sobre costo (+{selectedList?.suggestedMarginPercent}%): <strong>${suggestedPrice}</strong>
+                    </span>
+                    {price !== suggestedPrice ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy || loading}
+                        onClick={() => {
+                          setPriceTouched(true)
+                          setPrice(suggestedPrice)
+                        }}
+                      >
+                        Aplicar
+                      </Button>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
               <div className="ecu-companies-form__field">
@@ -822,28 +1050,65 @@ export function ProductPriceFormPage() {
               <div className="ecu-companies-form__field sri-config-field--check-align">
                 <CheckButton
                   variant="ghost"
-                  checked={isActive}
+                  checked={selectedItemIds.length > 1 ? true : isActive}
                   onChange={setIsActive}
-                  disabled={busy || loading}
+                  disabled={busy || loading || (!isEdit && selectedItemIds.length > 1)}
                 >
                   Precio activo
                 </CheckButton>
                 {!isEdit ? (
                   <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted, #64748b)' }}>
-                    Si lo desactivas, se guarda pero no se usará al cotizar o vender.
+                    {selectedItemIds.length > 1
+                      ? 'En selección múltiple las vigencias se crean activas.'
+                      : 'Si lo desactivas, se guarda pero no se usará al cotizar o vender.'}
                   </span>
                 ) : null}
               </div>
             </div>
 
-            {selectedList ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.75rem' }}>
-                <span className="ecu-chip">{selectedList.currency}</span>
-                {selectedList.pricesIncludeTax ? <span className="ecu-chip">IVA incluido</span> : null}
-                <span className="ecu-chip">
-                  Lista vigente {selectedList.validFrom}
-                  {selectedList.validTo ? ` → ${selectedList.validTo}` : ''}
-                </span>
+            {priceBreakdown.netPrice !== null ? (
+              <div
+                style={{
+                  marginTop: '0.9rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+                  backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.05))',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
+                  fontSize: '0.82rem',
+                }}
+              >
+                <div>
+                  <span className="app-shell__muted">Base neta: </span>
+                  <strong>{formatMoney(priceBreakdown.netPrice)}</strong>
+                </div>
+                <div>
+                  <span className="app-shell__muted">IVA ref. (15%): </span>
+                  <strong>{formatMoney(priceBreakdown.taxAmount)}</strong>
+                </div>
+                <div>
+                  <span className="app-shell__muted">PVP final ref.: </span>
+                  <strong>{formatMoney(priceBreakdown.finalPrice)}</strong>
+                </div>
+                {selectedItemIds.length === 1 && effectiveCostInfo ? (
+                  <div>
+                    <span className="app-shell__muted">Margen bruto s/venta neta: </span>
+                    <strong
+                      style={{
+                        color:
+                          marginPercent != null && marginPercent < 0
+                            ? 'var(--color-danger, #ef4444)'
+                            : marginPercent != null && marginPercent < 15
+                              ? 'var(--color-warning, #d97706)'
+                              : 'var(--color-success, #16a34a)',
+                      }}
+                    >
+                      {marginPercent != null ? `${marginPercent.toFixed(1)}%` : '—'}
+                    </strong>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </SectionCard>
@@ -851,116 +1116,171 @@ export function ProductPriceFormPage() {
           {/* PASO 3: ESCALAS DE DESCUENTO POR VOLUMEN */}
           <SectionCard
             title="3. Descuento por Volumen (Opcional)"
-            subtitle="Elige un esquema reutilizable (ej: Docena Calcetines) o define tramos manuales exclusivos para este producto. Si configuras tramos manuales activos, estos tienen prioridad y reemplazan al esquema."
+            subtitle="Elige un único mecanismo de escala: un esquema reutilizable para varios productos o tramos manuales exclusivos para este SKU."
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div style={{ maxWidth: 460 }}>
-                <Select
-                  id="pp-volume-scheme"
-                  label="Esquema por volumen"
-                  labelPosition="outlined"
-                  variant="outline"
-                  options={[
-                    { value: '', label: '— Sin escala reutilizable (Precio estándar) —' },
-                    ...schemes.map((s) => ({
-                      value: s.id,
-                      label: `${s.name} (${volumeSchemeTypeLabel(s.type)})`,
-                    })),
-                  ]}
-                  value={volumeDiscountSchemeId}
-                  onChange={(val) => setVolumeDiscountSchemeId(String(val))}
-                  disabled={busy || loading}
-                  fullWidth
-                />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }} role="group" aria-label="Modo de descuento por volumen">
+                {(
+                  [
+                    { id: 'none', label: 'Sin escala por volumen' },
+                    { id: 'scheme', label: 'Esquema reutilizable' },
+                    { id: 'manual', label: 'Tramos manuales exclusivos' },
+                  ] as const
+                ).map((opt) => (
+                  <Button
+                    key={opt.id}
+                    type="button"
+                    size="sm"
+                    variant={scaleMode === opt.id ? 'primary' : 'outline'}
+                    disabled={busy || loading}
+                    onClick={() => {
+                      setScaleMode(opt.id)
+                      if (opt.id === 'manual' && tiers.length === 0) {
+                        setTiers([emptyTier()])
+                      }
+                    }}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
               </div>
 
-              {volumeDiscountSchemeId ? (
-                (() => {
-                  const selectedScheme = schemes.find((s) => s.id === volumeDiscountSchemeId)
-                  if (!selectedScheme) return null
-                  return (
-                    <div
+              {scaleMode === 'scheme' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ maxWidth: 460 }}>
+                    <Select
+                      id="pp-volume-scheme"
+                      label="Esquema por volumen"
+                      labelPosition="outlined"
+                      variant="outline"
+                      options={[
+                        { value: '', label: '— Selecciona un esquema —' },
+                        ...schemes.map((s) => ({
+                          value: s.id,
+                          label: `${s.name} (${volumeSchemeTypeLabel(s.type)})`,
+                        })),
+                      ]}
+                      value={volumeDiscountSchemeId}
+                      onChange={(val) => setVolumeDiscountSchemeId(String(val))}
+                      disabled={busy || loading}
+                      fullWidth
+                    />
+                  </div>
+
+                  {volumeDiscountSchemeId ? (
+                    (() => {
+                      const selectedScheme = schemes.find((s) => s.id === volumeDiscountSchemeId)
+                      if (!selectedScheme) return null
+                      const sortedTiers = [...selectedScheme.tiers].sort((a, b) => a.quantityFrom - b.quantityFrom)
+                      const base = Number.isFinite(numericEnteredPrice) && numericEnteredPrice > 0 ? numericEnteredPrice : null
+                      return (
+                        <div
+                          style={{
+                            padding: '0.75rem 1rem',
+                            backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.08))',
+                            border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+                            borderRadius: '6px',
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.45rem',
+                          }}
+                        >
+                          <span style={{ fontWeight: 600 }}>Vista previa por tramo:</span>
+                          {sortedTiers.length === 0 ? (
+                            <span className="app-shell__muted">Sin tramos definidos en el esquema.</span>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                              {sortedTiers.map((t, idx) => {
+                                const range = t.quantityTo ? `${t.quantityFrom}–${t.quantityTo} un.` : `≥${t.quantityFrom} un.`
+                                const ruleLabel =
+                                  selectedScheme.type === VolumeDiscountSchemeType.FixedPrice
+                                    ? `${formatMoney(t.value)} c/u`
+                                    : selectedScheme.type === VolumeDiscountSchemeType.Percentage
+                                      ? `-${t.value}%`
+                                      : `-${formatMoney(t.value)} c/u`
+                                let resultingUnit: number | null = null
+                                if (base !== null) {
+                                  if (selectedScheme.type === VolumeDiscountSchemeType.Percentage) {
+                                    resultingUnit = base * (1 - t.value / 100)
+                                  } else if (selectedScheme.type === VolumeDiscountSchemeType.FixedAmount) {
+                                    resultingUnit = Math.max(0, base - t.value)
+                                  } else {
+                                    resultingUnit = t.value < base ? t.value : base
+                                  }
+                                }
+                                const tierMargin = resultingUnit !== null ? computeNetAndMargin(resultingUnit).marginPercent : null
+                                return (
+                                  <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'center' }}>
+                                    <span className="ecu-chip">{range}</span>
+                                    <span>{ruleLabel}</span>
+                                    {resultingUnit !== null ? (
+                                      <span>
+                                        → <strong>{formatMoney(resultingUnit)}</strong> c/u
+                                      </span>
+                                    ) : null}
+                                    {tierMargin !== null ? (
+                                      <span
+                                        style={{
+                                          fontWeight: 600,
+                                          color:
+                                            tierMargin < 0
+                                              ? 'var(--color-danger, #ef4444)'
+                                              : tierMargin < 15
+                                                ? 'var(--color-warning, #d97706)'
+                                                : 'var(--color-success, #16a34a)',
+                                        }}
+                                      >
+                                        {tierMargin < 0 ? `Bajo costo (${tierMargin.toFixed(1)}%)` : `Mg ${tierMargin.toFixed(1)}%`}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()
+                  ) : null}
+
+                  <div>
+                    <Link
+                      to="/catalogo/precios/escalas-volumen"
+                      target="_blank"
+                      rel="noreferrer"
                       style={{
-                        padding: '0.75rem 1rem',
-                        backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.08))',
-                        border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
-                        borderRadius: '6px',
-                        fontSize: '0.875rem',
+                        fontSize: '0.8125rem',
+                        color: 'var(--glb-primary, #2563eb)',
+                        textDecoration: 'underline',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                        <span style={{ fontWeight: 600 }}>Tramos configurados en el esquema:</span>
-                        <span>{formatVolumeTiersSummary(selectedScheme.type, selectedScheme.tiers)}</span>
-                      </div>
-                      <p className="app-shell__muted" style={{ margin: 0, fontSize: '0.8125rem' }}>
-                        Este esquema se aplicará automáticamente según la cantidad comprada en pedidos o facturas.
-                      </p>
-                    </div>
-                  )
-                })()
+                      Administrar o crear esquemas de volumen reutilizables ↗
+                    </Link>
+                  </div>
+                </div>
               ) : null}
 
-              <div style={{ marginTop: '0.25rem' }}>
-                <Link
-                  to="/catalogo/precios/escalas-volumen"
-                  target="_blank"
-                  rel="noreferrer"
+              {scaleMode === 'manual' ? (
+                <div
                   style={{
-                    fontSize: '0.8125rem',
-                    color: 'var(--glb-primary, #2563eb)',
-                    textDecoration: 'underline',
+                    border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+                    borderRadius: '8px',
+                    padding: '0.9rem 1.15rem',
+                    backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.04))',
                   }}
                 >
-                  Administrar o crear esquemas de volumen reutilizables ↗
-                </Link>
-              </div>
-
-              {/* Tramos específicos manuales (Avanzado / Colapsado para evitar información innecesaria) */}
-              <details
-                open={tiers.length > 0}
-                style={{
-                  marginTop: '0.75rem',
-                  border: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
-                  borderRadius: '8px',
-                  padding: '0.85rem 1.25rem',
-                  backgroundColor: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.04))',
-                }}
-              >
-                <summary
-                  style={{
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '0.875rem',
-                    color: 'var(--glb-text, inherit)',
-                    userSelect: 'none',
-                  }}
-                >
-                  Configuración manual de tramos específicos para este precio{' '}
-                  {tiers.length > 0 ? `(${tiers.length} configurada${tiers.length === 1 ? '' : 's'})` : '(Avanzado)'}
-                </summary>
-
-                <div style={{ marginTop: '0.75rem' }}>
-                  {volumeDiscountSchemeId && tiers.length > 0 ? (
-                    <div className="ecu-form-warning-banner" role="alert" style={{ marginBottom: '0.75rem' }}>
-                      <span className="material-symbols-outlined">warning</span>
-                      <span>
-                        Tienes un esquema reutilizable seleccionado arriba y tramos manuales aquí.
-                        Al vender o simular, los tramos manuales tienen prioridad y anulan el esquema.
-                      </span>
-                    </div>
-                  ) : null}
-                  <p className="ecu-companies-form__hint" style={{ marginBottom: '0.75rem' }}>
-                    Opcional. Úsalo únicamente si este producto requiere un precio unitario fijo por tramo que no aplica a otros productos.
+                  <p className="ecu-companies-form__hint" style={{ marginTop: 0, marginBottom: '0.75rem' }}>
+                    Ingresa el precio unitario ({pricesIncludeTax ? 'con IVA incluido' : 'neto + IVA'}) por rango de cantidad.
                     Ejemplo: «desde 1 hasta 11» → $3.50, y «desde 12» con «hasta» vacío → $3.00.
                   </p>
 
-                  {tiers.length === 0 ? (
-                    <p className="app-shell__muted" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-                      Sin escalas manuales específicas. Si usas un esquema reutilizable arriba, no es necesario configurar nada aquí.
-                    </p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      {tiers.map((tier, index) => (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {tiers.map((tier, index) => {
+                      const tierNumPrice = Number(tier.unitPrice)
+                      const tierMargin =
+                        tier.unitPrice.trim() !== '' ? computeNetAndMargin(tierNumPrice).marginPercent : null
+                      return (
                         <div
                           key={`tier-${index}`}
                           className="ecu-companies-form__grid ecu-companies-form__grid--4"
@@ -1005,7 +1325,7 @@ export function ProductPriceFormPage() {
                           <div className="ecu-companies-form__field">
                             <NumberBox
                               id={`tier-price-${index}`}
-                              label="Precio unitario"
+                              label={pricesIncludeTax ? 'PVP unitario (IVA incl.)' : 'Precio unitario (Neto)'}
                               labelPosition="outlined"
                               variant="outline"
                               value={tier.unitPrice === '' ? '' : Number(tier.unitPrice)}
@@ -1019,6 +1339,22 @@ export function ProductPriceFormPage() {
                               disabled={busy || loading}
                               fullWidth
                             />
+                            {tierMargin !== null ? (
+                              <span
+                                style={{
+                                  fontSize: '0.72rem',
+                                  fontWeight: 600,
+                                  color:
+                                    tierMargin < 0
+                                      ? 'var(--color-danger, #ef4444)'
+                                      : tierMargin < 15
+                                        ? 'var(--color-warning, #d97706)'
+                                        : 'var(--color-success, #16a34a)',
+                                }}
+                              >
+                                {tierMargin < 0 ? `Bajo costo (${tierMargin.toFixed(1)}%)` : `Margen neto: ${tierMargin.toFixed(1)}%`}
+                              </span>
+                            ) : null}
                           </div>
                           <div className="ecu-companies-form__field" style={{ paddingBottom: '0.35rem' }}>
                             <GridIconButton
@@ -1030,9 +1366,9 @@ export function ProductPriceFormPage() {
                             />
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      )
+                    })}
+                  </div>
 
                   <div style={{ marginTop: '0.75rem' }}>
                     <Button
@@ -1047,12 +1383,12 @@ export function ProductPriceFormPage() {
                     </Button>
                   </div>
                 </div>
-              </details>
+              ) : null}
             </div>
           </SectionCard>
 
           <SectionCard>
-            <div className="ecu-companies-form__actions">
+            <div className="ecu-companies-form__actions" style={{ flexWrap: 'wrap' }}>
               <Button
                 type="submit"
                 variant="primary"
@@ -1061,6 +1397,26 @@ export function ProductPriceFormPage() {
               >
                 {isEdit ? 'Guardar cambios' : renewing ? 'Renovar vigencia' : 'Crear precio'}
               </Button>
+              {!isEdit ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy || loading || selectedItemIds.length === 0}
+                  onClick={() => void onSubmit(undefined, 'another')}
+                >
+                  Guardar y crear otro
+                </Button>
+              ) : null}
+              {isEdit || selectedItemIds.length === 1 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy || loading || (!isEdit && selectedItemIds.length === 0)}
+                  onClick={() => void onSubmit(undefined, 'simulate')}
+                >
+                  Guardar y simular
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"

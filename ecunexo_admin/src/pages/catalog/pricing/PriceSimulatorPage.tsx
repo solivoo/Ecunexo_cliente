@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Button, DateBox, NumberBox, Select, useToast } from 'glubox'
 import {
   PageHeader,
@@ -18,14 +19,15 @@ import type { CatalogItemListItemDto } from '@/types/catalogApi'
 import type { PriceListDto, PricingResultDto } from '@/types/pricingApi'
 
 export function PriceSimulatorPage() {
+  const [searchParams] = useSearchParams()
   const toast = useToast()
   const tenantId = useAppSelector(selectTenantId)
   const canRead = useHasPermission('catalog.pricing.read')
 
   const [items, setItems] = useState<CatalogItemListItemDto[]>([])
   const [lists, setLists] = useState<PriceListDto[]>([])
-  const [itemId, setItemId] = useState('')
-  const [listId, setListId] = useState('')
+  const [itemId, setItemId] = useState(() => searchParams.get('catalogItemId') ?? '')
+  const [listId, setListId] = useState(() => searchParams.get('priceListId') ?? '')
   const [quantity, setQuantity] = useState('1')
   const [date, setDate] = useState(todayIso())
   const [busy, setBusy] = useState(false)
