@@ -53,6 +53,7 @@ import {
 } from '@/pages/facturacion/invoiceFormTypes'
 import { getOrCreateCustomer } from '@/services/customersApi'
 import { getEcommerceOrderById, linkEcommerceOrderInvoice } from '@/services/ecommerceApi'
+import { getStockReservationById, invoiceStockReservation } from '@/services/stockReservationApi'
 import { resolvePrice } from '@/services/pricingApi'
 import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
 import type { EcommerceOrderDetailDto } from '@/types/ecommerceApi'
@@ -194,6 +195,8 @@ export type UseInvoiceEmitFormArgs = {
   readonly branding: TenantBranding
   readonly canCreate: boolean
   readonly orderIdToInvoice?: string | null
+  readonly reservationIdToInvoice?: string | null
+  readonly reservationObservation?: string | null
   /** Lista de precios efectiva (del cliente o elegida manualmente); vacío = predeterminada. */
   readonly priceListId?: string | null
 }
@@ -203,6 +206,8 @@ export function useInvoiceEmitForm({
   branding,
   canCreate,
   orderIdToInvoice = null,
+  reservationIdToInvoice = null,
+  reservationObservation = null,
   priceListId = null,
 }: UseInvoiceEmitFormArgs) {
   const toast = useToast()
@@ -243,6 +248,13 @@ export function useInvoiceEmitForm({
   } | null>(null)
   const prefilledOrderRef = useRef<string | null>(null)
   const linkedOrderRef = useRef<EcommerceOrderInvoiceContext | null>(null)
+  const prefilledReservationRef = useRef<string | null>(null)
+  const linkedReservationRef = useRef<{
+    readonly reservationId: string
+    readonly reservationNumber: string
+    readonly observation: string | null
+    readonly alreadyInvoiced: boolean
+  } | null>(null)
 
   const [emitProfileId, setEmitProfileId] = useState(() =>
     readBillingEmitProfile(tenantId)
@@ -421,6 +433,78 @@ export function useInvoiceEmitForm({
         })
       })
   }, [tenantId, orderIdToInvoice, toast])
+
+  useEffect(() => {
+    if (!tenantId || !reservationIdToInvoice) return
+    if (prefilledReservationRef.current === reservationIdToInvoice) return
+    prefilledReservationRef.current = reservationIdToInvoice
+
+    void getStockReservationById(tenantId, reservationIdToInvoice)
+      .then((res) => {
+        const obs = reservationObservation?.trim() || res.invoiceObservation || null
+        linkedReservationRef.current = {
+          reservationId: res.id,
+          reservationNumber: res.reservationNumber,
+          observation: obs,
+          alreadyInvoiced: Boolean(res.billingInvoiceId),
+        }
+        setCounterparty((prev) => {
+          if (!isCounterpartyEmpty(prev)) return prev
+          const identificationType = inferOrderIdentificationType({
+            customerName: res.customerName,
+            taxId: res.customerTaxId,
+            taxIdType: null,
+            email: res.customerEmail ?? '',
+            phone: res.customerPhone ?? '',
+            address: null,
+          })
+          return {
+            ...INITIAL_COUNTERPARTY,
+            identification: res.customerTaxId,
+            identificationType,
+            businessName: res.customerName,
+            customerType: defaultCustomerTypeForSriId(identificationType),
+            email: res.customerEmail ?? '',
+            phone: res.customerPhone ?? '',
+            address: 'Ecuador',
+            city: '',
+          }
+        })
+        if (obs) {
+          setHeader((prev) => ({
+            ...prev,
+            additionalNote: prev.additionalNote ? `${prev.additionalNote} | ${obs}` : obs,
+          }))
+        }
+        setLines((prev) =>
+          prev.every(isLineEmpty)
+            ? [
+                ...res.items.map((item) => ({
+                  id: newLineId(),
+                  productId: item.catalogItemId,
+                  sku: item.sku,
+                  description: item.itemName,
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice,
+                  discount: 0,
+                  ivaRate: normalizeOrderItemIvaRate(item.taxRate),
+                  catalogItemId: item.catalogItemId,
+                  itemKind: null,
+                })),
+                createEmptyLine(newLineId()),
+              ]
+            : prev
+        )
+      })
+      .catch((err: unknown) => {
+        prefilledReservationRef.current = null
+        toast.show({
+          title: 'Reserva',
+          message: readApiError(err, 'No se pudo cargar la reserva para facturar.'),
+          variant: 'warning',
+        })
+      })
+  }, [tenantId, reservationIdToInvoice, reservationObservation, toast])
 
   const patchHeader = useCallback(
     <K extends keyof InvoiceHeaderValues>(key: K, value: InvoiceHeaderValues[K]) => {
@@ -827,6 +911,27 @@ export function useInvoiceEmitForm({
               toast.show({
                 title: 'Vinculación manual requerida',
                 message: `La factura se emitió con ID ${result.invoiceId}, pero no se pudo vincular al pedido ${orderContext.orderNumber}. Usa «Vincular Factura SRI» en el detalle del pedido.`,
+                variant: 'warning',
+              })
+            }
+          }
+          const reservationContext = linkedReservationRef.current
+          if (tenantId && reservationContext && !reservationContext.alreadyInvoiced) {
+            try {
+              await invoiceStockReservation(tenantId, reservationContext.reservationId, {
+                billingInvoiceId: result.invoiceId,
+                observation: reservationContext.observation,
+              })
+              linkedReservationRef.current = { ...reservationContext, alreadyInvoiced: true }
+              toast.show({
+                title: 'Reserva facturada',
+                message: `La factura quedó vinculada a la reserva ${reservationContext.reservationNumber} y el stock reservado fue liquidado.`,
+                variant: 'success',
+              })
+            } catch (err) {
+              toast.show({
+                title: 'Error vinculando reserva',
+                message: readApiError(err, `Factura ${result.invoiceId} emitida, pero no se pudo cerrar la reserva.`),
                 variant: 'warning',
               })
             }

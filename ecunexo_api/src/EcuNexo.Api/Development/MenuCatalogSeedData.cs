@@ -188,9 +188,10 @@ internal static class MenuCatalogSeedData
 
         Item("ecommerce", null, "Ecommerce", "shopping-bag", null, 58, MenuContextKind.Operational, "orders", ["ecommerce.orders.read", "ecommerce.storefront.manage"]),
         Item("ecommerce-orders", "ecommerce", "Pedidos", "shopping-bag", "ecommerce/pedidos", 1, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
-        Item("ecommerce-storefront", "ecommerce", "Vitrina y dominios", "globe", "ecommerce/vitrina", 2, MenuContextKind.Operational, "ecommerce", ["ecommerce.storefront.manage"]),
-        Item("ecommerce-configuracion", "ecommerce", "Configuración de tienda", "settings", "ecommerce/configuracion", 3, MenuContextKind.Operational, "ecommerce", ["ecommerce.storefront.manage"]),
-        Item("ecommerce-shipping-group", "ecommerce", "Envíos", "truck", null, 4, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
+        Item("ecommerce-reservations", "ecommerce", "Reservas de stock", "package-check", "ecommerce/reservas", 2, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
+        Item("ecommerce-storefront", "ecommerce", "Vitrina y dominios", "globe", "ecommerce/vitrina", 3, MenuContextKind.Operational, "ecommerce", ["ecommerce.storefront.manage"]),
+        Item("ecommerce-configuracion", "ecommerce", "Configuración de tienda", "settings", "ecommerce/configuracion", 4, MenuContextKind.Operational, "ecommerce", ["ecommerce.storefront.manage"]),
+        Item("ecommerce-shipping-group", "ecommerce", "Envíos", "truck", null, 5, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
         Item("ecommerce-shipping-methods", "ecommerce-shipping-group", "Métodos de envío", "truck", "ecommerce/envios/metodos", 1, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
         Item("ecommerce-shipping-zones", "ecommerce-shipping-group", "Zonas", "map-pin", "ecommerce/envios/zonas", 2, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
         Item("ecommerce-shipping-rates", "ecommerce-shipping-group", "Tarifas", "calculator", "ecommerce/envios/tarifas", 3, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),

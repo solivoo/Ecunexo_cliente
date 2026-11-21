@@ -20,6 +20,8 @@ export function FacturaEmitirPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const orderIdToInvoice = searchParams.get('pedido')
+  const reservationIdToInvoice = searchParams.get('reserva')
+  const reservationObservation = searchParams.get('obs')
   const canCreate = useHasPermission('facturacion.facturas.create')
   const tenantId = useAppSelector(selectTenantId)
   const branding = useAppSelector(selectTenantBranding)
@@ -29,6 +31,8 @@ export function FacturaEmitirPage() {
     branding,
     canCreate,
     orderIdToInvoice,
+    reservationIdToInvoice,
+    reservationObservation,
     priceListId,
   })
   const profile = form.emitProfile

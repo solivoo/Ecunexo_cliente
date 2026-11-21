@@ -258,13 +258,22 @@ export function EcommerceOrdersListPage() {
           badge={<StatusBadge tone="primary">Ventas Online</StatusBadge>}
           info="Administración y despacho de pedidos online con reserva automática de stock e integración SRI."
           actions={
-            <Button
-              variant="outline"
-              iconLeft={<Truck size={16} />}
-              onClick={() => navigate('/ecommerce/envios')}
-            >
-              Tarifas de envío
-            </Button>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Button
+                variant="outline"
+                iconLeft={<Package size={16} />}
+                onClick={() => navigate('/ecommerce/reservas')}
+              >
+                Crear reserva
+              </Button>
+              <Button
+                variant="outline"
+                iconLeft={<Truck size={16} />}
+                onClick={() => navigate('/ecommerce/envios')}
+              >
+                Tarifas de envío
+              </Button>
+            </div>
           }
         />
 

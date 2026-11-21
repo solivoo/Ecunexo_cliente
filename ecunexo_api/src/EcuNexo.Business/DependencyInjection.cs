@@ -528,6 +528,15 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<ListTenantApiKeysQuery, IReadOnlyList<TenantApiKeyItemDto>>, ListTenantApiKeysHandler>();
         services.AddScoped<IQueryHandler<ListDeveloperApiScopesQuery, IReadOnlyList<DeveloperApiScopeItemDto>>, ListDeveloperApiScopesHandler>();
 
+        // Ecommerce · Reservas de Stock para Clientes
+        services.AddScoped<IQueryHandler<EcuNexo.Business.Ecommerce.Reservations.ListStockReservations.ListStockReservationsQuery, IReadOnlyList<EcuNexo.Business.Ecommerce.Reservations.StockReservationDto>>, EcuNexo.Business.Ecommerce.Reservations.ListStockReservations.ListStockReservationsHandler>();
+        services.AddScoped<IQueryHandler<EcuNexo.Business.Ecommerce.Reservations.GetStockReservationById.GetStockReservationByIdQuery, EcuNexo.Business.Ecommerce.Reservations.StockReservationDto>, EcuNexo.Business.Ecommerce.Reservations.GetStockReservationById.GetStockReservationByIdHandler>();
+        services.AddScoped<ICommandHandler<EcuNexo.Business.Ecommerce.Reservations.CreateStockReservation.CreateStockReservationCommand, EcuNexo.Business.Ecommerce.Reservations.StockReservationDto>, EcuNexo.Business.Ecommerce.Reservations.CreateStockReservation.CreateStockReservationHandler>();
+        services.AddScoped<ICommandHandler<EcuNexo.Business.Ecommerce.Reservations.AddStockReservationPayment.AddStockReservationPaymentCommand, EcuNexo.Business.Ecommerce.Reservations.StockReservationDto>, EcuNexo.Business.Ecommerce.Reservations.AddStockReservationPayment.AddStockReservationPaymentHandler>();
+        services.AddScoped<IQueryHandler<EcuNexo.Business.Ecommerce.Reservations.GetStockReservationPaymentProofUrl.GetStockReservationPaymentProofUrlQuery, EcuNexo.Business.Ecommerce.Reservations.StockReservationPaymentProofUrlDto>, EcuNexo.Business.Ecommerce.Reservations.GetStockReservationPaymentProofUrl.GetStockReservationPaymentProofUrlHandler>();
+        services.AddScoped<ICommandHandler<EcuNexo.Business.Ecommerce.Reservations.CancelStockReservation.CancelStockReservationCommand, EcuNexo.Business.Ecommerce.Reservations.StockReservationDto>, EcuNexo.Business.Ecommerce.Reservations.CancelStockReservation.CancelStockReservationHandler>();
+        services.AddScoped<ICommandHandler<EcuNexo.Business.Ecommerce.Reservations.InvoiceStockReservation.InvoiceStockReservationCommand, EcuNexo.Business.Ecommerce.Reservations.StockReservationDto>, EcuNexo.Business.Ecommerce.Reservations.InvoiceStockReservation.InvoiceStockReservationHandler>();
+
         return services;
     }
 }

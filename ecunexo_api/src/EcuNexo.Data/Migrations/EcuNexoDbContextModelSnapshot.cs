@@ -1851,6 +1851,265 @@ namespace EcuNexo.Data.Migrations
                     b.ToTable("order_timelines", "ecommerce");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.StockReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("BillingInvoiceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("billing_invoice_id");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cancellation_reason");
+
+                    b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("cancelled_at_utc");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("CustomerEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("customer_email");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("customer_name");
+
+                    b.Property<string>("CustomerPhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("customer_phone");
+
+                    b.Property<string>("CustomerTaxId")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("customer_tax_id");
+
+                    b.Property<DateTimeOffset?>("ExpiresAtUtc")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<string>("InvoiceObservation")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("invoice_observation");
+
+                    b.Property<DateTimeOffset?>("InvoicedAtUtc")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("invoiced_at_utc");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<decimal>("PaidAmount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("paid_amount");
+
+                    b.Property<string>("ReservationNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("reservation_number");
+
+                    b.Property<DateTimeOffset>("ReservedAtUtc")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("reserved_at_utc");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("subtotal");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax_amount");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_stock_reservations");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_stock_reservations_customer_id");
+
+                    b.HasIndex("WarehouseId")
+                        .HasDatabaseName("ix_stock_reservations_warehouse_id");
+
+                    b.HasIndex("TenantId", "CustomerId")
+                        .HasDatabaseName("ix_stock_reservations_tenant_id_customer_id");
+
+                    b.HasIndex("TenantId", "ReservationNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_stock_reservations_tenant_id_reservation_number");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("ix_stock_reservations_tenant_id_status");
+
+                    b.ToTable("stock_reservations", "ecommerce");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.StockReservationItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("item_name");
+
+                    b.Property<decimal>("LineSubtotal")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("line_subtotal");
+
+                    b.Property<decimal>("LineTax")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("line_tax");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("line_total");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("sku");
+
+                    b.Property<Guid>("StockReservationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("stock_reservation_id");
+
+                    b.Property<decimal>("TaxRate")
+                        .HasColumnType("numeric(7,4)")
+                        .HasColumnName("tax_rate");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_price");
+
+                    b.HasKey("Id")
+                        .HasName("pk_stock_reservation_items");
+
+                    b.HasIndex("StockReservationId")
+                        .HasDatabaseName("ix_stock_reservation_items_stock_reservation_id");
+
+                    b.ToTable("stock_reservation_items", "ecommerce");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.StockReservationPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTimeOffset>("PaidAtUtc")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("paid_at_utc");
+
+                    b.Property<int>("PaymentMethod")
+                        .HasColumnType("integer")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("ProofContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("proof_content_type");
+
+                    b.Property<string>("ProofObjectKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("proof_object_key");
+
+                    b.Property<Guid?>("RecordedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recorded_by");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("reference");
+
+                    b.Property<Guid>("StockReservationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("stock_reservation_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_stock_reservation_payments");
+
+                    b.HasIndex("StockReservationId")
+                        .HasDatabaseName("ix_stock_reservation_payments_stock_reservation_id");
+
+                    b.ToTable("stock_reservation_payments", "ecommerce");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Ecommerce.StorefrontProductLike", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6518,6 +6777,56 @@ namespace EcuNexo.Data.Migrations
                         .HasConstraintName("fk_order_timelines_orders_ecommerce_order_id");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.StockReservation", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Customers.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_stock_reservations_customers_customer_id");
+
+                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_stock_reservations_tenants_tenant_id");
+
+                    b.HasOne("EcuNexo.Core.Warehousing.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_stock_reservations_warehouses_warehouse_id");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.StockReservationItem", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Ecommerce.StockReservation", null)
+                        .WithMany("Items")
+                        .HasForeignKey("StockReservationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_stock_reservation_items_stock_reservations_stock_reservatio");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.StockReservationPayment", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Ecommerce.StockReservation", null)
+                        .WithMany("Payments")
+                        .HasForeignKey("StockReservationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_stock_reservation_payments_stock_reservations_stock_reserva");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Ecommerce.StorefrontProductLike", b =>
                 {
                     b.HasOne("EcuNexo.Core.Catalog.CatalogItem", null)
@@ -7246,6 +7555,13 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Timeline");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Ecommerce.StockReservation", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Identity.Permission", b =>

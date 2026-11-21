@@ -117,6 +117,12 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<EcommerceBlockedContact> EcommerceBlockedContacts => Set<EcommerceBlockedContact>();
 
+    public DbSet<StockReservation> StockReservations => Set<StockReservation>();
+
+    public DbSet<StockReservationItem> StockReservationItems => Set<StockReservationItem>();
+
+    public DbSet<StockReservationPayment> StockReservationPayments => Set<StockReservationPayment>();
+
     public DbSet<StorefrontProductLike> StorefrontProductLikes => Set<StorefrontProductLike>();
 
     public DbSet<Supplier> Suppliers => Set<Supplier>();
