@@ -537,38 +537,40 @@ export function StockReservationsPage() {
               fullWidth
             />
 
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <Button
-                size="sm"
-                variant={customerMode === 'existing' ? 'primary' : 'outline'}
-                onClick={() => setCustomerMode('existing')}
-              >
-                Seleccionar cliente
-              </Button>
-              <Button
-                size="sm"
-                variant={customerMode === 'new' ? 'primary' : 'outline'}
-                onClick={() => setCustomerMode('new')}
-              >
-                Crear cliente nuevo
-              </Button>
-            </div>
-
             {customerMode === 'existing' ? (
-              <Select
-                label="Cliente"
-                labelPosition="outlined"
-                variant="outline"
-                value={customerId}
-                onChange={(val) => setCustomerId(val)}
-                options={customers.map((c) => ({
-                  value: c.id,
-                  label: `${c.name}${c.taxId ? ` (${c.taxId})` : ''}`,
-                }))}
-                fullWidth
-              />
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'end' }}>
+                <div style={{ flex: 1 }}>
+                  <Select
+                    label="Cliente"
+                    labelPosition="outlined"
+                    variant="outline"
+                    value={customerId}
+                    onChange={(val) => setCustomerId(val)}
+                    options={customers.map((c) => ({
+                      value: c.id,
+                      label: `${c.name}${c.taxId ? ` (${c.taxId})` : ''}`,
+                    }))}
+                    fullWidth
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  iconLeft={<Plus size={14} />}
+                  onClick={() => setCustomerMode('new')}
+                >
+                  Nuevo cliente
+                </Button>
+              </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong>Nuevo cliente (se guardará en Clientes)</strong>
+                  <Button size="sm" variant="outline" onClick={() => setCustomerMode('existing')}>
+                    ← Elegir existente
+                  </Button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
                 <Select
                   label="Tipo identificación"
                   labelPosition="outlined"
@@ -630,6 +632,7 @@ export function StockReservationsPage() {
                   onChange={(e) => setNewCustomerCity(e.target.value)}
                   fullWidth
                 />
+                </div>
               </div>
             )}
 
