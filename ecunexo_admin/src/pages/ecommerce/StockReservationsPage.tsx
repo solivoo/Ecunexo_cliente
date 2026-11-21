@@ -491,7 +491,7 @@ export function StockReservationsPage() {
                 Ver Pedidos
               </Button>
               {canManage && (
-                <Button variant="primary" iconLeft={<Plus size={16} />} onClick={() => setCreateOpen(true)}>
+                <Button variant="primary" iconLeft={<Plus size={16} />} onClick={() => navigate('/ecommerce/reservas/nueva')}>
                   Crear Reserva
                 </Button>
               )}

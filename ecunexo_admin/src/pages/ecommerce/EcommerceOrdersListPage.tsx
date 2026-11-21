@@ -262,7 +262,7 @@ export function EcommerceOrdersListPage() {
               <Button
                 variant="outline"
                 iconLeft={<Package size={16} />}
-                onClick={() => navigate('/ecommerce/reservas')}
+                onClick={() => navigate('/ecommerce/reservas/nueva')}
               >
                 Crear reserva
               </Button>

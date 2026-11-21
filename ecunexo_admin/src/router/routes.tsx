@@ -55,6 +55,7 @@ import { ShippingMethodsPage } from '@/pages/ecommerce/shipping/ShippingMethodsP
 import { ShippingZonesPage } from '@/pages/ecommerce/shipping/ShippingZonesPage'
 import { ShippingRatesMatrixPage } from '@/pages/ecommerce/shipping/ShippingRatesMatrixPage'
 import { CantonShippingRatesPage } from '@/pages/ecommerce/shipping/CantonShippingRatesPage'
+import { CreateStockReservationPage } from '@/pages/ecommerce/CreateStockReservationPage'
 import { StockReservationsPage } from '@/pages/ecommerce/StockReservationsPage'
 import { CreateInventoryDocumentPage } from '@/pages/inventory/CreateInventoryDocumentPage'
 import { InventoryDocumentDetailPage } from '@/pages/inventory/InventoryDocumentDetailPage'
@@ -215,6 +216,7 @@ export const routes: RouteObject[] = [
           { path: 'ecommerce/pedidos', element: <EcommerceOrdersListPage /> },
           { path: 'ecommerce/pedidos/:orderId', element: <EcommerceOrderDetailPage /> },
           { path: 'ecommerce/reservas', element: <StockReservationsPage /> },
+          { path: 'ecommerce/reservas/nueva', element: <CreateStockReservationPage /> },
           { path: 'ecommerce/envios', element: <Navigate to="/ecommerce/envios/metodos" replace /> },
           { path: 'ecommerce/envios/metodos', element: <ShippingMethodsPage /> },
           { path: 'ecommerce/envios/zonas', element: <ShippingZonesPage /> },
