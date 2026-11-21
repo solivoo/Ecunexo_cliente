@@ -42,7 +42,19 @@ type DraftLineRow = {
   actions?: unknown
 } & Record<string, unknown>
 
+type DraftPaymentRow = {
+  id: string
+  amount: number
+  paymentMethod: string
+  reference: string
+  notes: string
+  file: File | null
+  fileName: string
+  actions?: unknown
+} & Record<string, unknown>
+
 const lineGridMessages = createSpanishDataGridMessages('ítem', 'ítems')
+const paymentGridMessages = createSpanishDataGridMessages('aporte', 'aportes')
 
 const paymentMethodOptions = [
   { value: '2', label: 'Transferencia / Depósito' },
@@ -85,12 +97,13 @@ export function CreateStockReservationPage() {
   // Grid único de SKUs a reservar
   const [draftLines, setDraftLines] = useState<DraftLineRow[]>([])
 
-  // Aporte inicial opcional
-  const [initialPayAmount, setInitialPayAmount] = useState('')
-  const [initialPayMethod, setInitialPayMethod] = useState('2')
-  const [initialPayRef, setInitialPayRef] = useState('')
-  const [initialPayNotes, setInitialPayNotes] = useState('')
-  const [initialPayFile, setInitialPayFile] = useState<File | null>(null)
+  // Grid de aportes opcionales
+  const [draftPayments, setDraftPayments] = useState<DraftPaymentRow[]>([])
+  const [payAmount, setPayAmount] = useState('')
+  const [payMethod, setPayMethod] = useState('2')
+  const [payRef, setPayRef] = useState('')
+  const [payNotes, setPayNotes] = useState('')
+  const [payFile, setPayFile] = useState<File | null>(null)
 
   const loadMasterData = useCallback(async () => {
     if (!tenantId) return
@@ -275,12 +288,44 @@ export function CreateStockReservationPage() {
     setDraftLines((prev) => prev.filter((l) => l.catalogItemId !== catalogItemId))
   }, [])
 
+  const handleAddDraftPayment = () => {
+    const amount = Number(payAmount)
+    if (!amount || amount <= 0) {
+      toast.show({
+        title: 'Monto inválido',
+        message: 'Ingresa un aporte mayor a $0.00 para agregarlo al grid.',
+        variant: 'warning',
+      })
+      return
+    }
+    setDraftPayments((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        amount: Number(amount.toFixed(2)),
+        paymentMethod: payMethod,
+        reference: payRef.trim(),
+        notes: payNotes.trim(),
+        file: payFile,
+        fileName: payFile?.name ?? 'Sin archivo',
+      },
+    ])
+    setPayAmount('')
+    setPayRef('')
+    setPayNotes('')
+    setPayFile(null)
+  }
+
+  const handleRemoveDraftPayment = useCallback((paymentId: string) => {
+    setDraftPayments((prev) => prev.filter((p) => p.id !== paymentId))
+  }, [])
+
   const totals = useMemo(() => {
     const units = draftLines.reduce((acc, l) => acc + l.quantity, 0)
     const subtotal = draftLines.reduce((acc, l) => acc + l.quantity * l.unitPrice, 0)
     const tax = draftLines.reduce((acc, l) => acc + l.quantity * l.unitPrice * (l.taxRate / 100), 0)
     const total = Number((subtotal + tax).toFixed(2))
-    const initialPaid = Math.max(0, Number(initialPayAmount) || 0)
+    const initialPaid = Number(draftPayments.reduce((acc, p) => acc + p.amount, 0).toFixed(2))
     const balance = Math.max(0, Number((total - initialPaid).toFixed(2)))
     return {
       units,
@@ -290,7 +335,7 @@ export function CreateStockReservationPage() {
       initialPaid,
       balance,
     }
-  }, [draftLines, initialPayAmount])
+  }, [draftLines, draftPayments])
 
   const handleSubmit = async () => {
     if (!tenantId || !warehouseId) {
@@ -338,20 +383,21 @@ export function CreateStockReservationPage() {
         notes: notes.trim() || null,
       })
 
-      const payVal = Number(initialPayAmount)
-      if (payVal > 0) {
+      let savedPayments = 0
+      for (const p of draftPayments) {
         try {
           await addStockReservationPayment(tenantId, created.id, {
-            amount: payVal,
-            paymentMethod: Number(initialPayMethod) || 2,
-            reference: initialPayRef,
-            notes: initialPayNotes,
-            file: initialPayFile,
+            amount: p.amount,
+            paymentMethod: Number(p.paymentMethod) || 2,
+            reference: p.reference,
+            notes: p.notes,
+            file: p.file,
           })
+          savedPayments++
         } catch (payErr) {
           toast.show({
-            title: 'Reserva creada (aporte pendiente)',
-            message: readApiError(payErr, 'La reserva se creó, pero no se pudo registrar el aporte inicial.'),
+            title: 'Reserva creada (aporte parcial con error)',
+            message: readApiError(payErr, `Se guardaron ${savedPayments} de ${draftPayments.length} aporte(s).`),
             variant: 'warning',
           })
           navigate('/ecommerce/reservas')
@@ -362,8 +408,8 @@ export function CreateStockReservationPage() {
       toast.show({
         title: 'Reserva creada',
         message:
-          payVal > 0
-            ? `Reserva ${created.reservationNumber} creada con aporte inicial de $${payVal.toFixed(2)}.`
+          savedPayments > 0
+            ? `Reserva ${created.reservationNumber} creada con ${savedPayments} aporte(s) por $${totals.initialPaid.toFixed(2)}.`
             : `Reserva ${created.reservationNumber} creada con ${created.items.length} SKU(s) reservados.`,
         variant: 'success',
       })
@@ -460,6 +506,43 @@ export function CreateStockReservationPage() {
       },
     ],
     [updateLine, handleRemoveLine]
+  )
+
+  const paymentColumns: ColumnDef<DraftPaymentRow>[] = useMemo(
+    () => [
+      {
+        key: 'amount',
+        header: 'Monto ($)',
+        width: 120,
+        renderCell: (_v, row) => <strong>${row.amount.toFixed(2)}</strong>,
+      },
+      {
+        key: 'paymentMethod',
+        header: 'Método de pago',
+        width: 190,
+        renderCell: (_v, row) =>
+          paymentMethodOptions.find((o) => o.value === row.paymentMethod)?.label ?? 'Transferencia',
+      },
+      { key: 'reference', header: 'Referencia', width: 160 },
+      { key: 'notes', header: 'Nota', minWidth: 160 },
+      { key: 'fileName', header: 'Comprobante', width: 190 },
+      {
+        key: 'actions',
+        header: 'Acciones',
+        width: 90,
+        sticky: 'right',
+        renderCell: (_v, row) => (
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => handleRemoveDraftPayment(row.id)}
+          >
+            <Trash2 size={14} />
+          </Button>
+        ),
+      },
+    ],
+    [handleRemoveDraftPayment]
   )
 
   return (
@@ -710,27 +793,27 @@ export function CreateStockReservationPage() {
         </SectionCard>
 
         <SectionCard
-          title="Aporte Inicial con Comprobante (Opcional)"
-          info="Si el cliente ya realizó un abono al apartar, regístralo aquí junto con su comprobante para descontarlo de inmediato."
+          title="Aportes de Pago (Opcional)"
+          info="Agrega uno o varios abonos con su comprobante directamente en el grid antes de confirmar la reserva."
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: '0.75rem', alignItems: 'center' }}>
               <NumberBox
                 label="Monto del aporte ($)"
                 labelPosition="outlined"
                 variant="outline"
-                min={0}
+                min={0.01}
                 step={0.01}
-                value={initialPayAmount ? Number(initialPayAmount) : undefined}
-                onChange={(e) => setInitialPayAmount(e.target.value)}
+                value={payAmount ? Number(payAmount) : undefined}
+                onChange={(e) => setPayAmount(e.target.value)}
                 fullWidth
               />
               <Select
                 label="Método de pago"
                 labelPosition="outlined"
                 variant="outline"
-                value={initialPayMethod}
-                onChange={(v) => setInitialPayMethod(v)}
+                value={payMethod}
+                onChange={(v) => setPayMethod(v)}
                 options={paymentMethodOptions}
                 fullWidth
               />
@@ -738,30 +821,48 @@ export function CreateStockReservationPage() {
                 label="Referencia / N° Comprobante"
                 labelPosition="outlined"
                 variant="outline"
-                value={initialPayRef}
-                onChange={(e) => setInitialPayRef(e.target.value)}
+                value={payRef}
+                onChange={(e) => setPayRef(e.target.value)}
                 fullWidth
               />
               <TextBox
                 label="Nota del aporte"
                 labelPosition="outlined"
                 variant="outline"
-                value={initialPayNotes}
-                onChange={(e) => setInitialPayNotes(e.target.value)}
+                value={payNotes}
+                onChange={(e) => setPayNotes(e.target.value)}
                 fullWidth
               />
             </div>
 
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer', width: 'fit-content' }}>
-              <Upload size={15} />
-              <span>{initialPayFile ? initialPayFile.name : 'Adjuntar comprobante (JPG, PNG, WEBP o PDF)'}</span>
-              <input
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp,.pdf"
-                style={{ display: 'none' }}
-                onChange={(e) => setInitialPayFile(e.target.files?.[0] ?? null)}
-              />
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer' }}>
+                <Upload size={15} />
+                <span>{payFile ? payFile.name : 'Adjuntar comprobante (JPG, PNG, WEBP o PDF)'}</span>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.pdf"
+                  style={{ display: 'none' }}
+                  onChange={(e) => setPayFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+
+              <Button
+                type="button"
+                variant="outline"
+                iconLeft={<Plus size={15} />}
+                onClick={handleAddDraftPayment}
+              >
+                Agregar aporte
+              </Button>
+            </div>
+
+            <DataGrid
+              dataSource={draftPayments}
+              columns={paymentColumns}
+              keyExpr="id"
+              messages={paymentGridMessages}
+            />
           </div>
         </SectionCard>
 
