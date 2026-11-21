@@ -9,15 +9,17 @@ import {
   useToast,
   type ColumnDef,
 } from 'glubox'
-import { ArrowLeft, PackageCheck, Plus, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, Boxes, PackageCheck, Plus, Trash2, Upload } from 'lucide-react'
 import { PageHeader, SectionCard, StatCard, StatusBadge } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
+import { buildLineDescriptionFromCatalogItem } from '@/lib/catalogAttributes'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
-import { listCatalogItems } from '@/services/catalogApi'
+import { InvoiceStockCatalogModal } from '@/pages/facturacion/InvoiceStockCatalogModal'
 import { listCustomers } from '@/services/customersApi'
 import { listStock, listWarehouses } from '@/services/inventoryApi'
+import { resolvePrice } from '@/services/pricingApi'
 import {
   addStockReservationPayment,
   createStockReservation,
@@ -27,18 +29,6 @@ import { useAppSelector } from '@/store/hooks'
 import type { CatalogItemListItemDto } from '@/types/catalogApi'
 import type { CustomerDto } from '@/types/customersApi'
 import type { StockListItemDto, WarehouseListItemDto } from '@/types/inventoryApi'
-
-type CatalogSkuRow = {
-  catalogItemId: string
-  sku: string
-  name: string
-  physical: number
-  reserved: number
-  available: number
-  basePrice: number
-  isAdded: boolean
-  actions?: unknown
-} & Record<string, unknown>
 
 type DraftLineRow = {
   catalogItemId: string
@@ -52,8 +42,7 @@ type DraftLineRow = {
   actions?: unknown
 } & Record<string, unknown>
 
-const skuGridMessages = createSpanishDataGridMessages('producto', 'productos')
-const lineGridMessages = createSpanishDataGridMessages('línea', 'líneas')
+const lineGridMessages = createSpanishDataGridMessages('ítem', 'ítems')
 
 const paymentMethodOptions = [
   { value: '2', label: 'Transferencia / Depósito' },
@@ -63,6 +52,10 @@ const paymentMethodOptions = [
   { value: '99', label: 'Otro' },
 ]
 
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export function CreateStockReservationPage() {
   const tenantId = useAppSelector(selectTenantId)
   const navigate = useNavigate()
@@ -71,12 +64,11 @@ export function CreateStockReservationPage() {
 
   const [warehouses, setWarehouses] = useState<WarehouseListItemDto[]>([])
   const [customers, setCustomers] = useState<CustomerDto[]>([])
-  const [catalogItems, setCatalogItems] = useState<CatalogItemListItemDto[]>([])
   const [warehouseStocks, setWarehouseStocks] = useState<StockListItemDto[]>([])
-  const [loadingCatalog, setLoadingCatalog] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [stockModalOpen, setStockModalOpen] = useState(false)
 
-  // 1. Cliente y vigencia
+  // Cliente y vigencia
   const [warehouseId, setWarehouseId] = useState('')
   const [customerMode, setCustomerMode] = useState<'existing' | 'new'>('existing')
   const [customerId, setCustomerId] = useState('')
@@ -90,10 +82,10 @@ export function CreateStockReservationPage() {
   const [expiresDate, setExpiresDate] = useState('')
   const [notes, setNotes] = useState('')
 
-  // 2 & 3. SKUs
+  // Grid único de SKUs a reservar
   const [draftLines, setDraftLines] = useState<DraftLineRow[]>([])
 
-  // 4. Aporte inicial opcional
+  // Aporte inicial opcional
   const [initialPayAmount, setInitialPayAmount] = useState('')
   const [initialPayMethod, setInitialPayMethod] = useState('2')
   const [initialPayRef, setInitialPayRef] = useState('')
@@ -102,29 +94,24 @@ export function CreateStockReservationPage() {
 
   const loadMasterData = useCallback(async () => {
     if (!tenantId) return
-    setLoadingCatalog(true)
     try {
-      const [whList, custList, itemList] = await Promise.all([
+      const [whList, custList] = await Promise.all([
         listWarehouses(tenantId),
         listCustomers(tenantId),
-        listCatalogItems(tenantId, { onlyRoots: false }),
       ])
       const operationalWarehouses = whList.filter((w) => w.systemRole !== 1)
       setWarehouses(operationalWarehouses)
       setCustomers(custList)
-      setCatalogItems(itemList)
       if (operationalWarehouses.length > 0 && !warehouseId) {
         const main = operationalWarehouses.find((w) => w.isMain) ?? operationalWarehouses[0]
         setWarehouseId(main.id)
       }
     } catch (err) {
       toast.show({
-        title: 'Error cargando catálogos',
-        message: readApiError(err, 'No se pudieron cargar bodegas, clientes o productos.'),
+        title: 'Error cargando datos',
+        message: readApiError(err, 'No se pudieron cargar bodegas o clientes.'),
         variant: 'error',
       })
-    } finally {
-      setLoadingCatalog(false)
     }
   }, [tenantId, warehouseId, toast])
 
@@ -160,73 +147,114 @@ export function CreateStockReservationPage() {
     return map
   }, [warehouseStocks])
 
-  const addedIds = useMemo(() => new Set(draftLines.map((l) => l.catalogItemId)), [draftLines])
+  const getAvailableFor = useCallback(
+    (catalogItemId: string): number => {
+      const st = stockByItem.get(catalogItemId)
+      if (!st) return 0
+      if (st.availableQuantity !== undefined) return Math.max(0, st.availableQuantity)
+      return Math.max(0, st.quantity - (st.reservedQuantity ?? 0))
+    },
+    [stockByItem]
+  )
 
-  const availableSkuRows: CatalogSkuRow[] = useMemo(() => {
-    return catalogItems
-      .map((item) => {
-        const st = stockByItem.get(item.id)
-        const physical = st ? Math.max(0, st.quantity) : 0
-        const reserved = st ? Math.max(0, st.reservedQuantity ?? 0) : 0
-        const available = st
-          ? st.availableQuantity !== undefined
-            ? Math.max(0, st.availableQuantity)
-            : Math.max(0, physical - reserved)
-          : 0
-        return {
-          catalogItemId: item.id,
-          sku: item.sku ?? 'SIN-SKU',
-          name: item.name,
-          physical,
-          reserved,
-          available,
-          basePrice: Number(item.basePrice ?? 0),
-          isAdded: addedIds.has(item.id),
-        }
-      })
-      .filter((r) => r.available > 0)
-  }, [catalogItems, stockByItem, addedIds])
-
-  const handleAddSku = useCallback((row: CatalogSkuRow) => {
-    setDraftLines((prev) => {
-      const existing = prev.find((l) => l.catalogItemId === row.catalogItemId)
-      if (existing) {
-        const nextQty = Math.min(row.available, existing.quantity + 1)
-        return prev.map((l) =>
-          l.catalogItemId === row.catalogItemId
-            ? {
-                ...l,
-                quantity: nextQty,
-                lineTotal: Number((nextQty * l.unitPrice * (1 + l.taxRate / 100)).toFixed(2)),
-              }
-            : l
+  const resolveAndApplyPvp = useCallback(
+    async (catalogItemId: string, quantity: number, fallbackPrice: number) => {
+      if (!tenantId) return
+      try {
+        const resolved = await resolvePrice(tenantId, {
+          catalogItemId,
+          quantity,
+          date: todayIsoDate(),
+          priceListId: selectedCustomer?.priceListId || undefined,
+        })
+        const pvp = resolved.unitPrice > 0 ? resolved.unitPrice : fallbackPrice
+        const taxRate = resolved.taxRate > 0 && resolved.taxRate <= 1 ? resolved.taxRate * 100 : resolved.taxRate || 15
+        setDraftLines((prev) =>
+          prev.map((l) =>
+            l.catalogItemId === catalogItemId
+              ? {
+                  ...l,
+                  unitPrice: Number(pvp.toFixed(4)),
+                  taxRate: Number(taxRate.toFixed(2)),
+                  lineTotal: Number((l.quantity * pvp * (1 + taxRate / 100)).toFixed(2)),
+                }
+              : l
+          )
         )
+      } catch {
+        // Mantiene el precio actual/base si no hay lista configurada
       }
-      const taxRate = 15
-      return [
-        ...prev,
-        {
-          catalogItemId: row.catalogItemId,
-          sku: row.sku,
-          name: row.name,
-          available: row.available,
-          quantity: 1,
-          unitPrice: row.basePrice,
-          taxRate,
-          lineTotal: Number((row.basePrice * (1 + taxRate / 100)).toFixed(2)),
-        },
-      ]
-    })
-  }, [])
+    },
+    [tenantId, selectedCustomer]
+  )
+
+  const handleSelectProductFromCatalog = useCallback(
+    (product: CatalogItemListItemDto, quantity: number) => {
+      const avail = getAvailableFor(product.id)
+      if (avail <= 0) {
+        toast.show({
+          title: 'Sin stock disponible',
+          message: `El SKU ${product.sku ?? product.name} no tiene unidades disponibles en la bodega.`,
+          variant: 'warning',
+        })
+        return
+      }
+
+      const fallbackPrice = Number(product.basePrice ?? 0)
+      const labelName = buildLineDescriptionFromCatalogItem(product) || product.name
+      let nextQty = Math.min(avail, Math.max(1, quantity))
+
+      setDraftLines((prev) => {
+        const existing = prev.find((l) => l.catalogItemId === product.id)
+        if (existing) {
+          nextQty = Math.min(avail, existing.quantity + Math.max(1, quantity))
+          return prev.map((l) =>
+            l.catalogItemId === product.id
+              ? {
+                  ...l,
+                  available: avail,
+                  quantity: nextQty,
+                  lineTotal: Number((nextQty * l.unitPrice * (1 + l.taxRate / 100)).toFixed(2)),
+                }
+              : l
+          )
+        }
+        const taxRate = 15
+        return [
+          ...prev,
+          {
+            catalogItemId: product.id,
+            sku: product.sku ?? 'SIN-SKU',
+            name: labelName,
+            available: avail,
+            quantity: nextQty,
+            unitPrice: fallbackPrice,
+            taxRate,
+            lineTotal: Number((nextQty * fallbackPrice * (1 + taxRate / 100)).toFixed(2)),
+          },
+        ]
+      })
+
+      void resolveAndApplyPvp(product.id, nextQty, fallbackPrice)
+    },
+    [getAvailableFor, resolveAndApplyPvp, toast]
+  )
 
   const updateLine = useCallback(
     (catalogItemId: string, patch: Partial<Pick<DraftLineRow, 'quantity' | 'unitPrice' | 'taxRate'>>) => {
+      let resolvedQty: number | null = null
+      let fallbackPrice = 0
       setDraftLines((prev) =>
         prev.map((l) => {
           if (l.catalogItemId !== catalogItemId) return l
-          const nextQty = patch.quantity !== undefined ? Math.max(1, Math.min(l.available, patch.quantity)) : l.quantity
+          const nextQty =
+            patch.quantity !== undefined ? Math.max(1, Math.min(l.available, patch.quantity)) : l.quantity
           const nextPrice = patch.unitPrice !== undefined ? Math.max(0, patch.unitPrice) : l.unitPrice
           const nextTax = patch.taxRate !== undefined ? Math.min(100, Math.max(0, patch.taxRate)) : l.taxRate
+          if (patch.quantity !== undefined) {
+            resolvedQty = nextQty
+            fallbackPrice = l.unitPrice
+          }
           return {
             ...l,
             quantity: nextQty,
@@ -236,8 +264,11 @@ export function CreateStockReservationPage() {
           }
         })
       )
+      if (resolvedQty !== null) {
+        void resolveAndApplyPvp(catalogItemId, resolvedQty, fallbackPrice)
+      }
     },
-    []
+    [resolveAndApplyPvp]
   )
 
   const handleRemoveLine = useCallback((catalogItemId: string) => {
@@ -275,7 +306,7 @@ export function CreateStockReservationPage() {
       return
     }
     if (draftLines.length === 0) {
-      toast.show({ title: 'Sin SKUs', message: 'Agrega al menos un SKU desde el catálogo disponible.', variant: 'warning' })
+      toast.show({ title: 'Sin SKUs', message: 'Agrega al menos un SKU desde el catálogo.', variant: 'warning' })
       return
     }
 
@@ -348,49 +379,16 @@ export function CreateStockReservationPage() {
     }
   }
 
-  const skuColumns: ColumnDef<CatalogSkuRow>[] = useMemo(
-    () => [
-      { key: 'sku', header: 'SKU', width: 150 },
-      { key: 'name', header: 'Producto', minWidth: 220 },
-      { key: 'physical', header: 'Físico', width: 90 },
-      { key: 'reserved', header: 'Reservado', width: 100 },
-      {
-        key: 'available',
-        header: 'Disponible',
-        width: 105,
-        renderCell: (_v, row) => <strong style={{ color: 'var(--shell-success, #22c55e)' }}>{row.available}</strong>,
-      },
-      {
-        key: 'basePrice',
-        header: 'Precio Base',
-        width: 115,
-        renderCell: (_v, row) => `$${row.basePrice.toFixed(2)}`,
-      },
-      {
-        key: 'actions',
-        header: 'Acciones',
-        width: 140,
-        sticky: 'right',
-        renderCell: (_v, row) => (
-          <Button
-            size="sm"
-            variant={row.isAdded ? 'outline' : 'primary'}
-            iconLeft={<Plus size={14} />}
-            onClick={() => handleAddSku(row)}
-          >
-            {row.isAdded ? '+1 Unidad' : 'Reservar'}
-          </Button>
-        ),
-      },
-    ],
-    [handleAddSku]
-  )
-
   const lineColumns: ColumnDef<DraftLineRow>[] = useMemo(
     () => [
       { key: 'sku', header: 'SKU', width: 140 },
-      { key: 'name', header: 'Producto', minWidth: 200 },
-      { key: 'available', header: 'Máx. Disp.', width: 95 },
+      { key: 'name', header: 'Producto / Variante', minWidth: 220 },
+      {
+        key: 'available',
+        header: 'Disp.',
+        width: 85,
+        renderCell: (_v, row) => <strong style={{ color: 'var(--shell-success, #22c55e)' }}>{row.available}</strong>,
+      },
       {
         key: 'quantity',
         header: 'Cantidad',
@@ -409,7 +407,7 @@ export function CreateStockReservationPage() {
       },
       {
         key: 'unitPrice',
-        header: 'Precio Unit. ($)',
+        header: 'PVP ($)',
         width: 130,
         renderCell: (_v, row) => (
           <NumberBox
@@ -442,7 +440,7 @@ export function CreateStockReservationPage() {
       {
         key: 'lineTotal',
         header: 'Total Línea',
-        width: 115,
+        width: 120,
         renderCell: (_v, row) => <strong>${row.lineTotal.toFixed(2)}</strong>,
       },
       {
@@ -467,13 +465,13 @@ export function CreateStockReservationPage() {
   return (
     <TenantSessionGate
       title="Nueva Reserva de Stock"
-      lead="Selecciona el cliente, elige los SKUs disponibles y registra opcionalmente un aporte inicial."
+      lead="Selecciona el cliente, busca los SKUs con PVP y stock disponible, y registra opcionalmente un aporte inicial."
     >
       <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title="Crear Reserva de Stock"
           badge={<StatusBadge tone="primary">Ecommerce · Reservas</StatusBadge>}
-          info="Aparta SKUs del inventario disponible (Físico − Reservado) para un cliente con control de vigencia y abonos."
+          info="Aparta SKUs del inventario disponible (Físico − Reservado) con PVP resuelto por lista de precios."
           actions={
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Button
@@ -510,7 +508,7 @@ export function CreateStockReservationPage() {
         </div>
 
         <SectionCard
-          title={warehouses.length > 1 ? '1. Bodega, Cliente y Vigencia' : '1. Cliente y Vigencia'}
+          title={warehouses.length > 1 ? 'Bodega, Cliente y Vigencia' : 'Cliente y Vigencia'}
           info={
             warehouses.length > 1
               ? 'Elige la bodega operativa, selecciona o crea el cliente y define la fecha límite de la reserva.'
@@ -691,22 +689,17 @@ export function CreateStockReservationPage() {
         </SectionCard>
 
         <SectionCard
-          title={`2. Catálogo con Stock Disponible (${availableSkuRows.length})`}
-          info="Muestra el stock físico, el ya reservado y el disponible real para apartar. Busca por SKU o producto y haz clic en «Reservar»."
-        >
-          <DataGrid
-            dataSource={availableSkuRows}
-            columns={skuColumns}
-            keyExpr="catalogItemId"
-            loading={loadingCatalog}
-            showSearch
-            messages={skuGridMessages}
-          />
-        </SectionCard>
-
-        <SectionCard
-          title={`3. SKUs Seleccionados para Reservar (${draftLines.length})`}
-          info="Ajusta la cantidad (máximo según disponible real), precio unitario o IVA antes de confirmar."
+          title="Detalle de SKUs a Reservar"
+          info="Usa el buscador de catálogo con stock y PVP (igual que en Facturación) para agregar los productos a reservar."
+          action={
+            <Button
+              variant="primary"
+              iconLeft={<Boxes size={16} />}
+              onClick={() => setStockModalOpen(true)}
+            >
+              Buscar en catálogo (Stock y PVP)
+            </Button>
+          }
         >
           <DataGrid
             dataSource={draftLines}
@@ -717,7 +710,7 @@ export function CreateStockReservationPage() {
         </SectionCard>
 
         <SectionCard
-          title="4. Aporte Inicial con Comprobante (Opcional)"
+          title="Aporte Inicial con Comprobante (Opcional)"
           info="Si el cliente ya realizó un abono al apartar, regístralo aquí junto con su comprobante para descontarlo de inmediato."
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -771,6 +764,13 @@ export function CreateStockReservationPage() {
             </label>
           </div>
         </SectionCard>
+
+        <InvoiceStockCatalogModal
+          open={stockModalOpen}
+          onClose={() => setStockModalOpen(false)}
+          tenantId={tenantId}
+          onSelectProduct={(product, quantity) => handleSelectProductFromCatalog(product, quantity)}
+        />
       </div>
     </TenantSessionGate>
   )
