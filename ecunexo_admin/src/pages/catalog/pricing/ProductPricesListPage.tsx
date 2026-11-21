@@ -841,11 +841,11 @@ export function ProductPricesListPage() {
             </button>
           </div>
 
-          {!loading && ((activeTab === '__grouped__' && groupedRows.length === 0) || (activeTab !== '__grouped__' && displayRows.length === 0)) && !error ? (
+          {!loading && rows.length === 0 && !search.trim() && !templateFilter && !schemeFilter && !listFilter && activeTab === '__grouped__' && !error ? (
             <EmptyState
               icon="tag"
-              title="No hay precios coincidentes"
-              description="Ajusta los filtros de búsqueda, plantilla o pestaña comercial."
+              title="No hay precios registrados"
+              description="Registra tu primer precio o realiza una carga masiva para empezar."
               action={
                 canCreate ? (
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
