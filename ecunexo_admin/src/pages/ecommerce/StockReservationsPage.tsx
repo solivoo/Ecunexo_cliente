@@ -499,10 +499,10 @@ export function StockReservationsPage() {
           }
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.85rem' }}>
+        <div className="ecu-stat-grid" aria-label="Resumen de reservas">
           <StatCard label="Total reservas" value={reservations.length} />
-          <StatCard label="Reservas activas" value={activeCount} />
-          <StatCard label="Saldo por cobrar" value={`$${pendingBalanceTotal.toFixed(2)}`} />
+          <StatCard label="Reservas activas" value={activeCount} toneColor="var(--shell-primary)" />
+          <StatCard label="Saldo por cobrar" value={`$${pendingBalanceTotal.toFixed(2)}`} toneColor="var(--shell-warning)" />
         </div>
 
         <SectionCard title="Listado de Reservas">

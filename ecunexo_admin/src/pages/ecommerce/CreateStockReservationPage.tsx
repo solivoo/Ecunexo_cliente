@@ -419,11 +419,11 @@ export function CreateStockReservationPage() {
           }
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.85rem' }}>
+        <div className="ecu-stat-grid" aria-label="Resumen de la reserva">
           <StatCard label="SKUs a reservar" value={draftLines.length} />
           <StatCard label="Subtotal" value={`$${totals.subtotal.toFixed(2)}`} />
           <StatCard label="IVA" value={`$${totals.tax.toFixed(2)}`} />
-          <StatCard label="Total Reserva" value={`$${totals.total.toFixed(2)}`} />
+          <StatCard label="Total Reserva" value={`$${totals.total.toFixed(2)}`} toneColor="var(--shell-success)" />
         </div>
 
         <SectionCard

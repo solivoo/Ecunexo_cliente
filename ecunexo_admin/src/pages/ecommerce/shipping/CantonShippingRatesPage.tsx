@@ -559,20 +559,14 @@ export function CantonShippingRatesPage() {
           }
         />
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-            gap: '0.85rem',
-          }}
-        >
+        <div className="ecu-stat-grid" aria-label="Resumen de tarifas cantonales">
           <StatCard
             label="Provincia seleccionada"
             value={selectedProvince ? `${selectedProvince.name} (${selectedProvince.region})` : '—'}
           />
           <StatCard label="Cantones en provincia" value={rows.length} />
-          <StatCard label="Cantones habilitados" value={enabledCount} />
-          <StatCard label="Tarifa base promedio" value={`$${avgBasePrice.toFixed(2)}`} />
+          <StatCard label="Cantones habilitados" value={enabledCount} toneColor="var(--shell-primary)" />
+          <StatCard label="Tarifa base promedio" value={`$${avgBasePrice.toFixed(2)}`} toneColor="var(--shell-success)" />
         </div>
 
         <SectionCard
