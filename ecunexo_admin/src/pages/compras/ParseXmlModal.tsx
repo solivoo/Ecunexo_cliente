@@ -631,7 +631,8 @@ export function ParseXmlModal({
               <div
                 style={{
                   width: '320px',
-                  backgroundColor: 'rgba(248, 250, 252, 0.8)',
+                  backgroundColor: 'var(--shell-surface-raised, var(--shell-surface, rgba(255, 255, 255, 0.04)))',
+                  color: 'var(--shell-text, inherit)',
                   border: '1px solid var(--shell-border, #e2e8f0)',
                   borderRadius: '0.5rem',
                   padding: '0.75rem 1rem',
