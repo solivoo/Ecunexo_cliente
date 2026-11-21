@@ -83,7 +83,9 @@ public sealed class ListStockHandler : IQueryHandler<ListStockQuery, IReadOnlyLi
                     s.AverageCost,
                     s.LastCost,
                     s.StockValue,
-                    thumbUrl);
+                    thumbUrl,
+                    s.ReservedQuantity,
+                    s.AvailableQuantity);
             })
             .OrderByDescending(r => r.IsBelowMinimum)
             .ThenBy(r => r.WarehouseName)

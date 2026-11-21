@@ -84,6 +84,8 @@ export type StockListItemDto = {
   warehouseId: string
   warehouseName: string
   quantity: number
+  reservedQuantity?: number
+  availableQuantity?: number
   minimumQuantity: number | null
   isBelowMinimum: boolean
   updatedAt: string | null

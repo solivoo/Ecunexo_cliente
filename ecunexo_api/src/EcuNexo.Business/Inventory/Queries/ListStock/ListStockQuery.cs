@@ -24,4 +24,6 @@ public sealed record StockListItemResponse(
     decimal AverageCost = 0,
     decimal? LastCost = null,
     decimal StockValue = 0,
-    string? MainImageThumbUrl = null);
+    string? MainImageThumbUrl = null,
+    decimal ReservedQuantity = 0,
+    decimal AvailableQuantity = 0);

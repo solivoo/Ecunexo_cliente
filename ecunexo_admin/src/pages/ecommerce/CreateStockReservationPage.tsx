@@ -9,7 +9,7 @@ import {
   useToast,
   type ColumnDef,
 } from 'glubox'
-import { ArrowLeft, PackageCheck, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, PackageCheck, Plus, Trash2, Upload } from 'lucide-react'
 import { PageHeader, SectionCard, StatCard, StatusBadge } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -18,7 +18,10 @@ import { readApiError } from '@/lib/readApiError'
 import { listCatalogItems } from '@/services/catalogApi'
 import { listCustomers } from '@/services/customersApi'
 import { listStock, listWarehouses } from '@/services/inventoryApi'
-import { createStockReservation } from '@/services/stockReservationApi'
+import {
+  addStockReservationPayment,
+  createStockReservation,
+} from '@/services/stockReservationApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
 import type { CatalogItemListItemDto } from '@/types/catalogApi'
@@ -29,6 +32,8 @@ type CatalogSkuRow = {
   catalogItemId: string
   sku: string
   name: string
+  physical: number
+  reserved: number
   available: number
   basePrice: number
   isAdded: boolean
@@ -50,6 +55,14 @@ type DraftLineRow = {
 const skuGridMessages = createSpanishDataGridMessages('producto', 'productos')
 const lineGridMessages = createSpanishDataGridMessages('línea', 'líneas')
 
+const paymentMethodOptions = [
+  { value: '2', label: 'Transferencia / Depósito' },
+  { value: '3', label: 'Efectivo' },
+  { value: '1', label: 'Tarjeta' },
+  { value: '4', label: 'Pasarela online' },
+  { value: '99', label: 'Otro' },
+]
+
 export function CreateStockReservationPage() {
   const tenantId = useAppSelector(selectTenantId)
   const navigate = useNavigate()
@@ -63,6 +76,7 @@ export function CreateStockReservationPage() {
   const [loadingCatalog, setLoadingCatalog] = useState(false)
   const [creating, setCreating] = useState(false)
 
+  // 1. Cliente y vigencia
   const [warehouseId, setWarehouseId] = useState('')
   const [customerMode, setCustomerMode] = useState<'existing' | 'new'>('existing')
   const [customerId, setCustomerId] = useState('')
@@ -73,8 +87,18 @@ export function CreateStockReservationPage() {
   const [newCustomerEmail, setNewCustomerEmail] = useState('')
   const [newCustomerAddress, setNewCustomerAddress] = useState('')
   const [newCustomerCity, setNewCustomerCity] = useState('')
+  const [expiresDate, setExpiresDate] = useState('')
   const [notes, setNotes] = useState('')
+
+  // 2 & 3. SKUs
   const [draftLines, setDraftLines] = useState<DraftLineRow[]>([])
+
+  // 4. Aporte inicial opcional
+  const [initialPayAmount, setInitialPayAmount] = useState('')
+  const [initialPayMethod, setInitialPayMethod] = useState('2')
+  const [initialPayRef, setInitialPayRef] = useState('')
+  const [initialPayNotes, setInitialPayNotes] = useState('')
+  const [initialPayFile, setInitialPayFile] = useState<File | null>(null)
 
   const loadMasterData = useCallback(async () => {
     if (!tenantId) return
@@ -123,6 +147,11 @@ export function CreateStockReservationPage() {
     }
   }, [tenantId, warehouseId])
 
+  const selectedCustomer = useMemo(
+    () => customers.find((c) => c.id === customerId) ?? null,
+    [customers, customerId]
+  )
+
   const stockByItem = useMemo(() => {
     const map = new Map<string, StockListItemDto>()
     for (const s of warehouseStocks) {
@@ -137,12 +166,20 @@ export function CreateStockReservationPage() {
     return catalogItems
       .map((item) => {
         const st = stockByItem.get(item.id)
-        const avail = st ? Math.max(0, st.quantity) : 0
+        const physical = st ? Math.max(0, st.quantity) : 0
+        const reserved = st ? Math.max(0, st.reservedQuantity ?? 0) : 0
+        const available = st
+          ? st.availableQuantity !== undefined
+            ? Math.max(0, st.availableQuantity)
+            : Math.max(0, physical - reserved)
+          : 0
         return {
           catalogItemId: item.id,
           sku: item.sku ?? 'SIN-SKU',
           name: item.name,
-          available: avail,
+          physical,
+          reserved,
+          available,
           basePrice: Number(item.basePrice ?? 0),
           isAdded: addedIds.has(item.id),
         }
@@ -208,18 +245,25 @@ export function CreateStockReservationPage() {
   }, [])
 
   const totals = useMemo(() => {
+    const units = draftLines.reduce((acc, l) => acc + l.quantity, 0)
     const subtotal = draftLines.reduce((acc, l) => acc + l.quantity * l.unitPrice, 0)
     const tax = draftLines.reduce((acc, l) => acc + l.quantity * l.unitPrice * (l.taxRate / 100), 0)
+    const total = Number((subtotal + tax).toFixed(2))
+    const initialPaid = Math.max(0, Number(initialPayAmount) || 0)
+    const balance = Math.max(0, Number((total - initialPaid).toFixed(2)))
     return {
+      units,
       subtotal: Number(subtotal.toFixed(2)),
       tax: Number(tax.toFixed(2)),
-      total: Number((subtotal + tax).toFixed(2)),
+      total,
+      initialPaid,
+      balance,
     }
-  }, [draftLines])
+  }, [draftLines, initialPayAmount])
 
   const handleSubmit = async () => {
     if (!tenantId || !warehouseId) {
-      toast.show({ title: 'Bodega requerida', message: 'Selecciona una bodega de reserva.', variant: 'warning' })
+      toast.show({ title: 'Bodega requerida', message: 'No hay una bodega operativa disponible.', variant: 'warning' })
       return
     }
     if (customerMode === 'existing' && !customerId) {
@@ -231,12 +275,13 @@ export function CreateStockReservationPage() {
       return
     }
     if (draftLines.length === 0) {
-      toast.show({ title: 'Sin SKUs', message: 'Agrega al menos un SKU desde la tabla de stock disponible.', variant: 'warning' })
+      toast.show({ title: 'Sin SKUs', message: 'Agrega al menos un SKU desde el catálogo disponible.', variant: 'warning' })
       return
     }
 
     setCreating(true)
     try {
+      const expiresAtUtc = expiresDate ? new Date(`${expiresDate}T23:59:59Z`).toISOString() : null
       const created = await createStockReservation(tenantId, {
         warehouseId,
         customerId: customerMode === 'existing' ? customerId : null,
@@ -258,12 +303,37 @@ export function CreateStockReservationPage() {
           unitPrice: l.unitPrice,
           taxRate: l.taxRate,
         })),
+        expiresAtUtc,
         notes: notes.trim() || null,
       })
 
+      const payVal = Number(initialPayAmount)
+      if (payVal > 0) {
+        try {
+          await addStockReservationPayment(tenantId, created.id, {
+            amount: payVal,
+            paymentMethod: Number(initialPayMethod) || 2,
+            reference: initialPayRef,
+            notes: initialPayNotes,
+            file: initialPayFile,
+          })
+        } catch (payErr) {
+          toast.show({
+            title: 'Reserva creada (aporte pendiente)',
+            message: readApiError(payErr, 'La reserva se creó, pero no se pudo registrar el aporte inicial.'),
+            variant: 'warning',
+          })
+          navigate('/ecommerce/reservas')
+          return
+        }
+      }
+
       toast.show({
         title: 'Reserva creada',
-        message: `Reserva ${created.reservationNumber} creada con ${created.items.length} SKU(s) reservados.`,
+        message:
+          payVal > 0
+            ? `Reserva ${created.reservationNumber} creada con aporte inicial de $${payVal.toFixed(2)}.`
+            : `Reserva ${created.reservationNumber} creada con ${created.items.length} SKU(s) reservados.`,
         variant: 'success',
       })
       navigate('/ecommerce/reservas')
@@ -282,7 +352,14 @@ export function CreateStockReservationPage() {
     () => [
       { key: 'sku', header: 'SKU', width: 150 },
       { key: 'name', header: 'Producto', minWidth: 220 },
-      { key: 'available', header: 'Stock Disp.', width: 110 },
+      { key: 'physical', header: 'Físico', width: 90 },
+      { key: 'reserved', header: 'Reservado', width: 100 },
+      {
+        key: 'available',
+        header: 'Disponible',
+        width: 105,
+        renderCell: (_v, row) => <strong style={{ color: 'var(--shell-success, #22c55e)' }}>{row.available}</strong>,
+      },
       {
         key: 'basePrice',
         header: 'Precio Base',
@@ -390,13 +467,13 @@ export function CreateStockReservationPage() {
   return (
     <TenantSessionGate
       title="Nueva Reserva de Stock"
-      lead="Selecciona el cliente, elige los SKUs disponibles en bodega y confirma la reserva."
+      lead="Selecciona el cliente, elige los SKUs disponibles y registra opcionalmente un aporte inicial."
     >
       <div className="ecu-dashboard-layout ecu-section-page ecu-dashboard-layout--fluid">
         <PageHeader
           title="Crear Reserva de Stock"
           badge={<StatusBadge tone="primary">Ecommerce · Reservas</StatusBadge>}
-          info="Aparta SKUs del inventario para un cliente y habilita el registro de aportes parciales antes de facturar."
+          info="Aparta SKUs del inventario disponible (Físico − Reservado) para un cliente con control de vigencia y abonos."
           actions={
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Button
@@ -421,18 +498,23 @@ export function CreateStockReservationPage() {
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de la reserva">
-          <StatCard label="SKUs a reservar" value={draftLines.length} />
+          <StatCard label="SKUs · Unidades" value={`${draftLines.length} · ${totals.units} u.`} />
           <StatCard label="Subtotal" value={`$${totals.subtotal.toFixed(2)}`} />
           <StatCard label="IVA" value={`$${totals.tax.toFixed(2)}`} />
           <StatCard label="Total Reserva" value={`$${totals.total.toFixed(2)}`} toneColor="var(--shell-success)" />
+          <StatCard
+            label="Saldo tras aporte"
+            value={`$${totals.balance.toFixed(2)}`}
+            toneColor={totals.balance > 0 ? 'var(--shell-warning)' : 'var(--shell-success)'}
+          />
         </div>
 
         <SectionCard
-          title={warehouses.length > 1 ? '1. Bodega y Cliente' : '1. Cliente'}
+          title={warehouses.length > 1 ? '1. Bodega, Cliente y Vigencia' : '1. Cliente y Vigencia'}
           info={
             warehouses.length > 1
-              ? 'Elige la bodega desde donde se bloqueará el stock y selecciona o registra al cliente.'
-              : 'Selecciona un cliente existente o crea uno nuevo con el botón (+).'
+              ? 'Elige la bodega operativa, selecciona o crea el cliente y define la fecha límite de la reserva.'
+              : 'Selecciona un cliente existente o crea uno nuevo con (+), y opcionalmente fija fecha límite.'
           }
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -499,7 +581,37 @@ export function CreateStockReservationPage() {
                   </Button>
                 </div>
               )}
+
+              <TextBox
+                label="Válida hasta (opcional)"
+                labelPosition="outlined"
+                variant="outline"
+                type="date"
+                value={expiresDate}
+                onChange={(e) => setExpiresDate(e.target.value)}
+                fullWidth
+              />
             </div>
+
+            {customerMode === 'existing' && selectedCustomer && (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '1.25rem',
+                  flexWrap: 'wrap',
+                  fontSize: '0.85rem',
+                  opacity: 0.85,
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--shell-border, #334155)',
+                }}
+              >
+                <span><strong>ID:</strong> {selectedCustomer.taxId || '—'}</span>
+                <span><strong>Tel:</strong> {selectedCustomer.contactPhone || '—'}</span>
+                <span><strong>Correo:</strong> {selectedCustomer.contactEmail || '—'}</span>
+                {selectedCustomer.city && <span><strong>Ciudad:</strong> {selectedCustomer.city}</span>}
+              </div>
+            )}
 
             {customerMode === 'new' && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
@@ -579,8 +691,22 @@ export function CreateStockReservationPage() {
         </SectionCard>
 
         <SectionCard
-          title={`2. SKUs Seleccionados para Reservar (${draftLines.length})`}
-          info="Ajusta la cantidad, precio unitario o IVA de cada SKU antes de confirmar."
+          title={`2. Catálogo con Stock Disponible (${availableSkuRows.length})`}
+          info="Muestra el stock físico, el ya reservado y el disponible real para apartar. Busca por SKU o producto y haz clic en «Reservar»."
+        >
+          <DataGrid
+            dataSource={availableSkuRows}
+            columns={skuColumns}
+            keyExpr="catalogItemId"
+            loading={loadingCatalog}
+            showSearch
+            messages={skuGridMessages}
+          />
+        </SectionCard>
+
+        <SectionCard
+          title={`3. SKUs Seleccionados para Reservar (${draftLines.length})`}
+          info="Ajusta la cantidad (máximo según disponible real), precio unitario o IVA antes de confirmar."
         >
           <DataGrid
             dataSource={draftLines}
@@ -591,17 +717,59 @@ export function CreateStockReservationPage() {
         </SectionCard>
 
         <SectionCard
-          title={`3. Catálogo con Stock Disponible en Bodega (${availableSkuRows.length})`}
-          info="Busca por SKU o nombre del producto y haz clic en «Reservar» para agregarlo al grid."
+          title="4. Aporte Inicial con Comprobante (Opcional)"
+          info="Si el cliente ya realizó un abono al apartar, regístralo aquí junto con su comprobante para descontarlo de inmediato."
         >
-          <DataGrid
-            dataSource={availableSkuRows}
-            columns={skuColumns}
-            keyExpr="catalogItemId"
-            loading={loadingCatalog}
-            showSearch
-            messages={skuGridMessages}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+              <NumberBox
+                label="Monto del aporte ($)"
+                labelPosition="outlined"
+                variant="outline"
+                min={0}
+                step={0.01}
+                value={initialPayAmount ? Number(initialPayAmount) : undefined}
+                onChange={(e) => setInitialPayAmount(e.target.value)}
+                fullWidth
+              />
+              <Select
+                label="Método de pago"
+                labelPosition="outlined"
+                variant="outline"
+                value={initialPayMethod}
+                onChange={(v) => setInitialPayMethod(v)}
+                options={paymentMethodOptions}
+                fullWidth
+              />
+              <TextBox
+                label="Referencia / N° Comprobante"
+                labelPosition="outlined"
+                variant="outline"
+                value={initialPayRef}
+                onChange={(e) => setInitialPayRef(e.target.value)}
+                fullWidth
+              />
+              <TextBox
+                label="Nota del aporte"
+                labelPosition="outlined"
+                variant="outline"
+                value={initialPayNotes}
+                onChange={(e) => setInitialPayNotes(e.target.value)}
+                fullWidth
+              />
+            </div>
+
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer', width: 'fit-content' }}>
+              <Upload size={15} />
+              <span>{initialPayFile ? initialPayFile.name : 'Adjuntar comprobante (JPG, PNG, WEBP o PDF)'}</span>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.pdf"
+                style={{ display: 'none' }}
+                onChange={(e) => setInitialPayFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          </div>
         </SectionCard>
       </div>
     </TenantSessionGate>
