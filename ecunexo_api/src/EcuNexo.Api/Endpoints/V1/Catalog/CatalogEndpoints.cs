@@ -101,6 +101,12 @@ public static class CatalogEndpoints
                 PermissionFilters.RequireAny("catalog.item.read", "catalog.matrix.read"));
         items.MapPut("/{itemId:guid}", UpdateItemAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.update"));
+        items.MapPut("/bulk-cost", BulkUpdateItemCostsAsync)
+            .AddEndpointFilter(
+                PermissionFilters.RequireAny(
+                    "catalog.item.update",
+                    "catalog.pricing.update",
+                    "catalog.pricing.create"));
         items.MapDelete("/{itemId:guid}", SoftDeleteItemAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.item.delete"));
         items.MapPut("/{itemId:guid}/storefront-visibility", SetStorefrontVisibilityAsync)
@@ -624,6 +630,33 @@ public static class CatalogEndpoints
         return result.ToHttpResult();
     }
 
+    private static async Task<IResult> BulkUpdateItemCostsAsync(
+        Guid tenantId,
+        BulkUpdateCatalogItemCostsRequest body,
+        ICallerContext caller,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var entries = (body.Items ?? [])
+            .Select(i => new EcuNexo.Business.Catalog.Commands.BulkUpdateCatalogItemCosts.BulkCatalogItemCostEntry(
+                i.CatalogItemId,
+                i.CostPrice))
+            .ToList();
+
+        var result = await sender
+            .SendAsync<
+                EcuNexo.Business.Catalog.Commands.BulkUpdateCatalogItemCosts.BulkUpdateCatalogItemCostsCommand,
+                EcuNexo.Business.Catalog.Commands.BulkUpdateCatalogItemCosts.BulkUpdateCatalogItemCostsResponse>(
+                new EcuNexo.Business.Catalog.Commands.BulkUpdateCatalogItemCosts.BulkUpdateCatalogItemCostsCommand(
+                    tenantId,
+                    entries,
+                    caller.UserId),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
     private static async Task<IResult> UpdateItemAsync(
         Guid tenantId,
         Guid itemId,
@@ -779,3 +812,7 @@ public static class CatalogEndpoints
         return result.ToHttpResult();
     }
 }
+
+public sealed record BulkCatalogItemCostRequestItem(Guid CatalogItemId, decimal? CostPrice);
+
+public sealed record BulkUpdateCatalogItemCostsRequest(IReadOnlyList<BulkCatalogItemCostRequestItem> Items);

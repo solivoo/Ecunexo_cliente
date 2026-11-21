@@ -536,6 +536,7 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<EcuNexo.Business.Ecommerce.Reservations.GetStockReservationPaymentProofUrl.GetStockReservationPaymentProofUrlQuery, EcuNexo.Business.Ecommerce.Reservations.StockReservationPaymentProofUrlDto>, EcuNexo.Business.Ecommerce.Reservations.GetStockReservationPaymentProofUrl.GetStockReservationPaymentProofUrlHandler>();
         services.AddScoped<ICommandHandler<EcuNexo.Business.Ecommerce.Reservations.CancelStockReservation.CancelStockReservationCommand, EcuNexo.Business.Ecommerce.Reservations.StockReservationDto>, EcuNexo.Business.Ecommerce.Reservations.CancelStockReservation.CancelStockReservationHandler>();
         services.AddScoped<ICommandHandler<EcuNexo.Business.Ecommerce.Reservations.InvoiceStockReservation.InvoiceStockReservationCommand, EcuNexo.Business.Ecommerce.Reservations.StockReservationDto>, EcuNexo.Business.Ecommerce.Reservations.InvoiceStockReservation.InvoiceStockReservationHandler>();
+        services.AddScoped<ICommandHandler<EcuNexo.Business.Catalog.Commands.BulkUpdateCatalogItemCosts.BulkUpdateCatalogItemCostsCommand, EcuNexo.Business.Catalog.Commands.BulkUpdateCatalogItemCosts.BulkUpdateCatalogItemCostsResponse>, EcuNexo.Business.Catalog.Commands.BulkUpdateCatalogItemCosts.BulkUpdateCatalogItemCostsHandler>();
 
         return services;
     }

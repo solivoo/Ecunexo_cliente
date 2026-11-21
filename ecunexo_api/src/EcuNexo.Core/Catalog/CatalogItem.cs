@@ -2233,6 +2233,20 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         return Result.Success<decimal?>(decimal.Round(basePrice.Value, 4, MidpointRounding.AwayFromZero));
     }
 
+    public Result SetCostPrice(decimal? costPrice, Guid? updatedBy = null)
+    {
+        var costResult = NormalizeCostPrice(costPrice);
+        if (costResult.IsFailure)
+        {
+            return Result.Failure(costResult.Error!);
+        }
+
+        CostPrice = costResult.Value;
+        UpdatedAt = DateTimeOffset.UtcNow;
+        UpdatedBy = updatedBy;
+        return Result.Success();
+    }
+
     private static Result<decimal?> NormalizeCostPrice(decimal? costPrice)
     {
         if (costPrice is null)

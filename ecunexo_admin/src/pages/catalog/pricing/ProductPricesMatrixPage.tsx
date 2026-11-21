@@ -15,7 +15,7 @@ import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
 import { calculateMarginPercent, formatMoney, todayIso } from '@/pages/catalog/pricing/pricingFormat'
-import { listCatalogItems } from '@/services/catalogApi'
+import { bulkUpdateCatalogItemCosts, listCatalogItems } from '@/services/catalogApi'
 import { listStock } from '@/services/inventoryApi'
 import {
   bulkCreateProductPrices,
@@ -302,6 +302,58 @@ export function ProductPricesMatrixPage() {
     [canManage, load, rows, selectedIds, tenantId, toast, validFrom]
   )
 
+  const saveCostCell = useCallback(
+    async (row: MatrixRow, rawValue: string) => {
+      if (!tenantId || !canManage) return
+      const trimmed = rawValue.trim()
+      const parsed = trimmed === '' ? null : parsePriceInput(trimmed)
+      if (trimmed !== '' && parsed === null) {
+        toast.show({
+          title: 'Costo inválido',
+          message: 'Ingresa un número mayor o igual a cero.',
+          variant: 'error',
+        })
+        return
+      }
+
+      const targetRows =
+        selectedIds.length > 1 && selectedIds.includes(row.id)
+          ? rows.filter((r) => selectedIds.includes(r.id))
+          : [row]
+
+      for (const r of targetRows) {
+        markCellBusy(`${r.id}:cost`, true)
+      }
+
+      try {
+        await bulkUpdateCatalogItemCosts(
+          tenantId,
+          targetRows.map((r) => ({ catalogItemId: r.id, costPrice: parsed }))
+        )
+        await load({ silent: true })
+        toast.show({
+          title: 'Costo guardado',
+          message:
+            targetRows.length > 1
+              ? `Costo ${parsed != null ? `$${parsed.toFixed(2)}` : 'limpiado'} aplicado a ${targetRows.length} productos.`
+              : `${row.sku ?? row.name} → ${parsed != null ? `$${parsed.toFixed(2)}` : 'Sin costo'}`,
+          variant: 'success',
+        })
+      } catch (err: unknown) {
+        toast.show({
+          title: 'No se pudo guardar el costo',
+          message: readApiError(err, 'Intenta nuevamente.'),
+          variant: 'error',
+        })
+      } finally {
+        for (const r of targetRows) {
+          markCellBusy(`${r.id}:cost`, false)
+        }
+      }
+    },
+    [canManage, load, rows, selectedIds, tenantId, toast]
+  )
+
   const handleQuickApplyPrice = useCallback(async () => {
     if (!tenantId || !canManage || selectedIds.length === 0) return
     const numeric = parsePriceInput(quickPrice)
@@ -521,19 +573,17 @@ export function ProductPricesMatrixPage() {
       {
         key: 'referenceCost',
         header: 'Costo ref.',
-        width: 120,
+        width: 130,
         align: 'right',
-        renderCell: (_value, row) =>
-          row.referenceCost != null ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-              <span style={{ fontWeight: 600 }}>{formatMoney(row.referenceCost)}</span>
-              <span className="app-shell__muted" style={{ fontSize: '0.68rem' }}>
-                {row.costSource === 'stock' ? 'Kárdex' : 'Catálogo'}
-              </span>
-            </div>
-          ) : (
-            <span className="app-shell__muted" style={{ fontSize: '0.78rem' }}>Sin costo</span>
-          ),
+        renderCell: (_value, row) => (
+          <MatrixCostCell
+            referenceCost={row.referenceCost}
+            costSource={row.costSource}
+            busy={busyCells.has(`${row.id}:cost`)}
+            editable={canManage}
+            onCommit={(raw) => void saveCostCell(row, raw)}
+          />
+        ),
       },
       ...activeLists.map(
         (list): ColumnDef<MatrixRow> => ({
@@ -562,7 +612,7 @@ export function ProductPricesMatrixPage() {
     ]
 
     return base
-  }, [activeLists, busyCells, canManage, saveCell])
+  }, [activeLists, busyCells, canManage, saveCell, saveCostCell])
 
   if (!canRead) {
     return (
@@ -920,6 +970,91 @@ export function ProductPricesMatrixPage() {
         </div>
       </Popup>
     </TenantSessionGate>
+  )
+}
+
+function MatrixCostCell({
+  referenceCost,
+  costSource,
+  busy,
+  editable,
+  onCommit,
+}: {
+  readonly referenceCost: number | null
+  readonly costSource: 'stock' | 'catalog' | null
+  readonly busy: boolean
+  readonly editable: boolean
+  readonly onCommit: (raw: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  const start = () => {
+    if (!editable || busy) return
+    setDraft(referenceCost != null ? String(referenceCost) : '')
+    setEditing(true)
+  }
+
+  const commit = () => {
+    setEditing(false)
+    onCommit(draft)
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={start}
+        disabled={!editable || busy}
+        title={editable ? 'Clic para editar el costo de catálogo' : 'Sin permiso para editar'}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: referenceCost != null ? 'var(--glb-text)' : 'var(--glb-muted)',
+          cursor: editable ? 'pointer' : 'default',
+          padding: '0.2rem 0.4rem',
+          borderRadius: 6,
+          width: '100%',
+          textAlign: 'right',
+          opacity: busy ? 0.5 : 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+        }}
+      >
+        {referenceCost != null ? (
+          <>
+            <span style={{ fontWeight: 600 }}>{formatMoney(referenceCost)}</span>
+            <span className="app-shell__muted" style={{ fontSize: '0.68rem' }}>
+              {costSource === 'stock' ? 'Kárdex' : 'Catálogo'}
+            </span>
+          </>
+        ) : (
+          <span style={{ fontSize: '0.78rem' }}>+ Costo</span>
+        )}
+      </button>
+    )
+  }
+
+  return (
+    <TextBox
+      id={`matrix-cost-${referenceCost ?? 'new'}`}
+      size="sm"
+      variant="outline"
+      value={draft}
+      autoFocus
+      disabled={busy}
+      onChange={(e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          commit()
+        } else if (e.key === 'Escape') {
+          setEditing(false)
+        }
+      }}
+    />
   )
 }
 

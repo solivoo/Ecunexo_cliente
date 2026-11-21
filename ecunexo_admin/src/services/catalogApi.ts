@@ -84,6 +84,17 @@ export async function updateCatalogItem(
   await api.put(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}`, body)
 }
 
+export async function bulkUpdateCatalogItemCosts(
+  tenantId: string,
+  items: { catalogItemId: string; costPrice: number | null }[]
+): Promise<{ updatedCount: number }> {
+  const { data } = await api.put<{ updatedCount: number }>(
+    `/api/v1/tenants/${tenantId}/catalog/items/bulk-cost`,
+    { items }
+  )
+  return data
+}
+
 export async function softDeleteCatalogItem(tenantId: string, itemId: string): Promise<void> {
   await api.delete(`/api/v1/tenants/${tenantId}/catalog/items/${itemId}`)
 }
