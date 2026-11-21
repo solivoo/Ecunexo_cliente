@@ -102,9 +102,12 @@ export function StockReservationsPage() {
   const [customerMode, setCustomerMode] = useState<'existing' | 'new'>('existing')
   const [customerId, setCustomerId] = useState('')
   const [newCustomerName, setNewCustomerName] = useState('')
+  const [newCustomerIdType, setNewCustomerIdType] = useState('2')
   const [newCustomerTaxId, setNewCustomerTaxId] = useState('')
   const [newCustomerPhone, setNewCustomerPhone] = useState('')
   const [newCustomerEmail, setNewCustomerEmail] = useState('')
+  const [newCustomerAddress, setNewCustomerAddress] = useState('')
+  const [newCustomerCity, setNewCustomerCity] = useState('')
   const [reservationNotes, setReservationNotes] = useState('')
   const [selectedSkuId, setSelectedSkuId] = useState('')
   const [draftLines, setDraftLines] = useState<DraftLine[]>([])
@@ -255,6 +258,9 @@ export function StockReservationsPage() {
                 taxId: newCustomerTaxId.trim() || null,
                 phone: newCustomerPhone.trim() || null,
                 email: newCustomerEmail.trim() || null,
+                address: newCustomerAddress.trim() || null,
+                city: newCustomerCity.trim() || null,
+                identificationType: Number(newCustomerIdType) || 2,
               }
             : null,
         items: draftLines.map((l) => ({
@@ -273,9 +279,12 @@ export function StockReservationsPage() {
       setDraftLines([])
       setCustomerId('')
       setNewCustomerName('')
+      setNewCustomerIdType('2')
       setNewCustomerTaxId('')
       setNewCustomerPhone('')
       setNewCustomerEmail('')
+      setNewCustomerAddress('')
+      setNewCustomerCity('')
       setReservationNotes('')
       setSelected(created)
       await Promise.all([loadReservations(), loadMasterData()])
@@ -560,20 +569,33 @@ export function StockReservationsPage() {
               />
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                <Select
+                  label="Tipo identificación"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={newCustomerIdType}
+                  onChange={(v) => setNewCustomerIdType(v)}
+                  options={[
+                    { value: '2', label: 'Cédula' },
+                    { value: '1', label: 'RUC' },
+                    { value: '3', label: 'Pasaporte' },
+                  ]}
+                  fullWidth
+                />
+                <TextBox
+                  label="Cédula / RUC / Pasaporte"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={newCustomerTaxId}
+                  onChange={(e) => setNewCustomerTaxId(e.target.value)}
+                  fullWidth
+                />
                 <TextBox
                   label="Nombre / Razón social"
                   labelPosition="outlined"
                   variant="outline"
                   value={newCustomerName}
                   onChange={(e) => setNewCustomerName(e.target.value)}
-                  fullWidth
-                />
-                <TextBox
-                  label="Cédula / RUC"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={newCustomerTaxId}
-                  onChange={(e) => setNewCustomerTaxId(e.target.value)}
                   fullWidth
                 />
                 <TextBox
@@ -590,6 +612,22 @@ export function StockReservationsPage() {
                   variant="outline"
                   value={newCustomerEmail}
                   onChange={(e) => setNewCustomerEmail(e.target.value)}
+                  fullWidth
+                />
+                <TextBox
+                  label="Dirección (SRI)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={newCustomerAddress}
+                  onChange={(e) => setNewCustomerAddress(e.target.value)}
+                  fullWidth
+                />
+                <TextBox
+                  label="Ciudad"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={newCustomerCity}
+                  onChange={(e) => setNewCustomerCity(e.target.value)}
                   fullWidth
                 />
               </div>

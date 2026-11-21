@@ -103,7 +103,8 @@ public static class StockReservationEndpoints
                 body.NewCustomer.Email,
                 body.NewCustomer.Phone,
                 body.NewCustomer.Address,
-                body.NewCustomer.IdentificationType ?? CustomerIdentificationType.Cedula);
+                body.NewCustomer.IdentificationType ?? CustomerIdentificationType.Cedula,
+                body.NewCustomer.City);
 
         var items = body.Items
             .Select(i => new CreateReservationItemInput(i.CatalogItemId, i.Quantity, i.UnitPrice, i.TaxRate))
@@ -221,7 +222,8 @@ public sealed record CreateReservationCustomerRequest(
     string? Email,
     string? Phone,
     string? Address,
-    CustomerIdentificationType? IdentificationType = null);
+    CustomerIdentificationType? IdentificationType = null,
+    string? City = null);
 
 public sealed record CreateReservationItemRequest(
     Guid CatalogItemId,

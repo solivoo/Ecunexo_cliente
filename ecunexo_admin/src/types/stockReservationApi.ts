@@ -59,6 +59,7 @@ export interface CreateReservationCustomerBody {
   email?: string | null
   phone?: string | null
   address?: string | null
+  city?: string | null
   identificationType?: number
 }
 

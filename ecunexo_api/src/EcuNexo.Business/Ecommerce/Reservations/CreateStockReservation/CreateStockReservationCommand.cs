@@ -17,7 +17,8 @@ public sealed record CreateReservationCustomerInput(
     string? Email,
     string? Phone,
     string? Address,
-    CustomerIdentificationType IdentificationType = CustomerIdentificationType.Cedula);
+    CustomerIdentificationType IdentificationType = CustomerIdentificationType.Cedula,
+    string? City = null);
 
 public sealed record CreateReservationItemInput(
     Guid CatalogItemId,
@@ -122,7 +123,8 @@ public sealed class CreateStockReservationHandler
                     command.NewCustomer.Phone,
                     command.NewCustomer.Address,
                     customerType: CustomerType.PersonaNatural,
-                    identificationType: command.NewCustomer.IdentificationType);
+                    identificationType: command.NewCustomer.IdentificationType,
+                    city: command.NewCustomer.City);
                 if (createdCustomer.IsFailure)
                 {
                     return Result.Failure<StockReservationDto>(createdCustomer.Error!);
