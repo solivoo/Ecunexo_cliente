@@ -482,6 +482,13 @@ export function ShippingRatesMatrixPage() {
               >
                 Zonas de destino
               </Button>
+              <Button
+                variant="outline"
+                iconLeft={<MapPin size={16} />}
+                onClick={() => navigate('/ecommerce/envios/cantones')}
+              >
+                Tarifas por Cantón
+              </Button>
               {canManage ? (
                 <Button variant="primary" iconLeft={<Plus size={16} />} onClick={openCreateModal}>
                   + Nueva Tarifa

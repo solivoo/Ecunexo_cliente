@@ -194,6 +194,7 @@ internal static class MenuCatalogSeedData
         Item("ecommerce-shipping-methods", "ecommerce-shipping-group", "Métodos de envío", "truck", "ecommerce/envios/metodos", 1, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
         Item("ecommerce-shipping-zones", "ecommerce-shipping-group", "Zonas", "map-pin", "ecommerce/envios/zonas", 2, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
         Item("ecommerce-shipping-rates", "ecommerce-shipping-group", "Tarifas", "calculator", "ecommerce/envios/tarifas", 3, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
+        Item("ecommerce-shipping-cantons", "ecommerce-shipping-group", "Cantones", "map-pin", "ecommerce/envios/cantones", 4, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Facturas", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
