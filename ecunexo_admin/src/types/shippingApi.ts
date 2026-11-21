@@ -169,6 +169,7 @@ export interface CantonShippingRateUpsertItem {
 
 export interface UpsertCantonShippingRatesBulkBody {
   shippingMethodId: string | null
+  originCantonId?: string | null
   items: CantonShippingRateUpsertItem[]
 }
 
@@ -182,6 +183,7 @@ export interface CalculateShippingItemBody {
 
 export interface CalculateShippingCostBody {
   cantonId: string
+  originCantonId?: string | null
   shippingMethodId?: string | null
   strategy?: 0 | 1
   items?: CalculateShippingItemBody[]

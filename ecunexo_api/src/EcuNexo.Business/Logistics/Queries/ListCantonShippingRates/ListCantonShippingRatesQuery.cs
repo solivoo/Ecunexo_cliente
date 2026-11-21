@@ -7,7 +7,8 @@ namespace EcuNexo.Business.Logistics.Queries.ListCantonShippingRates;
 public sealed record ListCantonShippingRatesQuery(
     Guid TenantId,
     Guid ProvinceId,
-    Guid? ShippingMethodId = null) : IQuery<IReadOnlyList<CantonShippingRateItemResponse>>;
+    Guid? ShippingMethodId = null,
+    Guid? OriginCantonId = null) : IQuery<IReadOnlyList<CantonShippingRateItemResponse>>;
 
 public sealed record CantonShippingRateItemResponse(
     Guid CantonId,
@@ -58,7 +59,7 @@ public sealed class ListCantonShippingRatesHandler
 
         var cantons = await _geo.ListCantonsByProvinceAsync(query.ProvinceId, ct).ConfigureAwait(false);
         var existingRates = await _rates
-            .ListByProvinceAsync(query.TenantId, query.ProvinceId, query.ShippingMethodId, ct)
+            .ListByProvinceAsync(query.TenantId, query.ProvinceId, query.ShippingMethodId, query.OriginCantonId, ct)
             .ConfigureAwait(false);
 
         var rateByCanton = existingRates.ToDictionary(r => r.CantonId);

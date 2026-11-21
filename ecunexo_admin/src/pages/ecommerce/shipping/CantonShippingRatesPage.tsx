@@ -44,6 +44,9 @@ export function CantonShippingRatesPage() {
 
   const [provinces, setProvinces] = useState<EcuadorProvinceDto[]>([])
   const [selectedProvinceId, setSelectedProvinceId] = useState<string>('')
+  const [originProvinceId, setOriginProvinceId] = useState<string>('')
+  const [originCantons, setOriginCantons] = useState<CantonShippingRateItemDto[]>([])
+  const [originCantonId, setOriginCantonId] = useState<string>('')
   const [methods, setMethods] = useState<ShippingMethodDto[]>([])
   const [selectedMethodId, setSelectedMethodId] = useState<string>('')
 
@@ -83,6 +86,10 @@ export function CantonShippingRatesPage() {
         const pichincha = provList.find((p) => p.code === '17') ?? provList[0]
         setSelectedProvinceId(pichincha.id)
       }
+      if (provList.length > 0 && !originProvinceId) {
+        const guayas = provList.find((p) => p.code === '09') ?? provList[0]
+        setOriginProvinceId(guayas.id)
+      }
     } catch (err) {
       toast.show({
         title: 'Error cargando provincias',
@@ -90,11 +97,34 @@ export function CantonShippingRatesPage() {
         variant: 'error',
       })
     }
-  }, [tenantId, selectedProvinceId, toast])
+  }, [tenantId, selectedProvinceId, originProvinceId, toast])
 
   useEffect(() => {
     void loadCatalogs()
   }, [loadCatalogs])
+
+  useEffect(() => {
+    if (!tenantId || !originProvinceId) {
+      return
+    }
+    let cancelled = false
+    listCantonShippingRates(tenantId, originProvinceId)
+      .then((list) => {
+        if (cancelled) return
+        setOriginCantons(list)
+        const defaultOrigin = list.find((c) => c.cantonCode === '0901') ?? list[0]
+        setOriginCantonId((prev) => (prev && list.some((c) => c.cantonId === prev) ? prev : (defaultOrigin?.cantonId ?? '')))
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOriginCantons([])
+          setOriginCantonId('')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [tenantId, originProvinceId])
 
   const loadProvinceCantons = useCallback(async () => {
     if (!tenantId || !selectedProvinceId) return
@@ -103,7 +133,8 @@ export function CantonShippingRatesPage() {
       const list = await listCantonShippingRates(
         tenantId,
         selectedProvinceId,
-        selectedMethodId || null
+        selectedMethodId || null,
+        originCantonId || null
       )
       setRows(list.map((item) => ({ ...item })))
       if (list.length > 0) {
@@ -122,7 +153,7 @@ export function CantonShippingRatesPage() {
     } finally {
       setLoading(false)
     }
-  }, [tenantId, selectedProvinceId, selectedMethodId, toast])
+  }, [tenantId, selectedProvinceId, selectedMethodId, originCantonId, toast])
 
   useEffect(() => {
     void loadProvinceCantons()
@@ -146,6 +177,7 @@ export function CantonShippingRatesPage() {
       try {
         await upsertCantonShippingRatesBulk(tenantId, {
           shippingMethodId: selectedMethodId || null,
+          originCantonId: originCantonId || null,
           items: targetRows.map((r) => ({
             cantonId: r.cantonId,
             basePrice: Number(r.basePrice) || 0,
@@ -178,7 +210,7 @@ export function CantonShippingRatesPage() {
         setSaving(false)
       }
     },
-    [tenantId, selectedMethodId, toast, loadProvinceCantons]
+    [tenantId, selectedMethodId, originCantonId, toast, loadProvinceCantons]
   )
 
   const handleApplyToProvince = () => {
@@ -221,6 +253,7 @@ export function CantonShippingRatesPage() {
       const heightCm = Number(simHeightCm) || 0
       const result = await calculateShippingCost(tenantId, {
         cantonId: simCantonId,
+        originCantonId: originCantonId || null,
         shippingMethodId: selectedMethodId || null,
         strategy: 0,
         orderSubtotal: Math.max(0, Number(simSubtotal) || 0),
@@ -255,6 +288,48 @@ export function CantonShippingRatesPage() {
     () => provinces.find((p) => p.id === selectedProvinceId) ?? null,
     [provinces, selectedProvinceId]
   )
+
+  const originProvince = useMemo(
+    () => provinces.find((p) => p.id === originProvinceId) ?? null,
+    [provinces, originProvinceId]
+  )
+
+  const handleSuggestByZone = () => {
+    if (!selectedProvince) return
+    const destRegion = selectedProvince.region.toLowerCase()
+    const origRegion = originProvince?.region.toLowerCase() ?? ''
+    const isSameProvince = originProvinceId && originProvinceId === selectedProvinceId
+
+    let suggestedBase = '5.50'
+    let suggestedDays = '24-48h'
+
+    if (destRegion.includes('galápagos') || destRegion.includes('galapagos') || destRegion.includes('insular')) {
+      suggestedBase = '12.00'
+      suggestedDays = '72-120h'
+    } else if (destRegion.includes('oriente') || destRegion.includes('amaz')) {
+      suggestedBase = '7.50'
+      suggestedDays = '48-72h'
+    } else if (isSameProvince) {
+      suggestedBase = '3.50'
+      suggestedDays = '24h'
+    } else if (origRegion && origRegion === destRegion) {
+      suggestedBase = '4.50'
+      suggestedDays = '24-48h'
+    }
+
+    setBulkBasePrice(suggestedBase)
+    setBulkBaseWeightKg('2')
+    setBulkAdditionalKgPrice('1.25')
+    setBulkVolumetricDivisor('6000')
+    setBulkTaxRate('15')
+    setBulkEstimatedDays(suggestedDays)
+
+    toast.show({
+      title: 'Sugerencia por zona cargada',
+      message: `Tarifa sugerida ($${suggestedBase}, ${suggestedDays}). Haz clic en "Aplicar a toda la provincia" para llenar la grilla.`,
+      variant: 'info',
+    })
+  }
 
   const columns: ColumnDef<CantonRowDraft>[] = useMemo(
     () => [
@@ -513,8 +588,48 @@ export function CantonShippingRatesPage() {
             }}
           >
             <Select
+              id="ec-origin-province-select"
+              label="Provincia Origen (Establecimiento)"
+              labelPosition="outlined"
+              variant="outline"
+              value={originProvinceId}
+              onChange={(val) => {
+                setOriginProvinceId(val)
+                if (!val) {
+                  setOriginCantons([])
+                  setOriginCantonId('')
+                }
+              }}
+              options={[
+                { value: '', label: 'Global (sin origen específico)' },
+                ...provinces.map((p) => ({
+                  value: p.id,
+                  label: `${p.code} · ${p.name}`,
+                })),
+              ]}
+              fullWidth
+            />
+
+            <Select
+              id="ec-origin-canton-select"
+              label="Ciudad / Cantón Origen"
+              labelPosition="outlined"
+              variant="outline"
+              value={originCantonId}
+              onChange={(val) => setOriginCantonId(val)}
+              options={[
+                { value: '', label: 'Tarifa global (cualquier origen)' },
+                ...originCantons.map((c) => ({
+                  value: c.cantonId,
+                  label: c.cantonName,
+                })),
+              ]}
+              fullWidth
+            />
+
+            <Select
               id="ec-province-select"
-              label="Provincia (Ecuador)"
+              label="Provincia Destino (Ecuador)"
               labelPosition="outlined"
               variant="outline"
               value={selectedProvinceId}
@@ -608,6 +723,14 @@ export function CantonShippingRatesPage() {
               onChange={(e) => setBulkEstimatedDays(e.target.value)}
               fullWidth
             />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSuggestByZone}
+              disabled={!selectedProvince || saving}
+            >
+              Sugerir por zona
+            </Button>
             <Button
               type="button"
               variant="outline"

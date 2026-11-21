@@ -63,12 +63,13 @@ public static class CantonShippingEndpoints
         Guid tenantId,
         Guid provinceId,
         Guid? shippingMethodId,
+        Guid? originCantonId,
         ISender sender,
         CancellationToken ct)
     {
         var result = await sender
             .AskAsync<ListCantonShippingRatesQuery, IReadOnlyList<CantonShippingRateItemResponse>>(
-                new ListCantonShippingRatesQuery(tenantId, provinceId, shippingMethodId),
+                new ListCantonShippingRatesQuery(tenantId, provinceId, shippingMethodId, originCantonId),
                 ct)
             .ConfigureAwait(false);
 
@@ -97,7 +98,7 @@ public static class CantonShippingEndpoints
 
         var result = await sender
             .SendAsync<UpsertCantonShippingRatesBulkCommand, UpsertCantonShippingRatesBulkResponse>(
-                new UpsertCantonShippingRatesBulkCommand(tenantId, body.ShippingMethodId, items),
+                new UpsertCantonShippingRatesBulkCommand(tenantId, body.ShippingMethodId, items, body.OriginCantonId),
                 ct)
             .ConfigureAwait(false);
 
@@ -133,7 +134,8 @@ public static class CantonShippingEndpoints
                     items,
                     body.OrderSubtotal,
                     dims,
-                    body.OverrideActualWeightKg),
+                    body.OverrideActualWeightKg,
+                    body.OriginCantonId),
                 ct)
             .ConfigureAwait(false);
 
@@ -155,7 +157,8 @@ public sealed record CantonShippingRateBulkItemRequest(
 
 public sealed record UpsertCantonShippingRatesBulkRequest(
     Guid? ShippingMethodId,
-    IReadOnlyList<CantonShippingRateBulkItemRequest> Items);
+    IReadOnlyList<CantonShippingRateBulkItemRequest> Items,
+    Guid? OriginCantonId = null);
 
 public sealed record CalculateShippingItemRequest(
     decimal? WeightKg,
@@ -176,4 +179,5 @@ public sealed record CalculateShippingCostRequest(
     IReadOnlyList<CalculateShippingItemRequest>? Items,
     decimal OrderSubtotal,
     CalculateShippingPackageDimensionsRequest? PackageDimensions = null,
-    decimal? OverrideActualWeightKg = null);
+    decimal? OverrideActualWeightKg = null,
+    Guid? OriginCantonId = null);

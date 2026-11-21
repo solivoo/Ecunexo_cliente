@@ -12,7 +12,8 @@ public sealed record CalculateShippingCostQuery(
     IReadOnlyList<ShippingPackageItem> Items,
     decimal OrderSubtotal,
     ShippingPackageDimensions? PackageDimensions = null,
-    decimal? OverrideActualWeightKg = null) : IQuery<ShippingCostCalculationResult>;
+    decimal? OverrideActualWeightKg = null,
+    Guid? OriginCantonId = null) : IQuery<ShippingCostCalculationResult>;
 
 public sealed class CalculateShippingCostHandler
     : IQueryHandler<CalculateShippingCostQuery, ShippingCostCalculationResult>
@@ -32,16 +33,7 @@ public sealed class CalculateShippingCostHandler
         CalculateShippingCostQuery query,
         CancellationToken ct)
     {
-        var rate = await _rates
-            .GetByCantonAsync(query.TenantId, query.CantonId, query.ShippingMethodId, ct)
-            .ConfigureAwait(false);
-
-        if (rate is null && query.ShippingMethodId.HasValue)
-        {
-            rate = await _rates
-                .GetByCantonAsync(query.TenantId, query.CantonId, null, ct)
-                .ConfigureAwait(false);
-        }
+        var rate = await ResolveRateAsync(query, ct).ConfigureAwait(false);
 
         if (rate is null || !rate.IsEnabled)
         {
@@ -62,5 +54,41 @@ public sealed class CalculateShippingCostHandler
                 query.OverrideActualWeightKg));
 
         return Result.Success(result);
+    }
+
+    private async Task<CantonShippingRate?> ResolveRateAsync(
+        CalculateShippingCostQuery query,
+        CancellationToken ct)
+    {
+        var candidates = new List<(Guid? OriginId, Guid? MethodId)>
+        {
+            (query.OriginCantonId, query.ShippingMethodId),
+        };
+        if (query.ShippingMethodId.HasValue)
+        {
+            candidates.Add((query.OriginCantonId, null));
+        }
+
+        if (query.OriginCantonId.HasValue)
+        {
+            candidates.Add((null, query.ShippingMethodId));
+            if (query.ShippingMethodId.HasValue)
+            {
+                candidates.Add((null, null));
+            }
+        }
+
+        foreach (var (originId, methodId) in candidates)
+        {
+            var rate = await _rates
+                .GetByCantonAsync(query.TenantId, query.CantonId, methodId, originId, ct)
+                .ConfigureAwait(false);
+            if (rate is not null)
+            {
+                return rate;
+            }
+        }
+
+        return null;
     }
 }

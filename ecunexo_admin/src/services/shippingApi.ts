@@ -143,10 +143,12 @@ export async function listEcuadorProvinces(): Promise<
 export async function listCantonShippingRates(
   tenantId: string,
   provinceId: string,
-  shippingMethodId?: string | null
+  shippingMethodId?: string | null,
+  originCantonId?: string | null
 ): Promise<import('@/types/shippingApi').CantonShippingRateItemDto[]> {
   const params: Record<string, string> = { provinceId }
   if (shippingMethodId) params.shippingMethodId = shippingMethodId
+  if (originCantonId) params.originCantonId = originCantonId
   const { data } = await api.get<import('@/types/shippingApi').CantonShippingRateItemDto[]>(
     `/api/v1/tenants/${tenantId}/logistics/canton-rates`,
     { params }

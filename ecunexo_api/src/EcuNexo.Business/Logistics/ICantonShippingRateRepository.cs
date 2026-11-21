@@ -8,25 +8,29 @@ public interface ICantonShippingRateRepository
         Guid tenantId,
         Guid provinceId,
         Guid? shippingMethodId,
-        CancellationToken ct);
+        Guid? originCantonId = null,
+        CancellationToken ct = default);
 
     Task<CantonShippingRate?> GetByCantonAsync(
         Guid tenantId,
         Guid cantonId,
         Guid? shippingMethodId,
-        CancellationToken ct);
+        Guid? originCantonId = null,
+        CancellationToken ct = default);
 
     Task<CantonShippingRate?> GetTrackedByCantonAsync(
         Guid tenantId,
         Guid cantonId,
         Guid? shippingMethodId,
-        CancellationToken ct);
+        Guid? originCantonId = null,
+        CancellationToken ct = default);
 
     Task<IReadOnlyList<CantonShippingRate>> ListTrackedByCantonsAsync(
         Guid tenantId,
         IReadOnlyCollection<Guid> cantonIds,
         Guid? shippingMethodId,
-        CancellationToken ct);
+        Guid? originCantonId = null,
+        CancellationToken ct = default);
 
     Task AddAsync(CantonShippingRate rate, CancellationToken ct);
 }

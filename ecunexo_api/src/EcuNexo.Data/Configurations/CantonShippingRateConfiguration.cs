@@ -24,6 +24,9 @@ public sealed class CantonShippingRateConfiguration : IEntityTypeConfiguration<C
             .HasColumnType("uuid")
             .IsRequired();
 
+        builder.Property(r => r.OriginCantonId)
+            .HasColumnType("uuid");
+
         builder.Property(r => r.ShippingMethodId)
             .HasColumnType("uuid");
 
@@ -72,13 +75,18 @@ public sealed class CantonShippingRateConfiguration : IEntityTypeConfiguration<C
             .HasForeignKey(r => r.CantonId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasOne(r => r.OriginCanton)
+            .WithMany()
+            .HasForeignKey(r => r.OriginCantonId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasOne(r => r.ShippingMethod)
             .WithMany()
             .HasForeignKey(r => r.ShippingMethodId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        builder.HasIndex(r => new { r.TenantId, r.CantonId, r.ShippingMethodId })
+        builder.HasIndex(r => new { r.TenantId, r.OriginCantonId, r.CantonId, r.ShippingMethodId })
             .IsUnique()
-            .HasDatabaseName("ix_canton_shipping_rates_tenant_canton_method");
+            .HasDatabaseName("ix_canton_shipping_rates_tenant_origin_canton_method");
     }
 }

@@ -21,7 +21,8 @@ public sealed record CantonShippingRateUpsertItem(
 public sealed record UpsertCantonShippingRatesBulkCommand(
     Guid TenantId,
     Guid? ShippingMethodId,
-    IReadOnlyList<CantonShippingRateUpsertItem> Items) : ICommand<UpsertCantonShippingRatesBulkResponse>;
+    IReadOnlyList<CantonShippingRateUpsertItem> Items,
+    Guid? OriginCantonId = null) : ICommand<UpsertCantonShippingRatesBulkResponse>;
 
 public sealed record UpsertCantonShippingRatesBulkResponse(int UpsertedCount);
 
@@ -67,7 +68,7 @@ public sealed class UpsertCantonShippingRatesBulkHandler
     {
         var cantonIds = command.Items.Select(i => i.CantonId).Distinct().ToList();
         var existing = await _rates
-            .ListTrackedByCantonsAsync(command.TenantId, cantonIds, command.ShippingMethodId, ct)
+            .ListTrackedByCantonsAsync(command.TenantId, cantonIds, command.ShippingMethodId, command.OriginCantonId, ct)
             .ConfigureAwait(false);
         var existingByCanton = existing.ToDictionary(r => r.CantonId);
 
@@ -106,7 +107,8 @@ public sealed class UpsertCantonShippingRatesBulkHandler
                     item.FreeShippingMinAmount,
                     item.TaxRate,
                     item.EstimatedDays,
-                    item.IsEnabled);
+                    item.IsEnabled,
+                    originCantonId: command.OriginCantonId);
                 if (created.IsFailure)
                 {
                     return Result.Failure<UpsertCantonShippingRatesBulkResponse>(created.Error!);

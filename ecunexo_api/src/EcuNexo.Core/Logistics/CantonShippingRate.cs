@@ -25,6 +25,10 @@ public sealed class CantonShippingRate : AggregateRoot<Guid>, ITenantEntity, IAu
 
     public EcuadorCanton? Canton { get; private set; }
 
+    public Guid? OriginCantonId { get; private set; }
+
+    public EcuadorCanton? OriginCanton { get; private set; }
+
     public Guid? ShippingMethodId { get; private set; }
 
     public ShippingMethod? ShippingMethod { get; private set; }
@@ -69,7 +73,8 @@ public sealed class CantonShippingRate : AggregateRoot<Guid>, ITenantEntity, IAu
         decimal taxRate,
         string? estimatedDays,
         bool isEnabled,
-        Guid? createdBy = null)
+        Guid? createdBy = null,
+        Guid? originCantonId = null)
     {
         if (tenantId == Guid.Empty)
         {
@@ -81,6 +86,12 @@ public sealed class CantonShippingRate : AggregateRoot<Guid>, ITenantEntity, IAu
         {
             return Result.Failure<CantonShippingRate>(
                 new Error("logistics.canton_rate.canton_invalid", "El cantón es obligatorio.", ErrorType.Validation));
+        }
+
+        if (originCantonId == Guid.Empty)
+        {
+            return Result.Failure<CantonShippingRate>(
+                new Error("logistics.canton_rate.origin_canton_invalid", "El cantón de origen no puede ser vacío.", ErrorType.Validation));
         }
 
         var validation = ValidateParameters(
@@ -101,6 +112,7 @@ public sealed class CantonShippingRate : AggregateRoot<Guid>, ITenantEntity, IAu
             Id = id,
             TenantId = tenantId,
             CantonId = cantonId,
+            OriginCantonId = originCantonId,
             ShippingMethodId = shippingMethodId,
             BasePrice = decimal.Round(basePrice, 2, MidpointRounding.AwayFromZero),
             BaseWeightKg = decimal.Round(baseWeightKg, 4, MidpointRounding.AwayFromZero),

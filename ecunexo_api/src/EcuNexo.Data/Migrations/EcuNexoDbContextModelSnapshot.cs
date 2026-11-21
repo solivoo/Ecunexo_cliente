@@ -2777,6 +2777,10 @@ namespace EcuNexo.Data.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("is_enabled");
 
+                    b.Property<Guid?>("OriginCantonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("origin_canton_id");
+
                     b.Property<bool>("RoundUpExtraKg")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -2823,12 +2827,15 @@ namespace EcuNexo.Data.Migrations
                     b.HasIndex("CantonId")
                         .HasDatabaseName("ix_canton_shipping_rates_canton_id");
 
+                    b.HasIndex("OriginCantonId")
+                        .HasDatabaseName("ix_canton_shipping_rates_origin_canton_id");
+
                     b.HasIndex("ShippingMethodId")
                         .HasDatabaseName("ix_canton_shipping_rates_shipping_method_id");
 
-                    b.HasIndex("TenantId", "CantonId", "ShippingMethodId")
+                    b.HasIndex("TenantId", "OriginCantonId", "CantonId", "ShippingMethodId")
                         .IsUnique()
-                        .HasDatabaseName("ix_canton_shipping_rates_tenant_canton_method");
+                        .HasDatabaseName("ix_canton_shipping_rates_tenant_origin_canton_method");
 
                     b.ToTable("canton_shipping_rates", "logistics");
                 });
@@ -6781,6 +6788,12 @@ namespace EcuNexo.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_canton_shipping_rates_ecuador_cantons_canton_id");
 
+                    b.HasOne("EcuNexo.Core.Logistics.EcuadorCanton", "OriginCanton")
+                        .WithMany()
+                        .HasForeignKey("OriginCantonId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_canton_shipping_rates_ecuador_cantons_origin_canton_id");
+
                     b.HasOne("EcuNexo.Core.Logistics.ShippingMethod", "ShippingMethod")
                         .WithMany()
                         .HasForeignKey("ShippingMethodId")
@@ -6795,6 +6808,8 @@ namespace EcuNexo.Data.Migrations
                         .HasConstraintName("fk_canton_shipping_rates_tenants_tenant_id");
 
                     b.Navigation("Canton");
+
+                    b.Navigation("OriginCanton");
 
                     b.Navigation("ShippingMethod");
 

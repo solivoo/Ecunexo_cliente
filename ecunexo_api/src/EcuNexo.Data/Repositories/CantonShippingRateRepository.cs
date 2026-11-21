@@ -17,14 +17,16 @@ public sealed class CantonShippingRateRepository : ICantonShippingRateRepository
         Guid tenantId,
         Guid provinceId,
         Guid? shippingMethodId,
-        CancellationToken ct) =>
+        Guid? originCantonId = null,
+        CancellationToken ct = default) =>
         await _db.CantonShippingRates
             .AsNoTracking()
             .Include(r => r.Canton)
             .Where(r => r.TenantId == tenantId
                 && r.Canton != null
                 && r.Canton.ProvinceId == provinceId
-                && r.ShippingMethodId == shippingMethodId)
+                && r.ShippingMethodId == shippingMethodId
+                && r.OriginCantonId == originCantonId)
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
@@ -32,32 +34,37 @@ public sealed class CantonShippingRateRepository : ICantonShippingRateRepository
         Guid tenantId,
         Guid cantonId,
         Guid? shippingMethodId,
-        CancellationToken ct) =>
+        Guid? originCantonId = null,
+        CancellationToken ct = default) =>
         _db.CantonShippingRates
             .AsNoTracking()
             .FirstOrDefaultAsync(
                 r => r.TenantId == tenantId
                     && r.CantonId == cantonId
-                    && r.ShippingMethodId == shippingMethodId,
+                    && r.ShippingMethodId == shippingMethodId
+                    && r.OriginCantonId == originCantonId,
                 ct);
 
     public Task<CantonShippingRate?> GetTrackedByCantonAsync(
         Guid tenantId,
         Guid cantonId,
         Guid? shippingMethodId,
-        CancellationToken ct) =>
+        Guid? originCantonId = null,
+        CancellationToken ct = default) =>
         _db.CantonShippingRates
             .FirstOrDefaultAsync(
                 r => r.TenantId == tenantId
                     && r.CantonId == cantonId
-                    && r.ShippingMethodId == shippingMethodId,
+                    && r.ShippingMethodId == shippingMethodId
+                    && r.OriginCantonId == originCantonId,
                 ct);
 
     public async Task<IReadOnlyList<CantonShippingRate>> ListTrackedByCantonsAsync(
         Guid tenantId,
         IReadOnlyCollection<Guid> cantonIds,
         Guid? shippingMethodId,
-        CancellationToken ct)
+        Guid? originCantonId = null,
+        CancellationToken ct = default)
     {
         if (cantonIds.Count == 0)
         {
@@ -67,7 +74,8 @@ public sealed class CantonShippingRateRepository : ICantonShippingRateRepository
         return await _db.CantonShippingRates
             .Where(r => r.TenantId == tenantId
                 && cantonIds.Contains(r.CantonId)
-                && r.ShippingMethodId == shippingMethodId)
+                && r.ShippingMethodId == shippingMethodId
+                && r.OriginCantonId == originCantonId)
             .ToListAsync(ct)
             .ConfigureAwait(false);
     }
