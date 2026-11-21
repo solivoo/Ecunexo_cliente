@@ -9,7 +9,7 @@ import {
   useToast,
   type ColumnDef,
 } from 'glubox'
-import { ArrowLeft, PackageCheck, Plus, Trash2, UserPlus } from 'lucide-react'
+import { ArrowLeft, PackageCheck, Plus, Trash2 } from 'lucide-react'
 import { PageHeader, SectionCard, StatCard, StatusBadge } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
 import { useHasPermission } from '@/hooks/useHasPermission'
@@ -85,11 +85,12 @@ export function CreateStockReservationPage() {
         listCustomers(tenantId),
         listCatalogItems(tenantId, { onlyRoots: false }),
       ])
-      setWarehouses(whList)
+      const operationalWarehouses = whList.filter((w) => w.systemRole !== 1)
+      setWarehouses(operationalWarehouses)
       setCustomers(custList)
       setCatalogItems(itemList)
-      if (whList.length > 0 && !warehouseId) {
-        const main = whList.find((w) => w.isMain) ?? whList[0]
+      if (operationalWarehouses.length > 0 && !warehouseId) {
+        const main = operationalWarehouses.find((w) => w.isMain) ?? operationalWarehouses[0]
         setWarehouseId(main.id)
       }
     } catch (err) {
@@ -427,26 +428,32 @@ export function CreateStockReservationPage() {
         </div>
 
         <SectionCard
-          title="1. Bodega y Cliente"
-          info="Elige la bodega desde donde se bloqueará el stock y selecciona o registra al cliente."
+          title={warehouses.length > 1 ? '1. Bodega y Cliente' : '1. Cliente'}
+          info={
+            warehouses.length > 1
+              ? 'Elige la bodega desde donde se bloqueará el stock y selecciona o registra al cliente.'
+              : 'Selecciona un cliente existente o crea uno nuevo con el botón (+).'
+          }
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem', alignItems: 'end' }}>
-              <Select
-                label="Bodega de Reserva"
-                labelPosition="outlined"
-                variant="outline"
-                value={warehouseId}
-                onChange={(val) => {
-                  setWarehouseId(val)
-                  setDraftLines([])
-                }}
-                options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
-                fullWidth
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem', alignItems: 'center' }}>
+              {warehouses.length > 1 && (
+                <Select
+                  label="Bodega de Reserva"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={warehouseId}
+                  onChange={(val) => {
+                    setWarehouseId(val)
+                    setDraftLines([])
+                  }}
+                  options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
+                  fullWidth
+                />
+              )}
 
               {customerMode === 'existing' ? (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'end' }}>
+                <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     <Select
                       label="Cliente"
@@ -461,13 +468,29 @@ export function CreateStockReservationPage() {
                       fullWidth
                     />
                   </div>
-                  <Button
-                    variant="outline"
-                    iconLeft={<UserPlus size={15} />}
+                  <button
+                    type="button"
+                    title="Crear cliente nuevo"
+                    aria-label="Crear cliente nuevo"
                     onClick={() => setCustomerMode('new')}
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      minWidth: '40px',
+                      borderRadius: '9999px',
+                      border: '1px solid var(--shell-border, #334155)',
+                      background: 'var(--shell-primary, #60a5fa)',
+                      color: 'var(--shell-on-primary, #0f172a)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      padding: 0,
+                      flexShrink: 0,
+                    }}
                   >
-                    Nuevo cliente
-                  </Button>
+                    <Plus size={18} strokeWidth={2.5} />
+                  </button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
