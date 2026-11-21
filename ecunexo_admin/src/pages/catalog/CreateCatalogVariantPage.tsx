@@ -59,6 +59,7 @@ export function CreateCatalogVariantPage() {
   const [dimValues, setDimValues] = useState<Record<string, string>>({})
   const [sku, setSku] = useState('')
   const [barcode, setBarcode] = useState('')
+  const [weightKg, setWeightKg] = useState('')
   const [attributeValues, setAttributeValues] = useState<CustomAttributeRow[]>([])
   const [variantImage, setVariantImage] = useState<File | null>(null)
   const [variantImagePreview, setVariantImagePreview] = useState<string | null>(null)
@@ -340,6 +341,11 @@ export function CreateCatalogVariantPage() {
         }
       }
 
+      const parsedWeightKg =
+        weightKg.trim() !== '' && Number.isFinite(Number(weightKg)) && Number(weightKg) >= 0
+          ? Number(weightKg)
+          : null
+
       setSubmitting(true)
       try {
         const createdVariant = await addCatalogItemVariant(tenantId, parentItem.id, {
@@ -348,6 +354,7 @@ export function CreateCatalogVariantPage() {
           barcode: barcode.trim() || null,
           costPrice: null,
           basePrice: null,
+          weightKg: parsedWeightKg,
           customAttributesJson: JSON.stringify(attributes),
         })
 
@@ -395,6 +402,7 @@ export function CreateCatalogVariantPage() {
       remainingVariants,
       resolveVariantTitle,
       sku,
+      weightKg,
       tenantId,
       toast,
       variantImage,
@@ -554,6 +562,8 @@ export function CreateCatalogVariantPage() {
               onSkuChange={setSku}
               barcode={barcode}
               onBarcodeChange={setBarcode}
+              weightKg={weightKg}
+              onWeightKgChange={setWeightKg}
               dimensions={dimensions}
               dimensionValues={dimValues}
               onDimensionChange={handleDimChange}

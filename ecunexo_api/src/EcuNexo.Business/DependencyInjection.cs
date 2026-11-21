@@ -33,6 +33,11 @@ using EcuNexo.Business.Logistics.Commands.DeleteShippingRateRule;
 using EcuNexo.Business.Logistics.Commands.UpdateShippingRateRule;
 using EcuNexo.Business.Logistics.Queries.ListShippingRateRules;
 using EcuNexo.Business.Logistics.Queries.ResolveShippingRates;
+using EcuNexo.Business.Logistics.Queries.ListEcuadorProvinces;
+using EcuNexo.Business.Logistics.Queries.ListCantonShippingRates;
+using EcuNexo.Business.Logistics.Queries.CalculateShippingCost;
+using EcuNexo.Business.Logistics.Commands.UpsertCantonShippingRatesBulk;
+using EcuNexo.Core.Logistics;
 using EcuNexo.Business.Pricing.Queries.ResolveCart;
 using EcuNexo.Business.Pricing.Queries.ResolvePrice;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.CalculateStorefrontQuote;
@@ -511,6 +516,11 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<DeleteShippingRateRuleCommand, bool>, DeleteShippingRateRuleHandler>();
         services.AddScoped<IQueryHandler<ListShippingRateRulesQuery, IReadOnlyList<ShippingRateRuleDto>>, ListShippingRateRulesHandler>();
         services.AddScoped<IQueryHandler<ResolveShippingRatesQuery, IReadOnlyList<ResolvedShippingOptionDto>>, ResolveShippingRatesHandler>();
+        services.AddSingleton<IShippingCostCalculatorFactory, ShippingCostCalculatorFactory>();
+        services.AddScoped<IQueryHandler<ListEcuadorProvincesQuery, IReadOnlyList<EcuadorProvinceResponse>>, ListEcuadorProvincesHandler>();
+        services.AddScoped<IQueryHandler<ListCantonShippingRatesQuery, IReadOnlyList<CantonShippingRateItemResponse>>, ListCantonShippingRatesHandler>();
+        services.AddScoped<IQueryHandler<CalculateShippingCostQuery, ShippingCostCalculationResult>, CalculateShippingCostHandler>();
+        services.AddScoped<ICommandHandler<UpsertCantonShippingRatesBulkCommand, UpsertCantonShippingRatesBulkResponse>, UpsertCantonShippingRatesBulkHandler>();
 
         // Developer API Keys (M2M por Tenant)
         services.AddScoped<ICommandHandler<CreateTenantApiKeyCommand, CreatedTenantApiKeyDto>, CreateTenantApiKeyHandler>();

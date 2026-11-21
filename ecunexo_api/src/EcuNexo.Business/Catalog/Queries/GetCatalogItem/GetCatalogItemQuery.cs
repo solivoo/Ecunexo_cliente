@@ -34,7 +34,8 @@ public sealed record CatalogItemDetailResponse(
     Guid? CategoryId = null,
     string? CategoryName = null,
     string? ParentHierarchyPathJson = null,
-    string? ParentCustomAttributesJson = null);
+    string? ParentCustomAttributesJson = null,
+    decimal? WeightKg = null);
 
 public sealed record CatalogItemVariantDto(
     Guid Id,
@@ -53,7 +54,8 @@ public sealed record CatalogItemVariantDto(
     string? Barcode = null,
     int SortOrder = 0,
     decimal MinOrderQuantity = 1,
-    decimal? CostPrice = null);
+    decimal? CostPrice = null,
+    decimal? WeightKg = null);
 
 /// <summary>
 /// Contrato de lectura de la matriz: profundidad, ejes tipados y valores usados en fotos por grupo.

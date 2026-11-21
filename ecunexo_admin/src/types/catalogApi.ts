@@ -56,6 +56,7 @@ export type CatalogItemListItemDto = {
   sku: string | null
   basePrice: number | null
   costPrice?: number | null
+  weightKg?: number | null
   status: CatalogItemStatus
   createdAt: string
   mainImageThumbUrl?: string | null
@@ -82,6 +83,7 @@ export type CatalogItemVariantSummaryDto = {
   barcode?: string | null
   basePrice: number | null
   costPrice?: number | null
+  weightKg?: number | null
   customAttributesJson: string
   status: CatalogItemStatus
   mainImageThumbUrl?: string | null
@@ -118,6 +120,7 @@ export type CatalogItemDetailDto = {
   barcode?: string | null
   basePrice: number | null
   costPrice?: number | null
+  weightKg?: number | null
   customAttributesJson: string
   status: CatalogItemStatus
   createdAt: string
@@ -148,6 +151,7 @@ export type CreateCatalogItemBody = {
   barcode?: string | null
   basePrice?: number | null
   costPrice?: number | null
+  weightKg?: number | null
   customAttributesJson?: string | null
   familyId?: string | null
   hierarchyPathJson?: string | null
@@ -209,6 +213,7 @@ export type CreateVariantChildPayload = {
   barcode?: string | null
   basePrice?: number | null
   costPrice?: number | null
+  weightKg?: number | null
   customAttributesJson?: string | null
   initialStock?: number | null
   initialStockWarehouseId?: string | null
@@ -241,6 +246,7 @@ export type AddCatalogItemVariantBody = {
   sku: string
   basePrice?: number | null
   costPrice?: number | null
+  weightKg?: number | null
   barcode?: string | null
   customAttributesJson?: string | null
   initialStock?: number | null

@@ -77,6 +77,8 @@ public static class DependencyInjection
         services.AddScoped<IShippingRateRuleRepository, ShippingRateRuleRepository>();
         services.AddScoped<IShippingZoneRepository, ShippingZoneRepository>();
         services.AddScoped<IShippingMethodRepository, ShippingMethodRepository>();
+        services.AddScoped<IEcuadorGeoRepository, EcuadorGeoRepository>();
+        services.AddScoped<ICantonShippingRateRepository, CantonShippingRateRepository>();
         services.AddScoped<IPromotionRepository, PromotionRepository>();
         services.AddScoped<IPriceChangeLogRepository, PriceChangeLogRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();

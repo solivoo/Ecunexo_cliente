@@ -16,7 +16,8 @@ public sealed record UpdateCatalogItemRequest(
     string? Barcode = null,
     decimal? MinOrderQuantity = null,
     decimal? CostPrice = null,
-    Guid? CategoryId = null)
+    Guid? CategoryId = null,
+    decimal? WeightKg = null)
 {
     public UpdateCatalogItemCommand ToCommand(Guid tenantId, Guid itemId) =>
         new(
@@ -34,5 +35,6 @@ public sealed record UpdateCatalogItemRequest(
             Barcode,
             MinOrderQuantity,
             CostPrice,
-            CategoryId);
+            CategoryId,
+            WeightKg);
 }

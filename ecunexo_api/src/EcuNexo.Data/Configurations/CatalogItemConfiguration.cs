@@ -91,6 +91,9 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
         builder.Property(i => i.CostPrice)
             .HasColumnType("numeric(18,4)");
 
+        builder.Property(i => i.WeightKg)
+            .HasColumnType("numeric(12,4)");
+
         builder.Property(i => i.MinOrderQuantity)
             .HasColumnType("numeric(18,4)")
             .HasDefaultValue(1m)

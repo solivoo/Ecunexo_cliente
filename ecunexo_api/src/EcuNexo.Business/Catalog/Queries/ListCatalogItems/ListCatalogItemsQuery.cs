@@ -35,4 +35,5 @@ public sealed record CatalogItemListItemResponse(
     decimal MinOrderQuantity = 1,
     decimal? CostPrice = null,
     Guid? CategoryId = null,
-    string? CategoryName = null);
+    string? CategoryName = null,
+    decimal? WeightKg = null);

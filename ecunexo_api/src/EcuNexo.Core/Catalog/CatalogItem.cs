@@ -75,6 +75,9 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
     /// <summary>Precio base / costo unitario referencial del ítem (usado en planes sin inventario o como fallback de costo).</summary>
     public decimal? CostPrice { get; private set; }
 
+    /// <summary>Peso unitario en kilogramos para productos físicos (usado para cálculo de envío).</summary>
+    public decimal? WeightKg { get; private set; }
+
     /// <summary>Cantidad mínima de compra por ítem vendible (SKU). Por defecto 1.</summary>
     public decimal MinOrderQuantity { get; private set; } = 1m;
 
@@ -115,7 +118,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string? barcode = null,
         decimal? minOrderQuantity = null,
         decimal? costPrice = null,
-        Guid? categoryId = null)
+        Guid? categoryId = null,
+        decimal? weightKg = null)
     {
         if (tenantId == Guid.Empty)
         {
@@ -183,6 +187,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure<CatalogItem>(minOrderResult.Error!);
         }
 
+        var weightResult = NormalizeWeightKg(kind, weightKg);
+        if (weightResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(weightResult.Error!);
+        }
+
         return new CatalogItem
         {
             Id = id,
@@ -197,6 +207,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             Barcode = barcodeResult.Value,
             BasePrice = priceResult.Value,
             CostPrice = costResult.Value,
+            WeightKg = weightResult.Value,
             MinOrderQuantity = minOrderResult.Value,
             CustomAttributesJson = attrs.Value!,
             Status = CatalogItemStatus.Active,
@@ -321,7 +332,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string categorySchemaJson,
         Guid? createdBy = null,
         string? barcode = null,
-        decimal? costPrice = null)
+        decimal? costPrice = null,
+        decimal? weightKg = null)
     {
         ArgumentNullException.ThrowIfNull(parent);
 
@@ -365,6 +377,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         if (barcodeResult.IsFailure)
         {
             return Result.Failure<CatalogItem>(barcodeResult.Error!);
+        }
+
+        var weightResult = NormalizeWeightKg(parent.Kind, weightKg ?? parent.WeightKg);
+        if (weightResult.IsFailure)
+        {
+            return Result.Failure<CatalogItem>(weightResult.Error!);
         }
 
         var mergedAttrsJson = CatalogAttributeSchema.MergeAttributes(parent.CustomAttributesJson, customAttributesJson);
@@ -412,6 +430,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             Barcode = barcodeResult.Value,
             BasePrice = priceResult.Value,
             CostPrice = costResult.Value,
+            WeightKg = weightResult.Value,
             MinOrderQuantity = parent.MinOrderQuantity,
             CustomAttributesJson = attrs.Value!,
             Status = CatalogItemStatus.Active,
@@ -731,7 +750,8 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         string? hierarchyPathJson = null,
         decimal? minOrderQuantity = null,
         decimal? costPrice = null,
-        Guid? categoryId = null)
+        Guid? categoryId = null,
+        decimal? weightKg = null)
     {
         var nameResult = NormalizeName(name);
         if (nameResult.IsFailure)
@@ -763,6 +783,12 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
             return Result.Failure(costResult.Error!);
         }
 
+        var weightResult = NormalizeWeightKg(Kind, weightKg, IsMatrixParent);
+        if (weightResult.IsFailure)
+        {
+            return Result.Failure(weightResult.Error!);
+        }
+
         var attrs = CatalogAttributeSchema.NormalizeAttributes(customAttributesJson);
         if (attrs.IsFailure)
         {
@@ -791,6 +817,7 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         Sku = skuResult.Value;
         BasePrice = priceResult.Value;
         CostPrice = costResult.Value;
+        WeightKg = weightResult.Value;
         CategoryId = categoryId;
         FamilyId = familyId;
         HierarchyPathJson = path.Value;
@@ -1576,6 +1603,10 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
 
         Kind = kind;
         Sku = skuResult.Value;
+        if (kind != CatalogItemKind.Physical)
+        {
+            WeightKg = null;
+        }
         Touch(updatedBy);
         return Result.Success();
     }
@@ -2219,6 +2250,33 @@ public sealed class CatalogItem : AggregateRoot<Guid>, ITenantEntity, IAuditable
         }
 
         return Result.Success<decimal?>(decimal.Round(costPrice.Value, 4, MidpointRounding.AwayFromZero));
+    }
+
+    private static Result<decimal?> NormalizeWeightKg(
+        CatalogItemKind kind,
+        decimal? weightKg,
+        bool isMatrixParent = false)
+    {
+        if (kind != CatalogItemKind.Physical || isMatrixParent)
+        {
+            return Result.Success<decimal?>(null);
+        }
+
+        if (weightKg is null)
+        {
+            return Result.Success<decimal?>(null);
+        }
+
+        if (weightKg.Value < 0)
+        {
+            return Result.Failure<decimal?>(
+                new Error(
+                    "catalog.item.weight_kg.range",
+                    "El peso del producto no puede ser negativo.",
+                    ErrorType.Validation));
+        }
+
+        return Result.Success<decimal?>(decimal.Round(weightKg.Value, 4, MidpointRounding.AwayFromZero));
     }
 
     /// <summary>

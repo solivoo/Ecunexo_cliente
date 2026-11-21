@@ -18,6 +18,7 @@ public sealed record UpdateCatalogItemCommand(
     string? Barcode = null,
     decimal? MinOrderQuantity = null,
     decimal? CostPrice = null,
-    Guid? CategoryId = null) : ICommand<UpdateCatalogItemResponse>;
+    Guid? CategoryId = null,
+    decimal? WeightKg = null) : ICommand<UpdateCatalogItemResponse>;
 
 public sealed record UpdateCatalogItemResponse(Guid ItemId, Guid TenantId);

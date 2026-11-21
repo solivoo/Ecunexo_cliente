@@ -169,6 +169,12 @@ public sealed class EcuNexoDbContext : DbContext
 
     public DbSet<ShippingMethod> ShippingMethods => Set<ShippingMethod>();
 
+    public DbSet<EcuadorProvince> EcuadorProvinces => Set<EcuadorProvince>();
+
+    public DbSet<EcuadorCanton> EcuadorCantons => Set<EcuadorCanton>();
+
+    public DbSet<CantonShippingRate> CantonShippingRates => Set<CantonShippingRate>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(EcuNexoDbContext).Assembly);

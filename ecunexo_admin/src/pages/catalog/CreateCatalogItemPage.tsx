@@ -139,6 +139,7 @@ export function CreateCatalogItemPage() {
   const [barcode, setBarcode] = useState('')
   const [costPrice, setCostPrice] = useState('')
   const [basePrice, setBasePrice] = useState('')
+  const [weightKg, setWeightKg] = useState('')
   const [brand, setBrand] = useState('')
   const [productColors, setProductColors] = useState<string[]>([])
   const [unitOfMeasure, setUnitOfMeasure] = useState('UND')
@@ -529,6 +530,8 @@ export function CreateCatalogItemPage() {
         const parsedCostPrice = rawCostPrice != null && rawCostPrice >= 0 ? rawCostPrice : null
         const rawBasePrice = isStandardProduct ? parsePriceInput(basePrice) : null
         const parsedBasePrice = rawBasePrice != null && rawBasePrice >= 0 ? rawBasePrice : null
+        const rawWeightKg = kindNum === CatalogItemKind.Physical ? parsePriceInput(weightKg) : null
+        const parsedWeightKg = rawWeightKg != null && rawWeightKg >= 0 ? rawWeightKg : null
 
         const attrsToSerialize = isStandardProduct
           ? (() => {
@@ -667,6 +670,7 @@ export function CreateCatalogItemPage() {
             barcode: barcode.trim() || null,
             costPrice: parsedCostPrice,
             basePrice: parsedBasePrice,
+            weightKg: parsedWeightKg,
             customAttributesJson:
               attrsToSerialize.length > 0 ? serializeCustomAttributes(attrsToSerialize, []) : null,
             familyId,
@@ -734,6 +738,7 @@ export function CreateCatalogItemPage() {
       categoryId,
       costPrice,
       basePrice,
+      weightKg,
       brand,
       productColors,
       systemColorPalette,
@@ -995,6 +1000,24 @@ export function CreateCatalogItemPage() {
                         setBarcode(e.target.value.toUpperCase())
                       }
                       placeholder="Escriba aquí..."
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </div>
+                )}
+
+                {!usesMatrix && kind === CatalogItemKind.Physical && (
+                  <div className="ecu-companies-form__field">
+                    <NumberBox
+                      id="ci-weight"
+                      label="Peso (kg)"
+                      labelPosition="outlined"
+                      variant="outline"
+                      min={0}
+                      step={0.01}
+                      placeholder="0.00"
+                      value={weightKg !== '' ? Number(weightKg) : undefined}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setWeightKg(e.target.value)}
                       disabled={busy}
                       fullWidth
                     />

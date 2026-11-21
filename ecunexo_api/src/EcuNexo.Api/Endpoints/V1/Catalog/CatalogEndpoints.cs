@@ -290,7 +290,8 @@ public static class CatalogEndpoints
             v.Barcode,
             v.BasePrice,
             v.CustomAttributesJson,
-            v.CostPrice)).ToList();
+            v.CostPrice,
+            v.WeightKg)).ToList();
 
         var command = new CreateCatalogItemMatrixCommand(
             tenantId,
@@ -336,7 +337,8 @@ public static class CatalogEndpoints
             body.BasePrice,
             body.CustomAttributesJson,
             body.Barcode,
-            body.CostPrice);
+            body.CostPrice,
+            body.WeightKg);
 
         var result = await sender
             .SendAsync<AddCatalogItemVariantCommand, AddCatalogItemVariantResponse>(command, ct)

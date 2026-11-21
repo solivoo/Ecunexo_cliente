@@ -137,6 +137,7 @@ export function EditCatalogItemPage() {
   const [barcode, setBarcode] = useState('')
   const [costPrice, setCostPrice] = useState('')
   const [basePrice, setBasePrice] = useState('')
+  const [weightKg, setWeightKg] = useState('')
   const [minOrderQuantity, setMinOrderQuantity] = useState(1)
   const [brand, setBrand] = useState('')
   const [productColors, setProductColors] = useState<string[]>([])
@@ -477,6 +478,7 @@ export function EditCatalogItemPage() {
       setSku(detail.sku ?? '')
       setBarcode(detail.barcode ?? '')
       setCostPrice(detail.costPrice != null ? String(detail.costPrice) : '')
+      setWeightKg(detail.weightKg != null ? String(detail.weightKg) : '')
       setBasePrice(detail.basePrice != null ? String(detail.basePrice) : '')
       setMinOrderQuantity(detail.minOrderQuantity ?? 1)
       setStatus(String(detail.status))
@@ -773,6 +775,8 @@ export function EditCatalogItemPage() {
         const parsedCostPrice = rawCostPrice != null && rawCostPrice >= 0 ? rawCostPrice : null
         const rawBasePrice = parsePriceInput(basePrice)
         const parsedBasePrice = rawBasePrice != null && rawBasePrice >= 0 ? rawBasePrice : null
+        const rawWeightKg = Number(kindNum) === CatalogItemKind.Physical ? parsePriceInput(weightKg) : null
+        const parsedWeightKg = rawWeightKg != null && rawWeightKg >= 0 ? rawWeightKg : null
 
         await updateCatalogItem(tenantId, itemId, {
           kind: kindNum,
@@ -792,6 +796,7 @@ export function EditCatalogItemPage() {
             : isStandardSingleItem
               ? parsedBasePrice
               : item.basePrice ?? null,
+          weightKg: isMatrixParent ? null : parsedWeightKg,
           customAttributesJson: serializeCustomAttributes(attrsWithBase, tags),
           status: Number(status) as typeof CatalogItemStatus.Active,
           familyId: item.familyId ?? null,
@@ -824,6 +829,7 @@ export function EditCatalogItemPage() {
       categoryId,
       costPrice,
       basePrice,
+      weightKg,
       customAttributes,
       description,
       dimensionValuesMap,
@@ -1220,6 +1226,24 @@ export function EditCatalogItemPage() {
                           setBarcode(e.target.value.toUpperCase())
                         }
                         placeholder="EAN / UPC / Code128"
+                        disabled={busy}
+                        fullWidth
+                      />
+                    </div>
+                  ) : null}
+
+                  {!isMatrixParent && Number(kind) === CatalogItemKind.Physical ? (
+                    <div className="ecu-companies-form__field">
+                      <NumberBox
+                        id="ei-weight"
+                        label="Peso (kg)"
+                        labelPosition="outlined"
+                        variant="outline"
+                        min={0}
+                        step={0.01}
+                        placeholder="0.00"
+                        value={weightKg !== '' ? Number(weightKg) : undefined}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setWeightKg(e.target.value)}
                         disabled={busy}
                         fullWidth
                       />

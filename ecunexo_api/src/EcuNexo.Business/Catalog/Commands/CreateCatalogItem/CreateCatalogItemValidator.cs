@@ -27,6 +27,9 @@ public sealed class CreateCatalogItemValidator : AbstractValidator<CreateCatalog
         RuleFor(x => x.CostPrice)
             .GreaterThanOrEqualTo(0)
             .When(x => x.CostPrice is not null);
+        RuleFor(x => x.WeightKg)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WeightKg is not null);
         RuleFor(x => x.MinOrderQuantity)
             .GreaterThanOrEqualTo(1)
             .When(x => x.MinOrderQuantity is not null);

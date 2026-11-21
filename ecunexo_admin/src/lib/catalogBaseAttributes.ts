@@ -32,6 +32,7 @@ const VARIANT_BUILTIN_COLUMN_IDS = new Set([
   'sys-base-barcode',
   'sys-base-cost',
   'sys-base-price',
+  'sys-base-weight',
 ])
 
 export function normalizeAttrToken(raw: string): string {

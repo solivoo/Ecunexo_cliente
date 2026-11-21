@@ -275,6 +275,7 @@ app.MapEcommerceOrderEndpointsV1();
 app.MapShippingRateEndpointsV1();
 app.MapShippingZoneEndpointsV1();
 app.MapShippingMethodEndpointsV1();
+app.MapCantonShippingEndpointsV1();
 app.MapStorefrontEndpointsV1();
 app.MapStorefrontAdminEndpointsV1();
 app.MapSupplierEndpointsV1();
@@ -297,6 +298,7 @@ if (migrateOnStartup)
     await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<EcuNexoDbContext>();
     await db.Database.MigrateAsync(CancellationToken.None).ConfigureAwait(false);
+    await EcuNexo.Data.Seeders.EcuadorGeoSeeder.EnsureSeededAsync(db, CancellationToken.None).ConfigureAwait(false);
 }
 
 await MenuCatalogSeeder.EnsureAsync(app, CancellationToken.None).ConfigureAwait(false);

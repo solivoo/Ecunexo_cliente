@@ -41,5 +41,12 @@ public sealed class AddCatalogItemVariantValidator : AbstractValidator<AddCatalo
                 .GreaterThanOrEqualTo(0)
                 .WithMessage("El costo de la variante no puede ser negativo.");
         });
+
+        When(c => c.WeightKg.HasValue, () =>
+        {
+            RuleFor(c => c.WeightKg!.Value)
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("El peso de la variante no puede ser negativo.");
+        });
     }
 }

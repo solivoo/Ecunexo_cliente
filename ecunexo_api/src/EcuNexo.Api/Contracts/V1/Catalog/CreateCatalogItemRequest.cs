@@ -15,7 +15,8 @@ public sealed record CreateCatalogItemRequest(
     string? Barcode = null,
     decimal? MinOrderQuantity = null,
     decimal? CostPrice = null,
-    Guid? CategoryId = null)
+    Guid? CategoryId = null,
+    decimal? WeightKg = null)
 {
     public CreateCatalogItemCommand ToCommand(Guid tenantId) =>
         new(
@@ -31,5 +32,6 @@ public sealed record CreateCatalogItemRequest(
             Barcode,
             MinOrderQuantity,
             CostPrice,
-            CategoryId);
+            CategoryId,
+            WeightKg);
 }

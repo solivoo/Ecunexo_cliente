@@ -78,6 +78,7 @@ export type VariantRowState = {
   sku: string
   isManualSku?: boolean
   barcode: string
+  weightKg?: string
   costPrice: string
   isManualCost?: boolean
   basePrice: string
@@ -1294,6 +1295,7 @@ export function VariantMatrixBuilder({
     const payloadVariants: MatrixVariantPayloadWithImage[] = rows.map((r) => {
       const parsedCostPrice = parsePriceInput(r.costPrice)
       const parsedPrice = parsePriceInput(r.basePrice)
+      const parsedWeightKg = parsePriceInput(r.weightKg ?? '')
 
       const customAttrs: Record<string, unknown> = {}
       if (r.dimensionValues) {
@@ -1366,6 +1368,7 @@ export function VariantMatrixBuilder({
         barcode: r.barcode.trim() || null,
         costPrice: parsedCostPrice != null && parsedCostPrice >= 0 ? parsedCostPrice : null,
         basePrice: parsedPrice != null && parsedPrice >= 0 ? parsedPrice : null,
+        weightKg: parsedWeightKg != null && parsedWeightKg >= 0 ? parsedWeightKg : null,
         customAttributesJson: Object.keys(customAttrs).length > 0 ? JSON.stringify(customAttrs) : null,
         stagedImage: r.stagedImages?.[0]?.file ?? r.stagedImage ?? null,
         stagedImages: r.stagedImages && r.stagedImages.length > 0
@@ -1705,6 +1708,24 @@ export function VariantMatrixBuilder({
                             updateRow(row.id, 'barcode', e.target.value)
                           }
                           placeholder="EAN / UPC (opc.)"
+                          disabled={disabled}
+                          fullWidth
+                        />
+                      </div>
+
+                      {/* Peso (kg) */}
+                      <div className="ecu-variant-sub-item-field">
+                        <label className="ecu-variant-sub-item-label">Peso (kg)</label>
+                        <NumberBox
+                          size="sm"
+                          variant="outline"
+                          min={0}
+                          step={0.01}
+                          value={row.weightKg ? Number(row.weightKg) : undefined}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            updateRow(row.id, 'weightKg', e.target.value)
+                          }
+                          placeholder="0.00"
                           disabled={disabled}
                           fullWidth
                         />

@@ -199,7 +199,8 @@ public sealed class CreateCatalogItemMatrixHandler
                 v.CustomAttributesJson,
                 schemaJson,
                 barcode: v.Barcode,
-                costPrice: v.CostPrice);
+                costPrice: v.CostPrice,
+                weightKg: v.WeightKg);
 
             if (childResult.IsFailure)
             {

@@ -1,20 +1,25 @@
 # ADR-012 — Capacidad de Gestión de Precios (Pricing) y Motor Único de Resolución
 
-**Estado:** Propuesta / En implementación (Fase 1)  
-**Fecha:** 2026-09-26
+**Estado:** Aceptado / **Implementado** (el texto de “Contexto” describe el problema *antes* del cambio; no el runtime actual)  
+**Fecha:** 2026-09-26 · **Actualización de estado:** 2026-11-16
+
+> **Estado actual del sistema:**  
+> [`../20-sistema-precios-actual.md`](../20-sistema-precios-actual.md)  
+> Manual operativo UI: [`../19-manual-operativo-productos-precios.md`](../19-manual-operativo-productos-precios.md)
 
 ## Contexto
 
-Hoy el precio de venta es un único campo opcional `CatalogItem.BasePrice` dentro del catálogo:
+*(Histórico — problema que motivó el ADR.)* El precio de venta era un único campo opcional
+`CatalogItem.BasePrice` dentro del catálogo:
 
-- No existen listas de precios, vigencias, escalas por cantidad ni promociones.
-- El ecommerce confía en el `UnitPrice` enviado por el cliente y el IVA está hardcodeado con dos
+- No existían listas de precios, vigencias, escalas por cantidad ni promociones.
+- El ecommerce confiaba en el `UnitPrice` enviado por el cliente y el IVA estaba hardcodeado con dos
   convenciones (`15` en compras, `0.15` en ecommerce).
-- Editar `BasePrice` sobrescribe el valor anterior: sin historial, sin vigencia y con
+- Editar `BasePrice` sobrescribía el valor anterior: sin historial, sin vigencia y con
   `updated_by` frecuentemente nulo.
-- Inventario no persiste costo; no hay margen ni descuento máximo.
+- Inventario no persistía costo de forma alineada al margen comercial.
 
-Se necesita separar `Producto`, `Stock`, `Costo`, `Precio de venta`, `Promociones`, `Descuentos`,
+Se necesitaba separar `Producto`, `Stock`, `Costo`, `Precio de venta`, `Promociones`, `Descuentos`,
 `Impuestos` y `Precio final`, con un motor único que determine el precio comercial aplicable.
 
 ## Decisión
@@ -74,11 +79,9 @@ neto, tarifa, impuesto, total y las reglas aplicadas. Una venta histórica nunca
 
 ## Consecuencias
 
-- `CatalogItem.BasePrice` queda como legado de transición con fallback explícito del motor hasta
-  el corte; no se elimina sin ADR posterior.
-- Se requiere migración EF `AddPricingModule` y nuevas suites de tests de dominio/aplicación.
-- El ecommerce debe pasar del `UnitPrice` del cliente a la resolución server-side (fase 4).
-- La UI estrena el grupo «Gestión de precios» en `ecunexo_admin` con listas, precios,
-  promociones, historial y simulador.
-- Fase 2 (cliente/segmento/canal/sucursal, cupones, combos, 2x1/3x2, margen mínimo y
-  autorizaciones) queda habilitada por el modelo sin rediseño.
+- `CatalogItem.BasePrice` queda como **legado de transición** con fallback del motor **solo en lista predeterminada**; no es el PVP oficial. No eliminar sin ADR posterior.
+- Migración EF del módulo Pricing y tests de dominio/aplicación: **hechos**.
+- UI «Gestión de precios» en `ecunexo_admin`: listas, precios, matriz, escalas volumen, promociones, historial, simulador — **hecha**.
+- Esquemas de volumen reutilizables y asignación masiva: **hechos** (extensión respecto al esquema mínimo del ADR).
+- Consumidores deben usar `IPricingService.ResolveAsync` / `POST .../catalog/pricing/resolve` (no reinventar reglas ni confiar solo en `UnitPrice` del cliente).
+- Fase futura (cliente/segmento/canal/sucursal, combos, 2x1/3x2, margen mínimo con autorización): el modelo lo permite sin rediseño de raíz.

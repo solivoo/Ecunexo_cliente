@@ -21,4 +21,5 @@ public sealed record CreateVariantChildRequest(
     string? Barcode = null,
     decimal? BasePrice = null,
     string? CustomAttributesJson = null,
-    decimal? CostPrice = null);
+    decimal? CostPrice = null,
+    decimal? WeightKg = null);

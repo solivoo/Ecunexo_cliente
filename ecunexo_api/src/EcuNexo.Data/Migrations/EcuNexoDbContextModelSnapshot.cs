@@ -415,6 +415,10 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("variant_dimensions_json");
 
+                    b.Property<decimal?>("WeightKg")
+                        .HasColumnType("numeric(12,4)")
+                        .HasColumnName("weight_kg");
+
                     b.Property<uint>("xmin")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -2724,6 +2728,211 @@ namespace EcuNexo.Data.Migrations
                         .HasDatabaseName("ix_stocks_tenant_id_catalog_item_id_warehouse_id");
 
                     b.ToTable("stocks", "inventory");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Logistics.CantonShippingRate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("AdditionalKgPrice")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("additional_kg_price");
+
+                    b.Property<decimal>("BasePrice")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("base_price");
+
+                    b.Property<decimal>("BaseWeightKg")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(12,4)")
+                        .HasDefaultValue(2m)
+                        .HasColumnName("base_weight_kg");
+
+                    b.Property<Guid>("CantonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("canton_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("EstimatedDays")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("estimated_days");
+
+                    b.Property<decimal?>("FreeShippingMinAmount")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("free_shipping_min_amount");
+
+                    b.Property<bool>("IsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_enabled");
+
+                    b.Property<bool>("RoundUpExtraKg")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("round_up_extra_kg");
+
+                    b.Property<Guid?>("ShippingMethodId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shipping_method_id");
+
+                    b.Property<decimal>("TaxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(15m)
+                        .HasColumnName("tax_rate");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<decimal>("VolumetricDivisor")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(10,2)")
+                        .HasDefaultValue(6000m)
+                        .HasColumnName("volumetric_divisor");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_canton_shipping_rates");
+
+                    b.HasIndex("CantonId")
+                        .HasDatabaseName("ix_canton_shipping_rates_canton_id");
+
+                    b.HasIndex("ShippingMethodId")
+                        .HasDatabaseName("ix_canton_shipping_rates_shipping_method_id");
+
+                    b.HasIndex("TenantId", "CantonId", "ShippingMethodId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_canton_shipping_rates_tenant_canton_method");
+
+                    b.ToTable("canton_shipping_rates", "logistics");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Logistics.EcuadorCanton", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("code");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsProvincialCapital")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_provincial_capital");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("ProvinceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("province_id");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ecuador_cantons");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_ecuador_cantons_code");
+
+                    b.HasIndex("ProvinceId", "Name")
+                        .HasDatabaseName("ix_ecuador_cantons_province_name");
+
+                    b.ToTable("ecuador_cantons", "logistics");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Logistics.EcuadorProvince", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)")
+                        .HasColumnName("code");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Region")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("region");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ecuador_provinces");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_ecuador_provinces_code");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_ecuador_provinces_name");
+
+                    b.ToTable("ecuador_provinces", "logistics");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Logistics.ShippingMethod", b =>
@@ -6563,6 +6772,47 @@ namespace EcuNexo.Data.Migrations
                     b.Navigation("Warehouse");
                 });
 
+            modelBuilder.Entity("EcuNexo.Core.Logistics.CantonShippingRate", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Logistics.EcuadorCanton", "Canton")
+                        .WithMany()
+                        .HasForeignKey("CantonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_canton_shipping_rates_ecuador_cantons_canton_id");
+
+                    b.HasOne("EcuNexo.Core.Logistics.ShippingMethod", "ShippingMethod")
+                        .WithMany()
+                        .HasForeignKey("ShippingMethodId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_canton_shipping_rates_shipping_methods_shipping_method_id");
+
+                    b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_canton_shipping_rates_tenants_tenant_id");
+
+                    b.Navigation("Canton");
+
+                    b.Navigation("ShippingMethod");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Logistics.EcuadorCanton", b =>
+                {
+                    b.HasOne("EcuNexo.Core.Logistics.EcuadorProvince", "Province")
+                        .WithMany("Cantons")
+                        .HasForeignKey("ProvinceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_ecuador_cantons_ecuador_provinces_province_id");
+
+                    b.Navigation("Province");
+                });
+
             modelBuilder.Entity("EcuNexo.Core.Logistics.ShippingMethod", b =>
                 {
                     b.HasOne("EcuNexo.Core.Tenancy.Tenant", "Tenant")
@@ -7005,6 +7255,11 @@ namespace EcuNexo.Data.Migrations
             modelBuilder.Entity("EcuNexo.Core.Inventory.InventoryDocument", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("EcuNexo.Core.Logistics.EcuadorProvince", b =>
+                {
+                    b.Navigation("Cantons");
                 });
 
             modelBuilder.Entity("EcuNexo.Core.Pricing.ProductPrice", b =>

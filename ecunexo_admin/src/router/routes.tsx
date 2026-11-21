@@ -54,6 +54,7 @@ import { VolumeDiscountSchemesListPage } from '@/pages/catalog/pricing/VolumeDis
 import { ShippingMethodsPage } from '@/pages/ecommerce/shipping/ShippingMethodsPage'
 import { ShippingZonesPage } from '@/pages/ecommerce/shipping/ShippingZonesPage'
 import { ShippingRatesMatrixPage } from '@/pages/ecommerce/shipping/ShippingRatesMatrixPage'
+import { CantonShippingRatesPage } from '@/pages/ecommerce/shipping/CantonShippingRatesPage'
 import { CreateInventoryDocumentPage } from '@/pages/inventory/CreateInventoryDocumentPage'
 import { InventoryDocumentDetailPage } from '@/pages/inventory/InventoryDocumentDetailPage'
 import { InventoryDocumentsListPage } from '@/pages/inventory/InventoryDocumentsListPage'
@@ -216,6 +217,7 @@ export const routes: RouteObject[] = [
           { path: 'ecommerce/envios/metodos', element: <ShippingMethodsPage /> },
           { path: 'ecommerce/envios/zonas', element: <ShippingZonesPage /> },
           { path: 'ecommerce/envios/tarifas', element: <ShippingRatesMatrixPage /> },
+          { path: 'ecommerce/envios/cantones', element: <CantonShippingRatesPage /> },
           { path: 'ecommerce/vitrina', element: <StorefrontDomainsPage /> },
           { path: 'ecommerce/configuracion', element: <StorefrontSettingsPage /> },
           { path: 'compras/documentos', element: <ComprasDocumentosPage /> },

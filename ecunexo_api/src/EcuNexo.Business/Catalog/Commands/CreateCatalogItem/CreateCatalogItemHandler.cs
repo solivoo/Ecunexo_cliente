@@ -133,7 +133,8 @@ public sealed class CreateCatalogItemHandler : ICommandHandler<CreateCatalogItem
             command.Barcode,
             command.MinOrderQuantity,
             command.CostPrice,
-            command.CategoryId);
+            command.CategoryId,
+            command.WeightKg);
         if (created.IsFailure)
         {
             return Result.Failure<CreateCatalogItemResponse>(created.Error!);

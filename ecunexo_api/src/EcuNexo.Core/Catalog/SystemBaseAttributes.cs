@@ -204,6 +204,26 @@ public static class SystemBaseAttributes
                 "description",
             ]),
         new(
+            "sys-base-weight",
+            "Peso (kg)",
+            "custom",
+            VariantDimensionTemplate.DataTypeNumber,
+            [],
+            "kg",
+            false,
+            RoleItemField,
+            "Peso unitario del producto físico en kilogramos para calcular el costo de envío.",
+            [
+                "peso",
+                "peso (kg)",
+                "peso kg",
+                "weight",
+                "weightkg",
+                "weight_kg",
+                "peso fisico",
+                "peso unitario",
+            ]),
+        new(
             "system-colors",
             "Color",
             "color",
@@ -222,6 +242,7 @@ public static class SystemBaseAttributes
         "sys-base-barcode",
         "sys-base-cost",
         "sys-base-price",
+        "sys-base-weight",
     };
 
     private static readonly Dictionary<string, SystemBaseAttributeDefinition> ByAlias;

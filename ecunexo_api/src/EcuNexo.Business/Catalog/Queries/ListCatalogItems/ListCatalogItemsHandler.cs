@@ -116,7 +116,8 @@ public sealed class ListCatalogItemsHandler
                     i.MinOrderQuantity,
                     i.CostPrice,
                     i.CategoryId,
-                    i.CategoryId is { } cid && categoryNames.TryGetValue(cid, out var cn) ? cn : null);
+                    i.CategoryId is { } cid && categoryNames.TryGetValue(cid, out var cn) ? cn : null,
+                    i.WeightKg);
             })
             .ToList();
         return Result.Success(items);

@@ -30,6 +30,8 @@ export type VariantPhysicalFieldsProps = {
   readonly onCostPriceChange?: (value: string) => void
   readonly basePrice?: string
   readonly onBasePriceChange?: (value: string) => void
+  readonly weightKg?: string
+  readonly onWeightKgChange?: (value: string) => void
   readonly dimensions: readonly VariantDimensionOption[]
   /** Valores de dimensión; clave = nombre de dimensión en minúsculas. */
   readonly dimensionValues: Record<string, string>
@@ -85,6 +87,8 @@ export function VariantPhysicalFields({
   onCostPriceChange,
   basePrice = '',
   onBasePriceChange,
+  weightKg = '',
+  onWeightKgChange,
   dimensions,
   dimensionValues,
   onDimensionChange,
@@ -268,6 +272,23 @@ export function VariantPhysicalFields({
             step={0.01}
             value={basePrice !== '' ? Number(basePrice) : undefined}
             onChange={(e: ChangeEvent<HTMLInputElement>) => onBasePriceChange(e.target.value)}
+            placeholder="0.00"
+            disabled={disabled}
+            fullWidth
+          />
+        </div>
+      )}
+
+      {onWeightKgChange && (
+        <div className="ecu-variant-sub-item-field">
+          <label className="ecu-variant-sub-item-label">Peso (kg)</label>
+          <NumberBox
+            size="sm"
+            variant="outline"
+            min={0}
+            step={0.01}
+            value={weightKg !== '' ? Number(weightKg) : undefined}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => onWeightKgChange(e.target.value)}
             placeholder="0.00"
             disabled={disabled}
             fullWidth
