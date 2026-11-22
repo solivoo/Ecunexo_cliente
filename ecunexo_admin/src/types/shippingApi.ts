@@ -98,6 +98,8 @@ export interface UpdateShippingZoneBody {
   isActive?: boolean
 }
 
+export type ShippingCoverageScope = 0 | 1 | 2
+
 export interface ShippingMethodDto {
   id: string
   tenantId: string
@@ -106,6 +108,7 @@ export interface ShippingMethodDto {
   description: string | null
   estimatedDays: string | null
   sortOrder: number
+  coverageScope?: ShippingCoverageScope
   isActive: boolean
   createdAt: string
   updatedAt: string | null
@@ -117,6 +120,7 @@ export interface CreateShippingMethodBody {
   description?: string | null
   estimatedDays?: string | null
   sortOrder?: number
+  coverageScope?: ShippingCoverageScope
 }
 
 export interface UpdateShippingMethodBody {
@@ -126,6 +130,7 @@ export interface UpdateShippingMethodBody {
   estimatedDays?: string | null
   sortOrder?: number
   isActive?: boolean
+  coverageScope?: ShippingCoverageScope
 }
 
 export interface EcuadorProvinceDto {

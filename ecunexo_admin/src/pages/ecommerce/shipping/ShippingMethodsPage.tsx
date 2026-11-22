@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { Button, CheckButton, DataGrid, NumberBox, Popup, TextBox, useToast, type ColumnDef } from 'glubox'
+import { Button, CheckButton, DataGrid, NumberBox, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
 import { Pencil, Plus, Trash2, Truck } from 'lucide-react'
 import {
   EmptyState,
@@ -23,7 +23,24 @@ import {
 } from '@/services/shippingApi'
 import { selectTenantId } from '@/store/authSlice'
 import { useAppSelector } from '@/store/hooks'
-import type { CreateShippingMethodBody, ShippingMethodDto, UpdateShippingMethodBody } from '@/types/shippingApi'
+import type {
+  CreateShippingMethodBody,
+  ShippingCoverageScope,
+  ShippingMethodDto,
+  UpdateShippingMethodBody,
+} from '@/types/shippingApi'
+
+const coverageScopeOptions = [
+  { value: '0', label: 'Nacional (todas las provincias)' },
+  { value: '1', label: 'Solo local (misma provincia)' },
+  { value: '2', label: 'Solo interprovincial (otras provincias)' },
+]
+
+const coverageScopeLabel: Record<number, string> = {
+  0: 'Nacional',
+  1: 'Solo local',
+  2: 'Interprovincial',
+}
 
 type MethodRow = ShippingMethodDto & { actions?: unknown } & Record<string, unknown>
 
@@ -58,6 +75,7 @@ export function ShippingMethodsPage() {
   const [formDescription, setFormDescription] = useState('')
   const [formEstimatedDays, setFormEstimatedDays] = useState('')
   const [formSortOrder, setFormSortOrder] = useState(0)
+  const [formCoverageScope, setFormCoverageScope] = useState<string>('0')
   const [formIsActive, setFormIsActive] = useState(true)
 
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
@@ -88,6 +106,7 @@ export function ShippingMethodsPage() {
     setFormDescription('')
     setFormEstimatedDays('24 a 48 horas')
     setFormSortOrder(rows.length + 1)
+    setFormCoverageScope('0')
     setFormIsActive(true)
     setModalOpen(true)
   }
@@ -99,6 +118,7 @@ export function ShippingMethodsPage() {
     setFormDescription(m.description ?? '')
     setFormEstimatedDays(m.estimatedDays ?? '')
     setFormSortOrder(m.sortOrder)
+    setFormCoverageScope(String(m.coverageScope ?? 0))
     setFormIsActive(m.isActive)
     setModalOpen(true)
   }
@@ -127,6 +147,7 @@ export function ShippingMethodsPage() {
           estimatedDays: formEstimatedDays.trim() || null,
           sortOrder: formSortOrder,
           isActive: formIsActive,
+          coverageScope: Number(formCoverageScope) as ShippingCoverageScope,
         }
         await updateShippingMethod(tenantId, editingMethod.id, body)
         toast.show({ title: 'Método actualizado', message: 'Método de envío modificado exitosamente.', variant: 'success' })
@@ -137,6 +158,7 @@ export function ShippingMethodsPage() {
           description: formDescription.trim() || null,
           estimatedDays: formEstimatedDays.trim() || null,
           sortOrder: formSortOrder,
+          coverageScope: Number(formCoverageScope) as ShippingCoverageScope,
         }
         await createShippingMethod(tenantId, body)
         toast.show({ title: 'Método creado', message: 'Nuevo método de envío registrado exitosamente.', variant: 'success' })
@@ -212,6 +234,16 @@ export function ShippingMethodsPage() {
             ) : null}
           </div>
         ),
+      },
+      {
+        key: 'coverageScope',
+        header: 'Cobertura',
+        width: 145,
+        renderCell: (_val, row: MethodRow) => {
+          const scope = row.coverageScope ?? 0
+          const tone = scope === 2 ? 'warning' : scope === 1 ? 'info' : 'primary'
+          return <StatusBadge tone={tone}>{coverageScopeLabel[scope] ?? 'Nacional'}</StatusBadge>
+        },
       },
       {
         key: 'estimatedDays',
@@ -405,6 +437,17 @@ export function ShippingMethodsPage() {
                 />
               </div>
             </div>
+
+            <Select
+              id="sm-coverage"
+              label="Alcance de cobertura"
+              labelPosition="outlined"
+              variant="outline"
+              value={formCoverageScope}
+              onChange={(val) => setFormCoverageScope(val)}
+              options={coverageScopeOptions}
+              fullWidth
+            />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div>

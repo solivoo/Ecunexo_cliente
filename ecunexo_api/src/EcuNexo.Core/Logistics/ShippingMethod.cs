@@ -4,6 +4,18 @@ using EcuNexo.Core.Tenancy;
 
 namespace EcuNexo.Core.Logistics;
 
+public enum ShippingCoverageScope
+{
+    /// <summary>Aplica tanto a la misma provincia como a otras provincias (ej: Servientrega).</summary>
+    National = 0,
+
+    /// <summary>Solo aplica dentro de la misma provincia del origen (ej: entrega local/motorizada).</summary>
+    LocalOnly = 1,
+
+    /// <summary>Solo aplica hacia otras provincias; prohíbe envíos a la misma provincia de origen (ej: Cooperativa interprovincial).</summary>
+    InterprovincialOnly = 2,
+}
+
 /// <summary>
 /// Método de envío, courier o transportista configurado por la empresa (ej: Servientrega, Cooperativa, Entrega Local, Tramaco).
 /// </summary>
@@ -34,6 +46,8 @@ public sealed class ShippingMethod : AggregateRoot<Guid>, ITenantEntity, IAudita
 
     public int SortOrder { get; private set; }
 
+    public ShippingCoverageScope CoverageScope { get; private set; } = ShippingCoverageScope.National;
+
     public bool IsActive { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
@@ -52,7 +66,8 @@ public sealed class ShippingMethod : AggregateRoot<Guid>, ITenantEntity, IAudita
         string? description = null,
         string? estimatedDays = null,
         int sortOrder = 0,
-        Guid? createdBy = null)
+        Guid? createdBy = null,
+        ShippingCoverageScope coverageScope = ShippingCoverageScope.National)
     {
         if (id == Guid.Empty || tenantId == Guid.Empty)
         {
@@ -75,6 +90,7 @@ public sealed class ShippingMethod : AggregateRoot<Guid>, ITenantEntity, IAudita
             Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
             EstimatedDays = string.IsNullOrWhiteSpace(estimatedDays) ? null : estimatedDays.Trim(),
             SortOrder = sortOrder,
+            CoverageScope = coverageScope,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = createdBy,
@@ -90,7 +106,8 @@ public sealed class ShippingMethod : AggregateRoot<Guid>, ITenantEntity, IAudita
         string? estimatedDays,
         int sortOrder,
         bool? isActive,
-        Guid? updatedBy)
+        Guid? updatedBy,
+        ShippingCoverageScope? coverageScope = null)
     {
         var validationResult = Validate(code, name, description, estimatedDays);
         if (validationResult.IsFailure)
@@ -104,6 +121,11 @@ public sealed class ShippingMethod : AggregateRoot<Guid>, ITenantEntity, IAudita
         EstimatedDays = string.IsNullOrWhiteSpace(estimatedDays) ? null : estimatedDays.Trim();
         SortOrder = sortOrder;
 
+        if (coverageScope.HasValue)
+        {
+            CoverageScope = coverageScope.Value;
+        }
+
         if (isActive.HasValue)
         {
             IsActive = isActive.Value;
@@ -111,6 +133,29 @@ public sealed class ShippingMethod : AggregateRoot<Guid>, ITenantEntity, IAudita
 
         UpdatedAt = DateTimeOffset.UtcNow;
         UpdatedBy = updatedBy;
+
+        return Result.Success();
+    }
+
+    public Result ValidateRoute(Guid originProvinceId, Guid destinationProvinceId)
+    {
+        if (CoverageScope == ShippingCoverageScope.InterprovincialOnly && originProvinceId == destinationProvinceId)
+        {
+            return Result.Failure(
+                new Error(
+                    "logistics.shipping_method.interprovincial_same_province",
+                    $"El método '{Name}' es solo interprovincial y no aplica a destinos de la misma provincia de origen.",
+                    ErrorType.Validation));
+        }
+
+        if (CoverageScope == ShippingCoverageScope.LocalOnly && originProvinceId != destinationProvinceId)
+        {
+            return Result.Failure(
+                new Error(
+                    "logistics.shipping_method.local_other_province",
+                    $"El método '{Name}' es solo local y únicamente aplica a destinos dentro de la misma provincia de origen.",
+                    ErrorType.Validation));
+        }
 
         return Result.Success();
     }

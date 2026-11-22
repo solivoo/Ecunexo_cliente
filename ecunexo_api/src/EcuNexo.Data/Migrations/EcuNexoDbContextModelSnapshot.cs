@@ -3213,6 +3213,12 @@ namespace EcuNexo.Data.Migrations
                         .HasColumnType("character varying(40)")
                         .HasColumnName("code");
 
+                    b.Property<int>("CoverageScope")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("coverage_scope");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamptz")
                         .HasColumnName("created_at");

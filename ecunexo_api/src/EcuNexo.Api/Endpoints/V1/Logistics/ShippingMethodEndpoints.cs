@@ -90,7 +90,8 @@ public static class ShippingMethodEndpoints
             body.Description,
             body.EstimatedDays,
             body.SortOrder,
-            caller.UserId);
+            caller.UserId,
+            body.CoverageScope);
 
         if (methodResult.IsFailure)
         {
@@ -133,7 +134,8 @@ public static class ShippingMethodEndpoints
             body.EstimatedDays,
             body.SortOrder,
             body.IsActive,
-            caller.UserId);
+            caller.UserId,
+            body.CoverageScope);
 
         if (updateResult.IsFailure)
         {
@@ -173,5 +175,6 @@ public static class ShippingMethodEndpoints
             m.SortOrder,
             m.IsActive,
             m.CreatedAt,
-            m.UpdatedAt);
+            m.UpdatedAt,
+            m.CoverageScope);
 }

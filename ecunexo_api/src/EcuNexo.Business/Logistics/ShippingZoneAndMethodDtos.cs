@@ -1,3 +1,5 @@
+using EcuNexo.Core.Logistics;
+
 namespace EcuNexo.Business.Logistics;
 
 public sealed record ShippingZoneDto(
@@ -37,14 +39,16 @@ public sealed record ShippingMethodDto(
     int SortOrder,
     bool IsActive,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt,
+    ShippingCoverageScope CoverageScope = ShippingCoverageScope.National);
 
 public sealed record CreateShippingMethodInput(
     string Code,
     string Name,
     string? Description = null,
     string? EstimatedDays = null,
-    int SortOrder = 0);
+    int SortOrder = 0,
+    ShippingCoverageScope CoverageScope = ShippingCoverageScope.National);
 
 public sealed record UpdateShippingMethodInput(
     string Code,
@@ -52,4 +56,5 @@ public sealed record UpdateShippingMethodInput(
     string? Description = null,
     string? EstimatedDays = null,
     int SortOrder = 0,
-    bool IsActive = true);
+    bool IsActive = true,
+    ShippingCoverageScope? CoverageScope = null);

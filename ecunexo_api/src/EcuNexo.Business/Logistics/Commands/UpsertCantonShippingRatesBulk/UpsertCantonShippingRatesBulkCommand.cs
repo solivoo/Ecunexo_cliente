@@ -49,15 +49,21 @@ public sealed class UpsertCantonShippingRatesBulkHandler
     : ICommandHandler<UpsertCantonShippingRatesBulkCommand, UpsertCantonShippingRatesBulkResponse>
 {
     private readonly ICantonShippingRateRepository _rates;
+    private readonly IShippingMethodRepository _methods;
+    private readonly IEcuadorGeoRepository _geo;
     private readonly IIdGenerator _idGenerator;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpsertCantonShippingRatesBulkHandler(
         ICantonShippingRateRepository rates,
+        IShippingMethodRepository methods,
+        IEcuadorGeoRepository geo,
         IIdGenerator idGenerator,
         IUnitOfWork unitOfWork)
     {
         _rates = rates;
+        _methods = methods;
+        _geo = geo;
         _idGenerator = idGenerator;
         _unitOfWork = unitOfWork;
     }
@@ -66,6 +72,27 @@ public sealed class UpsertCantonShippingRatesBulkHandler
         UpsertCantonShippingRatesBulkCommand command,
         CancellationToken ct)
     {
+        if (command.ShippingMethodId is { } methodId && command.OriginCantonId is { } originCantonId)
+        {
+            var method = await _methods.GetByIdAsync(command.TenantId, methodId, ct).ConfigureAwait(false);
+            var originCanton = await _geo.GetCantonByIdAsync(originCantonId, ct).ConfigureAwait(false);
+            if (method is not null && originCanton is not null && method.CoverageScope != ShippingCoverageScope.National)
+            {
+                foreach (var item in command.Items.Where(i => i.IsEnabled))
+                {
+                    var destCanton = await _geo.GetCantonByIdAsync(item.CantonId, ct).ConfigureAwait(false);
+                    if (destCanton is not null)
+                    {
+                        var routeValidation = method.ValidateRoute(originCanton.ProvinceId, destCanton.ProvinceId);
+                        if (routeValidation.IsFailure)
+                        {
+                            return Result.Failure<UpsertCantonShippingRatesBulkResponse>(routeValidation.Error!);
+                        }
+                    }
+                }
+            }
+        }
+
         var cantonIds = command.Items.Select(i => i.CantonId).Distinct().ToList();
         var existing = await _rates
             .ListTrackedByCantonsAsync(command.TenantId, cantonIds, command.ShippingMethodId, command.OriginCantonId, ct)

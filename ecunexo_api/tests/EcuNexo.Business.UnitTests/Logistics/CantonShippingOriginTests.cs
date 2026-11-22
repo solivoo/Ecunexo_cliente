@@ -21,11 +21,13 @@ public sealed class CantonShippingOriginTests
     public async Task OriginSpecificRates_AndGlobalFallback_ResolveCorrectly()
     {
         var repo = new InMemoryCantonShippingRateRepository();
+        var methods = Substitute.For<IShippingMethodRepository>();
+        var geo = Substitute.For<IEcuadorGeoRepository>();
         var uow = Substitute.For<IUnitOfWork>();
         var idGen = Substitute.For<IIdGenerator>();
         idGen.NewId().Returns(_ => Guid.CreateVersion7());
 
-        var upsertHandler = new UpsertCantonShippingRatesBulkHandler(repo, idGen, uow);
+        var upsertHandler = new UpsertCantonShippingRatesBulkHandler(repo, methods, geo, idGen, uow);
 
         // 1) Tarifa específica desde Guayaquil hacia Quito ($5.50 base hasta 2kg + $1.25/kg adicional, 15% IVA)
         var guayaquilBulk = new UpsertCantonShippingRatesBulkCommand(
@@ -71,7 +73,7 @@ public sealed class CantonShippingOriginTests
 
         await upsertHandler.Handle(globalBulk, CancellationToken.None);
 
-        var calcHandler = new CalculateShippingCostHandler(repo, new ShippingCostCalculatorFactory());
+        var calcHandler = new CalculateShippingCostHandler(repo, methods, geo, new ShippingCostCalculatorFactory());
 
         // Consulta desde Guayaquil -> Quito (2.5 kg => 1 kg extra redondeado => 5.50 + 1.25 = 6.75 subtotal)
         var gyeToUio = await calcHandler.Handle(
@@ -112,11 +114,13 @@ public sealed class CantonShippingOriginTests
     public async Task OrderUseCase_WithCalculatedShippingFromOrigin_SumsTotalsForInvoiceService()
     {
         var repo = new InMemoryCantonShippingRateRepository();
+        var methods = Substitute.For<IShippingMethodRepository>();
+        var geo = Substitute.For<IEcuadorGeoRepository>();
         var uow = Substitute.For<IUnitOfWork>();
         var idGen = Substitute.For<IIdGenerator>();
         idGen.NewId().Returns(_ => Guid.CreateVersion7());
 
-        var upsertHandler = new UpsertCantonShippingRatesBulkHandler(repo, idGen, uow);
+        var upsertHandler = new UpsertCantonShippingRatesBulkHandler(repo, methods, geo, idGen, uow);
         await upsertHandler.Handle(
             new UpsertCantonShippingRatesBulkCommand(
                 TenantId,
@@ -137,7 +141,7 @@ public sealed class CantonShippingOriginTests
                 OriginCantonId: GuayaquilCantonId),
             CancellationToken.None);
 
-        var calcHandler = new CalculateShippingCostHandler(repo, new ShippingCostCalculatorFactory());
+        var calcHandler = new CalculateShippingCostHandler(repo, methods, geo, new ShippingCostCalculatorFactory());
 
         // Paquete de 2 unidades de 1.5 kg cada una = 3.0 kg => 1 kg extra => 4.50 + 1.25 = 5.75 (subtotal envío)
         var shippingCalc = await calcHandler.Handle(
@@ -207,6 +211,73 @@ public sealed class CantonShippingOriginTests
         order.TaxAmount.Should().Be(15.00m);
         order.ShippingCost.Should().Be(5.75m);
         order.TotalAmount.Should().Be(120.75m);
+    }
+
+    [Fact(DisplayName = "Método InterprovincialOnly bloquea envíos a la misma provincia de origen")]
+    public async Task InterprovincialOnlyMethod_BlocksSameProvince_OnUpsertAndCalculate()
+    {
+        var repo = new InMemoryCantonShippingRateRepository();
+        var methods = Substitute.For<IShippingMethodRepository>();
+        var geo = Substitute.For<IEcuadorGeoRepository>();
+        var uow = Substitute.For<IUnitOfWork>();
+        var idGen = Substitute.For<IIdGenerator>();
+        idGen.NewId().Returns(_ => Guid.CreateVersion7());
+
+        var guayasProvinceId = Guid.CreateVersion7();
+        var duranCantonId = Guid.CreateVersion7();
+        var coopMethodId = Guid.CreateVersion7();
+
+        var coop = ShippingMethod.Create(
+            coopMethodId,
+            TenantId,
+            "ENV-002",
+            "Cooperativa",
+            coverageScope: ShippingCoverageScope.InterprovincialOnly).Value!;
+        methods.GetByIdAsync(TenantId, coopMethodId, Arg.Any<CancellationToken>()).Returns(coop);
+
+        var guayaquil = EcuadorCanton.Create(GuayaquilCantonId, guayasProvinceId, "0901", "Guayaquil", true, 1);
+        var duran = EcuadorCanton.Create(duranCantonId, guayasProvinceId, "0907", "Durán", false, 2);
+        geo.GetCantonByIdAsync(GuayaquilCantonId, Arg.Any<CancellationToken>()).Returns(guayaquil);
+        geo.GetCantonByIdAsync(duranCantonId, Arg.Any<CancellationToken>()).Returns(duran);
+
+        var upsertHandler = new UpsertCantonShippingRatesBulkHandler(repo, methods, geo, idGen, uow);
+        var upsertRes = await upsertHandler.Handle(
+            new UpsertCantonShippingRatesBulkCommand(
+                TenantId,
+                coopMethodId,
+                [
+                    new CantonShippingRateUpsertItem(
+                        CantonId: duranCantonId,
+                        BasePrice: 5.00m,
+                        BaseWeightKg: 2m,
+                        AdditionalKgPrice: 0m,
+                        VolumetricDivisor: 6000m,
+                        RoundUpExtraKg: true,
+                        FreeShippingMinAmount: null,
+                        TaxRate: 15m,
+                        EstimatedDays: "24h",
+                        IsEnabled: true),
+                ],
+                OriginCantonId: GuayaquilCantonId),
+            CancellationToken.None);
+
+        upsertRes.IsFailure.Should().BeTrue();
+        upsertRes.Error!.Code.Should().Be("logistics.shipping_method.interprovincial_same_province");
+
+        var calcHandler = new CalculateShippingCostHandler(repo, methods, geo, new ShippingCostCalculatorFactory());
+        var calcRes = await calcHandler.Handle(
+            new CalculateShippingCostQuery(
+                TenantId,
+                CantonId: duranCantonId,
+                ShippingMethodId: coopMethodId,
+                Strategy: ShippingCalculatorStrategy.WeightVolumetric,
+                Items: [new ShippingPackageItem(1m, 1m)],
+                OrderSubtotal: 30m,
+                OriginCantonId: GuayaquilCantonId),
+            CancellationToken.None);
+
+        calcRes.IsFailure.Should().BeTrue();
+        calcRes.Error!.Code.Should().Be("logistics.shipping_method.interprovincial_same_province");
     }
 
     private sealed class InMemoryCantonShippingRateRepository : ICantonShippingRateRepository

@@ -43,6 +43,11 @@ public sealed class ShippingMethodConfiguration : IEntityTypeConfiguration<Shipp
             .IsRequired()
             .HasDefaultValue(0);
 
+        builder.Property(m => m.CoverageScope)
+            .HasConversion<int>()
+            .HasDefaultValue(ShippingCoverageScope.National)
+            .IsRequired();
+
         builder.Property(m => m.IsActive)
             .IsRequired()
             .HasDefaultValue(true);

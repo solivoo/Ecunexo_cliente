@@ -294,6 +294,23 @@ export function CantonShippingRatesPage() {
     [provinces, originProvinceId]
   )
 
+  const selectedMethod = useMemo(
+    () => methods.find((m) => m.id === selectedMethodId) ?? null,
+    [methods, selectedMethodId]
+  )
+
+  const routeRestrictionMessage = useMemo(() => {
+    if (!selectedMethod || !originProvinceId || !selectedProvinceId) return null
+    const scope = selectedMethod.coverageScope ?? 0
+    if (scope === 2 && originProvinceId === selectedProvinceId) {
+      return `«${selectedMethod.name}» está configurado como Solo Interprovincial: no se permite enviar ni configurar tarifas hacia la misma provincia de origen (${originProvince?.name ?? 'origen'}).`
+    }
+    if (scope === 1 && originProvinceId !== selectedProvinceId) {
+      return `«${selectedMethod.name}» está configurado como Solo Local: únicamente aplica a cantones de la misma provincia de origen (${originProvince?.name ?? 'origen'}).`
+    }
+    return null
+  }, [selectedMethod, originProvinceId, selectedProvinceId, originProvince])
+
   const handleSuggestByZone = () => {
     if (!selectedProvince) return
     const destRegion = selectedProvince.region.toLowerCase()
@@ -547,7 +564,7 @@ export function CantonShippingRatesPage() {
               </Button>
               <Button
                 variant="primary"
-                disabled={saving || dirtyRows.length === 0}
+                disabled={saving || dirtyRows.length === 0 || Boolean(routeRestrictionMessage)}
                 onClick={() => void handleSaveRows(dirtyRows)}
                 iconLeft={<Save size={16} />}
               >
@@ -573,6 +590,22 @@ export function CantonShippingRatesPage() {
           title="Selección de Provincia y Plantilla Rápida"
           info="Elige la provincia y, si deseas, aplica una tarifa base uniforme a todos sus cantones antes de ajustar excepciones."
         >
+          {routeRestrictionMessage && (
+            <div
+              role="alert"
+              style={{
+                marginBottom: '0.85rem',
+                padding: '0.65rem 0.9rem',
+                borderRadius: '8px',
+                border: '1px solid var(--shell-warning, #d97706)',
+                background: 'rgba(217, 119, 6, 0.12)',
+                color: 'var(--shell-warning, #f59e0b)',
+                fontSize: '0.88rem',
+              }}
+            >
+              {routeRestrictionMessage}
+            </div>
+          )}
           <div
             style={{
               display: 'grid',
@@ -729,7 +762,7 @@ export function CantonShippingRatesPage() {
               type="button"
               variant="outline"
               onClick={handleApplyToProvince}
-              disabled={rows.length === 0 || saving}
+              disabled={rows.length === 0 || saving || Boolean(routeRestrictionMessage)}
               iconLeft={<Sparkles size={16} />}
             >
               Aplicar a toda la provincia

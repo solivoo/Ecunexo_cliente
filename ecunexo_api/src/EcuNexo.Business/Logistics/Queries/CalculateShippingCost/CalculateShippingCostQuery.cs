@@ -19,13 +19,19 @@ public sealed class CalculateShippingCostHandler
     : IQueryHandler<CalculateShippingCostQuery, ShippingCostCalculationResult>
 {
     private readonly ICantonShippingRateRepository _rates;
+    private readonly IShippingMethodRepository _methods;
+    private readonly IEcuadorGeoRepository _geo;
     private readonly IShippingCostCalculatorFactory _calculatorFactory;
 
     public CalculateShippingCostHandler(
         ICantonShippingRateRepository rates,
+        IShippingMethodRepository methods,
+        IEcuadorGeoRepository geo,
         IShippingCostCalculatorFactory calculatorFactory)
     {
         _rates = rates;
+        _methods = methods;
+        _geo = geo;
         _calculatorFactory = calculatorFactory;
     }
 
@@ -33,6 +39,21 @@ public sealed class CalculateShippingCostHandler
         CalculateShippingCostQuery query,
         CancellationToken ct)
     {
+        if (query.ShippingMethodId is { } methodId && query.OriginCantonId is { } originCantonId)
+        {
+            var method = await _methods.GetByIdAsync(query.TenantId, methodId, ct).ConfigureAwait(false);
+            var originCanton = await _geo.GetCantonByIdAsync(originCantonId, ct).ConfigureAwait(false);
+            var destCanton = await _geo.GetCantonByIdAsync(query.CantonId, ct).ConfigureAwait(false);
+            if (method is not null && originCanton is not null && destCanton is not null)
+            {
+                var routeValidation = method.ValidateRoute(originCanton.ProvinceId, destCanton.ProvinceId);
+                if (routeValidation.IsFailure)
+                {
+                    return Result.Failure<ShippingCostCalculationResult>(routeValidation.Error!);
+                }
+            }
+        }
+
         var rate = await ResolveRateAsync(query, ct).ConfigureAwait(false);
 
         if (rate is null || !rate.IsEnabled)
