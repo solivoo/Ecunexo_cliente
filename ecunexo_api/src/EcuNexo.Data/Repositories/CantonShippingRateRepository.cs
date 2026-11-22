@@ -80,6 +80,28 @@ public sealed class CantonShippingRateRepository : ICantonShippingRateRepository
             .ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<CantonShippingRate>> ListByCantonAsync(
+        Guid tenantId,
+        Guid cantonId,
+        CancellationToken ct = default) =>
+        await _db.CantonShippingRates
+            .AsNoTracking()
+            .Where(r => r.TenantId == tenantId && r.CantonId == cantonId)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+    public async Task<Guid?> FindPrimaryOriginCantonIdAsync(
+        Guid tenantId,
+        CancellationToken ct = default) =>
+        await _db.CantonShippingRates
+            .AsNoTracking()
+            .Where(r => r.TenantId == tenantId && r.IsEnabled && r.OriginCantonId != null)
+            .GroupBy(r => r.OriginCantonId)
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.Key)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
     public Task AddAsync(CantonShippingRate rate, CancellationToken ct)
     {
         _db.CantonShippingRates.Add(rate);

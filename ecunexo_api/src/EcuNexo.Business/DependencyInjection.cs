@@ -518,6 +518,9 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<ResolveShippingRatesQuery, IReadOnlyList<ResolvedShippingOptionDto>>, ResolveShippingRatesHandler>();
         services.AddSingleton<IShippingCostCalculatorFactory, ShippingCostCalculatorFactory>();
         services.AddScoped<IQueryHandler<ListEcuadorProvincesQuery, IReadOnlyList<EcuadorProvinceResponse>>, ListEcuadorProvincesHandler>();
+        services.AddScoped<IQueryHandler<EcuNexo.Business.Logistics.Queries.ListEcuadorCantons.ListEcuadorCantonsQuery, IReadOnlyList<EcuNexo.Business.Logistics.Queries.ListEcuadorCantons.EcuadorCantonResponse>>, EcuNexo.Business.Logistics.Queries.ListEcuadorCantons.ListEcuadorCantonsHandler>();
+        services.AddScoped<IStorefrontShippingService, StorefrontShippingService>();
+        services.AddScoped<IQueryHandler<EcuNexo.Business.Ecommerce.Storefront.Queries.ListStorefrontShippingOptions.ListStorefrontShippingOptionsQuery, IReadOnlyList<StorefrontShippingOptionDto>>, EcuNexo.Business.Ecommerce.Storefront.Queries.ListStorefrontShippingOptions.ListStorefrontShippingOptionsHandler>();
         services.AddScoped<IQueryHandler<ListCantonShippingRatesQuery, IReadOnlyList<CantonShippingRateItemResponse>>, ListCantonShippingRatesHandler>();
         services.AddScoped<IQueryHandler<CalculateShippingCostQuery, ShippingCostCalculationResult>, CalculateShippingCostHandler>();
         services.AddScoped<ICommandHandler<UpsertCantonShippingRatesBulkCommand, UpsertCantonShippingRatesBulkResponse>, UpsertCantonShippingRatesBulkHandler>();

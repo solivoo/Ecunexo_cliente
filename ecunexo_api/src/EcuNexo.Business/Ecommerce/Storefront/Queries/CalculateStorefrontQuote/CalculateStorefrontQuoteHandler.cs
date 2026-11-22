@@ -17,17 +17,20 @@ public sealed class CalculateStorefrontQuoteHandler
     private readonly IEcommerceStorefrontSettingsReader _settings;
     private readonly IPricingService _pricing;
     private readonly IPromotionRepository _promotions;
+    private readonly IStorefrontShippingService? _storefrontShipping;
 
     public CalculateStorefrontQuoteHandler(
         ITenantRepository tenants,
         IEcommerceStorefrontSettingsReader settings,
         IPricingService pricing,
-        IPromotionRepository promotions)
+        IPromotionRepository promotions,
+        IStorefrontShippingService? storefrontShipping = null)
     {
         _tenants = tenants;
         _settings = settings;
         _pricing = pricing;
         _promotions = promotions;
+        _storefrontShipping = storefrontShipping;
     }
 
     public async Task<Result<StorefrontCheckoutQuoteDto>> Handle(
@@ -224,6 +227,26 @@ public sealed class CalculateStorefrontQuoteHandler
         var subtotalExTax = Round(lines.Sum(l => l.LineSubtotalExTax));
         var taxAmount = Round(lines.Sum(l => l.LineTaxAmount));
         var taxRate = finalCart.Lines.Count > 0 ? finalCart.Lines[0].TaxRate : DefaultTaxRate;
+
+        if (query.ShippingMethodId.HasValue
+            && query.CantonId.HasValue
+            && _storefrontShipping is not null)
+        {
+            var itemsNetTotal = Round(subtotalExTax + taxAmount);
+            var dynamicShipping = await _storefrontShipping
+                .ResolveAndValidateAsync(
+                    query.TenantId,
+                    query.CantonId.Value,
+                    query.ShippingMethodId.Value,
+                    itemsNetTotal,
+                    ct)
+                .ConfigureAwait(false);
+            if (dynamicShipping.IsSuccess)
+            {
+                shippingCost = dynamicShipping.Value!.Cost;
+            }
+        }
+
         var totalAmount = Round(subtotalExTax + taxAmount + shippingCost);
 
         return Result.Success(new StorefrontCheckoutQuoteDto(

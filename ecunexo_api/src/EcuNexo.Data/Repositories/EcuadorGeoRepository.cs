@@ -40,6 +40,21 @@ public sealed class EcuadorGeoRepository : IEcuadorGeoRepository
             .Include(c => c.Province)
             .FirstOrDefaultAsync(c => c.Id == cantonId, ct);
 
+    public async Task<EcuadorCanton?> FindCantonByNameAsync(string name, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        var trimmed = name.Trim();
+        return await _db.EcuadorCantons
+            .AsNoTracking()
+            .Include(c => c.Province)
+            .FirstOrDefaultAsync(c => c.IsActive && EF.Functions.ILike(c.Name, trimmed), ct)
+            .ConfigureAwait(false);
+    }
+
     public Task<bool> AnyProvincesAsync(CancellationToken ct) =>
         _db.EcuadorProvinces.AsNoTracking().AnyAsync(ct);
 }

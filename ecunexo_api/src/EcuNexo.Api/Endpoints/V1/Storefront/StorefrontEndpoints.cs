@@ -9,6 +9,9 @@ using EcuNexo.Business.Ecommerce.Storefront.Commands.CreateStorefrontOrder;
 using EcuNexo.Business.Ecommerce.Storefront.Commands.UploadStorefrontPaymentProof;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.CalculateStorefrontQuote;
 using EcuNexo.Business.Ecommerce.Storefront.Queries.GetEcommerceCheckoutOptions;
+using EcuNexo.Business.Ecommerce.Storefront.Queries.ListStorefrontShippingOptions;
+using EcuNexo.Business.Logistics.Queries.ListEcuadorCantons;
+using EcuNexo.Business.Logistics.Queries.ListEcuadorProvinces;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Storefront.Commands.LikeStorefrontProduct;
 using EcuNexo.Business.Storefront.Commands.UnlikeStorefrontProduct;
@@ -49,6 +52,8 @@ public static class StorefrontEndpoints
             .RequireRateLimiting(StorefrontRateLimitPolicies.Likes);
         storefront.MapGet("/checkout-options", GetCheckoutOptionsAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
+        storefront.MapGet("/shipping-options", ListShippingOptionsAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
         storefront.MapPost("/checkout-quote", CalculateCheckoutQuoteAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
         storefront.MapGet("/status", GetStatusAsync)
@@ -66,6 +71,8 @@ public static class StorefrontEndpoints
             .AllowAnonymous();
 
         publicStorefront.MapGet("/resolve", ResolveAsync);
+        publicStorefront.MapGet("/ecuador/provinces", ListEcuadorProvincesAsync);
+        publicStorefront.MapGet("/ecuador/provinces/{provinceId:guid}/cantons", ListEcuadorCantonsAsync);
 
         return app;
     }
@@ -211,6 +218,63 @@ public static class StorefrontEndpoints
             .ConfigureAwait(false);
 
         return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> ListShippingOptionsAsync(
+        Guid tenantId,
+        Guid cantonId,
+        decimal? subtotal,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<ListStorefrontShippingOptionsQuery, IReadOnlyList<StorefrontShippingOptionDto>>(
+                new ListStorefrontShippingOptionsQuery(tenantId, cantonId, subtotal ?? 0m),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> ListEcuadorProvincesAsync(
+        HttpContext http,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<ListEcuadorProvincesQuery, IReadOnlyList<EcuadorProvinceResponse>>(
+                new ListEcuadorProvincesQuery(),
+                ct)
+            .ConfigureAwait(false);
+
+        if (!result.IsSuccess)
+        {
+            return result.ToHttpResult();
+        }
+
+        http.Response.Headers.CacheControl = "public,max-age=86400";
+        return Results.Ok(result.Value);
+    }
+
+    private static async Task<IResult> ListEcuadorCantonsAsync(
+        Guid provinceId,
+        HttpContext http,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<ListEcuadorCantonsQuery, IReadOnlyList<EcuadorCantonResponse>>(
+                new ListEcuadorCantonsQuery(provinceId),
+                ct)
+            .ConfigureAwait(false);
+
+        if (!result.IsSuccess)
+        {
+            return result.ToHttpResult();
+        }
+
+        http.Response.Headers.CacheControl = "public,max-age=86400";
+        return Results.Ok(result.Value);
     }
 
     private static async Task<IResult> CalculateCheckoutQuoteAsync(

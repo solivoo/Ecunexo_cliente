@@ -28,7 +28,18 @@ public sealed record EcommerceCheckoutOptionsDto(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TurnstileSiteKey = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] decimal? MinOrderAmount = null,
     decimal TaxRate = 0.15m,
-    bool PricesIncludeTax = true);
+    bool PricesIncludeTax = true,
+    bool DynamicShippingEnabled = false);
+
+public sealed record StorefrontShippingOptionDto(
+    string Code,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? ShippingMethodId,
+    string Label,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Description,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? EstimatedDays,
+    decimal Cost,
+    bool IsFreeShipping = false,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] decimal? FreeShippingMinAmount = null);
 
 public sealed record EcommerceCheckoutPaymentMethodDto(
     string Code,

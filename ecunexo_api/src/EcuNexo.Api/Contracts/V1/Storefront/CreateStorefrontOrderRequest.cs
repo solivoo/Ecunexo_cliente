@@ -14,7 +14,8 @@ public sealed record CreateStorefrontOrderRequest(
     int? FormElapsedMs = null,
     string? TurnstileToken = null,
     bool AcceptPrivacyPolicy = false,
-    string? CouponCode = null)
+    string? CouponCode = null,
+    Guid? ShippingMethodId = null)
 {
     public CreateStorefrontOrderCommand ToCommand(
         Guid tenantId,
@@ -35,5 +36,6 @@ public sealed record CreateStorefrontOrderRequest(
             userAgent,
             TurnstileToken,
             AcceptPrivacyPolicy,
-            CouponCode);
+            CouponCode,
+            ShippingMethodId);
 }

@@ -1,5 +1,6 @@
 using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Ecommerce.Storefront.Turnstile;
+using EcuNexo.Business.Logistics;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Common;
@@ -14,15 +15,18 @@ public sealed class GetEcommerceCheckoutOptionsHandler
     private readonly ITenantRepository _tenants;
     private readonly IEcommerceStorefrontSettingsReader _settings;
     private readonly TurnstileOptions _turnstile;
+    private readonly IShippingMethodRepository? _shippingMethods;
 
     public GetEcommerceCheckoutOptionsHandler(
         ITenantRepository tenants,
         IEcommerceStorefrontSettingsReader settings,
-        IOptions<TurnstileOptions> turnstile)
+        IOptions<TurnstileOptions> turnstile,
+        IShippingMethodRepository? shippingMethods = null)
     {
         _tenants = tenants;
         _settings = settings;
         _turnstile = turnstile.Value;
+        _shippingMethods = shippingMethods;
     }
 
     public async Task<Result<EcommerceCheckoutOptionsDto>> Handle(
@@ -59,11 +63,21 @@ public sealed class GetEcommerceCheckoutOptionsHandler
 
         var minOrderAmount = settings.MinOrderAmount > 0m ? settings.MinOrderAmount : (decimal?)null;
 
+        var dynamicShippingEnabled = false;
+        if (_shippingMethods is not null)
+        {
+            var activeLogisticsMethods = await _shippingMethods
+                .ListAsync(query.TenantId, onlyActive: true, ct)
+                .ConfigureAwait(false);
+            dynamicShippingEnabled = activeLogisticsMethods.Count > 0;
+        }
+
         return Result.Success(new EcommerceCheckoutOptionsDto(
             paymentMethods,
             shippingMethods,
             whatsappPhone,
             _turnstile.ResolvedSiteKey,
-            minOrderAmount));
+            minOrderAmount,
+            DynamicShippingEnabled: dynamicShippingEnabled));
     }
 }

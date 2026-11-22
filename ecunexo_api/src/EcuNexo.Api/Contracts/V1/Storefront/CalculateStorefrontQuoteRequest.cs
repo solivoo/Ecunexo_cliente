@@ -6,12 +6,16 @@ namespace EcuNexo.Api.Contracts.V1.Storefront;
 public sealed record CalculateStorefrontQuoteRequest(
     IReadOnlyList<CreateStorefrontOrderItemInput> Items,
     string? ShippingMethod = null,
-    string? CouponCode = null)
+    string? CouponCode = null,
+    Guid? CantonId = null,
+    Guid? ShippingMethodId = null)
 {
     public CalculateStorefrontQuoteQuery ToQuery(Guid tenantId) =>
         new(
             tenantId,
             Items ?? [],
             ShippingMethod,
-            CouponCode);
+            CouponCode,
+            CantonId,
+            ShippingMethodId);
 }

@@ -327,6 +327,21 @@ public sealed class CantonShippingOriginTests
                     && r.ShippingMethodId == shippingMethodId
                     && r.OriginCantonId == originCantonId).ToList());
 
+        public Task<IReadOnlyList<CantonShippingRate>> ListByCantonAsync(
+            Guid tenantId,
+            Guid cantonId,
+            CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<CantonShippingRate>>(
+                Items.Where(r => r.TenantId == tenantId && r.CantonId == cantonId).ToList());
+
+        public Task<Guid?> FindPrimaryOriginCantonIdAsync(
+            Guid tenantId,
+            CancellationToken ct = default) =>
+            Task.FromResult(
+                Items.Where(r => r.TenantId == tenantId && r.IsEnabled && r.OriginCantonId.HasValue)
+                    .Select(r => r.OriginCantonId)
+                    .FirstOrDefault());
+
         public Task AddAsync(CantonShippingRate rate, CancellationToken ct)
         {
             Items.Add(rate);

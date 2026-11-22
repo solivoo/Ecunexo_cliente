@@ -11,7 +11,10 @@ public sealed record CreateStorefrontOrderCustomerInput(
 public sealed record CreateStorefrontOrderShippingInput(
     string Address,
     string City,
-    string? Reference);
+    string? Reference,
+    string? Province = null,
+    Guid? ProvinceId = null,
+    Guid? CantonId = null);
 
 public sealed record CreateStorefrontOrderItemInput(
     Guid CatalogItemId,
@@ -32,4 +35,5 @@ public sealed record CreateStorefrontOrderCommand(
     string? UserAgent = null,
     string? TurnstileToken = null,
     bool AcceptPrivacyPolicy = false,
-    string? CouponCode = null) : ICommand<StorefrontOrderCreatedDto>;
+    string? CouponCode = null,
+    Guid? ShippingMethodId = null) : ICommand<StorefrontOrderCreatedDto>;

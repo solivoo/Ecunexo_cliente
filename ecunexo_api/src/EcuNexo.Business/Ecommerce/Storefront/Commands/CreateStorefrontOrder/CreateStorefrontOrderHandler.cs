@@ -4,6 +4,7 @@ using EcuNexo.Business.Catalog;
 using EcuNexo.Business.Ecommerce.Commands.CreateEcommerceOrder;
 using EcuNexo.Business.Ecommerce.Repositories;
 using EcuNexo.Business.Ecommerce.Storefront.Turnstile;
+using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Business.Warehousing;
@@ -97,6 +98,8 @@ public sealed class CreateStorefrontOrderHandler
     private readonly EcommerceOrderEmailNotifier _orderEmailNotifier;
     private readonly ISender _sender;
     private readonly ILogger<CreateStorefrontOrderHandler> _logger;
+    private readonly IStorefrontShippingService? _storefrontShipping;
+    private readonly IPricingService? _pricing;
 
     public CreateStorefrontOrderHandler(
         IValidator<CreateStorefrontOrderCommand> validator,
@@ -109,7 +112,9 @@ public sealed class CreateStorefrontOrderHandler
         ITurnstileVerifier turnstile,
         EcommerceOrderEmailNotifier orderEmailNotifier,
         ISender sender,
-        ILogger<CreateStorefrontOrderHandler> logger)
+        ILogger<CreateStorefrontOrderHandler> logger,
+        IStorefrontShippingService? storefrontShipping = null,
+        IPricingService? pricing = null)
     {
         _validator = validator;
         _tenants = tenants;
@@ -122,6 +127,8 @@ public sealed class CreateStorefrontOrderHandler
         _orderEmailNotifier = orderEmailNotifier;
         _sender = sender;
         _logger = logger;
+        _storefrontShipping = storefrontShipping;
+        _pricing = pricing;
     }
 
     public async Task<Result<StorefrontOrderCreatedDto>> Handle(
@@ -234,13 +241,63 @@ public sealed class CreateStorefrontOrderHandler
             return Result.Failure<StorefrontOrderCreatedDto>(WarehouseMissing);
         }
 
-        if (!settings.PaymentMethods.Contains(paymentMethod)
-            || !settings.ShippingMethods.Any(option => option.Method == shippingMethod))
+        if (!settings.PaymentMethods.Contains(paymentMethod))
         {
             return Result.Failure<StorefrontOrderCreatedDto>(MethodNotAvailable);
         }
 
-        var shippingOption = settings.ShippingMethods.First(option => option.Method == shippingMethod);
+        decimal resolvedShippingCost;
+        string? resolvedCarrier = null;
+        string? resolvedProvince = string.IsNullOrWhiteSpace(command.Shipping.Province)
+            ? null
+            : command.Shipping.Province.Trim();
+        string resolvedCity = command.Shipping.City.Trim();
+
+        if (command.ShippingMethodId.HasValue && _storefrontShipping is not null)
+        {
+            if (command.Shipping.CantonId is not { } cantonId || cantonId == Guid.Empty)
+            {
+                return Result.Failure<StorefrontOrderCreatedDto>(
+                    new Error(
+                        "ecommerce.checkout.canton_required",
+                        "Debes seleccionar la provincia y el cantón de entrega.",
+                        ErrorType.Validation));
+            }
+
+            var estimatedOrderSubtotal = await ResolveEstimatedOrderSubtotalAsync(command, ct)
+                .ConfigureAwait(false);
+            var shippingQuote = await _storefrontShipping
+                .ResolveAndValidateAsync(
+                    command.TenantId,
+                    cantonId,
+                    command.ShippingMethodId.Value,
+                    estimatedOrderSubtotal,
+                    ct)
+                .ConfigureAwait(false);
+
+            if (shippingQuote.IsFailure)
+            {
+                return Result.Failure<StorefrontOrderCreatedDto>(shippingQuote.Error!);
+            }
+
+            resolvedShippingCost = shippingQuote.Value!.Cost;
+            resolvedCarrier = shippingQuote.Value.CarrierName;
+            resolvedCity = shippingQuote.Value.CantonName;
+            if (!string.IsNullOrWhiteSpace(shippingQuote.Value.ProvinceName))
+            {
+                resolvedProvince = shippingQuote.Value.ProvinceName;
+            }
+        }
+        else
+        {
+            if (!settings.ShippingMethods.Any(option => option.Method == shippingMethod))
+            {
+                return Result.Failure<StorefrontOrderCreatedDto>(MethodNotAvailable);
+            }
+
+            var shippingOption = settings.ShippingMethods.First(option => option.Method == shippingMethod);
+            resolvedShippingCost = shippingOption.Cost;
+        }
 
         var minQuantityError = await ValidateMinOrderQuantitiesAsync(command, ct)
             .ConfigureAwait(false);
@@ -255,11 +312,11 @@ public sealed class CreateStorefrontOrderHandler
             PaymentMethod: paymentMethod,
             ShippingMethod: shippingMethod,
             Customer: BuildCustomer(command.Customer, command.Shipping.Address),
-            Shipping: BuildShipping(command.Customer, command.Shipping),
+            Shipping: BuildShipping(command.Customer, command.Shipping, resolvedCity, resolvedProvince, resolvedCarrier),
             Items: command.Items
                 .Select(item => new CreateEcommerceOrderItemInput(item.CatalogItemId, item.Quantity))
                 .ToList(),
-            ShippingCost: shippingOption.Cost,
+            ShippingCost: resolvedShippingCost,
             InternalNotes: null,
             CustomerNotes: string.IsNullOrWhiteSpace(command.Notes) ? null : command.Notes.Trim(),
             CreatedBy: null,
@@ -454,18 +511,59 @@ public sealed class CreateStorefrontOrderHandler
             Address: address.Trim());
     }
 
+    private async Task<decimal> ResolveEstimatedOrderSubtotalAsync(
+        CreateStorefrontOrderCommand command,
+        CancellationToken ct)
+    {
+        if (_pricing is null || command.Items.Count == 0)
+        {
+            return 0m;
+        }
+
+        var lines = command.Items
+            .Where(item => item.Quantity > 0)
+            .Select(item => new CartPricingLineRequest(item.CatalogItemId, item.Quantity, Guid.NewGuid()))
+            .ToList();
+        if (lines.Count == 0)
+        {
+            return 0m;
+        }
+
+        var cartResult = await _pricing.ResolveCartAsync(
+            command.TenantId,
+            new CartPricingRequest(
+                lines,
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                CouponCode: string.IsNullOrWhiteSpace(command.CouponCode) ? null : command.CouponCode.Trim().ToUpperInvariant(),
+                PricesIncludeTaxOverride: true),
+            ct).ConfigureAwait(false);
+
+        if (cartResult.IsFailure)
+        {
+            return 0m;
+        }
+
+        return decimal.Round(
+            cartResult.Value!.Lines.Sum(l => l.FinalPrice),
+            2,
+            MidpointRounding.AwayFromZero);
+    }
+
     private static EcommerceShippingInfo BuildShipping(
         CreateStorefrontOrderCustomerInput customer,
-        CreateStorefrontOrderShippingInput shipping) =>
+        CreateStorefrontOrderShippingInput shipping,
+        string city,
+        string? province,
+        string? carrier) =>
         new(
             RecipientName: customer.Name.Trim(),
             RecipientPhone: customer.Phone.Trim(),
             AddressLine1: shipping.Address.Trim(),
             AddressLine2: null,
-            City: shipping.City.Trim(),
-            Province: null,
+            City: city,
+            Province: province,
             PostalCode: null,
-            Carrier: null,
+            Carrier: carrier,
             TrackingNumber: null,
             Notes: string.IsNullOrWhiteSpace(shipping.Reference) ? null : shipping.Reference.Trim());
 }

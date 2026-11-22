@@ -7,5 +7,7 @@ public sealed record CalculateStorefrontQuoteQuery(
     Guid TenantId,
     IReadOnlyList<CreateStorefrontOrderItemInput> Items,
     string? ShippingMethod = null,
-    string? CouponCode = null)
+    string? CouponCode = null,
+    Guid? CantonId = null,
+    Guid? ShippingMethodId = null)
     : IQuery<StorefrontCheckoutQuoteDto>;

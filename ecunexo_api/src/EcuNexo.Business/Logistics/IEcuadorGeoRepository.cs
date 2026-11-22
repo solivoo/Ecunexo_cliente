@@ -10,5 +10,7 @@ public interface IEcuadorGeoRepository
 
     Task<EcuadorCanton?> GetCantonByIdAsync(Guid cantonId, CancellationToken ct);
 
+    Task<EcuadorCanton?> FindCantonByNameAsync(string name, CancellationToken ct);
+
     Task<bool> AnyProvincesAsync(CancellationToken ct);
 }

@@ -32,5 +32,14 @@ public interface ICantonShippingRateRepository
         Guid? originCantonId = null,
         CancellationToken ct = default);
 
+    Task<IReadOnlyList<CantonShippingRate>> ListByCantonAsync(
+        Guid tenantId,
+        Guid cantonId,
+        CancellationToken ct = default);
+
+    Task<Guid?> FindPrimaryOriginCantonIdAsync(
+        Guid tenantId,
+        CancellationToken ct = default);
+
     Task AddAsync(CantonShippingRate rate, CancellationToken ct);
 }
