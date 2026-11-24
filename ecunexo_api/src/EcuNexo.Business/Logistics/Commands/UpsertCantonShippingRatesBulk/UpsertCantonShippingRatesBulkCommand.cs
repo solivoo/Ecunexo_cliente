@@ -83,7 +83,11 @@ public sealed class UpsertCantonShippingRatesBulkHandler
                     var destCanton = await _geo.GetCantonByIdAsync(item.CantonId, ct).ConfigureAwait(false);
                     if (destCanton is not null)
                     {
-                        var routeValidation = method.ValidateRoute(originCanton.ProvinceId, destCanton.ProvinceId);
+                        var routeValidation = method.ValidateRoute(
+                            originCanton.ProvinceId,
+                            destCanton.ProvinceId,
+                            originCanton.Id,
+                            destCanton.Id);
                         if (routeValidation.IsFailure)
                         {
                             return Result.Failure<UpsertCantonShippingRatesBulkResponse>(routeValidation.Error!);

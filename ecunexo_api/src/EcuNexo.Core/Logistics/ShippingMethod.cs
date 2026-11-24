@@ -14,6 +14,9 @@ public enum ShippingCoverageScope
 
     /// <summary>Solo aplica hacia otras provincias; prohíbe envíos a la misma provincia de origen (ej: Cooperativa interprovincial).</summary>
     InterprovincialOnly = 2,
+
+    /// <summary>Solo aplica hacia otros cantones; prohíbe envíos al mismo cantón de origen (ej: Cooperativa intercantonal).</summary>
+    IntercantonalOnly = 3,
 }
 
 /// <summary>
@@ -137,8 +140,24 @@ public sealed class ShippingMethod : AggregateRoot<Guid>, ITenantEntity, IAudita
         return Result.Success();
     }
 
-    public Result ValidateRoute(Guid originProvinceId, Guid destinationProvinceId)
+    public Result ValidateRoute(
+        Guid originProvinceId,
+        Guid destinationProvinceId,
+        Guid? originCantonId = null,
+        Guid? destinationCantonId = null)
     {
+        if (CoverageScope == ShippingCoverageScope.IntercantonalOnly
+            && originCantonId.HasValue
+            && destinationCantonId.HasValue
+            && originCantonId.Value == destinationCantonId.Value)
+        {
+            return Result.Failure(
+                new Error(
+                    "logistics.shipping_method.intercantonal_same_canton",
+                    $"El método '{Name}' es solo intercantonal y no aplica para envíos dentro del mismo cantón de origen.",
+                    ErrorType.Validation));
+        }
+
         if (CoverageScope == ShippingCoverageScope.InterprovincialOnly && originProvinceId == destinationProvinceId)
         {
             return Result.Failure(

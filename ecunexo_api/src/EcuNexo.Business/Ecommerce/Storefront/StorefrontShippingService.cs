@@ -81,7 +81,11 @@ public sealed class StorefrontShippingService : IStorefrontShippingService
         {
             if (originCanton is not null)
             {
-                var routeCheck = method.ValidateRoute(originCanton.ProvinceId, destCanton.ProvinceId);
+                var routeCheck = method.ValidateRoute(
+                    originCanton.ProvinceId,
+                    destCanton.ProvinceId,
+                    originCanton.Id,
+                    destCanton.Id);
                 if (routeCheck.IsFailure)
                 {
                     continue;
@@ -160,7 +164,11 @@ public sealed class StorefrontShippingService : IStorefrontShippingService
         var originCanton = await ResolveOriginCantonAsync(tenantId, ct).ConfigureAwait(false);
         if (originCanton is not null)
         {
-            var routeCheck = method.ValidateRoute(originCanton.ProvinceId, destCanton.ProvinceId);
+            var routeCheck = method.ValidateRoute(
+                originCanton.ProvinceId,
+                destCanton.ProvinceId,
+                originCanton.Id,
+                destCanton.Id);
             if (routeCheck.IsFailure)
             {
                 return Result.Failure<ResolvedStorefrontShippingQuote>(routeCheck.Error!);

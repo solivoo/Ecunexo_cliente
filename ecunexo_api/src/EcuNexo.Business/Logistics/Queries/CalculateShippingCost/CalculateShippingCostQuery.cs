@@ -46,7 +46,11 @@ public sealed class CalculateShippingCostHandler
             var destCanton = await _geo.GetCantonByIdAsync(query.CantonId, ct).ConfigureAwait(false);
             if (method is not null && originCanton is not null && destCanton is not null)
             {
-                var routeValidation = method.ValidateRoute(originCanton.ProvinceId, destCanton.ProvinceId);
+                var routeValidation = method.ValidateRoute(
+                    originCanton.ProvinceId,
+                    destCanton.ProvinceId,
+                    originCanton.Id,
+                    destCanton.Id);
                 if (routeValidation.IsFailure)
                 {
                     return Result.Failure<ShippingCostCalculationResult>(routeValidation.Error!);
