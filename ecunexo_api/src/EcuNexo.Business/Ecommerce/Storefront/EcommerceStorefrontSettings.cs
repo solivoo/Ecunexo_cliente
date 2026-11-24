@@ -17,7 +17,14 @@ public sealed record EcommerceStorefrontSettings(
     int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders,
     bool MaintenanceEnabled = false,
     string MaintenanceMessage = "",
-    decimal MinOrderAmount = 0m);
+    decimal MinOrderAmount = 0m,
+    StorefrontSocialLinks? SocialLinks = null);
+
+/// <summary>Enlaces públicos de redes de la tienda. Cadena vacía significa que no se exhibe.</summary>
+public sealed record StorefrontSocialLinks(
+    string Instagram = "",
+    string Facebook = "",
+    string TikTok = "");
 
 /// <summary>
 /// Lee la configuración efectiva de la tienda (global/plan/tenant) aplicando defaults seguros.

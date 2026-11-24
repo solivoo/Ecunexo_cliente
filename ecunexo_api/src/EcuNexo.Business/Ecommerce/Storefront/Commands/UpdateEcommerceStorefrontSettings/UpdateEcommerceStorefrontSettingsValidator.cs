@@ -81,5 +81,18 @@ public sealed class UpdateEcommerceStorefrontSettingsValidator
             .EmailAddress()
             .WithMessage("El correo para avisos de pedidos no es un correo válido.")
             .When(x => !string.IsNullOrWhiteSpace(x.OrdersNotificationEmail));
+
+        When(x => x.SocialLinks is not null, () =>
+        {
+            RuleFor(x => x.SocialLinks!.Instagram)
+                .Must(url => EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(url, out _))
+                .WithMessage("La URL de Instagram debe ser un enlace https válido.");
+            RuleFor(x => x.SocialLinks!.Facebook)
+                .Must(url => EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(url, out _))
+                .WithMessage("La URL de Facebook debe ser un enlace https válido.");
+            RuleFor(x => x.SocialLinks!.TikTok)
+                .Must(url => EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(url, out _))
+                .WithMessage("La URL de TikTok debe ser un enlace https válido.");
+        });
     }
 }

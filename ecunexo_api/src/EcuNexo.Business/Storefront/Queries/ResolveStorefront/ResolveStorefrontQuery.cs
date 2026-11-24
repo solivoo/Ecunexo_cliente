@@ -1,4 +1,5 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Ecommerce.Storefront;
 
 namespace EcuNexo.Business.Storefront.Queries.ResolveStorefront;
 
@@ -10,4 +11,5 @@ public sealed record StorefrontResolveResponse(
     string? LogoUrl,
     string? PrimaryColorHex,
     string Locale,
-    string Currency);
+    string Currency,
+    StorefrontSocialLinks? SocialLinks = null);

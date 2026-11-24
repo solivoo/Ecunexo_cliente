@@ -20,6 +20,12 @@ export type EcommerceShippingOption = {
   cost: number
 }
 
+export type StorefrontSocialLinks = {
+  instagram: string
+  facebook: string
+  tiktok: string
+}
+
 export type EcommerceStorefrontSettings = {
   paymentMethods: string[]
   shippingMethods: EcommerceShippingOption[]
@@ -32,6 +38,7 @@ export type EcommerceStorefrontSettings = {
   maintenanceEnabled: boolean
   maintenanceMessage: string
   minOrderAmount: number
+  socialLinks: StorefrontSocialLinks | null
 }
 
 export type UpdateEcommerceStorefrontSettingsInput = {
@@ -46,6 +53,7 @@ export type UpdateEcommerceStorefrontSettingsInput = {
   maintenanceEnabled: boolean
   maintenanceMessage: string | null
   minOrderAmount: number
+  socialLinks: StorefrontSocialLinks | null
 }
 
 export type EcommerceBlockedContactKind = 'Email' | 'Phone'

@@ -17,4 +17,5 @@ public sealed record UpdateEcommerceStorefrontSettingsCommand(
     bool MaintenanceEnabled = false,
     string? MaintenanceMessage = null,
     decimal MinOrderAmount = EcommerceStorefrontSettingsReader.DefaultMinOrderAmount,
-    Guid? UpdatedBy = null) : ICommand<EcommerceStorefrontSettingsDto>;
+    Guid? UpdatedBy = null,
+    StorefrontSocialLinks? SocialLinks = null) : ICommand<EcommerceStorefrontSettingsDto>;

@@ -48,6 +48,7 @@ const MAX_INSTRUCTIONS_LENGTH = 2000
 const MAX_WHATSAPP_LENGTH = 20
 const MAX_NOTIFICATION_EMAIL_LENGTH = 254
 const MAINTENANCE_MESSAGE_MAX_LENGTH = 300
+const MAX_SOCIAL_URL_LENGTH = 300
 const WHATSAPP_ALLOWED_PATTERN = /^[0-9+\s]*$/
 const EMAIL_ALLOWED_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -66,6 +67,20 @@ type ShippingDraft = {
   readonly label: string
   readonly enabled: boolean
   readonly cost: number
+}
+
+function normalizeSocialUrl(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return ''
+  const withScheme = trimmed.includes('://') ? trimmed : `https://${trimmed.replace(/^\/+/, '')}`
+  if (withScheme.length > MAX_SOCIAL_URL_LENGTH) return null
+  try {
+    const url = new URL(withScheme)
+    if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) return null
+    return withScheme
+  } catch {
+    return null
+  }
 }
 
 function buildShippingDrafts(settings: EcommerceStorefrontSettings): ShippingDraft[] {
@@ -103,6 +118,9 @@ export function StorefrontSettingsPage() {
   const [minOrderAmount, setMinOrderAmount] = useState(DEFAULT_MIN_ORDER_AMOUNT)
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false)
   const [maintenanceMessage, setMaintenanceMessage] = useState('')
+  const [instagram, setInstagram] = useState('')
+  const [facebook, setFacebook] = useState('')
+  const [tiktok, setTiktok] = useState('')
 
   const [blockedContacts, setBlockedContacts] = useState<EcommerceBlockedContact[]>([])
   const [blockedLoading, setBlockedLoading] = useState(true)
@@ -136,6 +154,9 @@ export function StorefrontSettingsPage() {
         setMinOrderAmount(settings.minOrderAmount ?? DEFAULT_MIN_ORDER_AMOUNT)
         setMaintenanceEnabled(settings.maintenanceEnabled ?? false)
         setMaintenanceMessage(settings.maintenanceMessage ?? '')
+        setInstagram(settings.socialLinks?.instagram ?? '')
+        setFacebook(settings.socialLinks?.facebook ?? '')
+        setTiktok(settings.socialLinks?.tiktok ?? '')
         setError(null)
       })
       .catch((err: unknown) => {
@@ -374,6 +395,18 @@ export function StorefrontSettingsPage() {
         return
       }
 
+      const instagramUrl = normalizeSocialUrl(instagram)
+      const facebookUrl = normalizeSocialUrl(facebook)
+      const tiktokUrl = normalizeSocialUrl(tiktok)
+      if (instagramUrl === null || facebookUrl === null || tiktokUrl === null) {
+        toast.show({
+          title: 'Red social inválida',
+          message: `Cada red debe ser un enlace https de máximo ${MAX_SOCIAL_URL_LENGTH} caracteres, o quedar vacía.`,
+          variant: 'error',
+        })
+        return
+      }
+
       const notificationEmail = ordersNotificationEmail.trim()
       if (
         notificationEmail.length > MAX_NOTIFICATION_EMAIL_LENGTH ||
@@ -406,6 +439,11 @@ export function StorefrontSettingsPage() {
           maintenanceEnabled,
           maintenanceMessage: maintenanceMessage.trim() || null,
           minOrderAmount: roundCurrency(minOrderAmount),
+          socialLinks: {
+            instagram: instagramUrl,
+            facebook: facebookUrl,
+            tiktok: tiktokUrl,
+          },
         })
         setError(null)
         toast.show({
@@ -425,7 +463,9 @@ export function StorefrontSettingsPage() {
     },
     [
       contactWhatsapp,
+      facebook,
       holdHours,
+      instagram,
       instructions,
       maintenanceEnabled,
       maintenanceMessage,
@@ -436,6 +476,7 @@ export function StorefrontSettingsPage() {
       reserveOnOrder,
       shipping,
       tenantId,
+      tiktok,
       toast,
     ]
   )
@@ -639,6 +680,56 @@ export function StorefrontSettingsPage() {
                   Recibe un aviso por cada pedido nuevo y cada comprobante de pago. Déjalo vacío
                   para no enviar avisos al equipo.
                 </p>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Redes sociales"
+            info="Se muestran en el pie de la vitrina pública. Déjalas vacías para no exhibirlas."
+          >
+            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+              <div className="ecu-companies-form__field">
+                <TextBox
+                  id="storefront-social-instagram"
+                  label="Instagram"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={instagram}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setInstagram(e.target.value)}
+                  placeholder="https://instagram.com/tienda"
+                  maxLength={MAX_SOCIAL_URL_LENGTH}
+                  disabled={saving}
+                  fullWidth
+                />
+              </div>
+              <div className="ecu-companies-form__field">
+                <TextBox
+                  id="storefront-social-facebook"
+                  label="Facebook"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={facebook}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFacebook(e.target.value)}
+                  placeholder="https://facebook.com/tienda"
+                  maxLength={MAX_SOCIAL_URL_LENGTH}
+                  disabled={saving}
+                  fullWidth
+                />
+              </div>
+              <div className="ecu-companies-form__field">
+                <TextBox
+                  id="storefront-social-tiktok"
+                  label="TikTok"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={tiktok}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setTiktok(e.target.value)}
+                  placeholder="https://www.tiktok.com/@tienda"
+                  maxLength={MAX_SOCIAL_URL_LENGTH}
+                  disabled={saving}
+                  fullWidth
+                />
               </div>
             </div>
           </SectionCard>

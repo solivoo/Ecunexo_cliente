@@ -18,7 +18,8 @@ public sealed record EcommerceStorefrontSettingsDto(
     int MaxPendingOrders,
     bool MaintenanceEnabled,
     string MaintenanceMessage,
-    decimal MinOrderAmount = 0m);
+    decimal MinOrderAmount = 0m,
+    StorefrontSocialLinks? SocialLinks = null);
 
 /// <summary>Opciones de pago y envío expuestas al comprador anónimo.</summary>
 public sealed record EcommerceCheckoutOptionsDto(

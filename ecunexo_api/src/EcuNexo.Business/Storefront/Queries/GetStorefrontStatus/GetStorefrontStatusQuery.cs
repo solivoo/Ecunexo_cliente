@@ -14,7 +14,8 @@ public sealed record StorefrontStatusDto(
     string Revision,
     DateTimeOffset? UpdatedAt,
     bool MaintenanceEnabled = false,
-    string MaintenanceMessage = "");
+    string MaintenanceMessage = "",
+    StorefrontSocialLinks? SocialLinks = null);
 
 public sealed class GetStorefrontStatusHandler
     : IQueryHandler<GetStorefrontStatusQuery, StorefrontStatusDto>
@@ -63,11 +64,16 @@ public sealed class GetStorefrontStatusHandler
             .ResolveAsync(query.TenantId, ct)
             .ConfigureAwait(false);
 
+        var social = settings.SocialLinks;
+        var hasSocial = social is not null
+            && (social.Instagram.Length > 0 || social.Facebook.Length > 0 || social.TikTok.Length > 0);
+
         var dto = new StorefrontStatusDto(
             lastChange?.UtcTicks.ToString(CultureInfo.InvariantCulture) ?? "0",
             lastChange,
             settings.MaintenanceEnabled,
-            settings.MaintenanceMessage);
+            settings.MaintenanceMessage,
+            hasSocial ? social : null);
 
         _cache.Set(cacheKey, dto, TimeSpan.FromSeconds(CacheSeconds));
         return Result.Success(dto);

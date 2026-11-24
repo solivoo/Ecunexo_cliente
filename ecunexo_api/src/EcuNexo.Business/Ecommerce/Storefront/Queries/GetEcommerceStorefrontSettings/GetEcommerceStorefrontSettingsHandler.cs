@@ -35,5 +35,6 @@ public sealed class GetEcommerceStorefrontSettingsHandler
             settings.MaxPendingOrders,
             settings.MaintenanceEnabled,
             settings.MaintenanceMessage,
-            settings.MinOrderAmount);
+            settings.MinOrderAmount,
+            settings.SocialLinks ?? new StorefrontSocialLinks());
 }

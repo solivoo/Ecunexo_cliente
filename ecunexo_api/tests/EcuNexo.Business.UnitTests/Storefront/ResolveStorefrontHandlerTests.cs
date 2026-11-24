@@ -1,3 +1,4 @@
+using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Storefront.Queries.ResolveStorefront;
 using EcuNexo.Business.Tenancy;
@@ -11,7 +12,15 @@ public sealed class ResolveStorefrontHandlerTests : IDisposable
 {
     private readonly IStorefrontDomainRepository _domains = Substitute.For<IStorefrontDomainRepository>();
     private readonly ITenantRepository _tenants = Substitute.For<ITenantRepository>();
+    private readonly IEcommerceStorefrontSettingsReader _settings = Substitute.For<IEcommerceStorefrontSettingsReader>();
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());
+
+    public ResolveStorefrontHandlerTests()
+    {
+        _settings
+            .ResolveAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new EcommerceStorefrontSettings([], [], string.Empty, 2));
+    }
 
     public void Dispose() => _cache.Dispose();
 
@@ -41,7 +50,7 @@ public sealed class ResolveStorefrontHandlerTests : IDisposable
             .Returns(domain);
         _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(tenant);
 
-        var sut = new ResolveStorefrontHandler(_domains, _tenants, _cache);
+        var sut = new ResolveStorefrontHandler(_domains, _tenants, _cache, _settings);
         var result = await sut.Handle(new ResolveStorefrontQuery("Tienda.Demo.com."), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -62,7 +71,7 @@ public sealed class ResolveStorefrontHandlerTests : IDisposable
         _domains.GetVerifiedByHostAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((StorefrontDomain?)null);
 
-        var sut = new ResolveStorefrontHandler(_domains, _tenants, _cache);
+        var sut = new ResolveStorefrontHandler(_domains, _tenants, _cache, _settings);
         var result = await sut.Handle(new ResolveStorefrontQuery("tienda.demo.com"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -72,7 +81,7 @@ public sealed class ResolveStorefrontHandlerTests : IDisposable
     [Fact(DisplayName = "Host inválido ni siquiera consulta la base")]
     public async Task Handle_InvalidHost_ReturnsNotFound()
     {
-        var sut = new ResolveStorefrontHandler(_domains, _tenants, _cache);
+        var sut = new ResolveStorefrontHandler(_domains, _tenants, _cache, _settings);
         var result = await sut.Handle(new ResolveStorefrontQuery("localhost"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -100,7 +109,7 @@ public sealed class ResolveStorefrontHandlerTests : IDisposable
         _domains.GetVerifiedByHostAsync("tienda.demo.com", Arg.Any<CancellationToken>()).Returns(domain);
         _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(tenant);
 
-        var sut = new ResolveStorefrontHandler(_domains, _tenants, _cache);
+        var sut = new ResolveStorefrontHandler(_domains, _tenants, _cache, _settings);
         var result = await sut.Handle(new ResolveStorefrontQuery("tienda.demo.com"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
@@ -126,10 +135,43 @@ public sealed class ResolveStorefrontHandlerTests : IDisposable
         _domains.GetVerifiedByHostAsync("tienda.demo.com", Arg.Any<CancellationToken>()).Returns(domain);
         _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(tenant);
 
-        var sut = new ResolveStorefrontHandler(_domains, _tenants, _cache);
+        var sut = new ResolveStorefrontHandler(_domains, _tenants, _cache, _settings);
         var result = await sut.Handle(new ResolveStorefrontQuery("tienda.demo.com"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("storefront.tenant.not_found");
+    }
+
+    [Fact(DisplayName = "Adjunta las redes de la tienda cuando hay al menos una URL")]
+    public async Task Handle_WithSocialLinks_IncludesThem()
+    {
+        var tenantId = Guid.CreateVersion7();
+        var tenant = Tenant.Create(
+            tenantId,
+            "Tienda Demo",
+            new ServicePlan("Small", 3, 1),
+            moduleEntitlements: new List<ModuleEntitlement>
+            {
+                ModuleEntitlement.FromTier(TenantModuleCodes.Ecommerce, ModuleTier.Small),
+            }).Value!;
+        var domain = StorefrontDomain.Create(Guid.CreateVersion7(), tenantId, "tienda.demo.com").Value!;
+        domain.MarkVerified(DateTimeOffset.UtcNow);
+        _domains.GetVerifiedByHostAsync("tienda.demo.com", Arg.Any<CancellationToken>()).Returns(domain);
+        _tenants.GetByIdAsync(tenantId, Arg.Any<CancellationToken>()).Returns(tenant);
+        _settings
+            .ResolveAsync(tenantId, Arg.Any<CancellationToken>())
+            .Returns(new EcommerceStorefrontSettings(
+                [],
+                [],
+                string.Empty,
+                2,
+                SocialLinks: new StorefrontSocialLinks("https://instagram.com/everchic", "", "")));
+
+        var sut = new ResolveStorefrontHandler(_domains, _tenants, _cache, _settings);
+        var result = await sut.Handle(new ResolveStorefrontQuery("tienda.demo.com"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.SocialLinks!.Instagram.Should().Be("https://instagram.com/everchic");
+        result.Value.SocialLinks.Facebook.Should().BeEmpty();
     }
 }

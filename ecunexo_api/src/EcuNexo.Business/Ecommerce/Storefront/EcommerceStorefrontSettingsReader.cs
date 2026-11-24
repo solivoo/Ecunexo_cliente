@@ -24,6 +24,7 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
     public const decimal DefaultMinOrderAmount = 0m;
     public const decimal MinMinOrderAmount = 0m;
     public const decimal MaxMinOrderAmount = 10000m;
+    public const int SocialUrlMaxLength = 300;
 
     private static readonly IReadOnlyList<EcommercePaymentMethod> DefaultPaymentMethods =
         [EcommercePaymentMethod.BankTransfer];
@@ -68,7 +69,8 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
             ReadMaxPendingOrders(values),
             ReadMaintenanceEnabled(values),
             ReadMaintenanceMessage(values),
-            ReadMinOrderAmount(values));
+            ReadMinOrderAmount(values),
+            ReadSocialLinks(values));
     }
 
     internal static bool TryParsePaymentMethod(string? raw, out EcommercePaymentMethod method)
@@ -283,6 +285,59 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
         };
 
         return Math.Clamp(amount, MinMinOrderAmount, MaxMinOrderAmount);
+    }
+
+    internal static bool TryNormalizeSocialUrl(string? raw, out string normalized)
+    {
+        normalized = string.Empty;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return true;
+        }
+
+        var value = raw.Trim();
+        if (!value.Contains("://", StringComparison.Ordinal))
+        {
+            value = "https://" + value.TrimStart('/');
+        }
+
+        if (value.Length > SocialUrlMaxLength
+            || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            || uri.Scheme != Uri.UriSchemeHttps
+            || string.IsNullOrEmpty(uri.Host)
+            || uri.UserInfo.Length > 0)
+        {
+            return false;
+        }
+
+        normalized = value;
+        return true;
+    }
+
+    private static StorefrontSocialLinks ReadSocialLinks(IReadOnlyDictionary<string, JsonElement> values)
+    {
+        if (!values.TryGetValue(EcommerceSettingCodes.StorefrontSocialLinks, out var element)
+            || element.ValueKind != JsonValueKind.Object)
+        {
+            return new StorefrontSocialLinks();
+        }
+
+        return new StorefrontSocialLinks(
+            ReadSocialUrl(element, "instagram"),
+            ReadSocialUrl(element, "facebook"),
+            ReadSocialUrl(element, "tiktok"));
+    }
+
+    private static string ReadSocialUrl(JsonElement element, string name)
+    {
+        if (!TryGetPropertyIgnoreCase(element, name, out var value)
+            || value.ValueKind != JsonValueKind.String
+            || !TryNormalizeSocialUrl(value.GetString(), out var normalized))
+        {
+            return string.Empty;
+        }
+
+        return normalized;
     }
 
     private static decimal ReadCost(JsonElement element)

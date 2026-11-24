@@ -22,7 +22,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         _sut = new UpdateEcommerceStorefrontSettingsHandler(_validator, _settings, _idGenerator, _unitOfWork);
     }
 
-    [Fact(DisplayName = "Hace upsert de los once settings tenant y devuelve el estado guardado")]
+    [Fact(DisplayName = "Hace upsert de los settings tenant y devuelve el estado guardado")]
     public async Task Handle_WithoutExistingSettings_CreatesAll()
     {
         var tenantId = Guid.CreateVersion7();
@@ -47,7 +47,11 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             MaintenanceEnabled: true,
             MaintenanceMessage: "  Volvemos pronto  ",
             MinOrderAmount: 25.5m,
-            UpdatedBy: Guid.CreateVersion7());
+            UpdatedBy: Guid.CreateVersion7(),
+            SocialLinks: new StorefrontSocialLinks(
+                "https://instagram.com/everchic",
+                "facebook.com/everchic",
+                "https://www.tiktok.com/@everchic"));
 
         var result = await _sut.Handle(command, CancellationToken.None);
 
@@ -66,8 +70,11 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         dto.MaintenanceEnabled.Should().BeTrue();
         dto.MaintenanceMessage.Should().Be("Volvemos pronto");
         dto.MinOrderAmount.Should().Be(25.5m);
+        dto.SocialLinks!.Instagram.Should().Be("https://instagram.com/everchic");
+        dto.SocialLinks.Facebook.Should().Be("https://facebook.com/everchic");
+        dto.SocialLinks.TikTok.Should().Be("https://www.tiktok.com/@everchic");
 
-        await _settings.Received(11).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
+        await _settings.Received(12).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

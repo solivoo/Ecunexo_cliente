@@ -5,6 +5,11 @@ namespace EcuNexo.Api.Contracts.V1.Storefront;
 
 public sealed record EcommerceStorefrontShippingMethodRequest(string Code, decimal Cost);
 
+public sealed record StorefrontSocialLinksRequest(
+    string? Instagram = null,
+    string? Facebook = null,
+    string? TikTok = null);
+
 public sealed record UpdateEcommerceStorefrontSettingsRequest(
     IReadOnlyList<string> PaymentMethods,
     IReadOnlyList<EcommerceStorefrontShippingMethodRequest> ShippingMethods,
@@ -16,7 +21,8 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
     int MaxPendingOrders = EcommerceStorefrontSettingsReader.DefaultMaxPendingOrders,
     bool MaintenanceEnabled = false,
     string? MaintenanceMessage = null,
-    decimal MinOrderAmount = EcommerceStorefrontSettingsReader.DefaultMinOrderAmount)
+    decimal MinOrderAmount = EcommerceStorefrontSettingsReader.DefaultMinOrderAmount,
+    StorefrontSocialLinksRequest? SocialLinks = null)
 {
     public UpdateEcommerceStorefrontSettingsCommand ToCommand(Guid tenantId, Guid? updatedBy) =>
         new(
@@ -34,5 +40,11 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
             MaintenanceEnabled,
             MaintenanceMessage,
             MinOrderAmount,
-            updatedBy);
+            updatedBy,
+            SocialLinks is null
+                ? null
+                : new StorefrontSocialLinks(
+                    SocialLinks.Instagram ?? string.Empty,
+                    SocialLinks.Facebook ?? string.Empty,
+                    SocialLinks.TikTok ?? string.Empty));
 }

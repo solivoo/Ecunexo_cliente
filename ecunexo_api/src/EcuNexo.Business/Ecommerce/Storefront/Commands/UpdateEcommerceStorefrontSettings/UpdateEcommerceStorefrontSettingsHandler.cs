@@ -85,9 +85,10 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
                 EcommerceStorefrontSettingsReader.MaxMinOrderAmount),
             2,
             MidpointRounding.AwayFromZero);
+        var socialLinks = NormalizeSocialLinks(command.SocialLinks);
 
         var scopeId = command.TenantId.ToString("D");
-        var payloads = new (string Code, string Json)[]
+        var payloads = new List<(string Code, string Json)>
         {
             (
                 EcommerceSettingCodes.StorefrontPaymentMethods,
@@ -127,6 +128,17 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
                 EcommerceSettingCodes.StorefrontMinOrderAmount,
                 JsonSerializer.Serialize(minOrderAmount)),
         };
+        if (socialLinks is not null)
+        {
+            payloads.Add((
+                EcommerceSettingCodes.StorefrontSocialLinks,
+                JsonSerializer.Serialize(new
+                {
+                    instagram = socialLinks.Instagram,
+                    facebook = socialLinks.Facebook,
+                    tiktok = socialLinks.TikTok,
+                })));
+        }
 
         foreach (var (code, json) in payloads)
         {
@@ -152,7 +164,21 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
             maxPendingOrders,
             command.MaintenanceEnabled,
             maintenanceMessage,
-            minOrderAmount));
+            minOrderAmount,
+            socialLinks ?? new StorefrontSocialLinks()));
+    }
+
+    private static StorefrontSocialLinks? NormalizeSocialLinks(StorefrontSocialLinks? links)
+    {
+        if (links is null)
+        {
+            return null;
+        }
+
+        EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(links.Instagram, out var instagram);
+        EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(links.Facebook, out var facebook);
+        EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(links.TikTok, out var tiktok);
+        return new StorefrontSocialLinks(instagram, facebook, tiktok);
     }
 
     private async Task<Result> UpsertAsync(

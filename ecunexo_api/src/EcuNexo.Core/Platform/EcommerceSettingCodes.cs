@@ -38,4 +38,7 @@ public static class EcommerceSettingCodes
 
     /// <summary>Monto mínimo del pedido de la tienda en USD (0 = sin mínimo).</summary>
     public const string StorefrontMinOrderAmount = "ecommerce.storefront.min_order_amount";
+
+    /// <summary>Objeto JSON con las URLs públicas de Instagram, Facebook y TikTok.</summary>
+    public const string StorefrontSocialLinks = "ecommerce.storefront.social_links";
 }

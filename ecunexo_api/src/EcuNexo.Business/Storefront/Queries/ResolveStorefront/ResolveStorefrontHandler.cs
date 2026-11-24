@@ -1,4 +1,5 @@
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Ecommerce.Storefront;
 using EcuNexo.Business.Tenancy;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Tenancy;
@@ -16,15 +17,18 @@ public sealed class ResolveStorefrontHandler
     private readonly IStorefrontDomainRepository _domains;
     private readonly ITenantRepository _tenants;
     private readonly IMemoryCache _cache;
+    private readonly IEcommerceStorefrontSettingsReader _settings;
 
     public ResolveStorefrontHandler(
         IStorefrontDomainRepository domains,
         ITenantRepository tenants,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IEcommerceStorefrontSettingsReader settings)
     {
         _domains = domains;
         _tenants = tenants;
         _cache = cache;
+        _settings = settings;
     }
 
     public async Task<Result<StorefrontResolveResponse>> Handle(
@@ -59,13 +63,19 @@ public sealed class ResolveStorefrontHandler
             return Result.Failure<StorefrontResolveResponse>(StorefrontTenantGuard.TenantNotFound);
         }
 
+        var settings = await _settings.ResolveAsync(tenant.Id, ct).ConfigureAwait(false);
+        var social = settings.SocialLinks;
+        var hasSocial = social is not null
+            && (social.Instagram.Length > 0 || social.Facebook.Length > 0 || social.TikTok.Length > 0);
+
         var response = new StorefrontResolveResponse(
             tenant.Id,
             tenant.Name,
             tenant.LogoUrl,
             tenant.PrimaryColorHex,
             tenant.Locale ?? DefaultLocale,
-            DefaultCurrency);
+            DefaultCurrency,
+            hasSocial ? social : null);
 
         _cache.Set(cacheKey, response, TimeSpan.FromSeconds(CacheSeconds));
         return Result.Success(response);
