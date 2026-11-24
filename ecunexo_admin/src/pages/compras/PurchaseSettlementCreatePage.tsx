@@ -369,26 +369,15 @@ export function PurchaseSettlementCreatePage() {
             </StatusBadge>
           }
           actions={
-            <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-              <Button
-                variant="outline"
-                size="md"
-                onClick={() => navigate('/compras/liquidaciones')}
-                disabled={saving}
-              >
-                <ArrowLeft size={16} />
-                Volver
-              </Button>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={handleSubmit}
-                disabled={saving || isSupplierRuc || calculatedTotals.grossTotal <= 0}
-              >
-                <Save size={16} />
-                {saving ? 'Registrando...' : 'Emitir Liquidación'}
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => navigate('/compras/liquidaciones')}
+              disabled={saving}
+            >
+              <ArrowLeft size={16} />
+              Volver
+            </Button>
           }
         />
 
@@ -840,6 +829,28 @@ export function PurchaseSettlementCreatePage() {
               </div>
             </div>
           </SectionCard>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              onClick={() => navigate('/compras/liquidaciones')}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              onClick={handleSubmit}
+              disabled={saving || isSupplierRuc || calculatedTotals.grossTotal <= 0}
+            >
+              <Save size={16} />
+              {saving ? 'Registrando...' : 'Emitir Liquidación'}
+            </Button>
+          </div>
         </form>
       </div>
     </TenantSessionGate>

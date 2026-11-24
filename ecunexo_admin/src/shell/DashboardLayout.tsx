@@ -88,15 +88,11 @@ export function DashboardLayout() {
 
       {/* Backdrop oscuro con blur para cerrar al tocar fuera en pantallas táctiles */}
       {mobileOpen && (
-        <div
+        <button
+          type="button"
           className="app-shell__mobile-backdrop"
           onClick={() => setMobileOpen(false)}
           aria-label="Cerrar navegación lateral"
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') setMobileOpen(false)
-          }}
         />
       )}
 

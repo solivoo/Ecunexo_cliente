@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } fr
 import { Button, CheckButton, NumberBox, OptionGroup, TextArea, TextBox, useToast } from 'glubox'
 import { PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { TenantSessionGate } from '@/features/auth/TenantSessionGate'
+import './storefrontSettingsLayout.css'
 import { useHasPermission } from '@/hooks/useHasPermission'
 import { formatDate } from '@/lib/formatDate'
 import { readApiError } from '@/lib/readApiError'
@@ -536,11 +537,13 @@ export function StorefrontSettingsPage() {
             </div>
           ) : null}
 
+          <div className="ecu-storefront-settings__grid">
           <SectionCard
+            className="ecu-storefront-settings__card--full"
             title="Métodos de pago"
             info="Selecciona cómo pueden pagar los clientes en el checkout."
           >
-            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+            <div className="ecu-storefront-settings__payments">
               {PAYMENT_METHOD_OPTIONS.map((option) => (
                 <div
                   key={option.code}
@@ -585,10 +588,11 @@ export function StorefrontSettingsPage() {
           </SectionCard>
 
           <SectionCard
+            className="ecu-storefront-settings__card--span-2"
             title="Métodos de envío"
             info="Habilita los despachos disponibles y define su costo fijo."
           >
-            <div className="ecu-companies-form__grid ecu-companies-form__grid--2">
+            <div className="ecu-companies-form__grid">
               {shipping.map((draft) => (
                 <div
                   key={draft.code}
@@ -636,6 +640,7 @@ export function StorefrontSettingsPage() {
           </SectionCard>
 
           <SectionCard
+            className="ecu-storefront-settings__card--span-3"
             title="Contacto y avisos"
             info="Datos de contacto de la tienda y correo que recibe los avisos de pedidos."
           >
@@ -685,6 +690,7 @@ export function StorefrontSettingsPage() {
           </SectionCard>
 
           <SectionCard
+            className="ecu-storefront-settings__card--span-3"
             title="Redes sociales"
             info="Se muestran en el pie de la vitrina pública. Déjalas vacías para no exhibirlas."
           >
@@ -735,6 +741,153 @@ export function StorefrontSettingsPage() {
           </SectionCard>
 
           <SectionCard
+            className="ecu-storefront-settings__card--span-2"
+            title="Compra mínima"
+            info="Monto mínimo del pedido para aceptar compras en la tienda online."
+          >
+            <div className="ecu-companies-form__grid">
+              <div className="ecu-companies-form__field">
+                <NumberBox
+                  id="storefront-min-order-amount"
+                  label="Pedido mínimo de la tienda (USD)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  min={MIN_MIN_ORDER_AMOUNT}
+                  max={MAX_MIN_ORDER_AMOUNT}
+                  step={0.01}
+                  showSpinButtons
+                  value={minOrderAmount}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setMinOrderAmount(Number(e.target.value) || 0)
+                  }
+                  disabled={saving}
+                  fullWidth
+                />
+              </div>
+              <div className="ecu-companies-form__field">
+                <p className="ecu-companies-form__hint" style={{ marginTop: '0.35rem' }}>
+                  Si el subtotal del pedido no alcanza este monto, la tienda no permite
+                  finalizar la compra. Déjalo en 0 para no exigir un mínimo (máximo{' '}
+                  {MAX_MIN_ORDER_AMOUNT} USD).
+                </p>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="ecu-storefront-settings__card--span-3"
+            title="Reservas"
+            info="Reserva de stock y tiempo que se retiene un pedido sin pago confirmado."
+          >
+            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
+              <div className="ecu-companies-form__field">
+                <NumberBox
+                  id="storefront-hold-hours"
+                  label="Horas de reserva"
+                  labelPosition="outlined"
+                  variant="outline"
+                  min={MIN_PAYMENT_HOLD_HOURS}
+                  max={MAX_PAYMENT_HOLD_HOURS}
+                  step={1}
+                  showSpinButtons
+                  value={holdHours}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setHoldHours(Number(e.target.value) || 0)
+                  }
+                  disabled={saving}
+                  fullWidth
+                />
+              </div>
+              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                <p className="ecu-companies-form__hint" style={{ marginTop: '1.1rem' }}>
+                  Horas que se reserva el stock sin pago confirmado. Rango permitido:{' '}
+                  {MIN_PAYMENT_HOLD_HOURS} a {MAX_PAYMENT_HOLD_HOURS} horas (por defecto{' '}
+                  {DEFAULT_PAYMENT_HOLD_HOURS}).
+                </p>
+              </div>
+              <div className="ecu-companies-form__field ecu-companies-form__field--check-align">
+                <CheckButton
+                  variant="ghost"
+                  checked={reserveOnOrder}
+                  onChange={setReserveOnOrder}
+                  disabled={saving}
+                >
+                  Reservar stock al crear el pedido
+                </CheckButton>
+              </div>
+              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                <p className="ecu-companies-form__hint" style={{ marginTop: '0.75rem' }}>
+                  Si está desactivado, el stock se reserva al confirmar el pago.
+                </p>
+              </div>
+              <div className="ecu-companies-form__field">
+                <NumberBox
+                  id="storefront-max-pending-orders"
+                  label="Máximo de pedidos pendientes por contacto"
+                  labelPosition="outlined"
+                  variant="outline"
+                  min={MIN_MAX_PENDING_ORDERS}
+                  max={MAX_MAX_PENDING_ORDERS}
+                  step={1}
+                  showSpinButtons
+                  value={maxPendingOrders}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setMaxPendingOrders(Number(e.target.value) || 0)
+                  }
+                  disabled={saving}
+                  fullWidth
+                />
+              </div>
+              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
+                <p className="ecu-companies-form__hint" style={{ marginTop: '1.1rem' }}>
+                  Pedidos impagos que puede acumular un mismo correo o teléfono. Rango permitido:{' '}
+                  {MIN_MAX_PENDING_ORDERS} a {MAX_MAX_PENDING_ORDERS} (por defecto{' '}
+                  {DEFAULT_MAX_PENDING_ORDERS}).
+                </p>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="ecu-storefront-settings__card--span-2"
+            title="Mantenimiento"
+            info="Mientras esté activo, la tienda muestra una pantalla de mantenimiento y no acepta pedidos."
+          >
+            <div className="ecu-companies-form__grid">
+              <div className="ecu-companies-form__field sri-config-field--check-align">
+                <CheckButton
+                  variant="ghost"
+                  checked={maintenanceEnabled}
+                  onChange={setMaintenanceEnabled}
+                  disabled={saving}
+                >
+                  Tienda en mantenimiento
+                </CheckButton>
+              </div>
+              <div className="ecu-companies-form__field">
+                <TextArea
+                  id="storefront-maintenance-message"
+                  label="Mensaje para el comprador (opcional)"
+                  labelPosition="outlined"
+                  variant="outline"
+                  rows={3}
+                  maxLength={MAINTENANCE_MESSAGE_MAX_LENGTH}
+                  value={maintenanceMessage}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setMaintenanceMessage(e.target.value)}
+                  placeholder="Ej. Estamos actualizando la tienda. Volvemos en unas horas."
+                  disabled={saving}
+                  fullWidth
+                />
+                <p className="ecu-companies-form__hint">
+                  Se muestra en la pantalla de mantenimiento. Máximo {MAINTENANCE_MESSAGE_MAX_LENGTH}{' '}
+                  caracteres.
+                </p>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="ecu-storefront-settings__card--full"
             title="Contactos bloqueados"
             info="Correos y teléfonos que no pueden generar pedidos en la tienda."
           >
@@ -842,149 +995,7 @@ export function StorefrontSettingsPage() {
               </div>
             )}
           </SectionCard>
-
-          <SectionCard
-            title="Compra mínima"
-            info="Monto mínimo del pedido para aceptar compras en la tienda online."
-          >
-            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
-              <div className="ecu-companies-form__field">
-                <NumberBox
-                  id="storefront-min-order-amount"
-                  label="Pedido mínimo de la tienda (USD)"
-                  labelPosition="outlined"
-                  variant="outline"
-                  min={MIN_MIN_ORDER_AMOUNT}
-                  max={MAX_MIN_ORDER_AMOUNT}
-                  step={0.01}
-                  showSpinButtons
-                  value={minOrderAmount}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setMinOrderAmount(Number(e.target.value) || 0)
-                  }
-                  disabled={saving}
-                  fullWidth
-                />
-              </div>
-              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                <p className="ecu-companies-form__hint" style={{ marginTop: '1.1rem' }}>
-                  Si el subtotal del pedido no alcanza este monto, la tienda no permite
-                  finalizar la compra. Déjalo en 0 para no exigir un mínimo (máximo{' '}
-                  {MAX_MIN_ORDER_AMOUNT} USD).
-                </p>
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Reservas"
-            info="Reserva de stock y tiempo que se retiene un pedido sin pago confirmado."
-          >
-            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
-              <div className="ecu-companies-form__field">
-                <NumberBox
-                  id="storefront-hold-hours"
-                  label="Horas de reserva"
-                  labelPosition="outlined"
-                  variant="outline"
-                  min={MIN_PAYMENT_HOLD_HOURS}
-                  max={MAX_PAYMENT_HOLD_HOURS}
-                  step={1}
-                  showSpinButtons
-                  value={holdHours}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setHoldHours(Number(e.target.value) || 0)
-                  }
-                  disabled={saving}
-                  fullWidth
-                />
-              </div>
-              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                <p className="ecu-companies-form__hint" style={{ marginTop: '1.1rem' }}>
-                  Horas que se reserva el stock sin pago confirmado. Rango permitido:{' '}
-                  {MIN_PAYMENT_HOLD_HOURS} a {MAX_PAYMENT_HOLD_HOURS} horas (por defecto{' '}
-                  {DEFAULT_PAYMENT_HOLD_HOURS}).
-                </p>
-              </div>
-              <div className="ecu-companies-form__field ecu-companies-form__field--check-align">
-                <CheckButton
-                  variant="ghost"
-                  checked={reserveOnOrder}
-                  onChange={setReserveOnOrder}
-                  disabled={saving}
-                >
-                  Reservar stock al crear el pedido
-                </CheckButton>
-              </div>
-              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                <p className="ecu-companies-form__hint" style={{ marginTop: '0.75rem' }}>
-                  Si está desactivado, el stock se reserva al confirmar el pago.
-                </p>
-              </div>
-              <div className="ecu-companies-form__field">
-                <NumberBox
-                  id="storefront-max-pending-orders"
-                  label="Máximo de pedidos pendientes por contacto"
-                  labelPosition="outlined"
-                  variant="outline"
-                  min={MIN_MAX_PENDING_ORDERS}
-                  max={MAX_MAX_PENDING_ORDERS}
-                  step={1}
-                  showSpinButtons
-                  value={maxPendingOrders}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setMaxPendingOrders(Number(e.target.value) || 0)
-                  }
-                  disabled={saving}
-                  fullWidth
-                />
-              </div>
-              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                <p className="ecu-companies-form__hint" style={{ marginTop: '1.1rem' }}>
-                  Pedidos impagos que puede acumular un mismo correo o teléfono. Rango permitido:{' '}
-                  {MIN_MAX_PENDING_ORDERS} a {MAX_MAX_PENDING_ORDERS} (por defecto{' '}
-                  {DEFAULT_MAX_PENDING_ORDERS}).
-                </p>
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Mantenimiento"
-            info="Mientras esté activo, la tienda muestra una pantalla de mantenimiento y no acepta pedidos."
-          >
-            <div className="ecu-companies-form__grid ecu-companies-form__grid--3">
-              <div className="ecu-companies-form__field sri-config-field--check-align">
-                <CheckButton
-                  variant="ghost"
-                  checked={maintenanceEnabled}
-                  onChange={setMaintenanceEnabled}
-                  disabled={saving}
-                >
-                  Tienda en mantenimiento
-                </CheckButton>
-              </div>
-              <div className="ecu-companies-form__field ecu-companies-form__field--span-2">
-                <TextArea
-                  id="storefront-maintenance-message"
-                  label="Mensaje para el comprador (opcional)"
-                  labelPosition="outlined"
-                  variant="outline"
-                  rows={3}
-                  maxLength={MAINTENANCE_MESSAGE_MAX_LENGTH}
-                  value={maintenanceMessage}
-                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setMaintenanceMessage(e.target.value)}
-                  placeholder="Ej. Estamos actualizando la tienda. Volvemos en unas horas."
-                  disabled={saving}
-                  fullWidth
-                />
-                <p className="ecu-companies-form__hint">
-                  Se muestra en la pantalla de mantenimiento. Máximo {MAINTENANCE_MESSAGE_MAX_LENGTH}{' '}
-                  caracteres.
-                </p>
-              </div>
-            </div>
-          </SectionCard>
+        </div>
 
           <div className="ecu-companies-form__actions">
             <Button type="submit" variant="primary" loading={saving} disabled={saving}>

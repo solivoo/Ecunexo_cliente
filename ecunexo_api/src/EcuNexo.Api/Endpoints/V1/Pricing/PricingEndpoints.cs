@@ -7,6 +7,7 @@ using EcuNexo.Business.Abstractions;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Pricing.Commands.CreatePriceList;
 using EcuNexo.Business.Pricing.Commands.BulkCreateProductPrices;
+using EcuNexo.Business.Pricing.Commands.BulkUpsertMatrixPrices;
 using EcuNexo.Business.Pricing.Commands.CreateProductPrice;
 using EcuNexo.Business.Pricing.Commands.CreatePromotion;
 using EcuNexo.Business.Pricing.Commands.DeletePriceList;
@@ -22,6 +23,7 @@ using EcuNexo.Business.Pricing.Commands.DeleteVolumeDiscountScheme;
 using EcuNexo.Business.Pricing.Commands.UpdateVolumeDiscountScheme;
 using EcuNexo.Business.Pricing.Queries.GetPriceHistory;
 using EcuNexo.Business.Pricing.Queries.GetProductPrice;
+using EcuNexo.Business.Pricing.Queries.GetProductPriceMatrix;
 using EcuNexo.Business.Pricing.Queries.GetVolumeDiscountScheme;
 using EcuNexo.Business.Pricing.Queries.ListPriceLists;
 using EcuNexo.Business.Pricing.Queries.ListProductPrices;
@@ -66,6 +68,13 @@ public static class PricingEndpoints
 
         prices.MapGet("/", ListProductPricesAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.read"));
+        prices.MapGet("/matrix", GetProductPriceMatrixAsync)
+            .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.read"));
+        prices.MapPost("/matrix/bulk-upsert", BulkUpsertMatrixPricesAsync)
+            .AddEndpointFilter(
+                PermissionFilters.RequireAny(
+                    "catalog.pricing.create",
+                    "catalog.pricing.update"));
         prices.MapGet("/{priceId:guid}", GetProductPriceAsync)
             .AddEndpointFilter(PermissionFilters.Require("catalog.pricing.read"));
         prices.MapPost("/bulk", BulkCreateProductPricesAsync)
@@ -215,6 +224,64 @@ public static class PricingEndpoints
         var result = await sender
             .AskAsync<ListProductPricesQuery, IReadOnlyList<ProductPriceListItemResponse>>(
                 new ListProductPricesQuery(tenantId, search, priceListId, date, onlyVigent ?? true, catalogItemId),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> GetProductPriceMatrixAsync(
+        Guid tenantId,
+        int? page,
+        int? pageSize,
+        string? search,
+        bool? onlyMissing,
+        string? priceListIds,
+        DateOnly? date,
+        ISender sender,
+        CancellationToken ct)
+    {
+        IReadOnlyCollection<Guid>? parsedListIds = null;
+        if (!string.IsNullOrWhiteSpace(priceListIds))
+        {
+            var list = new List<Guid>();
+            foreach (var token in priceListIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (Guid.TryParse(token, out var id))
+                {
+                    list.Add(id);
+                }
+            }
+
+            if (list.Count > 0)
+            {
+                parsedListIds = list;
+            }
+        }
+
+        var result = await sender
+            .AskAsync<GetProductPriceMatrixQuery, ProductPriceMatrixPageResponse>(
+                new GetProductPriceMatrixQuery(
+                    tenantId,
+                    page ?? 1,
+                    pageSize ?? 25,
+                    search,
+                    onlyMissing ?? false,
+                    parsedListIds,
+                    date),
+                ct)
+            .ConfigureAwait(false);
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> BulkUpsertMatrixPricesAsync(
+        Guid tenantId,
+        BulkUpsertMatrixPricesRequest body,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .SendAsync<BulkUpsertMatrixPricesCommand, BulkUpsertMatrixPricesResponse>(
+                body.ToCommand(tenantId),
                 ct)
             .ConfigureAwait(false);
         return result.ToHttpResult();

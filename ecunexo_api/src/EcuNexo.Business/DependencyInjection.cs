@@ -492,6 +492,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<DeletePriceListCommand, DeletePriceListResponse>, DeletePriceListHandler>();
         services.AddScoped<ICommandHandler<CreateProductPriceCommand, CreateProductPriceResponse>, CreateProductPriceHandler>();
         services.AddScoped<ICommandHandler<BulkCreateProductPricesCommand, BulkCreateProductPricesResponse>, BulkCreateProductPricesHandler>();
+        services.AddScoped<ICommandHandler<EcuNexo.Business.Pricing.Commands.BulkUpsertMatrixPrices.BulkUpsertMatrixPricesCommand, EcuNexo.Business.Pricing.Commands.BulkUpsertMatrixPrices.BulkUpsertMatrixPricesResponse>, EcuNexo.Business.Pricing.Commands.BulkUpsertMatrixPrices.BulkUpsertMatrixPricesHandler>();
         services.AddScoped<ICommandHandler<UpdateProductPriceCommand, UpdateProductPriceResponse>, UpdateProductPriceHandler>();
         services.AddScoped<ICommandHandler<DeleteProductPriceCommand, DeleteProductPriceResponse>, DeleteProductPriceHandler>();
         services.AddScoped<ICommandHandler<CreatePromotionCommand, CreatePromotionResponse>, CreatePromotionHandler>();
@@ -500,6 +501,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<SetPromotionActiveCommand, SetPromotionActiveResponse>, SetPromotionActiveHandler>();
         services.AddScoped<IQueryHandler<ListPriceListsQuery, IReadOnlyList<PriceListResponse>>, ListPriceListsHandler>();
         services.AddScoped<IQueryHandler<ListProductPricesQuery, IReadOnlyList<ProductPriceListItemResponse>>, ListProductPricesHandler>();
+        services.AddScoped<IQueryHandler<EcuNexo.Business.Pricing.Queries.GetProductPriceMatrix.GetProductPriceMatrixQuery, ProductPriceMatrixPageResponse>, EcuNexo.Business.Pricing.Queries.GetProductPriceMatrix.GetProductPriceMatrixHandler>();
         services.AddScoped<IQueryHandler<GetProductPriceQuery, ProductPriceDetailResponse>, GetProductPriceHandler>();
         services.AddScoped<IQueryHandler<GetPriceHistoryQuery, IReadOnlyList<PriceHistoryItemResponse>>, GetPriceHistoryHandler>();
         services.AddScoped<IQueryHandler<ListPromotionsQuery, IReadOnlyList<PromotionResponse>>, ListPromotionsHandler>();

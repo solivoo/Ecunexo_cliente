@@ -1,0 +1,40 @@
+/* Configuración de tienda: 5 columnas en escritorio; una columna en pantallas menores. */
+.ecu-storefront-settings__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.ecu-storefront-settings__grid > .ecu-section-card {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.ecu-storefront-settings__payments {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 1280px) {
+  .ecu-storefront-settings__grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .ecu-storefront-settings__grid > .ecu-storefront-settings__card--full {
+    grid-column: 1 / -1;
+  }
+
+  .ecu-storefront-settings__grid > .ecu-storefront-settings__card--span-2 {
+    grid-column: span 2;
+  }
+
+  .ecu-storefront-settings__grid > .ecu-storefront-settings__card--span-3 {
+    grid-column: span 3;
+  }
+
+  .ecu-storefront-settings__payments {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}

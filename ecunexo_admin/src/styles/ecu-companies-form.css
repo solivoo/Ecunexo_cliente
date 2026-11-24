@@ -69,6 +69,14 @@
   --glb-field-canvas: var(--glb-surface, var(--shell-surface));
 }
 
+.ecu-grid--centered-headers .glb-datagrid__header-cell,
+.ecu-grid--centered-headers .glb-datagrid__header-inner,
+.ecu-grid--centered-headers .glb-datagrid__header-button,
+.ecu-grid--centered-headers .glb-datagrid__header-label {
+  text-align: center;
+  justify-content: center;
+}
+
 .ecu-companies-grid__actions {
   display: flex;
   flex-wrap: nowrap;

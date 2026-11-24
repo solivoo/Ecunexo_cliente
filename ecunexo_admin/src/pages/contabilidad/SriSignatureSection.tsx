@@ -414,28 +414,28 @@ export function SriSignatureSection({
                 helperText="Se validará en memoria y se cifrará con AES-256-GCM"
                 fullWidth
               />
-
-              <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                <Button
-                  variant="primary"
-                  size="md"
-                  disabled={disabled || uploading || certFiles.length === 0 || !uploadPassword.trim()}
-                  onClick={() => void handleUploadCertificate()}
-                >
-                  {uploading ? (
-                    <>
-                      <RefreshCw size={15} className="animate-spin" />
-                      Validando y cifrando firma...
-                    </>
-                  ) : (
-                    <>
-                      <UploadCloud size={15} />
-                      Cargar y Validar Firma
-                    </>
-                  )}
-                </Button>
-              </div>
             </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+            <Button
+              variant="primary"
+              size="md"
+              disabled={disabled || uploading || certFiles.length === 0 || !uploadPassword.trim()}
+              onClick={() => void handleUploadCertificate()}
+            >
+              {uploading ? (
+                <>
+                  <RefreshCw size={15} className="animate-spin" />
+                  Validando y cifrando firma...
+                </>
+              ) : (
+                <>
+                  <UploadCloud size={15} />
+                  Cargar y Validar Firma
+                </>
+              )}
+            </Button>
           </div>
         </div>
       )}

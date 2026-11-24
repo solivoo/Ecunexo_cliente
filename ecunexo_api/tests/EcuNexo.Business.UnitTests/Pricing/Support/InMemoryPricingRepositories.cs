@@ -178,6 +178,39 @@ internal sealed class InMemoryProductPriceRepository : IProductPriceRepository
         return Task.FromResult(rows);
     }
 
+    public Task<ProductPriceMatrixPageResponse> GetMatrixPageAsync(
+        ProductPriceMatrixFilter filter,
+        CancellationToken ct) =>
+        Task.FromResult(new ProductPriceMatrixPageResponse(
+            Array.Empty<PriceListResponse>(),
+            Array.Empty<ProductPriceMatrixRowResponse>(),
+            0,
+            0,
+            0,
+            filter.Page,
+            filter.PageSize));
+
+    public Task<IReadOnlyList<ProductPrice>> ListTrackedForBulkUpsertAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> priceListIds,
+        IReadOnlyCollection<Guid> catalogItemIds,
+        DateOnly validFrom,
+        DateOnly? validTo,
+        CancellationToken ct)
+    {
+        var maxDate = validTo ?? DateOnly.MaxValue;
+        IReadOnlyList<ProductPrice> result = _items
+            .Where(p => p.TenantId == tenantId
+                && priceListIds.Contains(p.PriceListId)
+                && catalogItemIds.Contains(p.CatalogItemId)
+                && (p.ValidFrom == validFrom
+                    || (p.IsActive
+                        && p.ValidFrom <= maxDate
+                        && (p.ValidTo is null || p.ValidTo.Value >= validFrom))))
+            .ToList();
+        return Task.FromResult(result);
+    }
+
     private ProductPrice? Find(Guid tenantId, Guid productPriceId) =>
         _items.FirstOrDefault(p => p.TenantId == tenantId && p.Id == productPriceId);
 }

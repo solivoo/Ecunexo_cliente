@@ -43,7 +43,6 @@ import { ProductTemplateBuilderPage } from '@/pages/catalog/ProductTemplateBuild
 import { PriceListsListPage } from '@/pages/catalog/pricing/PriceListsListPage'
 import { PriceListFormPage } from '@/pages/catalog/pricing/PriceListFormPage'
 import { ProductPricesBulkPage } from '@/pages/catalog/pricing/ProductPricesBulkPage'
-import { ProductPricesMatrixPage } from '@/pages/catalog/pricing/ProductPricesMatrixPage'
 import { ProductPricesListPage } from '@/pages/catalog/pricing/ProductPricesListPage'
 import { ProductPriceFormPage } from '@/pages/catalog/pricing/ProductPriceFormPage'
 import { PromotionsListPage } from '@/pages/catalog/pricing/PromotionsListPage'
@@ -52,8 +51,6 @@ import { PriceHistoryPage } from '@/pages/catalog/pricing/PriceHistoryPage'
 import { PriceSimulatorPage } from '@/pages/catalog/pricing/PriceSimulatorPage'
 import { VolumeDiscountSchemesListPage } from '@/pages/catalog/pricing/VolumeDiscountSchemesListPage'
 import { ShippingMethodsPage } from '@/pages/ecommerce/shipping/ShippingMethodsPage'
-import { ShippingZonesPage } from '@/pages/ecommerce/shipping/ShippingZonesPage'
-import { ShippingRatesMatrixPage } from '@/pages/ecommerce/shipping/ShippingRatesMatrixPage'
 import { CantonShippingRatesPage } from '@/pages/ecommerce/shipping/CantonShippingRatesPage'
 import { CreateStockReservationPage } from '@/pages/ecommerce/CreateStockReservationPage'
 import { StockReservationsPage } from '@/pages/ecommerce/StockReservationsPage'
@@ -183,9 +180,9 @@ export const routes: RouteObject[] = [
           { path: 'catalogo/precios/productos', element: <ProductPricesListPage /> },
           { path: 'catalogo/precios/productos/nuevo', element: <ProductPriceFormPage /> },
           { path: 'catalogo/precios/productos/masivo', element: <ProductPricesBulkPage /> },
-          { path: 'catalogo/precios/matriz', element: <ProductPricesMatrixPage /> },
+          { path: 'catalogo/precios/matriz', element: <Navigate to="/catalogo/precios/productos" replace /> },
           { path: 'catalogo/precios/escalas-volumen', element: <VolumeDiscountSchemesListPage /> },
-          { path: 'catalogo/precios/envios', element: <Navigate to="/ecommerce/envios/tarifas" replace /> },
+          { path: 'catalogo/precios/envios', element: <Navigate to="/ecommerce/envios/cantones" replace /> },
           { path: 'catalogo/precios/productos/:priceId', element: <ProductPriceFormPage /> },
           { path: 'catalogo/precios/promociones', element: <PromotionsListPage /> },
           { path: 'catalogo/precios/promociones/nueva', element: <PromotionFormPage /> },
@@ -219,8 +216,8 @@ export const routes: RouteObject[] = [
           { path: 'ecommerce/reservas/nueva', element: <CreateStockReservationPage /> },
           { path: 'ecommerce/envios', element: <Navigate to="/ecommerce/envios/metodos" replace /> },
           { path: 'ecommerce/envios/metodos', element: <ShippingMethodsPage /> },
-          { path: 'ecommerce/envios/zonas', element: <ShippingZonesPage /> },
-          { path: 'ecommerce/envios/tarifas', element: <ShippingRatesMatrixPage /> },
+          { path: 'ecommerce/envios/zonas', element: <Navigate to="/ecommerce/envios/cantones" replace /> },
+          { path: 'ecommerce/envios/tarifas', element: <Navigate to="/ecommerce/envios/cantones" replace /> },
           { path: 'ecommerce/envios/cantones', element: <CantonShippingRatesPage /> },
           { path: 'ecommerce/vitrina', element: <StorefrontDomainsPage /> },
           { path: 'ecommerce/configuracion', element: <StorefrontSettingsPage /> },

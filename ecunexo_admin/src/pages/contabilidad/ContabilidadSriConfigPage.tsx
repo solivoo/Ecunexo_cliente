@@ -419,19 +419,6 @@ export function ContabilidadSriConfigPage() {
             {statusLabel}
           </StatusBadge>
         }
-        actions={
-          canUpdate ? (
-            <Button
-              type="button"
-              variant="primary"
-              disabled={formDisabled}
-              loading={busy}
-              onClick={() => void onSubmit()}
-            >
-              {busy ? 'Guardando…' : 'Guardar'}
-            </Button>
-          ) : undefined
-        }
       />
 
       <PageLoadState

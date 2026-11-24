@@ -168,3 +168,39 @@ public sealed record PromotionResponse(
     decimal? MinOrderAmount = null,
     int? UsageLimit = null,
     int TimesUsed = 0);
+
+public sealed record ProductPriceMatrixFilter(
+    Guid TenantId,
+    int Page,
+    int PageSize,
+    string? Search,
+    bool OnlyMissing,
+    IReadOnlyCollection<Guid>? PriceListIds,
+    DateOnly Date);
+
+public sealed record ProductPriceMatrixCellResponse(
+    Guid PriceId,
+    decimal Price,
+    DateOnly ValidFrom,
+    Guid? VolumeDiscountSchemeId = null,
+    string? VolumeDiscountSchemeName = null);
+
+public sealed record ProductPriceMatrixRowResponse(
+    Guid CatalogItemId,
+    string Name,
+    string? Sku,
+    EcuNexo.Core.Catalog.CatalogItemKind Kind,
+    decimal? ReferenceCost,
+    string? CostSource,
+    Guid? VolumeDiscountSchemeId,
+    string? VolumeDiscountSchemeName,
+    IReadOnlyDictionary<Guid, ProductPriceMatrixCellResponse> Cells);
+
+public sealed record ProductPriceMatrixPageResponse(
+    IReadOnlyList<PriceListResponse> PriceLists,
+    IReadOnlyList<ProductPriceMatrixRowResponse> Items,
+    int TotalCount,
+    int TotalSellableItems,
+    int ItemsMissingAnyPrice,
+    int Page,
+    int PageSize);

@@ -1,0 +1,14 @@
+/* Título en su propia fila; filtros debajo, a todo el ancho. */
+.ecu-section-card--stacked-header .ecu-section-card__header {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.ecu-section-card--stacked-header .ecu-section-card__title-wrap {
+  flex: 0 0 auto;
+}
+
+.ecu-section-card--stacked-header .ecu-section-card__action {
+  width: 100%;
+  justify-content: flex-start;
+}

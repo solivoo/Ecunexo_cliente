@@ -199,24 +199,13 @@
             "children": []
           },
           {
-            "id": "catalog-pricing-matrix",
-            "label": "Matriz de precios",
-            "route": "catalogo/precios/matriz",
-            "icon": "table",
-            "requiredPermission": "catalog.pricing.read",
-            "requiredModule": "catalog",
-            "order": 3,
-            "placeholder": false,
-            "children": []
-          },
-          {
             "id": "catalog-pricing-volume-schemes",
             "label": "Escalas por cantidad",
             "route": "catalogo/precios/escalas-volumen",
             "icon": "layers",
             "requiredPermission": "catalog.pricing.read",
             "requiredModule": "catalog",
-            "order": 4,
+            "order": 3,
             "placeholder": false,
             "children": []
           },
@@ -250,17 +239,6 @@
             "requiredPermission": "catalog.pricing.read",
             "requiredModule": "catalog",
             "order": 7,
-            "placeholder": false,
-            "children": []
-          },
-          {
-            "id": "catalog-pricing-shipping",
-            "label": "Tarifas de envío",
-            "route": "catalogo/precios/envios",
-            "icon": "truck",
-            "requiredPermission": "catalog.pricing.read",
-            "requiredModule": "catalog",
-            "order": 8,
             "placeholder": false,
             "children": []
           }

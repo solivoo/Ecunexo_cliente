@@ -390,3 +390,60 @@ export type CartPricingResultDto = {
   finalPrice: number
   appliedRules: string[]
 }
+
+export type ProductPriceMatrixCellDto = {
+  priceId: string
+  price: number
+  validFrom: string
+  volumeDiscountSchemeId?: string | null
+  volumeDiscountSchemeName?: string | null
+}
+
+export type ProductPriceMatrixRowDto = {
+  catalogItemId: string
+  name: string
+  sku: string | null
+  kind: number
+  referenceCost: number | null
+  costSource: 'stock' | 'catalog' | null
+  volumeDiscountSchemeId: string | null
+  volumeDiscountSchemeName: string | null
+  cells: Record<string, ProductPriceMatrixCellDto | undefined>
+}
+
+export type ProductPriceMatrixPageDto = {
+  priceLists: PriceListDto[]
+  items: ProductPriceMatrixRowDto[]
+  totalCount: number
+  totalSellableItems: number
+  itemsMissingAnyPrice: number
+  page: number
+  pageSize: number
+}
+
+export type ProductPriceMatrixFilters = {
+  page?: number
+  pageSize?: number
+  search?: string
+  onlyMissing?: boolean
+  priceListIds?: string[]
+  date?: string
+}
+
+export type MatrixPriceUpsertEntryBody = {
+  priceListId: string
+  catalogItemId: string
+  price: number
+}
+
+export type BulkUpsertMatrixPricesBody = {
+  validFrom: string
+  validTo: string | null
+  reason: string | null
+  entries: MatrixPriceUpsertEntryBody[]
+}
+
+export type BulkUpsertMatrixPricesResponse = {
+  updatedCount: number
+  createdCount: number
+}

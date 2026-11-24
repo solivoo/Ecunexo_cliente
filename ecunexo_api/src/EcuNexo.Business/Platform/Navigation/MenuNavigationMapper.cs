@@ -186,8 +186,7 @@ internal static class MenuNavigationMapper
         "ecommerce-orders",
         "ecommerce-shipping-group",
         "ecommerce-shipping-methods",
-        "ecommerce-shipping-zones",
-        "ecommerce-shipping-rates",
+        "ecommerce-shipping-cantons",
     };
 
     private static string ResolveEffectiveModuleCode(MenuItem item)

@@ -43,4 +43,16 @@ public interface IProductPriceRepository
         CancellationToken ct);
 
     Task<IReadOnlyList<ProductPriceListRow>> ListAsync(ProductPriceFilter filter, CancellationToken ct);
+
+    Task<ProductPriceMatrixPageResponse> GetMatrixPageAsync(
+        ProductPriceMatrixFilter filter,
+        CancellationToken ct);
+
+    Task<IReadOnlyList<ProductPrice>> ListTrackedForBulkUpsertAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> priceListIds,
+        IReadOnlyCollection<Guid> catalogItemIds,
+        DateOnly validFrom,
+        DateOnly? validTo,
+        CancellationToken ct);
 }

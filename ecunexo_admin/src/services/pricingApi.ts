@@ -1,6 +1,8 @@
 import { api } from '@/lib/apiClient'
 import type {
   BulkCreateProductPricesBody,
+  BulkUpsertMatrixPricesBody,
+  BulkUpsertMatrixPricesResponse,
   CartPricingResultDto,
   CreatePriceListBody,
   CreateProductPriceBody,
@@ -12,6 +14,8 @@ import type {
   ProductPriceDetailDto,
   ProductPriceFilters,
   ProductPriceListItemDto,
+  ProductPriceMatrixFilters,
+  ProductPriceMatrixPageDto,
   PromotionDto,
   ResolveCartBody,
   ResolvePriceBody,
@@ -81,6 +85,31 @@ export async function bulkCreateProductPrices(
 ): Promise<{ priceListId: string; createdCount: number }> {
   const { data } = await api.post<{ priceListId: string; createdCount: number }>(
     `${base(tenantId)}/prices/bulk`,
+    body
+  )
+  return data
+}
+
+export async function getProductPriceMatrix(
+  tenantId: string,
+  filters: ProductPriceMatrixFilters = {}
+): Promise<ProductPriceMatrixPageDto> {
+  const { priceListIds, ...rest } = filters
+  const { data } = await api.get<ProductPriceMatrixPageDto>(`${base(tenantId)}/prices/matrix`, {
+    params: {
+      ...rest,
+      priceListIds: priceListIds && priceListIds.length > 0 ? priceListIds.join(',') : undefined,
+    },
+  })
+  return data
+}
+
+export async function bulkUpsertMatrixPrices(
+  tenantId: string,
+  body: BulkUpsertMatrixPricesBody
+): Promise<BulkUpsertMatrixPricesResponse> {
+  const { data } = await api.post<BulkUpsertMatrixPricesResponse>(
+    `${base(tenantId)}/prices/matrix/bulk-upsert`,
     body
   )
   return data

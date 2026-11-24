@@ -1,5 +1,6 @@
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Pricing.Commands.BulkCreateProductPrices;
+using EcuNexo.Business.Pricing.Commands.BulkUpsertMatrixPrices;
 using EcuNexo.Business.Pricing.Commands.CreateProductPrice;
 using EcuNexo.Business.Pricing.Commands.UpdateProductPrice;
 using EcuNexo.Business.Pricing.Queries.ResolvePrice;
@@ -84,4 +85,27 @@ public sealed record BulkCreateProductPricesRequest(
                 i.Price,
                 i.Tiers?.Select(t => new PriceTierInput(t.QuantityFrom, t.QuantityTo, t.UnitPrice)).ToList(),
                 i.VolumeDiscountSchemeId)).ToList());
+}
+
+public sealed record MatrixPriceUpsertEntryRequest(
+    Guid PriceListId,
+    Guid CatalogItemId,
+    decimal Price);
+
+public sealed record BulkUpsertMatrixPricesRequest(
+    DateOnly ValidFrom,
+    DateOnly? ValidTo,
+    string? Reason,
+    IReadOnlyList<MatrixPriceUpsertEntryRequest> Entries)
+{
+    public BulkUpsertMatrixPricesCommand ToCommand(Guid tenantId) =>
+        new(
+            tenantId,
+            ValidFrom,
+            ValidTo,
+            Reason,
+            Entries.Select(e => new MatrixPriceUpsertEntryInput(
+                e.PriceListId,
+                e.CatalogItemId,
+                e.Price)).ToList());
 }

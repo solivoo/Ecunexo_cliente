@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, DataGrid, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
-import { Calculator, CheckSquare, Layers, Pencil, Trash2, X } from 'lucide-react'
+import { Button, DataGrid, OptionGroup, Popup, Select, TextBox, useToast, type ColumnDef } from 'glubox'
+import { Calculator, CheckSquare, Layers, List, Pencil, Table2, Trash2, X } from 'lucide-react'
 import {
   EmptyState,
   GridIconButton,
@@ -17,6 +17,7 @@ import { formatDate } from '@/lib/formatDate'
 import { createSpanishDataGridMessages } from '@/lib/gluDataGridMessages'
 import { readApiError } from '@/lib/readApiError'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
+import { useGluComponentSize } from '@/hooks/useGluComponentSize'
 import {
   calculateMarginPercent,
   formatMoney,
@@ -24,6 +25,7 @@ import {
   todayIso,
   volumeSchemeTypeLabel,
 } from '@/pages/catalog/pricing/pricingFormat'
+import { ProductPricesMatrixSection } from '@/pages/catalog/pricing/ProductPricesMatrixSection'
 import { listCatalogItems } from '@/services/catalogApi'
 import {
   assignVolumeDiscountScheme,
@@ -45,31 +47,23 @@ type ProductPriceRow = ProductPriceListItemDto & {
   templateName?: string | null
 } & Record<string, unknown>
 
-type GroupedProductPriceRow = {
-  [key: string]: unknown
-  catalogItemId: string
-  itemName: string
-  sku: string | null
-  templateName: string | null
-  volumeDiscountSchemeName: string | null
-  volumeDiscountSchemeId: string | null
-  prices: Record<
-    string,
-    { id: string; price: number; validFrom: string; validTo: string | null; isActive: boolean } | undefined
-  >
-}
+type PricingViewMode = 'matrix' | 'records'
 
 const gridMessages = createSpanishDataGridMessages('precio', 'precios')
 
 export function ProductPricesListPage() {
   const toast = useToast()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const tenantId = useAppSelector(selectTenantId)
   const canRead = useHasPermission('catalog.pricing.read')
   const canCreate = useHasPermission('catalog.pricing.create')
   const canEdit = useHasPermission('catalog.pricing.update')
   const canDelete = useHasPermission('catalog.pricing.delete')
+
+  const [viewMode, setViewMode] = useState<PricingViewMode>(() =>
+    searchParams.get('priceListId') || searchParams.get('tab') === 'records' ? 'records' : 'matrix'
+  )
 
   const [rows, setRows] = useState<ProductPriceListItemDto[]>([])
   const [lists, setLists] = useState<PriceListDto[]>([])
@@ -78,8 +72,8 @@ export function ProductPricesListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Filtros y pestañas
-  const [activeTab, setActiveTab] = useState<string>(() => searchParams.get('priceListId') ?? '__grouped__')
+  // Filtros y pestañas (vista Registros y vigencias)
+  const [activeTab, setActiveTab] = useState<string>(() => searchParams.get('priceListId') ?? '__all__')
   const [search, setSearch] = useState('')
   const [listFilter, setListFilter] = useState(() => searchParams.get('priceListId') ?? '')
   const [templateFilter, setTemplateFilter] = useState('')
@@ -96,15 +90,28 @@ export function ProductPricesListPage() {
   const [deleting, setDeleting] = useState(false)
 
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
+  const size = useGluComponentSize()
+
+  const handleViewModeChange = useCallback(
+    (next: PricingViewMode) => {
+      setViewMode(next)
+      setSelectedIds([])
+      const nextParams = new URLSearchParams(searchParams)
+      if (next === 'records') {
+        nextParams.set('tab', 'records')
+      } else {
+        nextParams.delete('tab')
+        nextParams.delete('priceListId')
+      }
+      setSearchParams(nextParams, { replace: true })
+    },
+    [searchParams, setSearchParams]
+  )
 
   const handleTabChange = useCallback((tabId: string) => {
     setActiveTab(tabId)
     setSelectedIds([])
-    if (tabId === '__grouped__' || tabId === '__all__') {
-      setListFilter('')
-    } else {
-      setListFilter(tabId)
-    }
+    setListFilter(tabId === '__all__' ? '' : tabId)
   }, [])
 
   const load = useCallback(async () => {
@@ -128,19 +135,19 @@ export function ProductPricesListPage() {
     }
   }, [listFilter, search, tenantId, toast, vigencyFilter])
 
-  // Carga inicial de catálogos y esquemas
+  // Carga inicial de catálogos y esquemas (solo cuando la vista de registros está activa)
   useEffect(() => {
-    if (!tenantId || !canRead) return
+    if (!tenantId || !canRead || viewMode !== 'records') return
     void listPriceLists(tenantId, false).then(setLists).catch(() => setLists([]))
     void listVolumeDiscountSchemes(tenantId, true).then(setSchemes).catch(() => setSchemes([]))
     void listCatalogItems(tenantId).then(setCatalogItems).catch(() => setCatalogItems([]))
-  }, [canRead, tenantId])
+  }, [canRead, tenantId, viewMode])
 
   useEffect(() => {
-    if (!canRead) return
+    if (!canRead || viewMode !== 'records') return
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
-  }, [canRead, load])
+  }, [canRead, load, viewMode])
 
   // Mapa de ítems del catálogo para conocer la plantilla / familia de cada producto
   const catalogItemMap = useMemo(() => {
@@ -190,43 +197,22 @@ export function ProductPricesListPage() {
     () => rows.filter((r) => r.isActive && isVigentOn(r.validFrom, r.validTo, today)).length,
     [rows, today]
   )
+  const listFilterOptions = useMemo(
+    () => [
+      { value: '__all__', label: `Todas (${rows.length})` },
+      ...lists.map((l) => ({
+        value: l.id,
+        label: `${l.code} (${rows.filter((r) => r.priceListId === l.id).length})`,
+      })),
+    ],
+    [lists, rows]
+  )
   const uniqueProductCount = useMemo(() => new Set(rows.map((r) => r.catalogItemId)).size, [rows])
   const listCount = useMemo(() => new Set(rows.map((r) => r.priceListId)).size, [rows])
   const withSchemeCount = useMemo(
     () => rows.filter((r) => Boolean(r.volumeDiscountSchemeId)).length,
     [rows]
   )
-
-  const groupedRows = useMemo<GroupedProductPriceRow[]>(() => {
-    const map = new Map<string, GroupedProductPriceRow>()
-    for (const row of displayRows) {
-      let entry = map.get(row.catalogItemId)
-      if (!entry) {
-        entry = {
-          catalogItemId: row.catalogItemId,
-          itemName: row.itemName,
-          sku: row.sku ?? null,
-          templateName: row.templateName ?? null,
-          volumeDiscountSchemeName: row.volumeDiscountSchemeName ?? null,
-          volumeDiscountSchemeId: row.volumeDiscountSchemeId ?? null,
-          prices: {},
-        }
-        map.set(row.catalogItemId, entry)
-      }
-      entry.prices[row.priceListId] = {
-        id: row.id,
-        price: row.price,
-        validFrom: row.validFrom,
-        validTo: row.validTo,
-        isActive: row.isActive,
-      }
-      if (row.volumeDiscountSchemeName && !entry.volumeDiscountSchemeName) {
-        entry.volumeDiscountSchemeName = row.volumeDiscountSchemeName
-        entry.volumeDiscountSchemeId = row.volumeDiscountSchemeId ?? null
-      }
-    }
-    return Array.from(map.values())
-  }, [displayRows])
 
   const handleDelete = useCallback(async () => {
     if (!tenantId || !confirm) return
@@ -258,17 +244,11 @@ export function ProductPricesListPage() {
     setAssigningBulk(true)
     try {
       const byPriceList = new Map<string, string[]>()
-      if (activeTab === '__grouped__') {
-        for (const list of lists.filter((l) => l.isActive)) {
-          byPriceList.set(list.id, selectedIds)
-        }
-      } else {
-        const selectedRows = displayRows.filter((r) => selectedIds.includes(r.id))
-        for (const row of selectedRows) {
-          const list = byPriceList.get(row.priceListId) ?? []
-          list.push(row.catalogItemId)
-          byPriceList.set(row.priceListId, list)
-        }
+      const selectedRows = displayRows.filter((r) => selectedIds.includes(r.id))
+      for (const row of selectedRows) {
+        const list = byPriceList.get(row.priceListId) ?? []
+        list.push(row.catalogItemId)
+        byPriceList.set(row.priceListId, list)
       }
 
       let totalAssigned = 0
@@ -301,10 +281,22 @@ export function ProductPricesListPage() {
     } finally {
       setAssigningBulk(false)
     }
-  }, [activeTab, displayRows, lists, load, schemes, selectedIds, targetSchemeId, tenantId, toast])
+  }, [displayRows, load, schemes, selectedIds, targetSchemeId, tenantId, toast])
 
   const columns = useMemo((): ColumnDef<ProductPriceRow>[] => {
     const cols: ColumnDef<ProductPriceRow>[] = [
+      {
+        key: 'sku',
+        header: 'SKU',
+        width: 140,
+        sortable: true,
+        renderCell: (_value, row) =>
+          row.sku ? (
+            <code className="ecu-code">{row.sku}</code>
+          ) : (
+            <span className="app-shell__muted">—</span>
+          ),
+      },
       {
         key: 'itemName',
         header: 'Producto',
@@ -313,22 +305,20 @@ export function ProductPricesListPage() {
         renderCell: (_value, row) => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <strong>{row.itemName}</strong>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {row.sku ? <code className="ecu-code">{row.sku}</code> : null}
-              {row.templateName ? (
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--color-text-muted, #64748b)',
-                    background: 'var(--color-surface-subtle, #f1f5f9)',
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                  }}
-                >
-                  {row.templateName}
-                </span>
-              ) : null}
-            </div>
+            {row.templateName ? (
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--color-text-muted, #64748b)',
+                  background: 'var(--color-surface-subtle, #f1f5f9)',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  width: 'fit-content',
+                }}
+              >
+                {row.templateName}
+              </span>
+            ) : null}
           </div>
         ),
       },
@@ -474,143 +464,7 @@ export function ProductPricesListPage() {
     return cols
   }, [canDelete, canEdit, deleting, navigate])
 
-  const groupedColumns = useMemo((): ColumnDef<GroupedProductPriceRow>[] => {
-    const cols: ColumnDef<GroupedProductPriceRow>[] = [
-      {
-        key: 'itemName',
-        header: 'Producto',
-        width: 260,
-        sortable: true,
-        renderCell: (_value, row) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <strong style={{ fontSize: '0.85rem' }}>{row.itemName}</strong>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {row.sku ? <code className="ecu-code">{row.sku}</code> : null}
-              {row.templateName ? (
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--glb-muted, #64748b)',
-                    background: 'var(--shell-surface-subtle, rgba(125, 125, 125, 0.08))',
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                  }}
-                >
-                  {row.templateName}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        ),
-      },
-      {
-        key: 'volumeDiscountSchemeName',
-        header: 'Escala Volumen',
-        width: 180,
-        sortable: true,
-        renderCell: (_value, row) =>
-          row.volumeDiscountSchemeName ? (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'rgba(16, 185, 129, 0.16)',
-                color: '#34d399',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
-                padding: '2px 8px',
-                borderRadius: '6px',
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-              }}
-            >
-              <Layers size={13} />
-              {row.volumeDiscountSchemeName}
-            </span>
-          ) : (
-            <span className="app-shell__muted" style={{ fontSize: '0.8125rem' }}>
-              —
-            </span>
-          ),
-      },
-    ]
-
-    for (const list of lists.filter((l) => l.isActive)) {
-      cols.push({
-        key: `price-${list.id}` as unknown as keyof GroupedProductPriceRow,
-        header: (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            <strong>{list.code}</strong>
-            <span style={{ fontSize: '0.7rem', color: 'var(--glb-muted)', fontWeight: 400 }}>
-              {list.isDefault ? 'Predeterminada' : list.name}
-            </span>
-          </div>
-        ) as unknown as string,
-        width: 140,
-        align: 'right',
-        renderCell: (_value: unknown, row: GroupedProductPriceRow) => {
-          const p = row.prices[list.id]
-          if (!p) {
-            return (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={!canCreate}
-                onClick={() =>
-                  navigate(
-                    `/catalogo/precios/productos/nuevo?catalogItemId=${row.catalogItemId}&priceListId=${list.id}`
-                  )
-                }
-              >
-                + Fijar
-              </Button>
-            )
-          }
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-              <span className="ecu-price" style={{ fontWeight: 600 }}>
-                {formatMoney(p.price)}
-              </span>
-              {canEdit ? (
-                <GridIconButton
-                  label={`Editar precio en ${list.code}`}
-                  icon={Pencil}
-                  onClick={() => navigate(`/catalogo/precios/productos/${p.id}`)}
-                />
-              ) : null}
-            </div>
-          )
-        },
-      } as ColumnDef<GroupedProductPriceRow>)
-    }
-
-    cols.push({
-      key: 'catalogItemId',
-      header: 'Acciones',
-      sticky: 'right',
-      width: 130,
-      align: 'center',
-      sortable: false,
-      renderCell: (_value: unknown, row: GroupedProductPriceRow) => (
-        <div className="ecu-companies-grid__actions">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!canCreate}
-            onClick={() =>
-              navigate(`/catalogo/precios/productos/nuevo?catalogItemId=${row.catalogItemId}`)
-            }
-          >
-            + Nueva vigencia
-          </Button>
-        </div>
-      ),
-    })
-
-    return cols
-  }, [canCreate, canEdit, lists, navigate])
+  const columnOrder = useMemo(() => columns.map((c) => c.key), [columns])
 
   if (!canRead) {
     return (
@@ -631,7 +485,7 @@ export function ProductPricesListPage() {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Precios de Productos"
-          info="Consulta precios vigentes por SKU y lista, asigna escalas por volumen o entra a la Matriz para editar varias listas en línea."
+          info="Edita precios y costos en línea desde la Matriz o consulta el detalle de vigencias, históricos y registros por lista."
           actions={
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Button
@@ -640,13 +494,6 @@ export function ProductPricesListPage() {
                 onClick={() => navigate('/catalogo/precios/escalas-volumen')}
               >
                 Escalas por cantidad
-              </Button>
-              <Button
-                variant="outline"
-                iconLeft={<Layers size={16} />}
-                onClick={() => navigate('/catalogo/precios/matriz')}
-              >
-                Matriz lista × producto
               </Button>
               <Button
                 variant="outline"
@@ -659,6 +506,74 @@ export function ProductPricesListPage() {
           }
         />
 
+        <div
+          role="tablist"
+          aria-label="Modo de visualización de precios"
+          style={{
+            display: 'flex',
+            gap: '0.5rem',
+            flexWrap: 'wrap',
+            borderBottom: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+            paddingBottom: '0.65rem',
+          }}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'matrix'}
+            onClick={() => handleViewModeChange('matrix')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '0.45rem 0.95rem',
+              borderRadius: '6px',
+              border:
+                viewMode === 'matrix'
+                  ? '1px solid var(--glb-primary, #3b82f6)'
+                  : '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+              backgroundColor: viewMode === 'matrix' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+              color: viewMode === 'matrix' ? 'var(--glb-primary, #60a5fa)' : 'var(--glb-text, inherit)',
+              fontWeight: viewMode === 'matrix' ? 600 : 400,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+            }}
+          >
+            <Table2 size={15} />
+            <span>Matriz (edición rápida)</span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'records'}
+            onClick={() => handleViewModeChange('records')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '0.45rem 0.95rem',
+              borderRadius: '6px',
+              border:
+                viewMode === 'records'
+                  ? '1px solid var(--glb-primary, #3b82f6)'
+                  : '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
+              backgroundColor: viewMode === 'records' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+              color: viewMode === 'records' ? 'var(--glb-primary, #60a5fa)' : 'var(--glb-text, inherit)',
+              fontWeight: viewMode === 'records' ? 600 : 400,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+            }}
+          >
+            <List size={15} />
+            <span>Registros y vigencias</span>
+          </button>
+        </div>
+
+        {viewMode === 'matrix' && tenantId ? (
+          <ProductPricesMatrixSection tenantId={tenantId} canManage={canCreate || canEdit} />
+        ) : (
+          <>
         <div className="ecu-stat-grid" aria-label="Resumen de precios">
           <StatCard label="Productos" value={uniqueProductCount} />
           <StatCard label="Vigencias activas" value={vigentCount} />
@@ -686,12 +601,10 @@ export function ProductPricesListPage() {
               <CheckSquare size={20} color="#3b82f6" />
               <div>
                 <strong style={{ color: 'var(--glb-text, var(--shell-text, inherit))', fontSize: '0.9375rem' }}>
-                  {selectedIds.length} {activeTab === '__grouped__' ? 'producto(s)' : 'precio(s)'} seleccionado(s)
+                  {selectedIds.length} precio(s) seleccionado(s)
                 </strong>
                 <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--glb-muted, var(--shell-muted, #93c5fd))' }}>
-                  {activeTab === '__grouped__'
-                    ? 'Se aplicará a los precios vigentes de los productos seleccionados en todas sus listas activas.'
-                    : 'Asigna o cambia la escala de descuento por volumen en las filas seleccionadas.'}
+                  Asigna o cambia la escala de descuento por volumen en las filas seleccionadas.
                 </p>
               </div>
             </div>
@@ -736,7 +649,21 @@ export function ProductPricesListPage() {
           </div>
         ) : null}
 
-        <SectionCard title="Precios registrados">
+        <SectionCard
+          title="Precios registrados"
+          action={
+            <OptionGroup
+              id="pp-list-filter"
+              name="pp-list-filter"
+              options={listFilterOptions}
+              value={activeTab}
+              onChange={(value: string) => handleTabChange(value)}
+              layout="segmented"
+              variant="outline"
+              size={size}
+            />
+          }
+        >
           {error ? (
             <div className="ecu-form-error-banner" role="alert">
               <span className="material-symbols-outlined">error</span>
@@ -744,104 +671,7 @@ export function ProductPricesListPage() {
             </div>
           ) : null}
 
-          {/* Pestañas de Vista y Listas de Precios */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '0.5rem',
-              marginBottom: '1rem',
-              borderBottom: '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
-              paddingBottom: '0.65rem',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--glb-muted, #94a3b8)', marginRight: '0.25rem' }}>
-              Vista:
-            </span>
-
-            <button
-              type="button"
-              onClick={() => handleTabChange('__grouped__')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '0.4rem 0.85rem',
-                borderRadius: '6px',
-                border: activeTab === '__grouped__' ? '1px solid var(--glb-primary, #3b82f6)' : '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
-                backgroundColor: activeTab === '__grouped__' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                color: activeTab === '__grouped__' ? 'var(--glb-primary, #60a5fa)' : 'var(--glb-text, inherit)',
-                fontWeight: activeTab === '__grouped__' ? 600 : 400,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-              }}
-            >
-              <span>Comparativa por lista</span>
-              {groupedRows.length > 0 ? (
-                <span style={{ fontSize: '0.75rem', opacity: 0.8, background: 'rgba(125,125,125,0.2)', padding: '1px 6px', borderRadius: '10px' }}>
-                  {groupedRows.length} productos
-                </span>
-              ) : null}
-            </button>
-
-            {lists.map((l) => {
-              const isSelected = activeTab === l.id
-              const count = rows.filter((r) => r.priceListId === l.id).length
-              return (
-                <button
-                  key={l.id}
-                  type="button"
-                  onClick={() => handleTabChange(l.id)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '0.4rem 0.85rem',
-                    borderRadius: '6px',
-                    border: isSelected ? '1px solid var(--glb-primary, #3b82f6)' : '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
-                    backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                    color: isSelected ? 'var(--glb-primary, #60a5fa)' : 'var(--glb-text, inherit)',
-                    fontWeight: isSelected ? 600 : 400,
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span>{l.code}</span>
-                  {count > 0 ? (
-                    <span style={{ fontSize: '0.75rem', opacity: 0.8, background: 'rgba(125,125,125,0.2)', padding: '1px 6px', borderRadius: '10px' }}>
-                      {count}
-                    </span>
-                  ) : null}
-                </button>
-              )
-            })}
-
-            <button
-              type="button"
-              onClick={() => handleTabChange('__all__')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '0.4rem 0.85rem',
-                borderRadius: '6px',
-                border: activeTab === '__all__' ? '1px solid var(--glb-primary, #3b82f6)' : '1px solid var(--shell-border, rgba(125, 125, 125, 0.2))',
-                backgroundColor: activeTab === '__all__' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                color: activeTab === '__all__' ? 'var(--glb-primary, #60a5fa)' : 'var(--glb-text, inherit)',
-                fontWeight: activeTab === '__all__' ? 600 : 400,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-              }}
-            >
-              <span>Todos los registros</span>
-              <span style={{ fontSize: '0.75rem', opacity: 0.8, background: 'rgba(125,125,125,0.2)', padding: '1px 6px', borderRadius: '10px' }}>
-                {rows.length}
-              </span>
-            </button>
-          </div>
-
-          {!loading && rows.length === 0 && !search.trim() && !templateFilter && !schemeFilter && !listFilter && activeTab === '__grouped__' && !error ? (
+          {!loading && rows.length === 0 && !search.trim() && !templateFilter && !schemeFilter && !listFilter && !error ? (
             <EmptyState
               icon="tag"
               title="No hay precios registrados"
@@ -867,121 +697,13 @@ export function ProductPricesListPage() {
                 ) : undefined
               }
             />
-          ) : activeTab === '__grouped__' ? (
-            <DataGrid<GroupedProductPriceRow>
-              className="ecu-companies-grid"
-              dataSource={groupedRows}
-              keyExpr="catalogItemId"
-              columns={groupedColumns}
-              selectionMode={canEdit ? 'multiple' : 'none'}
-              selectedRowIds={selectedIds}
-              onSelectionChange={(selected) => setSelectedIds(selected.map((r) => r.catalogItemId))}
-              showSearch={false}
-              toolbarLeft={
-                <div style={{ minWidth: 260, maxWidth: 360, width: '100%' }}>
-                  <TextBox
-                    id="pp-search"
-                    label="Buscar producto o SKU"
-                    labelPosition="outlined"
-                    variant="outline"
-                    value={search}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-                    placeholder="Escribe nombre o SKU…"
-                    fullWidth
-                  />
-                </div>
-              }
-              toolbarRight={
-                <div className="ecu-grid-toolbar-actions" style={{ display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {availableTemplates.length > 0 ? (
-                    <div style={{ minWidth: 165 }}>
-                      <Select
-                        id="pp-template-filter"
-                        label="Familia / Plantilla"
-                        labelPosition="outlined"
-                        aria-label="Filtrar por familia o plantilla"
-                        variant="outline"
-                        options={[
-                          { value: '', label: 'Todas las familias' },
-                          ...availableTemplates.map((t) => ({ value: t, label: t })),
-                        ]}
-                        value={templateFilter}
-                        onChange={(value) => setTemplateFilter(String(value))}
-                      />
-                    </div>
-                  ) : null}
-
-                  <div style={{ minWidth: 180 }}>
-                    <Select
-                      id="pp-scheme-filter"
-                      label="Escala por cantidad"
-                      labelPosition="outlined"
-                      aria-label="Filtrar por escala"
-                      variant="outline"
-                      options={[
-                        { value: '', label: 'Todas las escalas' },
-                        { value: 'with_scheme', label: 'Con escala de volumen' },
-                        { value: 'no_scheme', label: 'Sin escala (estándar)' },
-                        ...schemes.map((s) => ({ value: s.id, label: s.name })),
-                      ]}
-                      value={schemeFilter}
-                      onChange={(value) => setSchemeFilter(String(value))}
-                    />
-                  </div>
-
-                  <div style={{ minWidth: 125 }}>
-                    <Select
-                      id="pp-vigency-filter"
-                      label="Vigencia"
-                      labelPosition="outlined"
-                      aria-label="Filtrar por vigencia"
-                      variant="outline"
-                      options={[
-                        { value: 'vigent', label: 'Vigentes' },
-                        { value: 'all', label: 'Todas' },
-                      ]}
-                      value={vigencyFilter}
-                      onChange={(value) => setVigencyFilter(String(value))}
-                    />
-                  </div>
-
-                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
-
-                  {canCreate ? (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => navigate('/catalogo/precios/productos/masivo')}
-                      >
-                        Carga por lote
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="primary"
-                        onClick={() => navigate('/catalogo/precios/productos/nuevo')}
-                      >
-                        + Nuevo Precio
-                      </Button>
-                    </>
-                  ) : null}
-                </div>
-              }
-              paging={paging}
-              onPageChange={onPageChange}
-              onPageSizeChange={onPageSizeChange}
-              paginationMode="client"
-              pageSizeOptions={pageSizeOptions}
-              layout="auto"
-              loading={loading}
-              messages={gridMessages}
-            />
           ) : (
             <DataGrid<ProductPriceRow>
-              className="ecu-companies-grid"
+              className="ecu-companies-grid ecu-grid--centered-headers"
               dataSource={displayRows}
               keyExpr="id"
               columns={columns}
+              columnOrder={columnOrder}
               selectionMode={canEdit ? 'multiple' : 'none'}
               selectedRowIds={selectedIds}
               onSelectionChange={(selected) => setSelectedIds(selected.map((r) => r.id))}
@@ -990,12 +712,12 @@ export function ProductPricesListPage() {
                 <div style={{ minWidth: 260, maxWidth: 360, width: '100%' }}>
                   <TextBox
                     id="pp-search-tab"
-                    label="Buscar producto o SKU"
-                    labelPosition="outlined"
+                    aria-label="Buscar producto o SKU"
+                    size="sm"
                     variant="outline"
                     value={search}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-                    placeholder="Escribe nombre o SKU…"
+                    placeholder="Buscar producto o SKU…"
                     fullWidth
                   />
                 </div>
@@ -1006,9 +728,8 @@ export function ProductPricesListPage() {
                     <div style={{ minWidth: 165 }}>
                       <Select
                         id="pp-template-filter-tab"
-                        label="Familia / Plantilla"
-                        labelPosition="outlined"
                         aria-label="Filtrar por familia o plantilla"
+                        size="sm"
                         variant="outline"
                         options={[
                           { value: '', label: 'Todas las familias' },
@@ -1023,9 +744,8 @@ export function ProductPricesListPage() {
                   <div style={{ minWidth: 180 }}>
                     <Select
                       id="pp-scheme-filter-tab"
-                      label="Escala por cantidad"
-                      labelPosition="outlined"
                       aria-label="Filtrar por escala"
+                      size="sm"
                       variant="outline"
                       options={[
                         { value: '', label: 'Todas las escalas' },
@@ -1041,9 +761,8 @@ export function ProductPricesListPage() {
                   <div style={{ minWidth: 125 }}>
                     <Select
                       id="pp-vigency-filter-tab"
-                      label="Vigencia"
-                      labelPosition="outlined"
                       aria-label="Filtrar por vigencia"
+                      size="sm"
                       variant="outline"
                       options={[
                         { value: 'vigent', label: 'Vigentes' },
@@ -1054,7 +773,7 @@ export function ProductPricesListPage() {
                     />
                   </div>
 
-                  <GridToolbarRefresh loading={loading} onRefresh={() => void load()} />
+                  <GridToolbarRefresh size="md" loading={loading} onRefresh={() => void load()} />
 
                   {canCreate ? (
                     <>
@@ -1087,6 +806,8 @@ export function ProductPricesListPage() {
             />
           )}
         </SectionCard>
+          </>
+        )}
       </div>
 
       <Popup

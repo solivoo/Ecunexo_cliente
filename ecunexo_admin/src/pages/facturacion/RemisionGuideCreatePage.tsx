@@ -273,38 +273,16 @@ export function RemisionGuideCreatePage() {
           }
           badge={<StatusBadge tone="primary" withDot>SRI Tipo 06</StatusBadge>}
           actions={
-            <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/facturacion/guias-remision')}
-                disabled={submitting}
-              >
-                <ArrowLeft size={16} style={{ marginRight: 4 }} />
-                Volver
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void handleSave(false)}
-                disabled={submitting}
-              >
-                <Save size={16} style={{ marginRight: 4 }} />
-                Guardar Borrador
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={() => void handleSave(true)}
-                disabled={submitting}
-              >
-                <Send size={16} style={{ marginRight: 4 }} />
-                Emitir Guía SRI
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/facturacion/guias-remision')}
+              disabled={submitting}
+            >
+              <ArrowLeft size={16} style={{ marginRight: 4 }} />
+              Volver
+            </Button>
           }
         />
 
@@ -597,6 +575,27 @@ export function RemisionGuideCreatePage() {
               ))}
             </div>
           </SectionCard>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleSave(false)}
+              disabled={submitting}
+            >
+              <Save size={16} style={{ marginRight: 4 }} />
+              Guardar Borrador
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => void handleSave(true)}
+              disabled={submitting}
+            >
+              <Send size={16} style={{ marginRight: 4 }} />
+              Emitir Guía SRI
+            </Button>
+          </div>
         </form>
       </div>
     </TenantSessionGate>

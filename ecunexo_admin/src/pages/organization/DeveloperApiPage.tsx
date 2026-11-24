@@ -736,18 +736,18 @@ export function DeveloperApiPage() {
                   value={probeEndpointKey}
                   onChange={(val) => setProbeEndpointKey(String(val ?? 'catalog'))}
                 />
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    title="Probar conexión M2M en vivo"
-                    disabled={probing}
-                    onClick={() => void handleRunLiveProbe()}
-                  >
-                    <Play size={15} />
-                    {probing ? 'Ejecutando…' : 'Probar M2M'}
-                  </Button>
-                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  title="Probar conexión M2M en vivo"
+                  disabled={probing}
+                  onClick={() => void handleRunLiveProbe()}
+                >
+                  <Play size={15} />
+                  {probing ? 'Ejecutando…' : 'Probar M2M'}
+                </Button>
               </div>
 
               <div style={{ fontSize: '0.8rem', color: 'var(--c-text-muted, #64748b)' }}>

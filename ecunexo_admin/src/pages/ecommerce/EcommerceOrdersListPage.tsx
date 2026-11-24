@@ -269,9 +269,9 @@ export function EcommerceOrdersListPage() {
               <Button
                 variant="outline"
                 iconLeft={<Truck size={16} />}
-                onClick={() => navigate('/ecommerce/envios')}
+                onClick={() => navigate('/ecommerce/envios/cantones')}
               >
-                Tarifas de envío
+                Envíos por cantón
               </Button>
             </div>
           }

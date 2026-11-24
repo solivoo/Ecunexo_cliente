@@ -663,27 +663,6 @@ export function ProductPriceFormPage() {
           title={isEdit ? 'Editar Precio' : 'Nuevo Precio'}
           subtitle="Una nueva vigencia cierra la anterior sin destruir el historial."
           badge={<StatusBadge tone="primary">{isEdit ? 'Edición' : 'Nueva vigencia'}</StatusBadge>}
-          actions={
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy || loading}
-                onClick={() => void navigate('/catalogo/precios/productos')}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                loading={busy}
-                disabled={busy || loading || (!isEdit && selectedItemIds.length === 0)}
-                onClick={() => void onSubmit()}
-              >
-                {isEdit ? 'Guardar cambios' : renewing ? 'Renovar vigencia' : 'Crear precio'}
-              </Button>
-            </div>
-          }
         />
 
         <form onSubmit={(e) => void onSubmit(e)} noValidate>

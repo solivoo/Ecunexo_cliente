@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   Button,
   DataGrid,
@@ -40,7 +39,6 @@ const gridMessages = createSpanishDataGridMessages('cantón', 'cantones')
 export function CantonShippingRatesPage() {
   const tenantId = useAppSelector(selectTenantId)
   const toast = useToast()
-  const navigate = useNavigate()
 
   const [provinces, setProvinces] = useState<EcuadorProvinceDto[]>([])
   const [selectedProvinceId, setSelectedProvinceId] = useState<string>('')
@@ -223,18 +221,30 @@ export function CantonShippingRatesPage() {
     const estimatedDays = bulkEstimatedDays.trim() || null
 
     setRows((prev) =>
-      prev.map((row) => ({
-        ...row,
-        isEnabled: true,
-        basePrice,
-        baseWeightKg,
-        additionalKgPrice,
-        volumetricDivisor,
-        taxRate,
-        freeShippingMinAmount: freeMin,
-        estimatedDays,
-        dirty: true,
-      }))
+      prev.map((row) => {
+        const restricted =
+          Boolean(routeRestrictionMessage) ||
+          (selectedMethod?.coverageScope === 3 && Boolean(originCantonId) && row.cantonId === originCantonId)
+        if (restricted) {
+          return {
+            ...row,
+            isEnabled: false,
+            dirty: false,
+          }
+        }
+        return {
+          ...row,
+          isEnabled: true,
+          basePrice,
+          baseWeightKg,
+          additionalKgPrice,
+          volumetricDivisor,
+          taxRate,
+          freeShippingMinAmount: freeMin,
+          estimatedDays,
+          dirty: true,
+        }
+      })
     )
 
     toast.show({
@@ -276,14 +286,6 @@ export function CantonShippingRatesPage() {
     }
   }
 
-  const dirtyRows = useMemo(() => rows.filter((r) => r.dirty), [rows])
-  const enabledCount = useMemo(() => rows.filter((r) => r.isEnabled).length, [rows])
-  const avgBasePrice = useMemo(() => {
-    const enabled = rows.filter((r) => r.isEnabled)
-    if (enabled.length === 0) return 0
-    return enabled.reduce((acc, r) => acc + r.basePrice, 0) / enabled.length
-  }, [rows])
-
   const selectedProvince = useMemo(
     () => provinces.find((p) => p.id === selectedProvinceId) ?? null,
     [provinces, selectedProvinceId]
@@ -311,42 +313,37 @@ export function CantonShippingRatesPage() {
     return null
   }, [selectedMethod, originProvinceId, selectedProvinceId, originProvince])
 
-  const handleSuggestByZone = () => {
-    if (!selectedProvince) return
-    const destRegion = selectedProvince.region.toLowerCase()
-    const origRegion = originProvince?.region.toLowerCase() ?? ''
-    const isSameProvince = originProvinceId && originProvinceId === selectedProvinceId
+  const isCantonRestricted = useCallback(
+    (cantonId: string) => {
+      if (routeRestrictionMessage) return true
+      if (selectedMethod?.coverageScope === 3 && originCantonId && cantonId === originCantonId) {
+        return true
+      }
+      return false
+    },
+    [routeRestrictionMessage, selectedMethod, originCantonId]
+  )
 
-    let suggestedBase = '5.50'
-    let suggestedDays = '24-48h'
+  const sameCantonNotice = useMemo(() => {
+    if (!selectedMethod || selectedMethod.coverageScope !== 3 || !originCantonId) return null
+    const originRow = rows.find((r) => r.cantonId === originCantonId)
+    if (!originRow) return null
+    return `«${selectedMethod.name}» está configurado como Intercantonal: el cantón de origen (${originRow.cantonName}) no aplica y queda deshabilitado.`
+  }, [selectedMethod, originCantonId, rows])
 
-    if (destRegion.includes('galápagos') || destRegion.includes('galapagos') || destRegion.includes('insular')) {
-      suggestedBase = '12.00'
-      suggestedDays = '72-120h'
-    } else if (destRegion.includes('oriente') || destRegion.includes('amaz')) {
-      suggestedBase = '7.50'
-      suggestedDays = '48-72h'
-    } else if (isSameProvince) {
-      suggestedBase = '3.50'
-      suggestedDays = '24h'
-    } else if (origRegion && origRegion === destRegion) {
-      suggestedBase = '4.50'
-      suggestedDays = '24-48h'
-    }
-
-    setBulkBasePrice(suggestedBase)
-    setBulkBaseWeightKg('2')
-    setBulkAdditionalKgPrice('1.25')
-    setBulkVolumetricDivisor('6000')
-    setBulkTaxRate('15')
-    setBulkEstimatedDays(suggestedDays)
-
-    toast.show({
-      title: 'Sugerencia por zona cargada',
-      message: `Tarifa sugerida ($${suggestedBase}, ${suggestedDays}). Haz clic en "Aplicar a toda la provincia" para llenar la grilla.`,
-      variant: 'info',
-    })
-  }
+  const dirtyRows = useMemo(
+    () => rows.filter((r) => r.dirty && !isCantonRestricted(r.cantonId)),
+    [rows, isCantonRestricted]
+  )
+  const enabledCount = useMemo(
+    () => rows.filter((r) => r.isEnabled && !isCantonRestricted(r.cantonId)).length,
+    [rows, isCantonRestricted]
+  )
+  const avgBasePrice = useMemo(() => {
+    const enabled = rows.filter((r) => r.isEnabled && !isCantonRestricted(r.cantonId))
+    if (enabled.length === 0) return 0
+    return enabled.reduce((acc, r) => acc + r.basePrice, 0) / enabled.length
+  }, [rows, isCantonRestricted])
 
   const columns: ColumnDef<CantonRowDraft>[] = useMemo(
     () => [
@@ -354,29 +351,44 @@ export function CantonShippingRatesPage() {
         key: 'cantonName',
         header: 'Cantón',
         minWidth: 190,
-        renderCell: (_val, row) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-            <span style={{ fontWeight: row.isProvincialCapital ? 700 : 500 }}>
-              {row.cantonName}
-            </span>
-            {row.isProvincialCapital && <StatusBadge tone="info">Capital</StatusBadge>}
-            {row.dirty && <StatusBadge tone="warning">Editado</StatusBadge>}
-          </div>
-        ),
+        renderCell: (_val, row) => {
+          const restricted = isCantonRestricted(row.cantonId)
+          const isSameOrigin = selectedMethod?.coverageScope === 3 && row.cantonId === originCantonId
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: row.isProvincialCapital ? 700 : 500, opacity: restricted ? 0.55 : 1 }}>
+                {row.cantonName}
+              </span>
+              {row.isProvincialCapital && <StatusBadge tone="info">Capital</StatusBadge>}
+              {isSameOrigin && <StatusBadge tone="danger">Mismo cantón origen</StatusBadge>}
+              {!isSameOrigin && restricted && <StatusBadge tone="danger">No aplica</StatusBadge>}
+              {!restricted && row.dirty && <StatusBadge tone="warning">Editado</StatusBadge>}
+            </div>
+          )
+        },
       },
       {
         key: 'isEnabled',
         header: 'Habilitado',
         width: 100,
-        renderCell: (_val, row) => (
-          <input
-            type="checkbox"
-            checked={row.isEnabled}
-            onChange={(e) => updateRowField(row.cantonId, 'isEnabled', e.target.checked)}
-            aria-label={`Habilitar ${row.cantonName}`}
-            style={{ width: 16, height: 16, cursor: 'pointer' }}
-          />
-        ),
+        renderCell: (_val, row) => {
+          const restricted = isCantonRestricted(row.cantonId)
+          return (
+            <input
+              type="checkbox"
+              checked={!restricted && row.isEnabled}
+              disabled={restricted}
+              onChange={(e) => updateRowField(row.cantonId, 'isEnabled', e.target.checked)}
+              aria-label={`Habilitar ${row.cantonName}`}
+              style={{
+                width: 16,
+                height: 16,
+                cursor: restricted ? 'not-allowed' : 'pointer',
+                opacity: restricted ? 0.45 : 1,
+              }}
+            />
+          )
+        },
       },
       {
         key: 'basePrice',
@@ -388,6 +400,7 @@ export function CantonShippingRatesPage() {
             variant="outline"
             min={0}
             step={0.1}
+            disabled={isCantonRestricted(row.cantonId)}
             value={row.basePrice}
             onChange={(e) =>
               updateRowField(row.cantonId, 'basePrice', Math.max(0, Number(e.target.value) || 0))
@@ -406,6 +419,7 @@ export function CantonShippingRatesPage() {
             variant="outline"
             min={0.1}
             step={0.5}
+            disabled={isCantonRestricted(row.cantonId)}
             value={row.baseWeightKg}
             onChange={(e) =>
               updateRowField(
@@ -428,6 +442,7 @@ export function CantonShippingRatesPage() {
             variant="outline"
             min={0}
             step={0.1}
+            disabled={isCantonRestricted(row.cantonId)}
             value={row.additionalKgPrice}
             onChange={(e) =>
               updateRowField(
@@ -450,6 +465,7 @@ export function CantonShippingRatesPage() {
             variant="outline"
             min={100}
             step={500}
+            disabled={isCantonRestricted(row.cantonId)}
             value={row.volumetricDivisor}
             onChange={(e) =>
               updateRowField(
@@ -473,6 +489,7 @@ export function CantonShippingRatesPage() {
             min={0}
             step={1}
             placeholder="Opcional"
+            disabled={isCantonRestricted(row.cantonId)}
             value={row.freeShippingMinAmount ?? undefined}
             onChange={(e) => {
               const raw = e.target.value.trim()
@@ -497,6 +514,7 @@ export function CantonShippingRatesPage() {
             min={0}
             max={100}
             step={1}
+            disabled={isCantonRestricted(row.cantonId)}
             value={row.taxRate}
             onChange={(e) =>
               updateRowField(
@@ -517,6 +535,7 @@ export function CantonShippingRatesPage() {
           <TextBox
             size="sm"
             variant="outline"
+            disabled={isCantonRestricted(row.cantonId)}
             value={row.estimatedDays ?? ''}
             placeholder="24-48h"
             onChange={(e) => updateRowField(row.cantonId, 'estimatedDays', e.target.value)}
@@ -529,20 +548,23 @@ export function CantonShippingRatesPage() {
         header: 'Acciones',
         width: 120,
         sticky: 'right',
-        renderCell: (_val, row) => (
-          <Button
-            size="sm"
-            variant={row.dirty ? 'primary' : 'outline'}
-            disabled={saving}
-            onClick={() => void handleSaveRows([row])}
-            iconLeft={<Check size={14} />}
-          >
-            Guardar
-          </Button>
-        ),
+        renderCell: (_val, row) => {
+          const restricted = isCantonRestricted(row.cantonId)
+          return (
+            <Button
+              size="sm"
+              variant={row.dirty && !restricted ? 'primary' : 'outline'}
+              disabled={saving || restricted}
+              onClick={() => void handleSaveRows([row])}
+              iconLeft={<Check size={14} />}
+            >
+              Guardar
+            </Button>
+          )
+        },
       },
     ],
-    [saving, handleSaveRows, updateRowField]
+    [saving, handleSaveRows, updateRowField, isCantonRestricted, selectedMethod, originCantonId]
   )
 
   return (
@@ -554,26 +576,6 @@ export function CantonShippingRatesPage() {
         <PageHeader
           title="Tarifas de Envío por Provincia y Cantón"
           info="Selecciona una provincia del Ecuador para configurar sus cantones (tarifa base, kg adicional y factor volumétrico estilo Servientrega)."
-          actions={
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/ecommerce/envios/tarifas')}
-              >
-                Reglas por Volumen
-              </Button>
-              <Button
-                variant="primary"
-                disabled={saving || dirtyRows.length === 0 || Boolean(routeRestrictionMessage)}
-                onClick={() => void handleSaveRows(dirtyRows)}
-                iconLeft={<Save size={16} />}
-              >
-                {saving
-                  ? 'Guardando...'
-                  : `Guardar cambios (${dirtyRows.length})`}
-              </Button>
-            </div>
-          }
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de tarifas cantonales">
@@ -590,7 +592,7 @@ export function CantonShippingRatesPage() {
           title="Selección de Provincia y Plantilla Rápida"
           info="Elige la provincia y, si deseas, aplica una tarifa base uniforme a todos sus cantones antes de ajustar excepciones."
         >
-          {routeRestrictionMessage && (
+          {(routeRestrictionMessage || sameCantonNotice) && (
             <div
               role="alert"
               style={{
@@ -603,7 +605,7 @@ export function CantonShippingRatesPage() {
                 fontSize: '0.88rem',
               }}
             >
-              {routeRestrictionMessage}
+              {routeRestrictionMessage ?? sameCantonNotice}
             </div>
           )}
           <div
@@ -750,14 +752,8 @@ export function CantonShippingRatesPage() {
               onChange={(e) => setBulkEstimatedDays(e.target.value)}
               fullWidth
             />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleSuggestByZone}
-              disabled={!selectedProvince || saving}
-            >
-              Sugerir por zona
-            </Button>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
             <Button
               type="button"
               variant="outline"
@@ -765,7 +761,7 @@ export function CantonShippingRatesPage() {
               disabled={rows.length === 0 || saving || Boolean(routeRestrictionMessage)}
               iconLeft={<Sparkles size={16} />}
             >
-              Aplicar a toda la provincia
+              Aplicar a todas
             </Button>
           </div>
         </SectionCard>
@@ -789,6 +785,18 @@ export function CantonShippingRatesPage() {
             showSearch
             messages={gridMessages}
           />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '1rem 0.75rem 0.5rem' }}>
+            <Button
+              variant="primary"
+              disabled={saving || dirtyRows.length === 0 || Boolean(routeRestrictionMessage)}
+              onClick={() => void handleSaveRows(dirtyRows)}
+              iconLeft={<Save size={16} />}
+            >
+              {saving
+                ? 'Guardando...'
+                : `Guardar cambios (${dirtyRows.length})`}
+            </Button>
+          </div>
         </SectionCard>
 
         <SectionCard
@@ -814,7 +822,9 @@ export function CantonShippingRatesPage() {
               variant="outline"
               value={simCantonId}
               onChange={(val) => setSimCantonId(val)}
-              options={rows.map((r) => ({
+              options={rows
+                .filter((r) => !isCantonRestricted(r.cantonId))
+                .map((r) => ({
                 value: r.cantonId,
                 label: r.isEnabled ? r.cantonName : `${r.cantonName} (Deshabilitado)`,
               }))}
@@ -867,6 +877,8 @@ export function CantonShippingRatesPage() {
               onChange={(e) => setSimSubtotal(e.target.value)}
               fullWidth
             />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
             <Button
               type="button"
               variant="primary"

@@ -272,8 +272,6 @@ app.MapCustomerEndpointsV1();
 app.MapCustomerTypeEndpointsV1();
 app.MapRepairEndpointsV1();
 app.MapEcommerceOrderEndpointsV1();
-app.MapShippingRateEndpointsV1();
-app.MapShippingZoneEndpointsV1();
 app.MapShippingMethodEndpointsV1();
 app.MapCantonShippingEndpointsV1();
 app.MapStockReservationEndpointsV1();

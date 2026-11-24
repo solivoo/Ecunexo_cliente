@@ -168,11 +168,10 @@ internal static class MenuCatalogSeedData
         Item("catalog-pricing", "catalog", "Gestión de precios", "circle-dollar-sign", null, 5, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
         Item("catalog-pricing-lists", "catalog-pricing", "Listas de precios", "list", "catalogo/precios/listas", 1, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
         Item("catalog-pricing-products", "catalog-pricing", "Precios de productos", "tag", "catalogo/precios/productos", 2, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
-        Item("catalog-pricing-matrix", "catalog-pricing", "Matriz de precios", "table", "catalogo/precios/matriz", 3, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
-        Item("catalog-pricing-volume-schemes", "catalog-pricing", "Escalas por cantidad", "layers", "catalogo/precios/escalas-volumen", 4, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
-        Item("catalog-pricing-promotions", "catalog-pricing", "Promociones", "percent", "catalogo/precios/promociones", 5, MenuContextKind.Operational, "catalog", ["catalog.promotions.manage", "catalog.promotions.deactivate"]),
-        Item("catalog-pricing-history", "catalog-pricing", "Historial", "history", "catalogo/precios/historial", 6, MenuContextKind.Operational, "catalog", ["catalog.pricing.history.read"]),
-        Item("catalog-pricing-simulator", "catalog-pricing", "Simulador", "calculator", "catalogo/precios/simulador", 7, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
+        Item("catalog-pricing-volume-schemes", "catalog-pricing", "Escalas por cantidad", "layers", "catalogo/precios/escalas-volumen", 3, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
+        Item("catalog-pricing-promotions", "catalog-pricing", "Promociones", "percent", "catalogo/precios/promociones", 4, MenuContextKind.Operational, "catalog", ["catalog.promotions.manage", "catalog.promotions.deactivate"]),
+        Item("catalog-pricing-history", "catalog-pricing", "Historial", "history", "catalogo/precios/historial", 5, MenuContextKind.Operational, "catalog", ["catalog.pricing.history.read"]),
+        Item("catalog-pricing-simulator", "catalog-pricing", "Simulador", "calculator", "catalogo/precios/simulador", 6, MenuContextKind.Operational, "catalog", ["catalog.pricing.read"]),
 
         Item("warehousing", null, "Bodegas", "warehouse", null, 52, MenuContextKind.Operational, "warehousing", ["warehousing.read"]),
         Item("warehousing-list", "warehousing", "Ubicaciones", "warehouse", "bodegas", 1, MenuContextKind.Operational, "warehousing", ["warehousing.read", "warehousing.locations.manage"]),
@@ -193,9 +192,7 @@ internal static class MenuCatalogSeedData
         Item("ecommerce-configuracion", "ecommerce", "Configuración de tienda", "settings", "ecommerce/configuracion", 4, MenuContextKind.Operational, "ecommerce", ["ecommerce.storefront.manage"]),
         Item("ecommerce-shipping-group", "ecommerce", "Envíos", "truck", null, 5, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
         Item("ecommerce-shipping-methods", "ecommerce-shipping-group", "Métodos de envío", "truck", "ecommerce/envios/metodos", 1, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
-        Item("ecommerce-shipping-zones", "ecommerce-shipping-group", "Zonas", "map-pin", "ecommerce/envios/zonas", 2, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
-        Item("ecommerce-shipping-rates", "ecommerce-shipping-group", "Tarifas", "calculator", "ecommerce/envios/tarifas", 3, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
-        Item("ecommerce-shipping-cantons", "ecommerce-shipping-group", "Cantones", "map-pin", "ecommerce/envios/cantones", 4, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
+        Item("ecommerce-shipping-cantons", "ecommerce-shipping-group", "Cantones", "map-pin", "ecommerce/envios/cantones", 2, MenuContextKind.Operational, "orders", ["ecommerce.orders.read"]),
 
         Item("facturacion", null, "Facturación", "receipt", null, 60, MenuContextKind.Operational, "facturacion", ["facturacion.read"]),
         Item("facturacion-comprobantes", "facturacion", "Facturas", "file-text", "facturacion/comprobantes", 1, MenuContextKind.Operational, "facturacion", ["facturacion.comprobantes.read", "facturacion.facturas.read", "facturacion.facturas.read.all"]),
@@ -234,6 +231,8 @@ internal static class MenuCatalogSeedData
     [
         "catalog-pricing-shipping",
         "ecommerce-shipping",
+        "ecommerce-shipping-zones",
+        "ecommerce-shipping-rates",
         "configuracion-correo",
         "sub-correo",
         "org",
@@ -281,6 +280,7 @@ internal static class MenuCatalogSeedData
         "contabilidad-reportes",
         "contabilidad-configuracion",
         "contabilidad-configuracion-impuestos",
+        "catalog-pricing-matrix",
     ];
 
     private static MenuItem Item(

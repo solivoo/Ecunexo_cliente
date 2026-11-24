@@ -32,7 +32,7 @@ export type InvoiceLinesSectionProps = {
     quantity: number,
     targetLineId?: string | null
   ) => void
-  readonly onAddShippingRate?: (rate: import('@/types/shippingApi').ResolvedShippingOptionDto) => void
+  readonly onAddShippingRate?: (rate: import('@/types/shippingApi').InvoiceShippingSelectionDto) => void
 }
 
 function kindToSnapshot(kind: CatalogItemKind): InvoiceLineItemKind {
@@ -157,7 +157,7 @@ export function InvoiceLinesSection({
     })
   }
 
-  const handleSelectShippingRate = (rate: import('@/types/shippingApi').ResolvedShippingOptionDto) => {
+  const handleSelectShippingRate = (rate: import('@/types/shippingApi').InvoiceShippingSelectionDto) => {
     if (onAddShippingRate) {
       onAddShippingRate(rate)
       return
@@ -165,7 +165,7 @@ export function InvoiceLinesSection({
     const emptyLine = lines.find((l) => !l.productId && !l.description.trim())
     const patch: Partial<InvoiceLineDraft> = {
       sku: 'ENV-TRANSPORTE',
-      description: `Servicio de envío: ${rate.name} (${rate.carrier} - ${rate.zone})`,
+      description: `Servicio de envío: ${rate.methodName} (${rate.cantonName}${rate.provinceName ? `, ${rate.provinceName}` : ''})`,
       quantity: 1,
       unitPrice: rate.basePrice,
       discount: 0,

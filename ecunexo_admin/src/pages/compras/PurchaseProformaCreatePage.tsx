@@ -339,24 +339,14 @@ export function PurchaseProformaCreatePage() {
             </StatusBadge>
           }
           actions={
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/compras/proformas')}
-                disabled={saving}
-              >
-                <ArrowLeft size={16} />
-                Volver a Proformas
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => void handleSubmit()}
-                disabled={saving || loadingSuppliers}
-              >
-                <Save size={16} />
-                {saving ? 'Guardando...' : 'Guardar Cotización'}
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/compras/proformas')}
+              disabled={saving}
+            >
+              <ArrowLeft size={16} />
+              Volver a Proformas
+            </Button>
           }
         />
 
@@ -813,6 +803,26 @@ export function PurchaseProformaCreatePage() {
               />
             </div>
           </SectionCard>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/compras/proformas')}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => void handleSubmit()}
+              disabled={saving || loadingSuppliers}
+            >
+              <Save size={16} />
+              {saving ? 'Guardando...' : 'Guardar Cotización'}
+            </Button>
+          </div>
         </form>
       </div>
     </TenantSessionGate>

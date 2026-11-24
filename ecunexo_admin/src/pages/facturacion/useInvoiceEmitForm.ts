@@ -57,7 +57,7 @@ import { getStockReservationById, invoiceStockReservation } from '@/services/sto
 import { resolvePrice } from '@/services/pricingApi'
 import { CatalogItemKind, type CatalogItemListItemDto } from '@/types/catalogApi'
 import type { EcommerceOrderDetailDto } from '@/types/ecommerceApi'
-import type { ResolvedShippingOptionDto } from '@/types/shippingApi'
+import type { InvoiceShippingSelectionDto } from '@/types/shippingApi'
 import type { TenantBranding } from '@/types/tenantBranding'
 import { readApiError } from '@/lib/readApiError'
 
@@ -667,14 +667,14 @@ export function useInvoiceEmitForm({
   )
 
   const addShippingRateLine = useCallback(
-    (rate: ResolvedShippingOptionDto) => {
+    (rate: InvoiceShippingSelectionDto) => {
       setLines((prev) => {
         const linePatch: Partial<InvoiceLineDraft> = {
           productId: '',
           catalogItemId: null,
           itemKind: 'service',
           sku: 'ENV-TRANSPORTE',
-          description: `Servicio de envío: ${rate.name} (${rate.carrier} - ${rate.zone})`,
+          description: `Servicio de envío: ${rate.methodName} (${rate.cantonName}${rate.provinceName ? `, ${rate.provinceName}` : ''})`,
           unitPrice: rate.basePrice,
           quantity: 1,
           discount: 0,

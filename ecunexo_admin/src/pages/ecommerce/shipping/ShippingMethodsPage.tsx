@@ -31,15 +31,17 @@ import type {
 } from '@/types/shippingApi'
 
 const coverageScopeOptions = [
-  { value: '0', label: 'Nacional (todas las provincias)' },
+  { value: '0', label: 'Nacional (todas las provincias y cantones)' },
   { value: '1', label: 'Solo local (misma provincia)' },
   { value: '2', label: 'Solo interprovincial (otras provincias)' },
+  { value: '3', label: 'Intercantonal (otros cantones, excluye cantón origen)' },
 ]
 
 const coverageScopeLabel: Record<number, string> = {
   0: 'Nacional',
   1: 'Solo local',
   2: 'Interprovincial',
+  3: 'Intercantonal',
 }
 
 type MethodRow = ShippingMethodDto & { actions?: unknown } & Record<string, unknown>
@@ -388,7 +390,7 @@ export function ShippingMethodsPage() {
             emptyState={
               <EmptyState
                 title="No hay métodos de envío configurados"
-                description="Registra tus transportistas para asociarlos a tarifas por zona y volumen."
+                description="Registra tus transportistas para asociarlos a tarifas por cantón."
                 action={
                   canManage ? (
                     <Button variant="primary" onClick={openCreateModal}>

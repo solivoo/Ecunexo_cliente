@@ -283,37 +283,37 @@ export function ProductPricesBulkPage() {
               />
             </div>
             <div className="ecu-companies-form__field">
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', height: '100%' }}>
-                <NumberBox
-                  id="bulk-price"
-                  label="Precio para aplicar"
-                  labelPosition="outlined"
-                  variant="outline"
-                  value={bulkPrice === '' ? '' : Number(bulkPrice)}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setBulkPrice(e.target.value)}
-                  step={0.01}
-                  min={0}
-                  disabled={busy || loading}
-                  fullWidth
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={busy || !bulkPrice.trim()}
-                  onClick={() => applyBulkPrice(false)}
-                >
-                  A todos
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={busy || !bulkPrice.trim()}
-                  onClick={() => applyBulkPrice(true)}
-                >
-                  Solo vacíos
-                </Button>
-              </div>
+              <NumberBox
+                id="bulk-price"
+                label="Precio para aplicar"
+                labelPosition="outlined"
+                variant="outline"
+                value={bulkPrice === '' ? '' : Number(bulkPrice)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setBulkPrice(e.target.value)}
+                step={0.01}
+                min={0}
+                disabled={busy || loading}
+                fullWidth
+              />
             </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={busy || !bulkPrice.trim()}
+              onClick={() => applyBulkPrice(true)}
+            >
+              Solo vacíos
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || !bulkPrice.trim()}
+              onClick={() => applyBulkPrice(false)}
+            >
+              A todos
+            </Button>
           </div>
 
           {available.length > 0 ? (

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DataGrid, Popup, useToast, type ColumnDef } from 'glubox'
-import { Calculator, DollarSign, History, Layers, Pencil, Power, Table2, Trash2, Truck, Users, XCircle } from 'lucide-react'
+import { DollarSign, Pencil, Power, Trash2, Users, XCircle } from 'lucide-react'
 import {
   EmptyState,
   GridIconButton,
@@ -322,59 +322,13 @@ const columns = useMemo((): ColumnDef<PriceListRow>[] => {
       <div className="ecu-dashboard-layout ecu-section-page">
         <PageHeader
           title="Listas de Precios"
-          info="Define el canal (público, mayorista), moneda, vigencia y si el PVP incluye IVA. Luego asigna los precios de cada SKU en Matriz de precios o Precios de productos."
-          actions={
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <Button
-                variant="outline"
-                iconLeft={<DollarSign size={16} />}
-                onClick={() => navigate('/catalogo/precios/productos')}
-              >
-                Precios de productos
-              </Button>
-              <Button
-                variant="outline"
-                iconLeft={<Table2 size={16} />}
-                onClick={() => navigate('/catalogo/precios/matriz')}
-              >
-                Matriz de precios
-              </Button>
-              <Button
-                variant="outline"
-                iconLeft={<Layers size={16} />}
-                onClick={() => navigate('/catalogo/precios/escalas-volumen')}
-              >
-                Escalas por cantidad
-              </Button>
-              <Button
-                variant="outline"
-                iconLeft={<Calculator size={16} />}
-                onClick={() => navigate('/catalogo/precios/simulador')}
-              >
-                Simulador
-              </Button>
-              <Button
-                variant="outline"
-                iconLeft={<History size={16} />}
-                onClick={() => navigate('/catalogo/precios/historial')}
-              >
-                Historial
-              </Button>
-              <Button
-                variant="outline"
-                iconLeft={<Truck size={16} />}
-                onClick={() => navigate('/catalogo/precios/envios')}
-              >
-                Tarifas de envío
-              </Button>
-            </div>
-          }
+          info="Define el canal (público, mayorista), moneda, vigencia y si el PVP incluye IVA. Luego asigna los precios de cada SKU en Precios de productos."
         />
 
         <div className="ecu-stat-grid" aria-label="Resumen de listas">
           <StatCard label="Listas" value={rows.length} />
           <StatCard label="Activas" value={activeCount} />
-          <StatCard label="Predeterminada" value={defaultList?.code ?? '—'} />
+          <StatCard label="Predeterminada" value={defaultList?.name ?? '—'} />
         </div>
 
         <SectionCard
