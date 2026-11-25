@@ -123,7 +123,7 @@ public static class CartPriceCalculator
                     return Result.Failure<CartCalculation>(
                         new Error(
                             "catalog.pricing.group_min_quantity",
-                            $"El grupo «{rule.Name}» requiere un mínimo de {rule.MinGroupQuantity.Value:0.####} unidades (actual: {totalQty:0.####}).",
+                            $"Compra requiere un mínimo de {rule.MinGroupQuantity.Value:0.####} unidades (actual: {totalQty:0.####}).",
                             ErrorType.Validation));
                 }
 
