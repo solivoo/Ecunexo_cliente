@@ -1,9 +1,7 @@
-/* Configuración de tienda: 5 columnas en escritorio; una columna en pantallas menores. */
 .ecu-storefront-settings__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
-  align-items: start;
 }
 
 .ecu-storefront-settings__grid > .ecu-section-card {
@@ -11,30 +9,86 @@
   min-width: 0;
 }
 
-.ecu-storefront-settings__payments {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.ecu-storefront-settings__grid > .ecu-section-card .ecu-section-card__body {
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
 }
 
-@media (min-width: 1280px) {
-  .ecu-storefront-settings__grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+/* Hasta 5 columnas por card; baja de columnas cuando el ancho no alcanza (mínimo 13rem). */
+.ecu-storefront-settings__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(13rem, calc((100% - 3rem) / 5)), 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.ecu-storefront-settings__fields > * {
+  min-width: 0;
+}
+
+.ecu-storefront-settings__field--full {
+  grid-column: 1 / -1;
+}
+
+.ecu-storefront-settings__method {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ecu-storefront-settings__status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--shell-muted, var(--glb-muted));
+}
+
+.ecu-storefront-settings__status--saved {
+  color: var(--glb-success, #4ade80);
+}
+
+.ecu-storefront-settings__status--error {
+  color: var(--glb-danger, #f87171);
+}
+
+.ecu-storefront-settings__list-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--shell-border, var(--glb-border, rgba(255, 255, 255, 0.08)));
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ecu-storefront-settings__count {
+  min-width: 1.5rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--shell-surface-2, rgba(255, 255, 255, 0.08));
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .ecu-storefront-settings__fields {
+    gap: 0.5rem;
   }
 
-  .ecu-storefront-settings__grid > .ecu-storefront-settings__card--full {
-    grid-column: 1 / -1;
+  .ecu-storefront-settings__fields .ecu-companies-form__field--check-align {
+    min-height: 2.5rem;
   }
 
-  .ecu-storefront-settings__grid > .ecu-storefront-settings__card--span-2 {
-    grid-column: span 2;
+  .ecu-storefront-settings__grid .ecu-companies-form__actions {
+    justify-content: stretch;
   }
 
-  .ecu-storefront-settings__grid > .ecu-storefront-settings__card--span-3 {
-    grid-column: span 3;
-  }
-
-  .ecu-storefront-settings__payments {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+  .ecu-storefront-settings__grid .ecu-companies-form__actions > *,
+  .ecu-storefront-settings__grid .ecu-companies-form__actions .glb-btn {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
   }
 }
