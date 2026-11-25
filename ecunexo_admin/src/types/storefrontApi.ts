@@ -24,6 +24,7 @@ export type StorefrontSocialLinks = {
   instagram: string
   facebook: string
   tiktok: string
+  whatsapp: string
 }
 
 export type EcommerceStorefrontSettings = {

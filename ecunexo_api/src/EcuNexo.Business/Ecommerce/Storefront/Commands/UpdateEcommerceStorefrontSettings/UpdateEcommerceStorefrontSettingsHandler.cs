@@ -137,6 +137,7 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
                     instagram = socialLinks.Instagram,
                     facebook = socialLinks.Facebook,
                     tiktok = socialLinks.TikTok,
+                    whatsapp = socialLinks.Whatsapp,
                 })));
         }
 
@@ -178,7 +179,8 @@ public sealed class UpdateEcommerceStorefrontSettingsHandler
         EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(links.Instagram, out var instagram);
         EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(links.Facebook, out var facebook);
         EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(links.TikTok, out var tiktok);
-        return new StorefrontSocialLinks(instagram, facebook, tiktok);
+        EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(links.Whatsapp, out var whatsapp);
+        return new StorefrontSocialLinks(instagram, facebook, tiktok, whatsapp);
     }
 
     private async Task<Result> UpsertAsync(

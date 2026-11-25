@@ -173,6 +173,7 @@ using EcuNexo.Business.Storefront.Queries.GetStorefrontStatus;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontDomains;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontFacets;
+using EcuNexo.Business.Storefront.Queries.ListStorefrontColors;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontProducts;
 using EcuNexo.Business.Storefront.Queries.ResolveStorefront;
 using EcuNexo.Business.RemisionGuides.Commands.CreateRemisionGuide;
@@ -471,6 +472,7 @@ public static class DependencyInjection
         services.AddScoped<StorefrontCatalogReader>();
         services.AddScoped<IQueryHandler<ListStorefrontProductsQuery, StorefrontProductPageDto>, ListStorefrontProductsHandler>();
         services.AddScoped<IQueryHandler<ListStorefrontFacetsQuery, StorefrontFacetsDto>, ListStorefrontFacetsHandler>();
+        services.AddScoped<IQueryHandler<ListStorefrontColorsQuery, IReadOnlyList<StorefrontColorDto>>, ListStorefrontColorsHandler>();
         services.AddScoped<IQueryHandler<GetStorefrontProductQuery, StorefrontProductDetailDto>, GetStorefrontProductHandler>();
         services.AddScoped<IQueryHandler<GetStorefrontStatusQuery, StorefrontStatusDto>, GetStorefrontStatusHandler>();
         services.AddScoped<IQueryHandler<ResolveStorefrontQuery, StorefrontResolveResponse>, ResolveStorefrontHandler>();

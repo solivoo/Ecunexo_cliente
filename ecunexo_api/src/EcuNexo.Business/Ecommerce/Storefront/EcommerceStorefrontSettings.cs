@@ -26,7 +26,13 @@ public sealed record EcommerceStorefrontSettings(
 public sealed record StorefrontSocialLinks(
     string Instagram = "",
     string Facebook = "",
-    [property: JsonPropertyName("tiktok")] string TikTok = "");
+    [property: JsonPropertyName("tiktok")] string TikTok = "",
+    [property: JsonPropertyName("whatsapp")] string Whatsapp = "")
+{
+    [JsonIgnore]
+    public bool HasAny =>
+        Instagram.Length > 0 || Facebook.Length > 0 || TikTok.Length > 0 || Whatsapp.Length > 0;
+}
 
 /// <summary>
 /// Lee la configuración efectiva de la tienda (global/plan/tenant) aplicando defaults seguros.

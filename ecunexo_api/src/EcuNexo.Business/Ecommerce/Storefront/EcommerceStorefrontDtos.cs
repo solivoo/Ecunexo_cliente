@@ -83,7 +83,8 @@ public sealed record StorefrontCheckoutQuoteLineDto(
     decimal LineSubtotalExTax,
     decimal LineTaxAmount,
     decimal LineTotal,
-    int? DiscountPercent);
+    int? DiscountPercent,
+    decimal? AvailableQuantity = null);
 
 /// <summary>Cotización oficial del carrito con promociones automáticas, cupón e IVA desglosado.</summary>
 public sealed record StorefrontCheckoutQuoteDto(

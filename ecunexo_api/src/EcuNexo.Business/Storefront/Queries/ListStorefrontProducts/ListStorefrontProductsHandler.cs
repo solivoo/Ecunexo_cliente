@@ -134,8 +134,7 @@ public sealed class ListStorefrontProductsHandler
                 .ToHashSet(StringComparer.Ordinal);
 
             if (!selected.Any(value => available.Contains(
-                StorefrontFacetCatalog.NormalizeForMatch(
-                    key == "color" ? StorefrontFacetCatalog.CanonicalizeColor(value) : value))))
+                StorefrontFacetCatalog.NormalizeForMatch(value))))
             {
                 return false;
             }

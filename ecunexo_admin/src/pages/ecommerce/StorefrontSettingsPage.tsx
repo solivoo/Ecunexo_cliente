@@ -153,6 +153,7 @@ export function StorefrontSettingsPage() {
   const [instagram, setInstagram] = useState('')
   const [facebook, setFacebook] = useState('')
   const [tiktok, setTiktok] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
 
   const [blockedContacts, setBlockedContacts] = useState<EcommerceBlockedContact[]>([])
   const [blockedLoading, setBlockedLoading] = useState(true)
@@ -188,6 +189,7 @@ export function StorefrontSettingsPage() {
         setInstagram(settings.socialLinks?.instagram ?? '')
         setFacebook(settings.socialLinks?.facebook ?? '')
         setTiktok(settings.socialLinks?.tiktok ?? '')
+        setWhatsapp(settings.socialLinks?.whatsapp ?? '')
         setError(null)
       })
       .catch((err: unknown) => {
@@ -535,6 +537,7 @@ export function StorefrontSettingsPage() {
         instagram: '',
         facebook: '',
         tiktok: '',
+        whatsapp: '',
       }
       if (current[field] === normalized) return
       const updated = await persist(`social:${field}`, {
@@ -544,7 +547,8 @@ export function StorefrontSettingsPage() {
       const value = updated.socialLinks?.[field] ?? ''
       if (field === 'instagram') setInstagram(value)
       else if (field === 'facebook') setFacebook(value)
-      else setTiktok(value)
+      else if (field === 'tiktok') setTiktok(value)
+      else setWhatsapp(value)
     },
     [persist, showValidationError]
   )
@@ -821,6 +825,19 @@ export function StorefrontSettingsPage() {
                   onBlur={(e) => void saveSocialLink('tiktok', e.currentTarget.value)}
                   onKeyDown={blurOnEnter}
                   placeholder="https://www.tiktok.com/@tienda"
+                  maxLength={MAX_SOCIAL_URL_LENGTH}
+                  fullWidth
+                />
+                <TextBox
+                  id="storefront-social-whatsapp"
+                  label="WhatsApp"
+                  labelPosition="outlined"
+                  variant="outline"
+                  value={whatsapp}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setWhatsapp(e.target.value)}
+                  onBlur={(e) => void saveSocialLink('whatsapp', e.currentTarget.value)}
+                  onKeyDown={blurOnEnter}
+                  placeholder="https://wa.me/593999999999"
                   maxLength={MAX_SOCIAL_URL_LENGTH}
                   fullWidth
                 />

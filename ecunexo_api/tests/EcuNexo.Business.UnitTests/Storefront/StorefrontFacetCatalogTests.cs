@@ -140,28 +140,8 @@ public sealed class StorefrontFacetCatalogTests
         attributes["talla"].Should().Equal("35-38", "39-42");
     }
 
-    [Theory(DisplayName = "Canonicaliza códigos hex y nombres libres a familias de color estándar")]
-    [InlineData("#080808", "Negro")]
-    [InlineData("#000000", "Negro")]
-    [InlineData("#111111", "Negro")]
-    [InlineData("#ffffff", "Blanco")]
-    [InlineData("#2563eb", "Azul")]
-    [InlineData("#38bdf8", "Celeste")]
-    [InlineData("#9ca3af", "Gris")]
-    [InlineData("#dc2626", "Rojo")]
-    [InlineData("#16a34a", "Verde")]
-    [InlineData("black", "Negro")]
-    [InlineData("negro", "Negro")]
-    [InlineData("blanco", "Blanco")]
-    [InlineData("navy", "Azul")]
-    [InlineData("café", "Café")]
-    public void CanonicalizeColor_CollapsesNearIdenticalColorsToFamily(string raw, string expectedFamily)
-    {
-        StorefrontFacetCatalog.CanonicalizeColor(raw).Should().Be(expectedFamily);
-    }
-
-    [Fact(DisplayName = "ExtractAttributes canonicaliza colores múltiples y deduplica")]
-    public void ExtractAttributes_CanonicalizesAndDeduplicatesColors()
+    [Fact(DisplayName = "ExtractAttributes conserva los nombres de color tal como están en la paleta y deduplica")]
+    public void ExtractAttributes_KeepsPaletteColorNamesAndDeduplicates()
     {
         var item = CatalogItem.CreateMatrixParent(
             Guid.CreateVersion7(),
@@ -174,7 +154,7 @@ public sealed class StorefrontFacetCatalogTests
             """[{"name":"Talla","values":["10-12"]}]""",
             """
                 {
-                  "color": "#080808, #ffffff, #000000"
+                  "color": "Azul Marino, Rosado, rosado, Verde claro"
                 }
                 """,
             CatalogAttributeSchema.EmptyArrayJson,
@@ -182,6 +162,6 @@ public sealed class StorefrontFacetCatalogTests
 
         var attributes = StorefrontFacetCatalog.ExtractAttributes(item);
 
-        attributes["color"].Should().Equal("Negro", "Blanco");
+        attributes["color"].Should().Equal("Azul Marino", "Rosado", "Verde claro");
     }
 }

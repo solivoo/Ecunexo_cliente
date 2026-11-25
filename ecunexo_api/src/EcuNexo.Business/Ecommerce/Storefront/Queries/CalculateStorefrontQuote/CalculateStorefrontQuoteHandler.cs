@@ -1,10 +1,13 @@
 using System.Globalization;
 using EcuNexo.Business.Abstractions;
+using EcuNexo.Business.Inventory;
 using EcuNexo.Business.Pricing;
 using EcuNexo.Business.Storefront;
 using EcuNexo.Business.Tenancy;
+using EcuNexo.Business.Warehousing;
 using EcuNexo.Core.Common;
 using EcuNexo.Core.Pricing;
+using EcuNexo.Core.Tenancy;
 
 namespace EcuNexo.Business.Ecommerce.Storefront.Queries.CalculateStorefrontQuote;
 
@@ -17,6 +20,8 @@ public sealed class CalculateStorefrontQuoteHandler
     private readonly IEcommerceStorefrontSettingsReader _settings;
     private readonly IPricingService _pricing;
     private readonly IPromotionRepository _promotions;
+    private readonly IStockRepository _stock;
+    private readonly IWarehouseRepository _warehouses;
     private readonly IStorefrontShippingService? _storefrontShipping;
 
     public CalculateStorefrontQuoteHandler(
@@ -24,8 +29,12 @@ public sealed class CalculateStorefrontQuoteHandler
         IEcommerceStorefrontSettingsReader settings,
         IPricingService pricing,
         IPromotionRepository promotions,
+        IStockRepository stock,
+        IWarehouseRepository warehouses,
         IStorefrontShippingService? storefrontShipping = null)
     {
+        _stock = stock;
+        _warehouses = warehouses;
         _tenants = tenants;
         _settings = settings;
         _pricing = pricing;
@@ -193,6 +202,26 @@ public sealed class CalculateStorefrontQuoteHandler
             }
         }
 
+        // Mismo criterio que el catálogo y el checkout: stock disponible de la bodega de despacho;
+        // sin límite (null) cuando el tenant no opera inventario o no reserva stock al pedir.
+        var tenant = await _tenants.GetByIdAsync(query.TenantId, ct).ConfigureAwait(false);
+        var hasInventory = tenant?.HasModuleWithMinTier(TenantModuleCodes.Inventory) ?? true;
+        var limitsByStock = hasInventory && settings.ReserveOnOrder;
+        IReadOnlyDictionary<Guid, decimal> availability = new Dictionary<Guid, decimal>();
+        if (limitsByStock)
+        {
+            var dispatchWarehouse = await _warehouses
+                .GetMainAsync(query.TenantId, ct)
+                .ConfigureAwait(false);
+            availability = await _stock
+                .SumAvailableByItemIdsAsync(
+                    query.TenantId,
+                    dispatchWarehouse?.Id,
+                    finalCart.Lines.Select(l => l.CatalogItemId).Distinct().ToList(),
+                    ct)
+                .ConfigureAwait(false);
+        }
+
         var lines = new List<StorefrontCheckoutQuoteLineDto>(finalCart.Lines.Count);
         foreach (var r in finalCart.Lines)
         {
@@ -216,7 +245,10 @@ public sealed class CalculateStorefrontQuoteHandler
                 r.TaxableBase,
                 r.TaxAmount,
                 lineTotal,
-                discountPercent > 0 ? discountPercent : null));
+                discountPercent > 0 ? discountPercent : null,
+                limitsByStock
+                    ? (availability.TryGetValue(r.CatalogItemId, out var available) ? available : 0m)
+                    : null));
         }
 
         var totalDiscount = Round(lines.Sum(l => l.LineDiscount));

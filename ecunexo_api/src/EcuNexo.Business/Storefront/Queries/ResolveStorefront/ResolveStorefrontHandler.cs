@@ -65,8 +65,7 @@ public sealed class ResolveStorefrontHandler
 
         var settings = await _settings.ResolveAsync(tenant.Id, ct).ConfigureAwait(false);
         var social = settings.SocialLinks;
-        var hasSocial = social is not null
-            && (social.Instagram.Length > 0 || social.Facebook.Length > 0 || social.TikTok.Length > 0);
+        var hasSocial = social?.HasAny == true;
 
         var response = new StorefrontResolveResponse(
             tenant.Id,

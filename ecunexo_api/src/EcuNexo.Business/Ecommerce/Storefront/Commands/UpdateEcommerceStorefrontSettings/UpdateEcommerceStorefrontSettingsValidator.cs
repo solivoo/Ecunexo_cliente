@@ -93,6 +93,9 @@ public sealed class UpdateEcommerceStorefrontSettingsValidator
             RuleFor(x => x.SocialLinks!.TikTok)
                 .Must(url => EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(url, out _))
                 .WithMessage("La URL de TikTok debe ser un enlace https válido.");
+            RuleFor(x => x.SocialLinks!.Whatsapp)
+                .Must(url => EcommerceStorefrontSettingsReader.TryNormalizeSocialUrl(url, out _))
+                .WithMessage("La URL de WhatsApp debe ser un enlace https válido.");
         });
     }
 }

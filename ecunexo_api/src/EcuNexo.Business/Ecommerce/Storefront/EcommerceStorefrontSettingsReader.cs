@@ -325,7 +325,8 @@ public sealed class EcommerceStorefrontSettingsReader : IEcommerceStorefrontSett
         return new StorefrontSocialLinks(
             ReadSocialUrl(element, "instagram"),
             ReadSocialUrl(element, "facebook"),
-            ReadSocialUrl(element, "tiktok"));
+            ReadSocialUrl(element, "tiktok"),
+            ReadSocialUrl(element, "whatsapp"));
     }
 
     private static string ReadSocialUrl(JsonElement element, string name)

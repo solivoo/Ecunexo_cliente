@@ -17,6 +17,7 @@ using EcuNexo.Business.Storefront.Commands.LikeStorefrontProduct;
 using EcuNexo.Business.Storefront.Commands.UnlikeStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontProduct;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontFacets;
+using EcuNexo.Business.Storefront.Queries.ListStorefrontColors;
 using EcuNexo.Business.Storefront.Queries.ListStorefrontProducts;
 using EcuNexo.Business.Storefront.Queries.GetStorefrontStatus;
 using EcuNexo.Business.Storefront.Queries.ResolveStorefront;
@@ -41,6 +42,8 @@ public static class StorefrontEndpoints
             .AllowAnonymous();
 
         storefront.MapGet("/facets", ListFacetsAsync)
+            .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
+        storefront.MapGet("/colors", ListColorsAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
         storefront.MapGet("/products", ListProductsAsync)
             .RequireRateLimiting(StorefrontRateLimitPolicies.Read);
@@ -120,6 +123,20 @@ public static class StorefrontEndpoints
         var result = await sender
             .AskAsync<ListStorefrontFacetsQuery, StorefrontFacetsDto>(
                 new ListStorefrontFacetsQuery(tenantId),
+                ct)
+            .ConfigureAwait(false);
+
+        return result.ToHttpResult();
+    }
+
+    private static async Task<IResult> ListColorsAsync(
+        Guid tenantId,
+        ISender sender,
+        CancellationToken ct)
+    {
+        var result = await sender
+            .AskAsync<ListStorefrontColorsQuery, IReadOnlyList<StorefrontColorDto>>(
+                new ListStorefrontColorsQuery(tenantId),
                 ct)
             .ConfigureAwait(false);
 

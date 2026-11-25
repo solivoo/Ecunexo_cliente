@@ -51,7 +51,8 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
             SocialLinks: new StorefrontSocialLinks(
                 "https://instagram.com/everchic",
                 "facebook.com/everchic",
-                "https://www.tiktok.com/@everchic"));
+                "https://www.tiktok.com/@everchic",
+                "https://wa.me/593999999999"));
 
         var result = await _sut.Handle(command, CancellationToken.None);
 
@@ -73,8 +74,14 @@ public sealed class UpdateEcommerceStorefrontSettingsHandlerTests
         dto.SocialLinks!.Instagram.Should().Be("https://instagram.com/everchic");
         dto.SocialLinks.Facebook.Should().Be("https://facebook.com/everchic");
         dto.SocialLinks.TikTok.Should().Be("https://www.tiktok.com/@everchic");
+        dto.SocialLinks.Whatsapp.Should().Be("https://wa.me/593999999999");
 
         await _settings.Received(12).AddAsync(Arg.Any<SysSetting>(), Arg.Any<CancellationToken>());
+        await _settings.Received().AddAsync(
+            Arg.Is<SysSetting>(setting =>
+                setting.Code == EcommerceSettingCodes.StorefrontSocialLinks
+                && setting.ValueJson.Contains("\"whatsapp\":\"https://wa.me/593999999999\"")),
+            Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

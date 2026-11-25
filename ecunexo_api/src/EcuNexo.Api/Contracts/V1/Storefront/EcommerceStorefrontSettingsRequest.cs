@@ -8,7 +8,8 @@ public sealed record EcommerceStorefrontShippingMethodRequest(string Code, decim
 public sealed record StorefrontSocialLinksRequest(
     string? Instagram = null,
     string? Facebook = null,
-    string? TikTok = null);
+    string? TikTok = null,
+    string? Whatsapp = null);
 
 public sealed record UpdateEcommerceStorefrontSettingsRequest(
     IReadOnlyList<string> PaymentMethods,
@@ -46,5 +47,6 @@ public sealed record UpdateEcommerceStorefrontSettingsRequest(
                 : new StorefrontSocialLinks(
                     SocialLinks.Instagram ?? string.Empty,
                     SocialLinks.Facebook ?? string.Empty,
-                    SocialLinks.TikTok ?? string.Empty));
+                    SocialLinks.TikTok ?? string.Empty,
+                    SocialLinks.Whatsapp ?? string.Empty));
 }
