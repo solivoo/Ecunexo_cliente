@@ -253,3 +253,40 @@ html.sf-dark-mode .ecu-catalog-card__created-at {
   max-height: 40px;
   border-radius: 8px;
 }
+
+/* --- Enlace al producto padre (matriz) desde la columna MATRIZ --- */
+.ecu-matrix-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ecu-matrix-link:hover .ecu-code,
+.ecu-matrix-link:focus-visible .ecu-code {
+  text-decoration: underline;
+}
+
+/* --- Vista previa de la miniatura --- */
+.ecu-thumb-preview-trigger {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 6px;
+  cursor: zoom-in;
+}
+
+.ecu-thumb-preview-trigger:focus-visible {
+  outline: 2px solid var(--glb-primary, #2563eb);
+  outline-offset: 2px;
+}
+
+.ecu-thumb-preview-image {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  border-radius: 8px;
+}

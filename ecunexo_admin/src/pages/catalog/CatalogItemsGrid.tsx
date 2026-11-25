@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, DataGrid, type ColumnDef, type DataGridCardRenderContext } from 'glubox'
+import { Button, DataGrid, Popup, type ColumnDef, type DataGridCardRenderContext } from 'glubox'
 import { DollarSign, Eye, EyeOff, Layers, Package, Pencil, Trash2 } from 'lucide-react'
 import { GridIconButton } from '@/components/ui/GridIconButton'
 import { useGluDataGridPaging } from '@/hooks/useGluDataGridPaging'
@@ -13,10 +13,11 @@ import {
   CatalogItemStatus,
   type CatalogItemListItemDto,
 } from '@/types/catalogApi'
-import { computeProfitAndMargin } from '@/pages/catalog/CatalogPricingMarginBar'
 import './catalogGrid.css'
 
-export type CatalogItemGridRow = CatalogItemListItemDto & Record<string, unknown>
+export type CatalogItemGridRow = CatalogItemListItemDto & {
+  matrixCode?: string
+} & Record<string, unknown>
 
 export type CatalogItemsGridProps = {
   readonly rows: CatalogItemListItemDto[]
@@ -49,6 +50,22 @@ function CatalogStatusMark({ status }: { readonly status: CatalogItemListItemDto
     <span className={`ecu-status ${isActive ? 'ecu-status--active' : 'ecu-status--inactive'}`}>
       <span className="ecu-status__dot" aria-hidden />
       {catalogItemStatusLabel(status)}
+    </span>
+  )
+}
+
+function matrixIdOf(row: CatalogItemListItemDto): string | null {
+  return row.isMatrixParent ? row.id : row.parentId ?? null
+}
+
+function matrixCode(matrixId: string): string {
+  return `M-${matrixId.replace(/-/g, '').slice(-6).toUpperCase()}`
+}
+
+function CatalogMissingCategoryMark() {
+  return (
+    <span className="ecu-chip ecu-chip--warning" title="Sin categoría: no entra en reglas de precio por categoría">
+      Sin categoría
     </span>
   )
 }
@@ -97,7 +114,19 @@ function resolveCatalogItemThumbUrl(row: CatalogItemGridRow): string | null {
   return trimmed
 }
 
-function CatalogItemGridThumb({ row }: { readonly row: CatalogItemGridRow }) {
+function resolveCatalogItemPreviewUrl(row: CatalogItemListItemDto): string | null {
+  const raw = row.mainImageUrl?.trim() || row.mainImageThumbUrl?.trim()
+  if (!raw) return null
+  return raw.includes('_thumb.webp') ? raw.replace('_thumb.webp', '_medium.webp') : raw
+}
+
+function CatalogItemGridThumb({
+  row,
+  onPreview,
+}: {
+  readonly row: CatalogItemGridRow
+  readonly onPreview: (row: CatalogItemGridRow) => void
+}) {
   const [hasError, setHasError] = useState(false)
   const thumbUrl = resolveCatalogItemThumbUrl(row)
 
@@ -122,22 +151,33 @@ function CatalogItemGridThumb({ row }: { readonly row: CatalogItemGridRow }) {
   }
 
   return (
-    <img
-      src={thumbUrl}
-      alt={row.name}
-      className="catalog-item-thumb"
-      loading="lazy"
-      onError={() => setHasError(true)}
-      style={{
-        width: 36,
-        height: 36,
-        minWidth: 36,
-        maxWidth: 36,
-        minHeight: 36,
-        maxHeight: 36,
-        objectFit: 'cover',
+    <button
+      type="button"
+      className="ecu-thumb-preview-trigger"
+      title={`Ver imagen de ${row.name}`}
+      aria-label={`Ver imagen de ${row.name}`}
+      onClick={(e) => {
+        e.stopPropagation()
+        onPreview(row)
       }}
-    />
+    >
+      <img
+        src={thumbUrl}
+        alt=""
+        className="catalog-item-thumb"
+        loading="lazy"
+        onError={() => setHasError(true)}
+        style={{
+          width: 36,
+          height: 36,
+          minWidth: 36,
+          maxWidth: 36,
+          minHeight: 36,
+          maxHeight: 36,
+          objectFit: 'cover',
+        }}
+      />
+    </button>
   )
 }
 
@@ -185,6 +225,26 @@ export function CatalogItemsGrid({
 }: CatalogItemsGridProps) {
   const navigate = useNavigate()
   const { paging, pageSizeOptions, onPageChange, onPageSizeChange } = useGluDataGridPaging()
+  const [previewRow, setPreviewRow] = useState<CatalogItemGridRow | null>(null)
+  const previewUrl = previewRow ? resolveCatalogItemPreviewUrl(previewRow) : null
+
+  const skuCountByMatrix = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const row of rows) {
+      if (row.isMatrixParent || !row.parentId) continue
+      counts.set(row.parentId, (counts.get(row.parentId) ?? 0) + 1)
+    }
+    return counts
+  }, [rows])
+
+  const gridRows = useMemo(
+    () =>
+      rows.map((row) => {
+        const matrixId = matrixIdOf(row)
+        return { ...row, matrixCode: matrixId ? matrixCode(matrixId) : '' } as CatalogItemGridRow
+      }),
+    [rows]
+  )
 
   const columns = useMemo((): ColumnDef<CatalogItemGridRow>[] => {
     const cols: ColumnDef<CatalogItemGridRow>[] = [
@@ -195,7 +255,7 @@ export function CatalogItemsGrid({
         width: 68,
         sortable: false,
         renderCell: (_value: unknown, row: CatalogItemGridRow) => (
-          <CatalogItemGridThumb row={row} />
+          <CatalogItemGridThumb row={row} onPreview={setPreviewRow} />
         ),
       },
       {
@@ -223,11 +283,6 @@ export function CatalogItemsGrid({
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <strong>{resolveDisplayItemName(row)}</strong>
-              {row.categoryName ? (
-                <span style={{ fontSize: '0.72rem', color: 'var(--glb-muted)' }}>
-                  Categoría: {row.categoryName}
-                </span>
-              ) : null}
               {row.description ? (
                 <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
                   {row.description}
@@ -245,6 +300,50 @@ export function CatalogItemsGrid({
         },
       },
       {
+        key: 'categoryName',
+        header: 'CATEGORÍA',
+        width: 140,
+        renderCell: (_value: CatalogItemGridRow['categoryName'], row: CatalogItemGridRow) =>
+          row.categoryName ? row.categoryName : <CatalogMissingCategoryMark />,
+      },
+      {
+        key: 'matrixCode',
+        header: 'MATRIZ',
+        width: 120,
+        renderCell: (_value: unknown, row: CatalogItemGridRow) => {
+          const matrixId = matrixIdOf(row)
+          if (!matrixId) {
+            return <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>Individual</span>
+          }
+          const skuCount = row.isMatrixParent
+            ? row.variantCount ?? 0
+            : skuCountByMatrix.get(matrixId) ?? 1
+          const code = <code className="ecu-code">{matrixCode(matrixId)}</code>
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {canEdit ? (
+                <button
+                  type="button"
+                  className="ecu-matrix-link"
+                  title={`Abrir producto padre (matriz) · ${matrixId}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigate(`/catalogo/items/${matrixId}`)
+                  }}
+                >
+                  {code}
+                </button>
+              ) : (
+                <span title={matrixId}>{code}</span>
+              )}
+              <span style={{ fontSize: '0.7rem', color: 'var(--glb-muted)' }}>
+                {skuCount} {skuCount === 1 ? 'SKU' : 'SKUs'}
+              </span>
+            </div>
+          )
+        },
+      },
+      {
         key: 'kind',
         header: 'TIPO',
         align: 'center',
@@ -253,49 +352,6 @@ export function CatalogItemsGrid({
         renderCell: (_value: CatalogItemGridRow['kind'], row: CatalogItemGridRow) => (
           <CatalogKindMark kind={row.kind} />
         ),
-      },
-      {
-        key: 'basePrice',
-        header: 'PVP / MARGEN',
-        align: 'right',
-        width: 145,
-        renderCell: (_value: CatalogItemGridRow['basePrice'], row: CatalogItemGridRow) => {
-          if (row.isMatrixParent) {
-            return (
-              <span style={{ fontSize: '0.75rem', color: 'var(--glb-muted)' }}>
-                Por variante
-              </span>
-            )
-          }
-          if (row.basePrice == null) {
-            return <span style={{ fontSize: '0.78rem', color: 'var(--glb-muted)' }}>—</span>
-          }
-          const { profit, marginPct } = computeProfitAndMargin(row.costPrice, row.basePrice)
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1px' }}>
-              <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
-                ${row.basePrice.toFixed(2)}
-              </strong>
-              {row.costPrice != null && profit != null && marginPct != null ? (
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    color:
-                      profit > 0
-                        ? 'var(--glb-success-text, #15803d)'
-                        : profit < 0
-                          ? 'var(--glb-danger-text, #b91c1c)'
-                          : 'var(--glb-muted)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                  title={`Costo: $${row.costPrice.toFixed(2)} · Ganancia: $${profit.toFixed(2)}`}
-                >
-                  Costo ${row.costPrice.toFixed(2)} · {marginPct.toFixed(1)}%
-                </span>
-              ) : null}
-            </div>
-          )
-        },
       },
       {
         key: 'status',
@@ -369,7 +425,18 @@ export function CatalogItemsGrid({
 
 
     return cols
-  }, [canAssignPrice, canDelete, canEdit, canHide, deletingId, hidingId, navigate, onDelete, onToggleHidden])
+  }, [
+    canAssignPrice,
+    canDelete,
+    canEdit,
+    canHide,
+    deletingId,
+    hidingId,
+    navigate,
+    onDelete,
+    onToggleHidden,
+    skuCountByMatrix,
+  ])
 
   const renderCard = useMemo(() => {
     return ({ row }: DataGridCardRenderContext<CatalogItemGridRow>) => (
@@ -405,6 +472,11 @@ export function CatalogItemsGrid({
                 </span>
               ) : null}
               <CatalogKindMark kind={row.kind} />
+              {row.categoryName ? (
+                <span className="ecu-catalog-card__sku">{row.categoryName}</span>
+              ) : (
+                <CatalogMissingCategoryMark />
+              )}
             </div>
           </div>
         </div>
@@ -497,17 +569,18 @@ export function CatalogItemsGrid({
   }, [canAssignPrice, canDelete, canEdit, canHide, deletingId, hidingId, navigate, onDelete, onToggleHidden])
 
   return (
+    <>
     <DataGrid
       className="ecu-companies-grid"
-      dataSource={rows as CatalogItemGridRow[]}
+      dataSource={gridRows}
       keyExpr="id"
       columns={columns}
       selectionMode="none"
       showSearch
       searchPosition="left"
       searchWidth={280}
-      searchPlaceholder="Buscar nombre, SKU o descripción…"
-      searchKeys={['name', 'sku', 'description', 'categoryName']}
+      searchPlaceholder="Buscar"
+      searchKeys={['name', 'sku', 'description', 'categoryName', 'matrixCode']}
       toolbarRight={toolbarRight}
       paging={paging}
       onPageChange={onPageChange}
@@ -525,5 +598,27 @@ export function CatalogItemsGrid({
       loading={loading}
       messages={gridMessages}
     />
+    <Popup
+      open={previewRow !== null}
+      title={previewRow ? resolveDisplayItemName(previewRow) : ''}
+      onClose={() => setPreviewRow(null)}
+      width="min(92vw, 22rem)"
+      actions={[
+        { id: 'close', label: 'Cerrar', variant: 'ghost', onClick: () => setPreviewRow(null) },
+      ]}
+    >
+      {previewUrl ? (
+        <img
+          src={previewUrl}
+          alt={previewRow?.name ?? ''}
+          className="ecu-thumb-preview-image"
+          onError={(e) => {
+            const fallback = previewRow ? resolveCatalogItemThumbUrl(previewRow) : null
+            if (fallback && e.currentTarget.src !== fallback) e.currentTarget.src = fallback
+          }}
+        />
+      ) : null}
+    </Popup>
+    </>
   )
 }
