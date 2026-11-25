@@ -602,7 +602,7 @@ export function CatalogItemsGrid({
       open={previewRow !== null}
       title={previewRow ? resolveDisplayItemName(previewRow) : ''}
       onClose={() => setPreviewRow(null)}
-      width="min(92vw, 22rem)"
+      width="min(92vw, 30rem)"
       actions={[
         { id: 'close', label: 'Cerrar', variant: 'ghost', onClick: () => setPreviewRow(null) },
       ]}
