@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 using EcuNexo.Core.Ecommerce;
 
 namespace EcuNexo.Business.Ecommerce.Storefront;
@@ -24,7 +26,7 @@ public sealed record EcommerceStorefrontSettings(
 public sealed record StorefrontSocialLinks(
     string Instagram = "",
     string Facebook = "",
-    string TikTok = "");
+    [property: JsonPropertyName("tiktok")] string TikTok = "");
 
 /// <summary>
 /// Lee la configuración efectiva de la tienda (global/plan/tenant) aplicando defaults seguros.
